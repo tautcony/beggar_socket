@@ -1,0 +1,12 @@
+../Core/Src/cart_adapter.c:6:6:cart_setDirection_ad	2
+../Core/Src/cart_adapter.c:21:6:cart_setDirection_a	2
+../Core/Src/cart_adapter.c:34:10:cart_readBus_ad	1
+../Core/Src/cart_adapter.c:39:9:cart_readBus_a	1
+../Core/Src/cart_adapter.c:44:6:cart_writeBus_ad	1
+../Core/Src/cart_adapter.c:49:6:cart_writeBus_a	1
+../Core/Src/cart_adapter.c:55:6:cart_romRead	2
+../Core/Src/cart_adapter.c:84:6:cart_romWrite	2
+../Core/Src/cart_adapter.c:113:6:cart_ramRead	2
+../Core/Src/cart_adapter.c:141:6:cart_ramWrite	2
+../Core/Src/cart_adapter.c:172:6:cart_gbcRead	2
+../Core/Src/cart_adapter.c:200:6:cart_gbcWrite	2

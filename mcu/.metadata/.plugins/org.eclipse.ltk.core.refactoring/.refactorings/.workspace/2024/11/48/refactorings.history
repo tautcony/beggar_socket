@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Delete resource &apos;chis_flash_burner/Debug/gba_burner.elf&apos;" deleteContents="false" description="Delete resource &apos;chis_flash_burner/Debug/gba_burner.elf&apos;" element1="/chis_flash_burner/Debug/gba_burner.elf" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="1" stamp="1732780229859"/>
+</session>

@@ -1,0 +1,10 @@
+02:40:43 **** Incremental Build of configuration Debug for project chis_flash_burner ****
+make -j12 all 
+arm-none-eabi-size  chis_flash_burner.elf 
+   text	   data	    bss	    dec	    hex	filename
+  34284	    388	  17124	  51796	   ca54	chis_flash_burner.elf
+Finished building: default.size.stdout
+ 
+
+02:40:44 Build Finished. 0 errors, 0 warnings. (took 329ms)
+
