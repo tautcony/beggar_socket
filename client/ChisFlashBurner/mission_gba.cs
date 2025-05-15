@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -57,86 +58,104 @@ namespace ChisFlashBurner
             sectorSize = (((temp1 & 0xff) << 8) | (temp & 0xff)) * 256;
         }
 
+        void gba_romEraseSector(int addrFrom, int addrTo, int sectorSize)
+        {
+            addrFrom /= 2;
+            addrTo /= 2;
+            sectorSize /= 2;
+
+            int sectorMask = sectorSize - 1;
+            addrTo &= ~sectorMask;
+
+            printLog(string.Format("擦除 0x{0:x8} - 0x{1:x8}", addrFrom, addrTo));
+
+            for (int sa = addrTo; sa >= addrFrom; sa -= sectorSize)
+            {
+                printLog(string.Format("    0x{0:x8}", sa));
+
+                // switch bank for 01g
+
+
+                // Sector Erase
+                rom_write(0x555, BitConverter.GetBytes((UInt16)0xaa));
+                rom_write(0x2aa, BitConverter.GetBytes((UInt16)0x55));
+                rom_write(0x555, BitConverter.GetBytes((UInt16)0x80));
+                rom_write(0x555, BitConverter.GetBytes((UInt16)0xaa));
+                rom_write(0x2aa, BitConverter.GetBytes((UInt16)0x55));
+                rom_write((uint)sa, BitConverter.GetBytes((UInt16)0x30));
+
+                showProgress((sa - addrFrom) / sectorSize + 1, (addrTo - addrFrom) / sectorSize + 1);
+
+                byte[] temp = new byte[2];
+                do
+                {
+                    rom_read((uint)(sa << 1), ref temp);
+                    Thread.Sleep(20);
+                } while (BitConverter.ToUInt16(temp, 0) != 0xffff);
+            }
+        }
+
+
         //////////////////////////////////////
         //////////////////////////////////////
         //////////////////////////////////////
 
         void mission_readRomID()
         {
-            tmr_transTimeout.Start();
 
             byte[] id = new byte[8];
-            bool ack = rom_readID(ref id);
+            rom_readID(ref id);
 
-            if (ack)
-            {
-                printLog(BitConverter.ToString(id).Replace("-", " "));
 
-                if (id.SequenceEqual(new byte[] { 0x01, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22 }))
-                    printLog("S29GL256");
-                else if (id.SequenceEqual(new byte[] { 0x89, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22 }))
-                    printLog("JS28F256");
-                else
-                    printLog("ID暂未收录，可能无法写入");
+            printLog(BitConverter.ToString(id).Replace("-", " "));
 
-            }
+            if (id.SequenceEqual(new byte[] { 0x01, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22 }))
+                printLog("S29GL256");
+            else if (id.SequenceEqual(new byte[] { 0x89, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22 }))
+                printLog("JS28F256");
+            else if (id.SequenceEqual(new byte[] { 0x01, 0x00, 0x7e, 0x22, 0x28, 0x22, 0x01, 0x22 }))
+                printLog("S29GL01GS");
             else
-            {
-                printLog("crc校验失败");
-            }
+                printLog("ID暂未收录，可能无法写入");
 
             int deviceSize, secotrCount, sectorSize, bufferWriteBytes;
             gba_romGetSize(out secotrCount, out sectorSize, out bufferWriteBytes, out deviceSize);
 
             printLog(string.Format("容量:{0:d} 扇区数量:{1:d} 扇区大小:{2:d} BuffWr:{3:d}", deviceSize, secotrCount, sectorSize, bufferWriteBytes));
 
-            tmr_transTimeout.Stop();
             port.Close();
             enableButton();
         }
 
         void mission_eraseChip()
         {
-            tmr_transTimeout.Start();
 
             rom_eraseChip();
-            transTimeout_feed(); // 喂狗
 
             //检查结果
             while (true)
             {
                 byte[] respon = new byte[2];
-                bool ack = rom_read(0x000000, ref respon);
+                rom_read(0x000000, ref respon);
 
-                if (ack)
+                printLog(string.Format("..... {0:x4}", BitConverter.ToUInt16(respon, 0)));
+                if (BitConverter.ToUInt16(respon, 0) == 0xffff)
                 {
-                    printLog(string.Format("..... {0:x4}", BitConverter.ToUInt16(respon, 0)));
-                    if (BitConverter.ToUInt16(respon, 0) == 0xffff)
-                    {
-                        printLog("擦除完毕");
-                        break;
-                    }
-                    else
-                    {
-                        transTimeout_feed(); // 喂狗
-                        Thread.Sleep(1000);
-                    }
+                    printLog("擦除完毕");
+                    break;
                 }
                 else
                 {
-                    printLog("crc校验失败");
+                    Thread.Sleep(1000);
                 }
             }
 
             port.Close();
             enableButton();
-            tmr_transTimeout.Stop();
         }
 
         void mission_programRom()
         {
-            tmr_transTimeout.Start();
-
             // 打开文件
             string romFilePath = textBox_romPath.Text;
 
@@ -145,12 +164,11 @@ namespace ChisFlashBurner
             {
                 file = new FileStream(romFilePath, FileMode.Open, FileAccess.Read);
             }
-            catch (System.IO.IOException)
+            catch
             {
                 printLog("文件被占用");
                 port.Close();
                 enableButton();
-                tmr_transTimeout.Stop();
                 return;
             }
 
@@ -164,7 +182,27 @@ namespace ChisFlashBurner
             int deviceSize, secotrCount, sectorSize, bufferWriteBytes;
             gba_romGetSize(out secotrCount, out sectorSize, out bufferWriteBytes, out deviceSize);
 
+            // 自动擦除flash
+            byte[] temp = new byte[512];
+            rom_read(0x000000, ref temp);
+            bool blank = isBlank(temp);
+            if (!blank)
+            {
+                Stopwatch swErase = new Stopwatch();
+                swErase.Start();
+
+                gba_romEraseSector(0, fileLength - 1, sectorSize);
+
+                swErase.Stop();
+                printLog(string.Format("擦除耗时 {0:f3} s", swErase.ElapsedMilliseconds / 1000.0f));
+            }
+
+            printLog("开始写入");
+
             // 开始发送
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+
             int writtenCount = 0;
             while (writtenCount < fileLength)
             {
@@ -176,37 +214,26 @@ namespace ChisFlashBurner
                 Array.Copy(rom, writtenCount, sendPack, 0, sentLen);
 
                 // 写入
-                bool ack = rom_program((UInt32)writtenCount, sendPack, (UInt16)bufferWriteBytes);
-                //bool ack = rom_program((UInt32)writtenCount, sendPack, 0);
-                transTimeout_feed(); //喂狗
+                rom_program((UInt32)writtenCount, sendPack, (UInt16)bufferWriteBytes);
 
-                if (ack)
-                {
-                    writtenCount += sentLen;
-                    showProgress(writtenCount, fileLength);
-                }
-                else
-                {
-                    printLog(string.Format(
-                        "0x{0:x8}发送失败，重传",
-                        writtenCount
-                    ));
-                    continue;
-                }
+                writtenCount += sentLen;
+                showProgress(writtenCount, fileLength);
             }
+            stopwatch.Stop();
 
             port.Close();
             enableButton();
-            tmr_transTimeout.Stop();
-            printLog("烧录结束");
+
+            printScore(fileLength, stopwatch.ElapsedMilliseconds);
         }
 
         void mission_dumpRom()
         {
-            tmr_transTimeout.Start();
-
             int fileLength = (int)(double.Parse(comboBox_romSize.Text) * 1024 * 1024);
             byte[] rom = new byte[fileLength];
+
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
 
             int readCount = 0;
             while (readCount < fileLength)
@@ -217,25 +244,17 @@ namespace ChisFlashBurner
 
                 // 读取
                 byte[] respon = new byte[readLen];
-                bool ack = rom_read((UInt32)readCount, ref respon);
+                rom_read((UInt32)readCount, ref respon);
 
-                transTimeout_feed(); // 喂狗
 
-                if (ack)
-                {
-                    Array.Copy(respon, 0, rom, readCount, readLen);
-                    readCount += readLen;
-                    showProgress(readCount, fileLength);
-                }
-                else
-                {
-                    printLog(string.Format(
-                        "0x{0:x8}接收失败，重传",
-                        readCount
-                    ));
-                }
+                Array.Copy(respon, 0, rom, readCount, readLen);
+                readCount += readLen;
+                showProgress(readCount, fileLength);
+
 
             }
+
+            stopwatch.Stop();
 
             // 保存
             string romFilePath = textBox_romPath.Text; // 打开文件
@@ -244,12 +263,11 @@ namespace ChisFlashBurner
             {
                 file = new FileStream(romFilePath, FileMode.Create, FileAccess.Write);
             }
-            catch (System.IO.IOException)
+            catch
             {
                 printLog("文件被占用");
                 port.Close();
                 enableButton();
-                tmr_transTimeout.Stop();
                 return;
             }
 
@@ -258,15 +276,12 @@ namespace ChisFlashBurner
 
             port.Close();
             enableButton();
-            tmr_transTimeout.Stop();
 
-            printLog("导出结束");
+            printScore(fileLength, stopwatch.ElapsedMilliseconds);
         }
 
         void mission_verifyRom()
         {
-            tmr_transTimeout.Start();
-
             // 打开文件
             string romFilePath = textBox_romPath.Text;
 
@@ -275,12 +290,11 @@ namespace ChisFlashBurner
             {
                 file = new FileStream(romFilePath, FileMode.Open, FileAccess.Read);
             }
-            catch (System.IO.IOException)
+            catch
             {
                 printLog("文件被占用");
                 port.Close();
                 enableButton();
-                tmr_transTimeout.Stop();
                 return;
             }
 
@@ -290,6 +304,9 @@ namespace ChisFlashBurner
             file.Read(rom, 0, fileLength);
             file.Close();
 
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+
             int readCount = 0;
             while (readCount < fileLength)
             {
@@ -299,48 +316,33 @@ namespace ChisFlashBurner
 
                 // 读取
                 byte[] respon = new byte[readLen];
-                bool ack = rom_read((UInt32)readCount, ref respon);
+                rom_read((UInt32)readCount, ref respon);
 
-                transTimeout_feed(); // 喂狗
-
-                if (ack)
+                for (int i = 0; i < readLen; i++)
                 {
-                    for (int i = 0; i < readLen; i++)
+                    if (rom[readCount + i] != respon[i])
                     {
-                        if (rom[readCount + i] != respon[i])
-                        {
-                            printLog(string.Format(
-                                "0x{0:x8}校验失败，{1:x2} -> {2:x2}",
-                                readCount + i,
-                                rom[readCount + i],
-                                respon[i]
-                            ));
-                            transTimeout_feed(); // 喂狗
-                        }
+                        printLog(string.Format(
+                            "0x{0:x8}校验失败，{1:x2} -> {2:x2}",
+                            readCount + i,
+                            rom[readCount + i],
+                            respon[i]
+                        ));
                     }
-                    readCount += readLen;
-                    showProgress(readCount, fileLength);
                 }
-                else
-                {
-                    printLog(string.Format(
-                        "0x{0:x8}接收失败，重传",
-                        readCount
-                    ));
-                }
-
+                readCount += readLen;
+                showProgress(readCount, fileLength);
             }
+            stopwatch.Stop();
 
             port.Close();
             enableButton();
-            tmr_transTimeout.Stop();
-            printLog("校验结束");
+
+            printScore(fileLength, stopwatch.ElapsedMilliseconds);
         }
 
         void mission_wrtieSram()
         {
-            tmr_transTimeout.Start();
-
             // 打开文件
             string savFilePath = textBox_savePath.Text;
 
@@ -349,12 +351,11 @@ namespace ChisFlashBurner
             {
                 file = new FileStream(savFilePath, FileMode.Open, FileAccess.Read);
             }
-            catch (System.IO.IOException)
+            catch
             {
                 printLog("文件被占用");
                 port.Close();
                 enableButton();
-                tmr_transTimeout.Stop();
                 return;
             }
 
@@ -363,6 +364,9 @@ namespace ChisFlashBurner
             byte[] sav = new byte[fileLength];
             file.Read(sav, 0, fileLength);
             file.Close();
+
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
 
             // 如果是flash就擦除
             if (comboBox_ramType.Text == "FLASH")
@@ -381,27 +385,20 @@ namespace ChisFlashBurner
                 {
                     byte[] respon = new byte[1];
 
-                    bool ack = ram_read(0x0000, ref respon);
+                    ram_read(0x0000, ref respon);
 
-                    if (ack)
+                    printLog(string.Format("..... {0:x2}", respon[0]));
+                    if (respon[0] == 0xff)
                     {
-                        printLog(string.Format("..... {0:x2}", respon[0]));
-                        if (respon[0] == 0xff)
-                        {
-                            printLog("擦除完毕");
-                            showProgress(0, fileLength);
-                            break;
-                        }
-                        else
-                        {
-                            transTimeout_feed(); // 喂狗
-                            Thread.Sleep(1000);
-                        }
+                        printLog("擦除完毕");
+                        showProgress(0, fileLength);
+                        break;
                     }
                     else
                     {
-                        printLog("crc校验失败");
+                        Thread.Sleep(1000);
                     }
+
                 }
             }
 
@@ -437,40 +434,31 @@ namespace ChisFlashBurner
                 Array.Copy(sav, writtenCount, sendPack, 0, sentLen);
 
                 // 发送
-                bool ack;
                 if (comboBox_ramType.Text == "FLASH")
-                    ack = ram_flashProgram(baseAddr, sendPack);
+                    ram_flashProgram(baseAddr, sendPack);
                 else
-                    ack = ram_write(baseAddr, sendPack);
-                transTimeout_feed(); //喂狗
+                    ram_write(baseAddr, sendPack);
 
-                if (ack)
-                {
-                    writtenCount += sentLen;
-                    showProgress(writtenCount, fileLength);
-                }
-                else
-                {
-                    printLog(string.Format(
-                        "0x{0:x8}发送失败，重传",
-                        writtenCount
-                    ));
-                    continue;
-                }
+
+                writtenCount += sentLen;
+                showProgress(writtenCount, fileLength);
+
             }
+            stopwatch.Stop();
 
             port.Close();
             enableButton();
-            tmr_transTimeout.Stop();
-            printLog("烧录结束");
+
+            printScore(fileLength, stopwatch.ElapsedMilliseconds);
         }
 
         void mission_dumpRam()
         {
-            tmr_transTimeout.Start();
-
             int fileLength = (int)(double.Parse(comboBox_saveSize.Text) * 1024.0);
             byte[] sav = new byte[fileLength];
+
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
 
             int readCount = 0;
             while (readCount < fileLength)
@@ -501,26 +489,13 @@ namespace ChisFlashBurner
 
                 // 读取
                 byte[] respon = new byte[readLen];
-                bool ack = ram_read((UInt32)baseAddr, ref respon);
+                ram_read((UInt32)baseAddr, ref respon);
 
-                transTimeout_feed(); // 喂狗
-
-                if (ack)
-                {
-                    Array.Copy(respon, 0, sav, readCount, readLen);
-                    readCount += readLen;
-                    showProgress(readCount, fileLength);
-                }
-                else
-                {
-                    printLog(string.Format(
-                        "0x{0:x8}接收失败，重传",
-                        readCount
-                    ));
-                    continue;
-                }
-
+                Array.Copy(respon, 0, sav, readCount, readLen);
+                readCount += readLen;
+                showProgress(readCount, fileLength);
             }
+            stopwatch.Stop();
 
             // 保存
             string romFilePath = textBox_savePath.Text; // 打开文件
@@ -529,12 +504,11 @@ namespace ChisFlashBurner
             {
                 file = new FileStream(romFilePath, FileMode.Create, FileAccess.Write);
             }
-            catch (System.IO.IOException)
+            catch
             {
                 printLog("文件被占用");
                 port.Close();
                 enableButton();
-                tmr_transTimeout.Stop();
                 return;
             }
 
@@ -543,15 +517,12 @@ namespace ChisFlashBurner
 
             port.Close();
             enableButton();
-            tmr_transTimeout.Stop();
 
-            printLog("导出结束");
+            printScore(fileLength, stopwatch.ElapsedMilliseconds);
         }
 
         void mission_verifyRam()
         {
-            tmr_transTimeout.Start();
-
             // 打开文件
             string savFilePath = textBox_savePath.Text;
 
@@ -560,12 +531,11 @@ namespace ChisFlashBurner
             {
                 file = new FileStream(savFilePath, FileMode.Open, FileAccess.Read);
             }
-            catch (System.IO.IOException)
+            catch
             {
                 printLog("文件被占用");
                 port.Close();
                 enableButton();
-                tmr_transTimeout.Stop();
                 return;
             }
 
@@ -575,6 +545,9 @@ namespace ChisFlashBurner
             file.Read(sav, 0, fileLength);
             file.Close();
 
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+
             int readCount = 0;
             while (readCount < fileLength)
             {
@@ -604,43 +577,33 @@ namespace ChisFlashBurner
 
                 // 读取
                 byte[] respon = new byte[readLen];
-                bool ack = ram_read((UInt32)baseAddr, ref respon);
+                ram_read((UInt32)baseAddr, ref respon);
 
-                transTimeout_feed(); // 喂狗
-
-                if (ack)
+                for (int i = 0; i < readLen; i++)
                 {
-                    for (int i = 0; i < readLen; i++)
+                    if (sav[readCount + i] != respon[i])
                     {
-                        if (sav[readCount + i] != respon[i])
-                        {
-                            printLog(string.Format(
-                                "0x{0:x8}校验失败，{1:x2} -> {2:x2}",
-                                readCount + i,
-                                sav[readCount + i],
-                                respon[i]
-                            ));
-                            transTimeout_feed(); //喂狗
-                        }
+                        printLog(string.Format(
+                            "0x{0:x8}校验失败，{1:x2} -> {2:x2}",
+                            readCount + i,
+                            sav[readCount + i],
+                            respon[i]
+                        ));
                     }
-                    readCount += readLen;
-                    showProgress(readCount, fileLength);
                 }
-                else
-                {
-                    printLog(string.Format(
-                        "0x{0:x8}接收失败，重传",
-                        readCount
-                    ));
-                    continue;
-                }
+                readCount += readLen;
+                showProgress(readCount, fileLength);
+
 
             }
+
+            stopwatch.Stop();
 
             printLog("校验结束");
             port.Close();
             enableButton();
-            tmr_transTimeout.Stop();
+
+            printScore(fileLength, stopwatch.ElapsedMilliseconds);
         }
 
     }

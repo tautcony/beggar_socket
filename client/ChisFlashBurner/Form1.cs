@@ -113,7 +113,6 @@ namespace ChisFlashBurner
                     else
                         comboBox_romSize_mbc5.Text = "8";
                     tabControl1.SelectTab(1);
-                    printLog("烧录合卡内单个游戏无需全片擦除");
                 }
 
                 comboBox_ramType.SelectedIndex = 1;
@@ -199,7 +198,6 @@ namespace ChisFlashBurner
             }
             else // 取消任务
             {
-                tmr_transTimeout.Stop();
 
                 port.DiscardOutBuffer();
                 port.DiscardInBuffer();
@@ -228,8 +226,6 @@ namespace ChisFlashBurner
 
             if (!openPort())
                 return;
-
-            printLog("开始写入");
 
             disableButton(true);
 
@@ -384,7 +380,6 @@ namespace ChisFlashBurner
             }
             else // 取消任务
             {
-                tmr_transTimeout.Stop();
 
                 port.DiscardOutBuffer();
                 port.DiscardInBuffer();
@@ -414,8 +409,6 @@ namespace ChisFlashBurner
 
             if (!openPort())
                 return;
-
-            printLog("开始写入");
 
             disableButton(true);
 

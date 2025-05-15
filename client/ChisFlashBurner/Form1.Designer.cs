@@ -35,7 +35,6 @@
             this.btn_readID = new System.Windows.Forms.Button();
             this.textBox_log = new System.Windows.Forms.TextBox();
             this.progressBar_total = new System.Windows.Forms.ProgressBar();
-            this.tmr_transTimeout = new System.Windows.Forms.Timer(this.components);
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
             this.label_progress = new System.Windows.Forms.ToolStripStatusLabel();
             this.toolStripStatusLabel2 = new System.Windows.Forms.ToolStripStatusLabel();
@@ -73,6 +72,7 @@
             this.btn_readSave_mbc5 = new System.Windows.Forms.Button();
             this.btn_writeRom_mbc5 = new System.Windows.Forms.Button();
             this.btn_writeSave_mbc5 = new System.Windows.Forms.Button();
+            this.comboBox_gbaMultiCartSelect = new System.Windows.Forms.ComboBox();
             this.statusStrip1.SuspendLayout();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
@@ -146,11 +146,6 @@
             this.progressBar_total.Name = "progressBar_total";
             this.progressBar_total.Size = new System.Drawing.Size(560, 23);
             this.progressBar_total.TabIndex = 7;
-            // 
-            // tmr_transTimeout
-            // 
-            this.tmr_transTimeout.Interval = 10000;
-            this.tmr_transTimeout.Tick += new System.EventHandler(this.timer_transTimeout_Tick);
             // 
             // statusStrip1
             // 
@@ -328,7 +323,7 @@
             "128"});
             this.comboBox_saveSize.Location = new System.Drawing.Point(89, 42);
             this.comboBox_saveSize.Name = "comboBox_saveSize";
-            this.comboBox_saveSize.Size = new System.Drawing.Size(65, 20);
+            this.comboBox_saveSize.Size = new System.Drawing.Size(54, 20);
             this.comboBox_saveSize.TabIndex = 24;
             // 
             // comboBox_romSize
@@ -338,7 +333,7 @@
             this.comboBox_romSize.FormattingEnabled = true;
             this.comboBox_romSize.Location = new System.Drawing.Point(89, 13);
             this.comboBox_romSize.Name = "comboBox_romSize";
-            this.comboBox_romSize.Size = new System.Drawing.Size(133, 20);
+            this.comboBox_romSize.Size = new System.Drawing.Size(54, 20);
             this.comboBox_romSize.TabIndex = 25;
             // 
             // tmr_showSpeed
@@ -367,9 +362,9 @@
             this.comboBox_ramType.Items.AddRange(new object[] {
             "FLASH",
             "SRAM"});
-            this.comboBox_ramType.Location = new System.Drawing.Point(164, 42);
+            this.comboBox_ramType.Location = new System.Drawing.Point(149, 42);
             this.comboBox_ramType.Name = "comboBox_ramType";
-            this.comboBox_ramType.Size = new System.Drawing.Size(58, 20);
+            this.comboBox_ramType.Size = new System.Drawing.Size(73, 20);
             this.comboBox_ramType.TabIndex = 27;
             // 
             // tabControl1
@@ -386,6 +381,7 @@
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.comboBox_gbaMultiCartSelect);
             this.tabPage1.Controls.Add(this.btn_eraseChip);
             this.tabPage1.Controls.Add(this.comboBox_ramType);
             this.tabPage1.Controls.Add(this.btn_verifyRom);
@@ -586,6 +582,21 @@
             this.btn_writeSave_mbc5.UseVisualStyleBackColor = true;
             this.btn_writeSave_mbc5.Click += new System.EventHandler(this.btn_writeSave_mbc5_Click);
             // 
+            // comboBox_gbaMultiCartSelect
+            // 
+            this.comboBox_gbaMultiCartSelect.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.comboBox_gbaMultiCartSelect.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comboBox_gbaMultiCartSelect.DropDownWidth = 100;
+            this.comboBox_gbaMultiCartSelect.FormattingEnabled = true;
+            this.comboBox_gbaMultiCartSelect.Items.AddRange(new object[] {
+            "整卡",
+            "菜单",
+            "合卡续写"});
+            this.comboBox_gbaMultiCartSelect.Location = new System.Drawing.Point(149, 13);
+            this.comboBox_gbaMultiCartSelect.Name = "comboBox_gbaMultiCartSelect";
+            this.comboBox_gbaMultiCartSelect.Size = new System.Drawing.Size(73, 20);
+            this.comboBox_gbaMultiCartSelect.TabIndex = 40;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
@@ -627,7 +638,6 @@
         private System.Windows.Forms.Button btn_readID;
         private System.Windows.Forms.TextBox textBox_log;
         private System.Windows.Forms.ProgressBar progressBar_total;
-        private System.Windows.Forms.Timer tmr_transTimeout;
         private System.Windows.Forms.StatusStrip statusStrip1;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label3;
@@ -665,6 +675,7 @@
         private System.Windows.Forms.Button btn_readSave_mbc5;
         private System.Windows.Forms.Button btn_writeRom_mbc5;
         private System.Windows.Forms.Button btn_writeSave_mbc5;
+        private System.Windows.Forms.ComboBox comboBox_gbaMultiCartSelect;
     }
 }
 

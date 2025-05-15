@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO.Ports;
 using System.Linq;
 using System.Text;
@@ -20,6 +21,19 @@ namespace ChisFlashBurner
             textBox_log.AppendText(msg);
             textBox_log.ScrollToCaret();
 
+        }
+
+        public void printScore(int fileLength, long ms)
+        {
+            float second = ms / 1000.0f;
+
+            printLog(
+                string.Format(
+                    "传输完成, 耗时: {0:f3} s, 平均速度: {1:f3} KiB/s",
+                    second,
+                    fileLength / second / 1024.0f
+                )
+            );
         }
 
         // 更新进度条
@@ -154,40 +168,15 @@ namespace ChisFlashBurner
                                                unitNameLst[p]);
         }
 
-        // 设备超时检测
-        bool timeoutFlag = false;
-        void transTimeout_feed()
+        public bool isBlank(byte[] bytes)
         {
-            timeoutFlag = true;
-        }
-        private void timer_transTimeout_Tick(object sender, EventArgs e)
-        {
-            //// 看门狗功能暂时不要了
-            //tmr_transTimeout.Stop();
-            //return;
-
-            if (timeoutFlag)
+            foreach(byte b in bytes)
             {
-                timeoutFlag = false;
+                if (b != 0xFF)
+                    return false;
             }
-            else
-            {
-                printLog("设备无响应");
-
-                tmr_transTimeout.Stop();
-
-                port.DiscardOutBuffer();
-                port.DiscardInBuffer();
-
-                Thread.Sleep(123);
-
-                if (thread != null && thread.IsAlive)
-                    thread.Abort();
-                if (port != null && port.IsOpen)
-                    port.Close();
-
-                enableButton();
-            }
+            return true;
         }
+
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -102,7 +103,12 @@ namespace ChisFlashBurner
 
         void mbc5_romEraseSector(int addrFrom, int addrTo, int sectorSize)
         {
-            for (int sa = addrFrom; sa < addrTo; sa += sectorSize)
+            int sectorMask = sectorSize - 1;
+            addrTo &= ~sectorMask;
+
+            printLog(string.Format("擦除 0x{0:x8} - 0x{1:x8}", addrFrom, addrTo));
+
+            for (int sa = addrTo; sa >= addrFrom; sa -= sectorSize)
             {
                 printLog(string.Format("    0x{0:x8}", sa));
 
@@ -122,12 +128,13 @@ namespace ChisFlashBurner
                 gbcCart_write(0x555, new byte[] { 0x55 });
                 gbcCart_write(_sa, new byte[] { 0x30 });   // Sector Erase
 
-                showProgress((sa - addrFrom + 1) / sectorSize, (addrTo - addrFrom + 1) / sectorSize);
+                showProgress((sa - addrFrom) / sectorSize + 1, (addrTo - addrFrom) / sectorSize + 1);
 
                 byte[] temp = new byte[1];
                 do
                 {
                     gbcCart_read(_sa, ref temp);
+                    Thread.Sleep(20);
                 } while (temp[0] != 0xff);
             }
         }
@@ -219,7 +226,7 @@ namespace ChisFlashBurner
             int deviceSize, secotrCount, sectorSize, bufferWriteBytes;
             mbc5_romGetSize(out secotrCount, out sectorSize, out bufferWriteBytes, out deviceSize);
 
-            printLog(string.Format("容量:{0:d} 扇区数量:{1:d} 扇区大小:{2:d} buffer大小:{3:d}", deviceSize, secotrCount, sectorSize, bufferWriteBytes));
+            printLog(string.Format("容量:{0:d} 扇区数量:{1:d} 扇区大小:{2:d} BuffWr:{3:d}", deviceSize, secotrCount, sectorSize, bufferWriteBytes));
 
             port.Close();
             enableButton();
@@ -258,7 +265,7 @@ namespace ChisFlashBurner
             {
                 file = new FileStream(romFilePath, FileMode.Open, FileAccess.Read);
             }
-            catch(System.IO.IOException)
+            catch (System.IO.IOException)
             {
                 printLog("文件被占用");
                 port.Close();
@@ -298,16 +305,45 @@ namespace ChisFlashBurner
                 enableButton();
                 return;
             }
-
-            // 烧单一游戏则擦除对应扇区
-            if (gameSelect != 0)
+            else
             {
-                printLog(string.Format("擦除扇区 0x{0:x8} - 0x{1:x8}", addrBegin, addrEnd));
-
-                mbc5_romEraseSector(addrBegin, addrEnd, sectorSize);
+                addrEnd = addrBegin + fileLength - 1;
             }
 
+
+            // 自动擦除flash
+            int bank = addrBegin >> 14;
+            int addr;
+
+            mbc5_romSwitchBank(bank);
+
+            if (bank == 0)
+                addr = 0x0000 + (addrBegin & 0x3fff);
+            else
+                addr = 0x4000 + (addrBegin & 0x3fff);
+
+            byte[] temp = new byte[512];
+            gbcCart_read((UInt32)addr, ref temp);
+
+            bool blank = isBlank(temp);
+            if (!blank)
+            {
+                Stopwatch swErase = new Stopwatch();
+                swErase.Start();
+
+                mbc5_romEraseSector(addrBegin, addrEnd, sectorSize);
+
+                swErase.Stop();
+                printLog(string.Format("擦除耗时 {0:f3} s", swErase.ElapsedMilliseconds / 1000.0f));
+            }
+
+
+            printLog("开始写入");
+
             // 开始发送
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+
             int currentBank = -123;
             int writtenCount = 0;
 
@@ -324,13 +360,13 @@ namespace ChisFlashBurner
                 int cartAddress;
 
                 // 切bank
-                int bank = romAddress >> 14;
+                bank = romAddress >> 14;
 
                 if (bank != currentBank)
                 {
                     currentBank = bank;
                     mbc5_romSwitchBank(bank);
-                    printLog(string.Format("    切换至 bank{0:d}", bank));
+                    //printLog(string.Format("    切换至 bank{0:d}", bank));
                 }
 
                 if (bank == 0)
@@ -344,10 +380,12 @@ namespace ChisFlashBurner
                 writtenCount += sentLen;
                 showProgress(writtenCount, fileLength);
             }
+            stopwatch.Stop();
 
             port.Close();
             enableButton();
-            printLog("烧录结束");
+
+            printScore(fileLength, stopwatch.ElapsedMilliseconds);
         }
 
         void mission_dumpRom_mbc5()
@@ -370,8 +408,12 @@ namespace ChisFlashBurner
             }
 
             // 开始读取
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+
             int currentBank = -123;
             int readCount = 0;
+
             while (readCount < fileLength)
             {
                 // 分包
@@ -381,14 +423,14 @@ namespace ChisFlashBurner
                 int romAddress = addrBegin + readCount;
                 int cartAddress;
 
-                // 切bank
+                // 切bank 
                 int bank = romAddress >> 14;
 
                 if (bank != currentBank)
                 {
                     currentBank = bank;
                     mbc5_romSwitchBank(bank);
-                    printLog(string.Format("    切换至 bank{0:d}", bank));
+                    //printLog(string.Format("    切换至 bank{0:d}", bank));
                 }
 
                 if (bank == 0)
@@ -405,6 +447,7 @@ namespace ChisFlashBurner
                 readCount += readLen;
                 showProgress(readCount, fileLength);
             }
+            stopwatch.Stop();
 
             // 保存
             string romFilePath = textBox_romPath.Text; // 打开文件
@@ -427,7 +470,8 @@ namespace ChisFlashBurner
 
             port.Close();
             enableButton();
-            printLog("导出结束");
+
+            printScore(fileLength, stopwatch.ElapsedMilliseconds);
         }
 
         void mission_verifyRom_mbc5()
@@ -469,8 +513,12 @@ namespace ChisFlashBurner
             }
 
             // 开始校验
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+
             int currentBank = -123;
             int readCount = 0;
+
             while (readCount < fileLength)
             {
                 // 分包
@@ -487,7 +535,7 @@ namespace ChisFlashBurner
                 {
                     currentBank = bank;
                     mbc5_romSwitchBank(bank);
-                    printLog(string.Format("    切换至 bank{0:d}", bank));
+                    //printLog(string.Format("    切换至 bank{0:d}", bank));
                 }
 
                 if (bank == 0)
@@ -510,16 +558,17 @@ namespace ChisFlashBurner
                             rom[readCount + i],
                             respon[i]
                         ));
-                        transTimeout_feed(); // 喂狗
                     }
                 }
                 readCount += readLen;
                 showProgress(readCount, fileLength);
             }
+            stopwatch.Stop();
 
             port.Close();
             enableButton();
-            printLog("校验结束");
+
+            printScore(fileLength, stopwatch.ElapsedMilliseconds);
         }
 
         void mission_wrtieRam_mbc5()
@@ -564,6 +613,9 @@ namespace ChisFlashBurner
             gbcCart_write(0x0000, new byte[] { 0x0a });
 
             // 开始发送
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+
             int currentBank = -123;
             int writtenCount = 0;
 
@@ -587,7 +639,7 @@ namespace ChisFlashBurner
                 {
                     currentBank = b;
                     mbc5_ramSwitchBank(b);
-                    printLog(string.Format("    切换至 bank{0:d}", bank > 0 ? bank : 0));
+                    //printLog(string.Format("    切换至 bank{0:d}", bank > 0 ? bank : 0));
                 }
 
                 cartAddress = 0xa000 + (ramAddress & 0x1fff);
@@ -598,10 +650,12 @@ namespace ChisFlashBurner
                 writtenCount += sentLen;
                 showProgress(writtenCount, fileLength);
             }
+            stopwatch.Stop();
 
             port.Close();
             enableButton();
-            printLog("烧录结束");
+
+            printScore(fileLength, stopwatch.ElapsedMilliseconds);
         }
 
         void mission_dumpRam_mbc5()
@@ -627,8 +681,12 @@ namespace ChisFlashBurner
             gbcCart_write(0x0000, new byte[] { 0x0a });
 
             // 开始导出
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+
             int currentBank = -123;
             int readCount = 0;
+
             while (readCount < fileLength)
             {
                 // 分包
@@ -646,7 +704,7 @@ namespace ChisFlashBurner
                 {
                     currentBank = b;
                     mbc5_ramSwitchBank(b);
-                    printLog(string.Format("    切换至 bank{0:d}", bank > 0 ? bank : 0));
+                    //printLog(string.Format("    切换至 bank{0:d}", bank > 0 ? bank : 0));
                 }
 
                 cartAddress = 0xa000 + (ramAddress & 0x1fff);
@@ -660,6 +718,7 @@ namespace ChisFlashBurner
                 readCount += readLen;
                 showProgress(readCount, fileLength);
             }
+            stopwatch.Stop();
 
             // 保存
             string savFilePath = textBox_savePath.Text; // 打开文件
@@ -681,7 +740,8 @@ namespace ChisFlashBurner
 
             port.Close();
             enableButton();
-            printLog("导出结束");
+
+            printScore(fileLength, stopwatch.ElapsedMilliseconds);
         }
 
         void mission_verifyRam_mbc5()
@@ -726,8 +786,12 @@ namespace ChisFlashBurner
             gbcCart_write(0x0000, new byte[] { 0x0a });
 
             // 开始校验
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+
             int currentBank = -123;
             int readCount = 0;
+
             while (readCount < fileLength)
             {
                 // 分包
@@ -745,7 +809,7 @@ namespace ChisFlashBurner
                 {
                     currentBank = b;
                     mbc5_ramSwitchBank(b);
-                    printLog(string.Format("    切换至 bank{0:d}", bank > 0 ? bank : 0));
+                    //printLog(string.Format("    切换至 bank{0:d}", bank > 0 ? bank : 0));
                 }
 
                 cartAddress = 0xa000 + (ramAddress & 0x1fff);
@@ -765,17 +829,17 @@ namespace ChisFlashBurner
                             sav[readCount + i],
                             respon[i]
                         ));
-                        transTimeout_feed(); // 喂狗
                     }
                 }
                 readCount += readLen;
                 showProgress(readCount, fileLength);
             }
-
+            stopwatch.Stop();
 
             port.Close();
             enableButton();
-            printLog("校验结束");
+
+            printScore(fileLength, stopwatch.ElapsedMilliseconds);
         }
 
     }
