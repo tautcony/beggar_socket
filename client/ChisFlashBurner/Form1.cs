@@ -14,6 +14,7 @@ using Microsoft.Win32;
 using System.Management;
 using System.Collections;
 using System.Threading;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 
 namespace ChisFlashBurner
 {
@@ -45,29 +46,48 @@ namespace ChisFlashBurner
             comboBox_com.Items.Clear();
             serialPorts.Clear();
 
-            ManagementObjectSearcher searcher = new ManagementObjectSearcher("SELECT * FROM Win32_PnPEntity WHERE PNPClass = 'Ports'");
-            var hardInfos = searcher.Get();
+            int targetPortIndex = -1;
 
-            string targetDeviceID = "VID_0483&PID_0721";
-
-            foreach (var hardInfo in hardInfos)
+            using (var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_PnPEntity WHERE Caption LIKE '%(COM%'"))
             {
-                string deviceID = hardInfo.Properties["DeviceID"].Value.ToString();
-                RegistryKey reg = Registry.LocalMachine.OpenSubKey($"SYSTEM\\CurrentControlSet\\Enum\\{deviceID}\\Device Parameters");
-
-                string deviceName = hardInfo.Properties["Caption"].Value.ToString();
-                string portName = reg.GetValue("PortName")?.ToString();
-
-                if (portName.Contains("COM"))
+                foreach (var device in searcher.Get())
                 {
-                    serialPorts.Add(deviceName, portName);
-                    comboBox_com.Items.Add(deviceName);
+                    string caption = device["Caption"]?.ToString();
+                    string deviceId = device["DeviceID"]?.ToString();
 
-                    if (comboBox_com.Items.Count == 1)
-                        comboBox_com.SelectedIndex = 0;
-                    if (deviceID.Contains(targetDeviceID))
-                        comboBox_com.SelectedIndex = comboBox_com.Items.Count - 1;
+                    if (string.IsNullOrEmpty(caption) || !caption.Contains("(COM"))
+                        continue;
+
+                    // 提取COM端口名，例如 "COM3"
+                    int start = caption.IndexOf("(COM") + 1;
+                    int end = caption.IndexOf(")", start);
+                    if (start < 0 || end < 0)
+                        continue;
+
+                    // 提取端口号
+                    string comPort = caption.Substring(start, end - start);
+                    comboBox_com.Items.Add(caption);
+                    serialPorts.Add(caption, comPort);
+
+                    // 提取 VID 和 PID（如果有）
+                    string vid = null, pid = null;
+                    if (deviceId != null && deviceId.Contains("VID_") && deviceId.Contains("PID_"))
+                    {
+                        vid = deviceId.Substring(deviceId.IndexOf("VID_") + 4, 4);
+                        pid = deviceId.Substring(deviceId.IndexOf("PID_") + 4, 4);
+
+                        if (vid == "0483" && pid == "0721")
+                        {
+                            targetPortIndex = comboBox_com.Items.Count - 1;
+                        }
+
+                    }
                 }
+            }
+
+            if (targetPortIndex != -1)
+            {
+                comboBox_com.SelectedIndex = targetPortIndex;
             }
 
             textBox_log.Clear();
@@ -502,7 +522,7 @@ namespace ChisFlashBurner
                 return;
             }
 
-            if(textBox_savePath.Text=="")
+            if (textBox_savePath.Text == "")
             {
                 printLog("文件路径为空");
                 return;
