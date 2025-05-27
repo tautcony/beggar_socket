@@ -77,6 +77,11 @@ button {
   cursor: pointer;
   font-size: 1rem;
   transition: background 0.2s, color 0.2s;
+  outline: none;
+}
+
+button:focus {
+  outline: none;
 }
 
 button:disabled {

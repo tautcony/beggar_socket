@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h1>ChisFlashBurner Client</h1>
+    <h1>ChisFlash Burner</h1>
     <DeviceConnect
       @device-ready="onDeviceReady"
       @device-disconnected="onDeviceDisconnected"

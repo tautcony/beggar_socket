@@ -417,6 +417,11 @@ function saveAsFile(data, filename) {
   display: flex;
   align-items: center;
   justify-content: center;
+  outline: none;
+}
+
+.mode-tabs-card button:focus {
+  outline: none;
 }
 
 .mode-tabs-card button.active {
