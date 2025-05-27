@@ -1,0 +1,163 @@
+{
+  "ui": {
+    "app": {
+      "title": "ChisFlash Burner"
+    },
+    "device": {
+      "connect": "デバイスを接続",
+      "connecting": "接続中...",
+      "connected": "接続済み (切断)",
+      "disconnected": "切断済み",
+      "connectFailed": "接続失敗",
+      "disconnectFailed": "切断失敗"
+    },
+    "mode": {
+      "gba": "GBA",
+      "mbc5": "MBC5",
+      "title": "動作モード"
+    },
+    "operation": {
+      "title": "チップ操作",
+      "busy": "操作中...",
+      "readId": "ID読み取り",
+      "eraseChip": "チップ消去",
+      "chipInfo": "チップ情報",
+      "manufacturer": "製造元",
+      "deviceId": "デバイスID",
+      "chipType": "チップタイプ",
+      "capacity": "容量",
+      "cfiQuery": "CFIクエリ",
+      "queryString": "クエリ文字列",
+      "algorithm": "アルゴリズム",
+      "deviceSize": "デバイスサイズ",
+      "interfaceDescription": "インターフェース説明"
+    },
+    "rom": {
+      "title": "ROM操作",
+      "selectFile": "ROMファイルを選択",
+      "fileName": "ファイル名",
+      "fileSize": "ファイルサイズ",
+      "clearFile": "ファイルをクリア",
+      "write": "ROM書き込み",
+      "read": "ROMをエクスポート",
+      "verify": "ROM検証",
+      "bankSwitching": "バンク切り替え",
+      "romSize": "ROMサイズ"
+    },
+    "ram": {
+      "title": "RAM操作",
+      "unavailable": "MBC5モードではRAM操作は利用できません",
+      "selectFile": "RAMファイルを選択",
+      "fileName": "ファイル名",
+      "fileSize": "ファイルサイズ",
+      "clearFile": "ファイルをクリア",
+      "write": "RAM書き込み",
+      "read": "RAMをエクスポート",
+      "verify": "RAM検証",
+      "testWrite": "テストデータ書き込み",
+      "testRead": "テストデータ読み取り",
+      "testVerify": "テストデータ検証"
+    },
+    "file": {
+      "dropArea": "またはここにファイルをドロップ",
+      "accept": "{format}形式をサポート",
+      "dragOver": "ファイルをリリース",
+      "browse": "参照...",
+      "selected": "選択されたファイル: {name}",
+      "cleared": "ファイル選択をクリア"
+    },
+    "log": {
+      "title": "ログ",
+      "clear": "ログをクリア"
+    },
+    "progress": {
+      "writing": "{written} / {total} バイト",
+      "complete": "完了",
+      "percent": "{percent}%"
+    },
+    "test": {
+      "title": "MBC5アダプターテスト",
+      "adapterStatus": "アダプター状態",
+      "initialize": "アダプター初期化",
+      "initializing": "初期化中...",
+      "testChipId": "チップID読み取り",
+      "testCfi": "CFIクエリ",
+      "testRomSize": "ROMサイズ取得",
+      "testRomRead": "ROMデータ読み取り",
+      "testBankSwitching": "バンク切り替えテスト",
+      "testRamWrite": "RAM書き込みテスト",
+      "testRamRead": "RAM読み取りテスト",
+      "testRamVerify": "RAM検証テスト",
+      "testLog": "テストログ",
+      "chipInfo": "チップ情報",
+      "cfiInfo": "CFI情報",
+      "romTest": "ROMテスト",
+      "ramTest": "RAMテスト",
+      "dataDisplay": "データ表示",
+      "hexData": "16進数データ"
+    }
+  },
+  "messages": {
+    "device": {
+      "tryingConnect": "デバイスに接続しています...",
+      "noInterface": "利用可能なUSBインターフェースまたはエンドポイントが見つかりません。",
+      "connectionSuccess": "デバイス接続成功",
+      "connectionFailed": "デバイス接続失敗: {error}",
+      "disconnectionSuccess": "デバイス切断成功",
+      "disconnectionFailed": "デバイス切断失敗: {error}"
+    },
+    "operation": {
+      "readIdSuccess": "ID読み取り成功",
+      "readIdFailed": "ID読み取り失敗: {error}",
+      "eraseSuccess": "消去成功",
+      "eraseFailed": "消去失敗: {error}",
+      "writeSuccess": "書き込み成功",
+      "writeFailed": "書き込み失敗: {error}",
+      "readSuccess": "読み取り成功",
+      "readFailed": "読み取り失敗: {error}",
+      "verifySuccess": "検証成功",
+      "verifyFailed": "検証失敗: {error}"
+    },
+    "mbc5": {
+      "reading_id": "ROM IDを読み取り中...",
+      "id_read_success": "ID読み取り成功",
+      "id_read_failed": "ID読み取り失敗",
+      "rom_size_query_failed": "ROMサイズクエリ失敗",
+      "erasing_chip": "チップ消去を実行中...",
+      "chip_erase_complete": "チップ消去完了",
+      "chip_erase_failed": "チップ消去失敗",
+      "erasing_sectors": "セクタ消去中 0x{from} - 0x{to}",
+      "writing_rom": "ROM書き込み中...",
+      "rom_write_complete": "ROM書き込み完了、所要時間 {time} 秒",
+      "reading_rom": "ROM読み取り中...",
+      "rom_read_complete": "ROM読み取り完了、所要時間 {time} 秒",
+      "verifying_rom": "ROM検証中...",
+      "rom_verify_complete": "ROM検証完了、所要時間 {time} 秒",
+      "rom_verify_failed": "ROM検証失敗、アドレス 0x{address}、期待値 {expected}、実際値 {actual}",
+      "writing_ram": "RAM書き込み中...",
+      "ram_write_complete": "RAM書き込み完了、所要時間 {time} 秒",
+      "reading_ram": "RAM読み取り中...",
+      "ram_read_complete": "RAM読み取り完了、所要時間 {time} 秒",
+      "verifying_ram": "RAM検証中...",
+      "ram_verify_complete": "RAM検証完了、所要時間 {time} 秒",
+      "ram_verify_failed": "RAM検証失敗、アドレス 0x{address}、期待値 {expected}、実際値 {actual}",
+      "bank_switch_rom": "ROMバンク {bank} に切り替え",
+      "bank_switch_ram": "RAMバンク {bank} に切り替えました",
+      "adapter_init_success": "MBC5アダプター初期化成功",
+      "adapter_init_failed": "MBC5アダプター初期化失敗: {error}"
+    },
+    "file": {
+      "selectRom": "選択されたROMファイル: {name}、サイズ {size}",
+      "clearRom": "ROMファイル選択をクリア",
+      "selectRam": "選択されたRAMファイル: {name}、サイズ {size}",
+      "clearRam": "RAMファイル選択をクリア",
+      "writing": "書き込み中、サイズ {size} バイト",
+      "writeComplete": "書き込み完了",
+      "written": "{written} バイト書き込み済み",
+      "reading": "読み取り開始",
+      "readComplete": "読み取り完了、サイズ: {size} バイト",
+      "verifying": "検証開始",
+      "verifyComplete": "検証完了"
+    }
+  }
+}

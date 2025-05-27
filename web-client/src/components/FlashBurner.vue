@@ -5,13 +5,13 @@
         :class="{active: mode==='GBA'}"
         @click="mode='GBA'"
       >
-        <span class="tab-icon">🎮</span> GBA
+        <span class="tab-icon">🎮</span> {{ $t('ui.mode.gba') }}
       </button>
       <button
         :class="{active: mode==='MBC5'}"
         @click="mode='MBC5'"
       >
-        <span class="tab-icon">🕹️</span> MBC5
+        <span class="tab-icon">🕹️</span> {{ $t('ui.mode.mbc5') }}
       </button>
     </div>
     <div class="main-layout">
@@ -20,7 +20,7 @@
           <span
             v-if="busy"
             class="status busy"
-          >操作中...</span>
+          >{{ $t('ui.operation.busy') }}</span>
           <span
             v-if="result"
             class="status"
@@ -67,7 +67,7 @@
       
       <LogViewer
         :logs="logs"
-        title="日志"
+        :title="t('ui.log.title')"
         @clear-logs="clearLog"
       />
     </div>
@@ -76,17 +76,19 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { 
-  // GBA Commands
-  rom_readID, rom_eraseChip, rom_direct_write, rom_read, rom_verify, 
-  ram_write, ram_read, ram_verify,
   // GBC Commands
   gbc_direct_write, gbc_read
 } from '../utils/protocol.js'
+import { GBAAdapter } from '../utils/gba_adapter.js'
+import { MBC5Adapter } from '../utils/mbc5_adapter.js'
 import ChipOperations from './ChipOperations.vue'
 import RomOperations from './RomOperations.vue'
 import RamOperations from './RamOperations.vue'
 import LogViewer from './LogViewer.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   // eslint-disable-next-line vue/require-default-prop
@@ -107,6 +109,44 @@ const writeDetail = ref('')
 const ramWriteProgress = ref(null)
 const ramWriteDetail = ref('')
 const logs = ref([])
+const gbaAdapter = ref(null)
+const mbc5Adapter = ref(null)
+
+// 当设备连接状态改变时，初始化适配器
+watch(() => props.deviceReady, (newVal) => {
+  if (newVal && props.device) {
+    gbaAdapter.value = new GBAAdapter(
+      props.device, 
+      (msg) => log(msg), 
+      (progress, detail) => updateProgress(progress, detail),
+      t
+    )
+    mbc5Adapter.value = new MBC5Adapter(props.device, { t })
+    mbc5Adapter.value.setProgressCallback((progress) => {
+      if (mode.value === 'MBC5') {
+        writeProgress.value = progress
+        ramWriteProgress.value = progress
+      }
+    })
+    mbc5Adapter.value.setMessageCallback((msg) => log(msg))
+  } else {
+    gbaAdapter.value = null
+    mbc5Adapter.value = null
+  }
+})
+
+function updateProgress(progress, detail) {
+  if (mode.value === 'GBA') {
+    // 根据操作类型判断更新哪个进度条
+    if (detail && detail.includes('RAM')) {
+      ramWriteProgress.value = progress
+      ramWriteDetail.value = detail
+    } else {
+      writeProgress.value = progress
+      writeDetail.value = detail
+    }
+  }
+}
 
 function log(msg) {
   const time = new Date().toLocaleTimeString()
@@ -122,25 +162,25 @@ function clearLog() {
 function onRomFileSelected(fileInfo) {
   romFileName.value = fileInfo.name
   romFileData.value = fileInfo.data
-  log(`已选择ROM文件: ${fileInfo.name}，大小${formatFileSize(fileInfo.size)}`)
+  log(t('file.selectRom', { name: fileInfo.name, size: formatFileSize(fileInfo.size) }))
 }
 
 function onRomFileCleared() {
   romFileData.value = null
   romFileName.value = ''
-  log('已清除ROM文件选择')
+  log(t('file.clearRom'))
 }
 
 function onRamFileSelected(fileInfo) {
   ramFileName.value = fileInfo.name
   ramFileData.value = fileInfo.data
-  log(`已选择RAM文件: ${fileInfo.name}，大小${formatFileSize(fileInfo.size)}`)
+  log(t('file.selectRam', { name: fileInfo.name, size: formatFileSize(fileInfo.size) }))
 }
 
 function onRamFileCleared() {
   ramFileData.value = null
   ramFileName.value = ''
-  log('已清除RAM文件选择')
+  log(t('file.clearRam'))
 }
 
 // 格式化文件大小
@@ -155,31 +195,71 @@ function formatFileSize(bytes) {
 async function readID() {
   busy.value = true
   result.value = ''
-  log(`[${mode.value}] 开始读取ID`)
-  try {
-    const id = await rom_readID(props.device)
-    idStr.value = id.map(x => x.toString(16).padStart(2, '0')).join(' ')
-    result.value = '读取ID成功'
-    log(`[${mode.value}] 读取ID成功: ${idStr.value}`)
-  } catch (e) {
-    result.value = '读取ID失败: ' + e
-    log(`[${mode.value}] 读取ID失败: ${e}`)
+  
+  if (mode.value === 'GBA' && gbaAdapter.value) {
+    const response = await gbaAdapter.value.readID()
+    if (response.success) {
+      idStr.value = response.idStr
+      result.value = response.message
+    } else {
+      result.value = response.message
+    }
+  } else if (mode.value === 'MBC5' && mbc5Adapter.value) {
+    try {
+      const id = await mbc5Adapter.value.readID()
+      const idStr = id.map(b => b.toString(16).toUpperCase().padStart(2, '0')).join(' ')
+      idStr.value = idStr
+      
+      // 识别芯片类型
+      let chipType = '未知芯片'
+      if (id.every((val, idx) => val === [0xc2, 0xc2, 0xcb, 0xcb][idx])) {
+        chipType = 'MX29LV640EB'
+      } else if (id.every((val, idx) => val === [0xc2, 0xc2, 0xc9, 0xc9][idx])) {
+        chipType = 'MX29LV640ET'
+      } else if (id.every((val, idx) => val === [0x01, 0x01, 0x7e, 0x7e][idx])) {
+        chipType = 'S29GL256N'
+      }
+      
+      result.value = `${t('operation.readIdSuccess')}: ${chipType}`
+      log(`ROM ID: ${idStr} (${chipType})`)
+      
+      // 获取容量信息
+      try {
+        const sizeInfo = await mbc5Adapter.value.getROMSize()
+        log(`容量: ${sizeInfo.deviceSize} 扇区数量: ${sizeInfo.sectorCount} 扇区大小: ${sizeInfo.sectorSize} BuffWr: ${sizeInfo.bufferWriteBytes}`)
+      } catch (e) {
+        log(`获取容量信息失败: ${e.message}`)
+      }
+    } catch (e) {
+      result.value = t('operation.readIdFailed') + ': ' + e.message
+      log(`${t('operation.readIdFailed')}: ${e.message}`)
+    }
+  } else {
+    result.value = '未支持的模式或适配器未初始化'
   }
+  
   busy.value = false
 }
 
 async function eraseChip() {
   busy.value = true
   result.value = ''
-  log(`[${mode.value}] 开始全片擦除`)
-  try {
-    await rom_eraseChip(props.device)
-    result.value = '擦除成功'
-    log(`[${mode.value}] 擦除成功`)
-  } catch (e) {
-    result.value = '擦除失败: ' + e
-    log(`[${mode.value}] 擦除失败: ${e}`)
+  
+  if (mode.value === 'GBA' && gbaAdapter.value) {
+    const response = await gbaAdapter.value.eraseChip()
+    result.value = response.message
+  } else if (mode.value === 'MBC5' && mbc5Adapter.value) {
+    try {
+      await mbc5Adapter.value.eraseChip()
+      result.value = t('operation.eraseSuccess')
+    } catch (e) {
+      result.value = t('operation.eraseFailed') + ': ' + e.message
+      log(`${t('operation.eraseFailed')}: ${e.message}`)
+    }
+  } else {
+    result.value = '未支持的模式或适配器未初始化'
   }
+  
   busy.value = false
 }
 
@@ -188,31 +268,30 @@ async function writeToDevice() {
   result.value = ''
   writeProgress.value = 0
   writeDetail.value = ''
-  log(`[${mode.value}] 开始写入ROM，大小${romFileData.value.length}字节`)
-  try {
-    const total = romFileData.value.length
-    let written = 0
-    const pageSize = 256
-    
-    // 根据模式选择写入函数
-    const writeFunction = mode.value === 'GBA' ? rom_direct_write : gbc_direct_write
-    
-    // 分块写入并更新进度
-    for (let addr = 0; addr < total; addr += pageSize) {
-      const chunk = romFileData.value.slice(addr, Math.min(addr + pageSize, total))
-      await writeFunction(props.device, chunk, addr) // 使用 baseAddress 参数
-      written += chunk.length
-      writeProgress.value = Math.floor((written / total) * 100)
-      writeDetail.value = `${written} / ${total} 字节`
-      if (written % (pageSize * 16) === 0) log(`[${mode.value}] 已写入${written}字节`)
+
+  if (mode.value === 'GBA' && gbaAdapter.value) {
+    const response = await gbaAdapter.value.writeROM(romFileData.value, true) // 使用直接写入模式
+    result.value = response.message
+  } else if (mode.value === 'MBC5' && mbc5Adapter.value) {
+    try {
+      // 检查是否需要擦除
+      const isBlank = await mbc5Adapter.value.isBlank(0)
+      if (!isBlank) {
+        log('Flash不为空，开始擦除...')
+        const sizeInfo = await mbc5Adapter.value.getROMSize()
+        await mbc5Adapter.value.eraseSectors(0, romFileData.value.length - 1, sizeInfo.sectorSize)
+      }
+      
+      await mbc5Adapter.value.writeROM(romFileData.value)
+      result.value = t('rom.writeSuccess')
+    } catch (e) {
+      result.value = t('rom.writeFailed') + ': ' + e.message
+      log(`${t('rom.writeFailed')}: ${e.message}`)
     }
-    writeProgress.value = 100
-    result.value = '写入成功'
-    log(`[${mode.value}] 写入ROM完成`)
-  } catch (e) {
-    result.value = '写入失败: ' + e
-    log(`[${mode.value}] 写入ROM失败: ${e}`)
+  } else {
+    result.value = '未支持的模式或适配器未初始化'
   }
+  
   busy.value = false
   setTimeout(() => { writeProgress.value = null; writeDetail.value = '' }, 1500)
 }
@@ -220,34 +299,53 @@ async function writeToDevice() {
 async function readRom() {
   busy.value = true
   result.value = ''
-  log(`[${mode.value}] 开始导出ROM`)
-  try {
-    // 根据模式选择读取函数
-    const readFunction = mode.value === 'GBA' ? rom_read : gbc_read
+  
+  if (mode.value === 'GBA' && gbaAdapter.value) {
     const defaultSize = romFileData.value ? romFileData.value.length : 0x200000
-    const data = await readFunction(props.device, defaultSize)
-    result.value = `导出ROM成功，大小：${data.length} 字节`
-    log(`[${mode.value}] 导出ROM成功，大小：${data.length} 字节`)
-    saveAsFile(data, 'exported.rom')
-  } catch (e) {
-    result.value = '导出ROM失败: ' + e
-    log(`[${mode.value}] 导出ROM失败: ${e}`)
+    const response = await gbaAdapter.value.readROM(defaultSize)
+    
+    if (response.success) {
+      result.value = response.message
+      saveAsFile(response.data, 'exported.rom')
+    } else {
+      result.value = response.message
+    }
+  } else if (mode.value === 'MBC5' && mbc5Adapter.value) {
+    try {
+      const defaultSize = romFileData.value ? romFileData.value.length : 0x200000
+      const data = await mbc5Adapter.value.readROM(defaultSize)
+      result.value = t('rom.readSuccess', { size: data.length })
+      saveAsFile(data, 'exported.rom')
+    } catch (e) {
+      result.value = t('rom.readFailed') + ': ' + e.message
+      log(`${t('rom.readFailed')}: ${e.message}`)
+    }
+  } else {
+    result.value = '未支持的模式或适配器未初始化'
   }
+  
   busy.value = false
 }
 
 async function verifyRom() {
   busy.value = true
   result.value = ''
-  log(`[${mode.value}] 开始校验ROM`)
-  try {
-    const ok = await rom_verify(props.device, romFileData.value)
-    result.value = ok ? '校验通过' : '校验失败'
-    log(`[${mode.value}] 校验ROM: ${ok ? '通过' : '失败'}`)
-  } catch (e) {
-    result.value = '校验失败: ' + e
-    log(`[${mode.value}] 校验ROM失败: ${e}`)
+  
+  if (mode.value === 'GBA' && gbaAdapter.value) {
+    const response = await gbaAdapter.value.verifyROM(romFileData.value)
+    result.value = response.message
+  } else if (mode.value === 'MBC5' && mbc5Adapter.value) {
+    try {
+      const success = await mbc5Adapter.value.verifyROM(romFileData.value)
+      result.value = success ? t('rom.verifySuccess') : t('rom.verifyFailed')
+    } catch (e) {
+      result.value = t('rom.verifyFailed') + ': ' + e.message
+      log(`${t('rom.verifyFailed')}: ${e.message}`)
+    }
+  } else {
+    result.value = '未支持的模式或适配器未初始化'
   }
+  
   busy.value = false
 }
 
@@ -256,28 +354,23 @@ async function writeRam() {
   result.value = ''
   ramWriteProgress.value = 0
   ramWriteDetail.value = ''
-  log(`[${mode.value}] 开始写入RAM，大小${ramFileData.value.length}字节`)
-  try {
-    const total = ramFileData.value.length
-    let written = 0
-    const pageSize = 256
-    
-    // 分块写入并更新进度
-    for (let addr = 0; addr < total; addr += pageSize) {
-      const chunk = ramFileData.value.slice(addr, Math.min(addr + pageSize, total))
-      await ram_write(props.device, chunk, addr) // 使用 baseAddress 参数
-      written += chunk.length
-      ramWriteProgress.value = Math.floor((written / total) * 100)
-      ramWriteDetail.value = `${written} / ${total} 字节`
-      if (written % (pageSize * 16) === 0) log(`[${mode.value}] 已写入RAM ${written}字节`)
+  
+  if (mode.value === 'GBA' && gbaAdapter.value) {
+    // 使用适配器写入RAM，默认使用SRAM类型
+    const response = await gbaAdapter.value.writeRAM(ramFileData.value, "SRAM")
+    result.value = response.message
+  } else if (mode.value === 'MBC5' && mbc5Adapter.value) {
+    try {
+      await mbc5Adapter.value.writeRAM(ramFileData.value)
+      result.value = t('ram.writeSuccess')
+    } catch (e) {
+      result.value = t('ram.writeFailed') + ': ' + e.message
+      log(`${t('ram.writeFailed')}: ${e.message}`)
     }
-    ramWriteProgress.value = 100
-    result.value = 'RAM写入成功'
-    log(`[${mode.value}] 写入RAM完成`)
-  } catch (e) {
-    result.value = 'RAM写入失败: ' + e
-    log(`[${mode.value}] 写入RAM失败: ${e}`)
+  } else {
+    result.value = '未支持的模式或适配器未初始化'
   }
+  
   busy.value = false
   setTimeout(() => { ramWriteProgress.value = null; ramWriteDetail.value = '' }, 1500)
 }
@@ -285,31 +378,53 @@ async function writeRam() {
 async function readRam() {
   busy.value = true
   result.value = ''
-  log(`[${mode.value}] 开始导出RAM`)
-  try {
-    const data = await ram_read(props.device, ramFileData.value ? ramFileData.value.length : 0x8000)
-    result.value = `导出RAM成功，大小：${data.length} 字节`
-    log(`[${mode.value}] 导出RAM成功，大小：${data.length} 字节`)
-    saveAsFile(data, 'exported.sav')
-  } catch (e) {
-    result.value = '导出RAM失败: ' + e
-    log(`[${mode.value}] 导出RAM失败: ${e}`)
+  
+  if (mode.value === 'GBA' && gbaAdapter.value) {
+    const defaultSize = ramFileData.value ? ramFileData.value.length : 0x8000
+    const response = await gbaAdapter.value.readRAM(defaultSize, "SRAM")
+    
+    if (response.success) {
+      result.value = response.message
+      saveAsFile(response.data, 'exported.sav')
+    } else {
+      result.value = response.message
+    }
+  } else if (mode.value === 'MBC5' && mbc5Adapter.value) {
+    try {
+      const defaultSize = ramFileData.value ? ramFileData.value.length : 0x8000
+      const data = await mbc5Adapter.value.readRAM(defaultSize)
+      result.value = t('ram.readSuccess', { size: data.length })
+      saveAsFile(data, 'exported.sav')
+    } catch (e) {
+      result.value = t('ram.readFailed') + ': ' + e.message
+      log(`${t('ram.readFailed')}: ${e.message}`)
+    }
+  } else {
+    result.value = '未支持的模式或适配器未初始化'
   }
+  
   busy.value = false
 }
 
 async function verifyRam() {
   busy.value = true
   result.value = ''
-  log(`[${mode.value}] 开始校验RAM`)
-  try {
-    const ok = await ram_verify(props.device, ramFileData.value)
-    result.value = ok ? 'RAM校验通过' : 'RAM校验失败'
-    log(`[${mode.value}] 校验RAM: ${ok ? '通过' : '失败'}`)
-  } catch (e) {
-    result.value = 'RAM校验失败: ' + e
-    log(`[${mode.value}] 校验RAM失败: ${e}`)
+  
+  if (mode.value === 'GBA' && gbaAdapter.value) {
+    const response = await gbaAdapter.value.verifyRAM(ramFileData.value, "SRAM")
+    result.value = response.message
+  } else if (mode.value === 'MBC5' && mbc5Adapter.value) {
+    try {
+      const success = await mbc5Adapter.value.verifyRAM(ramFileData.value)
+      result.value = success ? t('ram.verifySuccess') : t('ram.verifyFailed')
+    } catch (e) {
+      result.value = t('ram.verifyFailed') + ': ' + e.message
+      log(`${t('ram.verifyFailed')}: ${e.message}`)
+    }
+  } else {
+    result.value = '未支持的模式或适配器未初始化'
   }
+  
   busy.value = false
 }
 

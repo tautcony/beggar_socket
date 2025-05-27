@@ -1,6 +1,7 @@
 <template>
   <div>
-    <h1>ChisFlash Burner</h1>
+    <LanguageSwitcher />
+    <h1>{{ $t('ui.app.title') }}</h1>
     <DeviceConnect
       @device-ready="onDeviceReady"
       @device-disconnected="onDeviceDisconnected"
@@ -16,6 +17,7 @@
 import { ref } from 'vue'
 import DeviceConnect from './components/DeviceConnect.vue'
 import FlashBurner from './components/FlashBurner.vue'
+import LanguageSwitcher from './components/LanguageSwitcher.vue'
 
 const device = ref(null)
 const deviceReady = ref(false)

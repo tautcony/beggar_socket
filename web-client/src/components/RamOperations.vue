@@ -1,10 +1,7 @@
 <template>
   <section class="section">
-    <h2>RAM 操作</h2>
-    <div
-      v-if="mode === 'GBA'"
-      class="ram-content"
-    >
+    <h2>{{ $t('ui.ram.title') }}</h2>
+    <div class="ram-content">
       <FileDropZone
         :disabled="!deviceReady || busy"
         :file-data="ramFileData"
@@ -12,8 +9,8 @@
         accept-types=".sav,.ram"
         accept-hint=".sav, .ram"
         icon="💾"
-        main-text="点击选择RAM文件"
-        file-type="RAM 文件"
+        :main-text="$t('ui.ram.selectFile')"
+        :file-type="$t('ui.ram.title')"
         @file-selected="onFileSelected"
         @file-cleared="onFileCleared"
       />
@@ -22,19 +19,19 @@
           :disabled="!deviceReady || !ramFileData || busy"
           @click="$emit('write-ram')"
         >
-          写入RAM
+          {{ $t('ui.ram.write') }}
         </button>
         <button
           :disabled="!deviceReady || busy"
           @click="$emit('read-ram')"
         >
-          导出RAM
+          {{ $t('ui.ram.read') }}
         </button>
         <button
           :disabled="!deviceReady || !ramFileData || busy"
           @click="$emit('verify-ram')"
         >
-          校验RAM
+          {{ $t('ui.ram.verify') }}
         </button>
       </div>
       <ProgressDisplay
@@ -42,18 +39,15 @@
         :detail="ramWriteDetail"
       />
     </div>
-    <div
-      v-else
-      class="mode-info"
-    >
-      <p>💡 MBC5 模式下 RAM 操作不可用</p>
-    </div>
   </section>
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
 import FileDropZone from './FileDropZone.vue'
 import ProgressDisplay from './ProgressDisplay.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   mode: {

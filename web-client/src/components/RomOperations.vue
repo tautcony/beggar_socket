@@ -1,15 +1,15 @@
 <template>
   <section class="section">
-    <h2>ROM 操作</h2>
+    <h2>{{ $t('ui.rom.title') }}</h2>
     <FileDropZone
       :disabled="!deviceReady || busy"
       :file-data="romFileData"
       :file-name="romFileName"
       accept-types=".rom,.gba,.gb,.gbc"
-      accept-hint=".rom, .gba, .gb, .gbc"
+      accept-hint=".rom,.gba,.gb,.gbc"
       icon="📁"
-      main-text="点击选择ROM文件"
-      file-type="ROM 文件"
+      :main-text="$t('ui.rom.selectFile')"
+      :file-type="$t('ui.rom.title')"
       @file-selected="onFileSelected"
       @file-cleared="onFileCleared"
     />
@@ -18,19 +18,19 @@
         :disabled="!deviceReady || !romFileData || busy"
         @click="$emit('write-rom')"
       >
-        写入ROM
+        {{ $t('ui.rom.write') }}
       </button>
       <button
         :disabled="!deviceReady || busy"
         @click="$emit('read-rom')"
       >
-        导出ROM
+        {{ $t('ui.rom.read') }}
       </button>
       <button
         :disabled="!deviceReady || !romFileData || busy"
         @click="$emit('verify-rom')"
       >
-        校验ROM
+        {{ $t('ui.rom.verify') }}
       </button>
     </div>
     <ProgressDisplay
@@ -41,8 +41,11 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
 import FileDropZone from './FileDropZone.vue'
 import ProgressDisplay from './ProgressDisplay.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   deviceReady: {

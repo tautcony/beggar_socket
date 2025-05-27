@@ -1,0 +1,163 @@
+{
+  "ui": {
+    "app": {
+      "title": "ChisFlash Burner"
+    },
+    "device": {
+      "connect": "连接设备",
+      "connecting": "正在连接...",
+      "connected": "已连接 (断开)",
+      "disconnected": "已断开连接",
+      "connectFailed": "连接失败",
+      "disconnectFailed": "断开连接失败"
+    },
+    "mode": {
+      "gba": "GBA",
+      "mbc5": "MBC5",
+      "title": "操作模式"
+    },
+    "operation": {
+      "title": "芯片操作",
+      "busy": "操作中...",
+      "readId": "读取ID",
+      "eraseChip": "全片擦除",
+      "chipInfo": "芯片信息",
+      "manufacturer": "制造商",
+      "deviceId": "设备ID",
+      "chipType": "芯片类型",
+      "capacity": "容量",
+      "cfiQuery": "CFI查询",
+      "queryString": "查询字符串",
+      "algorithm": "算法",
+      "deviceSize": "设备大小",
+      "interfaceDescription": "接口描述"
+    },
+    "rom": {
+      "title": "ROM操作",
+      "selectFile": "选择ROM文件",
+      "fileName": "文件名",
+      "fileSize": "文件大小",
+      "clearFile": "清除文件",
+      "write": "写入ROM",
+      "read": "导出ROM",
+      "verify": "校验ROM",
+      "bankSwitching": "银行切换",
+      "romSize": "ROM大小"
+    },
+    "ram": {
+      "title": "RAM操作",
+      "unavailable": "MBC5 模式下 RAM 操作不可用",
+      "selectFile": "选择RAM文件",
+      "fileName": "文件名",
+      "fileSize": "文件大小",
+      "clearFile": "清除文件",
+      "write": "写入RAM",
+      "read": "导出RAM",
+      "verify": "校验RAM",
+      "testWrite": "写入测试数据",
+      "testRead": "读取测试数据",
+      "testVerify": "验证测试数据"
+    },
+    "file": {
+      "dropArea": "或拖拽文件到此处",
+      "accept": "支持 {format} 格式",
+      "dragOver": "释放文件",
+      "browse": "浏览...",
+      "selected": "已选择文件: {name}",
+      "cleared": "已清除文件选择"
+    },
+    "log": {
+      "title": "日志",
+      "clear": "清除日志"
+    },
+    "progress": {
+      "writing": "{written} / {total} 字节",
+      "complete": "完成",
+      "percent": "{percent}%"
+    },
+    "test": {
+      "title": "MBC5 适配器测试",
+      "adapterStatus": "适配器状态",
+      "initialize": "初始化适配器",
+      "initializing": "初始化中...",
+      "testChipId": "读取芯片ID",
+      "testCfi": "CFI查询",
+      "testRomSize": "获取ROM大小",
+      "testRomRead": "读取ROM数据",
+      "testBankSwitching": "测试银行切换",
+      "testRamWrite": "写入RAM测试",
+      "testRamRead": "读取RAM测试",
+      "testRamVerify": "验证RAM测试",
+      "testLog": "测试日志",
+      "chipInfo": "芯片信息",
+      "cfiInfo": "CFI信息",
+      "romTest": "ROM测试",
+      "ramTest": "RAM测试",
+      "dataDisplay": "数据显示",
+      "hexData": "十六进制数据"
+    }
+  },
+  "messages": {
+    "device": {
+      "tryingConnect": "正在尝试连接设备...",
+      "noInterface": "未找到可用的 USB 接口或端点。",
+      "connectionSuccess": "设备连接成功",
+      "connectionFailed": "设备连接失败: {error}",
+      "disconnectionSuccess": "设备断开连接成功",
+      "disconnectionFailed": "设备断开连接失败: {error}"
+    },
+    "operation": {
+      "readIdSuccess": "读取ID成功",
+      "readIdFailed": "读取ID失败: {error}",
+      "eraseSuccess": "擦除成功",
+      "eraseFailed": "擦除失败: {error}",
+      "writeSuccess": "写入成功",
+      "writeFailed": "写入失败: {error}",
+      "readSuccess": "读取成功",
+      "readFailed": "读取失败: {error}",
+      "verifySuccess": "校验通过",
+      "verifyFailed": "校验失败: {error}"
+    },
+    "mbc5": {
+      "reading_id": "正在读取ROM ID...",
+      "id_read_success": "读取ID成功",
+      "id_read_failed": "读取ID失败",
+      "rom_size_query_failed": "查询ROM容量失败",
+      "erasing_chip": "正在进行全片擦除...",
+      "chip_erase_complete": "全片擦除完成",
+      "chip_erase_failed": "全片擦除失败",
+      "erasing_sectors": "正在擦除扇区 0x{from} - 0x{to}",
+      "writing_rom": "正在写入ROM...",
+      "rom_write_complete": "ROM写入完成，耗时 {time} 秒",
+      "reading_rom": "正在读取ROM...",
+      "rom_read_complete": "ROM读取完成，耗时 {time} 秒",
+      "verifying_rom": "正在校验ROM...",
+      "rom_verify_complete": "ROM校验完成，耗时 {time} 秒",
+      "rom_verify_failed": "ROM校验失败，地址 0x{address}，期望值 {expected}，实际值 {actual}",
+      "writing_ram": "正在写入RAM...",
+      "ram_write_complete": "RAM写入完成，耗时 {time} 秒",
+      "reading_ram": "正在读取RAM...",
+      "ram_read_complete": "RAM读取完成，耗时 {time} 秒",
+      "verifying_ram": "正在校验RAM...",
+      "ram_verify_complete": "RAM校验完成，耗时 {time} 秒",
+      "ram_verify_failed": "RAM校验失败，地址 0x{address}，期望值 {expected}，实际值 {actual}",
+      "bank_switch_rom": "切换到ROM银行 {bank}",
+      "bank_switch_ram": "切换到RAM银行 {bank}",
+      "adapter_init_success": "MBC5适配器初始化成功",
+      "adapter_init_failed": "MBC5适配器初始化失败: {error}"
+    },
+    "file": {
+      "selectRom": "已选择ROM文件: {name}，大小{size}",
+      "clearRom": "已清除ROM文件选择",
+      "selectRam": "已选择RAM文件: {name}，大小{size}",
+      "clearRam": "已清除RAM文件选择",
+      "writing": "正在写入，大小{size}字节",
+      "writeComplete": "写入完成",
+      "written": "已写入{written}字节",
+      "reading": "开始读取",
+      "readComplete": "读取完成，大小：{size} 字节",
+      "verifying": "开始校验",
+      "verifyComplete": "校验完成"
+    }
+  }
+}

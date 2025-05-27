@@ -1,0 +1,163 @@
+{
+  "ui": {
+    "app": {
+      "title": "ChisFlash Burner"
+    },
+    "device": {
+      "connect": "Connect Device",
+      "connecting": "Connecting...",
+      "connected": "Connected (Disconnect)",
+      "disconnected": "Disconnected",
+      "connectFailed": "Connection Failed",
+      "disconnectFailed": "Disconnect Failed"
+    },
+    "mode": {
+      "gba": "GBA",
+      "mbc5": "MBC5",
+      "title": "Operation Mode"
+    },
+    "operation": {
+      "title": "Chip Operations",
+      "busy": "Operating...",
+      "readId": "Read ID",
+      "eraseChip": "Erase Chip",
+      "chipInfo": "Chip Information",
+      "manufacturer": "Manufacturer",
+      "deviceId": "Device ID",
+      "chipType": "Chip Type",
+      "capacity": "Capacity",
+      "cfiQuery": "CFI Query",
+      "queryString": "Query String",
+      "algorithm": "Algorithm",
+      "deviceSize": "Device Size",
+      "interfaceDescription": "Interface Description"
+    },
+    "rom": {
+      "title": "ROM Operations",
+      "selectFile": "Select ROM File",
+      "fileName": "File Name",
+      "fileSize": "File Size",
+      "clearFile": "Clear File",
+      "write": "Write ROM",
+      "read": "Export ROM",
+      "verify": "Verify ROM",
+      "bankSwitching": "Bank Switching",
+      "romSize": "ROM Size"
+    },
+    "ram": {
+      "title": "RAM Operations",
+      "unavailable": "RAM operations are not available in MBC5 mode",
+      "selectFile": "Select RAM File",
+      "fileName": "File Name",
+      "fileSize": "File Size",
+      "clearFile": "Clear File",
+      "write": "Write RAM",
+      "read": "Export RAM",
+      "verify": "Verify RAM",
+      "testWrite": "Write Test Data",
+      "testRead": "Read Test Data",
+      "testVerify": "Verify Test Data"
+    },
+    "file": {
+      "dropArea": "or drop files here",
+      "accept": "Supports {format} format",
+      "dragOver": "Release files",
+      "browse": "Browse...",
+      "selected": "Selected file: {name}",
+      "cleared": "Cleared file selection"
+    },
+    "log": {
+      "title": "Log",
+      "clear": "Clear Log"
+    },
+    "progress": {
+      "writing": "{written} / {total} bytes",
+      "complete": "Complete",
+      "percent": "{percent}%"
+    },
+    "test": {
+      "title": "MBC5 Adapter Test",
+      "adapterStatus": "Adapter Status",
+      "initialize": "Initialize Adapter",
+      "initializing": "Initializing...",
+      "testChipId": "Read Chip ID",
+      "testCfi": "CFI Query",
+      "testRomSize": "Get ROM Size",
+      "testRomRead": "Read ROM Data",
+      "testBankSwitching": "Test Bank Switching",
+      "testRamWrite": "Write RAM Test",
+      "testRamRead": "Read RAM Test",
+      "testRamVerify": "Verify RAM Test",
+      "testLog": "Test Log",
+      "chipInfo": "Chip Information",
+      "cfiInfo": "CFI Information",
+      "romTest": "ROM Test",
+      "ramTest": "RAM Test",
+      "dataDisplay": "Data Display",
+      "hexData": "Hexadecimal Data"
+    }
+  },
+  "messages": {
+    "device": {
+      "tryingConnect": "Trying to connect device...",
+      "noInterface": "No available USB interface or endpoints found.",
+      "connectionSuccess": "Device connected successfully",
+      "connectionFailed": "Device connection failed: {error}",
+      "disconnectionSuccess": "Device disconnected successfully",
+      "disconnectionFailed": "Device disconnection failed: {error}"
+    },
+    "operation": {
+      "readIdSuccess": "Read ID successful",
+      "readIdFailed": "Read ID failed: {error}",
+      "eraseSuccess": "Erase successful",
+      "eraseFailed": "Erase failed: {error}",
+      "writeSuccess": "Write successful",
+      "writeFailed": "Write failed: {error}",
+      "readSuccess": "Read successful",
+      "readFailed": "Read failed: {error}",
+      "verifySuccess": "Verify successful",
+      "verifyFailed": "Verify failed: {error}"
+    },
+    "mbc5": {
+      "reading_id": "Reading ROM ID...",
+      "id_read_success": "ID read successful",
+      "id_read_failed": "ID read failed",
+      "rom_size_query_failed": "ROM size query failed",
+      "erasing_chip": "Performing chip erase...",
+      "chip_erase_complete": "Chip erase complete",
+      "chip_erase_failed": "Chip erase failed",
+      "erasing_sectors": "Erasing sectors 0x{from} - 0x{to}",
+      "writing_rom": "Writing ROM...",
+      "rom_write_complete": "ROM write complete, took {time} seconds",
+      "reading_rom": "Reading ROM...",
+      "rom_read_complete": "ROM read complete, took {time} seconds",
+      "verifying_rom": "Verifying ROM...",
+      "rom_verify_complete": "ROM verify complete, took {time} seconds",
+      "rom_verify_failed": "ROM verify failed at address 0x{address}, expected {expected}, got {actual}",
+      "writing_ram": "Writing RAM...",
+      "ram_write_complete": "RAM write complete, took {time} seconds",
+      "reading_ram": "Reading RAM...",
+      "ram_read_complete": "RAM read complete, took {time} seconds",
+      "verifying_ram": "Verifying RAM...",
+      "ram_verify_complete": "RAM verify complete, took {time} seconds",
+      "ram_verify_failed": "RAM verify failed at address 0x{address}, expected {expected}, got {actual}",
+      "bank_switch_rom": "Switched to ROM bank {bank}",
+      "bank_switch_ram": "Switched to RAM bank {bank}",
+      "adapter_init_success": "MBC5 adapter initialized successfully",
+      "adapter_init_failed": "MBC5 adapter initialization failed: {error}"
+    },
+    "file": {
+      "selectRom": "Selected ROM file: {name}, size {size}",
+      "clearRom": "Cleared ROM file selection",
+      "selectRam": "Selected RAM file: {name}, size {size}",
+      "clearRam": "Cleared RAM file selection",
+      "writing": "Writing, size {size} bytes",
+      "writeComplete": "Write complete",
+      "written": "Written {written} bytes",
+      "reading": "Start reading",
+      "readComplete": "Read complete, size: {size} bytes",
+      "verifying": "Start verifying",
+      "verifyComplete": "Verify complete"
+    }
+  }
+}

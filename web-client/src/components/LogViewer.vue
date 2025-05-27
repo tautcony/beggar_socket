@@ -1,12 +1,12 @@
 <template>
   <div class="log-section">
     <div class="log-header">
-      <h2>{{ title }}</h2>
+      <h2>{{ $t('ui.log.title') }}</h2>
       <button
         class="log-clear"
         @click="clearLog"
       >
-        清空
+        {{ $t('ui.log.clear') }}
       </button>
     </div>
     <div
@@ -26,6 +26,9 @@
 
 <script setup>
 import { ref, watch, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   title: {

@@ -1,18 +1,18 @@
 <template>
   <section class="section">
-    <h2>芯片操作</h2>
+    <h2>{{ $t('ui.operation.title') }}</h2>
     <div class="button-row">
       <button
         :disabled="!deviceReady || busy"
         @click="$emit('read-id')"
       >
-        读取ID
+        {{ $t('ui.operation.readId') }}
       </button>
       <button
         :disabled="!deviceReady || busy"
         @click="$emit('erase-chip')"
       >
-        全片擦除
+        {{ $t('ui.operation.eraseChip') }}
       </button>
     </div>
     <div
@@ -25,6 +25,9 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 const props = defineProps({
   deviceReady: {
     type: Boolean,

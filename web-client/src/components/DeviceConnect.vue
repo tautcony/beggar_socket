@@ -20,7 +20,9 @@
 
 <script setup>
 import { ref, computed, reactive } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const emit = defineEmits(['device-ready', 'device-disconnected'])
 
 const connected = ref(false)
@@ -51,7 +53,7 @@ async function connect() {
   if (isConnecting.value || connected.value) return
 
   isConnecting.value = true
-  showToast('正在尝试连接设备...', 'idle')
+  showToast(t('messages.device.tryingConnect'), 'idle')
 
   try {
     device = await navigator.usb.requestDevice({
@@ -84,18 +86,18 @@ async function connect() {
       if (iface) {
         await device.claimInterface(iface.interfaceNumber)
       } else {
-        throw new Error('未找到可用的 USB 接口或端点。')
+        throw new Error(t('messages.device.noInterface'))
       }
     }
 
     connected.value = true
     isConnecting.value = false
-    showToast('设备已连接', 'success')
+    showToast(t('messages.device.connectionSuccess'), 'success')
     emit('device-ready', { device, endpointOut, endpointIn })
   } catch (e) {
     connected.value = false
     isConnecting.value = false
-    showToast('连接失败: ' + e.message, 'error')
+    showToast(t('messages.device.connectionFailed', { error: e.message }), 'error')
     if (device && device.opened) {
       await device.close().catch(err => console.error("Error closing device on connect failure:", err))
     }
@@ -112,10 +114,10 @@ async function disconnect() {
     if (device.opened) {
       await device.close()
     }
-    showToast('已断开连接', 'success')
+    showToast(t('messages.device.disconnected'), 'success')
   } catch (e) {
-    console.error('断开连接时出错:', e)
-    showToast('断开连接失败: ' + e.message, 'error')
+    console.error(t('messages.device.disconnectError'), e)
+    showToast(t('messages.device.disconnectFailed') + ': ' + e.message, 'error')
   } finally {
     device = null
     connected.value = false
@@ -133,9 +135,9 @@ function handleConnectDisconnect() {
 }
 
 const buttonText = computed(() => {
-  if (isConnecting.value && !connected.value) return '正在连接...'
-  if (connected.value) return '已连接 (断开)'
-  return '连接设备'
+  if (isConnecting.value && !connected.value) return t('ui.device.connecting')
+  if (connected.value) return t('ui.device.connected')
+  return t('ui.device.connect')
 })
 
 const buttonIcon = computed(() => {

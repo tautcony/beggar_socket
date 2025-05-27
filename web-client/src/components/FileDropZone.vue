@@ -32,10 +32,10 @@
             {{ mainText }}
           </p>
           <p class="sub-text">
-            或拖拽文件到此处
+            {{ $t('ui.file.dropArea') }}
           </p>
           <p class="hint-text">
-            支持 {{ acceptHint }} 格式
+            {{ $t('ui.file.accept', { format: acceptHint }) }}
           </p>
         </div>
       </div>
@@ -71,6 +71,9 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   disabled: {
