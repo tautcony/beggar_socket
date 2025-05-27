@@ -8,56 +8,153 @@
         <span class="tab-icon">🕹️</span> MBC5
       </button>
     </div>
-    <section class="section">
-      <h2>芯片操作</h2>
-      <div class="button-row">
-        <button @click="readID" :disabled="!deviceReady || busy">读取ID</button>
-        <button @click="eraseChip" :disabled="!deviceReady || busy">全片擦除</button>
+    <div class="main-layout">
+      <div class="content-area">
+        <div class="status-row">
+          <span v-if="busy" class="status busy">操作中...</span>
+          <span v-if="result" class="status">{{ result }}</span>
+        </div>
+        <section class="section">
+          <h2>芯片操作</h2>
+          <div class="button-row">
+            <button @click="readID" :disabled="!deviceReady || busy">读取ID</button>
+            <button @click="eraseChip" :disabled="!deviceReady || busy">全片擦除</button>
+          </div>
+          <div v-if="idStr" class="id-display">ID: {{ idStr }}</div>
+        </section>
+        <section class="section">
+          <h2>ROM 操作</h2>
+          <div class="file-upload-area">
+            <div 
+              class="file-drop-zone"
+              :class="{ 
+                'has-file': romFileData,
+                'drag-over': romDragOver,
+                'disabled': !deviceReady || busy
+              }"
+              @click="triggerRomFileSelect"
+              @dragover.prevent="handleRomDragOver"
+              @dragleave.prevent="handleRomDragLeave"
+              @drop.prevent="handleRomDrop"
+            >
+              <input 
+                ref="romFileInput"
+                type="file" 
+                @change="onRomFileChange" 
+                :disabled="!deviceReady || busy"
+                style="display: none"
+                accept=".rom,.gba,.gb,.gbc"
+              />
+              <div v-if="!romFileData" class="drop-zone-content">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">
+                  <p class="main-text">点击选择ROM文件</p>
+                  <p class="sub-text">或拖拽文件到此处</p>
+                  <p class="hint-text">支持 .rom, .gba, .gb, .gbc 格式</p>
+                </div>
+              </div>
+              <div v-else class="file-preview">
+                <div class="file-icon">🎮</div>
+                <div class="file-details">
+                  <div class="file-name">{{ romFileName }}</div>
+                  <div class="file-size">{{ formatFileSize(romFileData.length) }}</div>
+                  <div class="file-type">ROM 文件</div>
+                </div>
+                <button 
+                  class="remove-file-btn"
+                  @click.stop="clearRomFile"
+                  :disabled="busy"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="button-row">
+            <button @click="writeToDevice" :disabled="!deviceReady || !romFileData || busy">写入ROM</button>
+            <button @click="readRom" :disabled="!deviceReady || busy">导出ROM</button>
+            <button @click="verifyRom" :disabled="!deviceReady || !romFileData || busy">校验ROM</button>
+          </div>
+          <div v-if="writeProgress !== null" class="progress-row">
+            <progress :value="writeProgress" max="100"></progress>
+            <span>{{ writeProgress }}%</span>
+            <span v-if="writeDetail">{{ writeDetail }}</span>
+          </div>
+        </section>
+        <section class="section">
+          <h2>RAM 操作</h2>
+          <div v-if="mode === 'GBA'" class="ram-content">
+            <div class="file-upload-area">
+              <div 
+                class="file-drop-zone"
+                :class="{ 
+                  'has-file': ramFileData,
+                  'drag-over': ramDragOver,
+                  'disabled': !deviceReady || busy
+                }"
+                @click="triggerRamFileSelect"
+                @dragover.prevent="handleRamDragOver"
+                @dragleave.prevent="handleRamDragLeave"
+                @drop.prevent="handleRamDrop"
+              >
+                <input 
+                  ref="ramFileInput"
+                  type="file" 
+                  @change="onRamFileChange" 
+                  :disabled="!deviceReady || busy"
+                  style="display: none"
+                  accept=".sav,.ram"
+                />
+                <div v-if="!ramFileData" class="drop-zone-content">
+                  <div class="upload-icon">💾</div>
+                  <div class="upload-text">
+                    <p class="main-text">点击选择RAM文件</p>
+                    <p class="sub-text">或拖拽文件到此处</p>
+                    <p class="hint-text">支持 .sav, .ram 格式</p>
+                  </div>
+                </div>
+                <div v-else class="file-preview">
+                  <div class="file-icon">💾</div>
+                  <div class="file-details">
+                    <div class="file-name">{{ ramFileName }}</div>
+                    <div class="file-size">{{ formatFileSize(ramFileData.length) }}</div>
+                    <div class="file-type">RAM 文件</div>
+                  </div>
+                  <button 
+                    class="remove-file-btn"
+                    @click.stop="clearRamFile"
+                    :disabled="busy"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="button-row">
+              <button @click="writeRam" :disabled="!deviceReady || !ramFileData || busy">写入RAM</button>
+              <button @click="readRam" :disabled="!deviceReady || busy">导出RAM</button>
+              <button @click="verifyRam" :disabled="!deviceReady || !ramFileData || busy">校验RAM</button>
+            </div>
+            <div v-if="ramWriteProgress !== null" class="progress-row">
+              <progress :value="ramWriteProgress" max="100"></progress>
+              <span>{{ ramWriteProgress }}%</span>
+              <span v-if="ramWriteDetail">{{ ramWriteDetail }}</span>
+            </div>
+          </div>
+          <div v-else class="mode-info">
+            <p>💡 MBC5 模式下 RAM 操作不可用</p>
+          </div>
+        </section>
       </div>
-      <div v-if="idStr" class="id-display">ID: {{ idStr }}</div>
-    </section>
-    <section class="section">
-      <h2>ROM 操作</h2>
-      <div class="button-row">
-        <button @click="writeToDevice" :disabled="!deviceReady || !fileReady || busy">写入ROM</button>
-        <button @click="readRom" :disabled="!deviceReady || busy">导出ROM</button>
-        <button @click="verifyRom" :disabled="!deviceReady || !fileReady || busy">校验ROM</button>
-      </div>
-      <div v-if="writeProgress !== null" class="progress-row">
-        <progress :value="writeProgress" max="100"></progress>
-        <span>{{ writeProgress }}%</span>
-        <span v-if="writeDetail">{{ writeDetail }}</span>
-      </div>
-    </section>
-    <section class="section">
-      <h2>RAM 操作</h2>
-      <div class="ram-upload">
-        <label>选择RAM文件：
-          <input type="file" @change="onRamFileChange" :disabled="!deviceReady || busy" />
-        </label>
-      </div>
-      <div class="button-row">
-        <button @click="writeRam" :disabled="!deviceReady || !ramFileData || busy">写入RAM</button>
-        <button @click="readRam" :disabled="!deviceReady || busy">导出RAM</button>
-        <button @click="verifyRam" :disabled="!deviceReady || !ramFileData || busy">校验RAM</button>
-      </div>
-      <div v-if="ramWriteProgress !== null" class="progress-row">
-        <progress :value="ramWriteProgress" max="100"></progress>
-        <span>{{ ramWriteProgress }}%</span>
-        <span v-if="ramWriteDetail">{{ ramWriteDetail }}</span>
-      </div>
-    </section>
-    <div class="status-row">
-      <span v-if="busy" class="status busy">操作中...</span>
-      <span v-if="result" class="status">{{ result }}</span>
-    </div>
-    <div class="log-section">
-      <div class="log-header">
-        <h2>日志</h2>
-        <button class="log-clear" @click="clearLog">清空</button>
-      </div>
-      <div ref="logBox" class="log-area-scroll">
-        <div v-for="(line, idx) in logs" :key="idx" class="log-line">{{ line }}</div>
+      
+      <div class="log-section">
+        <div class="log-header">
+          <h2>日志</h2>
+          <button class="log-clear" @click="clearLog">清空</button>
+        </div>
+        <div ref="logBox" class="log-area-scroll">
+          <div v-for="(line, idx) in logs" :key="idx" class="log-line">{{ line }}</div>
+        </div>
       </div>
     </div>
   </div>
@@ -65,26 +162,41 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
-import { sendFileToDevice, rom_readID, rom_eraseChip, rom_read, rom_verify, ram_write, ram_read, ram_verify } from '../utils/protocol.js'
+import { 
+  // GBA Commands
+  rom_readID, rom_eraseChip, rom_direct_write, rom_read, rom_verify, 
+  ram_write, ram_read, ram_verify,
+  // GBC Commands
+  gbc_direct_write, gbc_read
+} from '../utils/protocol.js'
 
 const props = defineProps({
-  fileData: Uint8Array,
   device: Object,
-  deviceReady: Boolean,
-  fileReady: Boolean
+  deviceReady: Boolean
 })
 
 const mode = ref('GBA')
 const busy = ref(false)
 const result = ref('')
 const idStr = ref('')
+const romFileData = ref(null)
+const romFileName = ref('')
 const ramFileData = ref(null)
+const ramFileName = ref('')
 const writeProgress = ref(null)
 const writeDetail = ref('')
 const ramWriteProgress = ref(null)
 const ramWriteDetail = ref('')
 const logs = ref([])
 const logBox = ref(null)
+
+// 拖拽状态
+const romDragOver = ref(false)
+const ramDragOver = ref(false)
+
+// 文件输入引用
+const romFileInput = ref(null)
+const ramFileInput = ref(null)
 
 function log(msg) {
   const time = new Date().toLocaleTimeString()
@@ -102,15 +214,109 @@ watch(logs, async () => {
   }
 })
 
+function onRomFileChange(e) {
+  const file = e.target.files[0]
+  if (!file) return
+  processRomFile(file)
+}
+
 function onRamFileChange(e) {
   const file = e.target.files[0]
   if (!file) return
+  processRamFile(file)
+}
+
+function processRomFile(file) {
+  romFileName.value = file.name
+  const reader = new FileReader()
+  reader.onload = () => {
+    romFileData.value = new Uint8Array(reader.result)
+    log(`已选择ROM文件: ${romFileName.value}，大小${formatFileSize(romFileData.value.length)}`)
+  }
+  reader.readAsArrayBuffer(file)
+}
+
+function processRamFile(file) {
+  ramFileName.value = file.name
   const reader = new FileReader()
   reader.onload = () => {
     ramFileData.value = new Uint8Array(reader.result)
-    log(`已选择RAM文件，大小${ramFileData.value.length}字节`)
+    log(`已选择RAM文件: ${ramFileName.value}，大小${formatFileSize(ramFileData.value.length)}`)
   }
   reader.readAsArrayBuffer(file)
+}
+
+// 格式化文件大小
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+// ROM 文件相关
+function triggerRomFileSelect() {
+  if (!props.deviceReady || busy.value) return
+  romFileInput.value.click()
+}
+
+function clearRomFile() {
+  romFileData.value = null
+  romFileName.value = ''
+  if (romFileInput.value) romFileInput.value.value = ''
+  log('已清除ROM文件选择')
+}
+
+function handleRomDragOver(e) {
+  if (!props.deviceReady || busy.value) return
+  romDragOver.value = true
+}
+
+function handleRomDragLeave() {
+  romDragOver.value = false
+}
+
+function handleRomDrop(e) {
+  romDragOver.value = false
+  if (!props.deviceReady || busy.value) return
+  
+  const files = e.dataTransfer.files
+  if (files.length > 0) {
+    processRomFile(files[0])
+  }
+}
+
+// RAM 文件相关
+function triggerRamFileSelect() {
+  if (!props.deviceReady || busy.value) return
+  ramFileInput.value.click()
+}
+
+function clearRamFile() {
+  ramFileData.value = null
+  ramFileName.value = ''
+  if (ramFileInput.value) ramFileInput.value.value = ''
+  log('已清除RAM文件选择')
+}
+
+function handleRamDragOver(e) {
+  if (!props.deviceReady || busy.value) return
+  ramDragOver.value = true
+}
+
+function handleRamDragLeave() {
+  ramDragOver.value = false
+}
+
+function handleRamDrop(e) {
+  ramDragOver.value = false
+  if (!props.deviceReady || busy.value) return
+  
+  const files = e.dataTransfer.files
+  if (files.length > 0) {
+    processRamFile(files[0])
+  }
 }
 
 async function readID() {
@@ -149,19 +355,19 @@ async function writeToDevice() {
   result.value = ''
   writeProgress.value = 0
   writeDetail.value = ''
-  log(`[${mode.value}] 开始写入ROM，大小${props.fileData.length}字节`)
+  log(`[${mode.value}] 开始写入ROM，大小${romFileData.value.length}字节`)
   try {
-    const total = props.fileData.length
+    const total = romFileData.value.length
     let written = 0
     const pageSize = 256
+    
+    // 根据模式选择写入函数
+    const writeFunction = mode.value === 'GBA' ? rom_direct_write : gbc_direct_write
+    
+    // 分块写入并更新进度
     for (let addr = 0; addr < total; addr += pageSize) {
-      const chunk = props.fileData.slice(addr, addr + pageSize)
-      let payload = new Uint8Array(1 + 4 + chunk.length)
-      payload[0] = 0xf5
-      let addrBytes = new Uint8Array(new Uint32Array([addr / 2]).buffer)
-      payload.set(addrBytes, 1)
-      payload.set(chunk, 5)
-      await sendFileToDevice(props.device, chunk)
+      const chunk = romFileData.value.slice(addr, Math.min(addr + pageSize, total))
+      await writeFunction(props.device, chunk, addr) // 使用 baseAddress 参数
       written += chunk.length
       writeProgress.value = Math.floor((written / total) * 100)
       writeDetail.value = `${written} / ${total} 字节`
@@ -183,7 +389,10 @@ async function readRom() {
   result.value = ''
   log(`[${mode.value}] 开始导出ROM`)
   try {
-    const data = await rom_read(props.device, props.fileData ? props.fileData.length : 0x200000)
+    // 根据模式选择读取函数
+    const readFunction = mode.value === 'GBA' ? rom_read : gbc_read
+    const defaultSize = romFileData.value ? romFileData.value.length : 0x200000
+    const data = await readFunction(props.device, defaultSize)
     result.value = `导出ROM成功，大小：${data.length} 字节`
     log(`[${mode.value}] 导出ROM成功，大小：${data.length} 字节`)
     saveAsFile(data, 'exported.rom')
@@ -199,7 +408,7 @@ async function verifyRom() {
   result.value = ''
   log(`[${mode.value}] 开始校验ROM`)
   try {
-    const ok = await rom_verify(props.device, props.fileData)
+    const ok = await rom_verify(props.device, romFileData.value)
     result.value = ok ? '校验通过' : '校验失败'
     log(`[${mode.value}] 校验ROM: ${ok ? '通过' : '失败'}`)
   } catch (e) {
@@ -219,14 +428,11 @@ async function writeRam() {
     const total = ramFileData.value.length
     let written = 0
     const pageSize = 256
+    
+    // 分块写入并更新进度
     for (let addr = 0; addr < total; addr += pageSize) {
-      const chunk = ramFileData.value.slice(addr, addr + pageSize)
-      let payload = new Uint8Array(1 + 4 + chunk.length)
-      payload[0] = 0xf7
-      let addrBytes = new Uint8Array(new Uint32Array([addr]).buffer)
-      payload.set(addrBytes, 1)
-      payload.set(chunk, 5)
-      await ram_write(props.device, chunk)
+      const chunk = ramFileData.value.slice(addr, Math.min(addr + pageSize, total))
+      await ram_write(props.device, chunk, addr) // 使用 baseAddress 参数
       written += chunk.length
       ramWriteProgress.value = Math.floor((written / total) * 100)
       ramWriteDetail.value = `${written} / ${total} 字节`
@@ -287,13 +493,148 @@ function saveAsFile(data, filename) {
 
 <style scoped>
 .flashburner-container {
-  max-width: 650px;
+  max-width: 1200px;
   margin: 32px auto;
   padding: 24px 32px;
   background: #fafbfc;
   border-radius: 14px;
   box-shadow: 0 2px 16px #0002;
   font-family: 'Segoe UI', 'PingFang SC', Arial, sans-serif;
+}
+
+/* 响应式主布局 */
+.main-layout {
+  display: flex;
+  gap: 24px;
+  height: 820px;
+  align-items: stretch;
+}
+
+/* 内容区域 */
+.content-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* 美化滚动条 */
+.content-area::-webkit-scrollbar {
+  width: 6px;
+}
+
+.content-area::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.content-area::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.content-area::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+.log-section {
+  width: 350px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  height: 820px; /* 与主布局相同的固定高度 */
+}
+
+.log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-shrink: 0; /* 防止 header 被压缩 */
+  height: 32px; /* 固定 header 高度 */
+}
+
+.log-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.log-clear {
+  background: #f44336;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.log-clear:hover {
+  background: #d32f2f;
+}
+
+.log-area-scroll {
+  background: #f4f4f4;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  padding: 8px 8px 8px 12px;
+  flex: 1; /* 占用剩余空间 */
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 0.97rem;
+  line-height: 1.6;
+  height: calc(820px - 44px); /* 总高度减去 header 高度和 margin */
+}
+
+/* 日志区域滚动条样式 */
+.log-area-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.log-area-scroll::-webkit-scrollbar-track {
+  background: #e8e8e8;
+  border-radius: 3px;
+}
+
+.log-area-scroll::-webkit-scrollbar-thumb {
+  background: #bbb;
+  border-radius: 3px;
+}
+
+.log-area-scroll::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+/* 移动端响应式 */
+@media (max-width: 768px) {
+  .flashburner-container {
+    margin: 16px;
+    padding: 16px 20px;
+  }
+  
+  .main-layout {
+    flex-direction: column;
+    gap: 20px;
+    height: auto; /* 移动端取消固定高度 */
+  }
+  
+  .content-area {
+    width: 100%;
+    overflow-y: visible; /* 移动端取消滚动 */
+    padding-right: 0; /* 移动端不需要滚动条空间 */
+  }
+  
+  .log-section {
+    width: 100%;
+    height: 350px; /* 移动端给日志区域设置固定高度 */
+  }
+  
+  .log-area-scroll {
+    height: calc(350px - 44px) !important; /* 移动端日志滚动区域高度 */
+  }
 }
 .mode-tabs-card {
   display: flex;
@@ -345,8 +686,158 @@ function saveAsFile(data, filename) {
   margin-bottom: 8px;
   flex-wrap: wrap;
 }
-.ram-upload {
-  margin-bottom: 10px;
+
+/* 新的文件上传区域样式 */
+.file-upload-area {
+  margin-bottom: 12px;
+}
+
+.file-drop-zone {
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #fafbfc;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-drop-zone:hover:not(.disabled) {
+  border-color: #1976d2;
+  background: #f8faff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.1);
+}
+
+.file-drop-zone.drag-over {
+  border-color: #1976d2;
+  background: #e3f2fd;
+  transform: scale(1.02);
+}
+
+.file-drop-zone.has-file {
+  border-color: #4caf50;
+  background: #f1f8e9;
+  border-style: solid;
+}
+
+.file-drop-zone.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  border-color: #e0e0e0;
+  background: #f5f5f5;
+}
+
+.drop-zone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.upload-icon {
+  font-size: 2rem;
+  margin-bottom: 4px;
+  opacity: 0.7;
+}
+
+.upload-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.main-text {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.sub-text {
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin: 0;
+}
+
+.hint-text {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.file-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 6px 8px;
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.file-icon {
+  font-size: 1.8rem;
+  opacity: 0.8;
+}
+
+.file-details {
+  flex: 1;
+  text-align: left;
+}
+
+.file-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 2px;
+  word-break: break-all;
+}
+
+.file-size {
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin-bottom: 1px;
+}
+
+.file-type {
+  font-size: 0.75rem;
+  color: #4caf50;
+  font-weight: 500;
+}
+
+.remove-file-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid #dc3545;
+  background: #fff;
+  color: #dc3545;
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.remove-file-btn:hover:not(:disabled) {
+  background: #dc3545;
+  color: white;
+  transform: scale(1.1);
+}
+
+.remove-file-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 .id-display {
   margin-top: 6px;
@@ -376,14 +867,12 @@ progress {
   width: 180px;
   height: 16px;
 }
-.log-section {
-  margin-top: 28px;
-}
+
 .log-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 .log-header h2 {
   font-size: 1.08rem;
@@ -404,17 +893,7 @@ progress {
   background: #e3f2fd;
   color: #1976d2;
 }
-.log-area-scroll {
-  background: #f4f4f4;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  padding: 8px 8px 8px 12px;
-  height: 140px;
-  overflow-y: auto;
-  font-family: monospace;
-  font-size: 0.97rem;
-  line-height: 1.6;
-}
+
 .log-line {
   white-space: pre-wrap;
   word-break: break-all;
@@ -439,5 +918,19 @@ button:not(:disabled):hover {
 }
 input[type="file"] {
   margin-left: 8px;
+}
+.mode-info {
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  color: #6c757d;
+  font-size: 0.95rem;
+}
+.mode-info p {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 </style>

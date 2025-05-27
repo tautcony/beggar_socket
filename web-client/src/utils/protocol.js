@@ -39,25 +39,9 @@ async function getRespon(device, endpointIn) {
   return result.status === "ok" && result.data.getUint8(0) === 0xaa
 }
 
-// 文件分包写入
-export async function sendFileToDevice(device, fileData) {
-  const { endpointOut, endpointIn } = device
-  const pageSize = 256 // 可根据协议调整
-  for (let addr = 0; addr < fileData.length; addr += pageSize) {
-    const chunk = fileData.slice(addr, addr + pageSize)
-    // 组包，仿照C# rom_write
-    let payload = new Uint8Array(1 + 4 + chunk.length)
-    payload[0] = 0xf5
-    let addrBytes = new Uint8Array(new Uint32Array([addr / 2]).buffer) // wordAddr
-    payload.set(addrBytes, 1)
-    payload.set(chunk, 5)
-    await sendPackage(device, endpointOut, payload)
-    let ack = await getRespon(device, endpointIn)
-    if (!ack) throw new Error('设备未响应')
-  }
-}
+// --- GBA Commands ---
 
-// 读取ID
+// GBA: 读取ID (0xf0)
 export async function rom_readID(device) {
   const { endpointOut, endpointIn } = device
   await sendPackage(device, endpointOut, new Uint8Array([0xf0]))
@@ -71,7 +55,7 @@ export async function rom_readID(device) {
   }
 }
 
-// 擦除芯片
+// GBA: 擦除芯片 (0xf1)
 export async function rom_eraseChip(device) {
   const { endpointOut, endpointIn } = device
   await sendPackage(device, endpointOut, new Uint8Array([0xf1]))
@@ -79,87 +63,273 @@ export async function rom_eraseChip(device) {
   if (!ack) throw new Error('擦除失败')
 }
 
-// 导出ROM
-export async function rom_read(device, size) {
-  const { endpointOut, endpointIn } = device
-  const pageSize = 256
-  let result = new Uint8Array(size)
-  for (let addr = 0; addr < size; addr += pageSize) {
-    let chunkSize = Math.min(pageSize, size - addr)
-    let payload = new Uint8Array(1 + 4 + 2)
-    payload[0] = 0xf6
-    let addrBytes = new Uint8Array(new Uint32Array([addr]).buffer)
-    payload.set(addrBytes, 1)
-    payload[5] = chunkSize & 0xFF
-    payload[6] = (chunkSize >> 8) & 0xFF
-    await sendPackage(device, endpointOut, payload)
-    let res = await device.device.transferIn(endpointIn, chunkSize + 2)
-    if (res.status === "ok" && res.data.byteLength >= chunkSize + 2) {
-      for (let i = 2; i < chunkSize + 2; ++i) {
-        result[addr + i - 2] = res.data.getUint8(i)
-      }
-    } else {
-      throw new Error('读取ROM失败')
-    }
-  }
-  return result
+// GBA: ROM Sector Erase (64KB) (0xf3)
+export async function rom_sector_erase(device, sectorAddress) {
+  const { endpointOut, endpointIn } = device;
+  let payload = new Uint8Array(1 + 4);
+  payload[0] = 0xf3;
+  let addrBytes = new Uint8Array(new Uint32Array([sectorAddress]).buffer);
+  payload.set(addrBytes, 1);
+  await sendPackage(device, endpointOut, payload);
+  let ack = await getRespon(device, endpointIn);
+  if (!ack) throw new Error('ROM扇区擦除失败');
+  return ack;
 }
 
+// GBA: ROM Program (0xf4)
+export async function rom_program(device, fileData, baseAddress = 0) {
+  const { endpointOut, endpointIn } = device;
+  const pageSize = 256;
+
+  for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
+    const currentDeviceAddress = baseAddress + addrOffset;
+    const chunk = fileData.slice(addrOffset, Math.min(addrOffset + pageSize, fileData.length));
+    const chunkBufferSize = chunk.length;
+
+    let payload = new Uint8Array(1 + 4 + 2 + chunkBufferSize);
+    payload[0] = 0xf4;
+    let addrBytes = new Uint8Array(new Uint32Array([currentDeviceAddress]).buffer);
+    payload.set(addrBytes, 1);
+    payload[5] = chunkBufferSize & 0xFF;
+    payload[6] = (chunkBufferSize >> 8) & 0xFF;
+    payload.set(chunk, 7);
+
+    await sendPackage(device, endpointOut, payload);
+    let ack = await getRespon(device, endpointIn);
+    if (!ack) throw new Error(`ROM编程失败 (地址: 0x${currentDeviceAddress.toString(16)})`);
+  }
+}
+
+// GBA: ROM Direct Write (透传) (0xf5)
+export async function rom_direct_write(device, fileData, baseByteAddress = 0) {
+  const { endpointOut, endpointIn } = device;
+  const pageSize = 256;
+
+  for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
+    const currentDeviceByteAddress = baseByteAddress + addrOffset;
+    const currentDeviceWordAddress = currentDeviceByteAddress / 2;
+    const chunk = fileData.slice(addrOffset, Math.min(addrOffset + pageSize, fileData.length));
+
+    if (chunk.length % 2 !== 0) {
+        console.warn("rom_direct_write: chunk size is not a multiple of 2. This might be an issue.");
+    }
+
+    let payload = new Uint8Array(1 + 4 + chunk.length);
+    payload[0] = 0xf5;
+    let addrBytes = new Uint8Array(new Uint32Array([currentDeviceWordAddress]).buffer);
+    payload.set(addrBytes, 1);
+    payload.set(chunk, 5);
+
+    await sendPackage(device, endpointOut, payload);
+    let ack = await getRespon(device, endpointIn);
+    if (!ack) throw new Error(`ROM直接写失败 (地址: 0x${currentDeviceWordAddress.toString(16)} [字地址])`);
+  }
+}
+
+// GBA: ROM 读取 (0xf6)
+export async function rom_read(device, size, baseAddress = 0) {
+  const { endpointOut, endpointIn } = device;
+  const pageSize = 256;
+  let result = new Uint8Array(size);
+  let bytesFetched = 0;
+
+  for (let addrOffset = 0; bytesFetched < size; addrOffset += pageSize) {
+    const currentDeviceAddress = baseAddress + addrOffset;
+    const remainingSize = size - bytesFetched;
+    const chunkSize = Math.min(pageSize, remainingSize);
+    if (chunkSize <= 0) break;
+
+    let payload = new Uint8Array(1 + 4 + 2);
+    payload[0] = 0xf6;
+    let addrBytes = new Uint8Array(new Uint32Array([currentDeviceAddress]).buffer);
+    payload.set(addrBytes, 1);
+    payload[5] = chunkSize & 0xFF;
+    payload[6] = (chunkSize >> 8) & 0xFF;
+
+    await sendPackage(device, endpointOut, payload);
+    let res = await device.device.transferIn(endpointIn, chunkSize + 2);
+    if (res.status === "ok" && res.data.byteLength >= chunkSize + 2) {
+      for (let i = 0; i < chunkSize; ++i) {
+        result[bytesFetched + i] = res.data.getUint8(i + 2);
+      }
+      bytesFetched += chunkSize;
+    } else {
+      throw new Error(`ROM读取失败 (地址: 0x${currentDeviceAddress.toString(16)})`);
+    }
+  }
+  return result;
+}
+
+// GBA: RAM 写入 (0xf7)
+export async function ram_write(device, fileData, baseAddress = 0) {
+  const { endpointOut, endpointIn } = device;
+  const pageSize = 256;
+  for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
+    const currentDeviceAddress = baseAddress + addrOffset;
+    const chunk = fileData.slice(addrOffset, Math.min(addrOffset + pageSize, fileData.length));
+
+    let payload = new Uint8Array(1 + 4 + chunk.length);
+    payload[0] = 0xf7;
+    let addrBytes = new Uint8Array(new Uint32Array([currentDeviceAddress]).buffer);
+    payload.set(addrBytes, 1);
+    payload.set(chunk, 5);
+
+    await sendPackage(device, endpointOut, payload);
+    let ack = await getRespon(device, endpointIn);
+    if (!ack) throw new Error(`RAM写入失败 (地址: 0x${currentDeviceAddress.toString(16)})`);
+  }
+}
+
+// GBA: RAM 读取 (0xf8)
+export async function ram_read(device, size, baseAddress = 0) {
+  const { endpointOut, endpointIn } = device;
+  const pageSize = 256;
+  let result = new Uint8Array(size);
+  let bytesFetched = 0;
+
+  for (let addrOffset = 0; bytesFetched < size; addrOffset += pageSize) {
+    const currentDeviceAddress = baseAddress + addrOffset;
+    const remainingSize = size - bytesFetched;
+    const chunkSize = Math.min(pageSize, remainingSize);
+    if (chunkSize <= 0) break;
+
+    let payload = new Uint8Array(1 + 4 + 2);
+    payload[0] = 0xf8;
+    let addrBytes = new Uint8Array(new Uint32Array([currentDeviceAddress]).buffer);
+    payload.set(addrBytes, 1);
+    payload[5] = chunkSize & 0xFF;
+    payload[6] = (chunkSize >> 8) & 0xFF;
+
+    await sendPackage(device, endpointOut, payload);
+    let res = await device.device.transferIn(endpointIn, chunkSize + 2);
+    if (res.status === "ok" && res.data.byteLength >= chunkSize + 2) {
+      for (let i = 0; i < chunkSize; ++i) {
+        result[bytesFetched + i] = res.data.getUint8(i + 2);
+      }
+      bytesFetched += chunkSize;
+    } else {
+      throw new Error(`RAM读取失败 (地址: 0x${currentDeviceAddress.toString(16)})`);
+    }
+  }
+  return result;
+}
+
+// GBA: RAM Write to FLASH (0xf9)
+export async function ram_write_to_flash(device, fileData, baseAddress = 0) {
+  const { endpointOut, endpointIn } = device;
+  const pageSize = 256;
+
+  for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
+    const currentDeviceAddress = baseAddress + addrOffset;
+    const chunk = fileData.slice(addrOffset, Math.min(addrOffset + pageSize, fileData.length));
+
+    let payload = new Uint8Array(1 + 4 + chunk.length);
+    payload[0] = 0xf9;
+    let addrBytes = new Uint8Array(new Uint32Array([currentDeviceAddress]).buffer);
+    payload.set(addrBytes, 1);
+    payload.set(chunk, 5);
+
+    await sendPackage(device, endpointOut, payload);
+    let ack = await getRespon(device, endpointIn);
+    if (!ack) throw new Error(`RAM写入FLASH失败 (地址: 0x${currentDeviceAddress.toString(16)})`);
+  }
+}
+
+// --- GBC Commands ---
+
+// GBC: Direct Write (透传) (0xfa)
+export async function gbc_direct_write(device, fileData, baseAddress = 0) {
+  const { endpointOut, endpointIn } = device;
+  const pageSize = 256;
+
+  for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
+    const currentDeviceAddress = baseAddress + addrOffset;
+    const chunk = fileData.slice(addrOffset, Math.min(addrOffset + pageSize, fileData.length));
+
+    let payload = new Uint8Array(1 + 4 + chunk.length);
+    payload[0] = 0xfa;
+    let addrBytes = new Uint8Array(new Uint32Array([currentDeviceAddress]).buffer);
+    payload.set(addrBytes, 1);
+    payload.set(chunk, 5);
+
+    await sendPackage(device, endpointOut, payload);
+    let ack = await getRespon(device, endpointIn);
+    if (!ack) throw new Error(`GBC直接写失败 (地址: 0x${currentDeviceAddress.toString(16)})`);
+  }
+}
+
+// GBC: Read (0xfb)
+export async function gbc_read(device, size, baseAddress = 0) {
+  const { endpointOut, endpointIn } = device;
+  const pageSize = 256;
+  let result = new Uint8Array(size);
+  let bytesFetched = 0;
+
+  for (let addrOffset = 0; bytesFetched < size; addrOffset += pageSize) {
+    const currentDeviceAddress = baseAddress + addrOffset;
+    const remainingSize = size - bytesFetched;
+    const chunkSize = Math.min(pageSize, remainingSize);
+    if (chunkSize <= 0) break;
+
+    let payload = new Uint8Array(1 + 4 + 2);
+    payload[0] = 0xfb;
+    let addrBytes = new Uint8Array(new Uint32Array([currentDeviceAddress]).buffer);
+    payload.set(addrBytes, 1);
+    payload[5] = chunkSize & 0xFF;
+    payload[6] = (chunkSize >> 8) & 0xFF;
+
+    await sendPackage(device, endpointOut, payload);
+    let res = await device.device.transferIn(endpointIn, chunkSize + 2);
+    if (res.status === "ok" && res.data.byteLength >= chunkSize + 2) {
+      for (let i = 0; i < chunkSize; ++i) {
+        result[bytesFetched + i] = res.data.getUint8(i + 2);
+      }
+      bytesFetched += chunkSize;
+    } else {
+      throw new Error(`GBC读取失败 (地址: 0x${currentDeviceAddress.toString(16)})`);
+    }
+  }
+  return result;
+}
+
+// GBC: ROM Program (0xfc)
+export async function gbc_rom_program(device, fileData, baseAddress = 0) {
+  const { endpointOut, endpointIn } = device;
+  const pageSize = 256;
+
+  for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
+    const currentDeviceAddress = baseAddress + addrOffset;
+    const chunk = fileData.slice(addrOffset, Math.min(addrOffset + pageSize, fileData.length));
+    const chunkBufferSize = chunk.length;
+
+    let payload = new Uint8Array(1 + 4 + 2 + chunkBufferSize);
+    payload[0] = 0xfc;
+    let addrBytes = new Uint8Array(new Uint32Array([currentDeviceAddress]).buffer);
+    payload.set(addrBytes, 1);
+    payload[5] = chunkBufferSize & 0xFF;
+    payload[6] = (chunkBufferSize >> 8) & 0xFF;
+    payload.set(chunk, 7);
+
+    await sendPackage(device, endpointOut, payload);
+    let ack = await getRespon(device, endpointIn);
+    if (!ack) throw new Error(`GBC ROM编程失败 (地址: 0x${currentDeviceAddress.toString(16)})`);
+  }
+}
+
+// --- Verification Functions ---
+
 // 校验ROM
-export async function rom_verify(device, fileData) {
-  const readData = await rom_read(device, fileData.length)
+export async function rom_verify(device, fileData, baseAddress = 0) {
+  const readData = await rom_read(device, fileData.length, baseAddress);
   for (let i = 0; i < fileData.length; ++i) {
     if (fileData[i] !== readData[i]) return false
   }
   return true
 }
 
-// 写入RAM
-export async function ram_write(device, fileData) {
-  const { endpointOut, endpointIn } = device
-  const pageSize = 256
-  for (let addr = 0; addr < fileData.length; addr += pageSize) {
-    const chunk = fileData.slice(addr, addr + pageSize)
-    let payload = new Uint8Array(1 + 4 + chunk.length)
-    payload[0] = 0xf7
-    let addrBytes = new Uint8Array(new Uint32Array([addr]).buffer)
-    payload.set(addrBytes, 1)
-    payload.set(chunk, 5)
-    await sendPackage(device, endpointOut, payload)
-    let ack = await getRespon(device, endpointIn)
-    if (!ack) throw new Error('RAM写入失败')
-  }
-}
-
-// 导出RAM
-export async function ram_read(device, size) {
-  const { endpointOut, endpointIn } = device
-  const pageSize = 256
-  let result = new Uint8Array(size)
-  for (let addr = 0; addr < size; addr += pageSize) {
-    let chunkSize = Math.min(pageSize, size - addr)
-    let payload = new Uint8Array(1 + 4 + 2)
-    payload[0] = 0xf8
-    let addrBytes = new Uint8Array(new Uint32Array([addr]).buffer)
-    payload.set(addrBytes, 1)
-    payload[5] = chunkSize & 0xFF
-    payload[6] = (chunkSize >> 8) & 0xFF
-    await sendPackage(device, endpointOut, payload)
-    let res = await device.device.transferIn(endpointIn, chunkSize + 2)
-    if (res.status === "ok" && res.data.byteLength >= chunkSize + 2) {
-      for (let i = 2; i < chunkSize + 2; ++i) {
-        result[addr + i - 2] = res.data.getUint8(i)
-      }
-    } else {
-      throw new Error('读取RAM失败')
-    }
-  }
-  return result
-}
-
 // 校验RAM
-export async function ram_verify(device, fileData) {
-  const readData = await ram_read(device, fileData.length)
+export async function ram_verify(device, fileData, baseAddress = 0) {
+  const readData = await ram_read(device, fileData.length, baseAddress);
   for (let i = 0; i < fileData.length; ++i) {
     if (fileData[i] !== readData[i]) return false
   }
