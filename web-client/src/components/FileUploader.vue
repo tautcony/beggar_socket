@@ -1,6 +1,9 @@
 <template>
   <div>
-    <input type="file" @change="onFileChange" />
+    <input
+      type="file"
+      @change="onFileChange"
+    >
     <span v-if="fileName">已选择: {{ fileName }}</span>
   </div>
 </template>

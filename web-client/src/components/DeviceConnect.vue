@@ -1,10 +1,17 @@
 <template>
   <div class="device-connect-container">
-    <div v-if="toast.visible" :class="['toast', toast.type]">
+    <div
+      v-if="toast.visible"
+      :class="['toast', toast.type]"
+    >
       {{ toast.message }}
     </div>
     <div class="device-connect">
-      <button :class="buttonClass" @click="handleConnectDisconnect" :disabled="isConnecting">
+      <button
+        :class="buttonClass"
+        :disabled="isConnecting"
+        @click="handleConnectDisconnect"
+      >
         <span class="icon">{{ buttonIcon }}</span> {{ buttonText }}
       </button>
     </div>

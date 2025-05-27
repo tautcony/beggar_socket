@@ -1,9 +1,12 @@
 <template>
   <div>
     <h1>ChisFlashBurner Client</h1>
-    <DeviceConnect @device-ready="onDeviceReady" @device-disconnected="onDeviceDisconnected" />
+    <DeviceConnect
+      @device-ready="onDeviceReady"
+      @device-disconnected="onDeviceDisconnected"
+    />
     <FlashBurner
-      :deviceReady="deviceReady"
+      :device-ready="deviceReady"
       :device="device"
     />
   </div>

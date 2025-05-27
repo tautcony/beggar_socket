@@ -1,26 +1,53 @@
 <template>
   <div class="flashburner-container">
     <div class="mode-tabs-card">
-      <button :class="{active: mode==='GBA'}" @click="mode='GBA'">
+      <button
+        :class="{active: mode==='GBA'}"
+        @click="mode='GBA'"
+      >
         <span class="tab-icon">🎮</span> GBA
       </button>
-      <button :class="{active: mode==='MBC5'}" @click="mode='MBC5'">
+      <button
+        :class="{active: mode==='MBC5'}"
+        @click="mode='MBC5'"
+      >
         <span class="tab-icon">🕹️</span> MBC5
       </button>
     </div>
     <div class="main-layout">
       <div class="content-area">
         <div class="status-row">
-          <span v-if="busy" class="status busy">操作中...</span>
-          <span v-if="result" class="status">{{ result }}</span>
+          <span
+            v-if="busy"
+            class="status busy"
+          >操作中...</span>
+          <span
+            v-if="result"
+            class="status"
+          >{{ result }}</span>
         </div>
         <section class="section">
           <h2>芯片操作</h2>
           <div class="button-row">
-            <button @click="readID" :disabled="!deviceReady || busy">读取ID</button>
-            <button @click="eraseChip" :disabled="!deviceReady || busy">全片擦除</button>
+            <button
+              :disabled="!deviceReady || busy"
+              @click="readID"
+            >
+              读取ID
+            </button>
+            <button
+              :disabled="!deviceReady || busy"
+              @click="eraseChip"
+            >
+              全片擦除
+            </button>
           </div>
-          <div v-if="idStr" class="id-display">ID: {{ idStr }}</div>
+          <div
+            v-if="idStr"
+            class="id-display"
+          >
+            ID: {{ idStr }}
+          </div>
         </section>
         <section class="section">
           <h2>ROM 操作</h2>
@@ -40,30 +67,52 @@
               <input 
                 ref="romFileInput"
                 type="file" 
-                @change="onRomFileChange" 
-                :disabled="!deviceReady || busy"
+                :disabled="!deviceReady || busy" 
                 style="display: none"
                 accept=".rom,.gba,.gb,.gbc"
-              />
-              <div v-if="!romFileData" class="drop-zone-content">
-                <div class="upload-icon">📁</div>
+                @change="onRomFileChange"
+              >
+              <div
+                v-if="!romFileData"
+                class="drop-zone-content"
+              >
+                <div class="upload-icon">
+                  📁
+                </div>
                 <div class="upload-text">
-                  <p class="main-text">点击选择ROM文件</p>
-                  <p class="sub-text">或拖拽文件到此处</p>
-                  <p class="hint-text">支持 .rom, .gba, .gb, .gbc 格式</p>
+                  <p class="main-text">
+                    点击选择ROM文件
+                  </p>
+                  <p class="sub-text">
+                    或拖拽文件到此处
+                  </p>
+                  <p class="hint-text">
+                    支持 .rom, .gba, .gb, .gbc 格式
+                  </p>
                 </div>
               </div>
-              <div v-else class="file-preview">
-                <div class="file-icon">🎮</div>
+              <div
+                v-else
+                class="file-preview"
+              >
+                <div class="file-icon">
+                  🎮
+                </div>
                 <div class="file-details">
-                  <div class="file-name">{{ romFileName }}</div>
-                  <div class="file-size">{{ formatFileSize(romFileData.length) }}</div>
-                  <div class="file-type">ROM 文件</div>
+                  <div class="file-name">
+                    {{ romFileName }}
+                  </div>
+                  <div class="file-size">
+                    {{ formatFileSize(romFileData.length) }}
+                  </div>
+                  <div class="file-type">
+                    ROM 文件
+                  </div>
                 </div>
                 <button 
                   class="remove-file-btn"
-                  @click.stop="clearRomFile"
                   :disabled="busy"
+                  @click.stop="clearRomFile"
                 >
                   ✕
                 </button>
@@ -71,19 +120,43 @@
             </div>
           </div>
           <div class="button-row">
-            <button @click="writeToDevice" :disabled="!deviceReady || !romFileData || busy">写入ROM</button>
-            <button @click="readRom" :disabled="!deviceReady || busy">导出ROM</button>
-            <button @click="verifyRom" :disabled="!deviceReady || !romFileData || busy">校验ROM</button>
+            <button
+              :disabled="!deviceReady || !romFileData || busy"
+              @click="writeToDevice"
+            >
+              写入ROM
+            </button>
+            <button
+              :disabled="!deviceReady || busy"
+              @click="readRom"
+            >
+              导出ROM
+            </button>
+            <button
+              :disabled="!deviceReady || !romFileData || busy"
+              @click="verifyRom"
+            >
+              校验ROM
+            </button>
           </div>
-          <div v-if="writeProgress !== null" class="progress-row">
-            <progress :value="writeProgress" max="100"></progress>
+          <div
+            v-if="writeProgress !== null"
+            class="progress-row"
+          >
+            <progress
+              :value="writeProgress"
+              max="100"
+            />
             <span>{{ writeProgress }}%</span>
             <span v-if="writeDetail">{{ writeDetail }}</span>
           </div>
         </section>
         <section class="section">
           <h2>RAM 操作</h2>
-          <div v-if="mode === 'GBA'" class="ram-content">
+          <div
+            v-if="mode === 'GBA'"
+            class="ram-content"
+          >
             <div class="file-upload-area">
               <div 
                 class="file-drop-zone"
@@ -100,30 +173,52 @@
                 <input 
                   ref="ramFileInput"
                   type="file" 
-                  @change="onRamFileChange" 
-                  :disabled="!deviceReady || busy"
+                  :disabled="!deviceReady || busy" 
                   style="display: none"
                   accept=".sav,.ram"
-                />
-                <div v-if="!ramFileData" class="drop-zone-content">
-                  <div class="upload-icon">💾</div>
+                  @change="onRamFileChange"
+                >
+                <div
+                  v-if="!ramFileData"
+                  class="drop-zone-content"
+                >
+                  <div class="upload-icon">
+                    💾
+                  </div>
                   <div class="upload-text">
-                    <p class="main-text">点击选择RAM文件</p>
-                    <p class="sub-text">或拖拽文件到此处</p>
-                    <p class="hint-text">支持 .sav, .ram 格式</p>
+                    <p class="main-text">
+                      点击选择RAM文件
+                    </p>
+                    <p class="sub-text">
+                      或拖拽文件到此处
+                    </p>
+                    <p class="hint-text">
+                      支持 .sav, .ram 格式
+                    </p>
                   </div>
                 </div>
-                <div v-else class="file-preview">
-                  <div class="file-icon">💾</div>
+                <div
+                  v-else
+                  class="file-preview"
+                >
+                  <div class="file-icon">
+                    💾
+                  </div>
                   <div class="file-details">
-                    <div class="file-name">{{ ramFileName }}</div>
-                    <div class="file-size">{{ formatFileSize(ramFileData.length) }}</div>
-                    <div class="file-type">RAM 文件</div>
+                    <div class="file-name">
+                      {{ ramFileName }}
+                    </div>
+                    <div class="file-size">
+                      {{ formatFileSize(ramFileData.length) }}
+                    </div>
+                    <div class="file-type">
+                      RAM 文件
+                    </div>
                   </div>
                   <button 
                     class="remove-file-btn"
-                    @click.stop="clearRamFile"
                     :disabled="busy"
+                    @click.stop="clearRamFile"
                   >
                     ✕
                   </button>
@@ -131,17 +226,41 @@
               </div>
             </div>
             <div class="button-row">
-              <button @click="writeRam" :disabled="!deviceReady || !ramFileData || busy">写入RAM</button>
-              <button @click="readRam" :disabled="!deviceReady || busy">导出RAM</button>
-              <button @click="verifyRam" :disabled="!deviceReady || !ramFileData || busy">校验RAM</button>
+              <button
+                :disabled="!deviceReady || !ramFileData || busy"
+                @click="writeRam"
+              >
+                写入RAM
+              </button>
+              <button
+                :disabled="!deviceReady || busy"
+                @click="readRam"
+              >
+                导出RAM
+              </button>
+              <button
+                :disabled="!deviceReady || !ramFileData || busy"
+                @click="verifyRam"
+              >
+                校验RAM
+              </button>
             </div>
-            <div v-if="ramWriteProgress !== null" class="progress-row">
-              <progress :value="ramWriteProgress" max="100"></progress>
+            <div
+              v-if="ramWriteProgress !== null"
+              class="progress-row"
+            >
+              <progress
+                :value="ramWriteProgress"
+                max="100"
+              />
               <span>{{ ramWriteProgress }}%</span>
               <span v-if="ramWriteDetail">{{ ramWriteDetail }}</span>
             </div>
           </div>
-          <div v-else class="mode-info">
+          <div
+            v-else
+            class="mode-info"
+          >
             <p>💡 MBC5 模式下 RAM 操作不可用</p>
           </div>
         </section>
@@ -150,10 +269,24 @@
       <div class="log-section">
         <div class="log-header">
           <h2>日志</h2>
-          <button class="log-clear" @click="clearLog">清空</button>
+          <button
+            class="log-clear"
+            @click="clearLog"
+          >
+            清空
+          </button>
         </div>
-        <div ref="logBox" class="log-area-scroll">
-          <div v-for="(line, idx) in logs" :key="idx" class="log-line">{{ line }}</div>
+        <div
+          ref="logBox"
+          class="log-area-scroll"
+        >
+          <div
+            v-for="(line, idx) in logs"
+            :key="idx"
+            class="log-line"
+          >
+            {{ line }}
+          </div>
         </div>
       </div>
     </div>
@@ -171,6 +304,7 @@ import {
 } from '../utils/protocol.js'
 
 const props = defineProps({
+  // eslint-disable-next-line vue/require-default-prop
   device: Object,
   deviceReady: Boolean
 })
