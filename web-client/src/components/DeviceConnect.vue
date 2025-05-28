@@ -68,8 +68,8 @@ async function connect() {
     for (const iface of device.configuration.interfaces) {
       const alternate = iface.alternates.find(alt => alt.endpoints.length >= 2)
       if (alternate) {
-        const outEp = alternate.endpoints.find(ep => ep.direction === 'out' && type === 'bulk')
-        const inEp = alternate.endpoints.find(ep => ep.direction === 'in' && type === 'bulk')
+        const outEp = alternate.endpoints.find(ep => ep.direction === 'out' && ep.type === 'bulk')
+        const inEp = alternate.endpoints.find(ep => ep.direction === 'in' && ep.type === 'bulk')
 
         if (outEp && inEp) {
           await device.claimInterface(iface.interfaceNumber)
