@@ -51,7 +51,7 @@ export async function rom_readID(device) {
     for (let i = 2; i < 10; ++i) id.push(result.data.getUint8(i))
     return id
   } else {
-    throw new Error('读取ID失败')
+    throw new Error('GBA Failed to read ID')
   }
 }
 
@@ -60,7 +60,7 @@ export async function rom_eraseChip(device) {
   const { endpointOut, endpointIn } = device
   await sendPackage(device, endpointOut, new Uint8Array([0xf1]))
   let ack = await getRespon(device, endpointIn)
-  if (!ack) throw new Error('擦除失败')
+  if (!ack) throw new Error('GBA Erase failed')
 }
 
 // GBA: ROM Sector Erase (64KB) (0xf3)
@@ -72,7 +72,7 @@ export async function rom_sector_erase(device, sectorAddress) {
   payload.set(addrBytes, 1);
   await sendPackage(device, endpointOut, payload);
   let ack = await getRespon(device, endpointIn);
-  if (!ack) throw new Error('ROM扇区擦除失败');
+  if (!ack) throw new Error('GBA ROM sector erase failed');
   return ack;
 }
 
@@ -96,7 +96,7 @@ export async function rom_program(device, fileData, baseAddress = 0) {
 
     await sendPackage(device, endpointOut, payload);
     let ack = await getRespon(device, endpointIn);
-    if (!ack) throw new Error(`ROM编程失败 (地址: 0x${currentDeviceAddress.toString(16)})`);
+    if (!ack) throw new Error(`GBA ROM programming failed (Address: 0x${currentDeviceAddress.toString(16)})`);
   }
 }
 
@@ -122,7 +122,7 @@ export async function rom_direct_write(device, fileData, baseByteAddress = 0) {
 
     await sendPackage(device, endpointOut, payload);
     let ack = await getRespon(device, endpointIn);
-    if (!ack) throw new Error(`ROM直接写失败 (地址: 0x${currentDeviceWordAddress.toString(16)} [字地址])`);
+    if (!ack) throw new Error(`GBA ROM direct write failed (Address: 0x${currentDeviceWordAddress.toString(16)} [word address])`);
   }
 }
 
@@ -154,7 +154,7 @@ export async function rom_read(device, size, baseAddress = 0) {
       }
       bytesFetched += chunkSize;
     } else {
-      throw new Error(`ROM读取失败 (地址: 0x${currentDeviceAddress.toString(16)})`);
+      throw new Error(`GBA ROM read failed (Address: 0x${currentDeviceAddress.toString(16)})`);
     }
   }
   return result;
@@ -176,7 +176,7 @@ export async function ram_write(device, fileData, baseAddress = 0) {
 
     await sendPackage(device, endpointOut, payload);
     let ack = await getRespon(device, endpointIn);
-    if (!ack) throw new Error(`RAM写入失败 (地址: 0x${currentDeviceAddress.toString(16)})`);
+    if (!ack) throw new Error(`RAM write failed (Address: 0x${currentDeviceAddress.toString(16)})`);
   }
 }
 
@@ -208,7 +208,7 @@ export async function ram_read(device, size, baseAddress = 0) {
       }
       bytesFetched += chunkSize;
     } else {
-      throw new Error(`RAM读取失败 (地址: 0x${currentDeviceAddress.toString(16)})`);
+      throw new Error(`GBA RAM read failed (Address: 0x${currentDeviceAddress.toString(16)})`);
     }
   }
   return result;
@@ -231,7 +231,7 @@ export async function ram_write_to_flash(device, fileData, baseAddress = 0) {
 
     await sendPackage(device, endpointOut, payload);
     let ack = await getRespon(device, endpointIn);
-    if (!ack) throw new Error(`RAM写入FLASH失败 (地址: 0x${currentDeviceAddress.toString(16)})`);
+    if (!ack) throw new Error(`GBA RAM write to FLASH failed (Address: 0x${currentDeviceAddress.toString(16)})`);
   }
 }
 
@@ -254,7 +254,7 @@ export async function gbc_direct_write(device, fileData, baseAddress = 0) {
 
     await sendPackage(device, endpointOut, payload);
     let ack = await getRespon(device, endpointIn);
-    if (!ack) throw new Error(`GBC直接写失败 (地址: 0x${currentDeviceAddress.toString(16)})`);
+    if (!ack) throw new Error(`GBC direct write failed (Address: 0x${currentDeviceAddress.toString(16)})`);
   }
 }
 
@@ -286,7 +286,7 @@ export async function gbc_read(device, size, baseAddress = 0) {
       }
       bytesFetched += chunkSize;
     } else {
-      throw new Error(`GBC读取失败 (地址: 0x${currentDeviceAddress.toString(16)})`);
+      throw new Error(`GBC read failed (Address: 0x${currentDeviceAddress.toString(16)})`);
     }
   }
   return result;
@@ -312,7 +312,7 @@ export async function gbc_rom_program(device, fileData, baseAddress = 0) {
 
     await sendPackage(device, endpointOut, payload);
     let ack = await getRespon(device, endpointIn);
-    if (!ack) throw new Error(`GBC ROM编程失败 (地址: 0x${currentDeviceAddress.toString(16)})`);
+    if (!ack) throw new Error(`GBC ROM programming failed (Address: 0x${currentDeviceAddress.toString(16)})`);
   }
 }
 

@@ -63,7 +63,7 @@ async function connect() {
     if (device.configuration === null) {
       await device.selectConfiguration(1)
     }
-    
+
     let claimedInterface = false
     for (const iface of device.configuration.interfaces) {
       const alternate = iface.alternates.find(alt => alt.endpoints.length >= 2)
@@ -86,6 +86,7 @@ async function connect() {
       if (iface) {
         await device.claimInterface(iface.interfaceNumber)
       } else {
+        console.error(t('messages.device.noInterface'), device.configuration.interfaces)
         throw new Error(t('messages.device.noInterface'))
       }
     }
@@ -114,10 +115,10 @@ async function disconnect() {
     if (device.opened) {
       await device.close()
     }
-    showToast(t('messages.device.disconnected'), 'success')
+    showToast(t('messages.device.disconnectionSuccess'), 'success')
   } catch (e) {
-    console.error(t('messages.device.disconnectError'), e)
-    showToast(t('messages.device.disconnectFailed') + ': ' + e.message, 'error')
+    console.error(t('messages.device.disconnectionFailed'), e)
+    showToast(`${t('messages.device.disconnectionFailed')}: ${e.message}`, 'error')
   } finally {
     device = null
     connected.value = false
@@ -163,7 +164,7 @@ const buttonClass = computed(() => {
 }
 
 .toast {
-  position: fixed; /* Changed from absolute to fixed for viewport positioning */
+  position: fixed;
   top: 20px;
   right: 20px;
   padding: 10px 20px;
@@ -188,25 +189,25 @@ const buttonClass = computed(() => {
   display: flex;
   justify-content: center; /* Center the button */
   align-items: center;
-  margin-bottom: 12px; /* 减小底部边距 */
+  margin-bottom: 12px;
   width: 100%; /* Ensure it takes width for centering */
 }
 
 .connect-btn,
 .disconnect-btn {
-  padding: 6px 16px; /* 减小按钮padding */
-  border-radius: 6px; /* 减小圆角 */
+  padding: 6px 16px;
+  border-radius: 6px;
   border: none; /* Removed border, relying on background and shadow */
   background: #007bff; /* Primary blue */
   color: white;
-  font-size: 1.1rem; /* Slightly larger font */
+  font-size: 1.1rem;
   font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px; /* 减小间距 */
+  gap: 6px;
   transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* 减小阴影 */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .connect-btn:hover:not(:disabled) {
@@ -238,6 +239,6 @@ button:disabled {
 }
 
 .icon {
-  font-size: 1.2em; /* Slightly larger icon */
+  font-size: 1.2em;
 }
 </style>

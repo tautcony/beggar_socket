@@ -134,6 +134,7 @@ watch(() => props.logs, async () => {
 .log-line {
   white-space: pre-wrap;
   word-break: break-all;
+  text-align: left;
 }
 
 /* 移动端响应式 */
@@ -142,7 +143,7 @@ watch(() => props.logs, async () => {
     width: 100%;
     height: 350px;
   }
-  
+
   .log-area-scroll {
     height: calc(350px - 44px) !important;
   }

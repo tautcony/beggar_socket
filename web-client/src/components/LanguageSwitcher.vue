@@ -33,8 +33,7 @@ function changeLanguage() {
   locale.value = currentLocale.value
   // 保存到本地存储
   localStorage.setItem('locale', currentLocale.value)
-  
-  // 添加语言切换的事件，方便追踪用户语言偏好
+
   if (typeof window !== 'undefined' && window.gtag) {
     window.gtag('event', 'language_change', {
       'event_category': 'preferences',
@@ -90,7 +89,6 @@ function changeLanguage() {
   transform: translateY(-1px);
 }
 
-/* 修复下拉菜单选项在夜间模式下的显示 */
 @media (prefers-color-scheme: dark) {
   .language-select option {
     background-color: #3a3a3a;

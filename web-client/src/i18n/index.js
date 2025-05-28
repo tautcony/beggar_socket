@@ -91,23 +91,23 @@ function getLanguage() {
   if (savedLocale && Object.keys(messages).includes(savedLocale)) {
     return savedLocale
   }
-  
+
   // 然后检查浏览器语言
   const language = navigator.language || navigator.userLanguage
   const locales = Object.keys(messages)
-  
+
   // 完全匹配
   if (locales.includes(language)) {
     return language
   }
-  
+
   // 部分匹配 (比如 ja 匹配 ja-JP)
   for (const locale of locales) {
     if (language.indexOf(locale.split('-')[0]) > -1) {
       return locale
     }
   }
-  
+
   return 'zh-CN'
 }
 

@@ -164,7 +164,7 @@ function handleDragLeave() {
 function handleDrop(e) {
   dragOver.value = false
   if (props.disabled) return
-  
+
   const files = e.dataTransfer.files
   if (files.length > 0) {
     processFile(files[0])

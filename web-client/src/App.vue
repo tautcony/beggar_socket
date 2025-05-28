@@ -36,9 +36,9 @@ function onDeviceDisconnected() {
 <style scoped>
 h1 {
   text-align: center;
-  font-size: 1.8rem; /* 缩小标题 */
+  font-size: 1.8rem;
   color: #2c3e50;
-  margin: 16px 0; /* 减小上下边距 */
+  margin: 16px 0;
   font-weight: 600;
   font-family: 'Segoe UI', 'PingFang SC', Arial, sans-serif;
 }
