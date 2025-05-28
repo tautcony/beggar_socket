@@ -22,11 +22,18 @@ import LanguageSwitcher from './components/LanguageSwitcher.vue'
 const device = ref(null)
 const deviceReady = ref(false)
 
+/**
+ * Callback when the USB device is ready.
+ * @param dev{USBDevice} The USB device object
+ */
 function onDeviceReady(dev) {
   device.value = dev
   deviceReady.value = true
 }
 
+/**
+ * Callback when the USB device is disconnected.
+ */
 function onDeviceDisconnected() {
   device.value = null
   deviceReady.value = false

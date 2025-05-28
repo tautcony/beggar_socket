@@ -68,11 +68,12 @@ async function connect() {
     for (const iface of device.configuration.interfaces) {
       const alternate = iface.alternates.find(alt => alt.endpoints.length >= 2)
       if (alternate) {
-        const outEp = alternate.endpoints.find(ep => ep.direction === 'out')
-        const inEp = alternate.endpoints.find(ep => ep.direction === 'in')
+        const outEp = alternate.endpoints.find(ep => ep.direction === 'out' && type === 'bulk')
+        const inEp = alternate.endpoints.find(ep => ep.direction === 'in' && type === 'bulk')
 
         if (outEp && inEp) {
           await device.claimInterface(iface.interfaceNumber)
+          await device.selectAlternateInterface(iface.interfaceNumber, 0)
           endpointOut = outEp.endpointNumber
           endpointIn = inEp.endpointNumber
           claimedInterface = true
@@ -82,13 +83,8 @@ async function connect() {
     }
 
     if (!claimedInterface) {
-      const iface = device.configuration.interfaces.find(i => i.alternate.endpoints.length > 0)
-      if (iface) {
-        await device.claimInterface(iface.interfaceNumber)
-      } else {
-        console.error(t('messages.device.noInterface'), device.configuration.interfaces)
-        throw new Error(t('messages.device.noInterface'))
-      }
+      console.error(t('messages.device.noInterface'), device.configuration.interfaces)
+      throw new Error(t('messages.device.noInterface'))
     }
 
     connected.value = true
