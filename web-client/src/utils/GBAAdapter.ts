@@ -22,10 +22,10 @@ export class GBAAdapter extends CartridgeAdapter {
 
   /**
    * 构造函数
-   * @param {USBDevice} device - 设备对象
-   * @param {LogCallback} logCallback - 日志回调函数
-   * @param {ProgressCallback} progressCallback - 进度回调函数
-   * @param {TranslateFunction} translateFunc - 国际化翻译函数
+   * @param device - 设备对象
+   * @param logCallback - 日志回调函数
+   * @param progressCallback - 进度回调函数
+   * @param translateFunc - 国际化翻译函数
    */
   constructor(
     device: DeviceInfo, 
@@ -63,9 +63,9 @@ export class GBAAdapter extends CartridgeAdapter {
 
   /**
    * 擦除整个芯片
-   * @returns {Promise<Object>} - 操作结果
+   * @returns - 操作结果
    */
-  async eraseChip() {
+  async eraseChip() : Promise<AdapterResult> {
     try {
       this.log(this.t('messages.operation.eraseChip'));
       await rom_eraseChip(this.device);
@@ -85,12 +85,12 @@ export class GBAAdapter extends CartridgeAdapter {
 
   /**
    * 擦除ROM扇区
-   * @param {number} startAddress - 起始地址
-   * @param {number} endAddress - 结束地址
-   * @param {number} sectorSize - 扇区大小（默认64KB）
-   * @returns {Promise<Object>} - 操作结果
+   * @param startAddress - 起始地址
+   * @param endAddress - 结束地址
+   * @param sectorSize - 扇区大小（默认64KB）
+   * @returns - 操作结果
    */
-  async eraseSectors(startAddress = 0, endAddress: number, sectorSize = 0x10000) {
+  async eraseSectors(startAddress = 0, endAddress: number, sectorSize = 0x10000) : Promise<AdapterResult> {
     try {
       this.log(this.t('messages.operation.eraseSector', { address: startAddress.toString(16) }) + ' - ' + 
                this.t('messages.operation.eraseSector', { address: endAddress.toString(16) }));
@@ -127,9 +127,9 @@ export class GBAAdapter extends CartridgeAdapter {
 
   /**
    * 写入ROM
-   * @param {Uint8Array} fileData - 文件数据
-    * @param {CartridgeAdapterOptions} options - 写入选项
-   * @returns {Promise<Object>} - 操作结果
+   * @param fileData - 文件数据
+    * @param options - 写入选项
+   * @returns - 操作结果
    */
   async writeROM(fileData: Uint8Array, options: CartridgeAdapterOptions = {useDirectWrite: true}) {
     try {
@@ -172,11 +172,11 @@ export class GBAAdapter extends CartridgeAdapter {
 
   /**
    * 读取ROM
-   * @param {number} size - 读取大小
-   * @param {number} baseAddress - 基础地址
-   * @returns {Promise<Object>} - 操作结果，包含读取的数据
+   * @param size - 读取大小
+   * @param baseAddress - 基础地址
+   * @returns - 操作结果，包含读取的数据
    */
-  async readROM(size = 0x200000, baseAddress = 0) {
+  async readROM(size = 0x200000, baseAddress = 0) : Promise<AdapterResult> {
     try {
       this.log(this.t('messages.rom.reading'));
       const data = await rom_read(this.device, size, baseAddress);
@@ -197,11 +197,11 @@ export class GBAAdapter extends CartridgeAdapter {
 
   /**
    * 校验ROM
-   * @param {Uint8Array} fileData - 文件数据
-   * @param {number} baseAddress - 基础地址
-   * @returns {Promise<Object>} - 操作结果
+   * @param fileData - 文件数据
+   * @param baseAddress - 基础地址
+   * @returns - 操作结果
    */
-  async verifyROM(fileData: Uint8Array, baseAddress = 0) {
+  async verifyROM(fileData: Uint8Array, baseAddress = 0) : Promise<AdapterResult> {
     try {
       this.log(this.t('messages.rom.verifying'));
       const ok = await rom_verify(this.device, fileData, baseAddress);
@@ -222,7 +222,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
   /**
    * 切换SRAM的Bank
-   * @param {number} bank - Bank编号 (0或1)
+   * @param bank - Bank编号 (0或1)
    */
   async switchSRAMBank(bank: number) {
     bank = bank === 0 ? 0 : 1;
@@ -232,7 +232,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
   /**
    * 切换Flash的Bank
-   * @param {number} bank - Bank编号 (0或1)
+   * @param bank - Bank编号 (0或1)
    */
   async switchFlashBank(bank: number) {
     bank = bank === 0 ? 0 : 1;
@@ -246,11 +246,11 @@ export class GBAAdapter extends CartridgeAdapter {
 
   /**
    * 写入RAM
-   * @param {Uint8Array} fileData - 文件数据
-   * @param {CartridgeAdapterOptions} options - 写入选项
-   * @returns {Promise<Object>} - 操作结果
+   * @param fileData - 文件数据
+   * @param options - 写入选项
+   * @returns - 操作结果
    */
-  async writeRAM(fileData: Uint8Array, options: CartridgeAdapterOptions = {ramType: "SRAM"}) {
+  async writeRAM(fileData: Uint8Array, options: CartridgeAdapterOptions = {ramType: "SRAM"}): Promise<AdapterResult> {
     try {
       this.log(this.t('messages.ram.writing', { size: fileData.length }));
 
@@ -337,9 +337,9 @@ export class GBAAdapter extends CartridgeAdapter {
 
   /**
    * 读取RAM
-   * @param {number} size - 读取大小
-   * @param {CartridgeAdapterOptions} options - 写入选项
-   * @returns {Promise<Object>} - 操作结果，包含读取的数据
+   * @param size - 读取大小
+   * @param options - 读取参数
+   * @returns - 操作结果，包含读取的数据
    */
   async readRAM(size = 0x8000, options: CartridgeAdapterOptions = {ramType: "SRAM"}) {
     try {
@@ -397,9 +397,9 @@ export class GBAAdapter extends CartridgeAdapter {
 
   /**
    * 校验RAM
-   * @param {Uint8Array} fileData - 文件数据
-   * @param {CartridgeAdapterOptions} options - 选项对象
-   * @returns {Promise<Object>} - 操作结果
+   * @param fileData - 文件数据
+   * @param options - 选项对象
+   * @returns - 操作结果
    */
   async verifyRAM(fileData: Uint8Array, options: CartridgeAdapterOptions = {ramType: "SRAM"}) {
     try {

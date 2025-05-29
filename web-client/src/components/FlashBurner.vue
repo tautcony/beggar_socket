@@ -85,6 +85,7 @@ import { GBAAdapter } from '../utils/GBAAdapter.ts'
 import { MBC5Adapter } from '../utils/MBC5Adapter.ts'
 import { DeviceInfo } from '../types/DeviceInfo.ts'
 import { FileInfo } from '../types/FileInfo.ts'
+import CartridgeAdapter from '@/utils/CartridgeAdapter'
 
 const { t } = useI18n()
 
@@ -106,8 +107,8 @@ const writeDetail = ref<string | undefined>('')
 const ramWriteProgress = ref<number | null>(null)
 const ramWriteDetail = ref('')
 const logs = ref<string[]>([])
-const gbaAdapter = ref<GBAAdapter | null>()
-const mbc5Adapter = ref<MBC5Adapter | null>()
+const gbaAdapter = ref<CartridgeAdapter | null>()
+const mbc5Adapter = ref<CartridgeAdapter | null>()
 
 // 设备连接状态改变时，初始化适配器
 watch(() => props.deviceReady, (newVal) => {
@@ -187,50 +188,39 @@ function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
+function getAdapter() {
+  if (mode.value === 'GBA') {
+    return gbaAdapter.value
+  } else if (mode.value === 'MBC5') {
+    return mbc5Adapter.value
+  }
+  result.value = t('messages.operation.unsupportedMode')
+  return null
+}
+
 async function readID() {
   busy.value = true
   result.value = ''
 
   try {
-    if (mode.value === 'GBA' && gbaAdapter.value) {
-      const response = await gbaAdapter.value.readID()
-      if (response.success) {
-        idStr.value = response.idStr || ''
-        result.value = response.message
-      } else {
-        result.value = response.message
-      }
-    } else if (mode.value === 'MBC5' && mbc5Adapter.value) {
-      const response = await mbc5Adapter.value.readID()
-      if (response.success) {
-        idStr.value = response.idStr || ''
-        result.value = response.message
-
-        // 获取容量信息
-        try {
-          const sizeInfo = await mbc5Adapter.value.getROMSize()
-          log(t('messages.rom.capacityInfo', {
-            deviceSize: formatFileSize(sizeInfo.deviceSize),
-            sectorCount: sizeInfo.sectorCount,
-            sectorSize: sizeInfo.sectorSize,
-            bufferWriteBytes: sizeInfo.bufferWriteBytes
-          }))
-        } catch (e) {
-          log(`${t('messages.rom.capacityError')}: ${e instanceof Error ? e.message : String(e)}`)
-        }
-      } else {
-        result.value = response.message
-      }
+    let adapter = getAdapter()
+    if (!adapter) {
+      return
     }
-    else {
-      result.value = t('messages.operation.unsupportedMode')
+
+    const response = await adapter.readID()
+    if (response.success) {
+      idStr.value = response.idStr || ''
+      result.value = response.message
+    } else {
+      result.value = response.message
     }
   } catch (e) {
     result.value = t('messages.operation.readIdFailed')
     log(`${t('messages.operation.readIdFailed')}: ${e instanceof Error ? e.message : String(e)}`)
+  } finally {
+    busy.value = false
   }
-
-  busy.value = false
 }
 
 async function eraseChip() {
@@ -238,21 +228,19 @@ async function eraseChip() {
   result.value = ''
 
   try {
-    if (mode.value === 'GBA' && gbaAdapter.value) {
-      const response = await gbaAdapter.value.eraseChip()
-      result.value = response.message
-    } else if (mode.value === 'MBC5' && mbc5Adapter.value) {
-      const response = await mbc5Adapter.value.eraseChip()
-      result.value = response.message
-    } else {
-      result.value = t('messages.operation.unsupportedMode')
+    const adapter = getAdapter()
+    if (!adapter) {
+      return
     }
+
+    const response = await adapter.eraseChip()
+    result.value = response.message
   } catch (e) {
     result.value = t('messages.operation.eraseFailed')
     log(`${t('messages.operation.eraseFailed')}: ${e instanceof Error ? e.message : String(e)}`)
+  } finally {
+    busy.value = false
   }
-
-  busy.value = false
 }
 
 async function writeToDevice() {
@@ -262,32 +250,21 @@ async function writeToDevice() {
   writeDetail.value = ''
 
   try {
-    if (mode.value === 'GBA' && gbaAdapter.value && romFileData.value) {
-      const response = await gbaAdapter.value.writeROM(romFileData.value, { useDirectWrite: true}) // 使用直接写入模式
-      result.value = response.message
-    } else if (mode.value === 'MBC5' && mbc5Adapter.value && romFileData.value) {
-
-      // 检查是否需要擦除
-      const isBlank = await mbc5Adapter.value.isBlank(0)
-      if (!isBlank) {
-        log(t('messages.rom.eraseBeforeWrite'))
-        const sizeInfo = await mbc5Adapter.value.getROMSize()
-        await mbc5Adapter.value.eraseSectors(0, romFileData.value.length - 1, sizeInfo.sectorSize)
-      }
-
-      const response = await mbc5Adapter.value.writeROM(romFileData.value)
-      result.value = response.message
-
-    } else {
+    const adapter = getAdapter()
+    if (!adapter || !romFileData.value) {
       result.value = t('messages.operation.unsupportedMode')
+      return
     }
+
+    const response = await adapter.writeROM(romFileData.value, { useDirectWrite: true})
+    result.value = response.message
   } catch (e) {
     result.value = t('messages.rom.writeFailed')
     log(`${t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`)
+  } finally {
+    busy.value = false
+    setTimeout(() => { writeProgress.value = null; writeDetail.value = '' }, 1500)
   }
-
-  busy.value = false
-  setTimeout(() => { writeProgress.value = null; writeDetail.value = '' }, 1500)
 }
 
 async function readRom() {
@@ -295,33 +272,21 @@ async function readRom() {
   result.value = ''
 
   try {
-    if (mode.value === 'GBA' && gbaAdapter.value) {
-      const defaultSize = romFileData.value ? romFileData.value.length : 0x200000
-      const response = await gbaAdapter.value.readROM(defaultSize)
 
-      if (response.success) {
-        result.value = response.message
-        if (response.data) {
-          saveAsFile(response.data, 'exported.rom')
-        }
-      } else {
-        result.value = response.message
+    const adapter = getAdapter()
+    if (!adapter) {
+      return
+    }
+
+    const defaultSize = romFileData.value ? romFileData.value.length : 0x200000
+    const response = await adapter.readROM(defaultSize)
+    if (response.success) {
+      result.value = response.message
+      if (response.data) {
+        saveAsFile(response.data, 'exported.rom')
       }
-    } else if (mode.value === 'MBC5' && mbc5Adapter.value) {
-
-      const defaultSize = romFileData.value ? romFileData.value.length : 0x200000
-      const response = await mbc5Adapter.value.readROM(defaultSize)
-      if (response.success) {
-        result.value = response.message
-        if (response.data) {
-          saveAsFile(response.data, 'exported.rom')
-        }
-      } else {
-        result.value = response.message
-      }
-
     } else {
-      result.value = t('messages.operation.unsupportedMode')
+      result.value = response.message
     }
   } catch (e) {
     result.value = t('messages.rom.readFailed')
@@ -336,21 +301,21 @@ async function verifyRom() {
   result.value = ''
 
   try {
-    if (mode.value === 'GBA' && gbaAdapter.value && romFileData.value) {
-      const response = await gbaAdapter.value.verifyROM(romFileData.value)
-      result.value = response.message
-    } else if (mode.value === 'MBC5' && mbc5Adapter.value && romFileData.value) {
-      const response = await mbc5Adapter.value.verifyROM(romFileData.value)
-      result.value = response.message
-    } else {
+    const adapter = getAdapter()
+    if (!adapter || !romFileData.value) {
       result.value = t('messages.operation.unsupportedMode')
+      return
     }
+
+    const response = await adapter.verifyROM(romFileData.value)
+    result.value = response.message
+
   } catch (e) {
     result.value = t('messages.rom.verifyFailed')
     log(`${t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`)
+  } finally {
+    busy.value = false
   }
-
-  busy.value = false
 }
 
 async function writeRam() {
@@ -360,25 +325,21 @@ async function writeRam() {
   ramWriteDetail.value = ''
 
   try {
-    if (mode.value === 'GBA' && gbaAdapter.value && ramFileData.value) {
-      // 使用适配器写入RAM，默认使用SRAM类型
-      const response = await gbaAdapter.value.writeRAM(ramFileData.value, { ramType: "SRAM" })
-      result.value = response.message
-    } else if (mode.value === 'MBC5' && mbc5Adapter.value && ramFileData.value) {
-
-      const response = await mbc5Adapter.value.writeRAM(ramFileData.value)
-      result.value = response.message
-
-    } else {
+    const adapter = getAdapter()
+    if (!adapter || !ramFileData.value) {
       result.value = t('messages.operation.unsupportedMode')
+      return
     }
+
+    const response = await adapter.writeRAM(ramFileData.value, { ramType: "SRAM" })
+    result.value = response.message
   } catch (e) {
     result.value = t('messages.ram.writeFailed')
     log(`${t('messages.ram.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`)
+  } finally {
+    busy.value = false
+    setTimeout(() => { ramWriteProgress.value = null; ramWriteDetail.value = '' }, 1500)
   }
-
-  busy.value = false
-  setTimeout(() => { ramWriteProgress.value = null; ramWriteDetail.value = '' }, 1500)
 }
 
 async function readRam() {
@@ -386,40 +347,27 @@ async function readRam() {
   result.value = ''
 
   try {
-    if (mode.value === 'GBA' && gbaAdapter.value) {
-      const defaultSize = ramFileData.value ? ramFileData.value.length : 0x8000
-      const response = await gbaAdapter.value.readRAM(defaultSize, { ramType: "SRAM" })
+    const adapter = getAdapter()
+    if (!adapter) {
+      return
+    }
 
-      if (response.success) {
-        result.value = response.message
-        if (response.data) {
-          saveAsFile(response.data, 'exported.sav')
-        }
-      } else {
-        result.value = response.message
+    const defaultSize = ramFileData.value ? ramFileData.value.length : 0x8000
+    const response = await adapter.readRAM(defaultSize)
+    if (response.success) {
+      result.value = response.message
+      if (response.data) {
+        saveAsFile(response.data, 'exported.sav')
       }
-    } else if (mode.value === 'MBC5' && mbc5Adapter.value) {
-
-      const defaultSize = ramFileData.value ? ramFileData.value.length : 0x8000
-      const response = await mbc5Adapter.value.readRAM(defaultSize)
-      if (response.success) {
-        result.value = response.message
-        if (response.data) {
-          saveAsFile(response.data, 'exported.sav')
-        }
-      } else {
-        result.value = response.message
-      }
-
     } else {
-      result.value = t('messages.operation.unsupportedMode')
+      result.value = response.message
     }
   } catch (e) {
     result.value = t('messages.ram.readFailed')
     log(`${t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`)
+  } finally {
+    busy.value = false
   }
-
-  busy.value = false
 }
 
 async function verifyRam() {
@@ -427,23 +375,20 @@ async function verifyRam() {
   result.value = ''
 
   try {
-    if (mode.value === 'GBA' && gbaAdapter.value && ramFileData.value) {
-      const response = await gbaAdapter.value.verifyRAM(ramFileData.value, { ramType: "SRAM" })
-      result.value = response.message
-    } else if (mode.value === 'MBC5' && mbc5Adapter.value && ramFileData.value) {
-
-      const response = await mbc5Adapter.value.verifyRAM(ramFileData.value)
-      result.value = response.message
-
-    } else {
+    const adapter = getAdapter()
+    if (!adapter || !ramFileData.value) {
       result.value = t('messages.operation.unsupportedMode')
+      return
     }
+
+    const response = await adapter.verifyRAM(ramFileData.value, { ramType: "SRAM" })
+    result.value = response.message
   } catch (e) {
     result.value = t('messages.ram.verifyFailed')
     log(`${t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`)
+  } finally {
+    busy.value = false
   }
-
-  busy.value = false
 }
 
 function saveAsFile(data: Uint8Array, filename: string) {

@@ -1,6 +1,6 @@
 import { gbc_direct_write, gbc_read, gbc_rom_program } from './Protocol.ts'
 import { DeviceInfo } from '../types/DeviceInfo.ts'
-import { CartridgeAdapter, CartridgeAdapterOptions, LogCallback, ProgressCallback, TranslateFunction } from './CartridgeAdapter.ts'
+import { CartridgeAdapter, CartridgeAdapterOptions, AdapterResult, LogCallback, ProgressCallback, TranslateFunction } from './CartridgeAdapter.ts'
 
 /**
  * MBC5 Adapter - 封装MBC5卡带的协议操作
@@ -10,8 +10,11 @@ export class MBC5Adapter extends CartridgeAdapter {
 
   /**
    * 构造函数
-   * @param {Object} device - 设备对象
-   * @param {Object} i18n - 国际化对象，包含t方法
+   * @param device - 设备对象
+   * @param logCallback - 日志回调函数
+   * @param progressCallback - 进度回调函数
+   * @param translateFunc - 翻译函数
+   * @returns - MBC5适配器实例
    */
   constructor(
     device: DeviceInfo,
@@ -23,37 +26,11 @@ export class MBC5Adapter extends CartridgeAdapter {
     this.idStr = '';
   }
 
-  // ROM Bank 切换
-  async switchROMBank(bank: number) {
-    if (bank < 0) return
-
-    const b0 = bank & 0xff
-    const b1 = (bank >> 8) & 0xff
-
-    // ROM addr [21:14]
-    await gbc_direct_write(this.device, new Uint8Array([b0]), 0x2000)
-    // ROM addr [22]
-    await gbc_direct_write(this.device, new Uint8Array([b1]), 0x3000)
-
-    this.log(this.t('messages.rom.bankSwitch', { bank }));
-  }
-
-  // RAM Bank 切换
-  async switchRAMBank(bank: number) {
-    if (bank < 0) return
-
-    const b = bank & 0xff
-    // RAM addr [16:13]
-    await gbc_direct_write(this.device, new Uint8Array([b]), 0x4000)
-
-    this.log(this.t('messages.ram.bankSwitch', { bank }));
-  }
-
   /**
    * 读取ROM ID
-   * @returns {Promise<Object>} - 包含成功状态、ID字符串和消息的对象
+   * @returns {Promise<AdapterResult & { idStr?: string }>} - 包含成功状态、ID字符串和消息的对象
    */
-  async readID() {
+  async readID(): Promise<AdapterResult & { idStr?: string }> {
     this.log(this.t('messages.operation.readId'));
 
     try {
@@ -83,6 +60,71 @@ export class MBC5Adapter extends CartridgeAdapter {
         message: `${this.t('messages.operation.readIdFailed')}: ${error}`
       };
     }
+  }
+
+
+  /**
+   * 全片擦除
+   * @returns - 包含成功状态和消息的对象
+   */
+  async eraseChip() : Promise<AdapterResult> {
+    this.log(this.t('messages.operation.eraseChip'));
+
+    try {
+      // Chip Erase sequence
+      await gbc_direct_write(this.device, new Uint8Array([0xaa]), 0xaaa);
+      await gbc_direct_write(this.device, new Uint8Array([0x55]), 0x555);
+      await gbc_direct_write(this.device, new Uint8Array([0x80]), 0xaaa);
+      await gbc_direct_write(this.device, new Uint8Array([0xaa]), 0xaaa);
+      await gbc_direct_write(this.device, new Uint8Array([0x55]), 0x555);
+      await gbc_direct_write(this.device, new Uint8Array([0x10]), 0xaaa); // Chip Erase
+
+      // Wait for completion (poll for 0xff)
+      let temp;
+      do {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        temp = await gbc_read(this.device, 1, 0);
+        this.log(`...... ${temp[0].toString(16).padStart(2, '0').toUpperCase()}`);
+      } while (temp[0] !== 0xff);
+
+      this.log(this.t('messages.operation.eraseSuccess'));
+      return {
+        success: true,
+        message: this.t('messages.operation.eraseSuccess')
+      };
+    } catch (error) {
+      this.log(this.t('messages.operation.eraseFailed'));
+      return {
+        success: false,
+        message: `${this.t('messages.operation.eraseFailed')}: ${error}`
+      };
+    }
+  }
+
+  // ROM Bank 切换
+  async switchROMBank(bank: number) {
+    if (bank < 0) return
+
+    const b0 = bank & 0xff
+    const b1 = (bank >> 8) & 0xff
+
+    // ROM addr [21:14]
+    await gbc_direct_write(this.device, new Uint8Array([b0]), 0x2000)
+    // ROM addr [22]
+    await gbc_direct_write(this.device, new Uint8Array([b1]), 0x3000)
+
+    this.log(this.t('messages.rom.bankSwitch', { bank }));
+  }
+
+  // RAM Bank 切换
+  async switchRAMBank(bank: number) {
+    if (bank < 0) return
+
+    const b = bank & 0xff
+    // RAM addr [16:13]
+    await gbc_direct_write(this.device, new Uint8Array([b]), 0x4000)
+
+    this.log(this.t('messages.ram.bankSwitch', { bank }));
   }
 
   // 获取ROM容量信息 - 通过CFI查询
@@ -130,51 +172,13 @@ export class MBC5Adapter extends CartridgeAdapter {
   }
 
   /**
-   * 全片擦除
-   * @returns {Promise<Object>} - 包含成功状态和消息的对象
-   */
-  async eraseChip() {
-    this.log(this.t('messages.operation.eraseChip'));
-
-    try {
-      // Chip Erase sequence
-      await gbc_direct_write(this.device, new Uint8Array([0xaa]), 0xaaa);
-      await gbc_direct_write(this.device, new Uint8Array([0x55]), 0x555);
-      await gbc_direct_write(this.device, new Uint8Array([0x80]), 0xaaa);
-      await gbc_direct_write(this.device, new Uint8Array([0xaa]), 0xaaa);
-      await gbc_direct_write(this.device, new Uint8Array([0x55]), 0x555);
-      await gbc_direct_write(this.device, new Uint8Array([0x10]), 0xaaa); // Chip Erase
-
-      // Wait for completion (poll for 0xff)
-      let temp;
-      do {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        temp = await gbc_read(this.device, 1, 0);
-        this.log(`...... ${temp[0].toString(16).padStart(2, '0').toUpperCase()}`);
-      } while (temp[0] !== 0xff);
-
-      this.log(this.t('messages.operation.eraseSuccess'));
-      return {
-        success: true,
-        message: this.t('messages.operation.eraseSuccess')
-      };
-    } catch (error) {
-      this.log(this.t('messages.operation.eraseFailed'));
-      return {
-        success: false,
-        message: `${this.t('messages.operation.eraseFailed')}: ${error}`
-      };
-    }
-  }
-
-  /**
    * 扇区擦除
-   * @param {number} addrFrom - 起始地址
-   * @param {number} addrTo - 结束地址
-   * @param {number} sectorSize - 扇区大小
-   * @returns {Promise<Object>} - 包含成功状态和消息的对象
+   * @param addrFrom - 起始地址
+   * @param addrTo - 结束地址
+   * @param sectorSize - 扇区大小
+   * @returns - 包含成功状态和消息的对象
    */
-  async eraseSectors(addrFrom: number, addrTo: number, sectorSize: number) {
+  async eraseSectors(addrFrom: number, addrTo: number, sectorSize: number) : Promise<AdapterResult> {
     const sectorMask = sectorSize - 1;
     addrTo &= ~sectorMask;
 
@@ -235,13 +239,21 @@ export class MBC5Adapter extends CartridgeAdapter {
 
   /**
    * 写入ROM
-   * @param {Uint8Array} fileData - 文件数据
-   * @param {CartridgeAdapterOptions} options - 写入选项
-   * @returns {Promise<Object>} - 包含成功状态和消息的对象
+   * @param fileData - 文件数据
+   * @param options - 写入选项
+   * @returns - 包含成功状态和消息的对象
    */
-  async writeROM(fileData: Uint8Array, options = {} as CartridgeAdapterOptions) {
+  async writeROM(fileData: Uint8Array, options = {} as CartridgeAdapterOptions) : Promise<AdapterResult> {
+
     const baseAddress = options.baseAddress || 0;
     // const romSize = options.romSize || null;
+
+    const isBlank = await this.isBlank(baseAddress)
+    if (!isBlank) {
+      this.log(this.t('messages.rom.eraseBeforeWrite'))
+      const sizeInfo = await this.getROMSize()
+      await this.eraseSectors(0, fileData.length - 1, sizeInfo.sectorSize)
+    }
 
     try {
       const { sectorSize, bufferWriteBytes } = await this.getROMSize();
@@ -300,11 +312,11 @@ export class MBC5Adapter extends CartridgeAdapter {
 
   /**
    * 读取ROM
-   * @param {number} size - 读取大小
-   * @param {number} baseAddress - 基础地址
-   * @returns {Promise<Object>} - 包含成功状态、数据和消息的对象
+   * @param size - 读取大小
+   * @param baseAddress - 基础地址
+   * @returns - 包含成功状态、数据和消息的对象
    */
-  async readROM(size: number, baseAddress = 0) {
+  async readROM(size: number, baseAddress = 0) : Promise<AdapterResult> {
     try {
       this.log(this.t('messages.rom.reading'));
 
@@ -360,11 +372,11 @@ export class MBC5Adapter extends CartridgeAdapter {
 
   /**
    * 校验ROM
-   * @param {Uint8Array} fileData - 文件数据
-   * @param {number} baseAddress - 基础地址
-   * @returns {Promise<Object>} - 包含成功状态和消息的对象
+   * @param fileData - 文件数据
+   * @param baseAddress - 基础地址
+   * @returns - 包含成功状态和消息的对象
    */
-  async verifyROM(fileData: Uint8Array, baseAddress = 0) {
+  async verifyROM(fileData: Uint8Array, baseAddress = 0) : Promise<AdapterResult> {
     try {
       this.log(this.t('messages.rom.verifying'));
 
@@ -432,11 +444,11 @@ export class MBC5Adapter extends CartridgeAdapter {
 
   /**
    * 写入RAM
-   * @param {Uint8Array} fileData - 文件数据
-   * @param {CartridgeAdapterOptions} options - 写入选项
-   * @returns {Promise<Object>} - 包含成功状态和消息的对象
+   * @param fileData - 文件数据
+   * @param options - 写入选项
+   * @returns - 包含成功状态和消息的对象
    */
-  async writeRAM(fileData: Uint8Array, options = {} as CartridgeAdapterOptions) {
+  async writeRAM(fileData: Uint8Array, options = {} as CartridgeAdapterOptions) : Promise<AdapterResult> {
     const baseAddress = options.baseAddress || 0;
 
     try {
@@ -494,11 +506,11 @@ export class MBC5Adapter extends CartridgeAdapter {
 
   /**
    * 读取RAM
-   * @param {number} size - 读取大小
-   * @param {CartridgeAdapterOptions} options - 读取选项
-   * @returns {Promise<Object>} - 包含成功状态、数据和消息的对象
+   * @param size - 读取大小
+   * @param options - 读取参数
+   * @returns - 包含成功状态、数据和消息的对象
    */
-  async readRAM(size: number, options = {} as CartridgeAdapterOptions) {
+  async readRAM(size: number, options: CartridgeAdapterOptions = {baseAddress: 0}) {
     const baseAddress = options.baseAddress || 0;
 
     try {
@@ -558,9 +570,9 @@ export class MBC5Adapter extends CartridgeAdapter {
 
   /**
    * 校验RAM
-   * @param {Uint8Array} fileData - 文件数据
-   * @param {CartridgeAdapterOptions} options - 校验选项
-   * @returns {Promise<Object>} - 包含成功状态和消息的对象
+   * @param fileData - 文件数据
+   * @param options - 校验选项
+   * @returns - 包含成功状态和消息的对象
    */
   async verifyRAM(fileData: Uint8Array, options = {} as CartridgeAdapterOptions) {
     const baseAddress = options.baseAddress || 0;
