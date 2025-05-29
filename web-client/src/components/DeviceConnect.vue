@@ -22,6 +22,7 @@
 import { DeviceInfo } from '@/types/DeviceInfo.ts'
 import { ref, computed, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { DebugConfig } from '@/utils/DebugConfig'
 
 const { t } = useI18n()
 const emit = defineEmits(['device-ready', 'device-disconnected'])
@@ -62,6 +63,45 @@ async function connect() {
   showToast(t('messages.device.tryingConnect'), 'idle')
 
   try {
+    // Check if debug mode is enabled
+    if (DebugConfig.enabled) {
+      // Simulate connection delay
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // Create mock device
+      const mockDevice = {
+        vendorId: 0x1234,
+        productId: 0x5678,
+        opened: true,
+        configuration: {
+          interfaces: [{
+            interfaceNumber: 0,
+            alternates: [{
+              endpoints: [
+                { direction: 'out', type: 'bulk', endpointNumber: 2 },
+                { direction: 'in', type: 'bulk', endpointNumber: 1 }
+              ]
+            }]
+          }]
+        },
+        open: async () => {},
+        close: async () => {},
+        selectConfiguration: async () => {},
+        claimInterface: async () => {},
+        selectAlternateInterface: async () => {}
+      }
+      
+      device = mockDevice as unknown as USBDevice
+      endpointOut = 2
+      endpointIn = 1
+      
+      connected.value = true
+      isConnecting.value = false
+      showToast(t('messages.device.connectionSuccess') + ' (Debug Mode)', 'success')
+      emit('device-ready', { device, endpointOut, endpointIn } as DeviceInfo)
+      return
+    }
+
     device = await navigator.usb.requestDevice({
       filters: []
     })

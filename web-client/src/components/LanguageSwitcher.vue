@@ -61,15 +61,6 @@ function changeLanguage() {
   transition: all 0.2s ease;
 }
 
-/* 添加夜间模式支持 */
-@media (prefers-color-scheme: dark) {
-  .language-select {
-    background: #3a3a3a; /* 夜间模式下的背景色 */
-    color: #fff; /* 夜间模式下的文本颜色 */
-    border-color: #555;
-  }
-}
-
 .language-select:focus {
   outline: none;
   border-color: #1976d2;
@@ -81,10 +72,8 @@ function changeLanguage() {
   transform: translateY(-1px);
 }
 
-@media (prefers-color-scheme: dark) {
-  .language-select option {
-    background-color: #3a3a3a;
-    color: #fff;
-  }
+.language-select option {
+  background-color: white;
+  color: #333;
 }
 </style>

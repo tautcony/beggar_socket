@@ -133,6 +133,7 @@ watch(() => props.logs, async () => {
   white-space: pre-wrap;
   word-break: break-all;
   text-align: left;
+  font-size: small;
 }
 
 /* 移动端响应式 */

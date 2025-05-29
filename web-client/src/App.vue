@@ -10,18 +10,27 @@
       :device-ready="deviceReady"
       :device="device"
     />
+    <!-- 调试面板悬浮在最上层 -->
+    <DebugPanel v-if="showDebugPanel" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import DeviceConnect from '@/components/DeviceConnect.vue'
 import FlashBurner from '@/components/FlashBurner.vue'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
+import DebugPanel from '@/components/DebugPanel.vue'
 import { DeviceInfo } from '@/types/DeviceInfo'
+import { DebugConfig } from '@/utils/DebugConfig'
 
 const device = ref<DeviceInfo | null>(null)
 const deviceReady = ref(false)
+
+// 显示调试面板的条件：调试模式启用或者开发环境
+const showDebugPanel = computed(() => {
+  return DebugConfig.enabled || import.meta.env.DEV
+})
 
 /**
  * Callback when the USB device is ready.

@@ -1,6 +1,30 @@
 <template>
   <section class="section">
-    <h2>{{ $t('ui.ram.title') }}</h2>
+    <div class="section-header">
+      <h2>{{ $t('ui.ram.title') }}</h2>
+      <div class="size-selector">
+        <label class="size-label">{{ $t('ui.ram.sizeLabel') }}</label>
+        <select 
+          v-model="selectedRamSize" 
+          :disabled="!deviceReady || busy"
+          class="size-dropdown"
+          @change="onRamSizeChange"
+        >
+          <option value="0x2000">
+            8KB
+          </option>
+          <option value="0x8000">
+            32KB
+          </option>
+          <option value="0x10000">
+            64KB
+          </option>
+          <option value="0x20000">
+            128KB
+          </option>
+        </select>
+      </div>
+    </div>
     <div class="ram-content">
       <FileDropZone
         :disabled="!deviceReady || busy"
@@ -46,6 +70,7 @@
 import FileDropZone from '../FileDropZone.vue'
 import ProgressDisplay from '../ProgressDisplay.vue'
 import { FileInfo } from '../../types/FileInfo.ts'
+import { ref } from 'vue'
 
 const props = defineProps({
   mode: {
@@ -75,10 +100,16 @@ const props = defineProps({
   ramWriteDetail: {
     type: String,
     default: ''
+  },
+  selectedRamSize: {
+    type: String,
+    default: '0x8000'
   }
 })
 
-const emit = defineEmits(['file-selected', 'file-cleared', 'write-ram', 'read-ram', 'verify-ram'])
+const emit = defineEmits(['file-selected', 'file-cleared', 'write-ram', 'read-ram', 'verify-ram', 'ram-size-change'])
+
+const selectedRamSize = ref(props.selectedRamSize)
 
 function onFileSelected(fileInfo: FileInfo) {
   emit('file-selected', fileInfo)
@@ -87,6 +118,10 @@ function onFileSelected(fileInfo: FileInfo) {
 function onFileCleared() {
   emit('file-cleared')
 }
+
+function onRamSizeChange() {
+  emit('ram-size-change', selectedRamSize.value)
+}
 </script>
 
 <style scoped>
@@ -94,11 +129,51 @@ function onFileCleared() {
   margin-bottom: 28px;
 }
 
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
 .section h2 {
   font-size: 1.15rem;
-  margin-bottom: 10px;
+  margin: 0;
   color: #2c3e50;
   font-weight: 600;
+}
+
+.size-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.size-label {
+  font-size: 0.9rem;
+  color: #666;
+  margin: 0;
+}
+
+.size-dropdown {
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 0.9rem;
+  color: #333;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.size-dropdown:hover:not(:disabled) {
+  border-color: #1976d2;
+}
+
+.size-dropdown:disabled {
+  background: #f5f5f5;
+  color: #aaa;
+  cursor: not-allowed;
 }
 
 .button-row {

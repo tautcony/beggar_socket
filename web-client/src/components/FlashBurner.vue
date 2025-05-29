@@ -42,11 +42,13 @@
           :rom-file-name="romFileName"
           :write-progress="writeProgress || undefined"
           :write-detail="writeDetail"
+          :selected-rom-size="selectedRomSize"
           @file-selected="onRomFileSelected"
           @file-cleared="onRomFileCleared"
           @write-rom="writeToDevice"
           @read-rom="readRom"
           @verify-rom="verifyRom"
+          @rom-size-change="onRomSizeChange"
         />
 
         <RamOperations
@@ -57,11 +59,13 @@
           :ram-file-name="ramFileName"
           :ram-write-progress="ramWriteProgress || undefined"
           :ram-write-detail="ramWriteDetail"
+          :selected-ram-size="selectedRamSize"
           @file-selected="onRamFileSelected"
           @file-cleared="onRamFileCleared"
           @write-ram="writeRam"
           @read-ram="readRam"
           @verify-ram="verifyRam"
+          @ram-size-change="onRamSizeChange"
         />
       </div>
 
@@ -83,6 +87,8 @@ import RamOperations from '@/components/operaiton/RamOperations.vue'
 import LogViewer from '@/components/LogViewer.vue'
 import { GBAAdapter } from '@/utils/GBAAdapter.ts'
 import { MBC5Adapter } from '@/utils/MBC5Adapter.ts'
+import { MockAdapter } from '@/utils/MockAdapter.ts'
+import { DebugConfig } from '@/utils/DebugConfig.ts'
 import { DeviceInfo } from '@/types/DeviceInfo.ts'
 import { FileInfo } from '@/types/FileInfo.ts'
 import CartridgeAdapter from '@/utils/CartridgeAdapter'
@@ -106,6 +112,8 @@ const writeProgress = ref<number | null>(null)
 const writeDetail = ref<string | undefined>('')
 const ramWriteProgress = ref<number | null>(null)
 const ramWriteDetail = ref('')
+const selectedRomSize = ref('0x200000') // 默认2MB
+const selectedRamSize = ref('0x8000')   // 默认32KB
 const logs = ref<string[]>([])
 const gbaAdapter = ref<CartridgeAdapter | null>()
 const mbc5Adapter = ref<CartridgeAdapter | null>()
@@ -113,18 +121,34 @@ const mbc5Adapter = ref<CartridgeAdapter | null>()
 // 设备连接状态改变时，初始化适配器
 watch(() => props.deviceReady, (newVal) => {
   if (newVal && props.device) {
-    gbaAdapter.value = new GBAAdapter(
-      props.device,
-      (msg) => log(msg),
-      (progress, detail) => updateProgress(progress, detail),
-      t
-    )
-    mbc5Adapter.value = new MBC5Adapter(
-      props.device,
-      (msg) => log(msg),
-      (progress, detail) => updateProgress(progress, detail),
-      t
-    )
+    if (DebugConfig.enabled) {
+      // 调试模式下使用 MockAdapter
+      gbaAdapter.value = new MockAdapter(
+        (msg) => log(msg),
+        (progress, detail) => updateProgress(progress, detail),
+        t
+      )
+      mbc5Adapter.value = new MockAdapter(
+        (msg) => log(msg),
+        (progress, detail) => updateProgress(progress, detail),
+        t
+      )
+      log('Debug mode enabled - using mock adapters')
+    } else {
+      // 正常模式下使用真实适配器
+      gbaAdapter.value = new GBAAdapter(
+        props.device,
+        (msg) => log(msg),
+        (progress, detail) => updateProgress(progress, detail),
+        t
+      )
+      mbc5Adapter.value = new MBC5Adapter(
+        props.device,
+        (msg) => log(msg),
+        (progress, detail) => updateProgress(progress, detail),
+        t
+      )
+    }
   } else {
     gbaAdapter.value = null
     mbc5Adapter.value = null
@@ -177,6 +201,28 @@ function onRamFileCleared() {
   ramFileData.value = null
   ramFileName.value = ''
   log(t('messages.file.clearRam'))
+}
+
+// 大小选择处理函数
+function onRomSizeChange(size: string) {
+  selectedRomSize.value = size
+  log(t('messages.rom.sizeChanged', { size: formatSize(size) }))
+}
+
+function onRamSizeChange(size: string) {
+  selectedRamSize.value = size
+  log(t('messages.ram.sizeChanged', { size: formatSize(size) }))
+}
+
+// 格式化大小显示
+function formatSize(hexSize: string): string {
+  const bytes = parseInt(hexSize, 16)
+  if (bytes >= 1024 * 1024) {
+    return `${bytes / (1024 * 1024)}MB`
+  } else if (bytes >= 1024) {
+    return `${bytes / 1024}KB`
+  }
+  return `${bytes}B`
 }
 
 // 格式化文件大小
@@ -278,7 +324,7 @@ async function readRom() {
       return
     }
 
-    const defaultSize = romFileData.value ? romFileData.value.length : 0x200000
+    const defaultSize = romFileData.value ? romFileData.value.length : parseInt(selectedRomSize.value, 16)
     const response = await adapter.readROM(defaultSize)
     if (response.success) {
       result.value = response.message
@@ -352,7 +398,7 @@ async function readRam() {
       return
     }
 
-    const defaultSize = ramFileData.value ? ramFileData.value.length : 0x8000
+    const defaultSize = ramFileData.value ? ramFileData.value.length : parseInt(selectedRamSize.value, 16)
     const response = await adapter.readRAM(defaultSize)
     if (response.success) {
       result.value = response.message

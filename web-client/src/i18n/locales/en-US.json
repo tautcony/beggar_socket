@@ -42,7 +42,8 @@
       "read": "Export ROM",
       "verify": "Verify ROM",
       "bankSwitching": "Bank Switching",
-      "romSize": "ROM Size"
+      "romSize": "ROM Size",
+      "sizeLabel": "Size:"
     },
     "ram": {
       "title": "RAM Operations",
@@ -55,7 +56,8 @@
       "verify": "Verify RAM",
       "testWrite": "Write Test Data",
       "testRead": "Read Test Data",
-      "testVerify": "Verify Test Data"
+      "testVerify": "Verify Test Data",
+      "sizeLabel": "Size:"
     },
     "file": {
       "dropArea": "or drop files here",
@@ -114,6 +116,7 @@
       "verifying": "Verifying ROM...",
       "verifySuccess": "ROM verification successful",
       "verifyFailed": "ROM verification failed",
+      "sizeChanged": "ROM size changed to {size}",
       "bankSwitch": "Switched to ROM Bank {bank}",
       "eraseBeforeWrite": "Flash is not empty, starting erase...",
       "capacityInfo": "Capacity: {deviceSize} Sector count: {sectorCount} Sector size: {sectorSize} BuffWr: {bufferWriteBytes}",
@@ -132,6 +135,7 @@
       "verifying": "Verifying RAM...",
       "verifySuccess": "RAM verification successful",
       "verifyFailed": "RAM verification failed",
+      "sizeChanged": "RAM size changed to {size}",
       "verifyFailedDetail": "Verification failed at address 0x{address}, expected {expected}, got {actual}",
       "bankSwitch": "Switched to RAM Bank {bank}"
     },

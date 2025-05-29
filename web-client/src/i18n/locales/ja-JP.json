@@ -42,7 +42,8 @@
       "read": "ROMをエクスポート",
       "verify": "ROM検証",
       "bankSwitching": "バンク切り替え",
-      "romSize": "ROMサイズ"
+      "romSize": "ROMサイズ",
+      "sizeLabel": "サイズ："
     },
     "ram": {
       "title": "RAM操作",
@@ -55,7 +56,8 @@
       "verify": "RAM検証",
       "testWrite": "テストデータ書き込み",
       "testRead": "テストデータ読み取り",
-      "testVerify": "テストデータ検証"
+      "testVerify": "テストデータ検証",
+      "sizeLabel": "サイズ："
     },
     "file": {
       "dropArea": "またはここにファイルをドロップ",
@@ -114,6 +116,7 @@
       "verifying": "ROMを検証中...",
       "verifySuccess": "ROM検証成功",
       "verifyFailed": "ROM検証失敗",
+      "sizeChanged": "ROMサイズが {size} に変更されました",
       "bankSwitch": "ROMバンク {bank} に切り替え",
       "eraseBeforeWrite": "Flashが空ではないため消去を開始します",
       "capacityInfo": "容量: {deviceSize} セクター数: {sectorCount} セクターサイズ: {sectorSize} バッファ書き込み: {bufferWriteBytes}",
@@ -132,6 +135,7 @@
       "verifying": "RAMを検証中...",
       "verifySuccess": "RAM検証成功",
       "verifyFailed": "RAM検証失敗",
+      "sizeChanged": "RAMサイズが {size} に変更されました",
       "verifyFailedDetail": "アドレス0x{address}で検証失敗、期待値 {expected}、実際の値 {actual}",
       "bankSwitch": "RAMバンク {bank} に切り替え"
     },

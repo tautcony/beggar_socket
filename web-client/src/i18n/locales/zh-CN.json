@@ -42,7 +42,8 @@
       "read": "导出ROM",
       "verify": "校验ROM",
       "bankSwitching": "银行切换",
-      "romSize": "ROM大小"
+      "romSize": "ROM大小",
+      "sizeLabel": "大小："
     },
     "ram": {
       "title": "RAM操作",
@@ -55,7 +56,8 @@
       "verify": "校验RAM",
       "testWrite": "写入测试数据",
       "testRead": "读取测试数据",
-      "testVerify": "验证测试数据"
+      "testVerify": "验证测试数据",
+      "sizeLabel": "大小："
     },
     "file": {
       "dropArea": "或拖拽文件到此处",
@@ -114,6 +116,7 @@
       "verifying": "正在校验ROM...",
       "verifySuccess": "ROM校验成功",
       "verifyFailed": "ROM校验失败",
+      "sizeChanged": "ROM大小已更改为 {size}",
       "bankSwitch": "切换到ROM Bank {bank}",
       "eraseBeforeWrite": "Flash不为空，开始擦除...",
       "capacityInfo": "容量: {deviceSize} 扇区数量: {sectorCount} 扇区大小: {sectorSize} 缓冲写入: {bufferWriteBytes}",
@@ -132,6 +135,7 @@
       "verifying": "正在校验RAM...",
       "verifySuccess": "RAM校验成功",
       "verifyFailed": "RAM校验失败",
+      "sizeChanged": "RAM大小已更改为 {size}",
       "verifyFailedDetail": "地址0x{address}校验失败，期望值 {expected}，实际值 {actual}",
       "bankSwitch": "切换到RAM Bank {bank}"
     },

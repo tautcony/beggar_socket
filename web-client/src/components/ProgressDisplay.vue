@@ -7,7 +7,7 @@
       :value="progress"
       max="100"
     />
-    <span>{{ progress }}%</span>
+    <span>{{ progress.toFixed(2) }}%</span>
     <span v-if="detail">{{ detail }}</span>
   </div>
 </template>
