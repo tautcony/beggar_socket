@@ -71,7 +71,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { FileInfo } from '../types/FileInfo.ts'
+import { FileInfo } from '@/types/FileInfo.ts'
 
 const props = defineProps({
   disabled: {

@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { DeviceInfo } from '../types/DeviceInfo.ts'
+import { DeviceInfo } from '@/types/DeviceInfo.ts'
 import { ref, computed, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 

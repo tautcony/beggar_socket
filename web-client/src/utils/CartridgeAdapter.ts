@@ -1,18 +1,6 @@
-import { DeviceInfo } from '../types/DeviceInfo.ts';
-
-// 定义适配器返回的结果类型
-export interface AdapterResult {
-  success: boolean;
-  message: string;
-  data?: Uint8Array;
-}
-
-export interface CartridgeAdapterOptions {
-  ramType?: 'SRAM' | 'FLASH',
-  baseAddress?: number,
-  romSize?: number,
-  useDirectWrite?: boolean,
-}
+import { DeviceInfo } from '@/types/DeviceInfo.ts';
+import { CommandResult } from '@/types/CommandResult.ts';
+import { CommandOptions } from '@/types/CommandOptions.ts';
 
 // 定义日志和进度回调函数类型
 export type LogCallback = (message: string, type?: 'info' | 'error' | 'success' | 'warning') => void;
@@ -54,9 +42,9 @@ export class CartridgeAdapter {
 
   /**
    * 读取ROM芯片IDx
-   * @returns {Promise<AdapterResult & { idStr?: string }>} - 包含成功状态、ID字符串和消息的对象
+   * @returns {Promise<CommandResult & { idStr?: string }>} - 包含成功状态、ID字符串和消息的对象
    */
-  async readID(): Promise<AdapterResult & { idStr?: string }> {
+  async readID(): Promise<CommandResult & { idStr?: string }> {
     throw new Error('未实现的方法: readID');
   }
 
@@ -64,7 +52,7 @@ export class CartridgeAdapter {
    * 擦除整个芯片
    * @returns - 包含成功状态和消息的对象
    */
-  async eraseChip(): Promise<AdapterResult> {
+  async eraseChip(): Promise<CommandResult> {
     throw new Error('未实现的方法: eraseChip');
   }
 
@@ -75,7 +63,7 @@ export class CartridgeAdapter {
    * @param sectorSize - 扇区大小
    * @returns - 包含成功状态和消息的对象
    */
-  async eraseSectors(startAddress: number, endAddress: number, sectorSize: number): Promise<AdapterResult> {
+  async eraseSectors(startAddress: number, endAddress: number, sectorSize: number): Promise<CommandResult> {
     throw new Error('未实现的方法: eraseSectors');
   }
 
@@ -85,7 +73,7 @@ export class CartridgeAdapter {
    * @param options - 写入选项
    * @returns - 包含成功状态和消息的对象
    */
-  async writeROM(fileData: Uint8Array, options?: CartridgeAdapterOptions): Promise<AdapterResult> {
+  async writeROM(fileData: Uint8Array, options?: CommandOptions): Promise<CommandResult> {
     throw new Error('未实现的方法: writeROM');
   }
 
@@ -95,7 +83,7 @@ export class CartridgeAdapter {
    * @param baseAddress - 基础地址
    * @returns - 包含成功状态、数据和消息的对象
    */
-  async readROM(size: number, baseAddress: number = 0): Promise<AdapterResult> {
+  async readROM(size: number, baseAddress: number = 0): Promise<CommandResult> {
     throw new Error('未实现的方法: readROM');
   }
 
@@ -105,7 +93,7 @@ export class CartridgeAdapter {
    * @param baseAddress - 基础地址
    * @returns - 包含成功状态和消息的对象
    */
-  async verifyROM(fileData: Uint8Array, baseAddress: number = 0): Promise<AdapterResult> {
+  async verifyROM(fileData: Uint8Array, baseAddress: number = 0): Promise<CommandResult> {
     throw new Error('未实现的方法: verifyROM');
   }
 
@@ -115,7 +103,7 @@ export class CartridgeAdapter {
    * @param options - RAM类型或选项对象
    * @returns - 包含成功状态和消息的对象
    */
-  async writeRAM(fileData: Uint8Array, options?: CartridgeAdapterOptions): Promise<AdapterResult> {
+  async writeRAM(fileData: Uint8Array, options?: CommandOptions): Promise<CommandResult> {
     throw new Error('未实现的方法: writeRAM');
   }
 
@@ -125,7 +113,7 @@ export class CartridgeAdapter {
    * @param ramType - RAM类型
    * @returns - 包含成功状态、数据和消息的对象
    */
-  async readRAM(size: number, options?: CartridgeAdapterOptions): Promise<AdapterResult> {
+  async readRAM(size: number, options?: CommandOptions): Promise<CommandResult> {
     throw new Error('未实现的方法: readRAM');
   }
 
@@ -135,7 +123,7 @@ export class CartridgeAdapter {
    * @param options - RAM类型或选项对象
    * @returns - 包含成功状态和消息的对象
    */
-  async verifyRAM(fileData: Uint8Array, options?: CartridgeAdapterOptions): Promise<AdapterResult> {
+  async verifyRAM(fileData: Uint8Array, options?: CommandOptions): Promise<CommandResult> {
     throw new Error('未实现的方法: verifyRAM');
   }
 }

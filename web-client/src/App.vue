@@ -15,10 +15,10 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import DeviceConnect from './components/DeviceConnect.vue'
-import FlashBurner from './components/FlashBurner.vue'
-import LanguageSwitcher from './components/LanguageSwitcher.vue'
-import { DeviceInfo } from './types/DeviceInfo'
+import DeviceConnect from '@/components/DeviceConnect.vue'
+import FlashBurner from '@/components/FlashBurner.vue'
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
+import { DeviceInfo } from '@/types/DeviceInfo'
 
 const device = ref<DeviceInfo | null>(null)
 const deviceReady = ref(false)

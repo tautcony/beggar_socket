@@ -77,14 +77,14 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ChipOperations from './operaiton/ChipOperations.vue'
-import RomOperations from './operaiton/RomOperations.vue'
-import RamOperations from './operaiton/RamOperations.vue'
-import LogViewer from './LogViewer.vue'
-import { GBAAdapter } from '../utils/GBAAdapter.ts'
-import { MBC5Adapter } from '../utils/MBC5Adapter.ts'
-import { DeviceInfo } from '../types/DeviceInfo.ts'
-import { FileInfo } from '../types/FileInfo.ts'
+import ChipOperations from '@/components/operaiton/ChipOperations.vue'
+import RomOperations from '@/components/operaiton/RomOperations.vue'
+import RamOperations from '@/components/operaiton/RamOperations.vue'
+import LogViewer from '@/components/LogViewer.vue'
+import { GBAAdapter } from '@/utils/GBAAdapter.ts'
+import { MBC5Adapter } from '@/utils/MBC5Adapter.ts'
+import { DeviceInfo } from '@/types/DeviceInfo.ts'
+import { FileInfo } from '@/types/FileInfo.ts'
 import CartridgeAdapter from '@/utils/CartridgeAdapter'
 
 const { t } = useI18n()

@@ -1,5 +1,5 @@
-import { toLittleEndian, sendPackage, getPackage, getResult } from './ProtocolUtils.ts'
-import { DeviceInfo } from '../types/DeviceInfo.ts'
+import { toLittleEndian, sendPackage, getPackage, getResult } from '@/utils/ProtocolUtils.ts'
+import { DeviceInfo } from '@/types/DeviceInfo.ts'
 
 // --- GBA Commands ---
 
