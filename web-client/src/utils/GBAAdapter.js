@@ -8,7 +8,7 @@ import {
   rom_verify,
   ram_write,
   ram_read,
-  ram_verify,
+  // ram_verify,
   ram_write_to_flash
 } from './protocol.js'
 import { CartridgeAdapter } from './CartridgeAdapter.js'
@@ -48,7 +48,7 @@ export class GBAAdapter extends CartridgeAdapter {
       this.log(`${this.t('messages.operation.readIdFailed')}: ${e}`);
       return {
         success: false,
-        message: `${this.t('messages.operation.readIdFailed')}: ${e}`
+        message: this.t('messages.operation.readIdFailed')
       };
     }
   }
@@ -70,7 +70,7 @@ export class GBAAdapter extends CartridgeAdapter {
       this.log(`${this.t('messages.operation.eraseFailed')}: ${e}`);
       return {
         success: false,
-        message: `${this.t('messages.operation.eraseFailed')}: ${e}`
+        message: this.t('messages.operation.eraseFailed')
       };
     }
   }
@@ -157,7 +157,7 @@ export class GBAAdapter extends CartridgeAdapter {
       this.log(`${this.t('messages.rom.writeFailed')}: ${e}`);
       return {
         success: false,
-        message: `${this.t('messages.rom.writeFailed')}: ${e}`
+        message: this.t('messages.rom.writeFailed')
       };
     }
   }
@@ -182,7 +182,7 @@ export class GBAAdapter extends CartridgeAdapter {
       this.log(`${this.t('messages.rom.readFailed')}: ${e}`);
       return {
         success: false,
-        message: `${this.t('messages.rom.readFailed')}: ${e}`
+        message: this.t('messages.rom.readFailed')
       };
     }
   }
@@ -207,7 +207,7 @@ export class GBAAdapter extends CartridgeAdapter {
       this.log(`${this.t('messages.rom.verifyFailed')}: ${e}`);
       return {
         success: false,
-        message: `${this.t('messages.rom.verifyFailed')}: ${e}`
+        message: this.t('messages.rom.verifyFailed')
       };
     }
   }
@@ -322,7 +322,7 @@ export class GBAAdapter extends CartridgeAdapter {
       this.log(`${this.t('messages.ram.writeFailed')}: ${e}`);
       return {
         success: false,
-        message: `${this.t('messages.ram.writeFailed')}: ${e}`
+        message: this.t('messages.ram.writeFailed')
       };
     }
   }
@@ -382,7 +382,7 @@ export class GBAAdapter extends CartridgeAdapter {
       this.log(`${this.t('messages.ram.readFailed')}: ${e}`);
       return {
         success: false,
-        message: `${this.t('messages.ram.readFailed')}: ${e}`
+        message: this.t('messages.ram.readFailed')
       };
     }
   }
@@ -454,7 +454,7 @@ export class GBAAdapter extends CartridgeAdapter {
       this.log(`${this.t('messages.ram.verifyFailed')}: ${e}`);
       return {
         success: false,
-        message: `${this.t('messages.ram.verifyFailed')}: ${e}`
+        message: this.t('messages.ram.verifyFailed')
       };
     }
   }

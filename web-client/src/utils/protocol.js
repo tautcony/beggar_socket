@@ -27,16 +27,84 @@ function buildPackage(payload) {
   return buf
 }
 
-// 发送数据包
-async function sendPackage(device, endpointOut, payload) {
-  const buf = buildPackage(payload)
-  await device.device.transferOut(endpointOut, buf)
+function timeout(ms, message) {
+  return new Promise((_, reject) => {
+    setTimeout(() => reject(new Error(message)), ms);
+  });
+}
+
+async function withTimeout(promise, ms, message = '操作超时') {
+  return Promise.race([
+    promise,
+    timeout(ms, message)
+  ]);
+}
+
+/**
+ * 将数据包格式化为可读的表格形式
+ * @param {Uint8Array} buf - 要格式化的数据包
+ */
+function formatPackage(buf) {
+  if (!buf || !buf.length) return 'Empty package';
+  
+  const size = buf.length;
+  if (size < 4) return 'Invalid package: too small';
+
+  const header = buf.slice(0, 2);
+  const command = buf.slice(2, 3);
+  const payload = buf.slice(3, size - 2);
+  const crc = buf.slice(size - 2);
+
+  const bytesToHex = (bytes) => {
+    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+  };
+
+  console.log(`数据包总大小: ${size} 字节`);
+
+  const tableData = [
+    { 
+      section: 'Package Size', 
+      hexValue: bytesToHex(header), 
+      decValue: header[0] | (header[1] << 8),
+    },
+    {
+      section: 'Command', 
+      hexValue: bytesToHex(command),
+      decValue: command[0],
+    },
+    { 
+      section: 'Payload', 
+      hexValue: bytesToHex(payload), 
+      decValue: '',
+    },
+    { 
+      section: 'CRC', 
+      hexValue: bytesToHex(crc), 
+      decValue: (crc[0] | (crc[1] << 8)),
+    }
+  ];
+
+  console.table(tableData);
+}
+
+async function sendPackage(device, endpointOut, payload, timeoutMs = 3000) {
+  const buf = buildPackage(payload);
+  formatPackage(buf)
+  return withTimeout(
+    device.device.transferOut(endpointOut, buf),
+    timeoutMs,
+    `发送数据包超时 (${timeoutMs}ms)`
+  );
 }
 
 // 等待1字节ack
-async function getRespon(device, endpointIn) {
-  let result = await device.device.transferIn(endpointIn, 1)
-  return result.status === "ok" && result.data.getUint8(0) === 0xaa
+async function getResponse(device, endpointIn, timeoutMs = 3000) {
+  const result = await withTimeout(
+    device.device.transferIn(endpointIn, 1),
+    timeoutMs,
+    `等待设备响应超时 (${timeoutMs}ms)`
+  );
+  return result.status === "ok" && result.data.getUint8(0) === 0xaa;
 }
 
 // --- GBA Commands ---
@@ -59,7 +127,7 @@ export async function rom_readID(device) {
 export async function rom_eraseChip(device) {
   const { endpointOut, endpointIn } = device
   await sendPackage(device, endpointOut, new Uint8Array([0xf1]))
-  let ack = await getRespon(device, endpointIn)
+  let ack = await getResponse(device, endpointIn)
   if (!ack) throw new Error('GBA Erase failed')
 }
 
@@ -71,7 +139,7 @@ export async function rom_sector_erase(device, sectorAddress) {
   let addrBytes = new Uint8Array(new Uint32Array([sectorAddress]).buffer);
   payload.set(addrBytes, 1);
   await sendPackage(device, endpointOut, payload);
-  let ack = await getRespon(device, endpointIn);
+  let ack = await getResponse(device, endpointIn);
   if (!ack) throw new Error('GBA ROM sector erase failed');
   return ack;
 }
@@ -95,7 +163,7 @@ export async function rom_program(device, fileData, baseAddress = 0) {
     payload.set(chunk, 7);
 
     await sendPackage(device, endpointOut, payload);
-    let ack = await getRespon(device, endpointIn);
+    let ack = await getResponse(device, endpointIn);
     if (!ack) throw new Error(`GBA ROM programming failed (Address: 0x${currentDeviceAddress.toString(16)})`);
   }
 }
@@ -121,7 +189,7 @@ export async function rom_direct_write(device, fileData, baseByteAddress = 0) {
     payload.set(chunk, 5);
 
     await sendPackage(device, endpointOut, payload);
-    let ack = await getRespon(device, endpointIn);
+    let ack = await getResponse(device, endpointIn);
     if (!ack) throw new Error(`GBA ROM direct write failed (Address: 0x${currentDeviceWordAddress.toString(16)} [word address])`);
   }
 }
@@ -175,7 +243,7 @@ export async function ram_write(device, fileData, baseAddress = 0) {
     payload.set(chunk, 5);
 
     await sendPackage(device, endpointOut, payload);
-    let ack = await getRespon(device, endpointIn);
+    let ack = await getResponse(device, endpointIn);
     if (!ack) throw new Error(`RAM write failed (Address: 0x${currentDeviceAddress.toString(16)})`);
   }
 }
@@ -230,7 +298,7 @@ export async function ram_write_to_flash(device, fileData, baseAddress = 0) {
     payload.set(chunk, 5);
 
     await sendPackage(device, endpointOut, payload);
-    let ack = await getRespon(device, endpointIn);
+    let ack = await getResponse(device, endpointIn);
     if (!ack) throw new Error(`GBA RAM write to FLASH failed (Address: 0x${currentDeviceAddress.toString(16)})`);
   }
 }
@@ -253,7 +321,7 @@ export async function gbc_direct_write(device, fileData, baseAddress = 0) {
     payload.set(chunk, 5);
 
     await sendPackage(device, endpointOut, payload);
-    let ack = await getRespon(device, endpointIn);
+    let ack = await getResponse(device, endpointIn);
     if (!ack) throw new Error(`GBC direct write failed (Address: 0x${currentDeviceAddress.toString(16)})`);
   }
 }
@@ -311,7 +379,7 @@ export async function gbc_rom_program(device, fileData, baseAddress = 0) {
     payload.set(chunk, 7);
 
     await sendPackage(device, endpointOut, payload);
-    let ack = await getRespon(device, endpointIn);
+    let ack = await getResponse(device, endpointIn);
     if (!ack) throw new Error(`GBC ROM programming failed (Address: 0x${currentDeviceAddress.toString(16)})`);
   }
 }

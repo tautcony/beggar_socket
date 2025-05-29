@@ -24,7 +24,7 @@ const deviceReady = ref(false)
 
 /**
  * Callback when the USB device is ready.
- * @param dev{USBDevice} The USB device object
+ * @param {USBDevice} dev The USB device object
  */
 function onDeviceReady(dev) {
   device.value = dev
