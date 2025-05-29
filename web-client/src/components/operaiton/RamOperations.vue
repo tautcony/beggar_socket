@@ -42,12 +42,10 @@
   </section>
 </template>
 
-<script setup>
-import { useI18n } from 'vue-i18n'
-import FileDropZone from './FileDropZone.vue'
-import ProgressDisplay from './ProgressDisplay.vue'
-
-const { t } = useI18n()
+<script setup lang="ts">
+import FileDropZone from '../FileDropZone.vue'
+import ProgressDisplay from '../ProgressDisplay.vue'
+import { FileInfo } from '../../types/FileInfo.ts'
 
 const props = defineProps({
   mode: {
@@ -82,7 +80,7 @@ const props = defineProps({
 
 const emit = defineEmits(['file-selected', 'file-cleared', 'write-ram', 'read-ram', 'verify-ram'])
 
-function onFileSelected(fileInfo) {
+function onFileSelected(fileInfo: FileInfo) {
   emit('file-selected', fileInfo)
 }
 

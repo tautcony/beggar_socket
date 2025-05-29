@@ -24,11 +24,8 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
-import { useI18n } from 'vue-i18n'
-
-const { t } = useI18n()
 
 const props = defineProps({
   title: {
@@ -47,7 +44,7 @@ const props = defineProps({
 
 const emit = defineEmits(['clear-logs'])
 
-const logBox = ref(null)
+const logBox = ref<HTMLDivElement | null>(null)
 
 function clearLog() {
   emit('clear-logs')
@@ -111,6 +108,7 @@ watch(() => props.logs, async () => {
   font-size: 0.97rem;
   line-height: 1.6;
   height: calc(820px - 44px);
+  max-width: 355px;
 }
 
 .log-area-scroll::-webkit-scrollbar {

@@ -13,20 +13,21 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
 import DeviceConnect from './components/DeviceConnect.vue'
 import FlashBurner from './components/FlashBurner.vue'
 import LanguageSwitcher from './components/LanguageSwitcher.vue'
+import { DeviceInfo } from './types/DeviceInfo'
 
-const device = ref(null)
+const device = ref<DeviceInfo | null>(null)
 const deviceReady = ref(false)
 
 /**
  * Callback when the USB device is ready.
- * @param {USBDevice} dev The USB device object
+ * @param {DeviceInfo} dev The USB device object
  */
-function onDeviceReady(dev) {
+function onDeviceReady(dev: DeviceInfo) {
   device.value = dev
   deviceReady.value = true
 }

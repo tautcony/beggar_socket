@@ -1,26 +1,30 @@
-import { 
-  gbc_direct_write, 
-  gbc_read, 
-  gbc_rom_program 
-} from './protocol.js'
-import { CartridgeAdapter } from './CartridgeAdapter.js'
+import { gbc_direct_write, gbc_read, gbc_rom_program } from './Protocol.ts'
+import { DeviceInfo } from '../types/DeviceInfo.ts'
+import { CartridgeAdapter, CartridgeAdapterOptions, LogCallback, ProgressCallback, TranslateFunction } from './CartridgeAdapter.ts'
 
 /**
  * MBC5 Adapter - 封装MBC5卡带的协议操作
  */
 export class MBC5Adapter extends CartridgeAdapter {
+  public idStr: string;
+
   /**
    * 构造函数
    * @param {Object} device - 设备对象
    * @param {Object} i18n - 国际化对象，包含t方法
    */
-  constructor(device, logCallback = null, progressCallback = null, translateFunc = null) {
+  constructor(
+    device: DeviceInfo,
+    logCallback: LogCallback | null = null,
+    progressCallback: ProgressCallback | null = null,
+    translateFunc: TranslateFunction | null = null
+  ) {
     super(device, logCallback, progressCallback, translateFunc);
     this.idStr = '';
   }
 
   // ROM Bank 切换
-  async switchROMBank(bank) {
+  async switchROMBank(bank: number) {
     if (bank < 0) return
 
     const b0 = bank & 0xff
@@ -35,7 +39,7 @@ export class MBC5Adapter extends CartridgeAdapter {
   }
 
   // RAM Bank 切换
-  async switchRAMBank(bank) {
+  async switchRAMBank(bank: number) {
     if (bank < 0) return
 
     const b = bank & 0xff
@@ -170,7 +174,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param {number} sectorSize - 扇区大小
    * @returns {Promise<Object>} - 包含成功状态和消息的对象
    */
-  async eraseSectors(addrFrom, addrTo, sectorSize) {
+  async eraseSectors(addrFrom: number, addrTo: number, sectorSize: number) {
     const sectorMask = sectorSize - 1;
     addrTo &= ~sectorMask;
 
@@ -232,16 +236,18 @@ export class MBC5Adapter extends CartridgeAdapter {
   /**
    * 写入ROM
    * @param {Uint8Array} fileData - 文件数据
-   * @param {Object} options - 写入选项
+   * @param {CartridgeAdapterOptions} options - 写入选项
    * @returns {Promise<Object>} - 包含成功状态和消息的对象
    */
-  async writeROM(fileData, options = {}) {
+  async writeROM(fileData: Uint8Array, options = {} as CartridgeAdapterOptions) {
     const baseAddress = options.baseAddress || 0;
-    const romSize = options.romSize || null;
+    // const romSize = options.romSize || null;
 
     try {
       const { sectorSize, bufferWriteBytes } = await this.getROMSize();
 
+      this.log(`Sector Size: ${sectorSize}`);
+      this.log(`Buffer Write Bytes: ${bufferWriteBytes}`);
       this.log(this.t('messages.rom.writing', fileData.length));
 
       const startTime = Date.now();
@@ -298,7 +304,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param {number} baseAddress - 基础地址
    * @returns {Promise<Object>} - 包含成功状态、数据和消息的对象
    */
-  async readROM(size, baseAddress = 0) {
+  async readROM(size: number, baseAddress = 0) {
     try {
       this.log(this.t('messages.rom.reading'));
 
@@ -358,7 +364,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param {number} baseAddress - 基础地址
    * @returns {Promise<Object>} - 包含成功状态和消息的对象
    */
-  async verifyROM(fileData, baseAddress = 0) {
+  async verifyROM(fileData: Uint8Array, baseAddress = 0) {
     try {
       this.log(this.t('messages.rom.verifying'));
 
@@ -427,10 +433,10 @@ export class MBC5Adapter extends CartridgeAdapter {
   /**
    * 写入RAM
    * @param {Uint8Array} fileData - 文件数据
-   * @param {Object} options - 写入选项
+   * @param {CartridgeAdapterOptions} options - 写入选项
    * @returns {Promise<Object>} - 包含成功状态和消息的对象
    */
-  async writeRAM(fileData, options = {}) {
+  async writeRAM(fileData: Uint8Array, options = {} as CartridgeAdapterOptions) {
     const baseAddress = options.baseAddress || 0;
 
     try {
@@ -489,10 +495,10 @@ export class MBC5Adapter extends CartridgeAdapter {
   /**
    * 读取RAM
    * @param {number} size - 读取大小
-   * @param {Object} options - 读取选项
+   * @param {CartridgeAdapterOptions} options - 读取选项
    * @returns {Promise<Object>} - 包含成功状态、数据和消息的对象
    */
-  async readRAM(size, options = {}) {
+  async readRAM(size: number, options = {} as CartridgeAdapterOptions) {
     const baseAddress = options.baseAddress || 0;
 
     try {
@@ -553,10 +559,10 @@ export class MBC5Adapter extends CartridgeAdapter {
   /**
    * 校验RAM
    * @param {Uint8Array} fileData - 文件数据
-   * @param {Object} options - 校验选项
+   * @param {CartridgeAdapterOptions} options - 校验选项
    * @returns {Promise<Object>} - 包含成功状态和消息的对象
    */
-  async verifyRAM(fileData, options = {}) {
+  async verifyRAM(fileData: Uint8Array, options = {} as CartridgeAdapterOptions) {
     const baseAddress = options.baseAddress || 0;
 
     try {
@@ -627,7 +633,7 @@ export class MBC5Adapter extends CartridgeAdapter {
   }
 
   // 检查区域是否为空
-  async isBlank(address, size = 512) {
+  async isBlank(address: number, size = 512) {
     this.log(this.t('messages.mbc5.checkingIfBlank'));
 
     const bank = address >> 14;

@@ -9,31 +9,39 @@ import {
   ram_write,
   ram_read,
   // ram_verify,
-  ram_write_to_flash
-} from './protocol.js'
-import { CartridgeAdapter } from './CartridgeAdapter.js'
+  ram_write_to_flash,
+} from './Protocol.ts';
+import { DeviceInfo } from '../types/DeviceInfo.ts';
+import { CartridgeAdapter, AdapterResult, LogCallback, ProgressCallback, TranslateFunction, CartridgeAdapterOptions } from './CartridgeAdapter.ts';
 
 /**
  * GBA Adapter - 封装GBA卡带的协议操作
  */
 export class GBAAdapter extends CartridgeAdapter {
+  public idStr: string;
+
   /**
    * 构造函数
-   * @param {Object} device - 设备对象
-   * @param {Function} logCallback - 日志回调函数
-   * @param {Function} progressCallback - 进度回调函数
-   * @param {Function} translateFunc - 国际化翻译函数
+   * @param {USBDevice} device - 设备对象
+   * @param {LogCallback} logCallback - 日志回调函数
+   * @param {ProgressCallback} progressCallback - 进度回调函数
+   * @param {TranslateFunction} translateFunc - 国际化翻译函数
    */
-  constructor(device, logCallback = null, progressCallback = null, translateFunc = null) {
+  constructor(
+    device: DeviceInfo, 
+    logCallback: LogCallback | null = null, 
+    progressCallback: ProgressCallback | null = null, 
+    translateFunc: TranslateFunction | null = null
+  ) {
     super(device, logCallback, progressCallback, translateFunc);
     this.idStr = '';
   }
 
   /**
    * 读取ROM芯片ID
-   * @returns {Promise<string>} - ID字符串
+   * @returns {Promise<AdapterResult & { idStr?: string }>} - ID字符串
    */
-  async readID() {
+  async readID(): Promise<AdapterResult & { idStr?: string }> {
     try {
       this.log(this.t('messages.operation.readId'));
       const id = await rom_readID(this.device);
@@ -82,7 +90,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param {number} sectorSize - 扇区大小（默认64KB）
    * @returns {Promise<Object>} - 操作结果
    */
-  async eraseSectors(startAddress = 0, endAddress, sectorSize = 0x10000) {
+  async eraseSectors(startAddress = 0, endAddress: number, sectorSize = 0x10000) {
     try {
       this.log(this.t('messages.operation.eraseSector', { address: startAddress.toString(16) }) + ' - ' + 
                this.t('messages.operation.eraseSector', { address: endAddress.toString(16) }));
@@ -120,10 +128,10 @@ export class GBAAdapter extends CartridgeAdapter {
   /**
    * 写入ROM
    * @param {Uint8Array} fileData - 文件数据
-   * @param {boolean} useDirectWrite - 是否使用直接写入（透传）模式
+    * @param {CartridgeAdapterOptions} options - 写入选项
    * @returns {Promise<Object>} - 操作结果
    */
-  async writeROM(fileData, useDirectWrite = true) {
+  async writeROM(fileData: Uint8Array, options: CartridgeAdapterOptions = {useDirectWrite: true}) {
     try {
       this.log(this.t('messages.rom.writing', { size: fileData.length }));
 
@@ -132,7 +140,7 @@ export class GBAAdapter extends CartridgeAdapter {
       const pageSize = 256;
 
       // 选择写入函数
-      const writeFunction = useDirectWrite ? rom_direct_write : rom_program;
+      const writeFunction = options.useDirectWrite ? rom_direct_write : rom_program;
 
       // 分块写入并更新进度
       for (let addr = 0; addr < total; addr += pageSize) {
@@ -193,7 +201,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param {number} baseAddress - 基础地址
    * @returns {Promise<Object>} - 操作结果
    */
-  async verifyROM(fileData, baseAddress = 0) {
+  async verifyROM(fileData: Uint8Array, baseAddress = 0) {
     try {
       this.log(this.t('messages.rom.verifying'));
       const ok = await rom_verify(this.device, fileData, baseAddress);
@@ -216,7 +224,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * 切换SRAM的Bank
    * @param {number} bank - Bank编号 (0或1)
    */
-  async switchSRAMBank(bank) {
+  async switchSRAMBank(bank: number) {
     bank = bank === 0 ? 0 : 1;
     this.log(this.t('messages.gba.bankSwitchSram', { bank }));
     await ram_write(this.device, new Uint8Array([bank]), 0x800000);
@@ -226,7 +234,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * 切换Flash的Bank
    * @param {number} bank - Bank编号 (0或1)
    */
-  async switchFlashBank(bank) {
+  async switchFlashBank(bank: number) {
     bank = bank === 0 ? 0 : 1;
     this.log(this.t('messages.gba.bankSwitchFlash', { bank }));
 
@@ -239,17 +247,17 @@ export class GBAAdapter extends CartridgeAdapter {
   /**
    * 写入RAM
    * @param {Uint8Array} fileData - 文件数据
-   * @param {string} ramType - RAM类型 ("SRAM" 或 "FLASH")
+   * @param {CartridgeAdapterOptions} options - 写入选项
    * @returns {Promise<Object>} - 操作结果
    */
-  async writeRAM(fileData, ramType = "SRAM") {
+  async writeRAM(fileData: Uint8Array, options: CartridgeAdapterOptions = {ramType: "SRAM"}) {
     try {
       this.log(this.t('messages.ram.writing', { size: fileData.length }));
 
       const total = fileData.length;
       let written = 0;
       const pageSize = 256;        // 如果是FLASH类型，先擦除
-        if (ramType === "FLASH") {
+        if (options.ramType === "FLASH") {
           this.log(this.t('messages.gba.erasingFlash'));
           await ram_write(this.device, new Uint8Array([0xaa]), 0x5555);
           await ram_write(this.device, new Uint8Array([0x55]), 0x2aaa);
@@ -277,13 +285,13 @@ export class GBAAdapter extends CartridgeAdapter {
       while (written < total) {
         // 切bank
         if (written === 0x00000) {
-          if (ramType === "FLASH") {
+          if (options.ramType === "FLASH") {
             await this.switchFlashBank(0);
           } else {
             await this.switchSRAMBank(0);
           }
         } else if (written === 0x10000) {
-          if (ramType === "FLASH") {
+          if (options.ramType === "FLASH") {
             await this.switchFlashBank(1);
           } else {
             await this.switchSRAMBank(1);
@@ -298,7 +306,7 @@ export class GBAAdapter extends CartridgeAdapter {
         const chunk = fileData.slice(written, written + chunkSize);
 
         // 根据RAM类型选择写入方法
-        if (ramType === "FLASH") {
+        if (options.ramType === "FLASH") {
           await ram_write_to_flash(this.device, chunk, baseAddr);
         } else {
           await ram_write(this.device, chunk, baseAddr);
@@ -330,10 +338,10 @@ export class GBAAdapter extends CartridgeAdapter {
   /**
    * 读取RAM
    * @param {number} size - 读取大小
-   * @param {string} ramType - RAM类型 ("SRAM" 或 "FLASH")
+   * @param {CartridgeAdapterOptions} options - 写入选项
    * @returns {Promise<Object>} - 操作结果，包含读取的数据
    */
-  async readRAM(size = 0x8000, ramType = "SRAM") {
+  async readRAM(size = 0x8000, options: CartridgeAdapterOptions = {ramType: "SRAM"}) {
     try {
       this.log(this.t('messages.ram.reading'));
 
@@ -344,13 +352,13 @@ export class GBAAdapter extends CartridgeAdapter {
       while (read < size) {
         // 切bank
         if (read === 0x00000) {
-          if (ramType === "FLASH") {
+          if (options.ramType === "FLASH") {
             await this.switchFlashBank(0);
           } else {
             await this.switchSRAMBank(0);
           }
         } else if (read === 0x10000) {
-          if (ramType === "FLASH") {
+          if (options.ramType === "FLASH") {
             await this.switchFlashBank(1);
           } else {
             await this.switchSRAMBank(1);
@@ -390,10 +398,10 @@ export class GBAAdapter extends CartridgeAdapter {
   /**
    * 校验RAM
    * @param {Uint8Array} fileData - 文件数据
-   * @param {string} ramType - RAM类型 ("SRAM" 或 "FLASH")
+   * @param {CartridgeAdapterOptions} options - 选项对象
    * @returns {Promise<Object>} - 操作结果
    */
-  async verifyRAM(fileData, ramType = "SRAM") {
+  async verifyRAM(fileData: Uint8Array, options: CartridgeAdapterOptions = {ramType: "SRAM"}) {
     try {
       this.log(this.t('messages.ram.verifying'));
 
@@ -405,13 +413,13 @@ export class GBAAdapter extends CartridgeAdapter {
       while (verified < total) {
         // 切bank
         if (verified === 0x00000) {
-          if (ramType === "FLASH") {
+          if (options.ramType === "FLASH") {
             await this.switchFlashBank(0);
           } else {
             await this.switchSRAMBank(0);
           }
         } else if (verified === 0x10000) {
-          if (ramType === "FLASH") {
+          if (options.ramType === "FLASH") {
             await this.switchFlashBank(1);
           } else {
             await this.switchSRAMBank(1);

@@ -18,7 +18,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -31,15 +31,7 @@ onMounted(() => {
 
 function changeLanguage() {
   locale.value = currentLocale.value
-  // 保存到本地存储
   localStorage.setItem('locale', currentLocale.value)
-
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', 'language_change', {
-      'event_category': 'preferences',
-      'event_label': currentLocale.value
-    })
-  }
 }
 </script>
 

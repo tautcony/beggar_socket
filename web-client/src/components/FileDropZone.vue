@@ -69,11 +69,9 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-
-const { t } = useI18n()
+import { FileInfo } from '../types/FileInfo.ts'
 
 const props = defineProps({
   disabled: {
@@ -113,28 +111,32 @@ const props = defineProps({
 const emit = defineEmits(['file-selected', 'file-cleared'])
 
 const dragOver = ref(false)
-const fileInput = ref(null)
+const fileInput = ref<HTMLInputElement | null>(null)
 
-function onFileChange(e) {
-  const file = e.target.files[0]
-  if (!file) return
-  processFile(file)
+function onFileChange(e: Event) {
+if (e.target && (e.target as HTMLInputElement).files && (e.target as HTMLInputElement).files?.length) {
+    const files = (e.target as HTMLInputElement).files;
+    if (!files || files.length === 0) {
+      return
+    }
+    processFile(files[0])
+  }
 }
 
-function processFile(file) {
+function processFile(file: File) {
   const reader = new FileReader()
   reader.onload = () => {
-    const data = new Uint8Array(reader.result)
+    const data = new Uint8Array(reader.result as ArrayBuffer)
     emit('file-selected', {
       name: file.name,
       data: data,
       size: data.length
-    })
+    } as FileInfo)
   }
   reader.readAsArrayBuffer(file)
 }
 
-function formatFileSize(bytes) {
+function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 B'
   const k = 1024
   const sizes = ['B', 'KB', 'MB', 'GB']
@@ -144,7 +146,7 @@ function formatFileSize(bytes) {
 
 function triggerFileSelect() {
   if (props.disabled) return
-  fileInput.value.click()
+  fileInput?.value?.click()
 }
 
 function clearFile() {
@@ -152,7 +154,7 @@ function clearFile() {
   emit('file-cleared')
 }
 
-function handleDragOver(e) {
+function handleDragOver(e: Event) {
   if (props.disabled) return
   dragOver.value = true
 }
@@ -161,12 +163,12 @@ function handleDragLeave() {
   dragOver.value = false
 }
 
-function handleDrop(e) {
+function handleDrop(e: DragEvent) {
   dragOver.value = false
   if (props.disabled) return
 
-  const files = e.dataTransfer.files
-  if (files.length > 0) {
+  const files = e.dataTransfer?.files
+  if (files && files.length > 0) {
     processFile(files[0])
   }
 }

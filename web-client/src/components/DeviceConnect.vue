@@ -18,7 +18,8 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import { DeviceInfo } from '../types/DeviceInfo.ts'
 import { ref, computed, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -33,13 +34,18 @@ const toast = reactive({
   message: '',
   type: 'success',
   timer: null
+} as {
+  visible: boolean,
+  message: string,
+  type: 'success' | 'error' | 'idle',
+  timer: ReturnType<typeof setTimeout> | null
 })
 
-let device = null
+let device: USBDevice | null = null
 let endpointOut = 2
 let endpointIn = 1
 
-function showToast(message, type, duration = 3000) {
+function showToast(message: string, type: 'success' | 'error' | 'idle', duration = 3000) {
   if (toast.timer) clearTimeout(toast.timer)
   toast.message = message
   toast.type = type
@@ -65,7 +71,7 @@ async function connect() {
     }
 
     let claimedInterface = false
-    for (const iface of device.configuration.interfaces) {
+    for (const iface of device.configuration?.interfaces || []) {
       const alternate = iface.alternates.find(alt => alt.endpoints.length >= 2)
       if (alternate) {
         const outEp = alternate.endpoints.find(ep => ep.direction === 'out' && ep.type === 'bulk')
@@ -83,18 +89,18 @@ async function connect() {
     }
 
     if (!claimedInterface) {
-      console.error(t('messages.device.noInterface'), device.configuration.interfaces)
+      console.error(t('messages.device.noInterface'), device.configuration?.interfaces)
       throw new Error(t('messages.device.noInterface'))
     }
 
     connected.value = true
     isConnecting.value = false
     showToast(t('messages.device.connectionSuccess'), 'success')
-    emit('device-ready', { device, endpointOut, endpointIn })
+    emit('device-ready', { device, endpointOut, endpointIn } as DeviceInfo)
   } catch (e) {
     connected.value = false
     isConnecting.value = false
-    showToast(t('messages.device.connectionFailed', { error: e.message }), 'error')
+    showToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error')
     if (device && device.opened) {
       await device.close().catch(err => console.error("Error closing device on connect failure:", err))
     }
@@ -114,7 +120,7 @@ async function disconnect() {
     showToast(t('messages.device.disconnectionSuccess'), 'success')
   } catch (e) {
     console.error(t('messages.device.disconnectionFailed'), e)
-    showToast(`${t('messages.device.disconnectionFailed')}: ${e.message}`, 'error')
+    showToast(`${t('messages.device.disconnectionFailed')}`, 'error')
   } finally {
     device = null
     connected.value = false
