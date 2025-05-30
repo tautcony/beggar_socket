@@ -3,6 +3,9 @@
     "app": {
       "title": "ChisFlash Burner"
     },
+    "github": {
+      "tooltip": "Visit GitHub Repository"
+    },
     "device": {
       "connect": "Connect Device",
       "connecting": "Connecting...",

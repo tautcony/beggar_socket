@@ -3,6 +3,9 @@
     "app": {
       "title": "ChisFlash Burner"
     },
+    "github": {
+      "tooltip": "GitHubリポジトリを見る"
+    },
     "device": {
       "connect": "デバイスを接続",
       "connecting": "接続中...",

@@ -12,6 +12,8 @@
     />
     <!-- 调试面板悬浮在最上层 -->
     <DebugPanel v-if="showDebugPanel" />
+    <!-- GitHub 链接悬浮在右下角 -->
+    <GitHubLink />
   </div>
 </template>
 
@@ -21,6 +23,7 @@ import DeviceConnect from '@/components/DeviceConnect.vue'
 import FlashBurner from '@/components/FlashBurner.vue'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import DebugPanel from '@/components/DebugPanel.vue'
+import GitHubLink from '@/components/GitHubLink.vue'
 import { DeviceInfo } from '@/types/DeviceInfo'
 import { DebugConfig } from '@/utils/DebugConfig'
 
