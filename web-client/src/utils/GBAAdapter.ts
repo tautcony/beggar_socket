@@ -10,6 +10,8 @@ import {
   ram_read,
   // ram_verify,
   ram_write_to_flash,
+  ROM_PAGE_SIZE,
+  RAM_PAGE_SIZE,
 } from '@/utils/Protocol.ts';
 import { DeviceInfo } from '@/types/DeviceInfo.ts';
 import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/utils/CartridgeAdapter.ts';
@@ -164,7 +166,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
       const total = fileData.length;
       let written = 0;
-      const pageSize = 256;
+      const pageSize = ROM_PAGE_SIZE;
       const startTime = Date.now();
 
       // 选择写入函数
@@ -352,7 +354,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
       const total = fileData.length;
       let written = 0;
-      const pageSize = 256;        // 如果是FLASH类型，先擦除
+      const pageSize = RAM_PAGE_SIZE;
       if (options.ramType === 'FLASH') {
         this.log(this.t('messages.gba.erasingFlash'));
         await ram_write(this.device, new Uint8Array([0xaa]), 0x5555);
@@ -446,7 +448,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
       const result = new Uint8Array(size);
       let read = 0;
-      const pageSize = 256;
+      const pageSize = RAM_PAGE_SIZE;
       const startTime = Date.now();
 
       while (read < size) {
@@ -509,7 +511,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
       const total = fileData.length;
       let verified = 0;
-      const pageSize = 256;
+      const pageSize = RAM_PAGE_SIZE;
       let success = true;
       const startTime = Date.now();
 

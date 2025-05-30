@@ -2,6 +2,8 @@ import { toLittleEndian, sendPackage, getPackage, getResult } from '@/utils/Prot
 import { DeviceInfo } from '@/types/DeviceInfo.ts';
 
 // --- GBA Commands ---
+export const ROM_PAGE_SIZE = 0x1000; // 4KB for ROM operations
+export const RAM_PAGE_SIZE = 0x800; // 1KB for RAM operations
 
 // GBA: 读取ID (0xf0)
 export async function rom_readID(device: DeviceInfo): Promise<number[]> {
@@ -60,8 +62,7 @@ export async function rom_program(device: DeviceInfo, fileData: Uint8Array, base
     throw new Error('Serial port not properly initialized');
   }
 
-  const pageSize = 256;
-
+  const pageSize = ROM_PAGE_SIZE;
   for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
     const currentDeviceAddress = baseAddress + addrOffset;
     const chunk = fileData.slice(addrOffset, Math.min(addrOffset + pageSize, fileData.length));
@@ -88,7 +89,7 @@ export async function rom_direct_write(device: DeviceInfo, fileData: Uint8Array,
     throw new Error('Serial port not properly initialized');
   }
 
-  const pageSize = 256;
+  const pageSize = ROM_PAGE_SIZE;
 
   for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
     const currentDeviceByteAddress = baseByteAddress + addrOffset;
@@ -118,7 +119,7 @@ export async function rom_read(device: DeviceInfo, size: number, baseAddress = 0
     throw new Error('Serial port not properly initialized');
   }
 
-  const pageSize = 0x100;
+  const pageSize = ROM_PAGE_SIZE;
   let result = new Uint8Array(size);
   let bytesFetched = 0;
 
@@ -156,7 +157,7 @@ export async function ram_write(device: DeviceInfo, fileData: Uint8Array, baseAd
     throw new Error('Serial port not properly initialized');
   }
 
-  const pageSize = 256;
+  const pageSize = RAM_PAGE_SIZE;
   for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
     const currentDeviceAddress = baseAddress + addrOffset;
     const chunk = fileData.slice(addrOffset, Math.min(addrOffset + pageSize, fileData.length));
@@ -180,7 +181,7 @@ export async function ram_read(device: DeviceInfo, size: number, baseAddress = 0
     throw new Error('Serial port not properly initialized');
   }
 
-  const pageSize = 256;
+  const pageSize = RAM_PAGE_SIZE;
   let result = new Uint8Array(size);
   let bytesFetched = 0;
 
@@ -218,8 +219,7 @@ export async function ram_write_to_flash(device: DeviceInfo, fileData: Uint8Arra
     throw new Error('Serial port not properly initialized');
   }
 
-  const pageSize = 256;
-
+  const pageSize = RAM_PAGE_SIZE;
   for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
     const currentDeviceAddress = baseAddress + addrOffset;
     const chunk = fileData.slice(addrOffset, Math.min(addrOffset + pageSize, fileData.length));
@@ -245,7 +245,7 @@ export async function gbc_direct_write(device: DeviceInfo, fileData: Uint8Array,
     throw new Error('Serial port not properly initialized');
   }
 
-  const pageSize = 256;
+  const pageSize = RAM_PAGE_SIZE;
 
   for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
     const currentDeviceAddress = baseAddress + addrOffset;
@@ -270,7 +270,7 @@ export async function gbc_read(device: DeviceInfo, size: number, baseAddress = 0
     throw new Error('Serial port not properly initialized');
   }
 
-  const pageSize = 256;
+  const pageSize = RAM_PAGE_SIZE;
   let result = new Uint8Array(size);
   let bytesFetched = 0;
 
@@ -308,7 +308,7 @@ export async function gbc_rom_program(device: DeviceInfo, fileData: Uint8Array, 
     throw new Error('Serial port not properly initialized');
   }
 
-  const pageSize = 256;
+  const pageSize = RAM_PAGE_SIZE;256;
 
   for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
     const currentDeviceAddress = baseAddress + addrOffset;
