@@ -100,34 +100,53 @@ export function formatPackage(buf: Uint8Array): void {
   ]);
 }
 
-export async function sendPackage(device: USBDevice, endpointOut: number, payload: Uint8Array, timeoutMs = 3000): Promise<boolean> {
+export async function sendPackage(writer: WritableStreamDefaultWriter<Uint8Array>, payload: Uint8Array, timeoutMs = 3000): Promise<boolean> {
   const buf = buildPackage(payload);
   formatPackage(buf)
-  const result: USBOutTransferResult = await withTimeout(
-    device.transferOut(endpointOut, buf),
+  
+  await withTimeout(
+    writer.write(buf),
     timeoutMs,
     `发送数据包超时 (${timeoutMs}ms)`
   );
-  if (result.status !== "ok") {
-    throw new Error(`发送数据包失败: ${result.status}`);
-  }
   return true;
 }
 
-export async function getPackage(device: USBDevice, endpointIn: number, lenght: number = 64, timeoutMs = 3000): Promise<USBInTransferResult> {
-  const result: USBInTransferResult = await withTimeout(
-    device.transferIn(endpointIn, lenght),
+export async function getPackage(reader: ReadableStreamDefaultReader<Uint8Array>, length: number = 64, timeoutMs = 3000): Promise<{ data: Uint8Array }> {
+  const chunks: Uint8Array[] = [];
+  let totalLength = 0;
+  
+  const readTimeout = withTimeout(
+    (async () => {
+      while (totalLength < length) {
+        const { value, done } = await reader.read();
+        if (done) {
+          break;
+        }
+        if (value) {
+          chunks.push(value);
+          totalLength += value.length;
+        }
+      }
+    })(),
     timeoutMs,
     `接收数据包超时 (${timeoutMs}ms)`
   );
-  if (result.status !== "ok") {
-    throw new Error(`接收数据包失败: ${result.status}`);
-  }
-  return result;
   
+  await readTimeout;
+  
+  // 合并所有数据块
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.length;
+  }
+  
+  return { data: result.slice(0, length) };
 }
 
-export async function getResult(device: USBDevice, endpointIn: number, timeoutMs = 3000): Promise<boolean> {
-  const result = await getPackage(device, endpointIn, 1, timeoutMs);
-  return result.status === "ok" && result.data?.getUint8(0) === 0xaa;
+export async function getResult(reader: ReadableStreamDefaultReader<Uint8Array>, timeoutMs = 3000): Promise<boolean> {
+  const result = await getPackage(reader, 1, timeoutMs);
+  return result.data?.length > 0 && result.data[0] === 0xaa;
 }

@@ -5,13 +5,17 @@ import { DeviceInfo } from '@/types/DeviceInfo.ts'
 
 // GBA: 读取ID (0xf0)
 export async function rom_readID(device: DeviceInfo): Promise<number[]> {
-  const { endpointOut, endpointIn } = device
-  await sendPackage(device.device, endpointOut, new Uint8Array([0xf0]))
-  const result = await getPackage(device.device, endpointIn, 10)
+  const { writer, reader } = device
+  if (!writer || !reader) {
+    throw new Error('Serial port not properly initialized')
+  }
+  
+  await sendPackage(writer, new Uint8Array([0xf0]))
+  const result = await getPackage(reader, 10)
   if (result.data?.byteLength && result.data.byteLength >= 10) {
     const id: number[] = []
     for (let i = 2; i < 10; ++i) {
-      id.push(result.data?.getUint8(i))
+      id.push(result.data[i])
     }
     return id
   } else {
@@ -21,30 +25,41 @@ export async function rom_readID(device: DeviceInfo): Promise<number[]> {
 
 // GBA: 擦除芯片 (0xf1)
 export async function rom_eraseChip(device: DeviceInfo): Promise<void> {
-  const { endpointOut, endpointIn } = device
-  await sendPackage(device.device, endpointOut, new Uint8Array([0xf1]))
-  let ack = await getResult(device.device, endpointIn)
+  const { writer, reader } = device
+  if (!writer || !reader) {
+    throw new Error('Serial port not properly initialized')
+  }
+  
+  await sendPackage(writer, new Uint8Array([0xf1]))
+  let ack = await getResult(reader)
   if (!ack) throw new Error('GBA Erase failed')
 }
 
 // GBA: ROM Sector Erase (64KB) (0xf3)
 export async function rom_sector_erase(device: DeviceInfo, sectorAddress: number): Promise<boolean> {
-  const { endpointOut, endpointIn } = device;
+  const { writer, reader } = device
+  if (!writer || !reader) {
+    throw new Error('Serial port not properly initialized')
+  }
 
   let payload = new Uint8Array(1 + 4);
   const sectorAddressBytes = toLittleEndian(sectorAddress, 4);
   payload[0] = 0xf3;
   payload.set(sectorAddressBytes, 1);
 
-  await sendPackage(device.device, endpointOut, payload);
-  let ack = await getResult(device.device, endpointIn);
+  await sendPackage(writer, payload);
+  let ack = await getResult(reader);
   if (!ack) throw new Error('GBA ROM sector erase failed');
   return ack;
 }
 
 // GBA: ROM Program (0xf4)
 export async function rom_program(device: DeviceInfo, fileData: Uint8Array, baseAddress = 0): Promise<void> {
-  const { endpointOut, endpointIn } = device;
+  const { writer, reader } = device
+  if (!writer || !reader) {
+    throw new Error('Serial port not properly initialized')
+  }
+  
   const pageSize = 256;
 
   for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
@@ -60,15 +75,19 @@ export async function rom_program(device: DeviceInfo, fileData: Uint8Array, base
     payload.set(chunkSizeBytes, 5);
     payload.set(chunk, 7);
 
-    await sendPackage(device.device, endpointOut, payload);
-    let ack = await getResult(device.device, endpointIn);
+    await sendPackage(writer, payload);
+    let ack = await getResult(reader);
     if (!ack) throw new Error(`GBA ROM programming failed (Address: 0x${currentDeviceAddress.toString(16)})`);
   }
 }
 
 // GBA: ROM Direct Write (透传) (0xf5)
 export async function rom_direct_write(device: DeviceInfo, fileData: Uint8Array, baseByteAddress = 0): Promise<void> {
-  const { endpointOut, endpointIn } = device;
+  const { writer, reader } = device
+  if (!writer || !reader) {
+    throw new Error('Serial port not properly initialized')
+  }
+  
   const pageSize = 256;
 
   for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
@@ -86,15 +105,19 @@ export async function rom_direct_write(device: DeviceInfo, fileData: Uint8Array,
     payload.set(addrBytes, 1);
     payload.set(chunk, 5);
 
-    await sendPackage(device.device, endpointOut, payload);
-    let ack = await getResult(device.device, endpointIn);
+    await sendPackage(writer, payload);
+    let ack = await getResult(reader);
     if (!ack) throw new Error(`GBA ROM direct write failed (Address: 0x${currentDeviceWordAddress.toString(16)} [word address])`);
   }
 }
 
 // GBA: ROM 读取 (0xf6)
 export async function rom_read(device: DeviceInfo, size: number, baseAddress = 0): Promise<Uint8Array> {
-  const { endpointOut, endpointIn } = device;
+  const { writer, reader } = device
+  if (!writer || !reader) {
+    throw new Error('Serial port not properly initialized')
+  }
+  
   const pageSize = 256;
   let result = new Uint8Array(size);
   let bytesFetched = 0;
@@ -112,11 +135,11 @@ export async function rom_read(device: DeviceInfo, size: number, baseAddress = 0
     payload.set(addrBytes, 1);
     payload.set(chunkSizeBytes, 5);
 
-    await sendPackage(device.device, endpointOut, payload);
-    let res = await getPackage(device.device, endpointIn, chunkSize + 2);
+    await sendPackage(writer, payload);
+    let res = await getPackage(reader, chunkSize + 2);
     if (res.data && res.data.byteLength >= chunkSize + 2) {
       for (let i = 0; i < chunkSize; ++i) {
-        result[bytesFetched + i] = res.data.getUint8(i + 2);
+        result[bytesFetched + i] = res.data[i + 2];
       }
       bytesFetched += chunkSize;
     } else {
@@ -128,7 +151,11 @@ export async function rom_read(device: DeviceInfo, size: number, baseAddress = 0
 
 // GBA: RAM 写入 (0xf7)
 export async function ram_write(device: DeviceInfo, fileData: Uint8Array, baseAddress = 0): Promise<void> {
-  const { endpointOut, endpointIn } = device;
+  const { writer, reader } = device
+  if (!writer || !reader) {
+    throw new Error('Serial port not properly initialized')
+  }
+  
   const pageSize = 256;
   for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
     const currentDeviceAddress = baseAddress + addrOffset;
@@ -140,15 +167,19 @@ export async function ram_write(device: DeviceInfo, fileData: Uint8Array, baseAd
     payload.set(addrBytes, 1);
     payload.set(chunk, 5);
 
-    await sendPackage(device.device, endpointOut, payload);
-    let ack = await getResult(device.device, endpointIn);
+    await sendPackage(writer, payload);
+    let ack = await getResult(reader);
     if (!ack) throw new Error(`RAM write failed (Address: 0x${currentDeviceAddress.toString(16)})`);
   }
 }
 
 // GBA: RAM 读取 (0xf8)
 export async function ram_read(device: DeviceInfo, size: number, baseAddress = 0): Promise<Uint8Array> {
-  const { endpointOut, endpointIn } = device;
+  const { writer, reader } = device
+  if (!writer || !reader) {
+    throw new Error('Serial port not properly initialized')
+  }
+  
   const pageSize = 256;
   let result = new Uint8Array(size);
   let bytesFetched = 0;
@@ -166,11 +197,11 @@ export async function ram_read(device: DeviceInfo, size: number, baseAddress = 0
     payload.set(addrBytes, 1);
     payload.set(chunkSizeBytes, 5);
 
-    await sendPackage(device.device, endpointOut, payload);
-    let res = await getPackage(device.device, endpointIn, chunkSize + 2);
+    await sendPackage(writer, payload);
+    let res = await getPackage(reader, chunkSize + 2);
     if (res.data && res.data.byteLength >= chunkSize + 2) {
       for (let i = 0; i < chunkSize; ++i) {
-        result[bytesFetched + i] = res.data.getUint8(i + 2);
+        result[bytesFetched + i] = res.data[i + 2];
       }
       bytesFetched += chunkSize;
     } else {
@@ -182,7 +213,11 @@ export async function ram_read(device: DeviceInfo, size: number, baseAddress = 0
 
 // GBA: RAM Write to FLASH (0xf9)
 export async function ram_write_to_flash(device: DeviceInfo, fileData: Uint8Array, baseAddress = 0): Promise<void> {
-  const { endpointOut, endpointIn } = device;
+  const { writer, reader } = device
+  if (!writer || !reader) {
+    throw new Error('Serial port not properly initialized')
+  }
+  
   const pageSize = 256;
 
   for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
@@ -195,8 +230,8 @@ export async function ram_write_to_flash(device: DeviceInfo, fileData: Uint8Arra
     payload.set(addrBytes, 1);
     payload.set(chunk, 5);
 
-    await sendPackage(device.device, endpointOut, payload);
-    let ack = await getResult(device.device, endpointIn);
+    await sendPackage(writer, payload);
+    let ack = await getResult(reader);
     if (!ack) throw new Error(`GBA RAM write to FLASH failed (Address: 0x${currentDeviceAddress.toString(16)})`);
   }
 }
@@ -205,7 +240,11 @@ export async function ram_write_to_flash(device: DeviceInfo, fileData: Uint8Arra
 
 // GBC: Direct Write (透传) (0xfa)
 export async function gbc_direct_write(device: DeviceInfo, fileData: Uint8Array, baseAddress = 0): Promise<void> {
-  const { endpointOut, endpointIn } = device;
+  const { writer, reader } = device
+  if (!writer || !reader) {
+    throw new Error('Serial port not properly initialized')
+  }
+  
   const pageSize = 256;
 
   for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
@@ -218,15 +257,19 @@ export async function gbc_direct_write(device: DeviceInfo, fileData: Uint8Array,
     payload.set(addrBytes, 1);
     payload.set(chunk, 5);
 
-    await sendPackage(device.device, endpointOut, payload);
-    let ack = await getResult(device.device, endpointIn);
+    await sendPackage(writer, payload);
+    let ack = await getResult(reader);
     if (!ack) throw new Error(`GBC direct write failed (Address: 0x${currentDeviceAddress.toString(16)})`);
   }
 }
 
 // GBC: Read (0xfb)
 export async function gbc_read(device: DeviceInfo, size: number, baseAddress = 0): Promise<Uint8Array> {
-  const { endpointOut, endpointIn } = device;
+  const { writer, reader } = device
+  if (!writer || !reader) {
+    throw new Error('Serial port not properly initialized')
+  }
+  
   const pageSize = 256;
   let result = new Uint8Array(size);
   let bytesFetched = 0;
@@ -244,11 +287,11 @@ export async function gbc_read(device: DeviceInfo, size: number, baseAddress = 0
     payload.set(addrBytes, 1);
     payload.set(chunkSizeBytes, 5);
 
-    await sendPackage(device.device, endpointOut, payload);
-    let res = await getPackage(device.device, endpointIn, chunkSize + 2);
+    await sendPackage(writer, payload);
+    let res = await getPackage(reader, chunkSize + 2);
     if (res.data && res.data.byteLength >= chunkSize + 2) {
       for (let i = 0; i < chunkSize; ++i) {
-        result[bytesFetched + i] = res.data.getUint8(i + 2);
+        result[bytesFetched + i] = res.data[i + 2];
       }
       bytesFetched += chunkSize;
     } else {
@@ -260,7 +303,11 @@ export async function gbc_read(device: DeviceInfo, size: number, baseAddress = 0
 
 // GBC: ROM Program (0xfc)
 export async function gbc_rom_program(device: DeviceInfo, fileData: Uint8Array, baseAddress = 0): Promise<void> {
-  const { endpointOut, endpointIn } = device;
+  const { writer, reader } = device
+  if (!writer || !reader) {
+    throw new Error('Serial port not properly initialized')
+  }
+  
   const pageSize = 256;
 
   for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
@@ -276,8 +323,8 @@ export async function gbc_rom_program(device: DeviceInfo, fileData: Uint8Array, 
     payload.set(chunkSizeBytes, 5);
     payload.set(chunk, 7);
 
-    await sendPackage(device.device, endpointOut, payload);
-    let ack = await getResult(device.device, endpointIn);
+    await sendPackage(writer, payload);
+    let ack = await getResult(reader);
     if (!ack) throw new Error(`GBC ROM programming failed (Address: 0x${currentDeviceAddress.toString(16)})`);
   }
 }

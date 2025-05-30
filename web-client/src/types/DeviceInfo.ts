@@ -1,5 +1,5 @@
 export interface DeviceInfo {
-  device: USBDevice;
-  endpointOut: number;
-  endpointIn: number;
+  port: SerialPort;
+  reader: ReadableStreamDefaultReader<Uint8Array> | null;
+  writer: WritableStreamDefaultWriter<Uint8Array> | null;
 }

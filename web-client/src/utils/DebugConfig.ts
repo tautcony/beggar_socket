@@ -132,37 +132,93 @@ export class DebugConfig {
   }
 
   /**
-   * 模拟设备信息
+   * 创建模拟的 SerialPort 设备
    */
-  static createMockDevice(): USBDevice {
-    const alternate: USBAlternateInterface = {
-      endpoints: [
-        { endpointNumber: 1, direction: 'in', type: 'bulk', packetSize: 64 },
-        { endpointNumber: 2, direction: 'out', type: 'bulk', packetSize: 64 },
-      ],
-      alternateSetting: 0,
-      interfaceClass: 0,
-      interfaceSubclass: 0,
-      interfaceProtocol: 0
-    };
+  static createMockSerialPort(): SerialPort {
+    // 创建模拟的可读流
+    const mockReadableStream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        // 模拟设备响应数据
+        const mockResponses = [
+          new Uint8Array([0x01, 0x02, 0x03, 0x04]), // 模拟ID响应
+          new Uint8Array([0x00]), // 模拟成功响应
+        ];
+        let responseIndex = 0;
+        
+        // 定期推送模拟数据
+        setInterval(() => {
+          if (responseIndex < mockResponses.length) {
+            controller.enqueue(mockResponses[responseIndex]);
+            responseIndex++;
+          }
+        }, 100);
+      }
+    });
+
+    // 创建模拟的可写流
+    const mockWritableStream = new WritableStream<Uint8Array>({
+      write(chunk) {
+        console.log('Mock SerialPort: 接收到数据', chunk);
+        return Promise.resolve();
+      }
+    });
+
+    // 创建模拟的 SerialPort
     return {
-      productName: 'ChisFlash Burner (Debug)',
-      vendorId: 0x1234,
-      productId: 0x5678,
-      serialNumber: 'DEBUG-001',
-      opened: true,
-      configurations: [{
-        interfaces: [{
-          alternates: [
-            alternate
-          ],
-          interfaceNumber: 0,
-          alternate,
-          claimed: false
-        }],
-        configurationValue: 0
-      }]
-    } as USBDevice
+      readable: mockReadableStream,
+      writable: mockWritableStream,
+
+      // 模拟串口信息
+      getInfo: () => ({
+        usbVendorId: 0x1234,
+        usbProductId: 0x5678
+      }),
+
+      // 模拟信号控制
+      getSignals: () => Promise.resolve({
+        dataCarrierDetect: false,
+        clearToSend: false,
+        ringIndicator: false,
+        dataSetReady: false
+      }),
+
+      setSignals: (signals: SerialOutputSignals) => {
+        console.log('Mock SerialPort: 设置信号', signals)
+        return Promise.resolve()
+      },
+
+      // 模拟打开/关闭
+      open: (options: SerialOptions) => {
+        console.log('Mock SerialPort: 打开端口', options)
+        return Promise.resolve()
+      },
+
+      close: () => {
+        console.log('Mock SerialPort: 关闭端口')
+        return Promise.resolve()
+      },
+
+      // 模拟设备移除事件
+      addEventListener: () => { },
+      removeEventListener: () => { },
+      dispatchEvent: () => false,
+      onconnect: (ev: Event) => {},
+      ondisconnect: (ev: Event) => {},
+      connected: true,
+      forget: () =>  Promise.resolve(),
+    } as SerialPort;
+  }
+
+  /**
+   * 创建模拟的 DeviceInfo
+   */
+  static createMockDeviceInfo() {
+    const mockPort = this.createMockSerialPort();
+    return {
+      port: mockPort,
+      reader: null,
+      writer: null
+    };
   }
 }
 

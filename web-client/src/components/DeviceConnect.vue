@@ -42,9 +42,9 @@ const toast = reactive({
   timer: ReturnType<typeof setTimeout> | null
 })
 
-let device: USBDevice | null = null
-let endpointOut = 2
-let endpointIn = 1
+let port: SerialPort | null = null
+let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
+let writer: WritableStreamDefaultWriter<Uint8Array> | null = null
 
 function showToast(message: string, type: 'success' | 'error' | 'idle', duration = 3000) {
   if (toast.timer) clearTimeout(toast.timer)
@@ -68,101 +68,126 @@ async function connect() {
       // Simulate connection delay
       await new Promise(resolve => setTimeout(resolve, 1000))
       
-      // Create mock device
-      const mockDevice = {
-        vendorId: 0x1234,
-        productId: 0x5678,
-        opened: true,
-        configuration: {
-          interfaces: [{
-            interfaceNumber: 0,
-            alternates: [{
-              endpoints: [
-                { direction: 'out', type: 'bulk', endpointNumber: 2 },
-                { direction: 'in', type: 'bulk', endpointNumber: 1 }
-              ]
-            }]
-          }]
-        },
+      // Create mock serial port
+      const mockPort = {
+        readable: new ReadableStream({
+          start(controller) {
+            // Mock readable stream
+          }
+        }),
+        writable: new WritableStream({
+          write(chunk) {
+            // Mock writable stream
+          }
+        }),
         open: async () => {},
         close: async () => {},
-        selectConfiguration: async () => {},
-        claimInterface: async () => {},
-        selectAlternateInterface: async () => {}
+        getInfo: () => ({ usbVendorId: 0x1234, usbProductId: 0x5678 })
       }
-      
-      device = mockDevice as unknown as USBDevice
-      endpointOut = 2
-      endpointIn = 1
+
+      port = mockPort as unknown as SerialPort
+      reader = mockPort.readable.getReader()
+      writer = mockPort.writable.getWriter()
       
       connected.value = true
       isConnecting.value = false
       showToast(t('messages.device.connectionSuccess') + ' (Debug Mode)', 'success')
-      emit('device-ready', { device, endpointOut, endpointIn } as DeviceInfo)
+      emit('device-ready', { port, reader, writer } as DeviceInfo)
       return
     }
 
-    device = await navigator.usb.requestDevice({
-      filters: []
+    // Check if Web Serial API is supported
+    if (!navigator.serial) {
+      throw new Error('Web Serial API is not supported in this browser')
+    }
+
+    // Request serial port
+    port = await navigator.serial.requestPort()
+    
+    // Open the serial port with specified parameters
+    await port.open({
+      baudRate: 9600,
+      dataBits: 8,
+      parity: 'none',
+      stopBits: 1,
+      flowControl: 'none'
     })
-    await device.open()
-    if (device.configuration === null) {
-      await device.selectConfiguration(1)
-    }
 
-    let claimedInterface = false
-    for (const iface of device.configuration?.interfaces || []) {
-      const alternate = iface.alternates.find(alt => alt.endpoints.length >= 2)
-      if (alternate) {
-        const outEp = alternate.endpoints.find(ep => ep.direction === 'out' && ep.type === 'bulk')
-        const inEp = alternate.endpoints.find(ep => ep.direction === 'in' && ep.type === 'bulk')
+    // Set up serial port signals
+    await port.setSignals({ 
+      dataTerminalReady: true, 
+      requestToSend: true 
+    })
+    
+    // Brief delay then disable signals as specified
+    await new Promise(resolve => setTimeout(resolve, 100))
+    await port.setSignals({ 
+      dataTerminalReady: false, 
+      requestToSend: false 
+    })
 
-        if (outEp && inEp) {
-          await device.claimInterface(iface.interfaceNumber)
-          await device.selectAlternateInterface(iface.interfaceNumber, 0)
-          endpointOut = outEp.endpointNumber
-          endpointIn = inEp.endpointNumber
-          claimedInterface = true
-          break
-        }
-      }
-    }
+    // Get reader and writer
+    reader = port.readable?.getReader() || null
+    writer = port.writable?.getWriter() || null
 
-    if (!claimedInterface) {
-      console.error(t('messages.device.noInterface'), device.configuration?.interfaces)
-      throw new Error(t('messages.device.noInterface'))
+    if (!reader || !writer) {
+      throw new Error('Failed to get serial port reader/writer')
     }
 
     connected.value = true
     isConnecting.value = false
     showToast(t('messages.device.connectionSuccess'), 'success')
-    emit('device-ready', { device, endpointOut, endpointIn } as DeviceInfo)
+    emit('device-ready', { port, reader, writer } as DeviceInfo)
   } catch (e) {
     connected.value = false
     isConnecting.value = false
     showToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error')
-    if (device && device.opened) {
-      await device.close().catch(err => console.error("Error closing device on connect failure:", err))
+    
+    // Clean up on error
+    if (reader) {
+      try { await reader.releaseLock() } catch {}
+      reader = null
     }
-    device = null
+    if (writer) {
+      try { await writer.releaseLock() } catch {}
+      writer = null
+    }
+    if (port) {
+      try { await port.close() } catch {}
+      port = null
+    }
+    
     emit('device-disconnected')
   }
 }
 
 async function disconnect() {
-  if (!device) return
+  if (!port) return
   isConnecting.value = true
 
   try {
-    if (device.opened) {
-      await device.close()
+    // Release reader and writer locks
+    if (reader) {
+      await reader.cancel()
+      reader.releaseLock()
+      reader = null
     }
+    
+    if (writer) {
+      await writer.close()
+      writer = null
+    }
+    
+    // Close the serial port
+    await port.close()
     showToast(t('messages.device.disconnectionSuccess'), 'success')
   } catch (e) {
     console.error(t('messages.device.disconnectionFailed'), e)
     showToast(`${t('messages.device.disconnectionFailed')}`, 'error')
   } finally {
-    device = null
+    port = null
+    reader = null
+    writer = null
     connected.value = false
     isConnecting.value = false
     emit('device-disconnected')

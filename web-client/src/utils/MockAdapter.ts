@@ -17,12 +17,8 @@ export class MockAdapter extends CartridgeAdapter {
     translateFunc: TranslateFunction | null = null
   ) {
     // 创建模拟设备
-    const mockDevice = DebugConfig.createMockDevice()
-    super({
-      device: mockDevice,
-      endpointIn: 1,
-      endpointOut: 1,
-    }, logCallback, progressCallback, translateFunc)
+    const mockDeviceInfo = DebugConfig.createMockDeviceInfo()
+    super(mockDeviceInfo, logCallback, progressCallback, translateFunc)
     
     this.log(this.t('messages.debug.mockModeEnabled') || '调试模式已启用 - 使用模拟设备')
   }
