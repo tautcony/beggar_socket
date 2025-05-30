@@ -106,7 +106,15 @@
       "readFailed": "読み取り失敗",
       "verifySuccess": "検証成功",
       "verifyFailed": "検証失敗",
-      "unsupportedMode": "未サポートのモードまたはアダプターが初期化されていません"
+      "unsupportedMode": "未サポートのモードまたはアダプターが初期化されていません",
+      "unknownFlashId": "IDが未登録です、書き込みできない可能性があります",
+      "eraseComplete": "消去完了",
+      "eraseInProgress": "消去中...",
+      "eraseSectorAddress": "セクター {address} を消去中",
+      "queryingRomSize": "ROM容量を問い合わせ中...",
+      "romSizeQuerySuccess": "ROM容量問い合わせ成功、デバイスサイズ: {deviceSize}、セクター数: {sectorCount}、セクターサイズ: {sectorSize}、バッファ書き込みバイト: {bufferWriteBytes}",
+      "romSizeQueryFailed": "ROM容量問い合わせ失敗",
+      "eraseSectorFailed": "セクター消去失敗"
     },
     "rom": {
       "writing": "ROMを書き込み中、サイズ {size} バイト",
@@ -153,7 +161,12 @@
       "writing": "書き込み済み: {written}/{total} バイト",
       "reading": "読み取り済み: {read}/{total} バイト",
       "verifying": "検証済み: {verified}/{total} バイト",
-      "erasing": "消去済み: {erased}/{total} セクター"
+      "erasing": "消去済み: {erased}/{total} セクター",
+      "eraseSpeed": "消去速度: {speed} セクター/秒",
+      "writeSpeed": "書き込み速度: {speed} KB/s",
+      "readSpeed": "読み取り速度: {speed} KB/s",
+      "verifySpeed": "検証速度: {speed} KB/s",
+      "eraseCompleteReady": "消去完了、書き込み準備完了"
     },
     "mbc5": {
     },

@@ -106,7 +106,15 @@
       "readFailed": "Read failed",
       "verifySuccess": "Verify successful",
       "verifyFailed": "Verify failed",
-      "unsupportedMode": "Mode not supported or adapter uninitialized"
+      "unsupportedMode": "Mode not supported or adapter uninitialized",
+      "unknownFlashId": "ID not recognized, may not be able to write",
+      "eraseComplete": "Erase complete",
+      "eraseInProgress": "Erasing in progress...",
+      "eraseSectorAddress": "Erasing sector {address}",
+      "queryingRomSize": "Querying ROM capacity...",
+      "romSizeQuerySuccess": "ROM capacity query successful, device size: {deviceSize}, sector count: {sectorCount}, sector size: {sectorSize}, buffer write bytes: {bufferWriteBytes}",
+      "romSizeQueryFailed": "ROM capacity query failed",
+      "eraseSectorFailed": "Sector erase failed"
     },
     "rom": {
       "writing": "Writing ROM, size {size} bytes",
@@ -153,7 +161,12 @@
       "writing": "Written: {written}/{total} bytes",
       "reading": "Read: {read}/{total} bytes",
       "verifying": "Verified: {verified}/{total} bytes",
-      "erasing": "Erased: {erased}/{total} sectors"
+      "erasing": "Erased: {erased}/{total} sectors",
+      "eraseSpeed": "Erase speed: {speed} sectors/sec",
+      "writeSpeed": "Write speed: {speed} KB/s",
+      "readSpeed": "Read speed: {speed} KB/s",
+      "verifySpeed": "Verify speed: {speed} KB/s",
+      "eraseCompleteReady": "Erase complete, ready to write"
     },
     "mbc5": {
     },

@@ -67,18 +67,18 @@ export class GBAAdapter extends CartridgeAdapter {
 
   private getFlashId(id: number[]) : string | null {
     const flashTypes = [
-        { pattern: [0x01, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22], name: "S29GL256" },
-        { pattern: [0x89, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22], name: "JS28F256" },
-        { pattern: [0x01, 0x00, 0x7e, 0x22, 0x28, 0x22, 0x01, 0x22], name: "S29GL01GS" }
+      { pattern: [0x01, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22], name: "S29GL256" },
+      { pattern: [0x89, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22], name: "JS28F256" },
+      { pattern: [0x01, 0x00, 0x7e, 0x22, 0x28, 0x22, 0x01, 0x22], name: "S29GL01GS" }
     ];
 
     for (const flashType of flashTypes) {
-        if (this.arraysEqual(id, flashType.pattern)) {
-            return flashType.name;
-        }
+      if (this.arraysEqual(id, flashType.pattern)) {
+        return flashType.name;
+      }
     }
 
-    this.log("ID暂未收录，可能无法写入");
+    this.log(this.t('messages.operation.unknownFlashId'));
     return null;
   }
 
@@ -152,7 +152,7 @@ export class GBAAdapter extends CartridgeAdapter {
         eraseCount++;
         const elapsed = (Date.now() - startTime) / 1000;
         const speed = elapsed > 0 ? (eraseCount / elapsed).toFixed(1) : '0';
-        this.updateProgress(eraseCount / totalSectors * 100, `擦除速度: ${speed} 扇区/秒`);
+        this.updateProgress(eraseCount / totalSectors * 100, this.t('messages.progress.eraseSpeed', { speed }));
       }
 
       this.log(this.t('messages.operation.eraseSuccess'));
@@ -202,7 +202,7 @@ export class GBAAdapter extends CartridgeAdapter {
         const progress = Math.floor((written / total) * 100);
         const elapsed = (Date.now() - startTime) / 1000;
         const speed = elapsed > 0 ? ((written / 1024) / elapsed).toFixed(1) : '0';
-        this.updateProgress(progress, `写入速度: ${speed} KB/s`);
+        this.updateProgress(progress, this.t('messages.progress.writeSpeed', { speed }));
 
         if (written % (pageSize * 16) === 0) {
           this.log(this.t('messages.rom.written', { written }));
@@ -386,7 +386,7 @@ export class GBAAdapter extends CartridgeAdapter {
             this.log(this.t('messages.gba.eraseStatus', { status: result[0].toString(16) }));
             if (result[0] === 0xff) {
               this.log(this.t('messages.gba.eraseComplete'));
-              this.updateProgress(0, '擦除完成，准备写入');
+              this.updateProgress(0, this.t('messages.progress.eraseCompleteReady'));
               erased = true;
             } else {
               await new Promise(resolve => setTimeout(resolve, 1000));
@@ -430,7 +430,7 @@ export class GBAAdapter extends CartridgeAdapter {
         const progress = Math.floor((written / total) * 100);
         const elapsed = (Date.now() - startTime) / 1000;
         const speed = elapsed > 0 ? ((written / 1024) / elapsed).toFixed(1) : '0';
-        this.updateProgress(progress, `写入速度: ${speed} KB/s`);
+        this.updateProgress(progress, this.t('messages.progress.writeSpeed', { speed }));
 
         if (written % (pageSize * 16) === 0) {
           this.log(this.t('messages.ram.written', { written }));
@@ -496,7 +496,7 @@ export class GBAAdapter extends CartridgeAdapter {
         const progress = Math.floor((read / size) * 100);
         const elapsed = (Date.now() - startTime) / 1000;
         const speed = elapsed > 0 ? ((read / 1024) / elapsed).toFixed(1) : '0';
-        this.updateProgress(progress, `读取速度: ${speed} KB/s`);
+        this.updateProgress(progress, this.t('messages.progress.readSpeed', { speed }));
       }
 
       this.log(this.t('messages.ram.readSuccess', { size: result.length }));
@@ -571,7 +571,7 @@ export class GBAAdapter extends CartridgeAdapter {
         const progress = Math.floor((verified / total) * 100);
         const elapsed = (Date.now() - startTime) / 1000;
         const speed = elapsed > 0 ? ((verified / 1024) / elapsed).toFixed(1) : '0';
-        this.updateProgress(progress, `校验速度: ${speed} KB/s`);
+        this.updateProgress(progress, this.t('messages.progress.verifySpeed', { speed }));
       }
 
       const message = success ? this.t('messages.ram.verifySuccess') : this.t('messages.ram.verifyFailed');
@@ -592,16 +592,16 @@ export class GBAAdapter extends CartridgeAdapter {
     // 检查区域是否为空
   async isBlank(address: number, size = 0x100) : Promise<boolean> {
     this.log(this.t('messages.rom.checkingIfBlank'));
-    const data = await rom_read(this.device, size, 0x00);
-    const isBlank = data.every(byte => byte === 0xff);
+    const data = await rom_read(this.device, size, address);
+    const blank = data.every(byte => byte === 0xff);
 
-    if (isBlank) {
+    if (blank) {
       this.log(this.t('messages.rom.areaIsBlank'));
     } else {
       this.log(this.t('messages.rom.areaNotBlank'));
     }
 
-    return isBlank;
+    return blank;
   }
 }
 

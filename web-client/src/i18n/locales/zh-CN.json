@@ -106,7 +106,15 @@
       "readFailed": "读取失败",
       "verifySuccess": "校验成功",
       "verifyFailed": "校验失败",
-      "unsupportedMode": "未支持的模式或适配器未初始化"
+      "unsupportedMode": "未支持的模式或适配器未初始化",
+      "unknownFlashId": "ID暂未收录，可能无法写入",
+      "eraseComplete": "擦除完成",
+      "eraseInProgress": "正在擦除...",
+      "eraseSectorAddress": "擦除扇区 {address}",
+      "queryingRomSize": "正在查询ROM容量...",
+      "romSizeQuerySuccess": "ROM容量查询成功，设备大小: {deviceSize}, 扇区数量: {sectorCount}, 扇区大小: {sectorSize}, 缓冲写入字节: {bufferWriteBytes}",
+      "romSizeQueryFailed": "ROM容量查询失败",
+      "eraseSectorFailed": "扇区擦除失败"
     },
     "rom": {
       "writing": "正在写入ROM，大小 {size} 字节",
@@ -153,7 +161,12 @@
       "writing": "已写入: {written}/{total} 字节",
       "reading": "已读取: {read}/{total} 字节",
       "verifying": "已校验: {verified}/{total} 字节",
-      "erasing": "已擦除: {erased}/{total} 扇区"
+      "erasing": "已擦除: {erased}/{total} 扇区",
+      "eraseSpeed": "擦除速度: {speed} 扇区/秒",
+      "writeSpeed": "写入速度: {speed} KB/s",
+      "readSpeed": "读取速度: {speed} KB/s",
+      "verifySpeed": "校验速度: {speed} KB/s",
+      "eraseCompleteReady": "擦除完成，准备写入"
     },
     "mbc5": {
     },
