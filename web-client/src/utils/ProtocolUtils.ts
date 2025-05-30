@@ -150,3 +150,27 @@ export async function getResult(reader: ReadableStreamDefaultReader<Uint8Array>,
   const result = await getPackage(reader, 1, timeoutMs);
   return result.data?.length > 0 && result.data[0] === 0xaa;
 }
+
+  export function getFlashId(id: number[]) : string | null {
+    const flashTypes = [
+      { pattern: [0x01, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22], name: "S29GL256" },
+      { pattern: [0x89, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22], name: "JS28F256" },
+      { pattern: [0x01, 0x00, 0x7e, 0x22, 0x28, 0x22, 0x01, 0x22], name: "S29GL01GS" }
+    ];
+
+    for (const flashType of flashTypes) {
+      if (arraysEqual(id, flashType.pattern)) {
+        return flashType.name;
+      }
+    }
+
+    return null;
+  }
+
+  export function arraysEqual(a: number[], b: number[]) : boolean {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) return false;
+    }
+    return true;
+  }

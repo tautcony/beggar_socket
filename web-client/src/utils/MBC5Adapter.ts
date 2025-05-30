@@ -50,6 +50,8 @@ export class MBC5Adapter extends CartridgeAdapter {
       this.idStr = Array.from(id).map(x => x.toString(16).padStart(2, '0')).join(' ');
       this.log(this.t('messages.operation.readIdSuccess'));
 
+      await this.getROMSize();
+
       return {
         success: true,
         idStr: this.idStr,
@@ -160,6 +162,13 @@ export class MBC5Adapter extends CartridgeAdapter {
 
       // Reset
       await gbc_direct_write(this.device, new Uint8Array([0xf0]), 0x00)
+
+      this.log(this.t('messages.operation.romSizeQuerySuccess', { 
+        deviceSize: deviceSize.toString(),
+        sectorCount: sectorCount.toString(),
+        sectorSize: sectorSize.toString(),
+        bufferWriteBytes: bufferWriteBytes.toString()
+      }));
 
       return {
         deviceSize,

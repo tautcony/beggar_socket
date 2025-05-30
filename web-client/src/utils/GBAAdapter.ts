@@ -15,6 +15,7 @@ import { DeviceInfo } from '@/types/DeviceInfo.ts';
 import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/utils/CartridgeAdapter.ts';
 import { CommandResult } from '@/types/CommandResult.ts';
 import { CommandOptions } from '@/types/CommandOptions.ts';
+import { getFlashId } from '@/utils/ProtocolUtils';
 
 /**
  * GBA Adapter - 封装GBA卡带的协议操作
@@ -49,7 +50,14 @@ export class GBAAdapter extends CartridgeAdapter {
       const id = await rom_readID(this.device);
 
       this.idStr = id.map(x => x.toString(16).padStart(2, '0')).join(' ');
-      this.log(`${this.t('messages.operation.readIdSuccess')}: ${this.getFlashId(id)}`);
+      const flashId = getFlashId(id);
+      if (flashId === null) {
+        this.log(this.t('messages.operation.unknownFlashId'));
+      } else {
+        this.log(`${this.t('messages.operation.readIdSuccess')}: ${this.idStr} (${flashId})`);
+      }
+
+      await this.getROMSize();
 
       return {
         success: true,
@@ -63,31 +71,6 @@ export class GBAAdapter extends CartridgeAdapter {
         message: this.t('messages.operation.readIdFailed')
       };
     }
-  }
-
-  private getFlashId(id: number[]) : string | null {
-    const flashTypes = [
-      { pattern: [0x01, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22], name: "S29GL256" },
-      { pattern: [0x89, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22], name: "JS28F256" },
-      { pattern: [0x01, 0x00, 0x7e, 0x22, 0x28, 0x22, 0x01, 0x22], name: "S29GL01GS" }
-    ];
-
-    for (const flashType of flashTypes) {
-      if (this.arraysEqual(id, flashType.pattern)) {
-        return flashType.name;
-      }
-    }
-
-    this.log(this.t('messages.operation.unknownFlashId'));
-    return null;
-  }
-
-  private arraysEqual(a: number[], b: number[]) : boolean {
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) {
-        if (a[i] !== b[i]) return false;
-    }
-    return true;
   }
 
   /**
