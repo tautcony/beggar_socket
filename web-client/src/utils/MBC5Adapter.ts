@@ -192,6 +192,7 @@ export class MBC5Adapter extends CartridgeAdapter {
     try {
       const totalSectors = Math.floor((addrTo - addrFrom) / sectorSize) + 1;
       let erasedSectors = 0;
+      const startTime = Date.now();
 
       for (let sa = addrTo; sa >= addrFrom; sa -= sectorSize) {
         this.log(`    0x${sa.toString(16).toUpperCase().padStart(8, '0')}`);
@@ -214,7 +215,9 @@ export class MBC5Adapter extends CartridgeAdapter {
         await gbc_direct_write(this.device, new Uint8Array([0x55]), 0x555);
         await gbc_direct_write(this.device, new Uint8Array([0x30]), sectorAddr); // Sector Erase
 
-        this.updateProgress((erasedSectors + 1) / totalSectors * 100);
+        const elapsed = (Date.now() - startTime) / 1000;
+        const speed = elapsed > 0 ? ((erasedSectors + 1) / elapsed).toFixed(1) : '0';
+        this.updateProgress((erasedSectors + 1) / totalSectors * 100, `擦除速度: ${speed} 扇区/秒`);
 
         // Wait for completion
         let temp;
@@ -291,7 +294,9 @@ export class MBC5Adapter extends CartridgeAdapter {
         await gbc_rom_program(this.device, chunk, cartAddress);
 
         writtenCount += chunkSize;
-        this.updateProgress(writtenCount / fileData.length * 100);
+        const elapsed = (Date.now() - startTime) / 1000;
+        const speed = elapsed > 0 ? ((writtenCount / 1024) / elapsed).toFixed(1) : '0';
+        this.updateProgress(writtenCount / fileData.length * 100, `写入速度: ${speed} KB/s`);
       }
 
       const elapsedTime = (Date.now() - startTime) / 1000;
@@ -350,7 +355,9 @@ export class MBC5Adapter extends CartridgeAdapter {
         result.set(chunk, readCount);
 
         readCount += chunkSize;
-        this.updateProgress(readCount / size * 100);
+        const elapsed = (Date.now() - startTime) / 1000;
+        const speed = elapsed > 0 ? ((readCount / 1024) / elapsed).toFixed(1) : '0';
+        this.updateProgress(readCount / size * 100, `读取速度: ${speed} KB/s`);
       }
 
       const elapsedTime = (Date.now() - startTime) / 1000;
@@ -421,7 +428,9 @@ export class MBC5Adapter extends CartridgeAdapter {
         }
 
         readCount += chunkSize;
-        this.updateProgress(readCount / fileData.length * 100);
+        const elapsed = (Date.now() - startTime) / 1000;
+        const speed = elapsed > 0 ? ((readCount / 1024) / elapsed).toFixed(1) : '0';
+        this.updateProgress(readCount / fileData.length * 100, `校验速度: ${speed} KB/s`);
       }
 
       const elapsedTime = (Date.now() - startTime) / 1000;
@@ -485,7 +494,9 @@ export class MBC5Adapter extends CartridgeAdapter {
         await gbc_direct_write(this.device, chunk, cartAddress);
 
         writtenCount += chunkSize;
-        this.updateProgress(writtenCount / fileData.length * 100);
+        const elapsed = (Date.now() - startTime) / 1000;
+        const speed = elapsed > 0 ? ((writtenCount / 1024) / elapsed).toFixed(1) : '0';
+        this.updateProgress(writtenCount / fileData.length * 100, `写入速度: ${speed} KB/s`);
       }
 
       const elapsedTime = (Date.now() - startTime) / 1000;
@@ -548,7 +559,9 @@ export class MBC5Adapter extends CartridgeAdapter {
         result.set(chunk, readCount);
 
         readCount += chunkSize;
-        this.updateProgress(readCount / size * 100);
+        const elapsed = (Date.now() - startTime) / 1000;
+        const speed = elapsed > 0 ? ((readCount / 1024) / elapsed).toFixed(1) : '0';
+        this.updateProgress(readCount / size * 100, `读取速度: ${speed} KB/s`);
       }
 
       const elapsedTime = (Date.now() - startTime) / 1000;
@@ -623,7 +636,9 @@ export class MBC5Adapter extends CartridgeAdapter {
         }
 
         readCount += chunkSize;
-        this.updateProgress(readCount / fileData.length * 100);
+        const elapsed = (Date.now() - startTime) / 1000;
+        const speed = elapsed > 0 ? ((readCount / 1024) / elapsed).toFixed(1) : '0';
+        this.updateProgress(readCount / fileData.length * 100, `校验速度: ${speed} KB/s`);
       }
 
       const elapsedTime = (Date.now() - startTime) / 1000;

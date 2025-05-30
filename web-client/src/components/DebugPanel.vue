@@ -165,8 +165,8 @@ const errorProbability = ref(0.1)
 
 onMounted(() => {
   // 检查是否应该显示调试面板
-  showDebugPanel.value = import.meta.env.VITE_DEBUG_MODE === 'true'
-  
+  showDebugPanel.value = import.meta.env.VITE_DEBUG_MODE === 'true' || localStorage.getItem('debug_mode') === 'true'
+
   // 同步调试配置
   syncConfig()
 })

@@ -103,6 +103,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
       let eraseCount = 0;
       const totalSectors = Math.floor((alignedEndAddress - startAddress) / sectorSize) + 1;
+      const startTime = Date.now();
 
       // 从高地址向低地址擦除
       for (let addr = alignedEndAddress; addr >= startAddress; addr -= sectorSize) {
@@ -110,7 +111,9 @@ export class GBAAdapter extends CartridgeAdapter {
         await rom_sector_erase(this.device, addr);
 
         eraseCount++;
-        this.updateProgress(eraseCount / totalSectors * 100, this.t('messages.progress.erasing', { erased: eraseCount, total: totalSectors }));
+        const elapsed = (Date.now() - startTime) / 1000;
+        const speed = elapsed > 0 ? (eraseCount / elapsed).toFixed(1) : '0';
+        this.updateProgress(eraseCount / totalSectors * 100, `擦除速度: ${speed} 扇区/秒`);
       }
 
       this.log(this.t('messages.operation.eraseSuccess'));
@@ -140,6 +143,7 @@ export class GBAAdapter extends CartridgeAdapter {
       const total = fileData.length;
       let written = 0;
       const pageSize = 256;
+      const startTime = Date.now();
 
       // 选择写入函数
       const writeFunction = options.useDirectWrite ? rom_direct_write : rom_program;
@@ -151,7 +155,9 @@ export class GBAAdapter extends CartridgeAdapter {
 
         written += chunk.length;
         const progress = Math.floor((written / total) * 100);
-        this.updateProgress(progress, this.t('messages.progress.writing', { written, total }));
+        const elapsed = (Date.now() - startTime) / 1000;
+        const speed = elapsed > 0 ? ((written / 1024) / elapsed).toFixed(1) : '0';
+        this.updateProgress(progress, `写入速度: ${speed} KB/s`);
 
         if (written % (pageSize * 16) === 0) {
           this.log(this.t('messages.rom.written', { written }));
@@ -275,7 +281,7 @@ export class GBAAdapter extends CartridgeAdapter {
             this.log(this.t('messages.gba.eraseStatus', { status: result[0].toString(16) }));
             if (result[0] === 0xff) {
               this.log(this.t('messages.gba.eraseComplete'));
-              this.updateProgress(0, this.t('messages.gba.eraseComplete'));
+              this.updateProgress(0, '擦除完成，准备写入');
               erased = true;
             } else {
               await new Promise(resolve => setTimeout(resolve, 1000));
@@ -284,6 +290,7 @@ export class GBAAdapter extends CartridgeAdapter {
       }
 
       // 开始写入
+      const startTime = Date.now();
       while (written < total) {
         // 切bank
         if (written === 0x00000) {
@@ -316,7 +323,9 @@ export class GBAAdapter extends CartridgeAdapter {
 
         written += chunkSize;
         const progress = Math.floor((written / total) * 100);
-        this.updateProgress(progress, this.t('messages.progress.writing', { written, total }));
+        const elapsed = (Date.now() - startTime) / 1000;
+        const speed = elapsed > 0 ? ((written / 1024) / elapsed).toFixed(1) : '0';
+        this.updateProgress(progress, `写入速度: ${speed} KB/s`);
 
         if (written % (pageSize * 16) === 0) {
           this.log(this.t('messages.ram.written', { written }));
@@ -350,6 +359,7 @@ export class GBAAdapter extends CartridgeAdapter {
       const result = new Uint8Array(size);
       let read = 0;
       const pageSize = 256;
+      const startTime = Date.now();
 
       while (read < size) {
         // 切bank
@@ -379,7 +389,9 @@ export class GBAAdapter extends CartridgeAdapter {
 
         read += chunkSize;
         const progress = Math.floor((read / size) * 100);
-        this.updateProgress(progress, this.t('messages.progress.reading', { read, total: size }));
+        const elapsed = (Date.now() - startTime) / 1000;
+        const speed = elapsed > 0 ? ((read / 1024) / elapsed).toFixed(1) : '0';
+        this.updateProgress(progress, `读取速度: ${speed} KB/s`);
       }
 
       this.log(this.t('messages.ram.readSuccess', { size: result.length }));
@@ -411,6 +423,7 @@ export class GBAAdapter extends CartridgeAdapter {
       let verified = 0;
       const pageSize = 256;
       let success = true;
+      const startTime = Date.now();
 
       while (verified < total) {
         // 切bank
@@ -451,7 +464,9 @@ export class GBAAdapter extends CartridgeAdapter {
 
         verified += chunkSize;
         const progress = Math.floor((verified / total) * 100);
-        this.updateProgress(progress, `校验进度: ${verified}/${total} 字节`);
+        const elapsed = (Date.now() - startTime) / 1000;
+        const speed = elapsed > 0 ? ((verified / 1024) / elapsed).toFixed(1) : '0';
+        this.updateProgress(progress, `校验速度: ${speed} KB/s`);
       }
 
       const message = success ? this.t('messages.ram.verifySuccess') : this.t('messages.ram.verifyFailed');
