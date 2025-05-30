@@ -123,17 +123,13 @@ watch(() => props.deviceReady, (newVal) => {
   if (newVal && props.device) {
     if (DebugConfig.enabled) {
       // 调试模式下使用 MockAdapter
-      gbaAdapter.value = new MockAdapter(
+      const adapter = new MockAdapter(
         (msg) => log(msg),
         (progress, detail) => updateProgress(progress, detail),
         t
       )
-      mbc5Adapter.value = new MockAdapter(
-        (msg) => log(msg),
-        (progress, detail) => updateProgress(progress, detail),
-        t
-      )
-      log('Debug mode enabled - using mock adapters')
+      gbaAdapter.value = adapter
+      mbc5Adapter.value = adapter
     } else {
       // 正常模式下使用真实适配器
       gbaAdapter.value = new GBAAdapter(

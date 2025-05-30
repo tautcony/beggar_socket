@@ -18,7 +18,11 @@ export class MockAdapter extends CartridgeAdapter {
   ) {
     // 创建模拟设备
     const mockDevice = DebugConfig.createMockDevice()
-    super(mockDevice, logCallback, progressCallback, translateFunc)
+    super({
+      device: mockDevice,
+      endpointIn: 1,
+      endpointOut: 1,
+    }, logCallback, progressCallback, translateFunc)
     
     this.log('🎭 调试模式已启用 - 使用模拟设备', 'warning')
   }

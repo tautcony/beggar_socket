@@ -19,7 +19,6 @@
     >
       <!-- 调试模式开关 -->
       <div class="debug-section">
-        <h4>调试模式</h4>
         <label class="debug-switch">
           <input 
             v-model="debugEnabled"
@@ -28,9 +27,6 @@
           >
           <span class="slider">启用调试模式</span>
         </label>
-        <p class="debug-hint">
-          启用后将使用模拟设备，无需连接真实硬件
-        </p>
       </div>
 
       <!-- 模拟设置 -->
@@ -158,7 +154,7 @@ const emit = defineEmits(['connect-mock-device', 'generate-test-file'])
 
 // 面板状态
 const showDebugPanel = ref(false)
-const panelCollapsed = ref(false)
+const panelCollapsed = ref(true)
 
 // 调试设置
 const debugEnabled = ref(false)
@@ -366,7 +362,7 @@ function clearMockData() {
 
 .debug-control input[type="number"],
 .debug-control input[type="range"] {
-  width: 100%;
+  width: 80%;
   padding: 6px 10px;
   border: 1px solid #ced4da;
   border-radius: 6px;

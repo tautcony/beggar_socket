@@ -19,13 +19,12 @@ export class DebugConfig {
   private static _errorProbability = 0.1
 
   static get enabled(): boolean {
-    return this._enabled || import.meta.env.VITE_DEBUG_MODE === 'true'
+    return this._enabled
   }
 
   static set enabled(value: boolean) {
     this._enabled = value
     localStorage.setItem('debug_mode', value.toString())
-    console.log(`调试模式 ${value ? '已启用' : '已禁用'}`)
   }
 
   static get simulatedDelay(): number {
@@ -68,11 +67,6 @@ export class DebugConfig {
     const saved = localStorage.getItem('debug_mode')
     if (saved !== null) {
       this._enabled = saved === 'true'
-    }
-    
-    // 从环境变量读取
-    if (import.meta.env.VITE_DEBUG_MODE === 'true') {
-      this._enabled = true
     }
 
     console.log(`调试模式初始化: ${this._enabled ? '启用' : '禁用'}`)
@@ -140,7 +134,17 @@ export class DebugConfig {
   /**
    * 模拟设备信息
    */
-  static createMockDevice(): any {
+  static createMockDevice(): USBDevice {
+    const alternate: USBAlternateInterface = {
+      endpoints: [
+        { endpointNumber: 1, direction: 'in', type: 'bulk', packetSize: 64 },
+        { endpointNumber: 2, direction: 'out', type: 'bulk', packetSize: 64 },
+      ],
+      alternateSetting: 0,
+      interfaceClass: 0,
+      interfaceSubclass: 0,
+      interfaceProtocol: 0
+    };
     return {
       productName: 'ChisFlash Burner (Debug)',
       vendorId: 0x1234,
@@ -149,13 +153,16 @@ export class DebugConfig {
       opened: true,
       configurations: [{
         interfaces: [{
-          endpoints: [
-            { endpointNumber: 1, direction: 'in' },
-            { endpointNumber: 2, direction: 'out' }
-          ]
-        }]
+          alternates: [
+            alternate
+          ],
+          interfaceNumber: 0,
+          alternate,
+          claimed: false
+        }],
+        configurationValue: 0
       }]
-    }
+    } as USBDevice
   }
 }
 
