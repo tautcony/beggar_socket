@@ -28,9 +28,9 @@ export class CartridgeAdapter {
    * @param translateFunc - 国际化翻译函数
    */
   constructor(
-    device: DeviceInfo, 
-    logCallback: LogCallback | null = null, 
-    progressCallback: ProgressCallback | null = null, 
+    device: DeviceInfo,
+    logCallback: LogCallback | null = null,
+    progressCallback: ProgressCallback | null = null,
     translateFunc: TranslateFunction | null = null
   ) {
     this.device = device;

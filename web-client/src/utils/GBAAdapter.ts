@@ -31,9 +31,9 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param translateFunc - 国际化翻译函数
    */
   constructor(
-    device: DeviceInfo, 
-    logCallback: LogCallback | null = null, 
-    progressCallback: ProgressCallback | null = null, 
+    device: DeviceInfo,
+    logCallback: LogCallback | null = null,
+    progressCallback: ProgressCallback | null = null,
     translateFunc: TranslateFunction | null = null
   ) {
     super(device, logCallback, progressCallback, translateFunc);
@@ -81,13 +81,13 @@ export class GBAAdapter extends CartridgeAdapter {
     try {
       this.log(this.t('messages.operation.eraseChip'));
       await rom_eraseChip(this.device);
-      
+
       // 验证擦除是否完成
       while (true) {
         const eraseComplete = await this.isBlank(0x00, 0x100);
         if (eraseComplete) {
           this.log(this.t('messages.operation.eraseComplete'));
-          break
+          break;
         } else {
           this.log(this.t('messages.operation.eraseInProgress'));
           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -116,7 +116,7 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   async eraseSectors(startAddress: number = 0, endAddress: number, sectorSize = 0x10000) : Promise<CommandResult> {
     try {
-      this.log(this.t('messages.operation.eraseSector', { address: startAddress.toString(16) }) + ' - ' + 
+      this.log(this.t('messages.operation.eraseSector', { address: startAddress.toString(16) }) + ' - ' +
                this.t('messages.operation.eraseSector', { address: endAddress.toString(16) }));
 
       // 确保扇区对齐
@@ -170,10 +170,10 @@ export class GBAAdapter extends CartridgeAdapter {
       // 选择写入函数
       const writeFunction = options.useDirectWrite ? rom_direct_write : rom_program;
 
-      const romInfo = await this.getROMSize()
-      const blank = await this.isBlank(0, 0x100)
+      const romInfo = await this.getROMSize();
+      const blank = await this.isBlank(0, 0x100);
       if (!blank) {
-        this.eraseSectors(0, fileData.length - 1, romInfo.sectorSize)
+        this.eraseSectors(0, fileData.length - 1, romInfo.sectorSize);
       }
 
       // 分块写入并更新进度
@@ -247,7 +247,7 @@ export class GBAAdapter extends CartridgeAdapter {
       const sectorSizeHigh = (cfiData[19] << 8) | cfiData[18]; // 16位小端序
       const sectorSize = (((sectorSizeHigh & 0xff) << 8) | (sectorSizeLow & 0xff)) * 256;
 
-      this.log(this.t('messages.operation.romSizeQuerySuccess', { 
+      this.log(this.t('messages.operation.romSizeQuerySuccess', {
         deviceSize: deviceSize.toString(),
         sectorCount: sectorCount.toString(),
         sectorSize: sectorSize.toString(),
@@ -346,34 +346,34 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param options - 写入选项
    * @returns - 操作结果
    */
-  async writeRAM(fileData: Uint8Array, options: CommandOptions = {ramType: "SRAM"}): Promise<CommandResult> {
+  async writeRAM(fileData: Uint8Array, options: CommandOptions = {ramType: 'SRAM'}): Promise<CommandResult> {
     try {
       this.log(this.t('messages.ram.writing', { size: fileData.length }));
 
       const total = fileData.length;
       let written = 0;
       const pageSize = 256;        // 如果是FLASH类型，先擦除
-        if (options.ramType === "FLASH") {
-          this.log(this.t('messages.gba.erasingFlash'));
-          await ram_write(this.device, new Uint8Array([0xaa]), 0x5555);
-          await ram_write(this.device, new Uint8Array([0x55]), 0x2aaa);
-          await ram_write(this.device, new Uint8Array([0x80]), 0x5555);
-          await ram_write(this.device, new Uint8Array([0xaa]), 0x5555);
-          await ram_write(this.device, new Uint8Array([0x55]), 0x2aaa);
-          await ram_write(this.device, new Uint8Array([0x10]), 0x5555); // Chip-Erase
+      if (options.ramType === 'FLASH') {
+        this.log(this.t('messages.gba.erasingFlash'));
+        await ram_write(this.device, new Uint8Array([0xaa]), 0x5555);
+        await ram_write(this.device, new Uint8Array([0x55]), 0x2aaa);
+        await ram_write(this.device, new Uint8Array([0x80]), 0x5555);
+        await ram_write(this.device, new Uint8Array([0xaa]), 0x5555);
+        await ram_write(this.device, new Uint8Array([0x55]), 0x2aaa);
+        await ram_write(this.device, new Uint8Array([0x10]), 0x5555); // Chip-Erase
 
-          // 等待擦除完成
-          let erased = false;
-          while (!erased) {
-            const result = await ram_read(this.device, 1, 0x0000);
-            this.log(this.t('messages.gba.eraseStatus', { status: result[0].toString(16) }));
-            if (result[0] === 0xff) {
-              this.log(this.t('messages.gba.eraseComplete'));
-              this.updateProgress(0, this.t('messages.progress.eraseCompleteReady'));
-              erased = true;
-            } else {
-              await new Promise(resolve => setTimeout(resolve, 1000));
-            }
+        // 等待擦除完成
+        let erased = false;
+        while (!erased) {
+          const result = await ram_read(this.device, 1, 0x0000);
+          this.log(this.t('messages.gba.eraseStatus', { status: result[0].toString(16) }));
+          if (result[0] === 0xff) {
+            this.log(this.t('messages.gba.eraseComplete'));
+            this.updateProgress(0, this.t('messages.progress.eraseCompleteReady'));
+            erased = true;
+          } else {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
         }
       }
 
@@ -382,13 +382,13 @@ export class GBAAdapter extends CartridgeAdapter {
       while (written < total) {
         // 切bank
         if (written === 0x00000) {
-          if (options.ramType === "FLASH") {
+          if (options.ramType === 'FLASH') {
             await this.switchFlashBank(0);
           } else {
             await this.switchSRAMBank(0);
           }
         } else if (written === 0x10000) {
-          if (options.ramType === "FLASH") {
+          if (options.ramType === 'FLASH') {
             await this.switchFlashBank(1);
           } else {
             await this.switchSRAMBank(1);
@@ -403,7 +403,7 @@ export class GBAAdapter extends CartridgeAdapter {
         const chunk = fileData.slice(written, written + chunkSize);
 
         // 根据RAM类型选择写入方法
-        if (options.ramType === "FLASH") {
+        if (options.ramType === 'FLASH') {
           await ram_write_to_flash(this.device, chunk, baseAddr);
         } else {
           await ram_write(this.device, chunk, baseAddr);
@@ -440,7 +440,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param options - 读取参数
    * @returns - 操作结果，包含读取的数据
    */
-  async readRAM(size = 0x8000, options: CommandOptions = {ramType: "SRAM"}) {
+  async readRAM(size = 0x8000, options: CommandOptions = {ramType: 'SRAM'}) {
     try {
       this.log(this.t('messages.ram.reading'));
 
@@ -452,13 +452,13 @@ export class GBAAdapter extends CartridgeAdapter {
       while (read < size) {
         // 切bank
         if (read === 0x00000) {
-          if (options.ramType === "FLASH") {
+          if (options.ramType === 'FLASH') {
             await this.switchFlashBank(0);
           } else {
             await this.switchSRAMBank(0);
           }
         } else if (read === 0x10000) {
-          if (options.ramType === "FLASH") {
+          if (options.ramType === 'FLASH') {
             await this.switchFlashBank(1);
           } else {
             await this.switchSRAMBank(1);
@@ -503,7 +503,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param options - 选项对象
    * @returns - 操作结果
    */
-  async verifyRAM(fileData: Uint8Array, options: CommandOptions = {ramType: "SRAM"}) {
+  async verifyRAM(fileData: Uint8Array, options: CommandOptions = {ramType: 'SRAM'}) {
     try {
       this.log(this.t('messages.ram.verifying'));
 
@@ -516,13 +516,13 @@ export class GBAAdapter extends CartridgeAdapter {
       while (verified < total) {
         // 切bank
         if (verified === 0x00000) {
-          if (options.ramType === "FLASH") {
+          if (options.ramType === 'FLASH') {
             await this.switchFlashBank(0);
           } else {
             await this.switchSRAMBank(0);
           }
         } else if (verified === 0x10000) {
-          if (options.ramType === "FLASH") {
+          if (options.ramType === 'FLASH') {
             await this.switchFlashBank(1);
           } else {
             await this.switchSRAMBank(1);
@@ -572,7 +572,7 @@ export class GBAAdapter extends CartridgeAdapter {
     }
   }
 
-    // 检查区域是否为空
+  // 检查区域是否为空
   async isBlank(address: number, size = 0x100) : Promise<boolean> {
     this.log(this.t('messages.rom.checkingIfBlank'));
     const data = await rom_read(this.device, size, address);

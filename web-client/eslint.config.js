@@ -1,6 +1,7 @@
 import pluginVue from 'eslint-plugin-vue'
 import tseslint from '@typescript-eslint/eslint-plugin'
 import tsparser from '@typescript-eslint/parser'
+import stylistic from '@stylistic/eslint-plugin'
 import globals from 'globals'
 
 export default [
@@ -19,7 +20,8 @@ export default [
       }
     },
     plugins: {
-      '@typescript-eslint': tseslint
+      '@typescript-eslint': tseslint,
+      '@stylistic': stylistic
     },
     rules: {
       '@typescript-eslint/no-unused-vars': 'off',
@@ -27,7 +29,11 @@ export default [
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-non-null-assertion': 'warn',
-      '@typescript-eslint/no-var-requires': 'error'
+      '@typescript-eslint/no-var-requires': 'error',
+      '@stylistic/no-trailing-spaces': 'error',
+      '@stylistic/indent': ['error', 2],
+      '@stylistic/quotes': ['error', 'single', { avoidEscape: true }],
+      '@stylistic/semi': ['error', 'always'],
     }
   },
   // Vue files configuration
