@@ -12,7 +12,9 @@
       "connected": "接続済み (切断)",
       "disconnected": "切断済み",
       "connectFailed": "接続失敗",
-      "disconnectFailed": "切断失敗"
+      "disconnectFailed": "切断失敗",
+      "usePolyfill": "SoWを使用",
+      "usePolyfillTooltip": "Web Serial Polyfill実装を使用します。ネイティブWeb Serial APIをサポートしていないブラウザに適しています"
     },
     "mode": {
       "gba": "GBA",

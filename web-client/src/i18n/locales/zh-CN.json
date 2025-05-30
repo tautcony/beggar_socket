@@ -12,7 +12,9 @@
       "connected": "已连接 (断开)",
       "disconnected": "已断开连接",
       "connectFailed": "连接失败",
-      "disconnectFailed": "断开连接失败"
+      "disconnectFailed": "断开连接失败",
+      "usePolyfill": "使用 SoW",
+      "usePolyfillTooltip": "使用 Web Serial Polyfill 实现，适用于不支持原生 Web Serial API 的浏览器"
     },
     "mode": {
       "gba": "GBA",

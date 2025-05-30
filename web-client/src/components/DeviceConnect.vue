@@ -14,6 +14,21 @@
       >
         <span class="icon">{{ buttonIcon }}</span> {{ buttonText }}
       </button>
+      <div class="polyfill-toggle">
+        <label 
+          class="toggle-container" 
+          :title="t('ui.device.usePolyfillTooltip')"
+        >
+          <input
+            v-model="usePolyfill"
+            type="checkbox"
+            :disabled="connected || isConnecting"
+            class="toggle-input"
+          >
+          <span class="toggle-slider" />
+          <span class="toggle-label">{{ t('ui.device.usePolyfill') }}</span>
+        </label>
+      </div>
     </div>
   </div>
 </template>
@@ -23,12 +38,16 @@ import { DeviceInfo } from '@/types/DeviceInfo.ts'
 import { ref, computed, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { DebugConfig } from '@/utils/DebugConfig'
+import {
+  serial as polyfill, SerialPort as SerialPortPolyfill,
+} from 'web-serial-polyfill';
 
 const { t } = useI18n()
 const emit = defineEmits(['device-ready', 'device-disconnected'])
 
 const connected = ref(false)
 const isConnecting = ref(false)
+const usePolyfill = ref(false)
 
 const toast = reactive({
   visible: false,
@@ -96,13 +115,20 @@ async function connect() {
       return
     }
 
-    // Check if Web Serial API is supported
-    if (!navigator.serial) {
-      throw new Error('Web Serial API is not supported in this browser')
+    // Check if Web Serial API is supported and get appropriate implementation
+    if (usePolyfill.value) {
+      if (!polyfill) {
+        throw new Error('Web Serial Polyfill is not available')
+      }
+      // Request serial port using polyfill
+      port = await polyfill.requestPort() as unknown as SerialPort
+    } else {
+      if (!navigator.serial) {
+        throw new Error('Web Serial API is not supported in this browser')
+      }
+      // Request serial port using native API
+      port = await navigator.serial.requestPort()
     }
-
-    // Request serial port
-    port = await navigator.serial.requestPort()
     
     // Open the serial port with specified parameters
     await port.open({
@@ -230,6 +256,72 @@ const buttonClass = computed(() => {
   align-items: center;
 }
 
+.toggle-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.95rem;
+}
+
+.toggle-container[title] {
+  cursor: help;
+}
+
+.toggle-input {
+  display: none;
+}
+
+.toggle-slider {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background-color: #ccc;
+  border-radius: 12px;
+  transition: background-color 0.3s ease;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background-color: white;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.toggle-input:checked + .toggle-slider {
+  background-color: #007bff;
+}
+
+.toggle-input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+}
+
+.toggle-input:disabled + .toggle-slider {
+  background-color: #e0e0e0;
+  cursor: not-allowed;
+}
+
+.toggle-input:disabled + .toggle-slider::before {
+  background-color: #f5f5f5;
+}
+
+.toggle-container:has(.toggle-input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.toggle-label {
+  color: #333;
+  font-weight: 500;
+}
+
 .toast {
   position: fixed;
   top: 20px;
@@ -254,10 +346,11 @@ const buttonClass = computed(() => {
 
 .device-connect {
   display: flex;
-  justify-content: center; /* Center the button */
+  justify-content: center;
   align-items: center;
+  gap: 16px;
   margin-bottom: 12px;
-  width: 100%; /* Ensure it takes width for centering */
+  width: 100%;
 }
 
 .connect-btn,

@@ -12,7 +12,9 @@
       "connected": "Connected (Disconnect)",
       "disconnected": "Disconnected",
       "connectFailed": "Connection Failed",
-      "disconnectFailed": "Disconnect Failed"
+      "disconnectFailed": "Disconnect Failed",
+      "usePolyfill": "Use SoW",
+      "usePolyfillTooltip": "Use Serial API Polyfill implementation, suitable for browsers that don't support native Web Serial API"
     },
     "mode": {
       "gba": "GBA",
