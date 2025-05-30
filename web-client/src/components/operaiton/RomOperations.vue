@@ -66,16 +66,11 @@
         {{ $t('ui.rom.verify') }}
       </button>
     </div>
-    <ProgressDisplay
-      :progress="writeProgress"
-      :detail="writeDetail"
-    />
   </section>
 </template>
 
 <script setup lang="ts">
 import FileDropZone from '../FileDropZone.vue'
-import ProgressDisplay from '../ProgressDisplay.vue'
 import { FileInfo } from '../../types/FileInfo.ts'
 import { ref } from 'vue'
 
@@ -93,14 +88,6 @@ const props = defineProps({
     default: null
   },
   romFileName: {
-    type: String,
-    default: ''
-  },
-  writeProgress: {
-    type: Number,
-    default: null
-  },
-  writeDetail: {
     type: String,
     default: ''
   },
@@ -135,8 +122,10 @@ function onRomSizeChange() {
 .section-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .section h2 {
@@ -150,6 +139,8 @@ function onRomSizeChange() {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: fit-content;
+  flex-shrink: 0;
 }
 
 .size-label {
@@ -167,6 +158,8 @@ function onRomSizeChange() {
   color: #333;
   cursor: pointer;
   transition: border-color 0.2s;
+  min-width: 80px;
+  white-space: nowrap;
 }
 
 .size-dropdown:hover:not(:disabled) {
@@ -181,20 +174,24 @@ function onRomSizeChange() {
 
 .button-row {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   margin-bottom: 8px;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 button {
-  padding: 6px 18px;
+  padding: 6px 16px;
   border-radius: 5px;
   border: 1px solid #bbb;
   background: #f5f7fa;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.95rem;
   transition: background 0.2s, color 0.2s;
   outline: none;
+  white-space: nowrap;
+  min-width: fit-content;
+  flex: 1 1 auto;
 }
 
 button:focus {

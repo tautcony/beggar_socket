@@ -191,6 +191,8 @@ function handleDrop(e: DragEvent) {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 0;
+  word-wrap: break-word;
 }
 
 .file-drop-zone:hover:not(.disabled) {
@@ -263,6 +265,7 @@ function handleDrop(e: DragEvent) {
   align-items: center;
   gap: 12px;
   width: 100%;
+  min-width: 0;
   padding: 6px 8px;
   background: white;
   border-radius: 6px;
@@ -276,7 +279,9 @@ function handleDrop(e: DragEvent) {
 
 .file-details {
   flex: 1;
+  min-width: 0;
   text-align: left;
+  overflow: hidden;
 }
 
 .file-name {
@@ -285,6 +290,9 @@ function handleDrop(e: DragEvent) {
   color: #2c3e50;
   margin-bottom: 2px;
   word-break: break-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .file-size {

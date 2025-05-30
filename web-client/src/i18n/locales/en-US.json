@@ -173,6 +173,9 @@
       "readComplete": "Read complete, size: {size} bytes",
       "verifying": "Start verifying",
       "verifyComplete": "Verify complete"
+    },
+    "debug": {
+      "mockModeEnabled": "Debug mode enabled - Using mock device"
     }
   }
 }

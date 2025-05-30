@@ -60,9 +60,10 @@ defineEmits(['read-id', 'erase-chip'])
 
 .button-row {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   margin-bottom: 8px;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 .id-display {
@@ -73,14 +74,17 @@ defineEmits(['read-id', 'erase-chip'])
 }
 
 button {
-  padding: 6px 18px;
+  padding: 6px 16px;
   border-radius: 5px;
   border: 1px solid #bbb;
   background: #f5f7fa;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.95rem;
   transition: background 0.2s, color 0.2s;
   outline: none;
+  white-space: nowrap;
+  min-width: fit-content;
+  flex: 1 1 auto;
 }
 
 button:focus {

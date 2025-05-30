@@ -173,6 +173,9 @@
       "readComplete": "读取完成，大小：{size} 字节",
       "verifying": "开始校验",
       "verifyComplete": "校验完成"
+    },
+    "debug": {
+      "mockModeEnabled": "调试模式已启用 - 使用模拟设备"
     }
   }
 }

@@ -173,6 +173,9 @@
       "readComplete": "読み取り完了、サイズ: {size} バイト",
       "verifying": "検証開始",
       "verifyComplete": "検証完了"
+    },
+    "debug": {
+      "mockModeEnabled": "デバッグモードが有効 - モックデバイスを使用"
     }
   }
 }

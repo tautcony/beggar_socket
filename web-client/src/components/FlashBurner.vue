@@ -27,48 +27,60 @@
           >{{ result }}</span>
         </div>
 
-        <ChipOperations
-          :device-ready="deviceReady"
-          :busy="busy"
-          :id-str="idStr"
-          @read-id="readID"
-          @erase-chip="eraseChip"
-        />
+        <TransitionGroup
+          name="panel-move" 
+          tag="div"
+          class="operations-container"
+        >
+          <ChipOperations
+            key="chip-operations"
+            :device-ready="deviceReady"
+            :busy="busy"
+            :id-str="idStr"
+            @read-id="readID"
+            @erase-chip="eraseChip"
+          />
+          <!-- 共用进度条 -->
+          <ProgressDisplay
+            v-if="currentProgress !== null && currentProgress !== undefined"
+            key="progress"
+            :progress="currentProgress"
+            :detail="currentProgressDetail"
+          />
 
-        <RomOperations
-          :device-ready="deviceReady"
-          :busy="busy"
-          :rom-file-data="romFileData || undefined"
-          :rom-file-name="romFileName"
-          :write-progress="writeProgress || undefined"
-          :write-detail="writeDetail"
-          :selected-rom-size="selectedRomSize"
-          @file-selected="onRomFileSelected"
-          @file-cleared="onRomFileCleared"
-          @write-rom="writeToDevice"
-          @read-rom="readRom"
-          @verify-rom="verifyRom"
-          @rom-size-change="onRomSizeChange"
-        />
+          <RomOperations
+            key="rom-operations"
+            :device-ready="deviceReady"
+            :busy="busy"
+            :rom-file-data="romFileData || undefined"
+            :rom-file-name="romFileName"
+            :selected-rom-size="selectedRomSize"
+            @file-selected="onRomFileSelected"
+            @file-cleared="onRomFileCleared"
+            @write-rom="writeToDevice"
+            @read-rom="readRom"
+            @verify-rom="verifyRom"
+            @rom-size-change="onRomSizeChange"
+          />
 
-        <RamOperations
-          :mode="mode"
-          :device-ready="deviceReady"
-          :busy="busy"
-          :ram-file-data="ramFileData || undefined"
-          :ram-file-name="ramFileName"
-          :ram-write-progress="ramWriteProgress || undefined"
-          :ram-write-detail="ramWriteDetail"
-          :selected-ram-size="selectedRamSize"
-          :selected-ram-type="selectedRamType"
-          @file-selected="onRamFileSelected"
-          @file-cleared="onRamFileCleared"
-          @write-ram="writeRam"
-          @read-ram="readRam"
-          @verify-ram="verifyRam"
-          @ram-size-change="onRamSizeChange"
-          @ram-type-change="onRamTypeChange"
-        />
+          <RamOperations
+            key="ram-operations"
+            :mode="mode"
+            :device-ready="deviceReady"
+            :busy="busy"
+            :ram-file-data="ramFileData || undefined"
+            :ram-file-name="ramFileName"
+            :selected-ram-size="selectedRamSize"
+            :selected-ram-type="selectedRamType"
+            @file-selected="onRamFileSelected"
+            @file-cleared="onRamFileCleared"
+            @write-ram="writeRam"
+            @read-ram="readRam"
+            @verify-ram="verifyRam"
+            @ram-size-change="onRamSizeChange"
+            @ram-type-change="onRamTypeChange"
+          />
+        </TransitionGroup>
       </div>
 
       <LogViewer
@@ -81,12 +93,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ChipOperations from '@/components/operaiton/ChipOperations.vue'
 import RomOperations from '@/components/operaiton/RomOperations.vue'
 import RamOperations from '@/components/operaiton/RamOperations.vue'
 import LogViewer from '@/components/LogViewer.vue'
+import ProgressDisplay from '@/components/ProgressDisplay.vue'
 import { GBAAdapter } from '@/utils/GBAAdapter.ts'
 import { MBC5Adapter } from '@/utils/MBC5Adapter.ts'
 import { MockAdapter } from '@/utils/MockAdapter.ts'
@@ -120,6 +133,16 @@ const selectedRamType = ref('SRAM')     // 默认SRAM
 const logs = ref<string[]>([])
 const gbaAdapter = ref<CartridgeAdapter | null>()
 const mbc5Adapter = ref<CartridgeAdapter | null>()
+
+// 计算当前显示的进度
+const currentProgress = computed(() => {
+  return writeProgress.value !== null ? writeProgress.value : 
+         ramWriteProgress.value !== null ? ramWriteProgress.value : undefined
+})
+
+const currentProgressDetail = computed(() => {
+  return writeDetail.value || ramWriteDetail.value || undefined
+})
 
 // 设备连接状态改变时，初始化适配器
 watch(() => props.deviceReady, (newVal) => {
@@ -288,6 +311,7 @@ async function eraseChip() {
     log(`${t('messages.operation.eraseFailed')}: ${e instanceof Error ? e.message : String(e)}`)
   } finally {
     busy.value = false
+    setTimeout(() => { writeProgress.value = null; writeDetail.value = '' }, 1500)
   }
 }
 
@@ -339,9 +363,10 @@ async function readRom() {
   } catch (e) {
     result.value = t('messages.rom.readFailed')
     log(`${t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`)
+  } finally {
+    busy.value = false
+    setTimeout(() => { writeProgress.value = null; writeDetail.value = '' }, 1500)
   }
-
-  busy.value = false
 }
 
 async function verifyRom() {
@@ -363,6 +388,7 @@ async function verifyRom() {
     log(`${t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`)
   } finally {
     busy.value = false
+    setTimeout(() => { writeProgress.value = null; writeDetail.value = '' }, 1500)
   }
 }
 
@@ -415,6 +441,7 @@ async function readRam() {
     log(`${t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`)
   } finally {
     busy.value = false
+    setTimeout(() => { writeProgress.value = null; writeDetail.value = '' }, 1500)
   }
 }
 
@@ -436,6 +463,7 @@ async function verifyRam() {
     log(`${t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`)
   } finally {
     busy.value = false
+    setTimeout(() => { writeProgress.value = null; writeDetail.value = '' }, 1500)
   }
 }
 
@@ -472,12 +500,54 @@ function saveAsFile(data: Uint8Array, filename: string) {
 /* 内容区域 */
 .content-area {
   flex: 1;
-  min-width: 0;
-  max-width: 356px;
+  min-width: 400px;
+  max-width: 450px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   padding-right: 8px;
+}
+
+/* 操作容器 */
+.operations-container {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* TransitionGroup 动画 - 面板移动效果 */
+.panel-move-move,
+.panel-move-enter-active,
+.panel-move-leave-active {
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.panel-move-enter-from {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+.panel-move-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+/* 确保离开的元素不占用布局空间 */
+.panel-move-leave-active {
+  position: absolute;
+  width: 100%;
+  z-index: -1;
+}
+
+/* 为操作面板添加平滑的位置变化动画 */
+.content-area > * {
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
+              margin 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* 操作面板向上移动时的优化 */
+.content-area > *:not(:first-child) {
+  transform-origin: top center;
 }
 
 /* 美化滚动条 */
@@ -513,9 +583,27 @@ function saveAsFile(data: Uint8Array, filename: string) {
   }
 
   .content-area {
-    width: 100%;
+    min-width: 320px;
+    max-width: 100%;
     overflow-y: visible;
     padding-right: 0;
+  }
+  
+  .mode-tabs-card button {
+    font-size: 1rem;
+    padding: 10px 0 8px 0;
+  }
+}
+
+/* 小屏幕进一步优化 */
+@media (max-width: 480px) {
+  .flashburner-container {
+    margin: 8px;
+    padding: 12px 16px;
+  }
+  
+  .content-area {
+    min-width: 280px;
   }
 }
 
@@ -569,7 +657,8 @@ function saveAsFile(data: Uint8Array, filename: string) {
 }
 
 .status {
-  max-width: 355px;
+  max-width: 100%;
+  word-wrap: break-word;
   font-size: 1rem;
   color: #333;
 }

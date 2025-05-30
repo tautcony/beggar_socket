@@ -24,30 +24,32 @@ export class MockAdapter extends CartridgeAdapter {
       endpointOut: 1,
     }, logCallback, progressCallback, translateFunc)
     
-    this.log('🎭 调试模式已启用 - 使用模拟设备', 'warning')
+    this.log(this.t('messages.debug.mockModeEnabled') || '调试模式已启用 - 使用模拟设备')
   }
 
   /**
    * 模拟读取芯片ID
    */
   async readID(): Promise<CommandResult & { idStr?: string }> {
-    this.log('🔍 模拟读取芯片ID...', 'info')
+    this.log(this.t('messages.operation.readId'))
     
     await DebugConfig.delay()
     
     if (DebugConfig.shouldSimulateError()) {
+      this.log(`${this.t('messages.operation.readIdFailed')}: 模拟错误`)
       return {
         success: false,
-        message: this.t('messages.operation.readIdFailed') + ' (模拟错误)'
+        message: this.t('messages.operation.readIdFailed')
       }
     }
 
-    const mockId = '模拟芯片 MX25L6445E'
+    const mockId = '0001'
     this.idStr = mockId
+    this.log(`${this.t('messages.operation.readIdSuccess')}: ${this.idStr}`)
     
     return {
       success: true,
-      message: this.t('messages.operation.readIdSuccess', { id: mockId }),
+      message: this.t('messages.operation.readIdSuccess'),
       idStr: mockId
     }
   }
@@ -56,20 +58,19 @@ export class MockAdapter extends CartridgeAdapter {
    * 模拟擦除芯片
    */
   async eraseChip(): Promise<CommandResult> {
-    this.log('🗑️ 模拟擦除芯片...', 'info')
+    this.log(this.t('messages.operation.eraseChip'))
     
     // 模拟进度
     await DebugConfig.simulateProgress(
-      (progress, detail) => this.updateProgress(progress, detail || '模拟擦除中...'),
+      (progress, detail) => this.updateProgress(progress, detail || this.t('messages.operation.eraseChip')),
       2000
     )
-    this.updateProgress(100, '')
-    this.log('✅ 模拟擦除完成', 'success')
     
     if (DebugConfig.shouldSimulateError()) {
+      this.log(`${this.t('messages.operation.eraseFailed')}: 模拟错误`)
       return {
         success: false,
-        message: this.t('messages.operation.eraseFailed') + ' (模拟错误)'
+        message: this.t('messages.operation.eraseFailed')
       }
     }
 
@@ -77,6 +78,7 @@ export class MockAdapter extends CartridgeAdapter {
     this.mockRomData = null
     this.mockRamData = null
     
+    this.log(this.t('messages.operation.eraseSuccess'))
     return {
       success: true,
       message: this.t('messages.operation.eraseSuccess')
@@ -87,24 +89,26 @@ export class MockAdapter extends CartridgeAdapter {
    * 模拟写入ROM
    */
   async writeROM(data: Uint8Array, options?: CommandOptions): Promise<CommandResult> {
-    this.log(`📝 模拟写入ROM，大小: ${data.length} 字节`, 'info')
+    this.log(this.t('messages.rom.writing', { size: data.length }))
     
     // 模拟进度
     await DebugConfig.simulateProgress(
-      (progress, detail) => this.updateProgress(progress, detail || `模拟写入ROM... ${Math.floor(progress)}%`),
+      (progress, detail) => this.updateProgress(progress, detail || this.t('messages.progress.writing', { written: Math.floor(data.length * progress / 100), total: data.length })),
       3000
     )
     
     if (DebugConfig.shouldSimulateError()) {
+      this.log(`${this.t('messages.rom.writeFailed')}: 模拟错误`)
       return {
         success: false,
-        message: this.t('messages.rom.writeFailed') + ' (模拟错误)'
+        message: this.t('messages.rom.writeFailed')
       }
     }
 
     // 保存模拟数据
     this.mockRomData = new Uint8Array(data)
     
+    this.log(this.t('messages.rom.writeComplete'))
     return {
       success: true,
       message: this.t('messages.rom.writeSuccess')
@@ -115,27 +119,29 @@ export class MockAdapter extends CartridgeAdapter {
    * 模拟读取ROM
    */
   async readROM(size: number): Promise<CommandResult & { data?: Uint8Array }> {
-    this.log(`📖 模拟读取ROM，大小: ${size} 字节`, 'info')
+    this.log(this.t('messages.rom.reading'))
     
     // 模拟进度
     await DebugConfig.simulateProgress(
-      (progress, detail) => this.updateProgress(progress, detail || `模拟读取ROM... ${Math.floor(progress)}%`),
+      (progress, detail) => this.updateProgress(progress, detail || this.t('messages.progress.reading', { read: Math.floor(size * progress / 100), total: size })),
       2500
     )
     
     if (DebugConfig.shouldSimulateError()) {
+      this.log(`${this.t('messages.rom.readFailed')}: 模拟错误`)
       return {
         success: false,
-        message: this.t('messages.rom.readFailed') + ' (模拟错误)'
+        message: this.t('messages.rom.readFailed')
       }
     }
 
     // 返回之前写入的数据或生成随机数据
     const data = this.mockRomData?.slice(0, size) || DebugConfig.generateRandomData(size)
     
+    this.log(this.t('messages.rom.readSuccess', { size: data.length }))
     return {
       success: true,
-      message: this.t('messages.rom.readSuccess', { size }),
+      message: this.t('messages.rom.readSuccess', { size: data.length }),
       data
     }
   }
@@ -144,29 +150,30 @@ export class MockAdapter extends CartridgeAdapter {
    * 模拟校验ROM
    */
   async verifyROM(data: Uint8Array): Promise<CommandResult> {
-    this.log(`✅ 模拟校验ROM，大小: ${data.length} 字节`, 'info')
+    this.log(this.t('messages.rom.verifying'))
     
     // 模拟进度
     await DebugConfig.simulateProgress(
-      (progress, detail) => this.updateProgress(progress, detail || `模拟校验ROM... ${Math.floor(progress)}%`),
+      (progress, detail) => this.updateProgress(progress, detail || this.t('messages.progress.verifying', { verified: Math.floor(data.length * progress / 100), total: data.length })),
       2000
     )
     
     if (DebugConfig.shouldSimulateError()) {
+      this.log(`${this.t('messages.rom.verifyFailed')}: 模拟错误`)
       return {
         success: false,
-        message: this.t('messages.rom.verifyFailed') + ' (模拟错误)'
+        message: this.t('messages.rom.verifyFailed')
       }
     }
 
     // 模拟校验结果
     const isMatch = this.mockRomData && this.compareData(data, this.mockRomData)
+    const message = isMatch !== false ? this.t('messages.rom.verifySuccess') : this.t('messages.rom.verifyFailed')
     
+    this.log(`${this.t('messages.rom.verify')}: ${message}`)
     return {
       success: isMatch !== false,
-      message: isMatch !== false 
-        ? this.t('messages.rom.verifySuccess')
-        : this.t('messages.rom.verifyFailed') + ' (数据不匹配)'
+      message: message
     }
   }
 
@@ -174,24 +181,26 @@ export class MockAdapter extends CartridgeAdapter {
    * 模拟写入RAM
    */
   async writeRAM(data: Uint8Array, options?: CommandOptions): Promise<CommandResult> {
-    this.log(`📝 模拟写入RAM，大小: ${data.length} 字节`, 'info')
+    this.log(this.t('messages.ram.writing', { size: data.length }))
     
     // 模拟进度
     await DebugConfig.simulateProgress(
-      (progress, detail) => this.updateProgress(progress, detail || `模拟写入RAM... ${Math.floor(progress)}%`),
+      (progress, detail) => this.updateProgress(progress, detail || this.t('messages.progress.writing', { written: Math.floor(data.length * progress / 100), total: data.length })),
       1500
     )
     
     if (DebugConfig.shouldSimulateError()) {
+      this.log(`${this.t('messages.ram.writeFailed')}: 模拟错误`)
       return {
         success: false,
-        message: this.t('messages.ram.writeFailed') + ' (模拟错误)'
+        message: this.t('messages.ram.writeFailed')
       }
     }
 
     // 保存模拟数据
     this.mockRamData = new Uint8Array(data)
     
+    this.log(this.t('messages.ram.writeComplete'))
     return {
       success: true,
       message: this.t('messages.ram.writeSuccess')
@@ -202,27 +211,29 @@ export class MockAdapter extends CartridgeAdapter {
    * 模拟读取RAM
    */
   async readRAM(size: number): Promise<CommandResult & { data?: Uint8Array }> {
-    this.log(`📖 模拟读取RAM，大小: ${size} 字节`, 'info')
+    this.log(this.t('messages.ram.reading'))
     
     // 模拟进度
     await DebugConfig.simulateProgress(
-      (progress, detail) => this.updateProgress(progress, detail || `模拟读取RAM... ${Math.floor(progress)}%`),
+      (progress, detail) => this.updateProgress(progress, detail || this.t('messages.progress.reading', { read: Math.floor(size * progress / 100), total: size })),
       1000
     )
     
     if (DebugConfig.shouldSimulateError()) {
+      this.log(`${this.t('messages.ram.readFailed')}: 模拟错误`)
       return {
         success: false,
-        message: this.t('messages.ram.readFailed') + ' (模拟错误)'
+        message: this.t('messages.ram.readFailed')
       }
     }
 
     // 返回之前写入的数据或生成随机数据
     const data = this.mockRamData?.slice(0, size) || DebugConfig.generateRandomData(size)
     
+    this.log(this.t('messages.ram.readSuccess', { size: data.length }))
     return {
       success: true,
-      message: this.t('messages.ram.readSuccess', { size }),
+      message: this.t('messages.ram.readSuccess', { size: data.length }),
       data
     }
   }
@@ -231,29 +242,30 @@ export class MockAdapter extends CartridgeAdapter {
    * 模拟校验RAM
    */
   async verifyRAM(data: Uint8Array, options?: CommandOptions): Promise<CommandResult> {
-    this.log(`✅ 模拟校验RAM，大小: ${data.length} 字节`, 'info')
+    this.log(this.t('messages.ram.verifying'))
     
     // 模拟进度
     await DebugConfig.simulateProgress(
-      (progress, detail) => this.updateProgress(progress, detail || `模拟校验RAM... ${Math.floor(progress)}%`),
+      (progress, detail) => this.updateProgress(progress, detail || this.t('messages.progress.verifying', { verified: Math.floor(data.length * progress / 100), total: data.length })),
       1500
     )
     
     if (DebugConfig.shouldSimulateError()) {
+      this.log(`${this.t('messages.ram.verifyFailed')}: 模拟错误`)
       return {
         success: false,
-        message: this.t('messages.ram.verifyFailed') + ' (模拟错误)'
+        message: this.t('messages.ram.verifyFailed')
       }
     }
 
     // 模拟校验结果
     const isMatch = this.mockRamData && this.compareData(data, this.mockRamData)
+    const message = isMatch !== false ? this.t('messages.ram.verifySuccess') : this.t('messages.ram.verifyFailed')
     
+    this.log(`${this.t('messages.ram.verify')}: ${message}`)
     return {
       success: isMatch !== false,
-      message: isMatch !== false 
-        ? this.t('messages.ram.verifySuccess')
-        : this.t('messages.ram.verifyFailed') + ' (数据不匹配)'
+      message: message
     }
   }
 
