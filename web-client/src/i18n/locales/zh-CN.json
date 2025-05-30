@@ -139,7 +139,9 @@
       "capacityError": "获取容量信息失败",
       "checkingIfBlank": "检查区域是否为空白",
       "areaIsBlank": "区域为空白",
-      "areaNotBlank": "区域不为空白"
+      "areaNotBlank": "区域不为空白",
+      "writeSummary": "ROM写入完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} bytes",
+      "readSummary": "ROM读取完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} bytes"
     },
     "ram": {
       "writing": "正在写入RAM，大小 {size} 字节",
@@ -157,7 +159,9 @@
       "sizeChanged": "RAM大小已更改为 {size}",
       "typeChanged": "RAM类型已更改为 {type}",
       "verifyFailedDetail": "地址0x{address}校验失败，期望值 {expected}，实际值 {actual}",
-      "bankSwitch": "切换到RAM Bank {bank}"
+      "bankSwitch": "切换到RAM Bank {bank}",
+      "writeSummary": "RAM写入完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} bytes",
+      "readSummary": "RAM读取完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} bytes"
     },
     "progress": {
       "writing": "已写入: {written}/{total} 字节",

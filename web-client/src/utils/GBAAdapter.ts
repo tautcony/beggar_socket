@@ -168,6 +168,7 @@ export class GBAAdapter extends CartridgeAdapter {
       let written = 0;
       const pageSize = ROM_PAGE_SIZE;
       const startTime = Date.now();
+      let maxSpeed = 0;
 
       // 选择写入函数
       const writeFunction = options.useDirectWrite ? rom_direct_write : rom_program;
@@ -186,15 +187,26 @@ export class GBAAdapter extends CartridgeAdapter {
         written += chunk.length;
         const progress = Math.floor((written / total) * 100);
         const elapsed = (Date.now() - startTime) / 1000;
-        const speed = elapsed > 0 ? ((written / 1024) / elapsed).toFixed(1) : '0';
-        this.updateProgress(progress, this.t('messages.progress.writeSpeed', { speed }));
+        const currentSpeed = elapsed > 0 ? (written / 1024) / elapsed : 0;
+        maxSpeed = Math.max(maxSpeed, currentSpeed);
+        this.updateProgress(progress, this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }));
 
         if (written % (pageSize * 16) === 0) {
           this.log(this.t('messages.rom.written', { written }));
         }
       }
 
+      const totalTime = (Date.now() - startTime) / 1000;
+      const avgSpeed = totalTime > 0 ? (total / 1024) / totalTime : 0;
+
       this.log(this.t('messages.rom.writeComplete'));
+      this.log(this.t('messages.rom.writeSummary', {
+        totalTime: totalTime.toFixed(1),
+        avgSpeed: avgSpeed.toFixed(1),
+        maxSpeed: maxSpeed.toFixed(1),
+        totalSize: (total / 1024).toFixed(1)
+      }));
+
       return {
         success: true,
         message: this.t('messages.rom.writeSuccess')
@@ -277,8 +289,40 @@ export class GBAAdapter extends CartridgeAdapter {
   async readROM(size = 0x200000, baseAddress = 0) : Promise<CommandResult> {
     try {
       this.log(this.t('messages.rom.reading'));
-      const data = await rom_read(this.device, size, baseAddress);
+      const startTime = Date.now();
+      const pageSize = ROM_PAGE_SIZE;
+      let maxSpeed = 0;
+      let totalRead = 0;
+
+      const data = new Uint8Array(size);
+
+      // 分块读取以便计算速度统计
+      for (let addr = 0; addr < size; addr += pageSize) {
+        const chunkSize = Math.min(pageSize, size - addr);
+        const chunk = await rom_read(this.device, chunkSize, baseAddress + addr);
+        data.set(chunk, addr);
+
+        totalRead += chunkSize;
+        const elapsed = (Date.now() - startTime) / 1000;
+        if (elapsed > 0) {
+          const currentSpeed = (totalRead / 1024) / elapsed;
+          maxSpeed = Math.max(maxSpeed, currentSpeed);
+          const progress = Math.floor((totalRead / size) * 100);
+          this.updateProgress(progress, this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }));
+        }
+      }
+
+      const totalTime = (Date.now() - startTime) / 1000;
+      const avgSpeed = totalTime > 0 ? (size / 1024) / totalTime : 0;
+
       this.log(this.t('messages.rom.readSuccess', { size: data.length }));
+      this.log(this.t('messages.rom.readSummary', {
+        totalTime: totalTime.toFixed(1),
+        avgSpeed: avgSpeed.toFixed(1),
+        maxSpeed: maxSpeed.toFixed(1),
+        totalSize: (size / 1024).toFixed(1)
+      }));
+
       return {
         success: true,
         data: data,
@@ -299,7 +343,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param baseAddress - 基础地址
    * @returns - 操作结果
    */
-  async verifyROM(fileData: Uint8Array, baseAddress = 0) : Promise<CommandResult> {
+  async verifyROM(fileData: Uint8Array, baseAddress = 0): Promise<CommandResult> {
     try {
       this.log(this.t('messages.rom.verifying'));
       const ok = await rom_verify(this.device, fileData, baseAddress);
@@ -381,6 +425,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
       // 开始写入
       const startTime = Date.now();
+      let maxSpeed = 0;
       while (written < total) {
         // 切bank
         if (written === 0x00000) {
@@ -414,15 +459,26 @@ export class GBAAdapter extends CartridgeAdapter {
         written += chunkSize;
         const progress = Math.floor((written / total) * 100);
         const elapsed = (Date.now() - startTime) / 1000;
-        const speed = elapsed > 0 ? ((written / 1024) / elapsed).toFixed(1) : '0';
-        this.updateProgress(progress, this.t('messages.progress.writeSpeed', { speed }));
+        const currentSpeed = elapsed > 0 ? (written / 1024) / elapsed : 0;
+        maxSpeed = Math.max(maxSpeed, currentSpeed);
+        this.updateProgress(progress, this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }));
 
         if (written % (pageSize * 16) === 0) {
           this.log(this.t('messages.ram.written', { written }));
         }
       }
 
+      const totalTime = (Date.now() - startTime) / 1000;
+      const avgSpeed = totalTime > 0 ? (total / 1024) / totalTime : 0;
+
       this.log(this.t('messages.ram.writeComplete'));
+      this.log(this.t('messages.ram.writeSummary', {
+        totalTime: totalTime.toFixed(1),
+        avgSpeed: avgSpeed.toFixed(1),
+        maxSpeed: maxSpeed.toFixed(1),
+        totalSize: (total / 1024).toFixed(1)
+      }));
+
       return {
         success: true,
         message: this.t('messages.ram.writeSuccess')
@@ -450,6 +506,7 @@ export class GBAAdapter extends CartridgeAdapter {
       let read = 0;
       const pageSize = RAM_PAGE_SIZE;
       const startTime = Date.now();
+      let maxSpeed = 0;
 
       while (read < size) {
         // 切bank
@@ -480,11 +537,22 @@ export class GBAAdapter extends CartridgeAdapter {
         read += chunkSize;
         const progress = Math.floor((read / size) * 100);
         const elapsed = (Date.now() - startTime) / 1000;
-        const speed = elapsed > 0 ? ((read / 1024) / elapsed).toFixed(1) : '0';
-        this.updateProgress(progress, this.t('messages.progress.readSpeed', { speed }));
+        const currentSpeed = elapsed > 0 ? (read / 1024) / elapsed : 0;
+        maxSpeed = Math.max(maxSpeed, currentSpeed);
+        this.updateProgress(progress, this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }));
       }
 
+      const totalTime = (Date.now() - startTime) / 1000;
+      const avgSpeed = totalTime > 0 ? (size / 1024) / totalTime : 0;
+
       this.log(this.t('messages.ram.readSuccess', { size: result.length }));
+      this.log(this.t('messages.ram.readSummary', {
+        totalTime: totalTime.toFixed(1),
+        avgSpeed: avgSpeed.toFixed(1),
+        maxSpeed: maxSpeed.toFixed(1),
+        totalSize: (size / 1024).toFixed(1)
+      }));
+
       return {
         success: true,
         data: result,

@@ -139,7 +139,9 @@
       "capacityError": "Failed to get capacity information",
       "checkingIfBlank": "Checking if area is blank",
       "areaIsBlank": "Area is blank",
-      "areaNotBlank": "Area is not blank"
+      "areaNotBlank": "Area is not blank",
+      "writeSummary": "ROM write complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} bytes",
+      "readSummary": "ROM read complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} bytes"
     },
     "ram": {
       "writing": "Writing RAM, size {size} bytes",
@@ -157,7 +159,9 @@
       "sizeChanged": "RAM size changed to {size}",
       "typeChanged": "RAM type changed to {type}",
       "verifyFailedDetail": "Verification failed at address 0x{address}, expected {expected}, got {actual}",
-      "bankSwitch": "Switched to RAM Bank {bank}"
+      "bankSwitch": "Switched to RAM Bank {bank}",
+      "writeSummary": "RAM write complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} bytes",
+      "readSummary": "RAM read complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} bytes"
     },
     "progress": {
       "writing": "Written: {written}/{total} bytes",

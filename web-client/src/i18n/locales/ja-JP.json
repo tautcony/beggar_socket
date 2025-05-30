@@ -139,7 +139,9 @@
       "capacityError": "容量情報の取得に失敗",
       "checkingIfBlank": "領域が空白か確認中",
       "areaIsBlank": "領域は空白です",
-      "areaNotBlank": "領域は空白ではありません"
+      "areaNotBlank": "領域は空白ではありません",
+      "writeSummary": "ROM書き込み完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} bytes",
+      "readSummary": "ROM読み取り完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} bytes"
     },
     "ram": {
       "writing": "RAMを書き込み中、サイズ {size} バイト",
@@ -157,7 +159,9 @@
       "sizeChanged": "RAMサイズが {size} に変更されました",
       "typeChanged": "RAMタイプが {type} に変更されました",
       "verifyFailedDetail": "アドレス0x{address}で検証失敗、期待値 {expected}、実際の値 {actual}",
-      "bankSwitch": "RAMバンク {bank} に切り替え"
+      "bankSwitch": "RAMバンク {bank} に切り替え",
+      "writeSummary": "RAM書き込み完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} bytes",
+      "readSummary": "RAM読み取り完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} bytes"
     },
     "progress": {
       "writing": "書き込み済み: {written}/{total} バイト",
