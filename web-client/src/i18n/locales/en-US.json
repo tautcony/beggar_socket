@@ -126,7 +126,10 @@
       "bankSwitch": "Switched to ROM Bank {bank}",
       "eraseBeforeWrite": "Flash is not empty, starting erase...",
       "capacityInfo": "Capacity: {deviceSize} Sector count: {sectorCount} Sector size: {sectorSize} BuffWr: {bufferWriteBytes}",
-      "capacityError": "Failed to get capacity information"
+      "capacityError": "Failed to get capacity information",
+      "checkingIfBlank": "Checking if area is blank",
+      "areaIsBlank": "Area is blank",
+      "areaNotBlank": "Area is not blank"
     },
     "ram": {
       "writing": "Writing RAM, size {size} bytes",
@@ -153,9 +156,6 @@
       "erasing": "Erased: {erased}/{total} sectors"
     },
     "mbc5": {
-      "checkingIfBlank": "Checking if area is blank",
-      "areaIsBlank": "Area is blank",
-      "areaNotBlank": "Area is not blank"
     },
     "gba": {
       "bankSwitchSram": "Switched to SRAM Bank {bank}",

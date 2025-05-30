@@ -47,8 +47,10 @@ export class GBAAdapter extends CartridgeAdapter {
     try {
       this.log(this.t('messages.operation.readId'));
       const id = await rom_readID(this.device);
+
       this.idStr = id.map(x => x.toString(16).padStart(2, '0')).join(' ');
-      this.log(`${this.t('messages.operation.readIdSuccess')}: ${this.idStr}`);
+      this.log(`${this.t('messages.operation.readIdSuccess')}: ${this.getFlashId(id)}`);
+
       return {
         success: true,
         idStr: this.idStr,
@@ -63,6 +65,31 @@ export class GBAAdapter extends CartridgeAdapter {
     }
   }
 
+  private getFlashId(id: number[]) : string | null {
+    const flashTypes = [
+        { pattern: [0x01, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22], name: "S29GL256" },
+        { pattern: [0x89, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22], name: "JS28F256" },
+        { pattern: [0x01, 0x00, 0x7e, 0x22, 0x28, 0x22, 0x01, 0x22], name: "S29GL01GS" }
+    ];
+
+    for (const flashType of flashTypes) {
+        if (this.arraysEqual(id, flashType.pattern)) {
+            return flashType.name;
+        }
+    }
+
+    this.log("ID暂未收录，可能无法写入");
+    return null;
+  }
+
+  private arraysEqual(a: number[], b: number[]) : boolean {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) return false;
+    }
+    return true;
+  }
+
   /**
    * 擦除整个芯片
    * @returns - 操作结果
@@ -71,10 +98,22 @@ export class GBAAdapter extends CartridgeAdapter {
     try {
       this.log(this.t('messages.operation.eraseChip'));
       await rom_eraseChip(this.device);
-      this.log(this.t('messages.operation.eraseSuccess'));
+      
+      // 验证擦除是否完成
+      while (true) {
+        const eraseComplete = await this.isBlank(0x00, 0x100);
+        if (eraseComplete) {
+          this.log(this.t('messages.operation.eraseComplete'));
+          break
+        } else {
+          this.log(this.t('messages.operation.eraseInProgress'));
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
       return {
         success: true,
-        message: this.t('messages.operation.eraseSuccess')
+        message: this.t('messages.operation.eraseComplete')
       };
     } catch (e) {
       this.log(`${this.t('messages.operation.eraseFailed')}: ${e}`);
@@ -92,7 +131,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param sectorSize - 扇区大小（默认64KB）
    * @returns - 操作结果
    */
-  async eraseSectors(startAddress = 0, endAddress: number, sectorSize = 0x10000) : Promise<CommandResult> {
+  async eraseSectors(startAddress: number = 0, endAddress: number, sectorSize = 0x10000) : Promise<CommandResult> {
     try {
       this.log(this.t('messages.operation.eraseSector', { address: startAddress.toString(16) }) + ' - ' + 
                this.t('messages.operation.eraseSector', { address: endAddress.toString(16) }));
@@ -148,6 +187,12 @@ export class GBAAdapter extends CartridgeAdapter {
       // 选择写入函数
       const writeFunction = options.useDirectWrite ? rom_direct_write : rom_program;
 
+      const romInfo = await this.getROMSize()
+      const blank = await this.isBlank(0, 0x100)
+      if (!blank) {
+        this.eraseSectors(0, fileData.length - 1, romInfo.sectorSize)
+      }
+
       // 分块写入并更新进度
       for (let addr = 0; addr < total; addr += pageSize) {
         const chunk = fileData.slice(addr, Math.min(addr + pageSize, total));
@@ -175,6 +220,66 @@ export class GBAAdapter extends CartridgeAdapter {
         success: false,
         message: this.t('messages.rom.writeFailed')
       };
+    }
+  }
+
+  /**
+   * 获取ROM容量信息 - 通过CFI查询
+   * @returns ROM容量相关信息
+   */
+  async getROMSize(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number }> {
+    try {
+      this.log(this.t('messages.operation.queryingRomSize'));
+
+      // CFI Query - 向地址0x55写入0x98命令
+      await rom_direct_write(this.device, new Uint8Array([0x98, 0x00]), 0x55);
+
+      // 读取CFI数据 (20字节) - 从地址0x4E (0x27 << 1)开始读取
+      const cfiData = await rom_read(this.device, 20, 0x4E);
+
+      // Reset - 向地址0x00写入0xf0命令
+      await rom_direct_write(this.device, new Uint8Array([0xf0, 0x00]), 0x00);
+
+      // 解析CFI数据
+      // 设备容量 (地址0x27h对应索引0)
+      const deviceSizeExponent = (cfiData[1] << 8) | cfiData[0]; // 16位小端序
+      const deviceSize = Math.pow(2, deviceSizeExponent);
+
+      // Buffer写入字节数 (地址0x2Ah对应索引6)
+      const bufferSizeExponent = (cfiData[7] << 8) | cfiData[6]; // 16位小端序
+      let bufferWriteBytes;
+      if (bufferSizeExponent === 0) {
+        bufferWriteBytes = 0;
+      } else {
+        bufferWriteBytes = Math.pow(2, bufferSizeExponent);
+      }
+
+      // 扇区数量 (地址0x2Dh和0x2Eh对应索引12和14)
+      const sectorCountLow = (cfiData[13] << 8) | cfiData[12]; // 16位小端序
+      const sectorCountHigh = (cfiData[15] << 8) | cfiData[14]; // 16位小端序
+      const sectorCount = (((sectorCountHigh & 0xff) << 8) | (sectorCountLow & 0xff)) + 1;
+
+      // 扇区大小 (地址0x2Fh和0x30h对应索引16和18)
+      const sectorSizeLow = (cfiData[17] << 8) | cfiData[16]; // 16位小端序
+      const sectorSizeHigh = (cfiData[19] << 8) | cfiData[18]; // 16位小端序
+      const sectorSize = (((sectorSizeHigh & 0xff) << 8) | (sectorSizeLow & 0xff)) * 256;
+
+      this.log(this.t('messages.operation.romSizeQuerySuccess', { 
+        deviceSize: deviceSize.toString(),
+        sectorCount: sectorCount.toString(),
+        sectorSize: sectorSize.toString(),
+        bufferWriteBytes: bufferWriteBytes.toString()
+      }));
+
+      return {
+        deviceSize,
+        sectorCount,
+        sectorSize,
+        bufferWriteBytes
+      };
+    } catch (error) {
+      this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${error}`);
+      throw error;
     }
   }
 
@@ -482,6 +587,21 @@ export class GBAAdapter extends CartridgeAdapter {
         message: this.t('messages.ram.verifyFailed')
       };
     }
+  }
+
+    // 检查区域是否为空
+  async isBlank(address: number, size = 0x100) : Promise<boolean> {
+    this.log(this.t('messages.rom.checkingIfBlank'));
+    const data = await rom_read(this.device, size, 0x00);
+    const isBlank = data.every(byte => byte === 0xff);
+
+    if (isBlank) {
+      this.log(this.t('messages.rom.areaIsBlank'));
+    } else {
+      this.log(this.t('messages.rom.areaNotBlank'));
+    }
+
+    return isBlank;
   }
 }
 

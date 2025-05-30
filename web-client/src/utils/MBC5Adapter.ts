@@ -168,7 +168,7 @@ export class MBC5Adapter extends CartridgeAdapter {
         bufferWriteBytes
       }
     } catch (error) {
-      this.log(this.t('messages.operation.romSizeQueryFailed'))
+      this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${error}`);
       throw error
     }
   }
@@ -662,8 +662,8 @@ export class MBC5Adapter extends CartridgeAdapter {
   }
 
   // 检查区域是否为空
-  async isBlank(address: number, size = 512) : Promise<boolean> {
-    this.log(this.t('messages.mbc5.checkingIfBlank'));
+  async isBlank(address: number, size = 0x200) : Promise<boolean> {
+    this.log(this.t('messages.rom.checkingIfBlank'));
 
     const bank = address >> 14;
     await this.switchROMBank(bank);
@@ -676,9 +676,9 @@ export class MBC5Adapter extends CartridgeAdapter {
     const isBlank = data.every(byte => byte === 0xff);
 
     if (isBlank) {
-      this.log(this.t('messages.mbc5.areaIsBlank'));
+      this.log(this.t('messages.rom.areaIsBlank'));
     } else {
-      this.log(this.t('messages.mbc5.areaNotBlank'));
+      this.log(this.t('messages.rom.areaNotBlank'));
     }
 
     return isBlank;

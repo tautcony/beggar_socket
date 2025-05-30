@@ -328,7 +328,7 @@ async function writeToDevice() {
       return
     }
 
-    const response = await adapter.writeROM(romFileData.value, { useDirectWrite: true})
+    const response = await adapter.writeROM(romFileData.value, { useDirectWrite: false})
     result.value = response.message
   } catch (e) {
     result.value = t('messages.rom.writeFailed')

@@ -69,7 +69,7 @@ export class DebugConfig {
       this._enabled = saved === 'true'
     }
 
-    console.log(`调试模式初始化: ${this._enabled ? '启用' : '禁用'}`)
+    // console.log(`调试模式初始化: ${this._enabled ? '启用' : '禁用'}`)
   }
 
   /**

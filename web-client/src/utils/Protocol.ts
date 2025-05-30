@@ -117,8 +117,8 @@ export async function rom_read(device: DeviceInfo, size: number, baseAddress = 0
   if (!writer || !reader) {
     throw new Error('Serial port not properly initialized')
   }
-  
-  const pageSize = 256;
+
+  const pageSize = 0x100;
   let result = new Uint8Array(size);
   let bytesFetched = 0;
 

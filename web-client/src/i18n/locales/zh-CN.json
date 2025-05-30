@@ -126,7 +126,10 @@
       "bankSwitch": "切换到ROM Bank {bank}",
       "eraseBeforeWrite": "Flash不为空，开始擦除...",
       "capacityInfo": "容量: {deviceSize} 扇区数量: {sectorCount} 扇区大小: {sectorSize} 缓冲写入: {bufferWriteBytes}",
-      "capacityError": "获取容量信息失败"
+      "capacityError": "获取容量信息失败",
+      "checkingIfBlank": "检查区域是否为空白",
+      "areaIsBlank": "区域为空白",
+      "areaNotBlank": "区域不为空白"
     },
     "ram": {
       "writing": "正在写入RAM，大小 {size} 字节",
@@ -153,9 +156,6 @@
       "erasing": "已擦除: {erased}/{total} 扇区"
     },
     "mbc5": {
-      "checkingIfBlank": "检查区域是否为空白",
-      "areaIsBlank": "区域为空白",
-      "areaNotBlank": "区域不为空白"
     },
     "gba": {
       "bankSwitchSram": "已切换至SRAM Bank {bank}",
