@@ -57,7 +57,10 @@
       "testWrite": "テストデータ書き込み",
       "testRead": "テストデータ読み取り",
       "testVerify": "テストデータ検証",
-      "sizeLabel": "サイズ："
+      "sizeLabel": "サイズ：",
+      "typeLabel": "タイプ：",
+      "typeSRAM": "SRAM",
+      "typeFLASH": "FLASH"
     },
     "file": {
       "dropArea": "またはここにファイルをドロップ",
@@ -136,6 +139,7 @@
       "verifySuccess": "RAM検証成功",
       "verifyFailed": "RAM検証失敗",
       "sizeChanged": "RAMサイズが {size} に変更されました",
+      "typeChanged": "RAMタイプが {type} に変更されました",
       "verifyFailedDetail": "アドレス0x{address}で検証失敗、期待値 {expected}、実際の値 {actual}",
       "bankSwitch": "RAMバンク {bank} に切り替え"
     },

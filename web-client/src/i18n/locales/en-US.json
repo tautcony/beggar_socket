@@ -57,7 +57,10 @@
       "testWrite": "Write Test Data",
       "testRead": "Read Test Data",
       "testVerify": "Verify Test Data",
-      "sizeLabel": "Size:"
+      "sizeLabel": "Size:",
+      "typeLabel": "Type:",
+      "typeSRAM": "SRAM",
+      "typeFLASH": "FLASH"
     },
     "file": {
       "dropArea": "or drop files here",
@@ -136,6 +139,7 @@
       "verifySuccess": "RAM verification successful",
       "verifyFailed": "RAM verification failed",
       "sizeChanged": "RAM size changed to {size}",
+      "typeChanged": "RAM type changed to {type}",
       "verifyFailedDetail": "Verification failed at address 0x{address}, expected {expected}, got {actual}",
       "bankSwitch": "Switched to RAM Bank {bank}"
     },
@@ -151,11 +155,11 @@
       "areaNotBlank": "Area is not blank"
     },
     "gba": {
-      "bank_switch_sram": "Switched to SRAM Bank {bank}",
-      "bank_switch_flash": "Switched to Flash Bank {bank}",
-      "erasing_flash": "Erasing flash",
-      "erase_status": "Erase status: 0x{status}",
-      "erase_complete": "Erase complete"
+      "bankSwitchSram": "Switched to SRAM Bank {bank}",
+      "bankSwitchFlash": "Switched to Flash Bank {bank}",
+      "erasingFlash": "Erasing Flash",
+      "eraseStatus": "Erase status: 0x{status}",
+      "eraseComplete": "Erase complete"
     },
     "file": {
       "selectRom": "Selected ROM file: {name}, size {size}",

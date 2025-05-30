@@ -60,12 +60,14 @@
           :ram-write-progress="ramWriteProgress || undefined"
           :ram-write-detail="ramWriteDetail"
           :selected-ram-size="selectedRamSize"
+          :selected-ram-type="selectedRamType"
           @file-selected="onRamFileSelected"
           @file-cleared="onRamFileCleared"
           @write-ram="writeRam"
           @read-ram="readRam"
           @verify-ram="verifyRam"
           @ram-size-change="onRamSizeChange"
+          @ram-type-change="onRamTypeChange"
         />
       </div>
 
@@ -114,6 +116,7 @@ const ramWriteProgress = ref<number | null>(null)
 const ramWriteDetail = ref('')
 const selectedRomSize = ref('0x200000') // 默认2MB
 const selectedRamSize = ref('0x8000')   // 默认32KB
+const selectedRamType = ref('SRAM')     // 默认SRAM
 const logs = ref<string[]>([])
 const gbaAdapter = ref<CartridgeAdapter | null>()
 const mbc5Adapter = ref<CartridgeAdapter | null>()
@@ -152,15 +155,13 @@ watch(() => props.deviceReady, (newVal) => {
 })
 
 function updateProgress(progress: number, detail: string | undefined) {
-  if (mode.value === 'GBA') {
-    // 根据操作类型判断更新哪个进度条
-    if (detail && detail.includes('RAM')) {
-      ramWriteProgress.value = progress
-      ramWriteDetail.value = detail
-    } else {
-      writeProgress.value = progress
-      writeDetail.value = detail
-    }
+  // 根据操作类型判断更新哪个进度条
+  if (detail && detail.includes('RAM')) {
+    ramWriteProgress.value = progress
+    ramWriteDetail.value = detail
+  } else {
+    writeProgress.value = progress
+    writeDetail.value = detail
   }
 }
 
@@ -208,6 +209,11 @@ function onRomSizeChange(size: string) {
 function onRamSizeChange(size: string) {
   selectedRamSize.value = size
   log(t('messages.ram.sizeChanged', { size: formatSize(size) }))
+}
+
+function onRamTypeChange(type: string) {
+  selectedRamType.value = type
+  log(t('messages.ram.typeChanged', { type }))
 }
 
 // 格式化大小显示
@@ -320,8 +326,8 @@ async function readRom() {
       return
     }
 
-    const defaultSize = romFileData.value ? romFileData.value.length : parseInt(selectedRomSize.value, 16)
-    const response = await adapter.readROM(defaultSize)
+    const romSize = romFileData.value ? romFileData.value.length : parseInt(selectedRomSize.value, 16)
+    const response = await adapter.readROM(romSize)
     if (response.success) {
       result.value = response.message
       if (response.data) {
@@ -373,7 +379,7 @@ async function writeRam() {
       return
     }
 
-    const response = await adapter.writeRAM(ramFileData.value, { ramType: "SRAM" })
+    const response = await adapter.writeRAM(ramFileData.value, { ramType: selectedRamType.value as 'SRAM' | 'FLASH' })
     result.value = response.message
   } catch (e) {
     result.value = t('messages.ram.writeFailed')
@@ -395,7 +401,7 @@ async function readRam() {
     }
 
     const defaultSize = ramFileData.value ? ramFileData.value.length : parseInt(selectedRamSize.value, 16)
-    const response = await adapter.readRAM(defaultSize)
+    const response = await adapter.readRAM(defaultSize, { ramType: selectedRamType.value as 'SRAM' | 'FLASH' })
     if (response.success) {
       result.value = response.message
       if (response.data) {
@@ -423,7 +429,7 @@ async function verifyRam() {
       return
     }
 
-    const response = await adapter.verifyRAM(ramFileData.value, { ramType: "SRAM" })
+    const response = await adapter.verifyRAM(ramFileData.value, { ramType: selectedRamType.value as 'SRAM' | 'FLASH' })
     result.value = response.message
   } catch (e) {
     result.value = t('messages.ram.verifyFailed')
@@ -467,6 +473,7 @@ function saveAsFile(data: Uint8Array, filename: string) {
 .content-area {
   flex: 1;
   min-width: 0;
+  max-width: 356px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;

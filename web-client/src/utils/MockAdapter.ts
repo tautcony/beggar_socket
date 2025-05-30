@@ -63,6 +63,8 @@ export class MockAdapter extends CartridgeAdapter {
       (progress, detail) => this.updateProgress(progress, detail || '模拟擦除中...'),
       2000
     )
+    this.updateProgress(100, '')
+    this.log('✅ 模拟擦除完成', 'success')
     
     if (DebugConfig.shouldSimulateError()) {
       return {

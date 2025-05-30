@@ -8,7 +8,10 @@
       max="100"
     />
     <span>{{ progress.toFixed(2) }}%</span>
-    <span v-if="detail">{{ detail }}</span>
+    <span
+      v-if="detail"  
+      class="detail"
+    >{{ detail }}</span>
   </div>
 </template>
 
@@ -31,6 +34,11 @@ const props = defineProps({
   align-items: center;
   gap: 12px;
   margin: 8px 0;
+}
+
+.progress-row .detail {
+  font-size: 0.6em;
+  color: var(--text-secondary);
 }
 
 progress {

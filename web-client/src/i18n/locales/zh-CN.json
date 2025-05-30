@@ -57,7 +57,10 @@
       "testWrite": "写入测试数据",
       "testRead": "读取测试数据",
       "testVerify": "验证测试数据",
-      "sizeLabel": "大小："
+      "sizeLabel": "大小：",
+      "typeLabel": "类型：",
+      "typeSRAM": "SRAM",
+      "typeFLASH": "FLASH"
     },
     "file": {
       "dropArea": "或拖拽文件到此处",
@@ -136,6 +139,7 @@
       "verifySuccess": "RAM校验成功",
       "verifyFailed": "RAM校验失败",
       "sizeChanged": "RAM大小已更改为 {size}",
+      "typeChanged": "RAM类型已更改为 {type}",
       "verifyFailedDetail": "地址0x{address}校验失败，期望值 {expected}，实际值 {actual}",
       "bankSwitch": "切换到RAM Bank {bank}"
     },
