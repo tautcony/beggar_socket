@@ -54,7 +54,7 @@ const showSettings = ref(false)
 
 // 显示调试面板的条件：调试模式启用或者开发环境
 const showDebugPanel = computed(() => {
-  return DebugConfig.enabled || import.meta.env.DEV
+  return DebugConfig.showDebugPanel || import.meta.env.DEV
 })
 
 /**

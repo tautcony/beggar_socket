@@ -18,6 +18,9 @@ export class DebugConfig {
   // 错误模拟概率 (0-1)
   private static _errorProbability = 0.1;
 
+  // 是否显示调试面板
+  private static _showDebugPanel = false;
+
   static get enabled(): boolean {
     return this._enabled;
   }
@@ -59,6 +62,15 @@ export class DebugConfig {
     this._errorProbability = Math.max(0, Math.min(1, value));
   }
 
+  static get showDebugPanel(): boolean {
+    return this._showDebugPanel;
+  }
+
+  static set showDebugPanel(value: boolean) {
+    this._showDebugPanel = value;
+    localStorage.setItem('show_debug_panel', value.toString());
+  }
+
   /**
    * 初始化调试配置
    */
@@ -67,6 +79,11 @@ export class DebugConfig {
     const saved = localStorage.getItem('debug_mode');
     if (saved !== null) {
       this._enabled = saved === 'true';
+    }
+
+    const showPanel = localStorage.getItem('show_debug_panel');
+    if (showPanel !== null) {
+      this._showDebugPanel = showPanel === 'true';
     }
 
     // console.log(`调试模式初始化: ${this._enabled ? '启用' : '禁用'}`)
