@@ -81,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import FileDropZone from '../FileDropZone.vue'
+import FileDropZone from '../common/FileDropZone.vue'
 import { FileInfo } from '../../types/FileInfo.ts'
 import { ref } from 'vue'
 
