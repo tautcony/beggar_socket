@@ -1,9 +1,11 @@
 import { toLittleEndian, sendPackage, getPackage, getResult } from '@/utils/ProtocolUtils.ts';
 import { DeviceInfo } from '@/types/DeviceInfo.ts';
+import { AdvancedSettings } from '@/utils/AdvancedSettings.ts';
 
 // --- GBA Commands ---
-export const ROM_PAGE_SIZE = 0x1000; // 4KB for ROM operations
-export const RAM_PAGE_SIZE = 0x800; // 1KB for RAM operations
+// 页面大小现在从 AdvancedSettings 获取，而不是硬编码
+// export const ROM_PAGE_SIZE = 0x1000; // 4KB for ROM operations (已移至 AdvancedSettings)
+// export const RAM_PAGE_SIZE = 0x800; // 1KB for RAM operations (已移至 AdvancedSettings)
 
 // GBA: 读取ID (0xf0)
 export async function rom_readID(device: DeviceInfo): Promise<number[]> {
@@ -62,7 +64,7 @@ export async function rom_program(device: DeviceInfo, fileData: Uint8Array, base
     throw new Error('Serial port not properly initialized');
   }
 
-  const pageSize = ROM_PAGE_SIZE;
+  const pageSize = AdvancedSettings.romPageSize;
   for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
     const currentDeviceAddress = baseAddress + addrOffset;
     const chunk = fileData.slice(addrOffset, Math.min(addrOffset + pageSize, fileData.length));
@@ -89,7 +91,7 @@ export async function rom_direct_write(device: DeviceInfo, fileData: Uint8Array,
     throw new Error('Serial port not properly initialized');
   }
 
-  const pageSize = ROM_PAGE_SIZE;
+  const pageSize = AdvancedSettings.romPageSize;
 
   for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
     const currentDeviceByteAddress = baseByteAddress + addrOffset;
@@ -119,7 +121,7 @@ export async function rom_read(device: DeviceInfo, size: number, baseAddress = 0
     throw new Error('Serial port not properly initialized');
   }
 
-  const pageSize = ROM_PAGE_SIZE;
+  const pageSize = AdvancedSettings.romPageSize;
   let result = new Uint8Array(size);
   let bytesFetched = 0;
 
@@ -157,7 +159,7 @@ export async function ram_write(device: DeviceInfo, fileData: Uint8Array, baseAd
     throw new Error('Serial port not properly initialized');
   }
 
-  const pageSize = RAM_PAGE_SIZE;
+  const pageSize = AdvancedSettings.ramPageSize;
   for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
     const currentDeviceAddress = baseAddress + addrOffset;
     const chunk = fileData.slice(addrOffset, Math.min(addrOffset + pageSize, fileData.length));
@@ -181,7 +183,7 @@ export async function ram_read(device: DeviceInfo, size: number, baseAddress = 0
     throw new Error('Serial port not properly initialized');
   }
 
-  const pageSize = RAM_PAGE_SIZE;
+  const pageSize = AdvancedSettings.ramPageSize;
   let result = new Uint8Array(size);
   let bytesFetched = 0;
 
@@ -219,7 +221,7 @@ export async function ram_write_to_flash(device: DeviceInfo, fileData: Uint8Arra
     throw new Error('Serial port not properly initialized');
   }
 
-  const pageSize = RAM_PAGE_SIZE;
+  const pageSize = AdvancedSettings.ramPageSize;
   for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
     const currentDeviceAddress = baseAddress + addrOffset;
     const chunk = fileData.slice(addrOffset, Math.min(addrOffset + pageSize, fileData.length));
@@ -245,7 +247,7 @@ export async function gbc_direct_write(device: DeviceInfo, fileData: Uint8Array,
     throw new Error('Serial port not properly initialized');
   }
 
-  const pageSize = RAM_PAGE_SIZE;
+  const pageSize = AdvancedSettings.ramPageSize;
 
   for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
     const currentDeviceAddress = baseAddress + addrOffset;
@@ -270,7 +272,7 @@ export async function gbc_read(device: DeviceInfo, size: number, baseAddress = 0
     throw new Error('Serial port not properly initialized');
   }
 
-  const pageSize = RAM_PAGE_SIZE;
+  const pageSize = AdvancedSettings.ramPageSize;
   let result = new Uint8Array(size);
   let bytesFetched = 0;
 
@@ -308,7 +310,7 @@ export async function gbc_rom_program(device: DeviceInfo, fileData: Uint8Array, 
     throw new Error('Serial port not properly initialized');
   }
 
-  const pageSize = RAM_PAGE_SIZE;256;
+  const pageSize = AdvancedSettings.ramPageSize;
 
   for (let addrOffset = 0; addrOffset < fileData.length; addrOffset += pageSize) {
     const currentDeviceAddress = baseAddress + addrOffset;

@@ -1,6 +1,8 @@
 <template>
   <div>
-    <LanguageSwitcher />
+    <div class="top-bar">
+      <LanguageSwitcher />
+    </div>
     <h1 class="title-container">
       {{ $t('ui.app.title') }}
       <a 
@@ -22,6 +24,13 @@
     />
     <!-- 调试面板悬浮在最上层 -->
     <DebugPanel v-if="showDebugPanel" />
+    <!-- 高级设置弹窗 -->
+    <AdvancedSettings 
+      v-if="showSettings" 
+      @close="showSettings = false" 
+    />
+    <!-- 设置按钮悬浮在右下角，GitHub 链接上方 -->
+    <SettingsLink @click="showSettings = true" />
     <!-- GitHub 链接悬浮在右下角 -->
     <GitHubLink />
   </div>
@@ -34,11 +43,14 @@ import FlashBurner from '@/components/FlashBurner.vue'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import DebugPanel from '@/components/DebugPanel.vue'
 import GitHubLink from '@/components/GitHubLink.vue'
+import AdvancedSettings from '@/components/AdvancedSettings.vue'
+import SettingsLink from '@/components/SettingsLink.vue'
 import { DeviceInfo } from '@/types/DeviceInfo'
 import { DebugConfig } from '@/utils/DebugConfig'
 
 const device = ref<DeviceInfo | null>(null)
 const deviceReady = ref(false)
+const showSettings = ref(false)
 
 // 显示调试面板的条件：调试模式启用或者开发环境
 const showDebugPanel = computed(() => {
@@ -64,6 +76,13 @@ function onDeviceDisconnected() {
 </script>
 
 <style scoped>
+.top-bar {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 16px 20px 0;
+}
+
 h1 {
   text-align: center;
   font-size: 1.8rem;

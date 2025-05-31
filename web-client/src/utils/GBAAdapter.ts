@@ -10,9 +10,8 @@ import {
   ram_read,
   // ram_verify,
   ram_write_to_flash,
-  ROM_PAGE_SIZE,
-  RAM_PAGE_SIZE,
 } from '@/utils/Protocol.ts';
+import { AdvancedSettings } from '@/utils/AdvancedSettings.ts';
 import { DeviceInfo } from '@/types/DeviceInfo.ts';
 import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/utils/CartridgeAdapter.ts';
 import { CommandResult } from '@/types/CommandResult.ts';
@@ -166,7 +165,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
       const total = fileData.length;
       let written = 0;
-      const pageSize = ROM_PAGE_SIZE;
+      const pageSize = AdvancedSettings.romPageSize;
       const startTime = Date.now();
       let maxSpeed = 0;
 
@@ -290,7 +289,7 @@ export class GBAAdapter extends CartridgeAdapter {
     try {
       this.log(this.t('messages.rom.reading'));
       const startTime = Date.now();
-      const pageSize = ROM_PAGE_SIZE;
+      const pageSize = AdvancedSettings.romPageSize;
       let maxSpeed = 0;
       let totalRead = 0;
 
@@ -398,7 +397,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
       const total = fileData.length;
       let written = 0;
-      const pageSize = RAM_PAGE_SIZE;
+      const pageSize = AdvancedSettings.ramPageSize;
       if (options.ramType === 'FLASH') {
         this.log(this.t('messages.gba.erasingFlash'));
         await ram_write(this.device, new Uint8Array([0xaa]), 0x5555);
@@ -504,7 +503,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
       const result = new Uint8Array(size);
       let read = 0;
-      const pageSize = RAM_PAGE_SIZE;
+      const pageSize = AdvancedSettings.ramPageSize;
       const startTime = Date.now();
       let maxSpeed = 0;
 
@@ -579,7 +578,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
       const total = fileData.length;
       let verified = 0;
-      const pageSize = RAM_PAGE_SIZE;
+      const pageSize = AdvancedSettings.ramPageSize;
       let success = true;
       const startTime = Date.now();
 

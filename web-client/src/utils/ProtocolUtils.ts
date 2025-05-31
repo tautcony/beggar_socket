@@ -1,4 +1,6 @@
 
+import { AdvancedSettings } from '@/utils/AdvancedSettings.ts';
+
 // CRC16 (Modbus)
 export function modbusCRC16(bytes: Uint8Array): number {
   let crc = 0xFFFF;
@@ -100,19 +102,21 @@ export function formatPackage(buf: Uint8Array): void {
   ]);
 }
 
-export async function sendPackage(writer: WritableStreamDefaultWriter<Uint8Array>, payload: Uint8Array, timeoutMs = 3000): Promise<boolean> {
+export async function sendPackage(writer: WritableStreamDefaultWriter<Uint8Array>, payload: Uint8Array, timeoutMs?: number): Promise<boolean> {
+  const timeout = timeoutMs ?? AdvancedSettings.packageSendTimeout;
   const buf = buildPackage(payload);
   formatPackage(buf);
 
   await withTimeout(
     writer.write(buf),
-    timeoutMs,
-    `发送数据包超时 (${timeoutMs}ms)`
+    timeout,
+    `发送数据包超时 (${timeout}ms)`
   );
   return true;
 }
 
-export async function getPackage(reader: ReadableStreamDefaultReader<Uint8Array>, length: number = 64, timeoutMs = 3000): Promise<{ data: Uint8Array }> {
+export async function getPackage(reader: ReadableStreamDefaultReader<Uint8Array>, length: number = 64, timeoutMs?: number): Promise<{ data: Uint8Array }> {
+  const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
   const chunks: Uint8Array[] = [];
   let totalLength = 0;
 
@@ -129,8 +133,8 @@ export async function getPackage(reader: ReadableStreamDefaultReader<Uint8Array>
         }
       }
     })(),
-    timeoutMs,
-    `接收数据包超时 (${timeoutMs}ms)`
+    timeout,
+    `接收数据包超时 (${timeout}ms)`
   );
 
   await readTimeout;
@@ -146,8 +150,9 @@ export async function getPackage(reader: ReadableStreamDefaultReader<Uint8Array>
   return { data: result.slice(0, length) };
 }
 
-export async function getResult(reader: ReadableStreamDefaultReader<Uint8Array>, timeoutMs = 3000): Promise<boolean> {
-  const result = await getPackage(reader, 1, timeoutMs);
+export async function getResult(reader: ReadableStreamDefaultReader<Uint8Array>, timeoutMs?: number): Promise<boolean> {
+  const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
+  const result = await getPackage(reader, 1, timeout);
   return result.data?.length > 0 && result.data[0] === 0xaa;
 }
 

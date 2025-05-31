@@ -79,6 +79,47 @@
       "title": "ログ",
       "clear": "ログをクリア"
     },
+    "settings": {
+      "title": "高度な設定",
+      "tooltip": "高度なオプションを設定",
+      "pageSize": {
+        "title": "ページサイズ",
+        "romPageSize": "ROM読み書きページサイズ",
+        "ramPageSize": "RAM読み書きページサイズ",
+        "bytes": "バイト",
+        "validation": {
+          "required": "この項目は必須です",
+          "min": "最小値は {min} バイトです",
+          "max": "最大値は {max} バイトです",
+          "invalid": "有効な数値を入力してください"
+        }
+      },
+      "timeout": {
+        "title": "タイムアウト設定",
+        "defaultTimeout": "デフォルトタイムアウト",
+        "packageSendTimeout": "パッケージ送信タイムアウト",
+        "packageReceiveTimeout": "パッケージ受信タイムアウト",
+        "operationTimeout": "オペレーションタイムアウト",
+        "milliseconds": "ミリ秒",
+        "validation": {
+          "required": "この項目は必須です",
+          "min": "最小値は {min} ミリ秒です",
+          "max": "最大値は {max} ミリ秒です",
+          "invalid": "有効な数値を入力してください"
+        }
+      },
+      "actions": {
+        "reset": "デフォルトにリセット",
+        "apply": "適用",
+        "close": "閉じる",
+        "resetConfirm": "すべての設定をデフォルト値にリセットしてもよろしいですか？"
+      },
+      "messages": {
+        "applied": "設定が正常に適用されました",
+        "reset": "設定がデフォルト値にリセットされました",
+        "validationError": "設定を適用する前に検証エラーを修正してください"
+      }
+    },
     "progress": {
       "writing": "{written} / {total} バイト",
       "complete": "完了",

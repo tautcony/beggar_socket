@@ -79,6 +79,47 @@
       "title": "日志",
       "clear": "清除日志"
     },
+    "settings": {
+      "title": "高级设置",
+      "tooltip": "配置高级选项",
+      "pageSize": {
+        "title": "分页大小",
+        "romPageSize": "ROM读写分页大小",
+        "ramPageSize": "RAM读写分页大小",
+        "bytes": "字节",
+        "validation": {
+          "required": "此字段为必填项",
+          "min": "最小值为 {min} 字节",
+          "max": "最大值为 {max} 字节",
+          "invalid": "请输入有效数值"
+        }
+      },
+      "timeout": {
+        "title": "超时设置",
+        "defaultTimeout": "默认超时",
+        "packageSendTimeout": "数据包发送超时",
+        "packageReceiveTimeout": "数据包接收超时",
+        "operationTimeout": "操作超时",
+        "milliseconds": "毫秒",
+        "validation": {
+          "required": "此字段为必填项",
+          "min": "最小值为 {min} 毫秒",
+          "max": "最大值为 {max} 毫秒",
+          "invalid": "请输入有效数值"
+        }
+      },
+      "actions": {
+        "reset": "重置为默认值",
+        "apply": "应用",
+        "close": "关闭",
+        "resetConfirm": "确定要重置所有设置为默认值吗？"
+      },
+      "messages": {
+        "applied": "设置已应用",
+        "reset": "设置已重置为默认值",
+        "validationError": "请修复表单中的错误后再应用设置"
+      }
+    },
     "progress": {
       "writing": "{written} / {total} 字节",
       "complete": "完成",

@@ -79,6 +79,47 @@
       "title": "Log",
       "clear": "Clear Log"
     },
+    "settings": {
+      "title": "Advanced Settings",
+      "tooltip": "Configure advanced options",
+      "pageSize": {
+        "title": "Page Size",
+        "romPageSize": "ROM Read/Write Page Size",
+        "ramPageSize": "RAM Read/Write Page Size",
+        "bytes": "bytes",
+        "validation": {
+          "required": "This field is required",
+          "min": "Minimum value is {min} bytes",
+          "max": "Maximum value is {max} bytes",
+          "invalid": "Please enter a valid number"
+        }
+      },
+      "timeout": {
+        "title": "Timeout Settings",
+        "defaultTimeout": "Default Timeout",
+        "packageSendTimeout": "Package Send Timeout",
+        "packageReceiveTimeout": "Package Receive Timeout",
+        "operationTimeout": "Operation Timeout",
+        "milliseconds": "ms",
+        "validation": {
+          "required": "This field is required",
+          "min": "Minimum value is {min} ms",
+          "max": "Maximum value is {max} ms",
+          "invalid": "Please enter a valid number"
+        }
+      },
+      "actions": {
+        "reset": "Reset to Defaults",
+        "apply": "Apply",
+        "close": "Close",
+        "resetConfirm": "Are you sure you want to reset all settings to default values?"
+      },
+      "messages": {
+        "applied": "Settings applied successfully",
+        "reset": "Settings reset to default values",
+        "validationError": "Please fix validation errors before applying settings"
+      }
+    },
     "progress": {
       "writing": "{written} / {total} bytes",
       "complete": "Complete",
