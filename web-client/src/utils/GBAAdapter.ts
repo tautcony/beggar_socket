@@ -239,11 +239,11 @@ export class GBAAdapter extends CartridgeAdapter {
 
       // 解析CFI数据
       // 设备容量 (地址0x27h对应索引0)
-      const deviceSizeExponent = (cfiData[1] << 8) | cfiData[0]; // 16位小端序
+      const deviceSizeExponent = cfiData[0] | (cfiData[1] << 8); // 16位小端序
       const deviceSize = Math.pow(2, deviceSizeExponent);
 
       // Buffer写入字节数 (地址0x2Ah对应索引6)
-      const bufferSizeExponent = (cfiData[7] << 8) | cfiData[6]; // 16位小端序
+      const bufferSizeExponent = cfiData[6] | (cfiData[7] << 8); // 16位小端序
       let bufferWriteBytes;
       if (bufferSizeExponent === 0) {
         bufferWriteBytes = 0;
@@ -252,13 +252,13 @@ export class GBAAdapter extends CartridgeAdapter {
       }
 
       // 扇区数量 (地址0x2Dh和0x2Eh对应索引12和14)
-      const sectorCountLow = (cfiData[13] << 8) | cfiData[12]; // 16位小端序
-      const sectorCountHigh = (cfiData[15] << 8) | cfiData[14]; // 16位小端序
+      const sectorCountLow = cfiData[12] | (cfiData[13] << 8);
+      const sectorCountHigh = cfiData[14] | (cfiData[15] << 8);
       const sectorCount = (((sectorCountHigh & 0xff) << 8) | (sectorCountLow & 0xff)) + 1;
 
       // 扇区大小 (地址0x2Fh和0x30h对应索引16和18)
-      const sectorSizeLow = (cfiData[17] << 8) | cfiData[16]; // 16位小端序
-      const sectorSizeHigh = (cfiData[19] << 8) | cfiData[18]; // 16位小端序
+      const sectorSizeLow = cfiData[16] | (cfiData[17] << 8);
+      const sectorSizeHigh = cfiData[18] | (cfiData[19] << 8);
       const sectorSize = (((sectorSizeHigh & 0xff) << 8) | (sectorSizeLow & 0xff)) * 256;
 
       this.log(this.t('messages.operation.romSizeQuerySuccess', {
