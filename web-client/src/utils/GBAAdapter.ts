@@ -173,13 +173,14 @@ export class GBAAdapter extends CartridgeAdapter {
       // 选择写入函数
       const writeFunction = options.useDirectWrite ? rom_direct_write : rom_program;
 
-      const romInfo = await this.getROMSize();
+      // const romInfo = await this.getROMSize();
       const blank = await this.isBlank(0, 0x100);
       if (!blank) {
-        this.eraseSectors(0, fileData.length - 1, romInfo.sectorSize);
+        this.eraseSectors(0, fileData.length - 1, 1<<17);
       }
 
       // 分块写入并更新进度
+      let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
       for (let addr = 0; addr < total; addr += pageSize) {
         const chunk = fileData.slice(addr, Math.min(addr + pageSize, total));
         await writeFunction(this.device, chunk, addr);
@@ -191,8 +192,10 @@ export class GBAAdapter extends CartridgeAdapter {
         maxSpeed = Math.max(maxSpeed, currentSpeed);
         this.updateProgress(progress, this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }));
 
-        if (written % (pageSize * 16) === 0) {
-          this.log(this.t('messages.rom.written', { written }));
+        // 每2个百分比记录一次日志
+        if (progress % 2 === 0 && progress !== lastLoggedProgress) {
+          this.log(this.t('messages.rom.writingAt', { address: addr.toString(16).padStart(6, '0'), progress }));
+          lastLoggedProgress = progress;
         }
       }
 
@@ -426,6 +429,7 @@ export class GBAAdapter extends CartridgeAdapter {
       // 开始写入
       const startTime = Date.now();
       let maxSpeed = 0;
+      let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
       while (written < total) {
         // 切bank
         if (written === 0x00000) {
@@ -463,8 +467,10 @@ export class GBAAdapter extends CartridgeAdapter {
         maxSpeed = Math.max(maxSpeed, currentSpeed);
         this.updateProgress(progress, this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }));
 
-        if (written % (pageSize * 16) === 0) {
-          this.log(this.t('messages.ram.written', { written }));
+        // 每2个百分比记录一次日志
+        if (progress % 2 === 0 && progress !== lastLoggedProgress) {
+          this.log(this.t('messages.ram.writingAt', { address: written.toString(16).padStart(6, '0'), progress }));
+          lastLoggedProgress = progress;
         }
       }
 

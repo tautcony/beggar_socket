@@ -162,6 +162,7 @@
     "rom": {
       "writing": "ROMを書き込み中、サイズ {size} バイト",
       "written": "{written} バイト書き込み済み",
+      "writingAt": "アドレス 0x{address} に書き込み中... ({progress}%)",
       "writeComplete": "ROM書き込み完了",
       "writeSuccess": "ROM書き込み成功",
       "writeFailed": "ROM書き込み失敗",
@@ -181,12 +182,13 @@
       "checkingIfBlank": "領域が空白か確認中",
       "areaIsBlank": "領域は空白です",
       "areaNotBlank": "領域は空白ではありません",
-      "writeSummary": "ROM書き込み完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} bytes",
-      "readSummary": "ROM読み取り完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} bytes"
+      "writeSummary": "ROM書き込み完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} KB",
+      "readSummary": "ROM読み取り完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} KB"
     },
     "ram": {
       "writing": "RAMを書き込み中、サイズ {size} バイト",
       "written": "{written} バイト書き込み済み",
+      "writingAt": "アドレス 0x{address} に書き込み中... ({progress}%)",
       "writeComplete": "RAM書き込み完了",
       "writeSuccess": "RAM書き込み成功",
       "writeFailed": "RAM書き込み失敗",
@@ -201,8 +203,8 @@
       "typeChanged": "RAMタイプが {type} に変更されました",
       "verifyFailedDetail": "アドレス0x{address}で検証失敗、期待値 {expected}、実際の値 {actual}",
       "bankSwitch": "RAMバンク {bank} に切り替え",
-      "writeSummary": "RAM書き込み完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} bytes",
-      "readSummary": "RAM読み取り完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} bytes"
+      "writeSummary": "RAM書き込み完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} KB",
+      "readSummary": "RAM読み取り完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} KB"
     },
     "progress": {
       "writing": "書き込み済み: {written}/{total} バイト",

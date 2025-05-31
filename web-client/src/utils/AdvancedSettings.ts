@@ -4,8 +4,8 @@
  */
 export class AdvancedSettings {
   // 页面大小设置
-  private static _romPageSize = 0x1000; // 4KB for ROM operations (默认值)
-  private static _ramPageSize = 0x800; // 1KB for RAM operations (默认值)
+  private static _romPageSize = 0x400; // 1KB for ROM operations (默认值)
+  private static _ramPageSize = 0x200; // 512B for RAM operations (默认值)
 
   // 超时设置（毫秒）
   private static _defaultTimeout = 6000; // 默认超时时间

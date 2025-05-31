@@ -162,6 +162,7 @@
     "rom": {
       "writing": "正在写入ROM，大小 {size} 字节",
       "written": "已写入 {written} 字节",
+      "writingAt": "正在写入地址 0x{address}... ({progress}%)",
       "writeComplete": "ROM写入完成",
       "writeSuccess": "ROM写入成功",
       "writeFailed": "ROM写入失败",
@@ -181,12 +182,13 @@
       "checkingIfBlank": "检查区域是否为空白",
       "areaIsBlank": "区域为空白",
       "areaNotBlank": "区域不为空白",
-      "writeSummary": "ROM写入完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} bytes",
-      "readSummary": "ROM读取完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} bytes"
+      "writeSummary": "ROM写入完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} KB",
+      "readSummary": "ROM读取完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} KB"
     },
     "ram": {
       "writing": "正在写入RAM，大小 {size} 字节",
       "written": "已写入 {written} 字节",
+      "writingAt": "正在写入地址 0x{address}... ({progress}%)",
       "writeComplete": "RAM写入完成",
       "writeSuccess": "RAM写入成功",
       "writeFailed": "RAM写入失败",
@@ -201,8 +203,8 @@
       "typeChanged": "RAM类型已更改为 {type}",
       "verifyFailedDetail": "地址0x{address}校验失败，期望值 {expected}，实际值 {actual}",
       "bankSwitch": "切换到RAM Bank {bank}",
-      "writeSummary": "RAM写入完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} bytes",
-      "readSummary": "RAM读取完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} bytes"
+      "writeSummary": "RAM写入完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} KB",
+      "readSummary": "RAM读取完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} KB"
     },
     "progress": {
       "writing": "已写入: {written}/{total} 字节",

@@ -162,6 +162,7 @@
     "rom": {
       "writing": "Writing ROM, size {size} bytes",
       "written": "Written {written} bytes",
+      "writingAt": "Writing at 0x{address}... ({progress}%)",
       "writeComplete": "ROM write complete",
       "writeSuccess": "ROM write successful",
       "writeFailed": "ROM write failed",
@@ -181,12 +182,13 @@
       "checkingIfBlank": "Checking if area is blank",
       "areaIsBlank": "Area is blank",
       "areaNotBlank": "Area is not blank",
-      "writeSummary": "ROM write complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} bytes",
-      "readSummary": "ROM read complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} bytes"
+      "writeSummary": "ROM write complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} KB",
+      "readSummary": "ROM read complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} KB"
     },
     "ram": {
       "writing": "Writing RAM, size {size} bytes",
       "written": "Written {written} bytes",
+      "writingAt": "Writing at 0x{address}... ({progress}%)",
       "writeComplete": "RAM write complete",
       "writeSuccess": "RAM write successful",
       "writeFailed": "RAM write failed",
@@ -201,8 +203,8 @@
       "typeChanged": "RAM type changed to {type}",
       "verifyFailedDetail": "Verification failed at address 0x{address}, expected {expected}, got {actual}",
       "bankSwitch": "Switched to RAM Bank {bank}",
-      "writeSummary": "RAM write complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} bytes",
-      "readSummary": "RAM read complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} bytes"
+      "writeSummary": "RAM write complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} KB",
+      "readSummary": "RAM read complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} KB"
     },
     "progress": {
       "writing": "Written: {written}/{total} bytes",
