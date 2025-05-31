@@ -75,6 +75,10 @@ import { FileInfo } from '../../types/FileInfo.ts'
 import { ref } from 'vue'
 
 const props = defineProps({
+  mode: {
+    type: String,
+    required: true
+  },
   deviceReady: {
     type: Boolean,
     required: true
@@ -93,7 +97,7 @@ const props = defineProps({
   },
   selectedRomSize: {
     type: String,
-    default: '0x200000'
+    default: '0x800000'
   }
 })
 

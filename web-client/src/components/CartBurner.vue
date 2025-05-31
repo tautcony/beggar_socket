@@ -50,6 +50,7 @@
 
           <RomOperations
             key="rom-operations"
+            :mode="mode"
             :device-ready="deviceReady"
             :busy="busy"
             :rom-file-data="romFileData || undefined"
@@ -57,7 +58,7 @@
             :selected-rom-size="selectedRomSize"
             @file-selected="onRomFileSelected"
             @file-cleared="onRomFileCleared"
-            @write-rom="writeToDevice"
+            @write-rom="writeRom"
             @read-rom="readRom"
             @verify-rom="verifyRom"
             @rom-size-change="onRomSizeChange"
@@ -100,13 +101,13 @@ import RomOperations from '@/components/operaiton/RomOperations.vue'
 import RamOperations from '@/components/operaiton/RamOperations.vue'
 import LogViewer from '@/components/common/LogViewer.vue'
 import ProgressDisplay from '@/components/common/ProgressDisplay.vue'
+import CartridgeAdapter from '@/utils/CartridgeAdapter'
 import { GBAAdapter } from '@/utils/GBAAdapter.ts'
 import { MBC5Adapter } from '@/utils/MBC5Adapter.ts'
 import { MockAdapter } from '@/utils/MockAdapter.ts'
 import { DebugConfig } from '@/utils/DebugConfig.ts'
 import { DeviceInfo } from '@/types/DeviceInfo.ts'
 import { FileInfo } from '@/types/FileInfo.ts'
-import CartridgeAdapter from '@/utils/CartridgeAdapter'
 
 const { t } = useI18n()
 
@@ -115,33 +116,36 @@ const props = defineProps<{
   deviceReady: boolean
 }>()
 
-const mode = ref('GBA')
+const mode = ref<'GBA' | 'MBC5'>('GBA')
 const busy = ref(false)
 const result = ref('')
 const idStr = ref('')
-const romFileData = ref<Uint8Array | null>(null)
-const romFileName = ref('')
-const ramFileData = ref<Uint8Array | null>(null)
-const ramFileName = ref('')
-const writeProgress = ref<number | null>(null)
-const writeDetail = ref<string | undefined>('')
-const ramWriteProgress = ref<number | null>(null)
-const ramWriteDetail = ref('')
-const selectedRomSize = ref('0x200000') // 默认2MB
-const selectedRamSize = ref('0x8000')   // 默认32KB
-const selectedRamType = ref('SRAM')     // 默认SRAM
+const operateProgress = ref<number | null>(null)
+const operateProgressDetail = ref<string | undefined>('')
 const logs = ref<string[]>([])
+
+// Adapter
 const gbaAdapter = ref<CartridgeAdapter | null>()
 const mbc5Adapter = ref<CartridgeAdapter | null>()
 
+// ROM
+const romFileData = ref<Uint8Array | null>(null)
+const romFileName = ref('')
+const selectedRomSize = ref('0x800000') // 默认8MB
+
+// RAM
+const ramFileData = ref<Uint8Array | null>(null)
+const ramFileName = ref('')
+const selectedRamSize = ref('0x8000')   // 默认32KB
+const selectedRamType = ref('SRAM')     // 默认SRAM
+
 // 计算当前显示的进度
 const currentProgress = computed(() => {
-  return writeProgress.value !== null ? writeProgress.value : 
-         ramWriteProgress.value !== null ? ramWriteProgress.value : undefined
+  return operateProgress.value !== null ? operateProgress.value : undefined
 })
 
 const currentProgressDetail = computed(() => {
-  return writeDetail.value || ramWriteDetail.value || undefined
+  return operateProgressDetail.value || undefined
 })
 
 // 设备连接状态改变时，初始化适配器
@@ -178,14 +182,8 @@ watch(() => props.deviceReady, (newVal) => {
 })
 
 function updateProgress(progress: number, detail: string | undefined) {
-  // 根据操作类型判断更新哪个进度条
-  if (detail && detail.includes('RAM')) {
-    ramWriteProgress.value = progress
-    ramWriteDetail.value = detail
-  } else {
-    writeProgress.value = progress
-    writeDetail.value = detail
-  }
+  operateProgress.value = progress
+  operateProgressDetail.value = detail
 }
 
 function log(msg: string) {
@@ -311,15 +309,15 @@ async function eraseChip() {
     log(`${t('messages.operation.eraseFailed')}: ${e instanceof Error ? e.message : String(e)}`)
   } finally {
     busy.value = false
-    setTimeout(() => { writeProgress.value = null; writeDetail.value = '' }, 1500)
+    setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
-async function writeToDevice() {
+async function writeRom() {
   busy.value = true
   result.value = ''
-  writeProgress.value = 0
-  writeDetail.value = ''
+  operateProgress.value = 0
+  operateProgressDetail.value = ''
 
   try {
     const adapter = getAdapter()
@@ -335,7 +333,7 @@ async function writeToDevice() {
     log(`${t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`)
   } finally {
     busy.value = false
-    setTimeout(() => { writeProgress.value = null; writeDetail.value = '' }, 1500)
+    setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
@@ -365,7 +363,7 @@ async function readRom() {
     log(`${t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`)
   } finally {
     busy.value = false
-    setTimeout(() => { writeProgress.value = null; writeDetail.value = '' }, 1500)
+    setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
@@ -388,15 +386,15 @@ async function verifyRom() {
     log(`${t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`)
   } finally {
     busy.value = false
-    setTimeout(() => { writeProgress.value = null; writeDetail.value = '' }, 1500)
+    setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
 async function writeRam() {
   busy.value = true
   result.value = ''
-  ramWriteProgress.value = 0
-  ramWriteDetail.value = ''
+  operateProgress.value = 0
+  operateProgressDetail.value = ''
 
   try {
     const adapter = getAdapter()
@@ -412,7 +410,7 @@ async function writeRam() {
     log(`${t('messages.ram.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`)
   } finally {
     busy.value = false
-    setTimeout(() => { ramWriteProgress.value = null; ramWriteDetail.value = '' }, 1500)
+    setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
@@ -441,7 +439,7 @@ async function readRam() {
     log(`${t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`)
   } finally {
     busy.value = false
-    setTimeout(() => { writeProgress.value = null; writeDetail.value = '' }, 1500)
+    setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
@@ -463,7 +461,7 @@ async function verifyRam() {
     log(`${t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`)
   } finally {
     busy.value = false
-    setTimeout(() => { writeProgress.value = null; writeDetail.value = '' }, 1500)
+    setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 

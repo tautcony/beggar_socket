@@ -39,7 +39,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import DeviceConnect from '@/components/DeviceConnect.vue'
-import FlashBurner from '@/components/FlashBurner.vue'
+import FlashBurner from '@/components/CartBurner.vue'
 import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue'
 import DebugPanel from '@/components/common/DebugPanel.vue'
 import GitHubLink from '@/components/common/GitHubLink.vue'
