@@ -8,9 +8,9 @@ export class AdvancedSettings {
   private static _ramPageSize = 0x200; // 512B for RAM operations (默认值)
 
   // 超时设置（毫秒）
-  private static _defaultTimeout = 6000; // 默认超时时间
-  private static _packageSendTimeout = 6000; // 发送数据包超时
-  private static _packageReceiveTimeout = 6000; // 接收数据包超时
+  private static _defaultTimeout = 3000; // 默认超时时间
+  private static _packageSendTimeout = 3000; // 发送数据包超时
+  private static _packageReceiveTimeout = 3000; // 接收数据包超时
   private static _operationTimeout = 100000; // 长时间操作超时（如芯片擦除）
 
   // 页面大小配置的有效范围

@@ -296,14 +296,14 @@ const resetToDefaults = () => {
   if (confirm(t('ui.settings.actions.resetConfirm'))) {
     localSettings.value = {
       pageSize: {
-        rom: 0x1000,
-        ram: 0x800
+        rom: 0x400,
+        ram: 0x200
       },
       timeout: {
         default: 3000,
         packageSend: 3000,
         packageReceive: 3000,
-        operation: 30000
+        operation: 100000
       }
     }
     validateAndUpdate()
