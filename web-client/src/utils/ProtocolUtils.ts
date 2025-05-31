@@ -16,6 +16,30 @@ export function modbusCRC16(bytes: Uint8Array): number {
   return crc;
 }
 
+const CRC_TABLE = new Uint16Array(256);
+(function initCRCTable() {
+  for (let i = 0; i < 256; i++) {
+    let crc = i;
+    for (let j = 0; j < 8; j++) {
+      if (crc & 1) {
+        crc = (crc >>> 1) ^ 0xA001;
+      } else {
+        crc >>>= 1;
+      }
+    }
+    CRC_TABLE[i] = crc;
+  }
+})();
+
+export function modbusCRC16_lut(bytes: Uint8Array): number {
+  let crc = 0xFFFF;
+  for (let i = 0; i < bytes.length; i++) {
+    const tableIndex = (crc ^ bytes[i]) & 0xFF;
+    crc = (crc >>> 8) ^ CRC_TABLE[tableIndex];
+  }
+  return crc;
+}
+
 export function toLittleEndian(value: number, byteLength: number): Uint8Array {
   const bytes = new Uint8Array(byteLength);
 
@@ -26,6 +50,14 @@ export function toLittleEndian(value: number, byteLength: number): Uint8Array {
   return bytes;
 }
 
+export function fromLittleEndian(bytes: Uint8Array): number {
+  let value = 0;
+  for (let i = 0; i < bytes.length; i++) {
+    value |= (bytes[i] & 0xFF) << (i * 8);
+  }
+  return value;
+}
+
 // 封装数据包
 export function buildPackage(payload: Uint8Array): Uint8Array {
   const size = 2 + payload.length + 2;
@@ -34,8 +66,8 @@ export function buildPackage(payload: Uint8Array): Uint8Array {
   buf.set(sizeBytes, 0);
   buf.set(payload, 2);
   // CRC16
-  let crc = toLittleEndian(modbusCRC16(buf.slice(0, size - 2)), 2);
-  buf.set(crc, size - 2);
+  // let crc = toLittleEndian(modbusCRC16(buf.slice(0, size - 2)), 2);
+  // buf.set(crc, size - 2);
   return buf;
 }
 

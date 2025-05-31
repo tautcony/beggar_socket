@@ -9,7 +9,11 @@
     "preview": "vite preview",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
-    "type-check": "vue-tsc --noEmit"
+    "type-check": "vue-tsc --noEmit",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:coverage": "vitest --coverage"
   },
   "dependencies": {
     "vue": "^3.5.16",
@@ -23,10 +27,12 @@
     "@typescript-eslint/eslint-plugin": "^8.33.0",
     "@typescript-eslint/parser": "^8.33.0",
     "@vitejs/plugin-vue": "^5.2.4",
+    "@vitest/ui": "^3.1.4",
     "eslint": "^9.27.0",
     "eslint-plugin-vue": "^10.1.0",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
+    "vitest": "^3.1.4",
     "vue-tsc": "^2.2.10"
   }
 }

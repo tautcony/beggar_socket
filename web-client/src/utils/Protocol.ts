@@ -3,9 +3,6 @@ import { DeviceInfo } from '@/types/DeviceInfo.ts';
 import { AdvancedSettings } from '@/utils/AdvancedSettings.ts';
 
 // --- GBA Commands ---
-// 页面大小现在从 AdvancedSettings 获取，而不是硬编码
-// export const ROM_PAGE_SIZE = 0x1000; // 4KB for ROM operations (已移至 AdvancedSettings)
-// export const RAM_PAGE_SIZE = 0x800; // 1KB for RAM operations (已移至 AdvancedSettings)
 
 // GBA: 读取ID (0xf0)
 export async function rom_readID(device: DeviceInfo): Promise<number[]> {
