@@ -46,8 +46,8 @@ export class GBAAdapter extends CartridgeAdapter {
    * @returns - ID字符串
    */
   async readID(): Promise<CommandResult & { idStr?: string }> {
+    this.log(this.t('messages.operation.readId'));
     try {
-      this.log(this.t('messages.operation.readId'));
       const id = await rom_readID(this.device);
 
       this.idStr = id.map(x => x.toString(16).padStart(2, '0')).join(' ');
@@ -75,12 +75,13 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 擦除整个芯片
-   * @returns - 操作结果
+   * 全片擦除
+   * @returns - 包含成功状态和消息的对象
    */
   async eraseChip() : Promise<CommandResult> {
+    this.log(this.t('messages.operation.eraseChip'));
+
     try {
-      this.log(this.t('messages.operation.eraseChip'));
       await rom_eraseChip(this.device);
 
       // 验证擦除是否完成
@@ -145,10 +146,10 @@ export class GBAAdapter extends CartridgeAdapter {
         message: this.t('messages.operation.eraseSuccess')
       };
     } catch (e) {
-      this.log(this.t('messages.operation.eraseSectorFailed') + ': ' + e);
+      this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${e}`);
       return {
         success: false,
-        message: this.t('messages.operation.eraseSectorFailed') + ': ' + e
+        message: this.t('messages.operation.eraseSectorFailed')
       };
     }
   }
@@ -231,7 +232,7 @@ export class GBAAdapter extends CartridgeAdapter {
       await rom_direct_write(this.device, new Uint8Array([0x98, 0x00]), 0x55);
 
       // 读取CFI数据 (20字节) - 从地址0x4E (0x27 << 1)开始读取
-      const cfiData = await rom_read(this.device, 20, 0x4E);
+      const cfiData = await rom_read(this.device, 20, 0x27 << 1);
 
       // Reset - 向地址0x00写入0xf0命令
       await rom_direct_write(this.device, new Uint8Array([0xf0, 0x00]), 0x00);

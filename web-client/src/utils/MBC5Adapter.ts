@@ -15,8 +15,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param device - 设备对象
    * @param logCallback - 日志回调函数
    * @param progressCallback - 进度回调函数
-   * @param translateFunc - 翻译函数
-   * @returns - MBC5适配器实例
+   * @param translateFunc - 国际化翻译函数
    */
   constructor(
     device: DeviceInfo,
@@ -29,8 +28,8 @@ export class MBC5Adapter extends CartridgeAdapter {
   }
 
   /**
-   * 读取ROM ID
-   * @returns - 包含成功状态、ID字符串和消息的对象
+   * 读取ROM芯片ID
+   * @returns - ID字符串
    */
   async readID(): Promise<CommandResult & { idStr?: string }> {
     this.log(this.t('messages.operation.readId'));
@@ -57,15 +56,14 @@ export class MBC5Adapter extends CartridgeAdapter {
         idStr: this.idStr,
         message: this.t('messages.operation.readIdSuccess')
       };
-    } catch (error) {
-      this.log(this.t('messages.operation.readIdFailed'));
+    } catch (e) {
+      this.log(`${this.t('messages.operation.readIdFailed')}: ${e}`);
       return {
         success: false,
-        message: `${this.t('messages.operation.readIdFailed')}: ${error}`
+        message: this.t('messages.operation.readIdFailed')
       };
     }
   }
-
 
   /**
    * 全片擦除
@@ -96,11 +94,11 @@ export class MBC5Adapter extends CartridgeAdapter {
         success: true,
         message: this.t('messages.operation.eraseSuccess')
       };
-    } catch (error) {
+    } catch (e) {
       this.log(this.t('messages.operation.eraseFailed'));
       return {
         success: false,
-        message: `${this.t('messages.operation.eraseFailed')}: ${error}`
+        message: `${this.t('messages.operation.eraseFailed')}: ${e}`
       };
     }
   }
@@ -279,6 +277,7 @@ export class MBC5Adapter extends CartridgeAdapter {
       const startTime = Date.now();
       let currentBank = -123;
       let writtenCount = 0;
+      let maxSpeed = 0;
 
       while (writtenCount < fileData.length) {
         // 分包处理
@@ -304,12 +303,23 @@ export class MBC5Adapter extends CartridgeAdapter {
 
         writtenCount += chunkSize;
         const elapsed = (Date.now() - startTime) / 1000;
-        const speed = elapsed > 0 ? ((writtenCount / 1024) / elapsed).toFixed(1) : '0';
-        this.updateProgress(writtenCount / fileData.length * 100, `写入速度: ${speed} KB/s`);
+        const currentSpeed = elapsed > 0 ? (writtenCount / 1024) / elapsed : 0;
+        maxSpeed = Math.max(maxSpeed, currentSpeed);
+        this.updateProgress(writtenCount / fileData.length * 100, this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }));
       }
 
-      const elapsedTime = (Date.now() - startTime) / 1000;
-      const message = this.t('messages.rom.writeComplete', { time: elapsedTime.toFixed(3) });
+      const totalTime = (Date.now() - startTime) / 1000;
+      const avgSpeed = totalTime > 0 ? (fileData.length / 1024) / totalTime : 0;
+
+      // Log comprehensive summary
+      this.log(this.t('messages.rom.writeSummary', {
+        totalTime: totalTime.toFixed(2),
+        avgSpeed: avgSpeed.toFixed(1),
+        maxSpeed: maxSpeed.toFixed(1),
+        totalSize: fileData.length
+      }));
+
+      const message = this.t('messages.rom.writeComplete', { time: totalTime.toFixed(3) });
       this.log(message);
 
       return {
@@ -340,6 +350,7 @@ export class MBC5Adapter extends CartridgeAdapter {
       const startTime = Date.now();
       let currentBank = -123;
       let readCount = 0;
+      let maxSpeed = 0;
 
       while (readCount < size) {
         // 分包处理
@@ -365,12 +376,23 @@ export class MBC5Adapter extends CartridgeAdapter {
 
         readCount += chunkSize;
         const elapsed = (Date.now() - startTime) / 1000;
-        const speed = elapsed > 0 ? ((readCount / 1024) / elapsed).toFixed(1) : '0';
-        this.updateProgress(readCount / size * 100, `读取速度: ${speed} KB/s`);
+        const currentSpeed = elapsed > 0 ? (readCount / 1024) / elapsed : 0;
+        maxSpeed = Math.max(maxSpeed, currentSpeed);
+        this.updateProgress(readCount / size * 100, this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }));
       }
 
-      const elapsedTime = (Date.now() - startTime) / 1000;
-      const message = this.t('messages.rom.readSuccess', { time: elapsedTime.toFixed(3) });
+      const totalTime = (Date.now() - startTime) / 1000;
+      const avgSpeed = totalTime > 0 ? (size / 1024) / totalTime : 0;
+
+      // Log comprehensive summary
+      this.log(this.t('messages.rom.readSummary', {
+        totalTime: totalTime.toFixed(2),
+        avgSpeed: avgSpeed.toFixed(1),
+        maxSpeed: maxSpeed.toFixed(1),
+        totalSize: size
+      }));
+
+      const message = this.t('messages.rom.readSuccess', { time: totalTime.toFixed(3) });
       this.log(message);
 
       return {
@@ -480,6 +502,7 @@ export class MBC5Adapter extends CartridgeAdapter {
       const startTime = Date.now();
       let currentBank = -123;
       let writtenCount = 0;
+      let maxSpeed = 0;
 
       while (writtenCount < fileData.length) {
         // 分包处理
@@ -504,12 +527,23 @@ export class MBC5Adapter extends CartridgeAdapter {
 
         writtenCount += chunkSize;
         const elapsed = (Date.now() - startTime) / 1000;
-        const speed = elapsed > 0 ? ((writtenCount / 1024) / elapsed).toFixed(1) : '0';
-        this.updateProgress(writtenCount / fileData.length * 100, `写入速度: ${speed} KB/s`);
+        const currentSpeed = elapsed > 0 ? (writtenCount / 1024) / elapsed : 0;
+        maxSpeed = Math.max(maxSpeed, currentSpeed);
+        this.updateProgress(writtenCount / fileData.length * 100, this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }));
       }
 
-      const elapsedTime = (Date.now() - startTime) / 1000;
-      const message = this.t('messages.ram.writeComplete', { time: elapsedTime.toFixed(3) });
+      const totalTime = (Date.now() - startTime) / 1000;
+      const avgSpeed = totalTime > 0 ? (fileData.length / 1024) / totalTime : 0;
+
+      // Log comprehensive summary
+      this.log(this.t('messages.ram.writeSummary', {
+        totalTime: totalTime.toFixed(2),
+        avgSpeed: avgSpeed.toFixed(1),
+        maxSpeed: maxSpeed.toFixed(1),
+        totalSize: fileData.length
+      }));
+
+      const message = this.t('messages.ram.writeComplete', { time: totalTime.toFixed(3) });
       this.log(message);
 
       return {
@@ -545,6 +579,7 @@ export class MBC5Adapter extends CartridgeAdapter {
       const startTime = Date.now();
       let currentBank = -123;
       let readCount = 0;
+      let maxSpeed = 0;
 
       while (readCount < size) {
         // 分包处理
@@ -569,12 +604,23 @@ export class MBC5Adapter extends CartridgeAdapter {
 
         readCount += chunkSize;
         const elapsed = (Date.now() - startTime) / 1000;
-        const speed = elapsed > 0 ? ((readCount / 1024) / elapsed).toFixed(1) : '0';
-        this.updateProgress(readCount / size * 100, `读取速度: ${speed} KB/s`);
+        const currentSpeed = elapsed > 0 ? (readCount / 1024) / elapsed : 0;
+        maxSpeed = Math.max(maxSpeed, currentSpeed);
+        this.updateProgress(readCount / size * 100, this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }));
       }
 
-      const elapsedTime = (Date.now() - startTime) / 1000;
-      const message = this.t('messages.ram.readSuccess', { time: elapsedTime.toFixed(3) });
+      const totalTime = (Date.now() - startTime) / 1000;
+      const avgSpeed = totalTime > 0 ? (size / 1024) / totalTime : 0;
+
+      // Log comprehensive summary
+      this.log(this.t('messages.ram.readSummary', {
+        totalTime: totalTime.toFixed(2),
+        avgSpeed: avgSpeed.toFixed(1),
+        maxSpeed: maxSpeed.toFixed(1),
+        totalSize: size
+      }));
+
+      const message = this.t('messages.ram.readSuccess', { time: totalTime.toFixed(3) });
       this.log(message);
 
       return {
