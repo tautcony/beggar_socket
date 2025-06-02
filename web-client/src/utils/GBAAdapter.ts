@@ -17,6 +17,7 @@ import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } fr
 import { CommandResult } from '@/types/CommandResult.ts';
 import { CommandOptions } from '@/types/CommandOptions.ts';
 import { getFlashId } from '@/utils/ProtocolUtils';
+import { PerformanceTracker } from './sentry';
 
 /**
  * GBA Adapter - 封装GBA卡带的协议操作
@@ -46,32 +47,44 @@ export class GBAAdapter extends CartridgeAdapter {
    * @returns - ID字符串
    */
   async readID(): Promise<CommandResult & { idStr?: string }> {
-    this.log(this.t('messages.operation.readId'));
-    try {
-      const id = await rom_readID(this.device);
+    return PerformanceTracker.trackAsyncOperation(
+      'gba.readID',
+      async () => {
+        this.log(this.t('messages.operation.readId'));
+        try {
+          const id = await rom_readID(this.device);
 
-      this.idStr = id.map(x => x.toString(16).padStart(2, '0')).join(' ');
-      const flashId = getFlashId(id);
-      if (flashId === null) {
-        this.log(this.t('messages.operation.unknownFlashId'));
-      } else {
-        this.log(`${this.t('messages.operation.readIdSuccess')}: ${this.idStr} (${flashId})`);
+          this.idStr = id.map(x => x.toString(16).padStart(2, '0')).join(' ');
+          const flashId = getFlashId(id);
+          if (flashId === null) {
+            this.log(this.t('messages.operation.unknownFlashId'));
+          } else {
+            this.log(`${this.t('messages.operation.readIdSuccess')}: ${this.idStr} (${flashId})`);
+          }
+
+          await this.getROMSize();
+
+          return {
+            success: true,
+            idStr: this.idStr,
+            message: this.t('messages.operation.readIdSuccess')
+          };
+        } catch (e) {
+          this.log(`${this.t('messages.operation.readIdFailed')}: ${e}`);
+          return {
+            success: false,
+            message: this.t('messages.operation.readIdFailed')
+          };
+        }
+      },
+      {
+        adapter_type: 'gba',
+        operation_type: 'read_id',
+      },
+      {
+        devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
       }
-
-      await this.getROMSize();
-
-      return {
-        success: true,
-        idStr: this.idStr,
-        message: this.t('messages.operation.readIdSuccess')
-      };
-    } catch (e) {
-      this.log(`${this.t('messages.operation.readIdFailed')}: ${e}`);
-      return {
-        success: false,
-        message: this.t('messages.operation.readIdFailed')
-      };
-    }
+    );
   }
 
   /**
@@ -79,34 +92,43 @@ export class GBAAdapter extends CartridgeAdapter {
    * @returns - 包含成功状态和消息的对象
    */
   async eraseChip() : Promise<CommandResult> {
-    this.log(this.t('messages.operation.eraseChip'));
+    return PerformanceTracker.trackAsyncOperation(
+      'gba.eraseChip',
+      async () => {
+        this.log(this.t('messages.operation.eraseChip'));
 
-    try {
-      await rom_eraseChip(this.device);
+        try {
+          await rom_eraseChip(this.device);
 
-      // 验证擦除是否完成
-      while (true) {
-        const eraseComplete = await this.isBlank(0x00, 0x100);
-        if (eraseComplete) {
-          this.log(this.t('messages.operation.eraseComplete'));
-          break;
-        } else {
-          this.log(this.t('messages.operation.eraseInProgress'));
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // 验证擦除是否完成
+          while (true) {
+            const eraseComplete = await this.isBlank(0x00, 0x100);
+            if (eraseComplete) {
+              this.log(this.t('messages.operation.eraseComplete'));
+              break;
+            } else {
+              this.log(this.t('messages.operation.eraseInProgress'));
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          }
+
+          return {
+            success: true,
+            message: this.t('messages.operation.eraseComplete')
+          };
+        } catch (e) {
+          this.log(`${this.t('messages.operation.eraseFailed')}: ${e}`);
+          return {
+            success: false,
+            message: this.t('messages.operation.eraseFailed')
+          };
         }
+      },
+      {
+        adapter_type: 'gba',
+        operation_type: 'erase_chip',
       }
-
-      return {
-        success: true,
-        message: this.t('messages.operation.eraseComplete')
-      };
-    } catch (e) {
-      this.log(`${this.t('messages.operation.eraseFailed')}: ${e}`);
-      return {
-        success: false,
-        message: this.t('messages.operation.eraseFailed')
-      };
-    }
+    );
   }
 
   /**
@@ -161,66 +183,81 @@ export class GBAAdapter extends CartridgeAdapter {
    * @returns - 操作结果
    */
   async writeROM(fileData: Uint8Array, options: CommandOptions = {useDirectWrite: true}) : Promise<CommandResult> {
-    try {
-      this.log(this.t('messages.rom.writing', { size: fileData.length }));
+    return PerformanceTracker.trackProgressOperation(
+      'gba.writeROM',
+      async (updateProgress) => {
+        try {
+          this.log(this.t('messages.rom.writing', { size: fileData.length }));
 
-      const total = fileData.length;
-      let written = 0;
-      const pageSize = AdvancedSettings.romPageSize;
-      const startTime = Date.now();
-      let maxSpeed = 0;
+          const total = fileData.length;
+          let written = 0;
+          const pageSize = AdvancedSettings.romPageSize;
+          const startTime = Date.now();
+          let maxSpeed = 0;
 
-      // 选择写入函数
-      const writeFunction = options.useDirectWrite ? rom_direct_write : rom_program;
+          // 选择写入函数
+          const writeFunction = options.useDirectWrite ? rom_direct_write : rom_program;
 
-      // const romInfo = await this.getROMSize();
-      const blank = await this.isBlank(0, 0x100);
-      if (!blank) {
-        this.eraseSectors(0, fileData.length - 1, 1<<17);
-      }
+          // const romInfo = await this.getROMSize();
+          const blank = await this.isBlank(0, 0x100);
+          if (!blank) {
+            this.eraseSectors(0, fileData.length - 1, 1<<17);
+          }
 
-      // 分块写入并更新进度
-      let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
-      for (let addr = 0; addr < total; addr += pageSize) {
-        const chunk = fileData.slice(addr, Math.min(addr + pageSize, total));
-        await writeFunction(this.device, chunk, addr);
+          // 分块写入并更新进度
+          let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
+          for (let addr = 0; addr < total; addr += pageSize) {
+            const chunk = fileData.slice(addr, Math.min(addr + pageSize, total));
+            await writeFunction(this.device, chunk, addr);
 
-        written += chunk.length;
-        const progress = Math.floor((written / total) * 100);
-        const elapsed = (Date.now() - startTime) / 1000;
-        const currentSpeed = elapsed > 0 ? (written / 1024) / elapsed : 0;
-        maxSpeed = Math.max(maxSpeed, currentSpeed);
-        this.updateProgress(progress, this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }));
+            written += chunk.length;
+            const progress = Math.floor((written / total) * 100);
+            const elapsed = (Date.now() - startTime) / 1000;
+            const currentSpeed = elapsed > 0 ? (written / 1024) / elapsed : 0;
+            maxSpeed = Math.max(maxSpeed, currentSpeed);
+            this.updateProgress(progress, this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }));
+            updateProgress(progress);
 
-        // 每2个百分比记录一次日志
-        if (progress % 2 === 0 && progress !== lastLoggedProgress) {
-          this.log(this.t('messages.rom.writingAt', { address: addr.toString(16).padStart(6, '0'), progress }));
-          lastLoggedProgress = progress;
+            // 每2个百分比记录一次日志
+            if (progress % 2 === 0 && progress !== lastLoggedProgress) {
+              this.log(this.t('messages.rom.writingAt', { address: addr.toString(16).padStart(6, '0'), progress }));
+              lastLoggedProgress = progress;
+            }
+          }
+
+          const totalTime = (Date.now() - startTime) / 1000;
+          const avgSpeed = totalTime > 0 ? (total / 1024) / totalTime : 0;
+
+          this.log(this.t('messages.rom.writeComplete'));
+          this.log(this.t('messages.rom.writeSummary', {
+            totalTime: totalTime.toFixed(1),
+            avgSpeed: avgSpeed.toFixed(1),
+            maxSpeed: maxSpeed.toFixed(1),
+            totalSize: (total / 1024).toFixed(1)
+          }));
+
+          return {
+            success: true,
+            message: this.t('messages.rom.writeSuccess')
+          };
+        } catch (e) {
+          this.log(`${this.t('messages.rom.writeFailed')}: ${e}`);
+          return {
+            success: false,
+            message: this.t('messages.rom.writeFailed')
+          };
         }
+      },
+      {
+        adapter_type: 'gba',
+        operation_type: 'write_rom',
+        write_method: options.useDirectWrite ? 'direct_write' : 'program',
+      },
+      {
+        fileSize: fileData.length,
+        pageSizeKB: AdvancedSettings.romPageSize / 1024,
       }
-
-      const totalTime = (Date.now() - startTime) / 1000;
-      const avgSpeed = totalTime > 0 ? (total / 1024) / totalTime : 0;
-
-      this.log(this.t('messages.rom.writeComplete'));
-      this.log(this.t('messages.rom.writeSummary', {
-        totalTime: totalTime.toFixed(1),
-        avgSpeed: avgSpeed.toFixed(1),
-        maxSpeed: maxSpeed.toFixed(1),
-        totalSize: (total / 1024).toFixed(1)
-      }));
-
-      return {
-        success: true,
-        message: this.t('messages.rom.writeSuccess')
-      };
-    } catch (e) {
-      this.log(`${this.t('messages.rom.writeFailed')}: ${e}`);
-      return {
-        success: false,
-        message: this.t('messages.rom.writeFailed')
-      };
-    }
+    );
   }
 
   /**
@@ -290,54 +327,68 @@ export class GBAAdapter extends CartridgeAdapter {
    * @returns - 操作结果，包含读取的数据
    */
   async readROM(size = 0x200000, baseAddress = 0) : Promise<CommandResult> {
-    try {
-      this.log(this.t('messages.rom.reading'));
-      const startTime = Date.now();
-      const pageSize = AdvancedSettings.romPageSize;
-      let maxSpeed = 0;
-      let totalRead = 0;
+    return PerformanceTracker.trackAsyncOperation(
+      'gba.readROM',
+      async () => {
+        try {
+          this.log(this.t('messages.rom.reading'));
+          const startTime = Date.now();
+          const pageSize = AdvancedSettings.romPageSize;
+          let maxSpeed = 0;
+          let totalRead = 0;
 
-      const data = new Uint8Array(size);
+          const data = new Uint8Array(size);
 
-      // 分块读取以便计算速度统计
-      for (let addr = 0; addr < size; addr += pageSize) {
-        const chunkSize = Math.min(pageSize, size - addr);
-        const chunk = await rom_read(this.device, chunkSize, baseAddress + addr);
-        data.set(chunk, addr);
+          // 分块读取以便计算速度统计
+          for (let addr = 0; addr < size; addr += pageSize) {
+            const chunkSize = Math.min(pageSize, size - addr);
+            const chunk = await rom_read(this.device, chunkSize, baseAddress + addr);
+            data.set(chunk, addr);
 
-        totalRead += chunkSize;
-        const elapsed = (Date.now() - startTime) / 1000;
-        if (elapsed > 0) {
-          const currentSpeed = (totalRead / 1024) / elapsed;
-          maxSpeed = Math.max(maxSpeed, currentSpeed);
-          const progress = Math.floor((totalRead / size) * 100);
-          this.updateProgress(progress, this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }));
+            totalRead += chunkSize;
+            const elapsed = (Date.now() - startTime) / 1000;
+            if (elapsed > 0) {
+              const currentSpeed = (totalRead / 1024) / elapsed;
+              maxSpeed = Math.max(maxSpeed, currentSpeed);
+              const progress = Math.floor((totalRead / size) * 100);
+              this.updateProgress(progress, this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }));
+            }
+          }
+
+          const totalTime = (Date.now() - startTime) / 1000;
+          const avgSpeed = totalTime > 0 ? (size / 1024) / totalTime : 0;
+
+          this.log(this.t('messages.rom.readSuccess', { size: data.length }));
+          this.log(this.t('messages.rom.readSummary', {
+            totalTime: totalTime.toFixed(1),
+            avgSpeed: avgSpeed.toFixed(1),
+            maxSpeed: maxSpeed.toFixed(1),
+            totalSize: (size / 1024).toFixed(1)
+          }));
+
+          return {
+            success: true,
+            data: data,
+            message: this.t('messages.rom.readSuccess', { size: data.length })
+          };
+        } catch (e) {
+          this.log(`${this.t('messages.rom.readFailed')}: ${e}`);
+          return {
+            success: false,
+            message: this.t('messages.rom.readFailed')
+          };
         }
+      },
+      {
+        adapter_type: 'gba',
+        operation_type: 'read_rom',
+      },
+      {
+        dataSize: size,
+        baseAddress: baseAddress,
+        devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
       }
-
-      const totalTime = (Date.now() - startTime) / 1000;
-      const avgSpeed = totalTime > 0 ? (size / 1024) / totalTime : 0;
-
-      this.log(this.t('messages.rom.readSuccess', { size: data.length }));
-      this.log(this.t('messages.rom.readSummary', {
-        totalTime: totalTime.toFixed(1),
-        avgSpeed: avgSpeed.toFixed(1),
-        maxSpeed: maxSpeed.toFixed(1),
-        totalSize: (size / 1024).toFixed(1)
-      }));
-
-      return {
-        success: true,
-        data: data,
-        message: this.t('messages.rom.readSuccess', { size: data.length })
-      };
-    } catch (e) {
-      this.log(`${this.t('messages.rom.readFailed')}: ${e}`);
-      return {
-        success: false,
-        message: this.t('messages.rom.readFailed')
-      };
-    }
+    );
   }
 
   /**
@@ -347,22 +398,36 @@ export class GBAAdapter extends CartridgeAdapter {
    * @returns - 操作结果
    */
   async verifyROM(fileData: Uint8Array, baseAddress = 0): Promise<CommandResult> {
-    try {
-      this.log(this.t('messages.rom.verifying'));
-      const ok = await rom_verify(this.device, fileData, baseAddress);
-      const message = ok ? this.t('messages.rom.verifySuccess') : this.t('messages.rom.verifyFailed');
-      this.log(`${this.t('messages.rom.verify')}: ${message}`);
-      return {
-        success: ok,
-        message: message
-      };
-    } catch (e) {
-      this.log(`${this.t('messages.rom.verifyFailed')}: ${e}`);
-      return {
-        success: false,
-        message: this.t('messages.rom.verifyFailed')
-      };
-    }
+    return PerformanceTracker.trackAsyncOperation(
+      'gba.verifyROM',
+      async () => {
+        try {
+          this.log(this.t('messages.rom.verifying'));
+          const ok = await rom_verify(this.device, fileData, baseAddress);
+          const message = ok ? this.t('messages.rom.verifySuccess') : this.t('messages.rom.verifyFailed');
+          this.log(`${this.t('messages.rom.verify')}: ${message}`);
+          return {
+            success: ok,
+            message: message
+          };
+        } catch (e) {
+          this.log(`${this.t('messages.rom.verifyFailed')}: ${e}`);
+          return {
+            success: false,
+            message: this.t('messages.rom.verifyFailed')
+          };
+        }
+      },
+      {
+        adapter_type: 'gba',
+        operation_type: 'verify_rom',
+      },
+      {
+        fileSize: fileData.length,
+        baseAddress: baseAddress,
+        devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
+      }
+    );
   }
 
   /**
@@ -396,106 +461,120 @@ export class GBAAdapter extends CartridgeAdapter {
    * @returns - 操作结果
    */
   async writeRAM(fileData: Uint8Array, options: CommandOptions = {ramType: 'SRAM'}): Promise<CommandResult> {
-    try {
-      this.log(this.t('messages.ram.writing', { size: fileData.length }));
+    return PerformanceTracker.trackAsyncOperation(
+      'gba.writeRAM',
+      async () => {
+        try {
+          this.log(this.t('messages.ram.writing', { size: fileData.length }));
 
-      const total = fileData.length;
-      let written = 0;
-      const pageSize = AdvancedSettings.ramPageSize;
-      if (options.ramType === 'FLASH') {
-        this.log(this.t('messages.gba.erasingFlash'));
-        await ram_write(this.device, new Uint8Array([0xaa]), 0x5555);
-        await ram_write(this.device, new Uint8Array([0x55]), 0x2aaa);
-        await ram_write(this.device, new Uint8Array([0x80]), 0x5555);
-        await ram_write(this.device, new Uint8Array([0xaa]), 0x5555);
-        await ram_write(this.device, new Uint8Array([0x55]), 0x2aaa);
-        await ram_write(this.device, new Uint8Array([0x10]), 0x5555); // Chip-Erase
-
-        // 等待擦除完成
-        let erased = false;
-        while (!erased) {
-          const result = await ram_read(this.device, 1, 0x0000);
-          this.log(this.t('messages.gba.eraseStatus', { status: result[0].toString(16) }));
-          if (result[0] === 0xff) {
-            this.log(this.t('messages.gba.eraseComplete'));
-            this.updateProgress(0, this.t('messages.progress.eraseCompleteReady'));
-            erased = true;
-          } else {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        }
-      }
-
-      // 开始写入
-      const startTime = Date.now();
-      let maxSpeed = 0;
-      let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
-      while (written < total) {
-        // 切bank
-        if (written === 0x00000) {
+          const total = fileData.length;
+          let written = 0;
+          const pageSize = AdvancedSettings.ramPageSize;
           if (options.ramType === 'FLASH') {
-            await this.switchFlashBank(0);
-          } else {
-            await this.switchSRAMBank(0);
+            this.log(this.t('messages.gba.erasingFlash'));
+            await ram_write(this.device, new Uint8Array([0xaa]), 0x5555);
+            await ram_write(this.device, new Uint8Array([0x55]), 0x2aaa);
+            await ram_write(this.device, new Uint8Array([0x80]), 0x5555);
+            await ram_write(this.device, new Uint8Array([0xaa]), 0x5555);
+            await ram_write(this.device, new Uint8Array([0x55]), 0x2aaa);
+            await ram_write(this.device, new Uint8Array([0x10]), 0x5555); // Chip-Erase
+
+            // 等待擦除完成
+            let erased = false;
+            while (!erased) {
+              const result = await ram_read(this.device, 1, 0x0000);
+              this.log(this.t('messages.gba.eraseStatus', { status: result[0].toString(16) }));
+              if (result[0] === 0xff) {
+                this.log(this.t('messages.gba.eraseComplete'));
+                this.updateProgress(0, this.t('messages.progress.eraseCompleteReady'));
+                erased = true;
+              } else {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              }
+            }
           }
-        } else if (written === 0x10000) {
-          if (options.ramType === 'FLASH') {
-            await this.switchFlashBank(1);
-          } else {
-            await this.switchSRAMBank(1);
+
+          // 开始写入
+          const startTime = Date.now();
+          let maxSpeed = 0;
+          let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
+          while (written < total) {
+            // 切bank
+            if (written === 0x00000) {
+              if (options.ramType === 'FLASH') {
+                await this.switchFlashBank(0);
+              } else {
+                await this.switchSRAMBank(0);
+              }
+            } else if (written === 0x10000) {
+              if (options.ramType === 'FLASH') {
+                await this.switchFlashBank(1);
+              } else {
+                await this.switchSRAMBank(1);
+              }
+            }
+
+            const baseAddr = written & 0xffff;
+
+            // 分包
+            const remainingSize = total - written;
+            const chunkSize = Math.min(pageSize, remainingSize);
+            const chunk = fileData.slice(written, written + chunkSize);
+
+            // 根据RAM类型选择写入方法
+            if (options.ramType === 'FLASH') {
+              await ram_write_to_flash(this.device, chunk, baseAddr);
+            } else {
+              await ram_write(this.device, chunk, baseAddr);
+            }
+
+            written += chunkSize;
+            const progress = Math.floor((written / total) * 100);
+            const elapsed = (Date.now() - startTime) / 1000;
+            const currentSpeed = elapsed > 0 ? (written / 1024) / elapsed : 0;
+            maxSpeed = Math.max(maxSpeed, currentSpeed);
+            this.updateProgress(progress, this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }));
+
+            // 每2个百分比记录一次日志
+            if (progress % 2 === 0 && progress !== lastLoggedProgress) {
+              this.log(this.t('messages.ram.writingAt', { address: written.toString(16).padStart(6, '0'), progress }));
+              lastLoggedProgress = progress;
+            }
           }
+
+          const totalTime = (Date.now() - startTime) / 1000;
+          const avgSpeed = totalTime > 0 ? (total / 1024) / totalTime : 0;
+
+          this.log(this.t('messages.ram.writeComplete'));
+          this.log(this.t('messages.ram.writeSummary', {
+            totalTime: totalTime.toFixed(1),
+            avgSpeed: avgSpeed.toFixed(1),
+            maxSpeed: maxSpeed.toFixed(1),
+            totalSize: (total / 1024).toFixed(1)
+          }));
+
+          return {
+            success: true,
+            message: this.t('messages.ram.writeSuccess')
+          };
+        } catch (e) {
+          this.log(`${this.t('messages.ram.writeFailed')}: ${e}`);
+          return {
+            success: false,
+            message: this.t('messages.ram.writeFailed')
+          };
         }
-
-        const baseAddr = written & 0xffff;
-
-        // 分包
-        const remainingSize = total - written;
-        const chunkSize = Math.min(pageSize, remainingSize);
-        const chunk = fileData.slice(written, written + chunkSize);
-
-        // 根据RAM类型选择写入方法
-        if (options.ramType === 'FLASH') {
-          await ram_write_to_flash(this.device, chunk, baseAddr);
-        } else {
-          await ram_write(this.device, chunk, baseAddr);
-        }
-
-        written += chunkSize;
-        const progress = Math.floor((written / total) * 100);
-        const elapsed = (Date.now() - startTime) / 1000;
-        const currentSpeed = elapsed > 0 ? (written / 1024) / elapsed : 0;
-        maxSpeed = Math.max(maxSpeed, currentSpeed);
-        this.updateProgress(progress, this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }));
-
-        // 每2个百分比记录一次日志
-        if (progress % 2 === 0 && progress !== lastLoggedProgress) {
-          this.log(this.t('messages.ram.writingAt', { address: written.toString(16).padStart(6, '0'), progress }));
-          lastLoggedProgress = progress;
-        }
+      },
+      {
+        adapter_type: 'gba',
+        operation_type: 'write_ram',
+        ram_type: options.ramType || 'SRAM',
+      },
+      {
+        fileSize: fileData.length,
+        devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
       }
-
-      const totalTime = (Date.now() - startTime) / 1000;
-      const avgSpeed = totalTime > 0 ? (total / 1024) / totalTime : 0;
-
-      this.log(this.t('messages.ram.writeComplete'));
-      this.log(this.t('messages.ram.writeSummary', {
-        totalTime: totalTime.toFixed(1),
-        avgSpeed: avgSpeed.toFixed(1),
-        maxSpeed: maxSpeed.toFixed(1),
-        totalSize: (total / 1024).toFixed(1)
-      }));
-
-      return {
-        success: true,
-        message: this.t('messages.ram.writeSuccess')
-      };
-    } catch (e) {
-      this.log(`${this.t('messages.ram.writeFailed')}: ${e}`);
-      return {
-        success: false,
-        message: this.t('messages.ram.writeFailed')
-      };
-    }
+    );
   }
 
   /**
@@ -505,72 +584,86 @@ export class GBAAdapter extends CartridgeAdapter {
    * @returns - 操作结果，包含读取的数据
    */
   async readRAM(size = 0x8000, options: CommandOptions = {ramType: 'SRAM'}) {
-    try {
-      this.log(this.t('messages.ram.reading'));
+    return PerformanceTracker.trackAsyncOperation(
+      'gba.readRAM',
+      async () => {
+        try {
+          this.log(this.t('messages.ram.reading'));
 
-      const result = new Uint8Array(size);
-      let read = 0;
-      const pageSize = AdvancedSettings.ramPageSize;
-      const startTime = Date.now();
-      let maxSpeed = 0;
+          const result = new Uint8Array(size);
+          let read = 0;
+          const pageSize = AdvancedSettings.ramPageSize;
+          const startTime = Date.now();
+          let maxSpeed = 0;
 
-      while (read < size) {
-        // 切bank
-        if (read === 0x00000) {
-          if (options.ramType === 'FLASH') {
-            await this.switchFlashBank(0);
-          } else {
-            await this.switchSRAMBank(0);
+          while (read < size) {
+            // 切bank
+            if (read === 0x00000) {
+              if (options.ramType === 'FLASH') {
+                await this.switchFlashBank(0);
+              } else {
+                await this.switchSRAMBank(0);
+              }
+            } else if (read === 0x10000) {
+              if (options.ramType === 'FLASH') {
+                await this.switchFlashBank(1);
+              } else {
+                await this.switchSRAMBank(1);
+              }
+            }
+
+            const baseAddr = read & 0xffff;
+
+            // 分包
+            const remainingSize = size - read;
+            const chunkSize = Math.min(pageSize, remainingSize);
+
+            // 读取数据
+            const chunk = await ram_read(this.device, chunkSize, baseAddr);
+            result.set(chunk, read);
+
+            read += chunkSize;
+            const progress = Math.floor((read / size) * 100);
+            const elapsed = (Date.now() - startTime) / 1000;
+            const currentSpeed = elapsed > 0 ? (read / 1024) / elapsed : 0;
+            maxSpeed = Math.max(maxSpeed, currentSpeed);
+            this.updateProgress(progress, this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }));
           }
-        } else if (read === 0x10000) {
-          if (options.ramType === 'FLASH') {
-            await this.switchFlashBank(1);
-          } else {
-            await this.switchSRAMBank(1);
-          }
+
+          const totalTime = (Date.now() - startTime) / 1000;
+          const avgSpeed = totalTime > 0 ? (size / 1024) / totalTime : 0;
+
+          this.log(this.t('messages.ram.readSuccess', { size: result.length }));
+          this.log(this.t('messages.ram.readSummary', {
+            totalTime: totalTime.toFixed(1),
+            avgSpeed: avgSpeed.toFixed(1),
+            maxSpeed: maxSpeed.toFixed(1),
+            totalSize: (size / 1024).toFixed(1)
+          }));
+
+          return {
+            success: true,
+            data: result,
+            message: this.t('messages.ram.readSuccess', { size: result.length })
+          };
+        } catch (e) {
+          this.log(`${this.t('messages.ram.readFailed')}: ${e}`);
+          return {
+            success: false,
+            message: this.t('messages.ram.readFailed')
+          };
         }
-
-        const baseAddr = read & 0xffff;
-
-        // 分包
-        const remainingSize = size - read;
-        const chunkSize = Math.min(pageSize, remainingSize);
-
-        // 读取数据
-        const chunk = await ram_read(this.device, chunkSize, baseAddr);
-        result.set(chunk, read);
-
-        read += chunkSize;
-        const progress = Math.floor((read / size) * 100);
-        const elapsed = (Date.now() - startTime) / 1000;
-        const currentSpeed = elapsed > 0 ? (read / 1024) / elapsed : 0;
-        maxSpeed = Math.max(maxSpeed, currentSpeed);
-        this.updateProgress(progress, this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }));
+      },
+      {
+        adapter_type: 'gba',
+        operation_type: 'read_ram',
+        ram_type: options.ramType || 'SRAM',
+      },
+      {
+        dataSize: size,
+        devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
       }
-
-      const totalTime = (Date.now() - startTime) / 1000;
-      const avgSpeed = totalTime > 0 ? (size / 1024) / totalTime : 0;
-
-      this.log(this.t('messages.ram.readSuccess', { size: result.length }));
-      this.log(this.t('messages.ram.readSummary', {
-        totalTime: totalTime.toFixed(1),
-        avgSpeed: avgSpeed.toFixed(1),
-        maxSpeed: maxSpeed.toFixed(1),
-        totalSize: (size / 1024).toFixed(1)
-      }));
-
-      return {
-        success: true,
-        data: result,
-        message: this.t('messages.ram.readSuccess', { size: result.length })
-      };
-    } catch (e) {
-      this.log(`${this.t('messages.ram.readFailed')}: ${e}`);
-      return {
-        success: false,
-        message: this.t('messages.ram.readFailed')
-      };
-    }
+    );
   }
 
   /**
@@ -580,72 +673,86 @@ export class GBAAdapter extends CartridgeAdapter {
    * @returns - 操作结果
    */
   async verifyRAM(fileData: Uint8Array, options: CommandOptions = {ramType: 'SRAM'}) {
-    try {
-      this.log(this.t('messages.ram.verifying'));
+    return PerformanceTracker.trackAsyncOperation(
+      'gba.verifyRAM',
+      async () => {
+        try {
+          this.log(this.t('messages.ram.verifying'));
 
-      const total = fileData.length;
-      let verified = 0;
-      const pageSize = AdvancedSettings.ramPageSize;
-      let success = true;
-      const startTime = Date.now();
+          const total = fileData.length;
+          let verified = 0;
+          const pageSize = AdvancedSettings.ramPageSize;
+          let success = true;
+          const startTime = Date.now();
 
-      while (verified < total) {
-        // 切bank
-        if (verified === 0x00000) {
-          if (options.ramType === 'FLASH') {
-            await this.switchFlashBank(0);
-          } else {
-            await this.switchSRAMBank(0);
+          while (verified < total) {
+            // 切bank
+            if (verified === 0x00000) {
+              if (options.ramType === 'FLASH') {
+                await this.switchFlashBank(0);
+              } else {
+                await this.switchSRAMBank(0);
+              }
+            } else if (verified === 0x10000) {
+              if (options.ramType === 'FLASH') {
+                await this.switchFlashBank(1);
+              } else {
+                await this.switchSRAMBank(1);
+              }
+            }
+
+            const baseAddr = verified & 0xffff;
+
+            // 分包
+            const remainingSize = total - verified;
+            const chunkSize = Math.min(pageSize, remainingSize);
+
+            // 读取数据进行比较
+            const readData = await ram_read(this.device, chunkSize, baseAddr);
+
+            // 校验数据
+            for (let i = 0; i < chunkSize; i++) {
+              if (fileData[verified + i] !== readData[i]) {
+                this.log(this.t('messages.ram.verifyFailedDetail', {
+                  address: (verified + i).toString(16),
+                  expected: fileData[verified + i].toString(16),
+                  actual: readData[i].toString(16)
+                }));
+                success = false;
+              }
+            }
+
+            verified += chunkSize;
+            const progress = Math.floor((verified / total) * 100);
+            const elapsed = (Date.now() - startTime) / 1000;
+            const speed = elapsed > 0 ? ((verified / 1024) / elapsed).toFixed(1) : '0';
+            this.updateProgress(progress, this.t('messages.progress.verifySpeed', { speed }));
           }
-        } else if (verified === 0x10000) {
-          if (options.ramType === 'FLASH') {
-            await this.switchFlashBank(1);
-          } else {
-            await this.switchSRAMBank(1);
-          }
+
+          const message = success ? this.t('messages.ram.verifySuccess') : this.t('messages.ram.verifyFailed');
+          this.log(`${this.t('messages.ram.verify')}: ${message}`);
+          return {
+            success: success,
+            message: message
+          };
+        } catch (e) {
+          this.log(`${this.t('messages.ram.verifyFailed')}: ${e}`);
+          return {
+            success: false,
+            message: this.t('messages.ram.verifyFailed')
+          };
         }
-
-        const baseAddr = verified & 0xffff;
-
-        // 分包
-        const remainingSize = total - verified;
-        const chunkSize = Math.min(pageSize, remainingSize);
-
-        // 读取数据进行比较
-        const readData = await ram_read(this.device, chunkSize, baseAddr);
-
-        // 校验数据
-        for (let i = 0; i < chunkSize; i++) {
-          if (fileData[verified + i] !== readData[i]) {
-            this.log(this.t('messages.ram.verifyFailedDetail', {
-              address: (verified + i).toString(16),
-              expected: fileData[verified + i].toString(16),
-              actual: readData[i].toString(16)
-            }));
-            success = false;
-          }
-        }
-
-        verified += chunkSize;
-        const progress = Math.floor((verified / total) * 100);
-        const elapsed = (Date.now() - startTime) / 1000;
-        const speed = elapsed > 0 ? ((verified / 1024) / elapsed).toFixed(1) : '0';
-        this.updateProgress(progress, this.t('messages.progress.verifySpeed', { speed }));
+      },
+      {
+        adapter_type: 'gba',
+        operation_type: 'verify_ram',
+        ram_type: options.ramType || 'SRAM',
+      },
+      {
+        fileSize: fileData.length,
+        devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
       }
-
-      const message = success ? this.t('messages.ram.verifySuccess') : this.t('messages.ram.verifyFailed');
-      this.log(`${this.t('messages.ram.verify')}: ${message}`);
-      return {
-        success: success,
-        message: message
-      };
-    } catch (e) {
-      this.log(`${this.t('messages.ram.verifyFailed')}: ${e}`);
-      return {
-        success: false,
-        message: this.t('messages.ram.verifyFailed')
-      };
-    }
+    );
   }
 
   // 检查区域是否为空

@@ -1,5 +1,6 @@
 
 import { AdvancedSettings } from '@/utils/AdvancedSettings.ts';
+import { PerformanceTracker } from './sentry';
 
 // CRC16 (Modbus)
 export function modbusCRC16(bytes: Uint8Array): number {
@@ -135,57 +136,92 @@ export function formatPackage(buf: Uint8Array): void {
 }
 
 export async function sendPackage(writer: WritableStreamDefaultWriter<Uint8Array>, payload: Uint8Array, timeoutMs?: number): Promise<boolean> {
-  const timeout = timeoutMs ?? AdvancedSettings.packageSendTimeout;
-  const buf = buildPackage(payload);
-  formatPackage(buf);
+  return PerformanceTracker.trackAsyncOperation(
+    'protocol.sendPackage',
+    async () => {
+      const timeout = timeoutMs ?? AdvancedSettings.packageSendTimeout;
+      const buf = buildPackage(payload);
+      formatPackage(buf);
 
-  await withTimeout(
-    writer.write(buf),
-    timeout,
-    `发送数据包超时 (${timeout}ms)`
+      await withTimeout(
+        writer.write(buf),
+        timeout,
+        `发送数据包超时 (${timeout}ms)`
+      );
+      return true;
+    },
+    {
+      operation_type: 'send',
+      timeout: String(timeoutMs ?? AdvancedSettings.packageSendTimeout),
+    },
+    {
+      payloadSize: payload.length,
+      packageSize: payload.length + 4, // 2 bytes size + 2 bytes CRC
+    }
   );
-  return true;
 }
 
 export async function getPackage(reader: ReadableStreamDefaultReader<Uint8Array>, length: number = 64, timeoutMs?: number): Promise<{ data: Uint8Array }> {
-  const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
-  const chunks: Uint8Array[] = [];
-  let totalLength = 0;
+  return PerformanceTracker.trackAsyncOperation(
+    'protocol.getPackage',
+    async () => {
+      const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
+      const chunks: Uint8Array[] = [];
+      let totalLength = 0;
 
-  const readTimeout = withTimeout(
-    (async () => {
-      while (totalLength < length) {
-        const { value, done } = await reader.read();
-        if (done) {
-          break;
-        }
-        if (value) {
-          chunks.push(value);
-          totalLength += value.length;
-        }
+      const readTimeout = withTimeout(
+        (async () => {
+          while (totalLength < length) {
+            const { value, done } = await reader.read();
+            if (done) {
+              break;
+            }
+            if (value) {
+              chunks.push(value);
+              totalLength += value.length;
+            }
+          }
+        })(),
+        timeout,
+        `接收数据包超时 (${timeout}ms)`
+      );
+
+      await readTimeout;
+
+      // 合并所有数据块
+      const result = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        result.set(chunk, offset);
+        offset += chunk.length;
       }
-    })(),
-    timeout,
-    `接收数据包超时 (${timeout}ms)`
+
+      return { data: result.slice(0, length) };
+    },
+    {
+      operation_type: 'receive',
+      timeout: String(timeoutMs ?? AdvancedSettings.packageReceiveTimeout),
+    },
+    {
+      expectedLength: length,
+      actualLength: 0, // Will be updated in transaction data
+    }
   );
-
-  await readTimeout;
-
-  // 合并所有数据块
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    result.set(chunk, offset);
-    offset += chunk.length;
-  }
-
-  return { data: result.slice(0, length) };
 }
 
 export async function getResult(reader: ReadableStreamDefaultReader<Uint8Array>, timeoutMs?: number): Promise<boolean> {
-  const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
-  const result = await getPackage(reader, 1, timeout);
-  return result.data?.length > 0 && result.data[0] === 0xaa;
+  return PerformanceTracker.trackAsyncOperation(
+    'protocol.getResult',
+    async () => {
+      const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
+      const result = await getPackage(reader, 1, timeout);
+      return result.data?.length > 0 && result.data[0] === 0xaa;
+    },
+    {
+      operation_type: 'receive_result',
+      timeout: String(timeoutMs ?? AdvancedSettings.packageReceiveTimeout),
+    }
+  );
 }
 
 export function getFlashId(id: number[]) : string | null {

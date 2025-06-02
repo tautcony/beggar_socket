@@ -16,6 +16,8 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
+    "@sentry/tracing": "^7.120.3",
+    "@sentry/vue": "^9.24.0",
     "vue": "^3.5.16",
     "vue-i18n": "^11.1.5",
     "web-serial-polyfill": "^1.0.15"
