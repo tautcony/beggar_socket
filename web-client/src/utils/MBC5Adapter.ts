@@ -1,6 +1,6 @@
 import { gbc_direct_write, gbc_read, gbc_rom_program } from '@/utils/Protocol.ts';
 import { DeviceInfo } from '@/types/DeviceInfo.ts';
-import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/utils/CartridgeAdapter.ts';
+import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction, EnhancedProgressCallback } from '@/utils/CartridgeAdapter.ts';
 import { CommandResult } from '@/types/CommandResult.ts';
 import { CommandOptions } from '@/types/CommandOptions.ts';
 import { PerformanceTracker } from './sentry';
@@ -17,14 +17,16 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param logCallback - 日志回调函数
    * @param progressCallback - 进度回调函数
    * @param translateFunc - 国际化翻译函数
+   * @param enhancedProgressCallback - 增强进度回调函数
    */
   constructor(
     device: DeviceInfo,
     logCallback: LogCallback | null = null,
     progressCallback: ProgressCallback | null = null,
-    translateFunc: TranslateFunction | null = null
+    translateFunc: TranslateFunction | null = null,
+    enhancedProgressCallback: EnhancedProgressCallback | null = null
   ) {
-    super(device, logCallback, progressCallback, translateFunc);
+    super(device, logCallback, progressCallback, translateFunc, enhancedProgressCallback);
     this.idStr = '';
   }
 

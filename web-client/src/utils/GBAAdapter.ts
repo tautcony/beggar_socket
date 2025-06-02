@@ -13,7 +13,7 @@ import {
 } from '@/utils/Protocol.ts';
 import { AdvancedSettings } from '@/utils/AdvancedSettings.ts';
 import { DeviceInfo } from '@/types/DeviceInfo.ts';
-import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/utils/CartridgeAdapter.ts';
+import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction, EnhancedProgressCallback } from '@/utils/CartridgeAdapter.ts';
 import { CommandResult } from '@/types/CommandResult.ts';
 import { CommandOptions } from '@/types/CommandOptions.ts';
 import { getFlashId } from '@/utils/ProtocolUtils';
@@ -31,14 +31,16 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param logCallback - 日志回调函数
    * @param progressCallback - 进度回调函数
    * @param translateFunc - 国际化翻译函数
+   * @param enhancedProgressCallback - 增强进度回调函数
    */
   constructor(
     device: DeviceInfo,
     logCallback: LogCallback | null = null,
     progressCallback: ProgressCallback | null = null,
-    translateFunc: TranslateFunction | null = null
+    translateFunc: TranslateFunction | null = null,
+    enhancedProgressCallback: EnhancedProgressCallback | null = null
   ) {
-    super(device, logCallback, progressCallback, translateFunc);
+    super(device, logCallback, progressCallback, translateFunc, enhancedProgressCallback);
     this.idStr = '';
   }
 
@@ -215,7 +217,18 @@ export class GBAAdapter extends CartridgeAdapter {
             const elapsed = (Date.now() - startTime) / 1000;
             const currentSpeed = elapsed > 0 ? (written / 1024) / elapsed : 0;
             maxSpeed = Math.max(maxSpeed, currentSpeed);
-            this.updateProgress(progress, this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }));
+
+            // 使用增强的进度回调
+            this.sendEnhancedProgress(this.createProgressInfo(
+              progress,
+              this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }),
+              total,
+              written,
+              startTime,
+              currentSpeed,
+              true
+            ));
+
             updateProgress(progress);
 
             // 每2个百分比记录一次日志

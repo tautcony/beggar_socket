@@ -121,6 +121,15 @@
       }
     },
     "progress": {
+      "title": "传输进度",
+      "transferred": "已传输",
+      "remaining": "剩余",
+      "speed": "传输速度",
+      "elapsed": "已用时间",
+      "remaining_time": "剩余时间",
+      "total_size": "总大小",
+      "stop": "停止",
+      "completed": "已完成，可点击空白处关闭",
       "writing": "{written} / {total} 字节",
       "complete": "完成",
       "percent": "{percent}%"
@@ -149,6 +158,7 @@
       "readFailed": "读取失败",
       "verifySuccess": "校验成功",
       "verifyFailed": "校验失败",
+      "cancelled": "操作已取消",
       "unsupportedMode": "未支持的模式或适配器未初始化",
       "unknownFlashId": "ID暂未收录，可能无法写入",
       "eraseComplete": "擦除完成",

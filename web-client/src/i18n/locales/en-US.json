@@ -121,6 +121,15 @@
       }
     },
     "progress": {
+      "title": "Transfer Progress",
+      "transferred": "Transferred",
+      "remaining": "Remaining",
+      "speed": "Transfer Speed",
+      "elapsed": "Elapsed Time",
+      "remaining_time": "Remaining Time",
+      "total_size": "Total Size",
+      "stop": "Stop",
+      "completed": "Completed, click outside to close",
       "writing": "{written} / {total} bytes",
       "complete": "Complete",
       "percent": "{percent}%"
@@ -149,6 +158,7 @@
       "readFailed": "Read failed",
       "verifySuccess": "Verify successful",
       "verifyFailed": "Verify failed",
+      "cancelled": "Operation cancelled",
       "unsupportedMode": "Mode not supported or adapter uninitialized",
       "unknownFlashId": "ID not recognized, may not be able to write",
       "eraseComplete": "Erase complete",

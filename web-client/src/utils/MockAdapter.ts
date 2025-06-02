@@ -1,4 +1,4 @@
-import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from './CartridgeAdapter';
+import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction, EnhancedProgressCallback } from './CartridgeAdapter';
 import { CommandResult } from '@/types/CommandResult';
 import { CommandOptions } from '@/types/CommandOptions';
 import { DebugConfig } from './DebugConfig';
@@ -14,11 +14,12 @@ export class MockAdapter extends CartridgeAdapter {
   constructor(
     logCallback: LogCallback | null = null,
     progressCallback: ProgressCallback | null = null,
-    translateFunc: TranslateFunction | null = null
+    translateFunc: TranslateFunction | null = null,
+    enhancedProgressCallback: EnhancedProgressCallback | null = null
   ) {
     // 创建模拟设备
     const mockDeviceInfo = DebugConfig.createMockDeviceInfo();
-    super(mockDeviceInfo, logCallback, progressCallback, translateFunc);
+    super(mockDeviceInfo, logCallback, progressCallback, translateFunc, enhancedProgressCallback);
 
     this.log(this.t('messages.debug.mockModeEnabled') || '调试模式已启用 - 使用模拟设备');
   }
@@ -61,8 +62,17 @@ export class MockAdapter extends CartridgeAdapter {
     await DebugConfig.simulateProgress(
       (progress) => {
         const elapsed = (Date.now() - startTime) / 1000;
-        const speed = elapsed > 0 ? (progress / 100 * 10 / elapsed).toFixed(1) : '0'; // 假设总共10个扇区
-        this.updateProgress(progress, `擦除速度: ${speed} 扇区/秒`);
+        const erasedSectors = Math.floor(10 * progress / 100); // 假设10个扇区
+        const speed = elapsed > 0 ? (erasedSectors / elapsed) : 0;
+        this.sendEnhancedProgress(this.createProgressInfo(
+          progress,
+          this.t('messages.progress.eraseSpeed', { speed: speed.toFixed(1) }),
+          10,
+          erasedSectors,
+          startTime,
+          speed,
+          true
+        ));
       },
       2000
     );
@@ -98,8 +108,18 @@ export class MockAdapter extends CartridgeAdapter {
       (progress) => {
         const elapsed = (Date.now() - startTime) / 1000;
         const writtenBytes = Math.floor(data.length * progress / 100);
-        const speed = elapsed > 0 ? ((writtenBytes / 1024) / elapsed).toFixed(1) : '0';
-        this.updateProgress(progress, `写入速度: ${speed} KB/s`);
+        const speed = elapsed > 0 ? (writtenBytes / 1024) / elapsed : 0;
+
+        // 使用增强的进度回调
+        this.sendEnhancedProgress(this.createProgressInfo(
+          progress,
+          this.t('messages.progress.writeSpeed', { speed: speed.toFixed(1) }),
+          data.length,
+          writtenBytes,
+          startTime,
+          speed,
+          true
+        ));
       },
       3000
     );
@@ -134,8 +154,16 @@ export class MockAdapter extends CartridgeAdapter {
       (progress) => {
         const elapsed = (Date.now() - startTime) / 1000;
         const readBytes = Math.floor(size * progress / 100);
-        const speed = elapsed > 0 ? ((readBytes / 1024) / elapsed).toFixed(1) : '0';
-        this.updateProgress(progress, `读取速度: ${speed} KB/s`);
+        const speed = elapsed > 0 ? (readBytes / 1024) / elapsed : 0;
+        this.sendEnhancedProgress(this.createProgressInfo(
+          progress,
+          this.t('messages.progress.readSpeed', { speed: speed.toFixed(1) }),
+          size,
+          readBytes,
+          startTime,
+          speed,
+          true
+        ));
       },
       2500
     );
@@ -171,8 +199,16 @@ export class MockAdapter extends CartridgeAdapter {
       (progress) => {
         const elapsed = (Date.now() - startTime) / 1000;
         const verifiedBytes = Math.floor(data.length * progress / 100);
-        const speed = elapsed > 0 ? ((verifiedBytes / 1024) / elapsed).toFixed(1) : '0';
-        this.updateProgress(progress, `校验速度: ${speed} KB/s`);
+        const speed = elapsed > 0 ? (verifiedBytes / 1024) / elapsed : 0;
+        this.sendEnhancedProgress(this.createProgressInfo(
+          progress,
+          this.t('messages.progress.verifySpeed', { speed: speed.toFixed(1) }),
+          data.length,
+          verifiedBytes,
+          startTime,
+          speed,
+          true
+        ));
       },
       2000
     );
@@ -188,11 +224,10 @@ export class MockAdapter extends CartridgeAdapter {
     // 模拟校验结果
     const isMatch = this.mockRomData && this.compareData(data, this.mockRomData);
     const message = isMatch !== false ? this.t('messages.rom.verifySuccess') : this.t('messages.rom.verifyFailed');
-
-    this.log(`${this.t('messages.rom.verify')}: ${message}`);
+    this.log(message);
     return {
       success: isMatch !== false,
-      message: message
+      message
     };
   }
 
@@ -208,10 +243,18 @@ export class MockAdapter extends CartridgeAdapter {
       (progress) => {
         const elapsed = (Date.now() - startTime) / 1000;
         const writtenBytes = Math.floor(data.length * progress / 100);
-        const speed = elapsed > 0 ? ((writtenBytes / 1024) / elapsed).toFixed(1) : '0';
-        this.updateProgress(progress, `写入速度: ${speed} KB/s`);
+        const speed = elapsed > 0 ? (writtenBytes / 1024) / elapsed : 0;
+        this.sendEnhancedProgress(this.createProgressInfo(
+          progress,
+          this.t('messages.progress.writeSpeed', { speed: speed.toFixed(1) }),
+          data.length,
+          writtenBytes,
+          startTime,
+          speed,
+          true
+        ));
       },
-      1500
+      2000
     );
 
     if (DebugConfig.shouldSimulateError()) {
@@ -222,9 +265,7 @@ export class MockAdapter extends CartridgeAdapter {
       };
     }
 
-    // 保存模拟数据
     this.mockRamData = new Uint8Array(data);
-
     this.log(this.t('messages.ram.writeComplete'));
     return {
       success: true,
@@ -235,7 +276,7 @@ export class MockAdapter extends CartridgeAdapter {
   /**
    * 模拟读取RAM
    */
-  async readRAM(size: number): Promise<CommandResult & { data?: Uint8Array }> {
+  async readRAM(size: number, options?: CommandOptions): Promise<CommandResult & { data?: Uint8Array }> {
     this.log(this.t('messages.ram.reading'));
 
     // 模拟进度
@@ -244,10 +285,18 @@ export class MockAdapter extends CartridgeAdapter {
       (progress) => {
         const elapsed = (Date.now() - startTime) / 1000;
         const readBytes = Math.floor(size * progress / 100);
-        const speed = elapsed > 0 ? ((readBytes / 1024) / elapsed).toFixed(1) : '0';
-        this.updateProgress(progress, `读取速度: ${speed} KB/s`);
+        const speed = elapsed > 0 ? (readBytes / 1024) / elapsed : 0;
+        this.sendEnhancedProgress(this.createProgressInfo(
+          progress,
+          this.t('messages.progress.readSpeed', { speed: speed.toFixed(1) }),
+          size,
+          readBytes,
+          startTime,
+          speed,
+          true
+        ));
       },
-      1000
+      2000
     );
 
     if (DebugConfig.shouldSimulateError()) {
@@ -258,9 +307,7 @@ export class MockAdapter extends CartridgeAdapter {
       };
     }
 
-    // 返回之前写入的数据或生成随机数据
     const data = this.mockRamData?.slice(0, size) || DebugConfig.generateRandomData(size);
-
     this.log(this.t('messages.ram.readSuccess', { size: data.length }));
     return {
       success: true,
@@ -281,8 +328,16 @@ export class MockAdapter extends CartridgeAdapter {
       (progress) => {
         const elapsed = (Date.now() - startTime) / 1000;
         const verifiedBytes = Math.floor(data.length * progress / 100);
-        const speed = elapsed > 0 ? ((verifiedBytes / 1024) / elapsed).toFixed(1) : '0';
-        this.updateProgress(progress, `校验速度: ${speed} KB/s`);
+        const speed = elapsed > 0 ? (verifiedBytes / 1024) / elapsed : 0;
+        this.sendEnhancedProgress(this.createProgressInfo(
+          progress,
+          this.t('messages.progress.verifySpeed', { speed: speed.toFixed(1) }),
+          data.length,
+          verifiedBytes,
+          startTime,
+          speed,
+          true
+        ));
       },
       1500
     );

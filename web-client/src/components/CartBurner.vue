@@ -1,5 +1,18 @@
 <template>
   <div class="flashburner-container">
+    <ProgressDisplay
+      v-if="currentProgress !== null && currentProgress !== undefined"
+      key="progress"
+      :progress="currentProgress"
+      :detail="currentProgressDetail"
+      :total-bytes="currentTotalBytes"
+      :transferred-bytes="currentTransferredBytes"
+      :start-time="currentStartTime"
+      :current-speed="currentSpeed"
+      :allow-cancel="false"
+      @stop="handleProgressStop"
+      @close="resetProgress"
+    />
     <div class="mode-tabs-card">
       <button
         :class="{ active: mode === 'GBA' }"
@@ -39,13 +52,6 @@
             :id-str="idStr"
             @read-id="readID"
             @erase-chip="eraseChip"
-          />
-          <!-- 共用进度条 -->
-          <ProgressDisplay
-            v-if="currentProgress !== null && currentProgress !== undefined"
-            key="progress"
-            :progress="currentProgress"
-            :detail="currentProgressDetail"
           />
 
           <RomOperations
@@ -101,7 +107,7 @@ import RomOperations from '@/components/operaiton/RomOperations.vue'
 import RamOperations from '@/components/operaiton/RamOperations.vue'
 import LogViewer from '@/components/common/LogViewer.vue'
 import ProgressDisplay from '@/components/common/ProgressDisplay.vue'
-import CartridgeAdapter from '@/utils/CartridgeAdapter'
+import CartridgeAdapter, { type EnhancedProgressCallback, type ProgressInfo } from '@/utils/CartridgeAdapter'
 import { GBAAdapter } from '@/utils/GBAAdapter.ts'
 import { MBC5Adapter } from '@/utils/MBC5Adapter.ts'
 import { MockAdapter } from '@/utils/MockAdapter.ts'
@@ -122,6 +128,11 @@ const result = ref('')
 const idStr = ref('')
 const operateProgress = ref<number | null>(null)
 const operateProgressDetail = ref<string | undefined>('')
+const operateTotalBytes = ref<number | undefined>(undefined)
+const operateTransferredBytes = ref<number | undefined>(undefined)
+const operateStartTime = ref<number | undefined>(undefined)
+const operateCurrentSpeed = ref<number | undefined>(undefined)
+const operateAllowCancel = ref<boolean>(true)
 const logs = ref<string[]>([])
 
 // Adapter
@@ -148,6 +159,26 @@ const currentProgressDetail = computed(() => {
   return operateProgressDetail.value || undefined
 })
 
+const currentTotalBytes = computed(() => {
+  return operateTotalBytes.value
+})
+
+const currentTransferredBytes = computed(() => {
+  return operateTransferredBytes.value
+})
+
+const currentStartTime = computed(() => {
+  return operateStartTime.value
+})
+
+const currentSpeed = computed(() => {
+  return operateCurrentSpeed.value
+})
+
+const currentAllowCancel = computed(() => {
+  return operateAllowCancel.value
+})
+
 // 设备连接状态改变时，初始化适配器
 watch(() => props.deviceReady, (newVal) => {
   if (newVal && props.device) {
@@ -156,7 +187,8 @@ watch(() => props.deviceReady, (newVal) => {
       const adapter = new MockAdapter(
         (msg) => log(msg),
         (progress, detail) => updateProgress(progress, detail),
-        t
+        t,
+        updateEnhancedProgress
       )
       gbaAdapter.value = adapter
       mbc5Adapter.value = adapter
@@ -166,13 +198,15 @@ watch(() => props.deviceReady, (newVal) => {
         props.device,
         (msg) => log(msg),
         (progress, detail) => updateProgress(progress, detail),
-        t
+        t,
+        updateEnhancedProgress
       )
       mbc5Adapter.value = new MBC5Adapter(
         props.device,
         (msg) => log(msg),
         (progress, detail) => updateProgress(progress, detail),
-        t
+        t,
+        updateEnhancedProgress
       )
     }
   } else {
@@ -181,9 +215,58 @@ watch(() => props.deviceReady, (newVal) => {
   }
 })
 
-function updateProgress(progress: number, detail: string | undefined) {
+function updateProgress(progress: number, detail: string | undefined, options?: {
+  totalBytes?: number
+  transferredBytes?: number
+  startTime?: number
+  currentSpeed?: number
+  allowCancel?: boolean
+}) {
   operateProgress.value = progress
   operateProgressDetail.value = detail
+  
+  if (options) {
+    if (options.totalBytes !== undefined) {
+      operateTotalBytes.value = options.totalBytes
+    }
+    if (options.transferredBytes !== undefined) {
+      operateTransferredBytes.value = options.transferredBytes
+    }
+    if (options.startTime !== undefined) {
+      operateStartTime.value = options.startTime
+    }
+    if (options.currentSpeed !== undefined) {
+      operateCurrentSpeed.value = options.currentSpeed
+    }
+    if (options.allowCancel !== undefined) {
+      operateAllowCancel.value = options.allowCancel
+    }
+  }
+}
+
+function updateEnhancedProgress(progressInfo: ProgressInfo) {
+  operateProgress.value = progressInfo.progress
+  operateProgressDetail.value = progressInfo.detail
+  operateTotalBytes.value = progressInfo.totalBytes
+  operateTransferredBytes.value = progressInfo.transferredBytes
+  operateStartTime.value = progressInfo.startTime
+  operateCurrentSpeed.value = progressInfo.currentSpeed
+  operateAllowCancel.value = progressInfo.allowCancel ?? true
+}
+
+function handleProgressStop() {
+  log(t('messages.operation.cancelled'))
+  // TODO: 实现停止功能 - 需要在适配器中实现取消逻辑
+}
+
+function resetProgress() {
+  operateProgress.value = null
+  operateProgressDetail.value = undefined
+  operateTotalBytes.value = undefined
+  operateTransferredBytes.value = undefined
+  operateStartTime.value = undefined
+  operateCurrentSpeed.value = undefined
+  operateAllowCancel.value = true
 }
 
 function log(msg: string) {
@@ -309,7 +392,7 @@ async function eraseChip() {
     log(`${t('messages.operation.eraseFailed')}: ${e instanceof Error ? e.message : String(e)}`)
   } finally {
     busy.value = false
-    setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
+    // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
@@ -333,7 +416,7 @@ async function writeRom() {
     log(`${t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`)
   } finally {
     busy.value = false
-    setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
+    // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
@@ -363,7 +446,7 @@ async function readRom() {
     log(`${t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`)
   } finally {
     busy.value = false
-    setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
+    // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
@@ -386,7 +469,7 @@ async function verifyRom() {
     log(`${t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`)
   } finally {
     busy.value = false
-    setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
+    // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
@@ -410,7 +493,7 @@ async function writeRam() {
     log(`${t('messages.ram.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`)
   } finally {
     busy.value = false
-    setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
+    // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
@@ -439,7 +522,7 @@ async function readRam() {
     log(`${t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`)
   } finally {
     busy.value = false
-    setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
+    // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
@@ -461,7 +544,7 @@ async function verifyRam() {
     log(`${t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`)
   } finally {
     busy.value = false
-    setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
+    // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 

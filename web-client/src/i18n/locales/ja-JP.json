@@ -121,6 +121,15 @@
       }
     },
     "progress": {
+      "title": "転送進行状況",
+      "transferred": "転送済み",
+      "remaining": "残り",
+      "speed": "転送速度",
+      "elapsed": "経過時間",
+      "remaining_time": "残り時間",
+      "total_size": "総サイズ",
+      "stop": "停止",
+      "completed": "完了しました。外側をクリックして閉じる",
       "writing": "{written} / {total} バイト",
       "complete": "完了",
       "percent": "{percent}%"
@@ -149,6 +158,7 @@
       "readFailed": "読み取り失敗",
       "verifySuccess": "検証成功",
       "verifyFailed": "検証失敗",
+      "cancelled": "操作がキャンセルされました",
       "unsupportedMode": "未サポートのモードまたはアダプターが初期化されていません",
       "unknownFlashId": "IDが未登録です、書き込みできない可能性があります",
       "eraseComplete": "消去完了",
