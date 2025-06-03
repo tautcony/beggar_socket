@@ -24,7 +24,7 @@ export class MBC5Adapter extends CartridgeAdapter {
     logCallback: LogCallback | null = null,
     progressCallback: ProgressCallback | null = null,
     translateFunc: TranslateFunction | null = null,
-    enhancedProgressCallback: EnhancedProgressCallback | null = null
+    enhancedProgressCallback: EnhancedProgressCallback | null = null,
   ) {
     super(device, logCallback, progressCallback, translateFunc, enhancedProgressCallback);
     this.idStr = '';
@@ -60,13 +60,13 @@ export class MBC5Adapter extends CartridgeAdapter {
           return {
             success: true,
             idStr: this.idStr,
-            message: this.t('messages.operation.readIdSuccess')
+            message: this.t('messages.operation.readIdSuccess'),
           };
         } catch (e) {
           this.log(`${this.t('messages.operation.readIdFailed')}: ${e}`);
           return {
             success: false,
-            message: this.t('messages.operation.readIdFailed')
+            message: this.t('messages.operation.readIdFailed'),
           };
         }
       },
@@ -76,7 +76,7 @@ export class MBC5Adapter extends CartridgeAdapter {
       },
       {
         devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
-      }
+      },
     );
   }
 
@@ -110,13 +110,13 @@ export class MBC5Adapter extends CartridgeAdapter {
           this.log(this.t('messages.operation.eraseSuccess'));
           return {
             success: true,
-            message: this.t('messages.operation.eraseSuccess')
+            message: this.t('messages.operation.eraseSuccess'),
           };
         } catch (e) {
           this.log(this.t('messages.operation.eraseFailed'));
           return {
             success: false,
-            message: `${this.t('messages.operation.eraseFailed')}: ${e}`
+            message: `${this.t('messages.operation.eraseFailed')}: ${e}`,
           };
         }
       },
@@ -126,7 +126,7 @@ export class MBC5Adapter extends CartridgeAdapter {
       },
       {
         devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
-      }
+      },
     );
   }
 
@@ -192,14 +192,14 @@ export class MBC5Adapter extends CartridgeAdapter {
         deviceSize: deviceSize.toString(),
         sectorCount: sectorCount.toString(),
         sectorSize: sectorSize.toString(),
-        bufferWriteBytes: bufferWriteBytes.toString()
+        bufferWriteBytes: bufferWriteBytes.toString(),
       }));
 
       return {
         deviceSize,
         sectorCount,
         sectorSize,
-        bufferWriteBytes
+        bufferWriteBytes,
       };
     } catch (error) {
       this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${error}`);
@@ -220,7 +220,7 @@ export class MBC5Adapter extends CartridgeAdapter {
 
     this.log(this.t('messages.operation.eraseSector', {
       from: addrFrom.toString(16).toUpperCase().padStart(8, '0'),
-      to: addrTo.toString(16).toUpperCase().padStart(8, '0')
+      to: addrTo.toString(16).toUpperCase().padStart(8, '0'),
     }));
 
     try {
@@ -265,13 +265,13 @@ export class MBC5Adapter extends CartridgeAdapter {
 
       return {
         success: true,
-        message: this.t('messages.operation.eraseSuccess')
+        message: this.t('messages.operation.eraseSuccess'),
       };
     } catch (error) {
       this.log(this.t('messages.operation.eraseFailed'));
       return {
         success: false,
-        message: `${this.t('messages.operation.eraseFailed')}: ${error}`
+        message: `${this.t('messages.operation.eraseFailed')}: ${error}`,
       };
     }
   }
@@ -348,7 +348,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             totalTime: totalTime.toFixed(2),
             avgSpeed: avgSpeed.toFixed(1),
             maxSpeed: maxSpeed.toFixed(1),
-            totalSize: fileData.length
+            totalSize: fileData.length,
           }));
 
           const message = this.t('messages.rom.writeComplete', { time: totalTime.toFixed(3) });
@@ -356,14 +356,14 @@ export class MBC5Adapter extends CartridgeAdapter {
 
           return {
             success: true,
-            message: message
+            message: message,
           };
         } catch (error) {
           const message = `${this.t('messages.rom.writeFailed')}: ${error}`;
           this.log(message);
           return {
             success: false,
-            message: message
+            message: message,
           };
         }
       },
@@ -374,7 +374,7 @@ export class MBC5Adapter extends CartridgeAdapter {
       {
         fileSize: fileData.length,
         devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
-      }
+      },
     );
   }
 
@@ -434,7 +434,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             totalTime: totalTime.toFixed(2),
             avgSpeed: avgSpeed.toFixed(1),
             maxSpeed: maxSpeed.toFixed(1),
-            totalSize: size
+            totalSize: size,
           }));
 
           const message = this.t('messages.rom.readSuccess', { time: totalTime.toFixed(3) });
@@ -443,14 +443,14 @@ export class MBC5Adapter extends CartridgeAdapter {
           return {
             success: true,
             data: result,
-            message: message
+            message: message,
           };
         } catch (error) {
           const message = `${this.t('messages.rom.readFailed')}: ${error}`;
           this.log(message);
           return {
             success: false,
-            message: message
+            message: message,
           };
         }
       },
@@ -462,7 +462,7 @@ export class MBC5Adapter extends CartridgeAdapter {
         dataSize: size,
         baseAddress,
         devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
-      }
+      },
     );
   }
 
@@ -510,7 +510,7 @@ export class MBC5Adapter extends CartridgeAdapter {
                 const errorMessage = this.t('messages.rom.verifyFailed', {
                   address: errorAddr.toString(16).toUpperCase().padStart(8, '0'),
                   expected: fileData[readCount + i].toString(16).toUpperCase().padStart(2, '0'),
-                  actual: chunk[i].toString(16).toUpperCase().padStart(2, '0')
+                  actual: chunk[i].toString(16).toUpperCase().padStart(2, '0'),
                 });
                 this.log(errorMessage);
                 success = false;
@@ -531,14 +531,14 @@ export class MBC5Adapter extends CartridgeAdapter {
 
           return {
             success: success,
-            message: message
+            message: message,
           };
         } catch (error) {
           const message = `${this.t('messages.rom.verifyFailed')}: ${error}`;
           this.log(message);
           return {
             success: false,
-            message: message
+            message: message,
           };
         }
       },
@@ -550,7 +550,7 @@ export class MBC5Adapter extends CartridgeAdapter {
         fileSize: fileData.length,
         baseAddress,
         devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
-      }
+      },
     );
   }
 
@@ -613,7 +613,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             totalTime: totalTime.toFixed(2),
             avgSpeed: avgSpeed.toFixed(1),
             maxSpeed: maxSpeed.toFixed(1),
-            totalSize: fileData.length
+            totalSize: fileData.length,
           }));
 
           const message = this.t('messages.ram.writeComplete', { time: totalTime.toFixed(3) });
@@ -621,14 +621,14 @@ export class MBC5Adapter extends CartridgeAdapter {
 
           return {
             success: true,
-            message: message
+            message: message,
           };
         } catch (error) {
           const message = `${this.t('messages.ram.writeFailed')}: ${error}`;
           this.log(message);
           return {
             success: false,
-            message: message
+            message: message,
           };
         }
       },
@@ -639,7 +639,7 @@ export class MBC5Adapter extends CartridgeAdapter {
       {
         fileSize: fileData.length,
         devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
-      }
+      },
     );
   }
 
@@ -649,7 +649,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param options - 读取参数
    * @returns - 包含成功状态、数据和消息的对象
    */
-  async readRAM(size: number, options: CommandOptions = {baseAddress: 0}) : Promise<CommandResult> {
+  async readRAM(size: number, options: CommandOptions = { baseAddress: 0 }) : Promise<CommandResult> {
     const baseAddress = options.baseAddress || 0;
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.readRAM',
@@ -702,7 +702,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             totalTime: totalTime.toFixed(2),
             avgSpeed: avgSpeed.toFixed(1),
             maxSpeed: maxSpeed.toFixed(1),
-            totalSize: size
+            totalSize: size,
           }));
 
           const message = this.t('messages.ram.readSuccess', { time: totalTime.toFixed(3) });
@@ -711,14 +711,14 @@ export class MBC5Adapter extends CartridgeAdapter {
           return {
             success: true,
             data: result,
-            message: message
+            message: message,
           };
         } catch (error) {
           const message = `${this.t('messages.ram.readFailed')}: ${error}`;
           this.log(message);
           return {
             success: false,
-            message: message
+            message: message,
           };
         }
       },
@@ -730,7 +730,7 @@ export class MBC5Adapter extends CartridgeAdapter {
         dataSize: size,
         baseAddress,
         devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
-      }
+      },
     );
   }
 
@@ -782,7 +782,7 @@ export class MBC5Adapter extends CartridgeAdapter {
                 const errorMessage = this.t('messages.ram.verifyFailed', {
                   address: errorAddr.toString(16).toUpperCase().padStart(8, '0'),
                   expected: fileData[readCount + i].toString(16).toUpperCase().padStart(2, '0'),
-                  actual: chunk[i].toString(16).toUpperCase().padStart(2, '0')
+                  actual: chunk[i].toString(16).toUpperCase().padStart(2, '0'),
                 });
                 this.log(errorMessage);
                 success = false;
@@ -803,14 +803,14 @@ export class MBC5Adapter extends CartridgeAdapter {
 
           return {
             success: success,
-            message: message
+            message: message,
           };
         } catch (error) {
           const message = `${this.t('messages.ram.verifyFailed')}: ${error}`;
           this.log(message);
           return {
             success: false,
-            message: message
+            message: message,
           };
         }
       },
@@ -821,7 +821,7 @@ export class MBC5Adapter extends CartridgeAdapter {
       {
         fileSize: fileData.length,
         devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
-      }
+      },
     );
   }
 

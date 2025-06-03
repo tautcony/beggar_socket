@@ -48,7 +48,7 @@ export class CartridgeAdapter {
     logCallback: LogCallback | null = null,
     progressCallback: ProgressCallback | null = null,
     translateFunc: TranslateFunction | null = null,
-    enhancedProgressCallback: EnhancedProgressCallback | null = null
+    enhancedProgressCallback: EnhancedProgressCallback | null = null,
   ) {
     this.device = device;
     this.log = logCallback || (() => {});
@@ -177,7 +177,7 @@ export class CartridgeAdapter {
     transferredBytes?: number,
     startTime?: number,
     currentSpeed?: number,
-    allowCancel?: boolean
+    allowCancel?: boolean,
   ): ProgressInfo {
     return {
       progress,
@@ -186,7 +186,7 @@ export class CartridgeAdapter {
       transferredBytes,
       startTime,
       currentSpeed,
-      allowCancel
+      allowCancel,
     };
   }
 }

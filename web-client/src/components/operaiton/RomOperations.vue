@@ -4,8 +4,8 @@
       <h2>{{ $t('ui.rom.title') }}</h2>
       <div class="size-selector">
         <label class="size-label">{{ $t('ui.rom.sizeLabel') }}</label>
-        <select 
-          v-model="selectedRomSize" 
+        <select
+          v-model="selectedRomSize"
           :disabled="!deviceReady || busy"
           class="size-dropdown"
           @change="onRomSizeChange"
@@ -70,51 +70,51 @@
 </template>
 
 <script setup lang="ts">
-import FileDropZone from '../common/FileDropZone.vue'
-import { FileInfo } from '../../types/FileInfo.ts'
-import { ref } from 'vue'
+import FileDropZone from '../common/FileDropZone.vue';
+import { FileInfo } from '../../types/FileInfo.ts';
+import { ref } from 'vue';
 
 const props = defineProps({
   mode: {
     type: String,
-    required: true
+    required: true,
   },
   deviceReady: {
     type: Boolean,
-    required: true
+    required: true,
   },
   busy: {
     type: Boolean,
-    required: true
+    required: true,
   },
   romFileData: {
     type: Uint8Array,
-    default: null
+    default: null,
   },
   romFileName: {
     type: String,
-    default: ''
+    default: '',
   },
   selectedRomSize: {
     type: String,
-    default: '0x800000'
-  }
-})
+    default: '0x800000',
+  },
+});
 
-const emit = defineEmits(['file-selected', 'file-cleared', 'write-rom', 'read-rom', 'verify-rom', 'rom-size-change'])
+const emit = defineEmits(['file-selected', 'file-cleared', 'write-rom', 'read-rom', 'verify-rom', 'rom-size-change']);
 
-const selectedRomSize = ref(props.selectedRomSize)
+const selectedRomSize = ref(props.selectedRomSize);
 
 function onFileSelected(fileInfo: FileInfo) {
-  emit('file-selected', fileInfo)
+  emit('file-selected', fileInfo);
 }
 
 function onFileCleared() {
-  emit('file-cleared')
+  emit('file-cleared');
 }
 
 function onRomSizeChange() {
-  emit('rom-size-change', selectedRomSize.value)
+  emit('rom-size-change', selectedRomSize.value);
 }
 </script>
 

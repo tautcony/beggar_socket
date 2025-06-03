@@ -62,7 +62,7 @@ export class PerformanceTracker {
     operationName: string,
     operation: () => Promise<T>,
     tags?: Record<string, string>,
-    data?: Record<string, string | number | boolean>
+    data?: Record<string, string | number | boolean>,
   ): Promise<T> {
     return Sentry.startSpan(
       {
@@ -89,7 +89,7 @@ export class PerformanceTracker {
           });
           throw error;
         }
-      }
+      },
     );
   }
 
@@ -100,7 +100,7 @@ export class PerformanceTracker {
     operationName: string,
     operation: () => T,
     tags?: Record<string, string>,
-    data?: Record<string, string | number | boolean>
+    data?: Record<string, string | number | boolean>,
   ): T {
     return Sentry.startSpan(
       {
@@ -127,7 +127,7 @@ export class PerformanceTracker {
           });
           throw error;
         }
-      }
+      },
     );
   }
 
@@ -138,7 +138,7 @@ export class PerformanceTracker {
     operationName: string,
     operation: (updateProgress: (progress: number) => void) => Promise<T>,
     tags?: Record<string, string>,
-    data?: Record<string, string | number | boolean>
+    data?: Record<string, string | number | boolean>,
   ): Promise<T> {
     return Sentry.startSpan(
       {
@@ -180,7 +180,7 @@ export class PerformanceTracker {
           });
           throw error;
         }
-      }
+      },
     );
   }
 
@@ -190,7 +190,7 @@ export class PerformanceTracker {
   static trackUserEvent(
     eventName: string,
     category: string,
-    data?: Record<string, string | number | boolean>
+    data?: Record<string, string | number | boolean>,
   ) {
     Sentry.addBreadcrumb({
       message: eventName,

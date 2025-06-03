@@ -41,7 +41,7 @@
         </div>
 
         <TransitionGroup
-          name="panel-move" 
+          name="panel-move"
           tag="div"
           class="operations-container"
         >
@@ -100,85 +100,85 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
-import { useI18n } from 'vue-i18n'
-import ChipOperations from '@/components/operaiton/ChipOperations.vue'
-import RomOperations from '@/components/operaiton/RomOperations.vue'
-import RamOperations from '@/components/operaiton/RamOperations.vue'
-import LogViewer from '@/components/common/LogViewer.vue'
-import ProgressDisplay from '@/components/common/ProgressDisplay.vue'
-import CartridgeAdapter, { type EnhancedProgressCallback, type ProgressInfo } from '@/utils/CartridgeAdapter'
-import { GBAAdapter } from '@/utils/GBAAdapter.ts'
-import { MBC5Adapter } from '@/utils/MBC5Adapter.ts'
-import { MockAdapter } from '@/utils/MockAdapter.ts'
-import { DebugConfig } from '@/utils/DebugConfig.ts'
-import { DeviceInfo } from '@/types/DeviceInfo.ts'
-import { FileInfo } from '@/types/FileInfo.ts'
-import { formatBytes } from '@/utils/Formatter.ts'
+import { ref, watch, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
+import ChipOperations from '@/components/operaiton/ChipOperations.vue';
+import RomOperations from '@/components/operaiton/RomOperations.vue';
+import RamOperations from '@/components/operaiton/RamOperations.vue';
+import LogViewer from '@/components/common/LogViewer.vue';
+import ProgressDisplay from '@/components/common/ProgressDisplay.vue';
+import CartridgeAdapter, { type EnhancedProgressCallback, type ProgressInfo } from '@/utils/CartridgeAdapter';
+import { GBAAdapter } from '@/utils/GBAAdapter.ts';
+import { MBC5Adapter } from '@/utils/MBC5Adapter.ts';
+import { MockAdapter } from '@/utils/MockAdapter.ts';
+import { DebugConfig } from '@/utils/DebugConfig.ts';
+import { DeviceInfo } from '@/types/DeviceInfo.ts';
+import { FileInfo } from '@/types/FileInfo.ts';
+import { formatBytes } from '@/utils/Formatter.ts';
 
-const { t } = useI18n()
+const { t } = useI18n();
 
 const props = defineProps<{
   device: DeviceInfo | null,
   deviceReady: boolean
-}>()
+}>();
 
-const mode = ref<'GBA' | 'MBC5'>('GBA')
-const busy = ref(false)
-const result = ref('')
-const idStr = ref('')
-const operateProgress = ref<number | null>(null)
-const operateProgressDetail = ref<string | undefined>('')
-const operateTotalBytes = ref<number | undefined>(undefined)
-const operateTransferredBytes = ref<number | undefined>(undefined)
-const operateStartTime = ref<number | undefined>(undefined)
-const operateCurrentSpeed = ref<number | undefined>(undefined)
-const operateAllowCancel = ref<boolean>(true)
-const logs = ref<string[]>([])
+const mode = ref<'GBA' | 'MBC5'>('GBA');
+const busy = ref(false);
+const result = ref('');
+const idStr = ref('');
+const operateProgress = ref<number | null>(null);
+const operateProgressDetail = ref<string | undefined>('');
+const operateTotalBytes = ref<number | undefined>(undefined);
+const operateTransferredBytes = ref<number | undefined>(undefined);
+const operateStartTime = ref<number | undefined>(undefined);
+const operateCurrentSpeed = ref<number | undefined>(undefined);
+const operateAllowCancel = ref<boolean>(true);
+const logs = ref<string[]>([]);
 
 // Adapter
-const gbaAdapter = ref<CartridgeAdapter | null>()
-const mbc5Adapter = ref<CartridgeAdapter | null>()
+const gbaAdapter = ref<CartridgeAdapter | null>();
+const mbc5Adapter = ref<CartridgeAdapter | null>();
 
 // ROM
-const romFileData = ref<Uint8Array | null>(null)
-const romFileName = ref('')
-const selectedRomSize = ref('0x800000') // 默认8MB
+const romFileData = ref<Uint8Array | null>(null);
+const romFileName = ref('');
+const selectedRomSize = ref('0x800000'); // 默认8MB
 
 // RAM
-const ramFileData = ref<Uint8Array | null>(null)
-const ramFileName = ref('')
-const selectedRamSize = ref('0x8000')   // 默认32KB
-const selectedRamType = ref('SRAM')     // 默认SRAM
+const ramFileData = ref<Uint8Array | null>(null);
+const ramFileName = ref('');
+const selectedRamSize = ref('0x8000'); // 默认32KB
+const selectedRamType = ref('SRAM'); // 默认SRAM
 
 // 计算当前显示的进度
 const currentProgress = computed(() => {
-  return operateProgress.value !== null ? operateProgress.value : undefined
-})
+  return operateProgress.value !== null ? operateProgress.value : undefined;
+});
 
 const currentProgressDetail = computed(() => {
-  return operateProgressDetail.value || undefined
-})
+  return operateProgressDetail.value || undefined;
+});
 
 const currentTotalBytes = computed(() => {
-  return operateTotalBytes.value
-})
+  return operateTotalBytes.value;
+});
 
 const currentTransferredBytes = computed(() => {
-  return operateTransferredBytes.value
-})
+  return operateTransferredBytes.value;
+});
 
 const currentStartTime = computed(() => {
-  return operateStartTime.value
-})
+  return operateStartTime.value;
+});
 
 const currentSpeed = computed(() => {
-  return operateCurrentSpeed.value
-})
+  return operateCurrentSpeed.value;
+});
 
 const currentAllowCancel = computed(() => {
-  return operateAllowCancel.value
-})
+  return operateAllowCancel.value;
+});
 
 // 设备连接状态改变时，初始化适配器
 watch(() => props.deviceReady, (newVal) => {
@@ -189,10 +189,10 @@ watch(() => props.deviceReady, (newVal) => {
         (msg) => log(msg),
         (progress, detail) => updateProgress(progress, detail),
         t,
-        updateEnhancedProgress
-      )
-      gbaAdapter.value = adapter
-      mbc5Adapter.value = adapter
+        updateEnhancedProgress,
+      );
+      gbaAdapter.value = adapter;
+      mbc5Adapter.value = adapter;
     } else {
       // 正常模式下使用真实适配器
       gbaAdapter.value = new GBAAdapter(
@@ -200,21 +200,21 @@ watch(() => props.deviceReady, (newVal) => {
         (msg) => log(msg),
         (progress, detail) => updateProgress(progress, detail),
         t,
-        updateEnhancedProgress
-      )
+        updateEnhancedProgress,
+      );
       mbc5Adapter.value = new MBC5Adapter(
         props.device,
         (msg) => log(msg),
         (progress, detail) => updateProgress(progress, detail),
         t,
-        updateEnhancedProgress
-      )
+        updateEnhancedProgress,
+      );
     }
   } else {
-    gbaAdapter.value = null
-    mbc5Adapter.value = null
+    gbaAdapter.value = null;
+    mbc5Adapter.value = null;
   }
-})
+});
 
 function updateProgress(progress: number, detail: string | undefined, options?: {
   totalBytes?: number
@@ -223,308 +223,308 @@ function updateProgress(progress: number, detail: string | undefined, options?: 
   currentSpeed?: number
   allowCancel?: boolean
 }) {
-  operateProgress.value = progress
-  operateProgressDetail.value = detail
-  
+  operateProgress.value = progress;
+  operateProgressDetail.value = detail;
+
   if (options) {
     if (options.totalBytes !== undefined) {
-      operateTotalBytes.value = options.totalBytes
+      operateTotalBytes.value = options.totalBytes;
     }
     if (options.transferredBytes !== undefined) {
-      operateTransferredBytes.value = options.transferredBytes
+      operateTransferredBytes.value = options.transferredBytes;
     }
     if (options.startTime !== undefined) {
-      operateStartTime.value = options.startTime
+      operateStartTime.value = options.startTime;
     }
     if (options.currentSpeed !== undefined) {
-      operateCurrentSpeed.value = options.currentSpeed
+      operateCurrentSpeed.value = options.currentSpeed;
     }
     if (options.allowCancel !== undefined) {
-      operateAllowCancel.value = options.allowCancel
+      operateAllowCancel.value = options.allowCancel;
     }
   }
 }
 
 function updateEnhancedProgress(progressInfo: ProgressInfo) {
-  operateProgress.value = progressInfo.progress
-  operateProgressDetail.value = progressInfo.detail
-  operateTotalBytes.value = progressInfo.totalBytes
-  operateTransferredBytes.value = progressInfo.transferredBytes
-  operateStartTime.value = progressInfo.startTime
-  operateCurrentSpeed.value = progressInfo.currentSpeed
-  operateAllowCancel.value = progressInfo.allowCancel ?? true
+  operateProgress.value = progressInfo.progress;
+  operateProgressDetail.value = progressInfo.detail;
+  operateTotalBytes.value = progressInfo.totalBytes;
+  operateTransferredBytes.value = progressInfo.transferredBytes;
+  operateStartTime.value = progressInfo.startTime;
+  operateCurrentSpeed.value = progressInfo.currentSpeed;
+  operateAllowCancel.value = progressInfo.allowCancel ?? true;
 }
 
 function handleProgressStop() {
-  log(t('messages.operation.cancelled'))
+  log(t('messages.operation.cancelled'));
   // TODO: 实现停止功能 - 需要在适配器中实现取消逻辑
 }
 
 function resetProgress() {
-  operateProgress.value = null
-  operateProgressDetail.value = undefined
-  operateTotalBytes.value = undefined
-  operateTransferredBytes.value = undefined
-  operateStartTime.value = undefined
-  operateCurrentSpeed.value = undefined
-  operateAllowCancel.value = true
+  operateProgress.value = null;
+  operateProgressDetail.value = undefined;
+  operateTotalBytes.value = undefined;
+  operateTransferredBytes.value = undefined;
+  operateStartTime.value = undefined;
+  operateCurrentSpeed.value = undefined;
+  operateAllowCancel.value = true;
 }
 
 function log(msg: string) {
-  const time = new Date().toLocaleTimeString()
-  logs.value.push(`[${time}] ${msg}`)
-  if (logs.value.length > 500) logs.value.shift()
+  const time = new Date().toLocaleTimeString();
+  logs.value.push(`[${time}] ${msg}`);
+  if (logs.value.length > 500) logs.value.shift();
 }
 
 function clearLog() {
-  logs.value = []
+  logs.value = [];
 }
 
 // 文件处理函数
 function onRomFileSelected(fileInfo: FileInfo) {
-  romFileName.value = fileInfo.name
-  romFileData.value = fileInfo.data
-  log(t('messages.file.selectRom', { name: fileInfo.name, size: formatBytes(fileInfo.size) }))
+  romFileName.value = fileInfo.name;
+  romFileData.value = fileInfo.data;
+  log(t('messages.file.selectRom', { name: fileInfo.name, size: formatBytes(fileInfo.size) }));
 }
 
 function onRomFileCleared() {
-  romFileData.value = null
-  romFileName.value = ''
-  log(t('messages.file.clearRom'))
+  romFileData.value = null;
+  romFileName.value = '';
+  log(t('messages.file.clearRom'));
 }
 
 function onRamFileSelected(fileInfo: FileInfo) {
-  ramFileName.value = fileInfo.name
-  ramFileData.value = fileInfo.data
-  log(t('messages.file.selectRam', { name: fileInfo.name, size: formatBytes(fileInfo.size) }))
+  ramFileName.value = fileInfo.name;
+  ramFileData.value = fileInfo.data;
+  log(t('messages.file.selectRam', { name: fileInfo.name, size: formatBytes(fileInfo.size) }));
 }
 
 function onRamFileCleared() {
-  ramFileData.value = null
-  ramFileName.value = ''
-  log(t('messages.file.clearRam'))
+  ramFileData.value = null;
+  ramFileName.value = '';
+  log(t('messages.file.clearRam'));
 }
 
 // 大小选择处理函数
 function onRomSizeChange(hexSize: string) {
-  selectedRomSize.value = hexSize
-  log(t('messages.rom.sizeChanged', { size: formatBytes(parseInt(hexSize, 16)) }))
+  selectedRomSize.value = hexSize;
+  log(t('messages.rom.sizeChanged', { size: formatBytes(parseInt(hexSize, 16)) }));
 }
 
 function onRamSizeChange(hexSize: string) {
-  selectedRamSize.value = hexSize
-  log(t('messages.ram.sizeChanged', { size: formatBytes(parseInt(hexSize, 16)) }))
+  selectedRamSize.value = hexSize;
+  log(t('messages.ram.sizeChanged', { size: formatBytes(parseInt(hexSize, 16)) }));
 }
 
 function onRamTypeChange(type: string) {
-  selectedRamType.value = type
-  log(t('messages.ram.typeChanged', { type }))
+  selectedRamType.value = type;
+  log(t('messages.ram.typeChanged', { type }));
 }
 
 function getAdapter() {
   if (mode.value === 'GBA') {
-    return gbaAdapter.value
+    return gbaAdapter.value;
   } else if (mode.value === 'MBC5') {
-    return mbc5Adapter.value
+    return mbc5Adapter.value;
   }
-  result.value = t('messages.operation.unsupportedMode')
-  return null
+  result.value = t('messages.operation.unsupportedMode');
+  return null;
 }
 
 async function readID() {
-  busy.value = true
-  result.value = ''
+  busy.value = true;
+  result.value = '';
 
   try {
-    let adapter = getAdapter()
+    const adapter = getAdapter();
     if (!adapter) {
-      return
+      return;
     }
 
-    const response = await adapter.readID()
+    const response = await adapter.readID();
     if (response.success) {
-      idStr.value = response.idStr || ''
-      result.value = response.message
+      idStr.value = response.idStr || '';
+      result.value = response.message;
     } else {
-      result.value = response.message
+      result.value = response.message;
     }
   } catch (e) {
-    result.value = t('messages.operation.readIdFailed')
-    log(`${t('messages.operation.readIdFailed')}: ${e instanceof Error ? e.message : String(e)}`)
+    result.value = t('messages.operation.readIdFailed');
+    log(`${t('messages.operation.readIdFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
-    busy.value = false
+    busy.value = false;
   }
 }
 
 async function eraseChip() {
-  busy.value = true
-  result.value = ''
+  busy.value = true;
+  result.value = '';
 
   try {
-    const adapter = getAdapter()
+    const adapter = getAdapter();
     if (!adapter) {
-      return
+      return;
     }
 
-    const response = await adapter.eraseChip()
-    result.value = response.message
+    const response = await adapter.eraseChip();
+    result.value = response.message;
   } catch (e) {
-    result.value = t('messages.operation.eraseFailed')
-    log(`${t('messages.operation.eraseFailed')}: ${e instanceof Error ? e.message : String(e)}`)
+    result.value = t('messages.operation.eraseFailed');
+    log(`${t('messages.operation.eraseFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
-    busy.value = false
+    busy.value = false;
     // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
 async function writeRom() {
-  busy.value = true
-  result.value = ''
-  operateProgress.value = 0
-  operateProgressDetail.value = ''
+  busy.value = true;
+  result.value = '';
+  operateProgress.value = 0;
+  operateProgressDetail.value = '';
 
   try {
-    const adapter = getAdapter()
+    const adapter = getAdapter();
     if (!adapter || !romFileData.value) {
-      result.value = t('messages.operation.unsupportedMode')
-      return
+      result.value = t('messages.operation.unsupportedMode');
+      return;
     }
 
-    const response = await adapter.writeROM(romFileData.value, { useDirectWrite: false})
-    result.value = response.message
+    const response = await adapter.writeROM(romFileData.value, { useDirectWrite: false });
+    result.value = response.message;
   } catch (e) {
-    result.value = t('messages.rom.writeFailed')
-    log(`${t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`)
+    result.value = t('messages.rom.writeFailed');
+    log(`${t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
-    busy.value = false
+    busy.value = false;
     // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
 async function readRom() {
-  busy.value = true
-  result.value = ''
+  busy.value = true;
+  result.value = '';
 
   try {
 
-    const adapter = getAdapter()
+    const adapter = getAdapter();
     if (!adapter) {
-      return
+      return;
     }
 
-    const romSize = romFileData.value ? romFileData.value.length : parseInt(selectedRomSize.value, 16)
-    const response = await adapter.readROM(romSize)
+    const romSize = romFileData.value ? romFileData.value.length : parseInt(selectedRomSize.value, 16);
+    const response = await adapter.readROM(romSize);
     if (response.success) {
-      result.value = response.message
+      result.value = response.message;
       if (response.data) {
-        saveAsFile(response.data, 'exported.rom')
+        saveAsFile(response.data, 'exported.rom');
       }
     } else {
-      result.value = response.message
+      result.value = response.message;
     }
   } catch (e) {
-    result.value = t('messages.rom.readFailed')
-    log(`${t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`)
+    result.value = t('messages.rom.readFailed');
+    log(`${t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
-    busy.value = false
+    busy.value = false;
     // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
 async function verifyRom() {
-  busy.value = true
-  result.value = ''
+  busy.value = true;
+  result.value = '';
 
   try {
-    const adapter = getAdapter()
+    const adapter = getAdapter();
     if (!adapter || !romFileData.value) {
-      result.value = t('messages.operation.unsupportedMode')
-      return
+      result.value = t('messages.operation.unsupportedMode');
+      return;
     }
 
-    const response = await adapter.verifyROM(romFileData.value)
-    result.value = response.message
+    const response = await adapter.verifyROM(romFileData.value);
+    result.value = response.message;
 
   } catch (e) {
-    result.value = t('messages.rom.verifyFailed')
-    log(`${t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`)
+    result.value = t('messages.rom.verifyFailed');
+    log(`${t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
-    busy.value = false
+    busy.value = false;
     // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
 async function writeRam() {
-  busy.value = true
-  result.value = ''
-  operateProgress.value = 0
-  operateProgressDetail.value = ''
+  busy.value = true;
+  result.value = '';
+  operateProgress.value = 0;
+  operateProgressDetail.value = '';
 
   try {
-    const adapter = getAdapter()
+    const adapter = getAdapter();
     if (!adapter || !ramFileData.value) {
-      result.value = t('messages.operation.unsupportedMode')
-      return
+      result.value = t('messages.operation.unsupportedMode');
+      return;
     }
 
-    const response = await adapter.writeRAM(ramFileData.value, { ramType: selectedRamType.value as 'SRAM' | 'FLASH' })
-    result.value = response.message
+    const response = await adapter.writeRAM(ramFileData.value, { ramType: selectedRamType.value as 'SRAM' | 'FLASH' });
+    result.value = response.message;
   } catch (e) {
-    result.value = t('messages.ram.writeFailed')
-    log(`${t('messages.ram.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`)
+    result.value = t('messages.ram.writeFailed');
+    log(`${t('messages.ram.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
-    busy.value = false
+    busy.value = false;
     // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
 async function readRam() {
-  busy.value = true
-  result.value = ''
+  busy.value = true;
+  result.value = '';
 
   try {
-    const adapter = getAdapter()
+    const adapter = getAdapter();
     if (!adapter) {
-      return
+      return;
     }
 
-    const defaultSize = ramFileData.value ? ramFileData.value.length : parseInt(selectedRamSize.value, 16)
-    const response = await adapter.readRAM(defaultSize, { ramType: selectedRamType.value as 'SRAM' | 'FLASH' })
+    const defaultSize = ramFileData.value ? ramFileData.value.length : parseInt(selectedRamSize.value, 16);
+    const response = await adapter.readRAM(defaultSize, { ramType: selectedRamType.value as 'SRAM' | 'FLASH' });
     if (response.success) {
-      result.value = response.message
+      result.value = response.message;
       if (response.data) {
-        saveAsFile(response.data, 'exported.sav')
+        saveAsFile(response.data, 'exported.sav');
       }
     } else {
-      result.value = response.message
+      result.value = response.message;
     }
   } catch (e) {
-    result.value = t('messages.ram.readFailed')
-    log(`${t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`)
+    result.value = t('messages.ram.readFailed');
+    log(`${t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
-    busy.value = false
+    busy.value = false;
     // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
 async function verifyRam() {
-  busy.value = true
-  result.value = ''
+  busy.value = true;
+  result.value = '';
 
   try {
-    const adapter = getAdapter()
+    const adapter = getAdapter();
     if (!adapter || !ramFileData.value) {
-      result.value = t('messages.operation.unsupportedMode')
-      return
+      result.value = t('messages.operation.unsupportedMode');
+      return;
     }
 
-    const response = await adapter.verifyRAM(ramFileData.value, { ramType: selectedRamType.value as 'SRAM' | 'FLASH' })
-    result.value = response.message
+    const response = await adapter.verifyRAM(ramFileData.value, { ramType: selectedRamType.value as 'SRAM' | 'FLASH' });
+    result.value = response.message;
   } catch (e) {
-    result.value = t('messages.ram.verifyFailed')
-    log(`${t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`)
+    result.value = t('messages.ram.verifyFailed');
+    log(`${t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
-    busy.value = false
+    busy.value = false;
     // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
@@ -603,7 +603,7 @@ function saveAsFile(data: Uint8Array, filename: string) {
 
 /* 为操作面板添加平滑的位置变化动画 */
 .content-area > * {
-  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
               margin 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
@@ -650,7 +650,7 @@ function saveAsFile(data: Uint8Array, filename: string) {
     overflow-y: visible;
     padding-right: 0;
   }
-  
+
   .mode-tabs-card button {
     font-size: 1rem;
     padding: 10px 0 8px 0;
@@ -663,7 +663,7 @@ function saveAsFile(data: Uint8Array, filename: string) {
     margin: 8px;
     padding: 12px 16px;
   }
-  
+
   .content-area {
     min-width: 280px;
   }

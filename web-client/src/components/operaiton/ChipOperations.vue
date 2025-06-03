@@ -25,25 +25,25 @@
 </template>
 
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
+import { useI18n } from 'vue-i18n';
 
-const { t } = useI18n()
+const { t } = useI18n();
 const props = defineProps({
   deviceReady: {
     type: Boolean,
-    required: true
+    required: true,
   },
   busy: {
     type: Boolean,
-    required: true
+    required: true,
   },
   idStr: {
     type: String,
-    default: ''
-  }
-})
+    default: '',
+  },
+});
 
-defineEmits(['read-id', 'erase-chip'])
+defineEmits(['read-id', 'erase-chip']);
 </script>
 
 <style scoped>

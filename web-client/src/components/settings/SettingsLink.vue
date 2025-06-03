@@ -1,6 +1,6 @@
 <template>
   <div class="settings-link">
-    <button 
+    <button
       class="settings-button"
       :title="$t('ui.settings.tooltip')"
       @click="$emit('click')"
@@ -15,7 +15,7 @@
 // 定义事件
 defineEmits<{
   click: []
-}>()
+}>();
 </script>
 
 <style scoped>
@@ -76,12 +76,12 @@ defineEmits<{
     bottom: 70px;
     right: 10px;
   }
-  
+
   .settings-button {
     padding: 6px 10px;
     font-size: 12px;
   }
-  
+
   .settings-icon {
     width: 18px;
     height: 18px;

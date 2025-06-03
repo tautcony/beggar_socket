@@ -118,14 +118,14 @@ export class AdvancedSettings {
     return {
       pageSize: {
         rom: this._romPageSize,
-        ram: this._ramPageSize
+        ram: this._ramPageSize,
       },
       timeout: {
         default: this._defaultTimeout,
         packageSend: this._packageSendTimeout,
         packageReceive: this._packageReceiveTimeout,
-        operation: this._operationTimeout
-      }
+        operation: this._operationTimeout,
+      },
     };
   }
 
@@ -225,12 +225,12 @@ export class AdvancedSettings {
     return {
       pageSize: {
         min: this.MIN_PAGE_SIZE,
-        max: this.MAX_PAGE_SIZE
+        max: this.MAX_PAGE_SIZE,
       },
       timeout: {
         min: this.MIN_TIMEOUT,
-        max: this.MAX_TIMEOUT
-      }
+        max: this.MAX_TIMEOUT,
+      },
     };
   }
 
@@ -265,7 +265,7 @@ export class AdvancedSettings {
 
     return {
       valid: errors.length === 0,
-      errors
+      errors,
     };
   }
 }

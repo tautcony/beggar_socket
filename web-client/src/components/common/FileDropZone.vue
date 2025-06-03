@@ -1,8 +1,8 @@
 <template>
   <div class="file-upload-area">
-    <div 
+    <div
       class="file-drop-zone"
-      :class="{ 
+      :class="{
         'has-file': fileData,
         'drag-over': dragOver,
         'disabled': disabled
@@ -12,10 +12,10 @@
       @dragleave.prevent="handleDragLeave"
       @drop.prevent="handleDrop"
     >
-      <input 
+      <input
         ref="fileInput"
-        type="file" 
-        :disabled="disabled" 
+        type="file"
+        :disabled="disabled"
         style="display: none"
         :accept="acceptTypes"
         @change="onFileChange"
@@ -57,7 +57,7 @@
             {{ fileType }}
           </div>
         </div>
-        <button 
+        <button
           class="remove-file-btn"
           :disabled="disabled"
           @click.stop="clearFile"
@@ -70,99 +70,99 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { FileInfo } from '@/types/FileInfo.ts'
-import { formatBytes } from '@/utils/Formatter.ts'
+import { ref } from 'vue';
+import { FileInfo } from '@/types/FileInfo.ts';
+import { formatBytes } from '@/utils/Formatter.ts';
 
 const props = defineProps({
   disabled: {
     type: Boolean,
-    default: false
+    default: false,
   },
   acceptTypes: {
     type: String,
-    required: true
+    required: true,
   },
   acceptHint: {
     type: String,
-    required: true
+    required: true,
   },
   icon: {
     type: String,
-    required: true
+    required: true,
   },
   mainText: {
     type: String,
-    required: true
+    required: true,
   },
   fileType: {
     type: String,
-    required: true
+    required: true,
   },
   fileData: {
     type: Uint8Array,
-    default: null
+    default: null,
   },
   fileName: {
     type: String,
-    default: ''
-  }
-})
+    default: '',
+  },
+});
 
-const emit = defineEmits(['file-selected', 'file-cleared'])
+const emit = defineEmits(['file-selected', 'file-cleared']);
 
-const dragOver = ref(false)
-const fileInput = ref<HTMLInputElement | null>(null)
+const dragOver = ref(false);
+const fileInput = ref<HTMLInputElement | null>(null);
 
 function onFileChange(e: Event) {
-if (e.target && (e.target as HTMLInputElement).files && (e.target as HTMLInputElement).files?.length) {
+  if (e.target && (e.target as HTMLInputElement).files && (e.target as HTMLInputElement).files?.length) {
     const files = (e.target as HTMLInputElement).files;
     if (!files || files.length === 0) {
-      return
+      return;
     }
-    processFile(files[0])
+    processFile(files[0]);
   }
 }
 
 function processFile(file: File) {
-  const reader = new FileReader()
+  const reader = new FileReader();
   reader.onload = () => {
-    const data = new Uint8Array(reader.result as ArrayBuffer)
+    const data = new Uint8Array(reader.result as ArrayBuffer);
     emit('file-selected', {
       name: file.name,
       data: data,
-      size: data.length
-    } as FileInfo)
-  }
-  reader.readAsArrayBuffer(file)
+      size: data.length,
+    } as FileInfo);
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 function triggerFileSelect() {
-  if (props.disabled) return
-  fileInput?.value?.click()
+  if (props.disabled) return;
+  fileInput?.value?.click();
 }
 
 function clearFile() {
-  if (fileInput.value) fileInput.value.value = ''
-  emit('file-cleared')
+  if (fileInput.value) fileInput.value.value = '';
+  emit('file-cleared');
 }
 
 function handleDragOver(e: Event) {
-  if (props.disabled) return
-  dragOver.value = true
+  if (props.disabled) return;
+  dragOver.value = true;
 }
 
 function handleDragLeave() {
-  dragOver.value = false
+  dragOver.value = false;
 }
 
 function handleDrop(e: DragEvent) {
-  dragOver.value = false
-  if (props.disabled) return
+  dragOver.value = false;
+  if (props.disabled) return;
 
-  const files = e.dataTransfer?.files
+  const files = e.dataTransfer?.files;
   if (files && files.length > 0) {
-    processFile(files[0])
+    processFile(files[0]);
   }
 }
 </script>

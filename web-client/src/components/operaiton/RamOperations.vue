@@ -5,8 +5,8 @@
       <div class="selector-container">
         <div class="type-selector">
           <label class="type-label">{{ $t('ui.ram.typeLabel') }}</label>
-          <select 
-            v-model="selectedRamType" 
+          <select
+            v-model="selectedRamType"
             :disabled="!deviceReady || busy"
             class="type-dropdown"
             @change="onRamTypeChange"
@@ -21,8 +21,8 @@
         </div>
         <div class="size-selector">
           <label class="size-label">{{ $t('ui.ram.sizeLabel') }}</label>
-          <select 
-            v-model="selectedRamSize" 
+          <select
+            v-model="selectedRamSize"
             :disabled="!deviceReady || busy"
             class="size-dropdown"
             @change="onRamSizeChange"
@@ -81,60 +81,60 @@
 </template>
 
 <script setup lang="ts">
-import FileDropZone from '../common/FileDropZone.vue'
-import { FileInfo } from '../../types/FileInfo.ts'
-import { ref } from 'vue'
+import FileDropZone from '../common/FileDropZone.vue';
+import { FileInfo } from '../../types/FileInfo.ts';
+import { ref } from 'vue';
 
 const props = defineProps({
   mode: {
     type: String,
-    required: true
+    required: true,
   },
   deviceReady: {
     type: Boolean,
-    required: true
+    required: true,
   },
   busy: {
     type: Boolean,
-    required: true
+    required: true,
   },
   ramFileData: {
     type: Uint8Array,
-    default: null
+    default: null,
   },
   ramFileName: {
     type: String,
-    default: ''
+    default: '',
   },
   selectedRamSize: {
     type: String,
-    default: '0x8000'
+    default: '0x8000',
   },
   selectedRamType: {
     type: String,
-    default: 'SRAM'
-  }
-})
+    default: 'SRAM',
+  },
+});
 
-const emit = defineEmits(['file-selected', 'file-cleared', 'write-ram', 'read-ram', 'verify-ram', 'ram-size-change', 'ram-type-change'])
+const emit = defineEmits(['file-selected', 'file-cleared', 'write-ram', 'read-ram', 'verify-ram', 'ram-size-change', 'ram-type-change']);
 
-const selectedRamSize = ref(props.selectedRamSize)
-const selectedRamType = ref(props.selectedRamType)
+const selectedRamSize = ref(props.selectedRamSize);
+const selectedRamType = ref(props.selectedRamType);
 
 function onFileSelected(fileInfo: FileInfo) {
-  emit('file-selected', fileInfo)
+  emit('file-selected', fileInfo);
 }
 
 function onFileCleared() {
-  emit('file-cleared')
+  emit('file-cleared');
 }
 
 function onRamSizeChange() {
-  emit('ram-size-change', selectedRamSize.value)
+  emit('ram-size-change', selectedRamSize.value);
 }
 
 function onRamTypeChange() {
-  emit('ram-type-change', selectedRamType.value)
+  emit('ram-type-change', selectedRamType.value);
 }
 </script>
 

@@ -38,7 +38,7 @@ export class GBAAdapter extends CartridgeAdapter {
     logCallback: LogCallback | null = null,
     progressCallback: ProgressCallback | null = null,
     translateFunc: TranslateFunction | null = null,
-    enhancedProgressCallback: EnhancedProgressCallback | null = null
+    enhancedProgressCallback: EnhancedProgressCallback | null = null,
   ) {
     super(device, logCallback, progressCallback, translateFunc, enhancedProgressCallback);
     this.idStr = '';
@@ -69,13 +69,13 @@ export class GBAAdapter extends CartridgeAdapter {
           return {
             success: true,
             idStr: this.idStr,
-            message: this.t('messages.operation.readIdSuccess')
+            message: this.t('messages.operation.readIdSuccess'),
           };
         } catch (e) {
           this.log(`${this.t('messages.operation.readIdFailed')}: ${e}`);
           return {
             success: false,
-            message: this.t('messages.operation.readIdFailed')
+            message: this.t('messages.operation.readIdFailed'),
           };
         }
       },
@@ -85,7 +85,7 @@ export class GBAAdapter extends CartridgeAdapter {
       },
       {
         devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
-      }
+      },
     );
   }
 
@@ -116,20 +116,20 @@ export class GBAAdapter extends CartridgeAdapter {
 
           return {
             success: true,
-            message: this.t('messages.operation.eraseComplete')
+            message: this.t('messages.operation.eraseComplete'),
           };
         } catch (e) {
           this.log(`${this.t('messages.operation.eraseFailed')}: ${e}`);
           return {
             success: false,
-            message: this.t('messages.operation.eraseFailed')
+            message: this.t('messages.operation.eraseFailed'),
           };
         }
       },
       {
         adapter_type: 'gba',
         operation_type: 'erase_chip',
-      }
+      },
     );
   }
 
@@ -167,13 +167,13 @@ export class GBAAdapter extends CartridgeAdapter {
       this.log(this.t('messages.operation.eraseSuccess'));
       return {
         success: true,
-        message: this.t('messages.operation.eraseSuccess')
+        message: this.t('messages.operation.eraseSuccess'),
       };
     } catch (e) {
       this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${e}`);
       return {
         success: false,
-        message: this.t('messages.operation.eraseSectorFailed')
+        message: this.t('messages.operation.eraseSectorFailed'),
       };
     }
   }
@@ -184,7 +184,7 @@ export class GBAAdapter extends CartridgeAdapter {
     * @param options - 写入选项
    * @returns - 操作结果
    */
-  async writeROM(fileData: Uint8Array, options: CommandOptions = {useDirectWrite: true}) : Promise<CommandResult> {
+  async writeROM(fileData: Uint8Array, options: CommandOptions = { useDirectWrite: true }) : Promise<CommandResult> {
     return PerformanceTracker.trackProgressOperation(
       'gba.writeROM',
       async (updateProgress) => {
@@ -203,7 +203,7 @@ export class GBAAdapter extends CartridgeAdapter {
           // const romInfo = await this.getROMSize();
           const blank = await this.isBlank(0, 0x100);
           if (!blank) {
-            this.eraseSectors(0, fileData.length - 1, 1<<17);
+            this.eraseSectors(0, fileData.length - 1, 1 << 17);
           }
 
           // 分块写入并更新进度
@@ -226,7 +226,7 @@ export class GBAAdapter extends CartridgeAdapter {
               written,
               startTime,
               currentSpeed,
-              true
+              true,
             ));
 
             updateProgress(progress);
@@ -246,18 +246,18 @@ export class GBAAdapter extends CartridgeAdapter {
             totalTime: totalTime.toFixed(1),
             avgSpeed: avgSpeed.toFixed(1),
             maxSpeed: maxSpeed.toFixed(1),
-            totalSize: (total / 1024).toFixed(1)
+            totalSize: (total / 1024).toFixed(1),
           }));
 
           return {
             success: true,
-            message: this.t('messages.rom.writeSuccess')
+            message: this.t('messages.rom.writeSuccess'),
           };
         } catch (e) {
           this.log(`${this.t('messages.rom.writeFailed')}: ${e}`);
           return {
             success: false,
-            message: this.t('messages.rom.writeFailed')
+            message: this.t('messages.rom.writeFailed'),
           };
         }
       },
@@ -269,7 +269,7 @@ export class GBAAdapter extends CartridgeAdapter {
       {
         fileSize: fileData.length,
         pageSizeKB: AdvancedSettings.romPageSize / 1024,
-      }
+      },
     );
   }
 
@@ -318,14 +318,14 @@ export class GBAAdapter extends CartridgeAdapter {
         deviceSize: deviceSize.toString(),
         sectorCount: sectorCount.toString(),
         sectorSize: sectorSize.toString(),
-        bufferWriteBytes: bufferWriteBytes.toString()
+        bufferWriteBytes: bufferWriteBytes.toString(),
       }));
 
       return {
         deviceSize,
         sectorCount,
         sectorSize,
-        bufferWriteBytes
+        bufferWriteBytes,
       };
     } catch (error) {
       this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${error}`);
@@ -376,19 +376,19 @@ export class GBAAdapter extends CartridgeAdapter {
             totalTime: totalTime.toFixed(1),
             avgSpeed: avgSpeed.toFixed(1),
             maxSpeed: maxSpeed.toFixed(1),
-            totalSize: (size / 1024).toFixed(1)
+            totalSize: (size / 1024).toFixed(1),
           }));
 
           return {
             success: true,
             data: data,
-            message: this.t('messages.rom.readSuccess', { size: data.length })
+            message: this.t('messages.rom.readSuccess', { size: data.length }),
           };
         } catch (e) {
           this.log(`${this.t('messages.rom.readFailed')}: ${e}`);
           return {
             success: false,
-            message: this.t('messages.rom.readFailed')
+            message: this.t('messages.rom.readFailed'),
           };
         }
       },
@@ -400,7 +400,7 @@ export class GBAAdapter extends CartridgeAdapter {
         dataSize: size,
         baseAddress: baseAddress,
         devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
-      }
+      },
     );
   }
 
@@ -421,13 +421,13 @@ export class GBAAdapter extends CartridgeAdapter {
           this.log(`${this.t('messages.rom.verify')}: ${message}`);
           return {
             success: ok,
-            message: message
+            message: message,
           };
         } catch (e) {
           this.log(`${this.t('messages.rom.verifyFailed')}: ${e}`);
           return {
             success: false,
-            message: this.t('messages.rom.verifyFailed')
+            message: this.t('messages.rom.verifyFailed'),
           };
         }
       },
@@ -439,7 +439,7 @@ export class GBAAdapter extends CartridgeAdapter {
         fileSize: fileData.length,
         baseAddress: baseAddress,
         devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
-      }
+      },
     );
   }
 
@@ -473,7 +473,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param options - 写入选项
    * @returns - 操作结果
    */
-  async writeRAM(fileData: Uint8Array, options: CommandOptions = {ramType: 'SRAM'}): Promise<CommandResult> {
+  async writeRAM(fileData: Uint8Array, options: CommandOptions = { ramType: 'SRAM' }): Promise<CommandResult> {
     return PerformanceTracker.trackAsyncOperation(
       'gba.writeRAM',
       async () => {
@@ -563,18 +563,18 @@ export class GBAAdapter extends CartridgeAdapter {
             totalTime: totalTime.toFixed(1),
             avgSpeed: avgSpeed.toFixed(1),
             maxSpeed: maxSpeed.toFixed(1),
-            totalSize: (total / 1024).toFixed(1)
+            totalSize: (total / 1024).toFixed(1),
           }));
 
           return {
             success: true,
-            message: this.t('messages.ram.writeSuccess')
+            message: this.t('messages.ram.writeSuccess'),
           };
         } catch (e) {
           this.log(`${this.t('messages.ram.writeFailed')}: ${e}`);
           return {
             success: false,
-            message: this.t('messages.ram.writeFailed')
+            message: this.t('messages.ram.writeFailed'),
           };
         }
       },
@@ -586,7 +586,7 @@ export class GBAAdapter extends CartridgeAdapter {
       {
         fileSize: fileData.length,
         devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
-      }
+      },
     );
   }
 
@@ -596,7 +596,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param options - 读取参数
    * @returns - 操作结果，包含读取的数据
    */
-  async readRAM(size = 0x8000, options: CommandOptions = {ramType: 'SRAM'}) {
+  async readRAM(size = 0x8000, options: CommandOptions = { ramType: 'SRAM' }) {
     return PerformanceTracker.trackAsyncOperation(
       'gba.readRAM',
       async () => {
@@ -651,19 +651,19 @@ export class GBAAdapter extends CartridgeAdapter {
             totalTime: totalTime.toFixed(1),
             avgSpeed: avgSpeed.toFixed(1),
             maxSpeed: maxSpeed.toFixed(1),
-            totalSize: (size / 1024).toFixed(1)
+            totalSize: (size / 1024).toFixed(1),
           }));
 
           return {
             success: true,
             data: result,
-            message: this.t('messages.ram.readSuccess', { size: result.length })
+            message: this.t('messages.ram.readSuccess', { size: result.length }),
           };
         } catch (e) {
           this.log(`${this.t('messages.ram.readFailed')}: ${e}`);
           return {
             success: false,
-            message: this.t('messages.ram.readFailed')
+            message: this.t('messages.ram.readFailed'),
           };
         }
       },
@@ -675,7 +675,7 @@ export class GBAAdapter extends CartridgeAdapter {
       {
         dataSize: size,
         devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
-      }
+      },
     );
   }
 
@@ -685,7 +685,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param options - 选项对象
    * @returns - 操作结果
    */
-  async verifyRAM(fileData: Uint8Array, options: CommandOptions = {ramType: 'SRAM'}) {
+  async verifyRAM(fileData: Uint8Array, options: CommandOptions = { ramType: 'SRAM' }) {
     return PerformanceTracker.trackAsyncOperation(
       'gba.verifyRAM',
       async () => {
@@ -729,7 +729,7 @@ export class GBAAdapter extends CartridgeAdapter {
                 this.log(this.t('messages.ram.verifyFailedDetail', {
                   address: (verified + i).toString(16),
                   expected: fileData[verified + i].toString(16),
-                  actual: readData[i].toString(16)
+                  actual: readData[i].toString(16),
                 }));
                 success = false;
               }
@@ -746,13 +746,13 @@ export class GBAAdapter extends CartridgeAdapter {
           this.log(`${this.t('messages.ram.verify')}: ${message}`);
           return {
             success: success,
-            message: message
+            message: message,
           };
         } catch (e) {
           this.log(`${this.t('messages.ram.verifyFailed')}: ${e}`);
           return {
             success: false,
-            message: this.t('messages.ram.verifyFailed')
+            message: this.t('messages.ram.verifyFailed'),
           };
         }
       },
@@ -764,7 +764,7 @@ export class GBAAdapter extends CartridgeAdapter {
       {
         fileSize: fileData.length,
         devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
-      }
+      },
     );
   }
 

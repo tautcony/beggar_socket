@@ -19,19 +19,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { ref, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-const { locale } = useI18n()
-const currentLocale = ref(locale.value)
+const { locale } = useI18n();
+const currentLocale = ref(locale.value);
 
 onMounted(() => {
-  currentLocale.value = locale.value
-})
+  currentLocale.value = locale.value;
+});
 
 function changeLanguage() {
-  locale.value = currentLocale.value
-  localStorage.setItem('locale', currentLocale.value)
+  locale.value = currentLocale.value;
+  localStorage.setItem('locale', currentLocale.value);
 }
 </script>
 

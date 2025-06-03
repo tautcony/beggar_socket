@@ -15,8 +15,8 @@
         <span class="icon">{{ buttonIcon }}</span> {{ buttonText }}
       </button>
       <div class="polyfill-toggle">
-        <label 
-          class="toggle-container" 
+        <label
+          class="toggle-container"
           :title="t('ui.device.usePolyfillTooltip')"
         >
           <input
@@ -34,216 +34,216 @@
 </template>
 
 <script setup lang="ts">
-import { DeviceInfo } from '@/types/DeviceInfo.ts'
-import { ref, computed, reactive } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { DebugConfig } from '@/utils/DebugConfig'
+import { DeviceInfo } from '@/types/DeviceInfo.ts';
+import { ref, computed, reactive } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { DebugConfig } from '@/utils/DebugConfig';
 import {
   serial as polyfill, SerialPort as SerialPortPolyfill,
 } from 'web-serial-polyfill';
 
-const { t } = useI18n()
-const emit = defineEmits(['device-ready', 'device-disconnected'])
+const { t } = useI18n();
+const emit = defineEmits(['device-ready', 'device-disconnected']);
 
-const connected = ref(false)
-const isConnecting = ref(false)
-const usePolyfill = ref(false)
+const connected = ref(false);
+const isConnecting = ref(false);
+const usePolyfill = ref(false);
 
 const toast = reactive({
   visible: false,
   message: '',
   type: 'success',
-  timer: null
+  timer: null,
 } as {
   visible: boolean,
   message: string,
   type: 'success' | 'error' | 'idle',
   timer: ReturnType<typeof setTimeout> | null
-})
+});
 
-let port: SerialPort | null = null
-let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
-let writer: WritableStreamDefaultWriter<Uint8Array> | null = null
+let port: SerialPort | null = null;
+let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+let writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
 
 function showToast(message: string, type: 'success' | 'error' | 'idle', duration = 3000) {
-  if (toast.timer) clearTimeout(toast.timer)
-  toast.message = message
-  toast.type = type
-  toast.visible = true
+  if (toast.timer) clearTimeout(toast.timer);
+  toast.message = message;
+  toast.type = type;
+  toast.visible = true;
   toast.timer = setTimeout(() => {
-    toast.visible = false
-  }, duration)
+    toast.visible = false;
+  }, duration);
 }
 
 async function connect() {
-  if (isConnecting.value || connected.value) return
+  if (isConnecting.value || connected.value) return;
 
-  isConnecting.value = true
-  showToast(t('messages.device.tryingConnect'), 'idle')
+  isConnecting.value = true;
+  showToast(t('messages.device.tryingConnect'), 'idle');
 
   try {
     // Check if debug mode is enabled
     if (DebugConfig.enabled) {
       // Simulate connection delay
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       // Create mock serial port
       const mockPort = {
         readable: new ReadableStream({
           start(controller) {
             // Mock readable stream
-          }
+          },
         }),
         writable: new WritableStream({
           write(chunk) {
             // Mock writable stream
-          }
+          },
         }),
         open: async () => {},
         close: async () => {},
-        getInfo: () => ({ usbVendorId: 0x1234, usbProductId: 0x5678 })
-      }
+        getInfo: () => ({ usbVendorId: 0x1234, usbProductId: 0x5678 }),
+      };
 
-      port = mockPort as unknown as SerialPort
-      reader = mockPort.readable.getReader()
-      writer = mockPort.writable.getWriter()
-      
-      connected.value = true
-      isConnecting.value = false
-      showToast(t('messages.device.connectionSuccess') + ' (Debug Mode)', 'success')
-      emit('device-ready', { port, reader, writer } as DeviceInfo)
-      return
+      port = mockPort as unknown as SerialPort;
+      reader = mockPort.readable.getReader();
+      writer = mockPort.writable.getWriter();
+
+      connected.value = true;
+      isConnecting.value = false;
+      showToast(t('messages.device.connectionSuccess') + ' (Debug Mode)', 'success');
+      emit('device-ready', { port, reader, writer } as DeviceInfo);
+      return;
     }
 
     // Check if Web Serial API is supported and get appropriate implementation
     if (usePolyfill.value) {
       if (!polyfill) {
-        throw new Error('Web Serial Polyfill is not available')
+        throw new Error('Web Serial Polyfill is not available');
       }
       // Request serial port using polyfill
-      port = await polyfill.requestPort() as unknown as SerialPort
+      port = await polyfill.requestPort() as unknown as SerialPort;
     } else {
       if (!navigator.serial) {
-        throw new Error('Web Serial API is not supported in this browser')
+        throw new Error('Web Serial API is not supported in this browser');
       }
       // Request serial port using native API
-      port = await navigator.serial.requestPort()
+      port = await navigator.serial.requestPort();
     }
-    
+
     // Open the serial port with specified parameters
     await port.open({
       baudRate: 9600,
       dataBits: 8,
       parity: 'none',
       stopBits: 1,
-      flowControl: 'none'
-    })
+      flowControl: 'none',
+    });
 
     // Set up serial port signals
-    await port.setSignals({ 
-      dataTerminalReady: true, 
-      requestToSend: true 
-    })
-    
+    await port.setSignals({
+      dataTerminalReady: true,
+      requestToSend: true,
+    });
+
     // Brief delay then disable signals as specified
-    await new Promise(resolve => setTimeout(resolve, 100))
-    await port.setSignals({ 
-      dataTerminalReady: false, 
-      requestToSend: false 
-    })
+    await new Promise(resolve => setTimeout(resolve, 100));
+    await port.setSignals({
+      dataTerminalReady: false,
+      requestToSend: false,
+    });
 
     // Get reader and writer
-    reader = port.readable?.getReader() || null
-    writer = port.writable?.getWriter() || null
+    reader = port.readable?.getReader() || null;
+    writer = port.writable?.getWriter() || null;
 
     if (!reader || !writer) {
-      throw new Error('Failed to get serial port reader/writer')
+      throw new Error('Failed to get serial port reader/writer');
     }
 
-    connected.value = true
-    isConnecting.value = false
-    showToast(t('messages.device.connectionSuccess'), 'success')
-    emit('device-ready', { port, reader, writer } as DeviceInfo)
+    connected.value = true;
+    isConnecting.value = false;
+    showToast(t('messages.device.connectionSuccess'), 'success');
+    emit('device-ready', { port, reader, writer } as DeviceInfo);
   } catch (e) {
-    connected.value = false
-    isConnecting.value = false
-    showToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error')
-    
+    connected.value = false;
+    isConnecting.value = false;
+    showToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
+
     // Clean up on error
     if (reader) {
-      try { await reader.releaseLock() } catch {}
-      reader = null
+      try { await reader.releaseLock(); } catch {}
+      reader = null;
     }
     if (writer) {
-      try { await writer.releaseLock() } catch {}
-      writer = null
+      try { await writer.releaseLock(); } catch {}
+      writer = null;
     }
     if (port) {
-      try { await port.close() } catch {}
-      port = null
+      try { await port.close(); } catch {}
+      port = null;
     }
-    
-    emit('device-disconnected')
+
+    emit('device-disconnected');
   }
 }
 
 async function disconnect() {
-  if (!port) return
-  isConnecting.value = true
+  if (!port) return;
+  isConnecting.value = true;
 
   try {
     // Release reader and writer locks
     if (reader) {
-      await reader.cancel()
-      reader.releaseLock()
-      reader = null
+      await reader.cancel();
+      reader.releaseLock();
+      reader = null;
     }
-    
+
     if (writer) {
-      await writer.close()
-      writer = null
+      await writer.close();
+      writer = null;
     }
-    
+
     // Close the serial port
-    await port.close()
-    showToast(t('messages.device.disconnectionSuccess'), 'success')
+    await port.close();
+    showToast(t('messages.device.disconnectionSuccess'), 'success');
   } catch (e) {
-    console.error(t('messages.device.disconnectionFailed'), e)
-    showToast(`${t('messages.device.disconnectionFailed')}`, 'error')
+    console.error(t('messages.device.disconnectionFailed'), e);
+    showToast(`${t('messages.device.disconnectionFailed')}`, 'error');
   } finally {
-    port = null
-    reader = null
-    writer = null
-    connected.value = false
-    isConnecting.value = false
-    emit('device-disconnected')
+    port = null;
+    reader = null;
+    writer = null;
+    connected.value = false;
+    isConnecting.value = false;
+    emit('device-disconnected');
   }
 }
 
 function handleConnectDisconnect() {
   if (connected.value) {
-    disconnect()
+    disconnect();
   } else {
-    connect()
+    connect();
   }
 }
 
 const buttonText = computed(() => {
-  if (isConnecting.value && !connected.value) return t('ui.device.connecting')
-  if (connected.value) return t('ui.device.connected')
-  return t('ui.device.connect')
-})
+  if (isConnecting.value && !connected.value) return t('ui.device.connecting');
+  if (connected.value) return t('ui.device.connected');
+  return t('ui.device.connect');
+});
 
 const buttonIcon = computed(() => {
-  if (isConnecting.value && !connected.value) return '🔄'
-  if (connected.value) return '✅'
-  return '🔌'
-})
+  if (isConnecting.value && !connected.value) return '🔄';
+  if (connected.value) return '✅';
+  return '🔌';
+});
 
 const buttonClass = computed(() => {
-  if (connected.value) return 'disconnect-btn'
-  return 'connect-btn'
-})
+  if (connected.value) return 'disconnect-btn';
+  return 'connect-btn';
+});
 
 </script>
 

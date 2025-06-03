@@ -18,7 +18,7 @@ export class CRC16PerformanceTest {
   private static measurePerformance(
     func: (data: Uint8Array) => number,
     data: Uint8Array,
-    iterations: number = 1000
+    iterations: number = 1000,
   ): { averageTime: number; totalTime: number; result: number } {
     let result = 0;
     const startTime = performance.now();
@@ -90,7 +90,7 @@ export class CRC16PerformanceTest {
       if (speedup > 1) {
         console.log(`💡 查表法比原始实现快 ${speedup.toFixed(2)} 倍`);
       } else {
-        console.log(`⚠️  查表法反而慢了 ${(1/speedup).toFixed(2)} 倍`);
+        console.log(`⚠️  查表法反而慢了 ${(1 / speedup).toFixed(2)} 倍`);
       }
     }
 

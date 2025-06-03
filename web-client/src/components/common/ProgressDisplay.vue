@@ -92,11 +92,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { formatBytes, formatSpeed, formatTime } from '@/utils/Formatter'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { formatBytes, formatSpeed, formatTime } from '@/utils/Formatter';
 
-const { t } = useI18n()
+const { t } = useI18n();
 
 interface ProgressData {
   progress: number | null
@@ -108,95 +108,95 @@ interface ProgressData {
   allowCancel?: boolean
 }
 
-const props = defineProps<ProgressData>()
+const props = defineProps<ProgressData>();
 
 const emit = defineEmits<{
   stop: []
   close: []
-}>()
+}>();
 
-const visible = ref(false)
-const isCompleted = ref(false)
-const now = ref(Date.now())
-let timer: number | undefined
+const visible = ref(false);
+const isCompleted = ref(false);
+const now = ref(Date.now());
+let timer: number | undefined;
 
 watch(
   () => visible.value && !isCompleted.value,
   (active) => {
     if (active) {
       timer = window.setInterval(() => {
-        now.value = Date.now()
-      }, 500)
+        now.value = Date.now();
+      }, 500);
     } else if (timer) {
-      clearInterval(timer)
-      timer = undefined
+      clearInterval(timer);
+      timer = undefined;
     }
   },
-  { immediate: true }
-)
+  { immediate: true },
+);
 
 onUnmounted(() => {
-  if (timer) clearInterval(timer)
-})
+  if (timer) clearInterval(timer);
+});
 
 // 监听进度变化来控制弹窗显示
 watch(() => props.progress, (newProgress) => {
   if (newProgress !== null && newProgress !== undefined) {
-    visible.value = true
-    isCompleted.value = false
+    visible.value = true;
+    isCompleted.value = false;
   }
-  
+
   // 当进度达到100%时标记为完成，但不自动关闭
   if (newProgress === 100) {
-    isCompleted.value = true
+    isCompleted.value = true;
   }
-}, { immediate: true })
+}, { immediate: true });
 
 // Computed statistics
 const transferredBytes = computed(() => {
   if (props.totalBytes && props.progress) {
-    return Math.floor((props.totalBytes * props.progress) / 100)
+    return Math.floor((props.totalBytes * props.progress) / 100);
   }
-  return props.transferredBytes || 0
-})
+  return props.transferredBytes || 0;
+});
 
 const remainingBytes = computed(() => {
-  const total = props.totalBytes || 0
-  const transferred = transferredBytes.value
-  return Math.max(0, total - transferred)
-})
+  const total = props.totalBytes || 0;
+  const transferred = transferredBytes.value;
+  return Math.max(0, total - transferred);
+});
 
 const elapsedTime = computed(() => {
-  if (!props.startTime) return 0
-  return Math.floor((now.value - props.startTime) / 1000)
-})
+  if (!props.startTime) return 0;
+  return Math.floor((now.value - props.startTime) / 1000);
+});
 
-const currentSpeed = computed(() => props.currentSpeed || 0)
+const currentSpeed = computed(() => props.currentSpeed || 0);
 
 const remainingTime = computed(() => {
-  if (!currentSpeed.value || currentSpeed.value <= 0) return 0
-  const remainingKB = remainingBytes.value / 1024
-  return Math.floor(remainingKB / currentSpeed.value)
-})
+  if (!currentSpeed.value || currentSpeed.value <= 0) return 0;
+  const remainingKB = remainingBytes.value / 1024;
+  return Math.floor(remainingKB / currentSpeed.value);
+});
 
-const totalBytes = computed(() => props.totalBytes || 0)
+const totalBytes = computed(() => props.totalBytes || 0);
 
 function handleStop() {
   if (props.allowCancel !== false) {
-    emit('stop')
+    emit('stop');
   }
 }
 
 function handleClose() {
-  visible.value = false
-  emit('close')
+  visible.value = false;
+  emit('close');
 }
 
 function onOverlayClick() {
   // 只有在操作完成时才允许点击弹窗外关闭
   if (isCompleted.value || props.progress === 100) {
-    visible.value = false
-    emit('close')
+    visible.value = false;
+    emit('close');
   }
 }
 
@@ -205,22 +205,22 @@ function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && visible.value) {
     if (isCompleted.value || props.progress === 100) {
       // 操作完成时允许ESC关闭
-      visible.value = false
-      emit('close')
+      visible.value = false;
+      emit('close');
     } else if (props.allowCancel !== false) {
       // 操作进行中时ESC触发停止
-      handleStop()
+      handleStop();
     }
   }
 }
 
 onMounted(() => {
-  document.addEventListener('keydown', handleKeydown)
-})
+  document.addEventListener('keydown', handleKeydown);
+});
 
 onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown)
-})
+  document.removeEventListener('keydown', handleKeydown);
+});
 </script>
 
 <style scoped>

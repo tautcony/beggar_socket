@@ -5,10 +5,10 @@ import { PerformanceTracker } from './sentry';
 // CRC16 (Modbus)
 export function modbusCRC16(bytes: Uint8Array): number {
   let crc = 0xFFFF;
-  for (let b of bytes) {
+  for (const b of bytes) {
     crc ^= b;
     for (let i = 0; i < 8; i++) {
-      let temp = crc & 1;
+      const temp = crc & 1;
       crc >>= 1;
       if (temp) crc ^= 0xA001;
       crc &= 0xFFFF;
@@ -62,8 +62,8 @@ export function fromLittleEndian(bytes: Uint8Array): number {
 // 封装数据包
 export function buildPackage(payload: Uint8Array): Uint8Array {
   const size = 2 + payload.length + 2;
-  let buf = new Uint8Array(size);
-  let sizeBytes = toLittleEndian(size, 2);
+  const buf = new Uint8Array(size);
+  const sizeBytes = toLittleEndian(size, 2);
   buf.set(sizeBytes, 0);
   buf.set(payload, 2);
   // CRC16
@@ -72,7 +72,7 @@ export function buildPackage(payload: Uint8Array): Uint8Array {
   return buf;
 }
 
-function timeout(ms: number, message: string): Promise<never> {
+function timeoutIn(ms: number, message: string): Promise<never> {
   return new Promise((_, reject) => {
     setTimeout(() => reject(new Error(message)), ms);
   });
@@ -81,7 +81,7 @@ function timeout(ms: number, message: string): Promise<never> {
 export async function withTimeout<T>(promise: Promise<T>, ms: number, message = '操作超时'): Promise<T> {
   return Promise.race([
     promise,
-    timeout(ms, message)
+    timeoutIn(ms, message),
   ]);
 }
 
@@ -131,7 +131,7 @@ export function formatPackage(buf: Uint8Array): void {
       section: 'CRC',
       hexValue: bytesToHex(crc),
       decValue: (crc[0] | (crc[1] << 8)),
-    }
+    },
   ]);
 }
 
@@ -146,7 +146,7 @@ export async function sendPackage(writer: WritableStreamDefaultWriter<Uint8Array
       await withTimeout(
         writer.write(buf),
         timeout,
-        `发送数据包超时 (${timeout}ms)`
+        `发送数据包超时 (${timeout}ms)`,
       );
       return true;
     },
@@ -157,7 +157,7 @@ export async function sendPackage(writer: WritableStreamDefaultWriter<Uint8Array
     {
       payloadSize: payload.length,
       packageSize: payload.length + 4, // 2 bytes size + 2 bytes CRC
-    }
+    },
   );
 }
 
@@ -183,7 +183,7 @@ export async function getPackage(reader: ReadableStreamDefaultReader<Uint8Array>
           }
         })(),
         timeout,
-        `接收数据包超时 (${timeout}ms)`
+        `接收数据包超时 (${timeout}ms)`,
       );
 
       await readTimeout;
@@ -205,7 +205,7 @@ export async function getPackage(reader: ReadableStreamDefaultReader<Uint8Array>
     {
       expectedLength: length,
       actualLength: 0, // Will be updated in transaction data
-    }
+    },
   );
 }
 
@@ -220,7 +220,7 @@ export async function getResult(reader: ReadableStreamDefaultReader<Uint8Array>,
     {
       operation_type: 'receive_result',
       timeout: String(timeoutMs ?? AdvancedSettings.packageReceiveTimeout),
-    }
+    },
   );
 }
 
@@ -228,7 +228,7 @@ export function getFlashId(id: number[]) : string | null {
   const flashTypes = [
     { pattern: [0x01, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22], name: 'S29GL256' },
     { pattern: [0x89, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22], name: 'JS28F256' },
-    { pattern: [0x01, 0x00, 0x7e, 0x22, 0x28, 0x22, 0x01, 0x22], name: 'S29GL01GS' }
+    { pattern: [0x01, 0x00, 0x7e, 0x22, 0x28, 0x22, 0x01, 0x22], name: 'S29GL01GS' },
   ];
 
   for (const flashType of flashTypes) {

@@ -121,7 +121,7 @@ export class DebugConfig {
   static async simulateProgress(
     callback: (progress: number, detail?: string) => void,
     totalTime: number = 3000,
-    detail?: string
+    detail?: string,
   ): Promise<void> {
     if (!this.enabled) return;
 
@@ -169,7 +169,7 @@ export class DebugConfig {
             responseIndex++;
           }
         }, 100);
-      }
+      },
     });
 
     // 创建模拟的可写流
@@ -177,7 +177,7 @@ export class DebugConfig {
       write(chunk) {
         console.log('Mock SerialPort: 接收到数据', chunk);
         return Promise.resolve();
-      }
+      },
     });
 
     // 创建模拟的 SerialPort
@@ -188,7 +188,7 @@ export class DebugConfig {
       // 模拟串口信息
       getInfo: () => ({
         usbVendorId: 0x1234,
-        usbProductId: 0x5678
+        usbProductId: 0x5678,
       }),
 
       // 模拟信号控制
@@ -196,7 +196,7 @@ export class DebugConfig {
         dataCarrierDetect: false,
         clearToSend: false,
         ringIndicator: false,
-        dataSetReady: false
+        dataSetReady: false,
       }),
 
       setSignals: (signals: SerialOutputSignals) => {
@@ -222,7 +222,7 @@ export class DebugConfig {
       onconnect: (ev: Event) => {},
       ondisconnect: (ev: Event) => {},
       connected: true,
-      forget: () =>  Promise.resolve(),
+      forget: () => Promise.resolve(),
     } as SerialPort;
   }
 
@@ -234,7 +234,7 @@ export class DebugConfig {
     return {
       port: mockPort,
       reader: null,
-      writer: null
+      writer: null,
     };
   }
 }

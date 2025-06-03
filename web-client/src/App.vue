@@ -5,9 +5,9 @@
     </div>
     <h1 class="title-container">
       {{ $t('ui.app.title') }}
-      <a 
-        href="https://oshwhub.com/linscon/beggar_socket" 
-        target="_blank" 
+      <a
+        href="https://oshwhub.com/linscon/beggar_socket"
+        target="_blank"
         class="title-badge"
         rel="noopener noreferrer"
       >
@@ -25,9 +25,9 @@
     <!-- 调试面板悬浮在最上层 -->
     <DebugPanel v-if="showDebugPanel" />
     <!-- 高级设置弹窗 -->
-    <AdvancedSettings 
-      v-if="showSettings" 
-      @close="showSettings = false" 
+    <AdvancedSettings
+      v-if="showSettings"
+      @close="showSettings = false"
     />
     <!-- 设置按钮悬浮在右下角，GitHub 链接上方 -->
     <SettingsLink @click="showSettings = true" />
@@ -37,41 +37,41 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import DeviceConnect from '@/components/DeviceConnect.vue'
-import FlashBurner from '@/components/CartBurner.vue'
-import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue'
-import DebugPanel from '@/components/common/DebugPanel.vue'
-import GitHubLink from '@/components/common/GitHubLink.vue'
-import AdvancedSettings from '@/components/settings/AdvancedSettings.vue'
-import SettingsLink from '@/components/settings/SettingsLink.vue'
-import { DeviceInfo } from '@/types/DeviceInfo'
-import { DebugConfig } from '@/utils/DebugConfig'
+import { ref, computed } from 'vue';
+import DeviceConnect from '@/components/DeviceConnect.vue';
+import FlashBurner from '@/components/CartBurner.vue';
+import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue';
+import DebugPanel from '@/components/common/DebugPanel.vue';
+import GitHubLink from '@/components/common/GitHubLink.vue';
+import AdvancedSettings from '@/components/settings/AdvancedSettings.vue';
+import SettingsLink from '@/components/settings/SettingsLink.vue';
+import { DeviceInfo } from '@/types/DeviceInfo';
+import { DebugConfig } from '@/utils/DebugConfig';
 
-const device = ref<DeviceInfo | null>(null)
-const deviceReady = ref(false)
-const showSettings = ref(false)
+const device = ref<DeviceInfo | null>(null);
+const deviceReady = ref(false);
+const showSettings = ref(false);
 
 // 显示调试面板的条件：调试模式启用或者开发环境
 const showDebugPanel = computed(() => {
-  return DebugConfig.showDebugPanel || import.meta.env.DEV
-})
+  return DebugConfig.showDebugPanel || import.meta.env.DEV;
+});
 
 /**
  * Callback when the USB device is ready.
  * @param {DeviceInfo} dev The USB device object
  */
 function onDeviceReady(dev: DeviceInfo) {
-  device.value = dev
-  deviceReady.value = true
+  device.value = dev;
+  deviceReady.value = true;
 }
 
 /**
  * Callback when the USB device is disconnected.
  */
 function onDeviceDisconnected() {
-  device.value = null
-  deviceReady.value = false
+  device.value = null;
+  deviceReady.value = false;
 }
 </script>
 

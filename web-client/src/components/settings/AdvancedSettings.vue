@@ -3,7 +3,7 @@
     <div class="advanced-settings">
       <div class="settings-header">
         <h3>{{ $t('ui.settings.title') }}</h3>
-        <button 
+        <button
           class="close-btn"
           :title="$t('ui.settings.actions.close')"
           @click="$emit('close')"
@@ -16,7 +16,7 @@
         <!-- 页面大小设置 -->
         <div class="setting-group">
           <h4>{{ $t('ui.settings.pageSize.title') }}</h4>
-          
+
           <div class="setting-row">
             <div class="setting-item">
               <label for="rom-page-size">{{ $t('ui.settings.pageSize.romPageSize') }}</label>
@@ -33,7 +33,7 @@
                 <span class="unit">{{ $t('ui.settings.pageSize.bytes') }}</span>
               </div>
               <div
-                v-if="validationErrors.romPageSize" 
+                v-if="validationErrors.romPageSize"
                 class="validation-error"
               >
                 {{ validationErrors.romPageSize }}
@@ -69,7 +69,7 @@
         <!-- 超时设置 -->
         <div class="setting-group">
           <h4>{{ $t('ui.settings.timeout.title') }}</h4>
-          
+
           <div class="setting-row">
             <div class="setting-item">
               <label for="default-timeout">{{ $t('ui.settings.timeout.defaultTimeout') }}</label>
@@ -169,20 +169,20 @@
       </div>
 
       <div class="settings-footer">
-        <button 
+        <button
           class="btn-secondary"
           @click="resetToDefaults"
         >
           {{ $t('ui.settings.actions.reset') }}
         </button>
         <div class="footer-right">
-          <button 
+          <button
             class="btn-secondary"
             @click="$emit('close')"
           >
             {{ $t('ui.settings.actions.close') }}
           </button>
-          <button 
+          <button
             class="btn-primary"
             :disabled="!isValid"
             @click="applySettings"
@@ -196,35 +196,35 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { AdvancedSettings } from '@/utils/AdvancedSettings'
-import { formatBytes, formatTime } from '@/utils/Formatter'
+import { ref, computed, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { AdvancedSettings } from '@/utils/AdvancedSettings';
+import { formatBytes, formatTime } from '@/utils/Formatter';
 
-const { t } = useI18n()
+const { t } = useI18n();
 
 // 定义事件
 const emit = defineEmits<{
   close: []
   applied: []
-}>()
+}>();
 
 // 获取限制值
-const limits = AdvancedSettings.getLimits()
+const limits = AdvancedSettings.getLimits();
 
 // 本地设置状态
 const localSettings = ref({
   pageSize: {
     rom: 0x1000,
-    ram: 0x800
+    ram: 0x800,
   },
   timeout: {
     default: 3000,
     packageSend: 3000,
     packageReceive: 3000,
-    operation: 30000
-  }
-})
+    operation: 30000,
+  },
+});
 
 // 验证错误
 const validationErrors = ref({
@@ -233,44 +233,44 @@ const validationErrors = ref({
   defaultTimeout: '',
   packageSendTimeout: '',
   packageReceiveTimeout: '',
-  operationTimeout: ''
-})
+  operationTimeout: '',
+});
 
 // 验证单个值
 const validatePageSize = (value: number): string => {
   if (isNaN(value) || value < limits.pageSize.min || value > limits.pageSize.max) {
-    return `页面大小必须在 ${limits.pageSize.min} - ${limits.pageSize.max} 字节之间`
+    return `页面大小必须在 ${limits.pageSize.min} - ${limits.pageSize.max} 字节之间`;
   }
   if (value % 256 !== 0) {
-    return '页面大小必须是256的倍数'
+    return '页面大小必须是256的倍数';
   }
-  return ''
-}
+  return '';
+};
 
 const validateTimeout = (value: number): string => {
   if (isNaN(value) || value < limits.timeout.min || value > limits.timeout.max) {
-    return `超时时间必须在 ${limits.timeout.min} - ${limits.timeout.max} 毫秒之间`
+    return `超时时间必须在 ${limits.timeout.min} - ${limits.timeout.max} 毫秒之间`;
   }
-  return ''
-}
+  return '';
+};
 
 // 验证并更新
 const validateAndUpdate = () => {
   // 验证页面大小
-  validationErrors.value.romPageSize = validatePageSize(localSettings.value.pageSize.rom)
-  validationErrors.value.ramPageSize = validatePageSize(localSettings.value.pageSize.ram)
+  validationErrors.value.romPageSize = validatePageSize(localSettings.value.pageSize.rom);
+  validationErrors.value.ramPageSize = validatePageSize(localSettings.value.pageSize.ram);
 
   // 验证超时
-  validationErrors.value.defaultTimeout = validateTimeout(localSettings.value.timeout.default)
-  validationErrors.value.packageSendTimeout = validateTimeout(localSettings.value.timeout.packageSend)
-  validationErrors.value.packageReceiveTimeout = validateTimeout(localSettings.value.timeout.packageReceive)
-  validationErrors.value.operationTimeout = validateTimeout(localSettings.value.timeout.operation)
-}
+  validationErrors.value.defaultTimeout = validateTimeout(localSettings.value.timeout.default);
+  validationErrors.value.packageSendTimeout = validateTimeout(localSettings.value.timeout.packageSend);
+  validationErrors.value.packageReceiveTimeout = validateTimeout(localSettings.value.timeout.packageReceive);
+  validationErrors.value.operationTimeout = validateTimeout(localSettings.value.timeout.operation);
+};
 
 // 检查是否有效
 const isValid = computed(() => {
-  return Object.values(validationErrors.value).every(error => error === '')
-})
+  return Object.values(validationErrors.value).every(error => error === '');
+});
 
 // 重置为默认值
 const resetToDefaults = () => {
@@ -278,52 +278,52 @@ const resetToDefaults = () => {
     localSettings.value = {
       pageSize: {
         rom: 0x400,
-        ram: 0x200
+        ram: 0x200,
       },
       timeout: {
         default: 3000,
         packageSend: 3000,
         packageReceive: 3000,
-        operation: 100000
-      }
-    }
-    validateAndUpdate()
+        operation: 100000,
+      },
+    };
+    validateAndUpdate();
   }
-}
+};
 
 // 应用设置
 const applySettings = () => {
-  if (!isValid.value) return
+  if (!isValid.value) return;
 
   try {
     // 应用设置
-    AdvancedSettings.setSettings(localSettings.value)
-    
-    console.log('设置已保存:', AdvancedSettings.getSettings())
-    emit('applied')
-    emit('close')
+    AdvancedSettings.setSettings(localSettings.value);
+
+    console.log('设置已保存:', AdvancedSettings.getSettings());
+    emit('applied');
+    emit('close');
   } catch (error) {
-    console.error('保存设置失败:', error)
-    alert('保存设置失败，请检查输入值')
+    console.error('保存设置失败:', error);
+    alert('保存设置失败，请检查输入值');
   }
-}
+};
 
 // 组件挂载时加载当前设置
 onMounted(() => {
   localSettings.value = {
     pageSize: {
       rom: AdvancedSettings.romPageSize,
-      ram: AdvancedSettings.ramPageSize
+      ram: AdvancedSettings.ramPageSize,
     },
     timeout: {
       default: AdvancedSettings.defaultTimeout,
       packageSend: AdvancedSettings.packageSendTimeout,
       packageReceive: AdvancedSettings.packageReceiveTimeout,
-      operation: AdvancedSettings.operationTimeout
-    }
-  }
-  validateAndUpdate()
-})
+      operation: AdvancedSettings.operationTimeout,
+    },
+  };
+  validateAndUpdate();
+});
 </script>
 
 <style scoped>
@@ -535,49 +535,49 @@ onMounted(() => {
     background: #2d3748;
     border-color: #4a5568;
   }
-  
+
   .settings-header,
   .settings-footer {
     background: #1a202c;
     border-color: #4a5568;
   }
-  
+
   .settings-header h3,
   .setting-group h4,
   .setting-item label {
     color: #e2e8f0;
   }
-  
+
   .input-group input {
     background: #4a5568;
     border-color: #718096;
     color: #e2e8f0;
   }
-  
+
   .input-group input:focus {
     border-color: #63b3ed;
   }
-  
+
   .unit,
   .hint {
     color: #a0aec0;
   }
-  
+
   .close-btn {
     color: #a0aec0;
   }
-  
+
   .close-btn:hover {
     background: #4a5568;
     color: #e2e8f0;
   }
-  
+
   .btn-secondary {
     background: #4a5568;
     color: #e2e8f0;
     border-color: #718096;
   }
-  
+
   .btn-secondary:hover {
     background: #2d3748;
     border-color: #a0aec0;
@@ -590,28 +590,28 @@ onMounted(() => {
     width: 95%;
     max-height: 90vh;
   }
-  
+
   .setting-row {
     grid-template-columns: 1fr;
     gap: 16px;
   }
-  
+
   .settings-header,
   .settings-content,
   .settings-footer {
     padding: 12px 16px;
   }
-  
+
   .settings-footer {
     flex-direction: column;
     gap: 12px;
   }
-  
+
   .footer-right {
     width: 100%;
     justify-content: center;
   }
-  
+
   .btn-primary,
   .btn-secondary {
     width: 100%;

@@ -1,26 +1,26 @@
 <template>
-  <div 
+  <div
     v-if="showDebugPanel"
     class="debug-panel"
   >
     <div class="debug-header">
       <h3>🛠️ 调试控制面板</h3>
-      <button 
+      <button
         class="debug-toggle"
         @click="togglePanel"
       >
         {{ panelCollapsed ? '展开' : '收起' }}
       </button>
     </div>
-    
-    <div 
+
+    <div
       v-show="!panelCollapsed"
       class="debug-content"
     >
       <!-- 调试模式开关 -->
       <div class="debug-section">
         <label class="debug-switch">
-          <input 
+          <input
             v-model="debugEnabled"
             type="checkbox"
             @change="onDebugToggle"
@@ -30,15 +30,15 @@
       </div>
 
       <!-- 模拟设置 -->
-      <div 
+      <div
         v-if="debugEnabled"
         class="debug-section"
       >
         <h4>模拟设置</h4>
-        
+
         <div class="debug-control">
           <label>延迟时间 (ms):</label>
-          <input 
+          <input
             v-model.number="simulatedDelay"
             type="number"
             min="0"
@@ -50,7 +50,7 @@
 
         <div class="debug-control">
           <label>进度更新间隔 (ms):</label>
-          <input 
+          <input
             v-model.number="progressInterval"
             type="number"
             min="50"
@@ -62,7 +62,7 @@
 
         <div class="debug-control">
           <label class="debug-switch">
-            <input 
+            <input
               v-model="simulateErrors"
               type="checkbox"
               @change="updateErrorSimulation"
@@ -71,12 +71,12 @@
           </label>
         </div>
 
-        <div 
+        <div
           v-if="simulateErrors"
           class="debug-control"
         >
           <label>错误概率:</label>
-          <input 
+          <input
             v-model.number="errorProbability"
             type="range"
             min="0"
@@ -89,31 +89,31 @@
       </div>
 
       <!-- 快捷操作 -->
-      <div 
+      <div
         v-if="debugEnabled"
         class="debug-section"
       >
         <h4>快捷操作</h4>
         <div class="debug-buttons">
-          <button 
+          <button
             class="debug-btn"
             @click="connectMockDevice"
           >
             连接模拟设备
           </button>
-          <button 
+          <button
             class="debug-btn"
             @click="generateTestRom"
           >
             生成测试ROM
           </button>
-          <button 
+          <button
             class="debug-btn"
             @click="generateTestRam"
           >
             生成测试RAM
           </button>
-          <button 
+          <button
             class="debug-btn secondary"
             @click="clearMockData"
           >
@@ -147,97 +147,97 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { DebugConfig } from '@/utils/DebugConfig'
+import { ref, onMounted } from 'vue';
+import { DebugConfig } from '@/utils/DebugConfig';
 
-const emit = defineEmits(['connect-mock-device', 'generate-test-file'])
+const emit = defineEmits(['connect-mock-device', 'generate-test-file']);
 
 // 面板状态
-const showDebugPanel = ref(false)
-const panelCollapsed = ref(true)
+const showDebugPanel = ref(false);
+const panelCollapsed = ref(true);
 
 // 调试设置
-const debugEnabled = ref(false)
-const simulatedDelay = ref(1000)
-const progressInterval = ref(100)
-const simulateErrors = ref(false)
-const errorProbability = ref(0.1)
+const debugEnabled = ref(false);
+const simulatedDelay = ref(1000);
+const progressInterval = ref(100);
+const simulateErrors = ref(false);
+const errorProbability = ref(0.1);
 
 onMounted(() => {
   // 检查是否应该显示调试面板
-  showDebugPanel.value = import.meta.env.VITE_DEBUG_MODE === 'true' || localStorage.getItem('debug_mode') === 'true'
+  showDebugPanel.value = import.meta.env.VITE_DEBUG_MODE === 'true' || localStorage.getItem('debug_mode') === 'true';
 
   // 同步调试配置
-  syncConfig()
-})
+  syncConfig();
+});
 
 function syncConfig() {
-  debugEnabled.value = DebugConfig.enabled
-  simulatedDelay.value = DebugConfig.simulatedDelay
-  progressInterval.value = DebugConfig.progressUpdateInterval
-  simulateErrors.value = DebugConfig.simulateErrors
-  errorProbability.value = DebugConfig.errorProbability
+  debugEnabled.value = DebugConfig.enabled;
+  simulatedDelay.value = DebugConfig.simulatedDelay;
+  progressInterval.value = DebugConfig.progressUpdateInterval;
+  simulateErrors.value = DebugConfig.simulateErrors;
+  errorProbability.value = DebugConfig.errorProbability;
 }
 
 function togglePanel() {
-  panelCollapsed.value = !panelCollapsed.value
+  panelCollapsed.value = !panelCollapsed.value;
 }
 
 function onDebugToggle() {
-  DebugConfig.enabled = debugEnabled.value
+  DebugConfig.enabled = debugEnabled.value;
   if (debugEnabled.value) {
-    console.log('🎭 调试模式已启用')
+    console.log('🎭 调试模式已启用');
   } else {
-    console.log('🎭 调试模式已禁用')
+    console.log('🎭 调试模式已禁用');
   }
 }
 
 function updateDelay() {
-  DebugConfig.simulatedDelay = simulatedDelay.value
+  DebugConfig.simulatedDelay = simulatedDelay.value;
 }
 
 function updateProgressInterval() {
-  DebugConfig.progressUpdateInterval = progressInterval.value
+  DebugConfig.progressUpdateInterval = progressInterval.value;
 }
 
 function updateErrorSimulation() {
-  DebugConfig.simulateErrors = simulateErrors.value
+  DebugConfig.simulateErrors = simulateErrors.value;
 }
 
 function updateErrorProbability() {
-  DebugConfig.errorProbability = errorProbability.value
+  DebugConfig.errorProbability = errorProbability.value;
 }
 
 function connectMockDevice() {
-  emit('connect-mock-device')
+  emit('connect-mock-device');
 }
 
 function generateTestRom() {
   // 生成2MB的测试ROM数据
-  const testData = DebugConfig.generateRandomData(0x200000)
-  const blob = new Blob([testData], { type: 'application/octet-stream' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'test_rom.gba'
-  a.click()
-  URL.revokeObjectURL(url)
+  const testData = DebugConfig.generateRandomData(0x200000);
+  const blob = new Blob([testData], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'test_rom.gba';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function generateTestRam() {
   // 生成32KB的测试RAM数据
-  const testData = DebugConfig.generateRandomData(0x8000)
-  const blob = new Blob([testData], { type: 'application/octet-stream' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'test_ram.sav'
-  a.click()
-  URL.revokeObjectURL(url)
+  const testData = DebugConfig.generateRandomData(0x8000);
+  const blob = new Blob([testData], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'test_ram.sav';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function clearMockData() {
-  console.log('🗑️ 清除模拟数据')
+  console.log('🗑️ 清除模拟数据');
   // 这里可以添加清除模拟数据的逻辑
 }
 </script>
@@ -479,7 +479,7 @@ function clearMockData() {
     width: auto;
     max-width: none;
   }
-  
+
   .debug-buttons {
     grid-template-columns: 1fr;
   }
@@ -492,11 +492,11 @@ function clearMockData() {
     right: 5px;
     font-size: 13px;
   }
-  
+
   .debug-header h3 {
     font-size: 14px;
   }
-  
+
   .debug-content {
     padding: 12px;
   }

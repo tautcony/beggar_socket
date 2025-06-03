@@ -25,38 +25,38 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick } from 'vue';
 
 const props = defineProps({
   title: {
     type: String,
-    default: '日志'
+    default: '日志',
   },
   logs: {
     type: Array,
-    required: true
+    required: true,
   },
   maxHeight: {
     type: String,
-    default: '350px'
-  }
-})
+    default: '350px',
+  },
+});
 
-const emit = defineEmits(['clear-logs'])
+const emit = defineEmits(['clear-logs']);
 
-const logBox = ref<HTMLDivElement | null>(null)
+const logBox = ref<HTMLDivElement | null>(null);
 
 function clearLog() {
-  emit('clear-logs')
+  emit('clear-logs');
 }
 
 // 自动滚动到底部
 watch(() => props.logs, async () => {
-  await nextTick()
+  await nextTick();
   if (logBox.value) {
-    logBox.value.scrollTop = logBox.value.scrollHeight
+    logBox.value.scrollTop = logBox.value.scrollHeight;
   }
-})
+});
 </script>
 
 <style scoped>

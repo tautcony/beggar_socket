@@ -15,7 +15,7 @@ export class MockAdapter extends CartridgeAdapter {
     logCallback: LogCallback | null = null,
     progressCallback: ProgressCallback | null = null,
     translateFunc: TranslateFunction | null = null,
-    enhancedProgressCallback: EnhancedProgressCallback | null = null
+    enhancedProgressCallback: EnhancedProgressCallback | null = null,
   ) {
     // 创建模拟设备
     const mockDeviceInfo = DebugConfig.createMockDeviceInfo();
@@ -36,7 +36,7 @@ export class MockAdapter extends CartridgeAdapter {
       this.log(`${this.t('messages.operation.readIdFailed')}: 模拟错误`);
       return {
         success: false,
-        message: this.t('messages.operation.readIdFailed')
+        message: this.t('messages.operation.readIdFailed'),
       };
     }
 
@@ -47,7 +47,7 @@ export class MockAdapter extends CartridgeAdapter {
     return {
       success: true,
       message: this.t('messages.operation.readIdSuccess'),
-      idStr: mockId
+      idStr: mockId,
     };
   }
 
@@ -71,17 +71,17 @@ export class MockAdapter extends CartridgeAdapter {
           erasedSectors,
           startTime,
           speed,
-          true
+          true,
         ));
       },
-      2000
+      2000,
     );
 
     if (DebugConfig.shouldSimulateError()) {
       this.log(`${this.t('messages.operation.eraseFailed')}: 模拟错误`);
       return {
         success: false,
-        message: this.t('messages.operation.eraseFailed')
+        message: this.t('messages.operation.eraseFailed'),
       };
     }
 
@@ -92,7 +92,7 @@ export class MockAdapter extends CartridgeAdapter {
     this.log(this.t('messages.operation.eraseSuccess'));
     return {
       success: true,
-      message: this.t('messages.operation.eraseSuccess')
+      message: this.t('messages.operation.eraseSuccess'),
     };
   }
 
@@ -118,17 +118,17 @@ export class MockAdapter extends CartridgeAdapter {
           writtenBytes,
           startTime,
           speed,
-          true
+          true,
         ));
       },
-      3000
+      3000,
     );
 
     if (DebugConfig.shouldSimulateError()) {
       this.log(`${this.t('messages.rom.writeFailed')}: 模拟错误`);
       return {
         success: false,
-        message: this.t('messages.rom.writeFailed')
+        message: this.t('messages.rom.writeFailed'),
       };
     }
 
@@ -138,7 +138,7 @@ export class MockAdapter extends CartridgeAdapter {
     this.log(this.t('messages.rom.writeComplete'));
     return {
       success: true,
-      message: this.t('messages.rom.writeSuccess')
+      message: this.t('messages.rom.writeSuccess'),
     };
   }
 
@@ -162,17 +162,17 @@ export class MockAdapter extends CartridgeAdapter {
           readBytes,
           startTime,
           speed,
-          true
+          true,
         ));
       },
-      2500
+      2500,
     );
 
     if (DebugConfig.shouldSimulateError()) {
       this.log(`${this.t('messages.rom.readFailed')}: 模拟错误`);
       return {
         success: false,
-        message: this.t('messages.rom.readFailed')
+        message: this.t('messages.rom.readFailed'),
       };
     }
 
@@ -183,7 +183,7 @@ export class MockAdapter extends CartridgeAdapter {
     return {
       success: true,
       message: this.t('messages.rom.readSuccess', { size: data.length }),
-      data
+      data,
     };
   }
 
@@ -207,17 +207,17 @@ export class MockAdapter extends CartridgeAdapter {
           verifiedBytes,
           startTime,
           speed,
-          true
+          true,
         ));
       },
-      2000
+      2000,
     );
 
     if (DebugConfig.shouldSimulateError()) {
       this.log(`${this.t('messages.rom.verifyFailed')}: 模拟错误`);
       return {
         success: false,
-        message: this.t('messages.rom.verifyFailed')
+        message: this.t('messages.rom.verifyFailed'),
       };
     }
 
@@ -227,7 +227,7 @@ export class MockAdapter extends CartridgeAdapter {
     this.log(message);
     return {
       success: isMatch !== false,
-      message
+      message,
     };
   }
 
@@ -251,17 +251,17 @@ export class MockAdapter extends CartridgeAdapter {
           writtenBytes,
           startTime,
           speed,
-          true
+          true,
         ));
       },
-      2000
+      2000,
     );
 
     if (DebugConfig.shouldSimulateError()) {
       this.log(`${this.t('messages.ram.writeFailed')}: 模拟错误`);
       return {
         success: false,
-        message: this.t('messages.ram.writeFailed')
+        message: this.t('messages.ram.writeFailed'),
       };
     }
 
@@ -269,7 +269,7 @@ export class MockAdapter extends CartridgeAdapter {
     this.log(this.t('messages.ram.writeComplete'));
     return {
       success: true,
-      message: this.t('messages.ram.writeSuccess')
+      message: this.t('messages.ram.writeSuccess'),
     };
   }
 
@@ -293,17 +293,17 @@ export class MockAdapter extends CartridgeAdapter {
           readBytes,
           startTime,
           speed,
-          true
+          true,
         ));
       },
-      2000
+      2000,
     );
 
     if (DebugConfig.shouldSimulateError()) {
       this.log(`${this.t('messages.ram.readFailed')}: 模拟错误`);
       return {
         success: false,
-        message: this.t('messages.ram.readFailed')
+        message: this.t('messages.ram.readFailed'),
       };
     }
 
@@ -312,7 +312,7 @@ export class MockAdapter extends CartridgeAdapter {
     return {
       success: true,
       message: this.t('messages.ram.readSuccess', { size: data.length }),
-      data
+      data,
     };
   }
 
@@ -336,17 +336,17 @@ export class MockAdapter extends CartridgeAdapter {
           verifiedBytes,
           startTime,
           speed,
-          true
+          true,
         ));
       },
-      1500
+      1500,
     );
 
     if (DebugConfig.shouldSimulateError()) {
       this.log(`${this.t('messages.ram.verifyFailed')}: 模拟错误`);
       return {
         success: false,
-        message: this.t('messages.ram.verifyFailed')
+        message: this.t('messages.ram.verifyFailed'),
       };
     }
 
@@ -357,7 +357,7 @@ export class MockAdapter extends CartridgeAdapter {
     this.log(`${this.t('messages.ram.verify')}: ${message}`);
     return {
       success: isMatch !== false,
-      message: message
+      message: message,
     };
   }
 

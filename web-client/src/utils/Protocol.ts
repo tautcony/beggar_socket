@@ -32,7 +32,7 @@ export async function rom_eraseChip(device: DeviceInfo): Promise<void> {
   }
 
   await sendPackage(writer, new Uint8Array([0xf1]));
-  let ack = await getResult(reader);
+  const ack = await getResult(reader);
   if (!ack) throw new Error('GBA Erase failed');
 }
 
@@ -43,13 +43,13 @@ export async function rom_sector_erase(device: DeviceInfo, sectorAddress: number
     throw new Error('Serial port not properly initialized');
   }
 
-  let payload = new Uint8Array(1 + 4);
+  const payload = new Uint8Array(1 + 4);
   const sectorAddressBytes = toLittleEndian(sectorAddress, 4);
   payload[0] = 0xf3;
   payload.set(sectorAddressBytes, 1);
 
   await sendPackage(writer, payload);
-  let ack = await getResult(reader);
+  const ack = await getResult(reader);
   if (!ack) throw new Error('GBA ROM sector erase failed');
   return ack;
 }
@@ -67,16 +67,16 @@ export async function rom_program(device: DeviceInfo, fileData: Uint8Array, base
     const chunk = fileData.slice(addrOffset, Math.min(addrOffset + pageSize, fileData.length));
     const chunkBufferSize = chunk.length;
 
-    let payload = new Uint8Array(1 + 4 + 2 + chunkBufferSize);
-    let addrBytes = toLittleEndian(currentDeviceAddress, 4);
-    let chunkSizeBytes = toLittleEndian(chunkBufferSize, 2);
+    const payload = new Uint8Array(1 + 4 + 2 + chunkBufferSize);
+    const addrBytes = toLittleEndian(currentDeviceAddress, 4);
+    const chunkSizeBytes = toLittleEndian(chunkBufferSize, 2);
     payload[0] = 0xf4;
     payload.set(addrBytes, 1);
     payload.set(chunkSizeBytes, 5);
     payload.set(chunk, 7);
 
     await sendPackage(writer, payload);
-    let ack = await getResult(reader);
+    const ack = await getResult(reader);
     if (!ack) throw new Error(`GBA ROM programming failed (Address: 0x${currentDeviceAddress.toString(16)})`);
   }
 }
@@ -99,14 +99,14 @@ export async function rom_direct_write(device: DeviceInfo, fileData: Uint8Array,
       console.warn('rom_direct_write: chunk size is not a multiple of 2. This might be an issue.');
     }
 
-    let payload = new Uint8Array(1 + 4 + chunk.length);
-    let addrBytes = toLittleEndian(currentDeviceWordAddress, 4);
+    const payload = new Uint8Array(1 + 4 + chunk.length);
+    const addrBytes = toLittleEndian(currentDeviceWordAddress, 4);
     payload[0] = 0xf5;
     payload.set(addrBytes, 1);
     payload.set(chunk, 5);
 
     await sendPackage(writer, payload);
-    let ack = await getResult(reader);
+    const ack = await getResult(reader);
     if (!ack) throw new Error(`GBA ROM direct write failed (Address: 0x${currentDeviceWordAddress.toString(16)} [word address])`);
   }
 }
@@ -119,7 +119,7 @@ export async function rom_read(device: DeviceInfo, size: number, baseAddress = 0
   }
 
   const pageSize = AdvancedSettings.romPageSize;
-  let result = new Uint8Array(size);
+  const result = new Uint8Array(size);
   let bytesFetched = 0;
 
   for (let addrOffset = 0; bytesFetched < size; addrOffset += pageSize) {
@@ -128,15 +128,15 @@ export async function rom_read(device: DeviceInfo, size: number, baseAddress = 0
     const chunkSize = Math.min(pageSize, remainingSize);
     if (chunkSize <= 0) break;
 
-    let payload = new Uint8Array(1 + 4 + 2);
-    let addrBytes = toLittleEndian(currentDeviceAddress, 4);
-    let chunkSizeBytes = toLittleEndian(chunkSize, 2);
+    const payload = new Uint8Array(1 + 4 + 2);
+    const addrBytes = toLittleEndian(currentDeviceAddress, 4);
+    const chunkSizeBytes = toLittleEndian(chunkSize, 2);
     payload[0] = 0xf6;
     payload.set(addrBytes, 1);
     payload.set(chunkSizeBytes, 5);
 
     await sendPackage(writer, payload);
-    let res = await getPackage(reader, chunkSize + 2);
+    const res = await getPackage(reader, chunkSize + 2);
     if (res.data && res.data.byteLength >= chunkSize + 2) {
       for (let i = 0; i < chunkSize; ++i) {
         result[bytesFetched + i] = res.data[i + 2];
@@ -161,14 +161,14 @@ export async function ram_write(device: DeviceInfo, fileData: Uint8Array, baseAd
     const currentDeviceAddress = baseAddress + addrOffset;
     const chunk = fileData.slice(addrOffset, Math.min(addrOffset + pageSize, fileData.length));
 
-    let payload = new Uint8Array(1 + 4 + chunk.length);
-    let addrBytes = toLittleEndian(currentDeviceAddress, 4);
+    const payload = new Uint8Array(1 + 4 + chunk.length);
+    const addrBytes = toLittleEndian(currentDeviceAddress, 4);
     payload[0] = 0xf7;
     payload.set(addrBytes, 1);
     payload.set(chunk, 5);
 
     await sendPackage(writer, payload);
-    let ack = await getResult(reader);
+    const ack = await getResult(reader);
     if (!ack) throw new Error(`RAM write failed (Address: 0x${currentDeviceAddress.toString(16)})`);
   }
 }
@@ -181,7 +181,7 @@ export async function ram_read(device: DeviceInfo, size: number, baseAddress = 0
   }
 
   const pageSize = AdvancedSettings.ramPageSize;
-  let result = new Uint8Array(size);
+  const result = new Uint8Array(size);
   let bytesFetched = 0;
 
   for (let addrOffset = 0; bytesFetched < size; addrOffset += pageSize) {
@@ -190,15 +190,15 @@ export async function ram_read(device: DeviceInfo, size: number, baseAddress = 0
     const chunkSize = Math.min(pageSize, remainingSize);
     if (chunkSize <= 0) break;
 
-    let payload = new Uint8Array(1 + 4 + 2);
-    let addrBytes = toLittleEndian(currentDeviceAddress, 4);
-    let chunkSizeBytes = toLittleEndian(chunkSize, 2);
+    const payload = new Uint8Array(1 + 4 + 2);
+    const addrBytes = toLittleEndian(currentDeviceAddress, 4);
+    const chunkSizeBytes = toLittleEndian(chunkSize, 2);
     payload[0] = 0xf8;
     payload.set(addrBytes, 1);
     payload.set(chunkSizeBytes, 5);
 
     await sendPackage(writer, payload);
-    let res = await getPackage(reader, chunkSize + 2);
+    const res = await getPackage(reader, chunkSize + 2);
     if (res.data && res.data.byteLength >= chunkSize + 2) {
       for (let i = 0; i < chunkSize; ++i) {
         result[bytesFetched + i] = res.data[i + 2];
@@ -223,14 +223,14 @@ export async function ram_write_to_flash(device: DeviceInfo, fileData: Uint8Arra
     const currentDeviceAddress = baseAddress + addrOffset;
     const chunk = fileData.slice(addrOffset, Math.min(addrOffset + pageSize, fileData.length));
 
-    let payload = new Uint8Array(1 + 4 + chunk.length);
-    let addrBytes = toLittleEndian(currentDeviceAddress, 4);
+    const payload = new Uint8Array(1 + 4 + chunk.length);
+    const addrBytes = toLittleEndian(currentDeviceAddress, 4);
     payload[0] = 0xf9;
     payload.set(addrBytes, 1);
     payload.set(chunk, 5);
 
     await sendPackage(writer, payload);
-    let ack = await getResult(reader);
+    const ack = await getResult(reader);
     if (!ack) throw new Error(`GBA RAM write to FLASH failed (Address: 0x${currentDeviceAddress.toString(16)})`);
   }
 }
@@ -250,14 +250,14 @@ export async function gbc_direct_write(device: DeviceInfo, fileData: Uint8Array,
     const currentDeviceAddress = baseAddress + addrOffset;
     const chunk = fileData.slice(addrOffset, Math.min(addrOffset + pageSize, fileData.length));
 
-    let payload = new Uint8Array(1 + 4 + chunk.length);
-    let addrBytes = toLittleEndian(currentDeviceAddress, 4);
+    const payload = new Uint8Array(1 + 4 + chunk.length);
+    const addrBytes = toLittleEndian(currentDeviceAddress, 4);
     payload[0] = 0xfa;
     payload.set(addrBytes, 1);
     payload.set(chunk, 5);
 
     await sendPackage(writer, payload);
-    let ack = await getResult(reader);
+    const ack = await getResult(reader);
     if (!ack) throw new Error(`GBC direct write failed (Address: 0x${currentDeviceAddress.toString(16)})`);
   }
 }
@@ -270,7 +270,7 @@ export async function gbc_read(device: DeviceInfo, size: number, baseAddress = 0
   }
 
   const pageSize = AdvancedSettings.ramPageSize;
-  let result = new Uint8Array(size);
+  const result = new Uint8Array(size);
   let bytesFetched = 0;
 
   for (let addrOffset = 0; bytesFetched < size; addrOffset += pageSize) {
@@ -279,15 +279,15 @@ export async function gbc_read(device: DeviceInfo, size: number, baseAddress = 0
     const chunkSize = Math.min(pageSize, remainingSize);
     if (chunkSize <= 0) break;
 
-    let payload = new Uint8Array(1 + 4 + 2);
-    let addrBytes = toLittleEndian(currentDeviceAddress, 4);
-    let chunkSizeBytes = toLittleEndian(chunkSize, 2);
+    const payload = new Uint8Array(1 + 4 + 2);
+    const addrBytes = toLittleEndian(currentDeviceAddress, 4);
+    const chunkSizeBytes = toLittleEndian(chunkSize, 2);
     payload[0] = 0xfb;
     payload.set(addrBytes, 1);
     payload.set(chunkSizeBytes, 5);
 
     await sendPackage(writer, payload);
-    let res = await getPackage(reader, chunkSize + 2);
+    const res = await getPackage(reader, chunkSize + 2);
     if (res.data && res.data.byteLength >= chunkSize + 2) {
       for (let i = 0; i < chunkSize; ++i) {
         result[bytesFetched + i] = res.data[i + 2];
@@ -314,16 +314,16 @@ export async function gbc_rom_program(device: DeviceInfo, fileData: Uint8Array, 
     const chunk = fileData.slice(addrOffset, Math.min(addrOffset + pageSize, fileData.length));
     const chunkBufferSize = chunk.length;
 
-    let payload = new Uint8Array(1 + 4 + 2 + chunkBufferSize);
-    let addrBytes = toLittleEndian(currentDeviceAddress, 4);
-    let chunkSizeBytes = toLittleEndian(chunkBufferSize, 2);
+    const payload = new Uint8Array(1 + 4 + 2 + chunkBufferSize);
+    const addrBytes = toLittleEndian(currentDeviceAddress, 4);
+    const chunkSizeBytes = toLittleEndian(chunkBufferSize, 2);
     payload[0] = 0xfc;
     payload.set(addrBytes, 1);
     payload.set(chunkSizeBytes, 5);
     payload.set(chunk, 7);
 
     await sendPackage(writer, payload);
-    let ack = await getResult(reader);
+    const ack = await getResult(reader);
     if (!ack) throw new Error(`GBC ROM programming failed (Address: 0x${currentDeviceAddress.toString(16)})`);
   }
 }

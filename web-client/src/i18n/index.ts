@@ -6,7 +6,7 @@ import jaJP from '@/i18n/locales/ja-JP.json';
 const messages = {
   'zh-CN': zhCN,
   'en-US': enUS,
-  'ja-JP': jaJP
+  'ja-JP': jaJP,
 };
 
 // 获取浏览器语言，如果不支持则默认为中文
