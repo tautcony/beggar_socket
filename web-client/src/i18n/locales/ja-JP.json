@@ -246,6 +246,9 @@
       "verifySpeed": "検証速度: {speed} KB/s",
       "eraseCompleteReady": "消去完了、書き込み準備完了"
     },
+    "mode": {
+      "autoSwitched": "{romType}タイプのROMファイルを検出したため、{from}モードから{to}モードに自動切り替えしました"
+    },
     "mbc5": {
     },
     "gba": {

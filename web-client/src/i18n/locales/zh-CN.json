@@ -246,6 +246,9 @@
       "verifySpeed": "校验速度: {speed} KB/s",
       "eraseCompleteReady": "擦除完成，准备写入"
     },
+    "mode": {
+      "autoSwitched": "检测到{romType}类型ROM文件，已自动从{from}模式切换至{to}模式"
+    },
     "mbc5": {
     },
     "gba": {

@@ -246,6 +246,9 @@
       "verifySpeed": "Verify speed: {speed} KB/s",
       "eraseCompleteReady": "Erase complete, ready to write"
     },
+    "mode": {
+      "autoSwitched": "Detected {romType} ROM file, automatically switched from {from} mode to {to} mode"
+    },
     "mbc5": {
     },
     "gba": {

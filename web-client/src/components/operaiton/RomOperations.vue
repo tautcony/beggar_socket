@@ -188,7 +188,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['file-selected', 'file-cleared', 'write-rom', 'read-rom', 'verify-rom', 'rom-size-change']);
+const emit = defineEmits(['file-selected', 'file-cleared', 'write-rom', 'read-rom', 'verify-rom', 'rom-size-change', 'mode-switch-required']);
 
 const selectedRomSize = ref(props.selectedRomSize);
 const romInfo = ref<RomInfo | null>(null);
@@ -198,6 +198,16 @@ const isRomInfoCollapsed = ref(true); // 默认折叠
 watch(() => props.romFileData, (newData) => {
   if (newData && newData.length > 0) {
     romInfo.value = parseRom(newData);
+
+    // 检查ROM类型，根据类型自动切换模式
+    if (romInfo.value) {
+      if (romInfo.value.type === 'GBA' && props.mode !== 'GBA') {
+        emit('mode-switch-required', 'GBA', romInfo.value.type);
+      } else if ((romInfo.value.type === 'GB' || romInfo.value.type === 'GBC') && props.mode !== 'MBC5') {
+        emit('mode-switch-required', 'MBC5', romInfo.value.type);
+      }
+    }
+
     // 根据ROM文件大小自动更新选择的ROM大小
     if (romInfo.value?.size) {
       const romSize = romInfo.value.size;

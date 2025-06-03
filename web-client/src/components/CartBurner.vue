@@ -70,6 +70,7 @@
             @read-rom="readRom"
             @verify-rom="verifyRom"
             @rom-size-change="onRomSizeChange"
+            @mode-switch-required="onModeSwitchRequired"
           />
 
           <RamOperations
@@ -330,6 +331,15 @@ function onRamSizeChange(hexSize: string) {
 function onRamTypeChange(type: string) {
   selectedRamType.value = type;
   log(t('messages.ram.typeChanged', { type }));
+}
+
+// 处理自动模式切换请求
+function onModeSwitchRequired(targetMode: string, romType: string) {
+  const currentMode = mode.value;
+  if (targetMode !== currentMode) {
+    mode.value = targetMode as 'GBA' | 'MBC5';
+    log(t('messages.mode.autoSwitched', { from: currentMode, to: targetMode, romType }));
+  }
 }
 
 function getAdapter() {
