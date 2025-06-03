@@ -194,7 +194,7 @@ const currentAllowCancel = computed(() => {
 // 设备连接状态改变时，初始化适配器
 watch(() => props.deviceReady, (newVal) => {
   if (newVal && props.device) {
-    if (DebugSettings.enabled) {
+    if (DebugSettings.debugMode) {
       // 调试模式下使用 MockAdapter
       const adapter = new MockAdapter(
         (msg) => log(msg),

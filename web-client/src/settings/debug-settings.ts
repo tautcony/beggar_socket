@@ -3,8 +3,11 @@
  * 用于在开发模式下模拟设备行为
  */
 export class DebugSettings {
-  // 是否启用调试模式
-  private static _enabled = false;
+  // 是否启用调试模式（功能开关）
+  private static _debugMode = false;
+
+  // 是否显示调试面板（UI入口开关）
+  private static _showDebugPanel = false;
 
   // 模拟延迟时间（毫秒）
   private static _simulatedDelay = 1000;
@@ -18,22 +21,25 @@ export class DebugSettings {
   // 错误模拟概率 (0-1)
   private static _errorProbability = 0.1;
 
-  // 是否显示调试面板
-  private static _showDebugPanel = false;
-
-  static get enabled(): boolean {
-    return this._enabled;
+  static get debugMode(): boolean {
+    return this._debugMode;
+  }
+  static set debugMode(value: boolean) {
+    this._debugMode = value;
+    localStorage.setItem('debug_mode', value.toString());
   }
 
-  static set enabled(value: boolean) {
-    this._enabled = value;
-    localStorage.setItem('debug_mode', value.toString());
+  static get showDebugPanel(): boolean {
+    return this._showDebugPanel;
+  }
+  static set showDebugPanel(value: boolean) {
+    this._showDebugPanel = value;
+    localStorage.setItem('show_debug_panel', value.toString());
   }
 
   static get simulatedDelay(): number {
     return this._simulatedDelay;
   }
-
   static set simulatedDelay(value: number) {
     this._simulatedDelay = Math.max(0, value);
   }
@@ -41,7 +47,6 @@ export class DebugSettings {
   static get progressUpdateInterval(): number {
     return this._progressUpdateInterval;
   }
-
   static set progressUpdateInterval(value: number) {
     this._progressUpdateInterval = Math.max(50, value);
   }
@@ -49,7 +54,6 @@ export class DebugSettings {
   static get simulateErrors(): boolean {
     return this._simulateErrors;
   }
-
   static set simulateErrors(value: boolean) {
     this._simulateErrors = value;
   }
@@ -57,18 +61,8 @@ export class DebugSettings {
   static get errorProbability(): number {
     return this._errorProbability;
   }
-
   static set errorProbability(value: number) {
     this._errorProbability = Math.max(0, Math.min(1, value));
-  }
-
-  static get showDebugPanel(): boolean {
-    return this._showDebugPanel;
-  }
-
-  static set showDebugPanel(value: boolean) {
-    this._showDebugPanel = value;
-    localStorage.setItem('show_debug_panel', value.toString());
   }
 
   /**
@@ -78,31 +72,35 @@ export class DebugSettings {
     // 从localStorage恢复设置
     const saved = localStorage.getItem('debug_mode');
     if (saved !== null) {
-      this._enabled = saved === 'true';
+      this._debugMode = saved === 'true';
     }
-
     const showPanel = localStorage.getItem('show_debug_panel');
     if (showPanel !== null) {
       this._showDebugPanel = showPanel === 'true';
     }
-
-    // console.log(`调试模式初始化: ${this._enabled ? '启用' : '禁用'}`)
   }
 
   /**
    * 切换调试模式
    */
-  static toggle(): boolean {
-    this.enabled = !this.enabled;
-    return this.enabled;
+  static toggleDebugMode(): boolean {
+    this.debugMode = !this.debugMode;
+    return this.debugMode;
+  }
+
+  /**
+   * 切换调试面板显示
+   */
+  static toggleDebugPanel(): boolean {
+    this.showDebugPanel = !this.showDebugPanel;
+    return this.showDebugPanel;
   }
 
   /**
    * 模拟异步延迟
    */
   static async delay(customDelay?: number): Promise<void> {
-    if (!this.enabled) return;
-
+    if (!this.debugMode) return;
     const delay = customDelay ?? this._simulatedDelay;
     return new Promise(resolve => setTimeout(resolve, delay));
   }
@@ -111,7 +109,7 @@ export class DebugSettings {
    * 检查是否应该模拟错误
    */
   static shouldSimulateError(): boolean {
-    if (!this.enabled || !this._simulateErrors) return false;
+    if (!this.debugMode || !this._simulateErrors) return false;
     return Math.random() < this._errorProbability;
   }
 
@@ -123,14 +121,11 @@ export class DebugSettings {
     totalTime: number = 3000,
     detail?: string,
   ): Promise<void> {
-    if (!this.enabled) return;
-
+    if (!this.debugMode) return;
     const steps = Math.floor(totalTime / this._progressUpdateInterval);
-
     for (let i = 0; i <= steps; i++) {
       const progress = Math.min(100, (i / steps) * 100);
       callback(progress, detail);
-
       if (i < steps) {
         await new Promise(resolve => setTimeout(resolve, this._progressUpdateInterval));
       }

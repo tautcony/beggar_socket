@@ -162,15 +162,15 @@ const simulateErrors = ref(false);
 const errorProbability = ref(0.1);
 
 onMounted(() => {
-  // 检查是否应该显示调试面板
-  showDebugPanel.value = import.meta.env.VITE_DEBUG_MODE === 'true' || localStorage.getItem('debug_mode') === 'true';
+  // 检查是否应该显示调试面板 - 使用 DebugSettings 的统一逻辑
+  showDebugPanel.value = DebugSettings.showDebugPanel || import.meta.env.DEV;
 
   // 同步调试配置
   syncConfig();
 });
 
 function syncConfig() {
-  debugEnabled.value = DebugSettings.enabled;
+  debugEnabled.value = DebugSettings.debugMode;
   simulatedDelay.value = DebugSettings.simulatedDelay;
   progressInterval.value = DebugSettings.progressUpdateInterval;
   simulateErrors.value = DebugSettings.simulateErrors;
@@ -178,7 +178,7 @@ function syncConfig() {
 }
 
 function onDebugToggle() {
-  DebugSettings.enabled = debugEnabled.value;
+  DebugSettings.debugMode = debugEnabled.value;
   if (debugEnabled.value) {
     console.log('[DEBUG] 调试模式已启用');
   } else {

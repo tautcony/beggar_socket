@@ -25,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineProps, useAttrs, defineEmits } from 'vue';
+import { computed, useAttrs } from 'vue';
 
 const props = defineProps({
   icon: { type: String, default: '' },

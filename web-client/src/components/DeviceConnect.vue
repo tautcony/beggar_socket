@@ -73,7 +73,7 @@ async function connect() {
   showGlobalToast(t('messages.device.tryingConnect'), 'idle');
 
   try {
-    if (DebugSettings.enabled) {
+    if (DebugSettings.debugMode) {
       await new Promise(resolve => setTimeout(resolve, 1000));
       const mockPort = {
         readable: new ReadableStream({ start(controller) {} }),
