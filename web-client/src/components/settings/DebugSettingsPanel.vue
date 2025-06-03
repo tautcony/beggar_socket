@@ -9,7 +9,7 @@
           name="construct-outline"
           style="vertical-align: middle; margin-right: 6px; font-size: 1.2em;"
         />
-        调试控制面板
+        {{ $t('ui.debug.title') }}
       </h3>
     </div>
 
@@ -24,7 +24,7 @@
             type="checkbox"
             @change="onDebugToggle"
           >
-          <span class="slider">启用调试模式</span>
+          <span class="slider">{{ $t('ui.debug.enableDebugMode') }}</span>
         </label>
       </div>
 
@@ -33,10 +33,10 @@
         v-if="debugEnabled"
         class="debug-section"
       >
-        <h4>模拟设置</h4>
+        <h4>{{ $t('ui.debug.simulationSettings') }}</h4>
 
         <div class="debug-control">
-          <label>延迟时间 (ms):</label>
+          <label>{{ $t('ui.debug.delayTime') }}:</label>
           <input
             v-model.number="simulatedDelay"
             type="number"
@@ -48,7 +48,7 @@
         </div>
 
         <div class="debug-control">
-          <label>进度更新间隔 (ms):</label>
+          <label>{{ $t('ui.debug.progressInterval') }}:</label>
           <input
             v-model.number="progressInterval"
             type="number"
@@ -66,7 +66,7 @@
               type="checkbox"
               @change="updateErrorSimulation"
             >
-            <span class="slider">模拟错误</span>
+            <span class="slider">{{ $t('ui.debug.simulateErrors') }}</span>
           </label>
         </div>
 
@@ -74,7 +74,7 @@
           v-if="simulateErrors"
           class="debug-control"
         >
-          <label>错误概率:</label>
+          <label>{{ $t('ui.debug.errorProbability') }}:</label>
           <input
             v-model.number="errorProbability"
             type="range"
@@ -92,52 +92,52 @@
         v-if="debugEnabled"
         class="debug-section"
       >
-        <h4>快捷操作</h4>
+        <h4>{{ $t('ui.debug.quickActions') }}</h4>
         <div class="debug-buttons">
           <button
             class="debug-btn"
             @click="connectMockDevice"
           >
-            连接模拟设备
+            {{ $t('ui.debug.connectMockDevice') }}
           </button>
           <button
             class="debug-btn"
             @click="generateTestRom"
           >
-            生成测试ROM
+            {{ $t('ui.debug.generateTestRom') }}
           </button>
           <button
             class="debug-btn"
             @click="generateTestRam"
           >
-            生成测试RAM
+            {{ $t('ui.debug.generateTestRam') }}
           </button>
           <button
             class="debug-btn secondary"
             @click="clearMockData"
           >
-            清除模拟数据
+            {{ $t('ui.debug.clearMockData') }}
           </button>
         </div>
       </div>
 
       <!-- 状态信息 -->
       <div class="debug-section">
-        <h4>状态信息</h4>
+        <h4>{{ $t('ui.debug.statusInfo') }}</h4>
         <div class="debug-status">
           <div class="status-item">
-            <span class="status-label">调试模式:</span>
+            <span class="status-label">{{ $t('ui.debug.debugMode') }}:</span>
             <span :class="['status-value', debugEnabled ? 'active' : 'inactive']">
-              {{ debugEnabled ? '启用' : '禁用' }}
+              {{ debugEnabled ? $t('ui.debug.enabled') : $t('ui.debug.disabled') }}
             </span>
           </div>
           <div class="status-item">
-            <span class="status-label">模拟延迟:</span>
+            <span class="status-label">{{ $t('ui.debug.simulatedDelay') }}:</span>
             <span class="status-value">{{ simulatedDelay }}ms</span>
           </div>
           <div class="status-item">
-            <span class="status-label">错误模拟:</span>
-            <span class="status-value">{{ simulateErrors ? `${(errorProbability * 100).toFixed(0)}%` : '关闭' }}</span>
+            <span class="status-label">{{ $t('ui.debug.errorSimulation') }}:</span>
+            <span class="status-value">{{ simulateErrors ? `${(errorProbability * 100).toFixed(0)}%` : $t('ui.debug.off') }}</span>
           </div>
         </div>
       </div>
@@ -147,8 +147,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { DebugSettings } from '@/settings/debug-settings';
 
+const { t } = useI18n();
 const emit = defineEmits(['connect-mock-device', 'generate-test-file', 'clear-mock-data']);
 
 // 面板状态

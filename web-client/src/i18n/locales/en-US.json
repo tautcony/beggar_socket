@@ -37,7 +37,28 @@
       "deviceSize": "Device Size",
       "interfaceDescription": "Interface Description"
     },
-    "debug": { "panel": "Debug Panel" },
+    "debug": {
+      "panel": "Debug Panel",
+      "title": "Debug Control Panel",
+      "enableDebugMode": "Enable Debug Mode",
+      "simulationSettings": "Simulation Settings",
+      "delayTime": "Delay Time (ms)",
+      "progressInterval": "Progress Update Interval (ms)",
+      "simulateErrors": "Simulate Errors",
+      "errorProbability": "Error Probability",
+      "quickActions": "Quick Actions",
+      "connectMockDevice": "Connect Mock Device",
+      "generateTestRom": "Generate Test ROM",
+      "generateTestRam": "Generate Test RAM",
+      "clearMockData": "Clear Mock Data",
+      "statusInfo": "Status Information",
+      "debugMode": "Debug Mode",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "simulatedDelay": "Simulated Delay",
+      "errorSimulation": "Error Simulation",
+      "off": "Off"
+    },
     "chip": {
       "deviceSize": "Device Size",
       "sectorCount": "Sector Count",
@@ -250,8 +271,7 @@
     "mode": {
       "autoSwitched": "Detected {romType} ROM file, automatically switched from {from} mode to {to} mode"
     },
-    "mbc5": {
-    },
+    "mbc5": {},
     "gba": {
       "bankSwitchSram": "Switched to SRAM Bank {bank}",
       "bankSwitchFlash": "Switched to Flash Bank {bank}",

@@ -37,6 +37,34 @@
       "deviceSize": "デバイスサイズ",
       "interfaceDescription": "インターフェース説明"
     },
+    "debug": {
+      "panel": "デバッグパネル",
+      "title": "デバッグ制御パネル",
+      "enableDebugMode": "デバッグモードを有効化",
+      "simulationSettings": "シミュレーション設定",
+      "delayTime": "遅延時間 (ms)",
+      "progressInterval": "進捗更新間隔 (ms)",
+      "simulateErrors": "エラーをシミュレート",
+      "errorProbability": "エラー確率",
+      "quickActions": "クイックアクション",
+      "connectMockDevice": "モックデバイスに接続",
+      "generateTestRom": "テストROMを生成",
+      "generateTestRam": "テストRAMを生成",
+      "clearMockData": "モックデータをクリア",
+      "statusInfo": "ステータス情報",
+      "debugMode": "デバッグモード",
+      "enabled": "有効",
+      "disabled": "無効",
+      "simulatedDelay": "シミュレート遅延",
+      "errorSimulation": "エラーシミュレーション",
+      "off": "オフ"
+    },
+    "chip": {
+      "deviceSize": "デバイスサイズ",
+      "sectorCount": "セクター数",
+      "sectorSize": "セクターサイズ",
+      "bufferWrite": "バッファ書き込み"
+    },
     "rom": {
       "title": "ROM操作",
       "selectFile": "ROMファイルを選択",
@@ -146,13 +174,6 @@
     "common": {
       "yes": "はい",
       "no": "いいえ"
-    },
-    "debug": { "panel": "デバッグパネル" },
-    "chip": {
-      "deviceSize": "デバイスサイズ",
-      "sectorCount": "セクター数",
-      "sectorSize": "セクターサイズ",
-      "bufferWrite": "バッファ書き込み"
     }
   },
   "messages": {
@@ -250,8 +271,7 @@
     "mode": {
       "autoSwitched": "{romType}タイプのROMファイルを検出したため、{from}モードから{to}モードに自動切り替えしました"
     },
-    "mbc5": {
-    },
+    "mbc5": {},
     "gba": {
       "bankSwitchSram": "SRAMバンク {bank} に切り替えました",
       "bankSwitchFlash": "Flashバンク {bank} に切り替えました",
