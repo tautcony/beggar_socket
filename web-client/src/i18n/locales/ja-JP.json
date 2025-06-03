@@ -47,6 +47,7 @@
       "read": "ROMをエクスポート",
       "verify": "ROM検証",
       "bankSwitching": "バンク切り替え",
+      "romTitle": "ROMタイトル",
       "romSize": "ROMサイズ",
       "sizeLabel": "サイズ：",
       "info": "ROM情報",

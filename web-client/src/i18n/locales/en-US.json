@@ -54,6 +54,7 @@
       "read": "Export ROM",
       "verify": "Verify ROM",
       "bankSwitching": "Bank Switching",
+      "romTitle": "ROM Title",
       "romSize": "ROM Size",
       "sizeLabel": "Size:",
       "info": "ROM Information",

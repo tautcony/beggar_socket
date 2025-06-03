@@ -54,8 +54,8 @@
             <div class="file-size">
               {{ fileData ? formatBytes(fileData.length) : '' }}
             </div>
-            <div class="file-type">
-              {{ fileType }}
+            <div class="file-title">
+              {{ fileTitle }}
             </div>
           </div>
           <button
@@ -98,7 +98,7 @@ const props = defineProps({
     type: String,
     required: true,
   },
-  fileType: {
+  fileTitle: {
     type: String,
     required: true,
   },
@@ -322,7 +322,7 @@ function handleDrop(e: DragEvent) {
   margin-bottom: 1px;
 }
 
-.file-type {
+.file-title {
   font-size: 0.75rem;
   color: #4caf50;
   font-weight: 500;

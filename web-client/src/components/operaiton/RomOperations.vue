@@ -42,7 +42,7 @@
       accept-hint=".rom,.gba,.gb,.gbc"
       icon="folder-open-outline"
       :main-text="$t('ui.rom.selectFile')"
-      :file-type="$t('ui.rom.title')"
+      :file-title="romInfo?.title || ''"
       @file-selected="onFileSelected"
       @file-cleared="onFileCleared"
     />
@@ -72,7 +72,7 @@
       >
         <div class="rom-info-grid">
           <div class="rom-info-item">
-            <span class="rom-info-label">{{ $t('ui.rom.title') }}:</span>
+            <span class="rom-info-label">{{ $t('ui.rom.romTitle') }}:</span>
             <span class="rom-info-value">{{ romInfo.title }}</span>
           </div>
           <div class="rom-info-item">
