@@ -66,6 +66,10 @@ export class CartridgeAdapter {
     throw new Error('未实现的方法: readID');
   }
 
+  async getROMSize(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number }> {
+    throw new Error('未实现的方法: getROMSize');
+  }
+
   /**
    * 擦除整个芯片
    * @returns - 包含成功状态和消息的对象

@@ -37,6 +37,13 @@
       "deviceSize": "Device Size",
       "interfaceDescription": "Interface Description"
     },
+    "debug": { "panel": "Debug Panel" },
+    "chip": {
+      "deviceSize": "Device Size",
+      "sectorCount": "Sector Count",
+      "sectorSize": "Sector Size",
+      "bufferWrite": "Buffer Write"
+    },
     "rom": {
       "title": "ROM Operations",
       "selectFile": "Select ROM File",

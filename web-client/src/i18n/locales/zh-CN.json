@@ -37,6 +37,13 @@
       "deviceSize": "设备大小",
       "interfaceDescription": "接口描述"
     },
+    "debug": { "panel": "调试面板" },
+    "chip": {
+      "deviceSize": "设备大小",
+      "sectorCount": "扇区数量",
+      "sectorSize": "扇区大小",
+      "bufferWrite": "缓冲写入"
+    },
     "rom": {
       "title": "ROM操作",
       "selectFile": "选择ROM文件",

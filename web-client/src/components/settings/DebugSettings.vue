@@ -11,16 +11,9 @@
         />
         调试控制面板
       </h3>
-      <button
-        class="debug-toggle"
-        @click="togglePanel"
-      >
-        {{ panelCollapsed ? '展开' : '收起' }}
-      </button>
     </div>
 
     <div
-      v-show="!panelCollapsed"
       class="debug-content"
     >
       <!-- 调试模式开关 -->
@@ -160,7 +153,6 @@ const emit = defineEmits(['connect-mock-device', 'generate-test-file']);
 
 // 面板状态
 const showDebugPanel = ref(false);
-const panelCollapsed = ref(true);
 
 // 调试设置
 const debugEnabled = ref(false);
@@ -183,10 +175,6 @@ function syncConfig() {
   progressInterval.value = DebugSettings.progressUpdateInterval;
   simulateErrors.value = DebugSettings.simulateErrors;
   errorProbability.value = DebugSettings.errorProbability;
-}
-
-function togglePanel() {
-  panelCollapsed.value = !panelCollapsed.value;
 }
 
 function onDebugToggle() {
@@ -297,25 +285,6 @@ function clearMockData() {
   font-size: 16px;
   color: white;
   text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-}
-
-.debug-toggle {
-  background: rgba(255, 255, 255, 0.9);
-  color: #ff9800;
-  border: 1px solid rgba(255, 152, 0, 0.3);
-  padding: 4px 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-  transition: all 0.2s ease;
-}
-
-.debug-toggle:hover {
-  background: white;
-  color: #f57c00;
-  border-color: #f57c00;
-  transform: translateY(-1px);
 }
 
 .debug-content {

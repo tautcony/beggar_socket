@@ -1,6 +1,8 @@
 <template>
   <section class="section">
-    <h2>{{ $t('ui.operation.title') }}</h2>
+    <div class="op-title-row">
+      <span :class="['op-title', { busy }]">{{ $t('ui.operation.title') }}</span>
+    </div>
     <div class="button-row">
       <button
         :disabled="!deviceReady || busy"
@@ -15,11 +17,23 @@
         {{ $t('ui.operation.eraseChip') }}
       </button>
     </div>
-    <div
-      v-if="idStr"
-      class="id-display"
-    >
-      ID: {{ idStr }}
+    <div class="chip-info-display">
+      <div class="chip-info-row id-row">
+        <span class="chip-info-label">ID:</span>
+        <span class="chip-info-value">{{ idStr || '--' }}</span>
+      </div>
+      <div class="chip-info-row">
+        <span class="chip-info-label">{{ $t('ui.chip.deviceSize') }}:</span>
+        <span class="chip-info-value">{{ deviceSize ?? '--' }}</span>
+        <span class="chip-info-label">{{ $t('ui.chip.sectorCount') }}:</span>
+        <span class="chip-info-value">{{ sectorCount ?? '--' }}</span>
+      </div>
+      <div class="chip-info-row">
+        <span class="chip-info-label">{{ $t('ui.chip.sectorSize') }}:</span>
+        <span class="chip-info-value">{{ sectorSize ?? '--' }}</span>
+        <span class="chip-info-label">{{ $t('ui.chip.bufferWrite') }}:</span>
+        <span class="chip-info-value">{{ bufferWriteBytes ?? '--' }}</span>
+      </div>
     </div>
   </section>
 </template>
@@ -41,6 +55,22 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  deviceSize: {
+    type: [Number, String],
+    default: undefined,
+  },
+  sectorCount: {
+    type: [Number, String],
+    default: undefined,
+  },
+  sectorSize: {
+    type: [Number, String],
+    default: undefined,
+  },
+  bufferWriteBytes: {
+    type: [Number, String],
+    default: undefined,
+  },
 });
 
 defineEmits(['read-id', 'erase-chip']);
@@ -51,11 +81,24 @@ defineEmits(['read-id', 'erase-chip']);
   margin-bottom: 28px;
 }
 
-.section h2 {
-  font-size: 1.15rem;
+.op-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
   margin-bottom: 10px;
+  min-width: 0;
+}
+
+.op-title {
+  font-size: 1.15rem;
   color: #2c3e50;
   font-weight: 600;
+  transition: color 0.2s, font-weight 0.2s;
+  white-space: nowrap;
+}
+.op-title.busy {
+  color: #e67e22;
+  font-weight: bold;
 }
 
 .button-row {
@@ -66,11 +109,65 @@ defineEmits(['read-id', 'erase-chip']);
   min-width: 0;
 }
 
-.id-display {
-  margin-top: 6px;
+.chip-info-display {
+  margin-top: 10px;
+  background: #f4f8fd;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.98rem;
+  color: #2c3e50;
+  box-shadow: 0 1px 4px #1976d210;
+}
+
+.chip-info-row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 2px;
+  align-items: center;
+  width: 100%;
+}
+
+.chip-info-row.id-row {
+  margin-bottom: 6px;
+}
+
+.chip-info-row:not(.id-row) {
+  justify-content: flex-start;
+}
+
+.chip-info-label {
+  min-width: 70px;
   color: #1976d2;
-  font-weight: bold;
-  letter-spacing: 2px;
+  font-weight: 600;
+  font-size: 0.8em;
+  white-space: nowrap;
+}
+
+.chip-info-value {
+  font-family: monospace;
+  color: #333;
+  font-size: 0.8em;
+  margin-right: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chip-info-row:not(.id-row) > .chip-info-label,
+.chip-info-row:not(.id-row) > .chip-info-value {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.chip-info-row:not(.id-row) > .chip-info-label:last-of-type,
+.chip-info-row:not(.id-row) > .chip-info-value:last-of-type {
+  margin-left: 8%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.chip-info-row:last-child {
+  margin-bottom: 0;
 }
 
 button {

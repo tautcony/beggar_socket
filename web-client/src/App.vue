@@ -22,22 +22,26 @@
       :device-ready="deviceReady"
       :device="device"
     />
-    <!-- 调试面板悬浮在最上层 -->
-    <DebugPanel v-if="showDebugPanel" />
-    <!-- 高级设置弹窗 -->
     <AdvancedSettings
       v-if="showSettings"
       @close="showSettings = false"
     />
-    <!-- 设置按钮悬浮在右下角，GitHub 链接上方 -->
+    <DebugPanel
+      v-if="showDebugPanelModal"
+      @close="showDebugPanelModal = false"
+    />
+    <DebugLink
+      v-if="showDebugPanel"
+      v-model="showDebugPanelModal"
+    />
     <SettingsLink @click="showSettings = true" />
-    <!-- GitHub 链接悬浮在右下角 -->
     <GitHubLink />
+    <GlobalToast />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, provide } from 'vue';
 import DeviceConnect from '@/components/DeviceConnect.vue';
 import FlashBurner from '@/components/CartBurner.vue';
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
@@ -45,16 +49,22 @@ import DebugPanel from '@/components/settings/DebugSettings.vue';
 import GitHubLink from '@/components/links/GitHubLink.vue';
 import AdvancedSettings from '@/components/settings/AdvancedSettings.vue';
 import SettingsLink from '@/components/links/SettingsLink.vue';
+import GlobalToast from '@/components/common/GlobalToast.vue';
+import DebugLink from '@/components/links/DebugLink.vue';
 import { DeviceInfo } from '@/types/device-info';
 import { DebugSettings } from '@/settings/debug-settings';
 
 const device = ref<DeviceInfo | null>(null);
 const deviceReady = ref(false);
 const showSettings = ref(false);
+const showDebugPanelModal = ref(false);
+
+provide('showDebugPanelModal', showDebugPanelModal);
+provide('setShowDebugPanelModal', (val: boolean) => { showDebugPanelModal.value = val; });
 
 // 显示调试面板的条件：调试模式启用或者开发环境
-const showDebugPanel = computed(() => {
-  return DebugSettings.showDebugPanel || import.meta.env.DEV;
+const showDebugPanel = computed((): boolean => {
+  return !!(DebugSettings.showDebugPanel || import.meta.env.DEV);
 });
 
 /**
@@ -154,5 +164,31 @@ h1 {
 
 div {
   font-family: 'Segoe UI', 'PingFang SC', Arial, sans-serif;
+}
+
+.debug-link {
+  position: fixed;
+  right: 32px;
+  bottom: 100px;
+  z-index: 1200;
+  background: #fff;
+  color: #764ba2;
+  border: 2px solid #764ba2;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  font-size: 1.6rem;
+  font-weight: bold;
+  box-shadow: 0 2px 8px #764ba233;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+.debug-link:hover {
+  background: #764ba2;
+  color: #fff;
+  box-shadow: 0 4px 16px #764ba255;
 }
 </style>

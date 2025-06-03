@@ -133,6 +133,13 @@
       "writing": "{written} / {total} バイト",
       "complete": "完了",
       "percent": "{percent}%"
+    },
+    "debug": { "panel": "デバッグパネル" },
+    "chip": {
+      "deviceSize": "デバイスサイズ",
+      "sectorCount": "セクター数",
+      "sectorSize": "セクターサイズ",
+      "bufferWrite": "バッファ書き込み"
     }
   },
   "messages": {

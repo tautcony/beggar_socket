@@ -1,11 +1,5 @@
 <template>
   <div class="device-connect-container">
-    <div
-      v-if="toast.visible"
-      :class="['toast', toast.type]"
-    >
-      {{ toast.message }}
-    </div>
     <div class="device-connect">
       <button
         :class="buttonClass"
@@ -40,7 +34,7 @@
 
 <script setup lang="ts">
 import { DeviceInfo } from '@/types/device-info';
-import { ref, computed, reactive } from 'vue';
+import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { DebugSettings } from '@/settings/debug-settings';
 import {
@@ -55,140 +49,73 @@ const connected = ref(false);
 const isConnecting = ref(false);
 const usePolyfill = ref(false);
 
-const toast = reactive({
-  visible: false,
-  message: '',
-  type: 'success',
-  timer: null,
-} as {
-  visible: boolean,
-  message: string,
-  type: 'success' | 'error' | 'idle',
-  timer: ReturnType<typeof setTimeout> | null
-});
-
 let port: SerialPort | null = null;
 let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
 let writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
 
-function showToast(message: string, type: 'success' | 'error' | 'idle', duration = 3000) {
-  if (toast.timer) clearTimeout(toast.timer);
-  toast.message = message;
-  toast.type = type;
-  toast.visible = true;
-  toast.timer = setTimeout(() => {
-    toast.visible = false;
-  }, duration);
+// 声明 window.showToast 类型，避免 any 警告
+declare global {
+  interface Window {
+    showToast?: (msg: string, type?: 'success' | 'error' | 'idle', duration?: number) => void;
+  }
+}
+
+function showGlobalToast(message: string, type: 'success' | 'error' | 'idle', duration = 3000) {
+  if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+    window.showToast(message, type, duration);
+  }
 }
 
 async function connect() {
   if (isConnecting.value || connected.value) return;
 
   isConnecting.value = true;
-  showToast(t('messages.device.tryingConnect'), 'idle');
+  showGlobalToast(t('messages.device.tryingConnect'), 'idle');
 
   try {
-    // Check if debug mode is enabled
     if (DebugSettings.enabled) {
-      // Simulate connection delay
       await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Create mock serial port
       const mockPort = {
-        readable: new ReadableStream({
-          start(controller) {
-            // Mock readable stream
-          },
-        }),
-        writable: new WritableStream({
-          write(chunk) {
-            // Mock writable stream
-          },
-        }),
+        readable: new ReadableStream({ start(controller) {} }),
+        writable: new WritableStream({ write(chunk) {} }),
         open: async () => {},
         close: async () => {},
         getInfo: () => ({ usbVendorId: 0x1234, usbProductId: 0x5678 }),
       };
-
       port = mockPort as unknown as SerialPort;
       reader = mockPort.readable.getReader();
       writer = mockPort.writable.getWriter();
-
       connected.value = true;
       isConnecting.value = false;
-      showToast(t('messages.device.connectionSuccess') + ' (Debug Mode)', 'success');
+      showGlobalToast(t('messages.device.connectionSuccess') + ' (Debug Mode)', 'success');
       emit('device-ready', { port, reader, writer } as DeviceInfo);
       return;
     }
-
-    // Check if Web Serial API is supported and get appropriate implementation
     if (usePolyfill.value) {
-      if (!polyfill) {
-        throw new Error('Web Serial Polyfill is not available');
-      }
-      // Request serial port using polyfill
+      if (!polyfill) throw new Error('Web Serial Polyfill is not available');
       port = await polyfill.requestPort() as unknown as SerialPort;
     } else {
-      if (!navigator.serial) {
-        throw new Error('Web Serial API is not supported in this browser');
-      }
-      // Request serial port using native API
+      if (!navigator.serial) throw new Error('Web Serial API is not supported in this browser');
       port = await navigator.serial.requestPort();
     }
-
-    // Open the serial port with specified parameters
-    await port.open({
-      baudRate: 9600,
-      dataBits: 8,
-      parity: 'none',
-      stopBits: 1,
-      flowControl: 'none',
-    });
-
-    // Set up serial port signals
-    await port.setSignals({
-      dataTerminalReady: true,
-      requestToSend: true,
-    });
-
-    // Brief delay then disable signals as specified
+    await port.open({ baudRate: 9600, dataBits: 8, parity: 'none', stopBits: 1, flowControl: 'none' });
+    await port.setSignals({ dataTerminalReady: true, requestToSend: true });
     await new Promise(resolve => setTimeout(resolve, 100));
-    await port.setSignals({
-      dataTerminalReady: false,
-      requestToSend: false,
-    });
-
-    // Get reader and writer
+    await port.setSignals({ dataTerminalReady: false, requestToSend: false });
     reader = port.readable?.getReader() || null;
     writer = port.writable?.getWriter() || null;
-
-    if (!reader || !writer) {
-      throw new Error('Failed to get serial port reader/writer');
-    }
-
+    if (!reader || !writer) throw new Error('Failed to get serial port reader/writer');
     connected.value = true;
     isConnecting.value = false;
-    showToast(t('messages.device.connectionSuccess'), 'success');
+    showGlobalToast(t('messages.device.connectionSuccess'), 'success');
     emit('device-ready', { port, reader, writer } as DeviceInfo);
   } catch (e) {
     connected.value = false;
     isConnecting.value = false;
-    showToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
-
-    // Clean up on error
-    if (reader) {
-      try { await reader.releaseLock(); } catch {}
-      reader = null;
-    }
-    if (writer) {
-      try { await writer.releaseLock(); } catch {}
-      writer = null;
-    }
-    if (port) {
-      try { await port.close(); } catch {}
-      port = null;
-    }
-
+    showGlobalToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
+    if (reader) { try { await reader.releaseLock(); } catch {} reader = null; }
+    if (writer) { try { await writer.releaseLock(); } catch {} writer = null; }
+    if (port) { try { await port.close(); } catch {} port = null; }
     emit('device-disconnected');
   }
 }
@@ -196,26 +123,14 @@ async function connect() {
 async function disconnect() {
   if (!port) return;
   isConnecting.value = true;
-
   try {
-    // Release reader and writer locks
-    if (reader) {
-      await reader.cancel();
-      reader.releaseLock();
-      reader = null;
-    }
-
-    if (writer) {
-      await writer.close();
-      writer = null;
-    }
-
-    // Close the serial port
+    if (reader) { await reader.cancel(); reader.releaseLock(); reader = null; }
+    if (writer) { await writer.close(); writer = null; }
     await port.close();
-    showToast(t('messages.device.disconnectionSuccess'), 'success');
+    showGlobalToast(t('messages.device.disconnectionSuccess'), 'success');
   } catch (e) {
     console.error(t('messages.device.disconnectionFailed'), e);
-    showToast(`${t('messages.device.disconnectionFailed')}`, 'error');
+    showGlobalToast(`${t('messages.device.disconnectionFailed')}`, 'error');
   } finally {
     port = null;
     reader = null;
@@ -250,7 +165,6 @@ const buttonClass = computed(() => {
   if (connected.value) return 'disconnect-btn';
   return 'connect-btn';
 });
-
 </script>
 
 <style scoped>
@@ -326,28 +240,6 @@ const buttonClass = computed(() => {
 .toggle-label {
   color: #333;
   font-weight: 500;
-}
-
-.toast {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  padding: 10px 20px;
-  border-radius: 6px;
-  color: white;
-  font-size: 0.95rem;
-  z-index: 1000;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-.toast.success {
-  background-color: #4CAF50; /* Green */
-}
-.toast.error {
-  background-color: #f44336; /* Red */
-}
-.toast.idle {
-  background-color: #2196F3; /* Blue for connecting */
 }
 
 .device-connect {

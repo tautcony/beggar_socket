@@ -37,17 +37,7 @@
     </div>
     <div class="main-layout">
       <div class="content-area">
-        <div class="status-row">
-          <span
-            v-if="busy"
-            class="status busy"
-          >{{ $t('ui.operation.busy') }}</span>
-          <span
-            v-if="result"
-            class="status"
-          >{{ result }}</span>
-        </div>
-
+        <!-- status-row 已移除，操作中/结果仅用全局 toast 提示 -->
         <TransitionGroup
           name="panel-move"
           tag="div"
@@ -58,6 +48,10 @@
             :device-ready="deviceReady"
             :busy="busy"
             :id-str="idStr"
+            :device-size="deviceSize ?? undefined"
+            :sector-count="sectorCount ?? undefined"
+            :sector-size="sectorSize ?? undefined"
+            :buffer-write-bytes="bufferWriteBytes ?? undefined"
             @read-id="readID"
             @erase-chip="eraseChip"
           />
@@ -144,6 +138,11 @@ const operateStartTime = ref<number | undefined>(undefined);
 const operateCurrentSpeed = ref<number | undefined>(undefined);
 const operateAllowCancel = ref<boolean>(true);
 const logs = ref<string[]>([]);
+
+const deviceSize = ref<number | null>(null);
+const sectorCount = ref<number | null>(null);
+const sectorSize = ref<number | null>(null);
+const bufferWriteBytes = ref<number | null>(null);
 
 const gbaIcon = 'game-controller-outline';
 const mbc5Icon = 'hardware-chip-outline';
@@ -357,12 +356,23 @@ async function readID() {
     if (response.success) {
       idStr.value = response.idStr || '';
       result.value = response.message;
+      try {
+        const sizeInfo = await adapter.getROMSize();
+        deviceSize.value = sizeInfo.deviceSize;
+        sectorCount.value = sizeInfo.sectorCount;
+        sectorSize.value = sizeInfo.sectorSize;
+        bufferWriteBytes.value = sizeInfo.bufferWriteBytes;
+      } catch (e) {
+        deviceSize.value = sectorCount.value = sectorSize.value = bufferWriteBytes.value = null;
+      }
     } else {
       result.value = response.message;
+      deviceSize.value = sectorCount.value = sectorSize.value = bufferWriteBytes.value = null;
     }
   } catch (e) {
     result.value = t('messages.operation.readIdFailed');
     log(`${t('messages.operation.readIdFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+    deviceSize.value = sectorCount.value = sectorSize.value = bufferWriteBytes.value = null;
   } finally {
     busy.value = false;
   }
@@ -723,22 +733,5 @@ function saveAsFile(data: Uint8Array, filename: string) {
 .tab-icon {
   margin-right: 6px;
   font-size: 1.2em;
-}
-
-.status-row {
-  margin-top: 18px;
-  min-height: 24px;
-}
-
-.status {
-  max-width: 100%;
-  word-wrap: break-word;
-  font-size: 1rem;
-  color: #333;
-}
-
-.status.busy {
-  color: #e67e22;
-  font-weight: bold;
 }
 </style>
