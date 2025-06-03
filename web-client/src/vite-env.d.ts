@@ -6,9 +6,3 @@ declare module '*.vue' {
   const component: DefineComponent<{}, {}, any>
   export default component
 }
-
-declare global {
-  interface Window {
-    showToast?: (msg: string, type?: 'success' | 'error' | 'idle', duration?: number) => void;
-  }
-}

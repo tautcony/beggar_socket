@@ -41,7 +41,9 @@ import {
   serial as polyfill, SerialPort as SerialPortPolyfill,
 } from 'web-serial-polyfill';
 import { IonIcon } from '@ionic/vue';
+import { useToast } from '@/composables/useToast';
 
+const { showToast } = useToast();
 const { t } = useI18n();
 const emit = defineEmits(['device-ready', 'device-disconnected']);
 
@@ -53,24 +55,11 @@ let port: SerialPort | null = null;
 let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
 let writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
 
-// 声明 window.showToast 类型，避免 any 警告
-declare global {
-  interface Window {
-    showToast?: (msg: string, type?: 'success' | 'error' | 'idle', duration?: number) => void;
-  }
-}
-
-function showGlobalToast(message: string, type: 'success' | 'error' | 'idle', duration = 3000) {
-  if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
-    window.showToast(message, type, duration);
-  }
-}
-
 async function connect() {
   if (isConnecting.value || connected.value) return;
 
   isConnecting.value = true;
-  showGlobalToast(t('messages.device.tryingConnect'), 'idle');
+  showToast(t('messages.device.tryingConnect'), 'idle');
 
   try {
     if (DebugSettings.debugMode) {
@@ -87,7 +76,7 @@ async function connect() {
       writer = mockPort.writable.getWriter();
       connected.value = true;
       isConnecting.value = false;
-      showGlobalToast(t('messages.device.connectionSuccess') + ' (Debug Mode)', 'success');
+      showToast(t('messages.device.connectionSuccess') + ' (Debug Mode)', 'success');
       emit('device-ready', { port, reader, writer } as DeviceInfo);
       return;
     }
@@ -107,12 +96,12 @@ async function connect() {
     if (!reader || !writer) throw new Error('Failed to get serial port reader/writer');
     connected.value = true;
     isConnecting.value = false;
-    showGlobalToast(t('messages.device.connectionSuccess'), 'success');
+    showToast(t('messages.device.connectionSuccess'), 'success');
     emit('device-ready', { port, reader, writer } as DeviceInfo);
   } catch (e) {
     connected.value = false;
     isConnecting.value = false;
-    showGlobalToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
+    showToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
     if (reader) { try { await reader.releaseLock(); } catch {} reader = null; }
     if (writer) { try { await writer.releaseLock(); } catch {} writer = null; }
     if (port) { try { await port.close(); } catch {} port = null; }
@@ -127,10 +116,10 @@ async function disconnect() {
     if (reader) { await reader.cancel(); reader.releaseLock(); reader = null; }
     if (writer) { await writer.close(); writer = null; }
     await port.close();
-    showGlobalToast(t('messages.device.disconnectionSuccess'), 'success');
+    showToast(t('messages.device.disconnectionSuccess'), 'success');
   } catch (e) {
     console.error(t('messages.device.disconnectionFailed'), e);
-    showGlobalToast(`${t('messages.device.disconnectionFailed')}`, 'error');
+    showToast(`${t('messages.device.disconnectionFailed')}`, 'error');
   } finally {
     port = null;
     reader = null;

@@ -31,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { IonIcon } from '@ionic/vue';
 
 interface Toast {
@@ -68,6 +68,20 @@ function showToast(msg: string, toastType: 'success' | 'error' | 'idle' = 'succe
   // 设置自动消失定时器
   startTimer(toast);
 }
+
+// 监听全局Toast事件
+function handleGlobalToast(event: CustomEvent) {
+  const { message, type, duration } = event.detail;
+  showToast(message, type, duration);
+}
+
+onMounted(() => {
+  window.addEventListener('show-toast', handleGlobalToast as EventListener);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('show-toast', handleGlobalToast as EventListener);
+});
 
 function startTimer(toast: Toast) {
   toast.timer = setTimeout(() => {
@@ -112,7 +126,12 @@ function removeToast(toastId: number) {
   }
 }
 
-// 通过 window 全局暴露 showToast
+declare global {
+  interface Window {
+    showToast?: (msg: string, type?: 'success' | 'error' | 'idle', duration?: number) => void;
+  }
+}
+
 if (typeof window !== 'undefined') {
   window.showToast = showToast;
 }

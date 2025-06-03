@@ -57,6 +57,9 @@ import GlobalToast from '@/components/common/GlobalToast.vue';
 import DebugLink from '@/components/links/DebugLink.vue';
 import { DeviceInfo } from '@/types/device-info';
 import { DebugSettings } from '@/settings/debug-settings';
+import { useToast } from '@/composables/useToast';
+
+const { showToast } = useToast();
 
 const device = ref<DeviceInfo | null>(null);
 const deviceReady = ref(false);
@@ -133,10 +136,7 @@ function onClearMockData() {
 
   console.log('[DEBUG] 模拟数据清除完成');
 
-  // 显示成功提示
-  if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
-    window.showToast('模拟数据已清除', 'success', 2000);
-  }
+  showToast('模拟数据已清除', 'success', 2000);
 }
 </script>
 
