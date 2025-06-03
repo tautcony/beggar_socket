@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeAll } from 'vitest';
-import { modbusCRC16, modbusCRC16_lut } from '../src/utils/ProtocolUtils.ts';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { modbusCRC16, modbusCRC16_lut } from '../src/utils/crc-utils';
 
 describe('CRC16 Performance Tests', () => {
   // 生成测试数据的辅助函数
@@ -58,7 +58,7 @@ describe('CRC16 Performance Tests', () => {
   });
 
   describe('性能对比测试', () => {
-    let performanceResults: Array<{
+    const performanceResults: Array<{
       size: number
       originalTime: number
       lutTime: number
@@ -99,7 +99,7 @@ describe('CRC16 Performance Tests', () => {
           originalTime,
           lutTime,
           speedup,
-          improvement
+          improvement,
         });
 
         console.log(`\n📊 数据大小: ${size} 字节`);
@@ -135,7 +135,7 @@ describe('CRC16 Performance Tests', () => {
         '原始实现(ms)': (r.originalTime / iterations).toFixed(4),
         '查表实现(ms)': (r.lutTime / iterations).toFixed(4),
         '速度提升': `${r.speedup.toFixed(2)}x`,
-        '性能改善': `${r.improvement.toFixed(1)}%`
+        '性能改善': `${r.improvement.toFixed(1)}%`,
       })));
 
       console.log('\n💡 结论:');
@@ -161,7 +161,7 @@ describe('CRC16 Performance Tests', () => {
       // Modbus CRC16的标准测试向量
       const testVectors = [
         { data: new Uint8Array([0x01, 0x04, 0x02, 0xFF, 0xFF]), expected: 0x80B8 },
-        { data: new Uint8Array([0x11, 0x03, 0x06, 0xAE, 0x41, 0x56, 0x52, 0x43, 0x40]), expected: 0x25B4 }
+        { data: new Uint8Array([0x11, 0x03, 0x06, 0xAE, 0x41, 0x56, 0x52, 0x43, 0x40]), expected: 0x25B4 },
       ];
 
       testVectors.forEach(({ data, expected }, index) => {
