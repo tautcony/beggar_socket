@@ -1,7 +1,7 @@
-import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction, EnhancedProgressCallback } from './CartridgeAdapter';
-import { CommandResult } from '@/types/CommandResult';
-import { CommandOptions } from '@/types/CommandOptions';
-import { DebugConfig } from './DebugConfig';
+import { CartridgeAdapter, EnhancedProgressCallback, LogCallback, ProgressCallback, TranslateFunction } from './cartridge-adapter';
+import { CommandResult } from '@/types/command-result';
+import { CommandOptions } from '@/types/command-options';
+import { DebugSettings } from '../settings/debug-settings';
 
 /**
  * 模拟适配器类
@@ -18,7 +18,7 @@ export class MockAdapter extends CartridgeAdapter {
     enhancedProgressCallback: EnhancedProgressCallback | null = null,
   ) {
     // 创建模拟设备
-    const mockDeviceInfo = DebugConfig.createMockDeviceInfo();
+    const mockDeviceInfo = DebugSettings.createMockDeviceInfo();
     super(mockDeviceInfo, logCallback, progressCallback, translateFunc, enhancedProgressCallback);
 
     this.log(this.t('messages.debug.mockModeEnabled') || '调试模式已启用 - 使用模拟设备');
@@ -30,9 +30,9 @@ export class MockAdapter extends CartridgeAdapter {
   async readID(): Promise<CommandResult & { idStr?: string }> {
     this.log(this.t('messages.operation.readId'));
 
-    await DebugConfig.delay();
+    await DebugSettings.delay();
 
-    if (DebugConfig.shouldSimulateError()) {
+    if (DebugSettings.shouldSimulateError()) {
       this.log(`${this.t('messages.operation.readIdFailed')}: 模拟错误`);
       return {
         success: false,
@@ -59,7 +59,7 @@ export class MockAdapter extends CartridgeAdapter {
 
     // 模拟进度
     const startTime = Date.now();
-    await DebugConfig.simulateProgress(
+    await DebugSettings.simulateProgress(
       (progress) => {
         const elapsed = (Date.now() - startTime) / 1000;
         const erasedSectors = Math.floor(10 * progress / 100); // 假设10个扇区
@@ -77,7 +77,7 @@ export class MockAdapter extends CartridgeAdapter {
       2000,
     );
 
-    if (DebugConfig.shouldSimulateError()) {
+    if (DebugSettings.shouldSimulateError()) {
       this.log(`${this.t('messages.operation.eraseFailed')}: 模拟错误`);
       return {
         success: false,
@@ -104,7 +104,7 @@ export class MockAdapter extends CartridgeAdapter {
 
     // 模拟进度
     const startTime = Date.now();
-    await DebugConfig.simulateProgress(
+    await DebugSettings.simulateProgress(
       (progress) => {
         const elapsed = (Date.now() - startTime) / 1000;
         const writtenBytes = Math.floor(data.length * progress / 100);
@@ -124,7 +124,7 @@ export class MockAdapter extends CartridgeAdapter {
       3000,
     );
 
-    if (DebugConfig.shouldSimulateError()) {
+    if (DebugSettings.shouldSimulateError()) {
       this.log(`${this.t('messages.rom.writeFailed')}: 模拟错误`);
       return {
         success: false,
@@ -150,7 +150,7 @@ export class MockAdapter extends CartridgeAdapter {
 
     // 模拟进度
     const startTime = Date.now();
-    await DebugConfig.simulateProgress(
+    await DebugSettings.simulateProgress(
       (progress) => {
         const elapsed = (Date.now() - startTime) / 1000;
         const readBytes = Math.floor(size * progress / 100);
@@ -168,7 +168,7 @@ export class MockAdapter extends CartridgeAdapter {
       2500,
     );
 
-    if (DebugConfig.shouldSimulateError()) {
+    if (DebugSettings.shouldSimulateError()) {
       this.log(`${this.t('messages.rom.readFailed')}: 模拟错误`);
       return {
         success: false,
@@ -177,7 +177,7 @@ export class MockAdapter extends CartridgeAdapter {
     }
 
     // 返回之前写入的数据或生成随机数据
-    const data = this.mockRomData?.slice(0, size) || DebugConfig.generateRandomData(size);
+    const data = this.mockRomData?.slice(0, size) || DebugSettings.generateRandomData(size);
 
     this.log(this.t('messages.rom.readSuccess', { size: data.length }));
     return {
@@ -195,7 +195,7 @@ export class MockAdapter extends CartridgeAdapter {
 
     // 模拟进度
     const startTime = Date.now();
-    await DebugConfig.simulateProgress(
+    await DebugSettings.simulateProgress(
       (progress) => {
         const elapsed = (Date.now() - startTime) / 1000;
         const verifiedBytes = Math.floor(data.length * progress / 100);
@@ -213,7 +213,7 @@ export class MockAdapter extends CartridgeAdapter {
       2000,
     );
 
-    if (DebugConfig.shouldSimulateError()) {
+    if (DebugSettings.shouldSimulateError()) {
       this.log(`${this.t('messages.rom.verifyFailed')}: 模拟错误`);
       return {
         success: false,
@@ -239,7 +239,7 @@ export class MockAdapter extends CartridgeAdapter {
 
     // 模拟进度
     const startTime = Date.now();
-    await DebugConfig.simulateProgress(
+    await DebugSettings.simulateProgress(
       (progress) => {
         const elapsed = (Date.now() - startTime) / 1000;
         const writtenBytes = Math.floor(data.length * progress / 100);
@@ -257,7 +257,7 @@ export class MockAdapter extends CartridgeAdapter {
       2000,
     );
 
-    if (DebugConfig.shouldSimulateError()) {
+    if (DebugSettings.shouldSimulateError()) {
       this.log(`${this.t('messages.ram.writeFailed')}: 模拟错误`);
       return {
         success: false,
@@ -281,7 +281,7 @@ export class MockAdapter extends CartridgeAdapter {
 
     // 模拟进度
     const startTime = Date.now();
-    await DebugConfig.simulateProgress(
+    await DebugSettings.simulateProgress(
       (progress) => {
         const elapsed = (Date.now() - startTime) / 1000;
         const readBytes = Math.floor(size * progress / 100);
@@ -299,7 +299,7 @@ export class MockAdapter extends CartridgeAdapter {
       2000,
     );
 
-    if (DebugConfig.shouldSimulateError()) {
+    if (DebugSettings.shouldSimulateError()) {
       this.log(`${this.t('messages.ram.readFailed')}: 模拟错误`);
       return {
         success: false,
@@ -307,7 +307,7 @@ export class MockAdapter extends CartridgeAdapter {
       };
     }
 
-    const data = this.mockRamData?.slice(0, size) || DebugConfig.generateRandomData(size);
+    const data = this.mockRamData?.slice(0, size) || DebugSettings.generateRandomData(size);
     this.log(this.t('messages.ram.readSuccess', { size: data.length }));
     return {
       success: true,
@@ -324,7 +324,7 @@ export class MockAdapter extends CartridgeAdapter {
 
     // 模拟进度
     const startTime = Date.now();
-    await DebugConfig.simulateProgress(
+    await DebugSettings.simulateProgress(
       (progress) => {
         const elapsed = (Date.now() - startTime) / 1000;
         const verifiedBytes = Math.floor(data.length * progress / 100);
@@ -342,7 +342,7 @@ export class MockAdapter extends CartridgeAdapter {
       1500,
     );
 
-    if (DebugConfig.shouldSimulateError()) {
+    if (DebugSettings.shouldSimulateError()) {
       this.log(`${this.t('messages.ram.verifyFailed')}: 模拟错误`);
       return {
         success: false,

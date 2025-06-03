@@ -198,8 +198,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { AdvancedSettings } from '@/utils/AdvancedSettings';
-import { formatBytes, formatTime } from '@/utils/Formatter';
+import { AdvancedSettings } from '@/settings/advanced-settings';
+import { formatBytes, formatTime } from '@/utils/formatter-utils';
 
 const { t } = useI18n();
 

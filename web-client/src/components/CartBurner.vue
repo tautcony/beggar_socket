@@ -107,14 +107,14 @@ import RomOperations from '@/components/operaiton/RomOperations.vue';
 import RamOperations from '@/components/operaiton/RamOperations.vue';
 import LogViewer from '@/components/common/LogViewer.vue';
 import ProgressDisplay from '@/components/common/ProgressDisplay.vue';
-import CartridgeAdapter, { type EnhancedProgressCallback, type ProgressInfo } from '@/utils/CartridgeAdapter';
-import { GBAAdapter } from '@/utils/GBAAdapter.ts';
-import { MBC5Adapter } from '@/utils/MBC5Adapter.ts';
-import { MockAdapter } from '@/utils/MockAdapter.ts';
-import { DebugConfig } from '@/utils/DebugConfig.ts';
-import { DeviceInfo } from '@/types/DeviceInfo.ts';
-import { FileInfo } from '@/types/FileInfo.ts';
-import { formatBytes } from '@/utils/Formatter.ts';
+import { CartridgeAdapter, type ProgressInfo } from '@/services/cartridge-adapter';
+import { GBAAdapter } from '@/services/gba-dapter';
+import { MBC5Adapter } from '@/services/mbc5-adapter';
+import { MockAdapter } from '@/services/mock-adapter';
+import { DebugSettings } from '@/settings/debug-settings';
+import { DeviceInfo } from '@/types/device-info';
+import { FileInfo } from '@/types/file-info';
+import { formatBytes } from '@/utils/formatter-utils';
 
 const { t } = useI18n();
 
@@ -183,7 +183,7 @@ const currentAllowCancel = computed(() => {
 // 设备连接状态改变时，初始化适配器
 watch(() => props.deviceReady, (newVal) => {
   if (newVal && props.device) {
-    if (DebugConfig.enabled) {
+    if (DebugSettings.enabled) {
       // 调试模式下使用 MockAdapter
       const adapter = new MockAdapter(
         (msg) => log(msg),

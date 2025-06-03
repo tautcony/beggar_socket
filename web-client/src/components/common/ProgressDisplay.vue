@@ -94,7 +94,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { formatBytes, formatSpeed, formatTime } from '@/utils/Formatter';
+import { formatBytes, formatSpeed, formatTime } from '@/utils/formatter-utils';
 
 const { t } = useI18n();
 

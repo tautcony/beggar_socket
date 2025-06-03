@@ -68,6 +68,12 @@ export default [
     },
     rules: {
       ...commonTsRules,
+      'sort-imports': ['error', {
+        ignoreCase: true,
+        ignoreDeclarationSort: true,
+        ignoreMemberSort: false,
+        memberSyntaxSortOrder: ['none', 'all', 'multiple', 'single']
+      }],
     }
   },
   // Vue files configuration

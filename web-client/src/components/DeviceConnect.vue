@@ -34,10 +34,10 @@
 </template>
 
 <script setup lang="ts">
-import { DeviceInfo } from '@/types/DeviceInfo.ts';
+import { DeviceInfo } from '@/types/device-info';
 import { ref, computed, reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { DebugConfig } from '@/utils/DebugConfig';
+import { DebugSettings } from '@/settings/debug-settings';
 import {
   serial as polyfill, SerialPort as SerialPortPolyfill,
 } from 'web-serial-polyfill';
@@ -83,7 +83,7 @@ async function connect() {
 
   try {
     // Check if debug mode is enabled
-    if (DebugConfig.enabled) {
+    if (DebugSettings.enabled) {
       // Simulate connection delay
       await new Promise(resolve => setTimeout(resolve, 1000));
 

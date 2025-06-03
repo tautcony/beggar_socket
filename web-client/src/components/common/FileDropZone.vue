@@ -71,8 +71,8 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { FileInfo } from '@/types/FileInfo.ts';
-import { formatBytes } from '@/utils/Formatter.ts';
+import { FileInfo } from '@/types/file-info';
+import { formatBytes } from '@/utils/formatter-utils';
 
 const props = defineProps({
   disabled: {

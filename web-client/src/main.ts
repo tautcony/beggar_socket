@@ -2,7 +2,7 @@ import { createApp } from 'vue';
 import './style.css';
 import App from './App.vue';
 import i18n from './i18n';
-import { AdvancedSettings } from './utils/AdvancedSettings';
+import { AdvancedSettings } from './settings/advanced-settings';
 import { initSentry } from './utils/sentry';
 
 // 初始化高级设置

@@ -1,9 +1,9 @@
-import { gbc_direct_write, gbc_read, gbc_rom_program } from '@/utils/Protocol.ts';
-import { DeviceInfo } from '@/types/DeviceInfo.ts';
-import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction, EnhancedProgressCallback } from '@/utils/CartridgeAdapter.ts';
-import { CommandResult } from '@/types/CommandResult.ts';
-import { CommandOptions } from '@/types/CommandOptions.ts';
-import { PerformanceTracker } from './sentry';
+import { gbc_direct_write, gbc_read, gbc_rom_program } from '@/protocol/beggar_socket/protocol';
+import { DeviceInfo } from '@/types/device-info';
+import { CartridgeAdapter, EnhancedProgressCallback, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
+import { CommandResult } from '@/types/command-result';
+import { CommandOptions } from '@/types/command-options';
+import { PerformanceTracker } from '../utils/sentry';
 
 /**
  * MBC5 Adapter - 封装MBC5卡带的协议操作

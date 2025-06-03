@@ -45,8 +45,8 @@ import DebugPanel from '@/components/common/DebugPanel.vue';
 import GitHubLink from '@/components/common/GitHubLink.vue';
 import AdvancedSettings from '@/components/settings/AdvancedSettings.vue';
 import SettingsLink from '@/components/settings/SettingsLink.vue';
-import { DeviceInfo } from '@/types/DeviceInfo';
-import { DebugConfig } from '@/utils/DebugConfig';
+import { DeviceInfo } from '@/types/device-info';
+import { DebugSettings } from '@/settings/debug-settings';
 
 const device = ref<DeviceInfo | null>(null);
 const deviceReady = ref(false);
@@ -54,7 +54,7 @@ const showSettings = ref(false);
 
 // 显示调试面板的条件：调试模式启用或者开发环境
 const showDebugPanel = computed(() => {
-  return DebugConfig.showDebugPanel || import.meta.env.DEV;
+  return DebugSettings.showDebugPanel || import.meta.env.DEV;
 });
 
 /**

@@ -148,7 +148,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { DebugConfig } from '@/utils/DebugConfig';
+import { DebugSettings } from '@/settings/debug-settings';
 
 const emit = defineEmits(['connect-mock-device', 'generate-test-file']);
 
@@ -172,11 +172,11 @@ onMounted(() => {
 });
 
 function syncConfig() {
-  debugEnabled.value = DebugConfig.enabled;
-  simulatedDelay.value = DebugConfig.simulatedDelay;
-  progressInterval.value = DebugConfig.progressUpdateInterval;
-  simulateErrors.value = DebugConfig.simulateErrors;
-  errorProbability.value = DebugConfig.errorProbability;
+  debugEnabled.value = DebugSettings.enabled;
+  simulatedDelay.value = DebugSettings.simulatedDelay;
+  progressInterval.value = DebugSettings.progressUpdateInterval;
+  simulateErrors.value = DebugSettings.simulateErrors;
+  errorProbability.value = DebugSettings.errorProbability;
 }
 
 function togglePanel() {
@@ -184,7 +184,7 @@ function togglePanel() {
 }
 
 function onDebugToggle() {
-  DebugConfig.enabled = debugEnabled.value;
+  DebugSettings.enabled = debugEnabled.value;
   if (debugEnabled.value) {
     console.log('🎭 调试模式已启用');
   } else {
@@ -193,19 +193,19 @@ function onDebugToggle() {
 }
 
 function updateDelay() {
-  DebugConfig.simulatedDelay = simulatedDelay.value;
+  DebugSettings.simulatedDelay = simulatedDelay.value;
 }
 
 function updateProgressInterval() {
-  DebugConfig.progressUpdateInterval = progressInterval.value;
+  DebugSettings.progressUpdateInterval = progressInterval.value;
 }
 
 function updateErrorSimulation() {
-  DebugConfig.simulateErrors = simulateErrors.value;
+  DebugSettings.simulateErrors = simulateErrors.value;
 }
 
 function updateErrorProbability() {
-  DebugConfig.errorProbability = errorProbability.value;
+  DebugSettings.errorProbability = errorProbability.value;
 }
 
 function connectMockDevice() {
@@ -214,7 +214,7 @@ function connectMockDevice() {
 
 function generateTestRom() {
   // 生成2MB的测试ROM数据
-  const testData = DebugConfig.generateRandomData(0x200000);
+  const testData = DebugSettings.generateRandomData(0x200000);
   const blob = new Blob([testData], { type: 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -226,7 +226,7 @@ function generateTestRom() {
 
 function generateTestRam() {
   // 生成32KB的测试RAM数据
-  const testData = DebugConfig.generateRandomData(0x8000);
+  const testData = DebugSettings.generateRandomData(0x8000);
   const blob = new Blob([testData], { type: 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

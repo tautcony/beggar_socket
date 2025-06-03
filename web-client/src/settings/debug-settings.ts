@@ -2,7 +2,7 @@
  * 调试配置类
  * 用于在开发模式下模拟设备行为
  */
-export class DebugConfig {
+export class DebugSettings {
   // 是否启用调试模式
   private static _enabled = false;
 
@@ -240,4 +240,4 @@ export class DebugConfig {
 }
 
 // 初始化调试配置
-DebugConfig.init();
+DebugSettings.init();

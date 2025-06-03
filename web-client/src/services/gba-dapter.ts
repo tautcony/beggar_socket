@@ -1,5 +1,6 @@
 import {
   rom_readID,
+  // eslint-disable-next-line sort-imports
   rom_eraseChip,
   rom_sector_erase,
   rom_program,
@@ -10,14 +11,14 @@ import {
   ram_read,
   // ram_verify,
   ram_write_to_flash,
-} from '@/utils/Protocol.ts';
-import { AdvancedSettings } from '@/utils/AdvancedSettings.ts';
-import { DeviceInfo } from '@/types/DeviceInfo.ts';
-import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction, EnhancedProgressCallback } from '@/utils/CartridgeAdapter.ts';
-import { CommandResult } from '@/types/CommandResult.ts';
-import { CommandOptions } from '@/types/CommandOptions.ts';
-import { getFlashId } from '@/utils/ProtocolUtils';
-import { PerformanceTracker } from './sentry';
+} from '@/protocol/beggar_socket/protocol';
+import { AdvancedSettings } from '@/settings/advanced-settings';
+import { DeviceInfo } from '@/types/device-info';
+import { CartridgeAdapter, EnhancedProgressCallback, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
+import { CommandResult } from '@/types/command-result';
+import { CommandOptions } from '@/types/command-options';
+import { getFlashId } from '@/protocol/beggar_socket/protocol-utils';
+import { PerformanceTracker } from '../utils/sentry';
 
 /**
  * GBA Adapter - 封装GBA卡带的协议操作

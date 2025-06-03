@@ -71,7 +71,7 @@
 
 <script setup lang="ts">
 import FileDropZone from '../common/FileDropZone.vue';
-import { FileInfo } from '../../types/FileInfo.ts';
+import { FileInfo } from '../../types/file-info.ts';
 import { ref } from 'vue';
 
 const props = defineProps({
