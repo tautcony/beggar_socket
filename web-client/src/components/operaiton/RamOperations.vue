@@ -83,7 +83,7 @@
 <script setup lang="ts">
 import FileDropZone from '../common/FileDropZone.vue';
 import { FileInfo } from '../../types/file-info.ts';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 
 const props = defineProps({
   mode: {
@@ -120,6 +120,27 @@ const emit = defineEmits(['file-selected', 'file-cleared', 'write-ram', 'read-ra
 
 const selectedRamSize = ref(props.selectedRamSize);
 const selectedRamType = ref(props.selectedRamType);
+
+// 当RAM文件数据变化时，根据文件大小自动更新选择的RAM大小
+watch(() => props.ramFileData, (newData) => {
+  if (newData && newData.length > 0) {
+    const ramSize = newData.length;
+    // 预定义的RAM大小选项
+    const sizeOptions = [
+      { value: '0x2000', size: 0x2000 }, // 8KB
+      { value: '0x8000', size: 0x8000 }, // 32KB
+      { value: '0x10000', size: 0x10000 }, // 64KB
+      { value: '0x20000', size: 0x20000 }, // 128KB
+    ];
+
+    // 找到最接近且不小于RAM大小的选项
+    const matchedOption = sizeOptions.find(option => option.size >= ramSize) || sizeOptions[sizeOptions.length - 1];
+
+    selectedRamSize.value = matchedOption.value;
+    // 发射事件通知父组件RAM大小已更改
+    emit('ram-size-change', matchedOption.value);
+  }
+}, { immediate: true });
 
 function onFileSelected(fileInfo: FileInfo) {
   emit('file-selected', fileInfo);

@@ -55,7 +55,15 @@
       "verify": "校验ROM",
       "bankSwitching": "银行切换",
       "romSize": "ROM大小",
-      "sizeLabel": "大小："
+      "sizeLabel": "大小：",
+      "info": "ROM信息",
+      "type": "类型",
+      "gameCode": "游戏代码",
+      "maker": "制造商",
+      "version": "版本",
+      "region": "区域",
+      "size": "文件大小",
+      "valid": "有效性"
     },
     "ram": {
       "title": "RAM操作",
@@ -140,6 +148,10 @@
       "writing": "{written} / {total} 字节",
       "complete": "完成",
       "percent": "{percent}%"
+    },
+    "common": {
+      "yes": "是",
+      "no": "否"
     }
   },
   "messages": {

@@ -48,7 +48,15 @@
       "verify": "ROM検証",
       "bankSwitching": "バンク切り替え",
       "romSize": "ROMサイズ",
-      "sizeLabel": "サイズ："
+      "sizeLabel": "サイズ：",
+      "info": "ROM情報",
+      "type": "タイプ",
+      "gameCode": "ゲームコード",
+      "maker": "メーカー",
+      "version": "バージョン",
+      "region": "地域",
+      "size": "ファイルサイズ",
+      "valid": "有効性"
     },
     "ram": {
       "title": "RAM操作",
@@ -133,6 +141,10 @@
       "writing": "{written} / {total} バイト",
       "complete": "完了",
       "percent": "{percent}%"
+    },
+    "common": {
+      "yes": "はい",
+      "no": "いいえ"
     },
     "debug": { "panel": "デバッグパネル" },
     "chip": {

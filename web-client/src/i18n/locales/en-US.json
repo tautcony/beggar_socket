@@ -55,7 +55,15 @@
       "verify": "Verify ROM",
       "bankSwitching": "Bank Switching",
       "romSize": "ROM Size",
-      "sizeLabel": "Size:"
+      "sizeLabel": "Size:",
+      "info": "ROM Information",
+      "type": "Type",
+      "gameCode": "Game Code",
+      "maker": "Maker",
+      "version": "Version",
+      "region": "Region",
+      "size": "File Size",
+      "valid": "Valid"
     },
     "ram": {
       "title": "RAM Operations",
@@ -140,6 +148,10 @@
       "writing": "{written} / {total} bytes",
       "complete": "Complete",
       "percent": "{percent}%"
+    },
+    "common": {
+      "yes": "Yes",
+      "no": "No"
     }
   },
   "messages": {
