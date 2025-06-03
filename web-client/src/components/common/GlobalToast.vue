@@ -1,28 +1,115 @@
 <template>
-  <div
-    v-if="visible"
-    :class="['global-toast', type]"
-  >
-    {{ message }}
+  <div class="toast-container">
+    <div
+      v-for="toast in toasts"
+      :key="toast.id"
+      :class="['global-toast', toast.type]"
+      @mouseenter="pauseTimer(toast.id)"
+      @mouseleave="resumeTimer(toast.id)"
+    >
+      <div class="toast-content">
+        <div class="toast-icon">
+          <IonIcon
+            v-if="toast.type === 'success'"
+            name="checkmark-circle"
+          />
+          <IonIcon
+            v-else-if="toast.type === 'error'"
+            name="close-circle"
+          />
+          <IonIcon
+            v-else
+            name="information-circle"
+          />
+        </div>
+        <div class="toast-message">
+          {{ toast.message }}
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { IonIcon } from '@ionic/vue';
 
-const visible = ref(false);
-const message = ref('');
-const type = ref<'success' | 'error' | 'idle'>('success');
-let timer: ReturnType<typeof setTimeout> | null = null;
+interface Toast {
+  id: number;
+  message: string;
+  type: 'success' | 'error' | 'idle';
+  timer: ReturnType<typeof setTimeout> | null;
+  duration: number;
+  isPaused: boolean;
+  remainingTime: number;
+  pauseStartTime: number | null;
+}
+
+const toasts = ref<Toast[]>([]);
+let toastIdCounter = 0;
 
 function showToast(msg: string, toastType: 'success' | 'error' | 'idle' = 'success', duration = 3000) {
-  if (timer) clearTimeout(timer);
-  message.value = msg;
-  type.value = toastType;
-  visible.value = true;
-  timer = setTimeout(() => {
-    visible.value = false;
-  }, duration);
+  const id = ++toastIdCounter;
+
+  const toast: Toast = {
+    id,
+    message: msg,
+    type: toastType,
+    timer: null,
+    duration,
+    isPaused: false,
+    remainingTime: duration,
+    pauseStartTime: null,
+  };
+
+  // 添加新的 toast
+  toasts.value.push(toast);
+
+  // 设置自动消失定时器
+  startTimer(toast);
+}
+
+function startTimer(toast: Toast) {
+  toast.timer = setTimeout(() => {
+    removeToast(toast.id);
+  }, toast.remainingTime);
+}
+
+function pauseTimer(toastId: number) {
+  const toast = toasts.value.find(t => t.id === toastId);
+  if (toast && toast.timer && !toast.isPaused) {
+    clearTimeout(toast.timer);
+    toast.timer = null;
+    toast.isPaused = true;
+    toast.pauseStartTime = Date.now();
+  }
+}
+
+function resumeTimer(toastId: number) {
+  const toast = toasts.value.find(t => t.id === toastId);
+  if (toast && toast.isPaused && toast.pauseStartTime) {
+    const pauseDuration = Date.now() - toast.pauseStartTime;
+    toast.remainingTime = Math.max(0, toast.remainingTime - pauseDuration);
+    toast.isPaused = false;
+    toast.pauseStartTime = null;
+
+    if (toast.remainingTime > 0) {
+      startTimer(toast);
+    } else {
+      removeToast(toastId);
+    }
+  }
+}
+
+function removeToast(toastId: number) {
+  const index = toasts.value.findIndex(t => t.id === toastId);
+  if (index > -1) {
+    const toast = toasts.value[index];
+    if (toast.timer) {
+      clearTimeout(toast.timer);
+    }
+    toasts.value.splice(index, 1);
+  }
 }
 
 // 通过 window 全局暴露 showToast
@@ -32,29 +119,88 @@ if (typeof window !== 'undefined') {
 </script>
 
 <style scoped>
-.global-toast {
+.toast-container {
   position: fixed;
   top: 24px;
   right: 24px;
   z-index: 2000;
-  min-width: 180px;
-  max-width: 320px;
-  padding: 12px 24px;
-  border-radius: 6px;
-  color: #fff;
-  font-size: 1rem;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.12);
-  transition: opacity 0.3s, transform 0.3s;
-  opacity: 0.98;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   pointer-events: none;
 }
+
+.global-toast {
+  min-width: 180px;
+  max-width: 320px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.875rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  opacity: 0.96;
+  pointer-events: auto;
+  cursor: default;
+}
+
+.global-toast:hover {
+  opacity: 1;
+  transform: translateX(-4px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.toast-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toast-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toast-icon ion-icon {
+  font-size: 20px;
+}
+
+.toast-message {
+  flex: 1;
+  line-height: 1.4;
+  word-break: break-word;
+  text-align: left;
+}
+
 .global-toast.success {
-  background: #4caf50;
+  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
 }
+
 .global-toast.error {
-  background: #f44336;
+  background: linear-gradient(135deg, #f44336 0%, #e53935 100%);
 }
+
 .global-toast.idle {
-  background: #2196f3;
+  background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+}
+
+/* 动画效果 */
+.global-toast {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 0.96;
+  }
 }
 </style>
