@@ -12,7 +12,12 @@
         :disabled="isConnecting"
         @click="handleConnectDisconnect"
       >
-        <span class="icon">{{ buttonIcon }}</span> {{ buttonText }}
+        <IonIcon
+          class="icon"
+          :name="buttonIconName"
+          style="font-size: 1.2em; margin-right: 4px;"
+        />
+        {{ buttonText }}
       </button>
       <div class="polyfill-toggle">
         <label
@@ -41,6 +46,7 @@ import { DebugSettings } from '@/settings/debug-settings';
 import {
   serial as polyfill, SerialPort as SerialPortPolyfill,
 } from 'web-serial-polyfill';
+import { IonIcon } from '@ionic/vue';
 
 const { t } = useI18n();
 const emit = defineEmits(['device-ready', 'device-disconnected']);
@@ -234,10 +240,10 @@ const buttonText = computed(() => {
   return t('ui.device.connect');
 });
 
-const buttonIcon = computed(() => {
-  if (isConnecting.value && !connected.value) return '🔄';
-  if (connected.value) return '✅';
-  return '🔌';
+const buttonIconName = computed(() => {
+  if (isConnecting.value && !connected.value) return 'reload-outline';
+  if (connected.value) return 'checkmark-done-outline';
+  return 'flash-outline';
 });
 
 const buttonClass = computed(() => {

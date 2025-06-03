@@ -18,13 +18,21 @@
         :class="{ active: mode === 'GBA' }"
         @click="mode = 'GBA'"
       >
-        <span class="tab-icon">🎮</span> {{ $t('ui.mode.gba') }}
+        <IonIcon
+          class="tab-icon"
+          :name="gbaIcon"
+        />
+        {{ $t('ui.mode.gba') }}
       </button>
       <button
         :class="{ active: mode === 'MBC5' }"
         @click="mode = 'MBC5'"
       >
-        <span class="tab-icon">🕹️</span> {{ $t('ui.mode.mbc5') }}
+        <IonIcon
+          class="tab-icon"
+          :name="mbc5Icon"
+        />
+        {{ $t('ui.mode.mbc5') }}
       </button>
     </div>
     <div class="main-layout">
@@ -107,6 +115,7 @@ import RomOperations from '@/components/operaiton/RomOperations.vue';
 import RamOperations from '@/components/operaiton/RamOperations.vue';
 import LogViewer from '@/components/LogViewer.vue';
 import ProgressDisplay from '@/components/ProgressDisplay.vue';
+import { IonIcon } from '@ionic/vue';
 import { CartridgeAdapter, type ProgressInfo } from '@/services/cartridge-adapter';
 import { GBAAdapter } from '@/services/gba-dapter';
 import { MBC5Adapter } from '@/services/mbc5-adapter';
@@ -135,6 +144,9 @@ const operateStartTime = ref<number | undefined>(undefined);
 const operateCurrentSpeed = ref<number | undefined>(undefined);
 const operateAllowCancel = ref<boolean>(true);
 const logs = ref<string[]>([]);
+
+const gbaIcon = 'game-controller-outline';
+const mbc5Icon = 'hardware-chip-outline';
 
 // Adapter
 const gbaAdapter = ref<CartridgeAdapter | null>();

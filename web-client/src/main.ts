@@ -4,11 +4,14 @@ import App from './App.vue';
 import i18n from './i18n';
 import { AdvancedSettings } from './settings/advanced-settings';
 import { initSentry } from './utils/sentry';
+import { IonIcon } from '@ionic/vue';
 
 // 初始化高级设置
 AdvancedSettings.loadSettings();
 
 const app = createApp(App);
+
+app.component('IonIcon', IonIcon);
 
 // 初始化Sentry（仅在生产环境或明确启用时）
 initSentry(app, {

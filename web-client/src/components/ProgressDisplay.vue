@@ -12,14 +12,14 @@
         <span
           v-if="isCompleted"
           class="completion-badge"
-        >✓</span>
+        ><IonIcon name="checkmark-outline" /></span>
       </h3>
       <button
         class="close-button"
         :disabled="!allowCancel && !isCompleted"
         @click="handleClose"
       >
-        ✕
+        <IonIcon name="close-outline" />
       </button>
     </template>
     <div class="modal-body">

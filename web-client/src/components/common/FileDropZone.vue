@@ -7,7 +7,7 @@
         'drag-over': dragOver,
         'disabled': disabled
       }"
-      @click="triggerFileSelect"
+      @click="onZoneClick"
       @dragover.prevent="handleDragOver"
       @dragleave.prevent="handleDragLeave"
       @drop.prevent="handleDrop"
@@ -15,62 +15,65 @@
       <input
         ref="fileInput"
         type="file"
+        :accept="acceptTypes"
         :disabled="disabled"
         style="display: none"
-        :accept="acceptTypes"
         @change="onFileChange"
       >
-      <div
-        v-if="!fileData"
-        class="drop-zone-content"
-      >
-        <div class="upload-icon">
-          {{ icon }}
-        </div>
-        <div class="upload-text">
-          <p class="main-text">
-            {{ mainText }}
-          </p>
-          <p class="sub-text">
-            {{ $t('ui.file.dropArea') }}
-          </p>
-          <p class="hint-text">
-            {{ $t('ui.file.accept', { format: acceptHint }) }}
-          </p>
-        </div>
-      </div>
-      <div
-        v-else
-        class="file-preview"
-      >
-        <div class="file-icon">
-          {{ icon }}
-        </div>
-        <div class="file-details">
-          <div class="file-name">
-            {{ fileName }}
-          </div>
-          <div class="file-size">
-            {{ formatBytes(fileData.length) }}
-          </div>
-          <div class="file-type">
-            {{ fileType }}
+      <template v-if="!fileData">
+        <div class="drop-zone-content">
+          <IonIcon
+            v-if="icon"
+            :name="icon"
+            class="upload-icon"
+          />
+          <div class="upload-text">
+            <p class="main-text">
+              {{ mainText }}
+            </p>
+            <p class="sub-text">
+              {{ $t('ui.file.dropArea') }}
+            </p>
+            <p class="hint-text">
+              {{ $t('ui.file.accept', { format: acceptHint }) }}
+            </p>
           </div>
         </div>
-        <button
-          class="remove-file-btn"
-          :disabled="disabled"
-          @click.stop="clearFile"
-        >
-          ✕
-        </button>
-      </div>
+      </template>
+      <template v-else>
+        <div class="file-preview">
+          <IonIcon
+            v-if="icon"
+            :name="icon"
+            class="file-icon"
+          />
+          <div class="file-details">
+            <div class="file-name">
+              {{ fileName }}
+            </div>
+            <div class="file-size">
+              {{ fileData ? formatBytes(fileData.length) : '' }}
+            </div>
+            <div class="file-type">
+              {{ fileType }}
+            </div>
+          </div>
+          <button
+            class="remove-file-btn"
+            :disabled="disabled"
+            @click.stop="clearFile"
+          >
+            <IonIcon name="close-outline" />
+          </button>
+        </div>
+      </template>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { IonIcon } from '@ionic/vue';
 import { FileInfo } from '@/types/file-info';
 import { formatBytes } from '@/utils/formatter-utils';
 
@@ -137,9 +140,12 @@ function processFile(file: File) {
   reader.readAsArrayBuffer(file);
 }
 
-function triggerFileSelect() {
+function onZoneClick(e: Event) {
   if (props.disabled) return;
-  fileInput?.value?.click();
+  // 只允许点击空白区域或文件预览区域外部时触发文件选择
+  if (!props.fileData) {
+    fileInput.value?.click();
+  }
 }
 
 function clearFile() {
@@ -175,7 +181,7 @@ function handleDrop(e: DragEvent) {
 .file-drop-zone {
   border: 2px dashed #d1d5db;
   border-radius: 8px;
-  padding: 16px;
+  padding: 0;
   text-align: center;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -186,6 +192,13 @@ function handleDrop(e: DragEvent) {
   justify-content: center;
   min-width: 0;
   word-wrap: break-word;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.file-drop-zone > * {
+  width: 100%;
 }
 
 .file-drop-zone:hover:not(.disabled) {
@@ -218,8 +231,13 @@ function handleDrop(e: DragEvent) {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   width: 100%;
+  height: 100%;
+  min-height: 80px;
+  padding-top: 16px;
+  padding-bottom: 16px;
 }
 
 .upload-icon {
@@ -232,6 +250,7 @@ function handleDrop(e: DragEvent) {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  align-items: center;
 }
 
 .main-text {
@@ -263,11 +282,18 @@ function handleDrop(e: DragEvent) {
   background: white;
   border-radius: 6px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  justify-content: flex-start;
 }
 
 .file-icon {
-  font-size: 1.8rem;
-  opacity: 0.8;
+  font-size: 2.2em;
+  color: #1976d2;
+  margin-bottom: 0;
+  margin-right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
 }
 
 .file-details {

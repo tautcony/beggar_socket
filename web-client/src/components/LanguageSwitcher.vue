@@ -1,18 +1,22 @@
 <template>
   <div class="language-switcher">
+    <IonIcon
+      name="globe-outline"
+      class="lang-icon"
+    />
     <select
       v-model="currentLocale"
       class="language-select"
       @change="changeLanguage"
     >
       <option value="zh-CN">
-        🇨🇳 中文
+        中文
       </option>
       <option value="en-US">
-        🇺🇸 English
+        English
       </option>
       <option value="ja-JP">
-        🇯🇵 日本語
+        日本語
       </option>
     </select>
   </div>
@@ -21,6 +25,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { IonIcon } from '@ionic/vue';
 
 const { locale } = useI18n();
 const currentLocale = ref(locale.value);
@@ -41,6 +46,14 @@ function changeLanguage() {
   top: 20px;
   right: 20px;
   z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lang-icon {
+  font-size: 1.3em;
+  color: #1976d2;
 }
 
 .language-select {

@@ -4,7 +4,13 @@
     class="debug-panel"
   >
     <div class="debug-header">
-      <h3>🛠️ 调试控制面板</h3>
+      <h3>
+        <IonIcon
+          name="construct-outline"
+          style="vertical-align: middle; margin-right: 6px; font-size: 1.2em;"
+        />
+        调试控制面板
+      </h3>
       <button
         class="debug-toggle"
         @click="togglePanel"
@@ -186,9 +192,9 @@ function togglePanel() {
 function onDebugToggle() {
   DebugSettings.enabled = debugEnabled.value;
   if (debugEnabled.value) {
-    console.log('🎭 调试模式已启用');
+    console.log('[DEBUG] 调试模式已启用');
   } else {
-    console.log('🎭 调试模式已禁用');
+    console.log('[DEBUG] 调试模式已禁用');
   }
 }
 
@@ -237,7 +243,7 @@ function generateTestRam() {
 }
 
 function clearMockData() {
-  console.log('🗑️ 清除模拟数据');
+  console.log('[DEBUG] 清除模拟数据');
   // 这里可以添加清除模拟数据的逻辑
 }
 </script>
@@ -272,7 +278,7 @@ function clearMockData() {
 }
 
 .debug-header::before {
-  /* content: '🚧'; */
+  /* content: ''; */
   position: absolute;
   left: -8px;
   top: 50%;

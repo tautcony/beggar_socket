@@ -40,7 +40,7 @@
       :file-name="romFileName"
       accept-types=".rom,.gba,.gb,.gbc"
       accept-hint=".rom,.gba,.gb,.gbc"
-      icon="📁"
+      icon="folder-open-outline"
       :main-text="$t('ui.rom.selectFile')"
       :file-type="$t('ui.rom.title')"
       @file-selected="onFileSelected"

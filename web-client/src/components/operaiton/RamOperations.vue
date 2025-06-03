@@ -50,7 +50,7 @@
         :file-name="ramFileName"
         accept-types=".sav,.ram"
         accept-hint=".sav, .ram"
-        icon="💾"
+        icon="save-outline"
         :main-text="$t('ui.ram.selectFile')"
         :file-type="$t('ui.ram.title')"
         @file-selected="onFileSelected"

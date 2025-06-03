@@ -1,13 +1,19 @@
 <template>
   <FloatingLink
-    :icon="'⚙️'"
     :text="$t('ui.settings.title')"
     :title="$t('ui.settings.tooltip')"
     :color="'#1976d2'"
     :bottom="80"
     :right="20"
     @click="$emit('click')"
-  />
+  >
+    <template #icon>
+      <IonIcon
+        name="settings-outline"
+        style="font-size: 20px;"
+      />
+    </template>
+  </FloatingLink>
 </template>
 
 <script setup lang="ts">
