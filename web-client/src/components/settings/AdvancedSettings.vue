@@ -91,7 +91,7 @@
               >
                 {{ validationErrors.defaultTimeout }}
               </div>
-              <small class="hint">{{ formatTime(localSettings.timeout.default) }}</small>
+              <small class="hint">{{ formatTime(localSettings.timeout.default, 'ms') }}</small>
             </div>
 
             <div class="setting-item">
@@ -114,7 +114,7 @@
               >
                 {{ validationErrors.packageSendTimeout }}
               </div>
-              <small class="hint">{{ formatTime(localSettings.timeout.packageSend) }}</small>
+              <small class="hint">{{ formatTime(localSettings.timeout.packageSend, 'ms') }}</small>
             </div>
           </div>
 
@@ -139,7 +139,7 @@
               >
                 {{ validationErrors.packageReceiveTimeout }}
               </div>
-              <small class="hint">{{ formatTime(localSettings.timeout.packageReceive) }}</small>
+              <small class="hint">{{ formatTime(localSettings.timeout.packageReceive, 'ms') }}</small>
             </div>
 
             <div class="setting-item">
@@ -162,7 +162,7 @@
               >
                 {{ validationErrors.operationTimeout }}
               </div>
-              <small class="hint">{{ formatTime(localSettings.timeout.operation) }}</small>
+              <small class="hint">{{ formatTime(localSettings.timeout.operation, 'ms') }}</small>
             </div>
           </div>
         </div>

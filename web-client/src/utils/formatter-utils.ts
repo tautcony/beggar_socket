@@ -1,4 +1,3 @@
-
 /**
  * 格式化字节数为易读的字符串
  * @param bytes - 字节数
@@ -36,15 +35,23 @@ export function formatSpeed(speed: number): string {
 }
 
 /**
- * 格式化时间为 MM:SS
- * @param seconds - 秒数
- * @description 将秒数格式化为 MM:SS 格式
+ * 格式化时间为 MM:SS 或带单位的字符串
+ * @param value - 时间数值
+ * @param unit - 时间单位，'s' 表示秒，'ms' 表示毫秒，默认为 's'
+ * @param showUnit - 是否显示单位，默认为 false（显示为 MM:SS 格式）
+ * @description 将时间格式化为 MM:SS 格式或带单位的字符串
  * @example
  * formatTime(90) // "01:30"
+ * formatTime(90, 's', true) // "90s"
+ * formatTime(1500, 'ms', true) // "1500ms"
+ * formatTime(1500, 'ms') // "00:01" (转换为秒后格式化)
  * formatTime(0) // "00:00"
  * @returns - 格式化后的字符串
  */
-export function formatTime(seconds: number): string {
+export function formatTime(value: number, unit: 's' | 'ms' = 's'): string {
+  // 转换为秒数
+  const seconds = unit === 'ms' ? Math.floor(value / 1000) : value;
+
   if (seconds === 0) return '00:00';
   const minutes = Math.floor(seconds / 60);
   const secs = seconds % 60;
