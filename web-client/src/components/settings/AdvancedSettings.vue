@@ -199,6 +199,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { AdvancedSettings } from '@/utils/AdvancedSettings'
+import { formatBytes, formatTime } from '@/utils/Formatter'
 
 const { t } = useI18n()
 
@@ -234,26 +235,6 @@ const validationErrors = ref({
   packageReceiveTimeout: '',
   operationTimeout: ''
 })
-
-// 格式化字节数显示
-const formatBytes = (bytes: number): string => {
-  if (bytes >= 1024 * 1024) {
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-  } else if (bytes >= 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`
-  }
-  return `${bytes} B`
-}
-
-// 格式化时间显示
-const formatTime = (ms: number): string => {
-  if (ms >= 60000) {
-    return `${(ms / 60000).toFixed(1)} min`
-  } else if (ms >= 1000) {
-    return `${(ms / 1000).toFixed(1)} s`
-  }
-  return `${ms} ms`
-}
 
 // 验证单个值
 const validatePageSize = (value: number): string => {

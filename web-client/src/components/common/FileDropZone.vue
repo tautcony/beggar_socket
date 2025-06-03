@@ -51,7 +51,7 @@
             {{ fileName }}
           </div>
           <div class="file-size">
-            {{ formatFileSize(fileData.length) }}
+            {{ formatBytes(fileData.length) }}
           </div>
           <div class="file-type">
             {{ fileType }}
@@ -72,6 +72,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { FileInfo } from '@/types/FileInfo.ts'
+import { formatBytes } from '@/utils/Formatter.ts'
 
 const props = defineProps({
   disabled: {
@@ -134,14 +135,6 @@ function processFile(file: File) {
     } as FileInfo)
   }
   reader.readAsArrayBuffer(file)
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
 function triggerFileSelect() {

@@ -114,6 +114,7 @@ import { MockAdapter } from '@/utils/MockAdapter.ts'
 import { DebugConfig } from '@/utils/DebugConfig.ts'
 import { DeviceInfo } from '@/types/DeviceInfo.ts'
 import { FileInfo } from '@/types/FileInfo.ts'
+import { formatBytes } from '@/utils/Formatter.ts'
 
 const { t } = useI18n()
 
@@ -283,7 +284,7 @@ function clearLog() {
 function onRomFileSelected(fileInfo: FileInfo) {
   romFileName.value = fileInfo.name
   romFileData.value = fileInfo.data
-  log(t('messages.file.selectRom', { name: fileInfo.name, size: formatFileSize(fileInfo.size) }))
+  log(t('messages.file.selectRom', { name: fileInfo.name, size: formatBytes(fileInfo.size) }))
 }
 
 function onRomFileCleared() {
@@ -295,7 +296,7 @@ function onRomFileCleared() {
 function onRamFileSelected(fileInfo: FileInfo) {
   ramFileName.value = fileInfo.name
   ramFileData.value = fileInfo.data
-  log(t('messages.file.selectRam', { name: fileInfo.name, size: formatFileSize(fileInfo.size) }))
+  log(t('messages.file.selectRam', { name: fileInfo.name, size: formatBytes(fileInfo.size) }))
 }
 
 function onRamFileCleared() {
@@ -305,39 +306,19 @@ function onRamFileCleared() {
 }
 
 // 大小选择处理函数
-function onRomSizeChange(size: string) {
-  selectedRomSize.value = size
-  log(t('messages.rom.sizeChanged', { size: formatSize(size) }))
+function onRomSizeChange(hexSize: string) {
+  selectedRomSize.value = hexSize
+  log(t('messages.rom.sizeChanged', { size: formatBytes(parseInt(hexSize, 16)) }))
 }
 
-function onRamSizeChange(size: string) {
-  selectedRamSize.value = size
-  log(t('messages.ram.sizeChanged', { size: formatSize(size) }))
+function onRamSizeChange(hexSize: string) {
+  selectedRamSize.value = hexSize
+  log(t('messages.ram.sizeChanged', { size: formatBytes(parseInt(hexSize, 16)) }))
 }
 
 function onRamTypeChange(type: string) {
   selectedRamType.value = type
   log(t('messages.ram.typeChanged', { type }))
-}
-
-// 格式化大小显示
-function formatSize(hexSize: string): string {
-  const bytes = parseInt(hexSize, 16)
-  if (bytes >= 1024 * 1024) {
-    return `${bytes / (1024 * 1024)}MB`
-  } else if (bytes >= 1024) {
-    return `${bytes / 1024}KB`
-  }
-  return `${bytes}B`
-}
-
-// 格式化文件大小
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
 function getAdapter() {

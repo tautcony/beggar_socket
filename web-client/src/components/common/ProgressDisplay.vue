@@ -94,6 +94,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { formatBytes, formatSpeed, formatTime } from '@/utils/Formatter'
 
 const { t } = useI18n()
 
@@ -179,30 +180,6 @@ const remainingTime = computed(() => {
 })
 
 const totalBytes = computed(() => props.totalBytes || 0)
-
-// Formatting functions
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i]
-}
-
-function formatSpeed(speed: number): string {
-  if (speed === 0) return '0 KB/s'
-  if (speed >= 1024) {
-    return (speed / 1024).toFixed(1) + ' MB/s'
-  }
-  return speed.toFixed(1) + ' KB/s'
-}
-
-function formatTime(seconds: number): string {
-  if (seconds === 0) return '00:00'
-  const minutes = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-}
 
 function handleStop() {
   if (props.allowCancel !== false) {
