@@ -199,6 +199,8 @@ function handleDrop(e: DragEvent) {
 
 .file-drop-zone > * {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .file-drop-zone:hover:not(.disabled) {
@@ -276,6 +278,7 @@ function handleDrop(e: DragEvent) {
   align-items: center;
   gap: 12px;
   width: 100%;
+  max-width: 100%;
   min-width: 0;
   min-height: 80px;
   padding: 16px;
@@ -283,6 +286,8 @@ function handleDrop(e: DragEvent) {
   border-radius: 6px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
   justify-content: flex-start;
+  overflow: hidden;
+  box-sizing: border-box; /* 确保 padding 包含在宽度内 */
 }
 
 .file-icon {
@@ -299,8 +304,10 @@ function handleDrop(e: DragEvent) {
 }
 
 .file-details {
-  flex: 1;
+  flex: 1 1 0;  /* 改为固定的 flex-basis */
   min-width: 0;
+  max-width: calc(100% - 80px); /* 减去图标和按钮的空间 */
+  width: 0;     /* 强制设置 width 为 0，配合 flex 使用 */
   text-align: left;
   overflow: hidden;
 }
@@ -310,10 +317,11 @@ function handleDrop(e: DragEvent) {
   font-weight: 600;
   color: #2c3e50;
   margin-bottom: 2px;
-  word-break: break-all;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;  /* 确保不超过父容器 */
+  width: 100%;      /* 占满父容器宽度 */
 }
 
 .file-size {

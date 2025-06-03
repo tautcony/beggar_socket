@@ -634,7 +634,9 @@ defineExpose({
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  overflow-x: hidden;  /* 隐藏水平溢出 */
   padding-right: 8px;
+  box-sizing: border-box;  /* 确保 padding 包含在宽度内 */
 }
 
 /* 操作容器 */
