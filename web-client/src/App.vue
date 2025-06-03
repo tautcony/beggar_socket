@@ -40,11 +40,11 @@
 import { ref, computed } from 'vue';
 import DeviceConnect from '@/components/DeviceConnect.vue';
 import FlashBurner from '@/components/CartBurner.vue';
-import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue';
-import DebugPanel from '@/components/common/DebugPanel.vue';
-import GitHubLink from '@/components/common/GitHubLink.vue';
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
+import DebugPanel from '@/components/settings/DebugSettings.vue';
+import GitHubLink from '@/components/links/GitHubLink.vue';
 import AdvancedSettings from '@/components/settings/AdvancedSettings.vue';
-import SettingsLink from '@/components/settings/SettingsLink.vue';
+import SettingsLink from '@/components/links/SettingsLink.vue';
 import { DeviceInfo } from '@/types/device-info';
 import { DebugSettings } from '@/settings/debug-settings';
 

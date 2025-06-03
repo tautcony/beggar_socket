@@ -1,100 +1,92 @@
 <template>
-  <!-- Modal Dialog -->
-  <Teleport to="body">
-    <div
-      v-if="visible"
-      class="modal-overlay"
-      @click.self="onOverlayClick"
-    >
-      <div class="progress-modal">
-        <div class="modal-header">
-          <h3 class="modal-title">
-            {{ $t('ui.progress.title') }}
-            <span
-              v-if="isCompleted"
-              class="completion-badge"
-            >
-              ✓
-            </span>
-          </h3>
-          <button
-            class="close-button"
-            :disabled="!allowCancel && !isCompleted"
-            @click="handleClose"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div class="modal-body">
-          <!-- Progress Bar -->
-          <div class="progress-section">
-            <div class="progress-bar-container">
-              <div
-                class="progress-bar-fill"
-                :style="{ width: `${progress || 0}%` }"
-              />
-            </div>
-            <div class="progress-percentage">
-              {{ (progress || 0).toFixed(1) }}%
-            </div>
-          </div>
-
-          <!-- Transfer Statistics -->
-          <div class="stats-grid">
-            <div class="stat-item">
-              <span class="stat-label">{{ $t('ui.progress.transferred') }}</span>
-              <span class="stat-value">{{ formatBytes(transferredBytes) }}</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">{{ $t('ui.progress.remaining') }}</span>
-              <span class="stat-value">{{ formatBytes(remainingBytes) }}</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">{{ $t('ui.progress.speed') }}</span>
-              <span class="stat-value">{{ formatSpeed(currentSpeed) }}</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">{{ $t('ui.progress.elapsed') }}</span>
-              <span class="stat-value">{{ formatTime(elapsedTime) }}</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">{{ $t('ui.progress.remaining_time') }}</span>
-              <span class="stat-value">{{ formatTime(remainingTime) }}</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">{{ $t('ui.progress.total_size') }}</span>
-              <span class="stat-value">{{ formatBytes(totalBytes) }}</span>
-            </div>
-          </div>
-
-          <!-- Operation Detail -->
+  <BaseModal
+    :visible="visible"
+    :title="$t('ui.progress.title')"
+    :close-disabled="!allowCancel && !isCompleted"
+    :width="500"
+    @close="handleClose"
+  >
+    <template #header>
+      <h3 class="modal-title">
+        {{ $t('ui.progress.title') }}
+        <span
+          v-if="isCompleted"
+          class="completion-badge"
+        >✓</span>
+      </h3>
+      <button
+        class="close-button"
+        :disabled="!allowCancel && !isCompleted"
+        @click="handleClose"
+      >
+        ✕
+      </button>
+    </template>
+    <div class="modal-body">
+      <!-- Progress Bar -->
+      <div class="progress-section">
+        <div class="progress-bar-container">
           <div
-            v-if="detail"
-            class="operation-detail"
-          >
-            {{ detail }}
-          </div>
+            class="progress-bar-fill"
+            :style="{ width: `${progress || 0}%` }"
+          />
         </div>
-
-        <div class="modal-footer">
-          <button
-            class="stop-button"
-            :disabled="!allowCancel"
-            @click="handleStop"
-          >
-            {{ $t('ui.progress.stop') }}
-          </button>
+        <div class="progress-percentage">
+          {{ (progress || 0).toFixed(1) }}%
         </div>
       </div>
+      <!-- Transfer Statistics -->
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span class="stat-label">{{ $t('ui.progress.transferred') }}</span>
+          <span class="stat-value">{{ formatBytes(transferredBytes) }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">{{ $t('ui.progress.remaining') }}</span>
+          <span class="stat-value">{{ formatBytes(remainingBytes) }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">{{ $t('ui.progress.speed') }}</span>
+          <span class="stat-value">{{ formatSpeed(currentSpeed) }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">{{ $t('ui.progress.elapsed') }}</span>
+          <span class="stat-value">{{ formatTime(elapsedTime) }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">{{ $t('ui.progress.remaining_time') }}</span>
+          <span class="stat-value">{{ formatTime(remainingTime) }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">{{ $t('ui.progress.total_size') }}</span>
+          <span class="stat-value">{{ formatBytes(totalBytes) }}</span>
+        </div>
+      </div>
+      <!-- Operation Detail -->
+      <div
+        v-if="detail"
+        class="operation-detail"
+      >
+        {{ detail }}
+      </div>
     </div>
-  </Teleport>
+    <template #footer>
+      <button
+        class="stop-button"
+        :disabled="!allowCancel"
+        @click="handleStop"
+      >
+        {{ $t('ui.progress.stop') }}
+      </button>
+    </template>
+  </BaseModal>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { formatBytes, formatSpeed, formatTime } from '@/utils/formatter-utils';
+import BaseModal from './common/BaseModal.vue';
 
 const { t } = useI18n();
 
@@ -224,91 +216,9 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(2px);
-}
-
-.progress-modal {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-  width: 500px;
-  max-width: 90vw;
-  max-height: 90vh;
-  overflow: hidden;
-  animation: modalSlideIn 0.3s ease-out;
-}
-
-@keyframes modalSlideIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9) translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.modal-title {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #111827;
-}
-
-.close-button {
-  background: none;
-  border: none;
-  font-size: 1.25rem;
-  cursor: pointer;
-  color: #6b7280;
-  padding: 4px;
-  border-radius: 4px;
-  transition: all 0.2s;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.close-button:hover:not(:disabled) {
-  background: #f3f4f6;
-  color: #374151;
-}
-
-.close-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.modal-body {
-  padding: 24px;
-}
-
 .progress-section {
   margin-bottom: 24px;
 }
-
 .progress-bar-container {
   background: #e5e7eb;
   border-radius: 6px;
@@ -316,7 +226,6 @@ onUnmounted(() => {
   overflow: hidden;
   margin-bottom: 8px;
 }
-
 .progress-bar-fill {
   background: linear-gradient(90deg, #3b82f6, #1d4ed8);
   height: 100%;
@@ -324,7 +233,6 @@ onUnmounted(() => {
   transition: width 0.3s ease;
   position: relative;
 }
-
 .progress-bar-fill::after {
   content: '';
   position: absolute;
@@ -335,26 +243,22 @@ onUnmounted(() => {
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
   animation: progressShimmer 2s infinite;
 }
-
 @keyframes progressShimmer {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
 }
-
 .progress-percentage {
   text-align: center;
   font-weight: 600;
   font-size: 1.1rem;
   color: #374151;
 }
-
 .stats-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   margin-bottom: 20px;
 }
-
 .stat-item {
   display: flex;
   justify-content: space-between;
@@ -364,20 +268,17 @@ onUnmounted(() => {
   border-radius: 8px;
   border: 1px solid #e5e7eb;
 }
-
 .stat-label {
   font-size: 0.875rem;
   color: #6b7280;
   font-weight: 500;
 }
-
 .stat-value {
   font-size: 0.875rem;
   color: #111827;
   font-weight: 600;
   font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
 }
-
 .operation-detail {
   background: #f3f4f6;
   border-radius: 8px;
@@ -387,14 +288,6 @@ onUnmounted(() => {
   border-left: 4px solid #3b82f6;
   word-break: break-word;
 }
-
-.modal-footer {
-  padding: 16px 24px 20px;
-  border-top: 1px solid #e5e7eb;
-  display: flex;
-  justify-content: flex-end;
-}
-
 .stop-button {
   background: #ef4444;
   color: white;
@@ -406,17 +299,14 @@ onUnmounted(() => {
   transition: all 0.2s;
   font-size: 0.875rem;
 }
-
 .stop-button:hover:not(:disabled) {
   background: #dc2626;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
-
 .stop-button:active:not(:disabled) {
   transform: translateY(0);
 }
-
 .stop-button:disabled {
   background: #d1d5db;
   color: #9ca3af;
@@ -424,69 +314,17 @@ onUnmounted(() => {
   transform: none;
   box-shadow: none;
 }
-
-.completion-tip {
-  display: block;
-  margin-top: 8px;
+.completion-badge {
   color: #16a34a;
-  font-size: 0.95rem;
-  font-weight: 500;
-  text-align: right;
+  margin-left: 8px;
+  font-size: 1.1em;
 }
-
-/* Dark theme support */
 @media (prefers-color-scheme: dark) {
-  .progress-modal {
-    background: #1f2937;
-    color: #f9fafb;
-  }
-
-  .modal-header {
-    border-bottom-color: #374151;
-  }
-
-  .modal-title {
-    color: #f9fafb;
-  }
-
-  .close-button {
-    color: #9ca3af;
-  }
-
-  .close-button:hover:not(:disabled) {
-    background: #374151;
-    color: #d1d5db;
-  }
-
-  .progress-bar-container {
-    background: #374151;
-  }
-
-  .progress-percentage {
-    color: #e5e7eb;
-  }
-
-  .stat-item {
-    background: #374151;
-    border-color: #4b5563;
-  }
-
-  .stat-label {
-    color: #9ca3af;
-  }
-
-  .stat-value {
-    color: #f3f4f6;
-  }
-
-  .operation-detail {
-    background: #374151;
-    color: #d1d5db;
-    border-left-color: #3b82f6;
-  }
-
-  .modal-footer {
-    border-top-color: #374151;
-  }
+  .progress-bar-container { background: #374151; }
+  .progress-percentage { color: #e5e7eb; }
+  .stat-item { background: #374151; border-color: #4b5563; }
+  .stat-label { color: #9ca3af; }
+  .stat-value { color: #f3f4f6; }
+  .operation-detail { background: #374151; color: #d1d5db; border-left-color: #3b82f6; }
 }
 </style>
