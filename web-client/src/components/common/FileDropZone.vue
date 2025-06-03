@@ -236,8 +236,7 @@ function handleDrop(e: DragEvent) {
   width: 100%;
   height: 100%;
   min-height: 80px;
-  padding-top: 16px;
-  padding-bottom: 16px;
+  padding: 16px;
 }
 
 .upload-icon {
@@ -278,7 +277,8 @@ function handleDrop(e: DragEvent) {
   gap: 12px;
   width: 100%;
   min-width: 0;
-  padding: 6px 8px;
+  min-height: 80px;
+  padding: 16px;
   background: white;
   border-radius: 6px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
@@ -293,7 +293,9 @@ function handleDrop(e: DragEvent) {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
 }
 
 .file-details {
