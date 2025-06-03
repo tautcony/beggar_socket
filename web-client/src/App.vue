@@ -15,20 +15,24 @@
       </a>
     </h1>
     <DeviceConnect
+      ref="deviceConnectRef"
       @device-ready="onDeviceReady"
       @device-disconnected="onDeviceDisconnected"
     />
     <FlashBurner
+      ref="flashBurnerRef"
       :device-ready="deviceReady"
       :device="device"
     />
-    <AdvancedSettings
+    <AdvancedSettingsPanel
       v-if="showSettings"
       @close="showSettings = false"
     />
-    <DebugPanel
+    <DebugSettingsPanel
       v-if="showDebugPanelModal"
       @close="showDebugPanelModal = false"
+      @connect-mock-device="onConnectMockDevice"
+      @clear-mock-data="onClearMockData"
     />
     <DebugLink
       v-if="showDebugPanel"
@@ -45,9 +49,9 @@ import { ref, computed, provide } from 'vue';
 import DeviceConnect from '@/components/DeviceConnect.vue';
 import FlashBurner from '@/components/CartBurner.vue';
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
-import DebugPanel from '@/components/settings/DebugSettings.vue';
+import DebugSettingsPanel from '@/components/settings/DebugSettingsPanel.vue';
 import GitHubLink from '@/components/links/GitHubLink.vue';
-import AdvancedSettings from '@/components/settings/AdvancedSettings.vue';
+import AdvancedSettingsPanel from '@/components/settings/AdvancedSettingsPanel.vue';
 import SettingsLink from '@/components/links/SettingsLink.vue';
 import GlobalToast from '@/components/common/GlobalToast.vue';
 import DebugLink from '@/components/links/DebugLink.vue';
@@ -58,6 +62,12 @@ const device = ref<DeviceInfo | null>(null);
 const deviceReady = ref(false);
 const showSettings = ref(false);
 const showDebugPanelModal = ref(false);
+
+// DeviceConnect 组件引用
+const deviceConnectRef = ref<InstanceType<typeof DeviceConnect> | null>(null);
+
+// FlashBurner 组件引用
+const flashBurnerRef = ref<InstanceType<typeof FlashBurner> | null>(null);
 
 provide('showDebugPanelModal', showDebugPanelModal);
 provide('setShowDebugPanelModal', (val: boolean) => { showDebugPanelModal.value = val; });
@@ -82,6 +92,51 @@ function onDeviceReady(dev: DeviceInfo) {
 function onDeviceDisconnected() {
   device.value = null;
   deviceReady.value = false;
+}
+
+/**
+ * 处理连接模拟设备事件
+ */
+function onConnectMockDevice() {
+  // 启用调试模式
+  DebugSettings.debugMode = true;
+  console.log('[DEBUG] 连接模拟设备请求');
+
+  // 如果当前没有连接设备，则通过 DeviceConnect 组件连接
+  if (!deviceReady.value && deviceConnectRef.value) {
+    // 通过 DeviceConnect 组件的 connect 方法连接模拟设备
+    deviceConnectRef.value.connect();
+  } else {
+    console.log('[DEBUG] 设备已连接，无需重复连接');
+  }
+}
+
+/**
+ * 处理清除模拟数据事件
+ */
+function onClearMockData() {
+  console.log('[DEBUG] 开始清除所有模拟数据');
+
+  // 1. 断开设备连接
+  if (deviceConnectRef.value && deviceReady.value) {
+    deviceConnectRef.value.disconnect();
+  }
+
+  // 2. 重置设备状态
+  device.value = null;
+  deviceReady.value = false;
+
+  // 3. 重置 FlashBurner 组件状态（如果有引用的话）
+  if (flashBurnerRef.value && typeof flashBurnerRef.value.resetState === 'function') {
+    flashBurnerRef.value.resetState();
+  }
+
+  console.log('[DEBUG] 模拟数据清除完成');
+
+  // 显示成功提示
+  if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+    window.showToast('模拟数据已清除', 'success', 2000);
+  }
 }
 </script>
 

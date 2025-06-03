@@ -560,6 +560,49 @@ function saveAsFile(data: Uint8Array, filename: string) {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+// 重置组件状态的方法
+function resetState() {
+  // 重置基本状态
+  busy.value = false;
+  result.value = '';
+  idStr.value = '';
+
+  // 重置进度状态
+  resetProgress();
+
+  // 重置设备信息
+  deviceSize.value = null;
+  sectorCount.value = null;
+  sectorSize.value = null;
+  bufferWriteBytes.value = null;
+
+  // 重置文件数据
+  romFileData.value = null;
+  romFileName.value = '';
+  ramFileData.value = null;
+  ramFileName.value = '';
+
+  // 重置选择的大小为默认值
+  selectedRomSize.value = '0x800000'; // 默认8MB
+  selectedRamSize.value = '0x8000'; // 默认32KB
+  selectedRamType.value = 'SRAM'; // 默认SRAM
+
+  // 重置模式为默认值
+  mode.value = 'GBA';
+
+  // 清空日志
+  logs.value = [];
+
+  // 重置适配器
+  gbaAdapter.value = null;
+  mbc5Adapter.value = null;
+}
+
+// 暴露方法供父组件调用
+defineExpose({
+  resetState,
+});
 </script>
 
 <style scoped>

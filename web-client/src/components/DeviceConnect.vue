@@ -165,6 +165,13 @@ const buttonClass = computed(() => {
   if (connected.value) return 'disconnect-btn';
   return 'connect-btn';
 });
+
+// 暴露方法给父组件
+defineExpose({
+  connect,
+  disconnect,
+  connected: computed(() => connected.value),
+});
 </script>
 
 <style scoped>

@@ -149,7 +149,7 @@
 import { ref, onMounted } from 'vue';
 import { DebugSettings } from '@/settings/debug-settings';
 
-const emit = defineEmits(['connect-mock-device', 'generate-test-file']);
+const emit = defineEmits(['connect-mock-device', 'generate-test-file', 'clear-mock-data']);
 
 // 面板状态
 const showDebugPanel = ref(false);
@@ -232,7 +232,9 @@ function generateTestRam() {
 
 function clearMockData() {
   console.log('[DEBUG] 清除模拟数据');
-  // 这里可以添加清除模拟数据的逻辑
+
+  // 发出清除事件到父组件
+  emit('clear-mock-data');
 }
 </script>
 
