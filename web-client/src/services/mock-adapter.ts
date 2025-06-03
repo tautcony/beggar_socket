@@ -41,8 +41,7 @@ export class MockAdapter extends CartridgeAdapter {
     }
 
     const mockId = '01 00 7e 22 22 22 01 22';
-    this.idStr = mockId;
-    this.log(`${this.t('messages.operation.readIdSuccess')}: ${this.idStr}`);
+    this.log(`${this.t('messages.operation.readIdSuccess')}: ${mockId}`);
 
     return {
       success: true,

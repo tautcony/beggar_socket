@@ -9,8 +9,6 @@ import { PerformanceTracker } from '../utils/sentry';
  * MBC5 Adapter - 封装MBC5卡带的协议操作
  */
 export class MBC5Adapter extends CartridgeAdapter {
-  public idStr: string;
-
   /**
    * 构造函数
    * @param device - 设备对象
@@ -27,7 +25,6 @@ export class MBC5Adapter extends CartridgeAdapter {
     enhancedProgressCallback: EnhancedProgressCallback | null = null,
   ) {
     super(device, logCallback, progressCallback, translateFunc, enhancedProgressCallback);
-    this.idStr = '';
   }
 
   /**
@@ -52,14 +49,14 @@ export class MBC5Adapter extends CartridgeAdapter {
           // Reset
           await gbc_direct_write(this.device, new Uint8Array([0xf0]), 0x00);
 
-          this.idStr = Array.from(id).map(x => x.toString(16).padStart(2, '0')).join(' ');
+          const idStr = Array.from(id).map(x => x.toString(16).padStart(2, '0')).join(' ');
           this.log(this.t('messages.operation.readIdSuccess'));
 
           await this.getROMSize();
 
           return {
             success: true,
-            idStr: this.idStr,
+            idStr,
             message: this.t('messages.operation.readIdSuccess'),
           };
         } catch (e) {

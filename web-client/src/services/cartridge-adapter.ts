@@ -27,8 +27,6 @@ export type TranslateFunction = (key: string, params?: any) => string;
  * 定义所有适配器必须实现的方法
  */
 export class CartridgeAdapter {
-  public idStr: string = '';
-
   protected device: DeviceInfo;
   protected log: LogCallback;
   protected updateProgress: ProgressCallback;

@@ -47,7 +47,7 @@
             key="chip-operations"
             :device-ready="deviceReady"
             :busy="busy"
-            :id-str="idStr"
+            :id-str="idStr ?? undefined"
             :device-size="deviceSize ?? undefined"
             :sector-count="sectorCount ?? undefined"
             :sector-size="sectorSize ?? undefined"
@@ -129,8 +129,6 @@ const props = defineProps<{
 
 const mode = ref<'GBA' | 'MBC5'>('GBA');
 const busy = ref(false);
-const result = ref('');
-const idStr = ref('');
 const operateProgress = ref<number | null>(null);
 const operateProgressDetail = ref<string | undefined>('');
 const operateTotalBytes = ref<number | undefined>(undefined);
@@ -140,6 +138,7 @@ const operateCurrentSpeed = ref<number | undefined>(undefined);
 const operateAllowCancel = ref<boolean>(true);
 const logs = ref<string[]>([]);
 
+const idStr = ref<string | null>(null);
 const deviceSize = ref<number | null>(null);
 const sectorCount = ref<number | null>(null);
 const sectorSize = ref<number | null>(null);
@@ -348,13 +347,12 @@ function getAdapter() {
   } else if (mode.value === 'MBC5') {
     return mbc5Adapter.value;
   }
-  result.value = t('messages.operation.unsupportedMode');
+  window.showToast?.(t('messages.operation.unsupportedMode'), 'error');
   return null;
 }
 
 async function readID() {
   busy.value = true;
-  result.value = '';
 
   try {
     const adapter = getAdapter();
@@ -365,7 +363,7 @@ async function readID() {
     const response = await adapter.readID();
     if (response.success) {
       idStr.value = response.idStr || '';
-      result.value = response.message;
+      window.showToast?.(response.message, 'success');
       try {
         const sizeInfo = await adapter.getROMSize();
         deviceSize.value = sizeInfo.deviceSize;
@@ -376,11 +374,11 @@ async function readID() {
         deviceSize.value = sectorCount.value = sectorSize.value = bufferWriteBytes.value = null;
       }
     } else {
-      result.value = response.message;
+      window.showToast?.(response.message, 'error');
       deviceSize.value = sectorCount.value = sectorSize.value = bufferWriteBytes.value = null;
     }
   } catch (e) {
-    result.value = t('messages.operation.readIdFailed');
+    window.showToast?.(t('messages.operation.readIdFailed'), 'error');
     log(`${t('messages.operation.readIdFailed')}: ${e instanceof Error ? e.message : String(e)}`);
     deviceSize.value = sectorCount.value = sectorSize.value = bufferWriteBytes.value = null;
   } finally {
@@ -390,7 +388,6 @@ async function readID() {
 
 async function eraseChip() {
   busy.value = true;
-  result.value = '';
 
   try {
     const adapter = getAdapter();
@@ -399,9 +396,9 @@ async function eraseChip() {
     }
 
     const response = await adapter.eraseChip();
-    result.value = response.message;
+    window.showToast?.(response.message, response.success ? 'success' : 'error');
   } catch (e) {
-    result.value = t('messages.operation.eraseFailed');
+    window.showToast?.(t('messages.operation.eraseFailed'), 'error');
     log(`${t('messages.operation.eraseFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
     busy.value = false;
@@ -411,21 +408,20 @@ async function eraseChip() {
 
 async function writeRom() {
   busy.value = true;
-  result.value = '';
   operateProgress.value = 0;
   operateProgressDetail.value = '';
 
   try {
     const adapter = getAdapter();
     if (!adapter || !romFileData.value) {
-      result.value = t('messages.operation.unsupportedMode');
+      window.showToast?.(t('messages.operation.unsupportedMode'), 'error');
       return;
     }
 
     const response = await adapter.writeROM(romFileData.value, { useDirectWrite: false });
-    result.value = response.message;
+    window.showToast?.(response.message, response.success ? 'success' : 'error');
   } catch (e) {
-    result.value = t('messages.rom.writeFailed');
+    window.showToast?.(t('messages.rom.writeFailed'), 'error');
     log(`${t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
     busy.value = false;
@@ -435,7 +431,6 @@ async function writeRom() {
 
 async function readRom() {
   busy.value = true;
-  result.value = '';
 
   try {
 
@@ -447,15 +442,15 @@ async function readRom() {
     const romSize = romFileData.value ? romFileData.value.length : parseInt(selectedRomSize.value, 16);
     const response = await adapter.readROM(romSize);
     if (response.success) {
-      result.value = response.message;
+      window.showToast?.(response.message, 'success');
       if (response.data) {
         saveAsFile(response.data, 'exported.rom');
       }
     } else {
-      result.value = response.message;
+      window.showToast?.(response.message, 'error');
     }
   } catch (e) {
-    result.value = t('messages.rom.readFailed');
+    window.showToast?.(t('messages.rom.readFailed'), 'error');
     log(`${t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
     busy.value = false;
@@ -465,20 +460,19 @@ async function readRom() {
 
 async function verifyRom() {
   busy.value = true;
-  result.value = '';
 
   try {
     const adapter = getAdapter();
     if (!adapter || !romFileData.value) {
-      result.value = t('messages.operation.unsupportedMode');
+      window.showToast?.(t('messages.operation.unsupportedMode'), 'error');
       return;
     }
 
     const response = await adapter.verifyROM(romFileData.value);
-    result.value = response.message;
+    window.showToast?.(response.message, response.success ? 'success' : 'error');
 
   } catch (e) {
-    result.value = t('messages.rom.verifyFailed');
+    window.showToast?.(t('messages.rom.verifyFailed'), 'error');
     log(`${t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
     busy.value = false;
@@ -488,21 +482,20 @@ async function verifyRom() {
 
 async function writeRam() {
   busy.value = true;
-  result.value = '';
   operateProgress.value = 0;
   operateProgressDetail.value = '';
 
   try {
     const adapter = getAdapter();
     if (!adapter || !ramFileData.value) {
-      result.value = t('messages.operation.unsupportedMode');
+      window.showToast?.(t('messages.operation.unsupportedMode'), 'error');
       return;
     }
 
     const response = await adapter.writeRAM(ramFileData.value, { ramType: selectedRamType.value as 'SRAM' | 'FLASH' });
-    result.value = response.message;
+    window.showToast?.(response.message, response.success ? 'success' : 'error');
   } catch (e) {
-    result.value = t('messages.ram.writeFailed');
+    window.showToast?.(t('messages.ram.writeFailed'), 'error');
     log(`${t('messages.ram.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
     busy.value = false;
@@ -512,7 +505,6 @@ async function writeRam() {
 
 async function readRam() {
   busy.value = true;
-  result.value = '';
 
   try {
     const adapter = getAdapter();
@@ -523,15 +515,15 @@ async function readRam() {
     const defaultSize = ramFileData.value ? ramFileData.value.length : parseInt(selectedRamSize.value, 16);
     const response = await adapter.readRAM(defaultSize, { ramType: selectedRamType.value as 'SRAM' | 'FLASH' });
     if (response.success) {
-      result.value = response.message;
+      window.showToast?.(response.message, 'success');
       if (response.data) {
         saveAsFile(response.data, 'exported.sav');
       }
     } else {
-      result.value = response.message;
+      window.showToast?.(response.message, 'error');
     }
   } catch (e) {
-    result.value = t('messages.ram.readFailed');
+    window.showToast?.(t('messages.ram.readFailed'), 'error');
     log(`${t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
     busy.value = false;
@@ -541,19 +533,18 @@ async function readRam() {
 
 async function verifyRam() {
   busy.value = true;
-  result.value = '';
 
   try {
     const adapter = getAdapter();
     if (!adapter || !ramFileData.value) {
-      result.value = t('messages.operation.unsupportedMode');
+      window.showToast?.(t('messages.operation.unsupportedMode'), 'error');
       return;
     }
 
     const response = await adapter.verifyRAM(ramFileData.value, { ramType: selectedRamType.value as 'SRAM' | 'FLASH' });
-    result.value = response.message;
+    window.showToast?.(response.message, response.success ? 'success' : 'error');
   } catch (e) {
-    result.value = t('messages.ram.verifyFailed');
+    window.showToast?.(t('messages.ram.verifyFailed'), 'error');
     log(`${t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
     busy.value = false;
@@ -575,7 +566,6 @@ function saveAsFile(data: Uint8Array, filename: string) {
 function resetState() {
   // 重置基本状态
   busy.value = false;
-  result.value = '';
   idStr.value = '';
 
   // 重置进度状态

@@ -24,8 +24,6 @@ import { PerformanceTracker } from '../utils/sentry';
  * GBA Adapter - 封装GBA卡带的协议操作
  */
 export class GBAAdapter extends CartridgeAdapter {
-  public idStr: string;
-
   /**
    * 构造函数
    * @param device - 设备对象
@@ -42,7 +40,6 @@ export class GBAAdapter extends CartridgeAdapter {
     enhancedProgressCallback: EnhancedProgressCallback | null = null,
   ) {
     super(device, logCallback, progressCallback, translateFunc, enhancedProgressCallback);
-    this.idStr = '';
   }
 
   /**
@@ -57,19 +54,19 @@ export class GBAAdapter extends CartridgeAdapter {
         try {
           const id = await rom_readID(this.device);
 
-          this.idStr = id.map(x => x.toString(16).padStart(2, '0')).join(' ');
+          const idStr = id.map(x => x.toString(16).padStart(2, '0')).join(' ');
           const flashId = getFlashId(id);
           if (flashId === null) {
             this.log(this.t('messages.operation.unknownFlashId'));
           } else {
-            this.log(`${this.t('messages.operation.readIdSuccess')}: ${this.idStr} (${flashId})`);
+            this.log(`${this.t('messages.operation.readIdSuccess')}: ${idStr} (${flashId})`);
           }
 
           await this.getROMSize();
 
           return {
             success: true,
-            idStr: this.idStr,
+            idStr,
             message: this.t('messages.operation.readIdSuccess'),
           };
         } catch (e) {

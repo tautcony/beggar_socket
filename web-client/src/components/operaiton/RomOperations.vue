@@ -155,7 +155,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { IonIcon } from '@ionic/vue';
 import FileDropZone from '../common/FileDropZone.vue';
 import { FileInfo } from '../../types/file-info.ts';
