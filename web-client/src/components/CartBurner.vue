@@ -112,7 +112,7 @@ import LogViewer from '@/components/LogViewer.vue';
 import ProgressDisplay from '@/components/ProgressDisplay.vue';
 import { IonIcon } from '@ionic/vue';
 import { CartridgeAdapter, type ProgressInfo } from '@/services/cartridge-adapter';
-import { GBAAdapter } from '@/services/gba-dapter';
+import { GBAAdapter } from '@/services/gba-adapter';
 import { MBC5Adapter } from '@/services/mbc5-adapter';
 import { MockAdapter } from '@/services/mock-adapter';
 import { DebugSettings } from '@/settings/debug-settings';
