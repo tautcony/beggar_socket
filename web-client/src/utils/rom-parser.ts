@@ -17,6 +17,67 @@ export interface RomInfo {
 }
 
 /**
+ * GBA Nintendo Logo (位于0x04-0x9F, 156字节)
+ */
+export const GBA_NINTENDO_LOGO = new Uint8Array([
+  0x24, 0xFF, 0xAE, 0x51, 0x69, 0x9A, 0xA2, 0x21, 0x3D, 0x84, 0x82, 0x0A, 0x84, 0xE4, 0x09, 0xAD,
+  0x11, 0x24, 0x8B, 0x98, 0xC0, 0x81, 0x7F, 0x21, 0xA3, 0x52, 0xBE, 0x19, 0x93, 0x09, 0xCE, 0x20,
+  0x10, 0x46, 0x4A, 0x4A, 0xF8, 0x27, 0x31, 0xEC, 0x58, 0xC7, 0xE8, 0x33, 0x82, 0xE3, 0xCE, 0xBF,
+  0x85, 0xF4, 0xDF, 0x94, 0xCE, 0x4B, 0x09, 0xC1, 0x94, 0x56, 0x8A, 0xC0, 0x13, 0x72, 0xA7, 0xFC,
+  0x9F, 0x84, 0x4D, 0x73, 0xA3, 0xCA, 0x9A, 0x61, 0x58, 0x97, 0xA3, 0x27, 0xFC, 0x03, 0x98, 0x76,
+  0x23, 0x1D, 0xC7, 0x61, 0x03, 0x04, 0xAE, 0x56, 0xBF, 0x38, 0x84, 0x00, 0x40, 0xA7, 0x0E, 0xFD,
+  0xFF, 0x52, 0xFE, 0x03, 0x6F, 0x95, 0x30, 0xF1, 0x97, 0xFB, 0xC0, 0x85, 0x60, 0xD6, 0x80, 0x25,
+  0xA9, 0x63, 0xBE, 0x03, 0x01, 0x4E, 0x38, 0xE2, 0xF9, 0xA2, 0x34, 0xFF, 0xBB, 0x3E, 0x03, 0x44,
+  0x78, 0x00, 0x90, 0xCB, 0x88, 0x11, 0x3A, 0x94, 0x65, 0xC0, 0x7C, 0x63, 0x87, 0xF0, 0x3C, 0xAF,
+  0xD6, 0x25, 0xE4, 0x8B, 0x38, 0x0A, 0xAC, 0x72, 0x21, 0xD4, 0xF8, 0x07,
+]);
+
+/**
+ * GB/GBC Nintendo Logo (位于0x104-0x133, 48字节)
+ */
+export const GB_NINTENDO_LOGO = new Uint8Array([
+  0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B, 0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D,
+  0x00, 0x08, 0x11, 0x1F, 0x88, 0x89, 0x00, 0x0E, 0xDC, 0xCC, 0x6E, 0xE6, 0xDD, 0xDD, 0xD9, 0x99,
+  0xBB, 0xBB, 0x67, 0x63, 0x6E, 0x0E, 0xEC, 0xCC, 0xDD, 0xDC, 0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E,
+]);
+
+/**
+ * 验证GBA Nintendo Logo
+ * @param data ROM数据
+ * @returns 是否匹配
+ */
+function validateGBALogo(data: Uint8Array): boolean {
+  if (data.length < 0x04 + GBA_NINTENDO_LOGO.length) {
+    return false;
+  }
+
+  for (let i = 0; i < GBA_NINTENDO_LOGO.length; i++) {
+    if (data[0x04 + i] !== GBA_NINTENDO_LOGO[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * 验证GB/GBC Nintendo Logo
+ * @param data ROM数据
+ * @returns 是否匹配
+ */
+function validateGBLogo(data: Uint8Array): boolean {
+  if (data.length < 0x104 + GB_NINTENDO_LOGO.length) {
+    return false;
+  }
+
+  for (let i = 0; i < GB_NINTENDO_LOGO.length; i++) {
+    if (data[0x104 + i] !== GB_NINTENDO_LOGO[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
  * 解析GBA ROM信息
  * @param data ROM数据
  * @returns GBA ROM信息
@@ -24,7 +85,7 @@ export interface RomInfo {
 function parseGBARom(data: Uint8Array): RomInfo {
   if (data.length < 0xC0) {
     return {
-      title: 'Invalid ROM',
+      title: 'Invalid GBA ROM',
       type: 'Unknown',
       size: data.length,
       isValid: false,
@@ -49,8 +110,19 @@ function parseGBARom(data: Uint8Array): RomInfo {
   // 头部校验和：0xBD
   const checksumHeader = data[0xBD];
 
-  // 验证GBA ROM签名
-  const isValid = data[0xB2] === 0x96; // 固定字节0x96
+  // 验证GBA ROM有效性
+  const hasValidSignature = data[0xB2] === 0x96; // 固定字节0x96
+  const hasValidLogo = validateGBALogo(data);
+
+  // 验证头部校验和 (0xA0-0xBC的补码校验和)
+  let headerSum = 0;
+  for (let i = 0xA0; i <= 0xBC; i++) {
+    headerSum += data[i];
+  }
+  const calculatedChecksum = (-(headerSum + 0x19)) & 0xFF;
+  const hasValidChecksum = calculatedChecksum === checksumHeader;
+
+  const isValid = hasValidSignature && hasValidLogo && hasValidChecksum;
 
   // 解析地区代码
   let region = 'Unknown';
@@ -130,18 +202,43 @@ function parseGBRom(data: Uint8Array): RomInfo {
   const romSizeCode = data[0x148];
   const romSize = romSizeCode < 8 ? (32 * 1024) << romSizeCode : data.length;
 
+  // RAM大小：0x149
+  const ramSizeMapper = {
+    0: 0, // No RAM
+    1: 0, // Unused
+    2: 8 * 1024, // 8 KiB
+    3: 32 * 1024, // 32 KiB
+    4: 128 * 1024, // 128 KiB
+    5: 64 * 1024, // 64 KiB
+  };
+  const ramSizeCode = data[0x149] as 0 | 1 | 2 | 3 | 4 | 5;
+  const ramSize = ramSizeMapper[ramSizeCode] ?? 0;
+
+  const regionCode = data[0x14A];
+  let region = 'Unknown';
+  switch (regionCode) {
+    case 0x00: region = 'Japan'; break;
+    case 0x01: region = 'Non-Japan'; break;
+    default: region = 'Unknown'; break;
+  }
+
   // 头部校验和：0x14D
   const checksumHeader = data[0x14D];
 
   // 全局校验和：0x14E-0x14F
   const checksumGlobal = (data[0x14E] << 8) | data[0x14F];
 
+  // 验证Nintendo Logo
+  const hasValidLogo = validateGBLogo(data);
+
   // 验证头部校验和
   let headerSum = 0;
   for (let i = 0x134; i <= 0x14C; i++) {
     headerSum = (headerSum - data[i] - 1) & 0xFF;
   }
-  const isValid = headerSum === checksumHeader;
+  const hasValidChecksum = headerSum === checksumHeader;
+
+  const isValid = hasValidLogo && hasValidChecksum;
 
   // 确定ROM类型
   let type: 'GB' | 'GBC' = 'GB';
@@ -157,7 +254,40 @@ function parseGBRom(data: Uint8Array): RomInfo {
     checksumHeader,
     checksumGlobal,
     isValid,
+    region,
   };
+}
+
+/**
+ * 检测ROM类型
+ * @param data ROM数据
+ * @returns ROM类型
+ */
+function detectRomType(data: Uint8Array): 'GBA' | 'GB' | 'Unknown' {
+  if (!data || data.length === 0) {
+    return 'Unknown';
+  }
+
+  // 首先检查GBA特征
+  if (data.length >= 0xB3 && data[0xB2] === 0x96) {
+    // 如果有GBA固定签名字节，进一步验证Nintendo Logo
+    if (validateGBALogo(data)) {
+      return 'GBA';
+    }
+  }
+
+  // 检查GB/GBC特征
+  if (data.length >= 0x150 && validateGBLogo(data)) {
+    return 'GB';
+  }
+
+  // 如果都不匹配，根据文件大小做最后判断
+  // GBA ROM通常较大 (>1MB)
+  if (data.length > 0x100000) {
+    return 'GBA';
+  }
+
+  return 'Unknown';
 }
 
 /**
@@ -175,72 +305,19 @@ export function parseRom(data: Uint8Array): RomInfo {
     };
   }
 
-  // 检测ROM类型
-  // GBA ROM通常较大 (>1MB) 且在0xB2处有固定字节0x96
-  if (data.length > 0x200000 || (data.length >= 0xB3 && data[0xB2] === 0x96)) {
-    return parseGBARom(data);
-  }
+  const romType = detectRomType(data);
 
-  // GB/GBC ROM检测：检查Nintendo标志
-  if (data.length >= 0x150) {
-    // Nintendo标志位于0x104-0x133
-    const nintendoLogo = [
-      0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B, 0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D,
-      0x00, 0x08, 0x11, 0x1F, 0x88, 0x89, 0x00, 0x0E, 0xDC, 0xCC, 0x6E, 0xE6, 0xDD, 0xDD, 0xD9, 0x99,
-      0xBB, 0xBB, 0x67, 0x63, 0x6E, 0x0E, 0xEC, 0xCC, 0xDD, 0xDC, 0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E,
-    ];
-
-    let logoMatch = true;
-    for (let i = 0; i < nintendoLogo.length; i++) {
-      if (data[0x104 + i] !== nintendoLogo[i]) {
-        logoMatch = false;
-        break;
-      }
-    }
-
-    if (logoMatch) {
+  switch (romType) {
+    case 'GBA':
+      return parseGBARom(data);
+    case 'GB':
       return parseGBRom(data);
-    }
+    default:
+      return {
+        title: 'Unknown ROM',
+        type: 'Unknown',
+        size: data.length,
+        isValid: false,
+      };
   }
-
-  // 如果都不匹配，返回未知类型
-  return {
-    title: 'Unknown ROM',
-    type: 'Unknown',
-    size: data.length,
-    isValid: false,
-  };
-}
-
-/**
- * 格式化ROM信息为显示文本
- * @param romInfo ROM信息
- * @returns 格式化的文本
- */
-export function formatRomInfo(romInfo: RomInfo): string {
-  const lines: string[] = [];
-
-  lines.push(`标题: ${romInfo.title}`);
-  lines.push(`类型: ${romInfo.type}`);
-
-  if (romInfo.gameCode) {
-    lines.push(`游戏代码: ${romInfo.gameCode}`);
-  }
-
-  if (romInfo.makerCode) {
-    lines.push(`制造商: ${romInfo.makerCode}`);
-  }
-
-  if (romInfo.version !== undefined) {
-    lines.push(`版本: ${romInfo.version}`);
-  }
-
-  if (romInfo.region) {
-    lines.push(`地区: ${romInfo.region}`);
-  }
-
-  lines.push(`大小: ${(romInfo.size / 1024 / 1024).toFixed(2)} MB`);
-  lines.push(`有效: ${romInfo.isValid ? '是' : '否'}`);
-
-  return lines.join('\n');
 }

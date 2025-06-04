@@ -149,6 +149,7 @@
 import { ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { DebugSettings } from '@/settings/debug-settings';
+import { GBA_NINTENDO_LOGO } from '@/utils/rom-parser';
 
 const { t } = useI18n();
 const emit = defineEmits(['connect-mock-device', 'generate-test-file', 'clear-mock-data']);
@@ -210,8 +211,70 @@ function connectMockDevice() {
 
 function generateTestRom() {
   // 生成2MB的测试ROM数据
-  const testData = DebugSettings.generateRandomData(0x200000);
-  const blob = new Blob([testData], { type: 'application/octet-stream' });
+  const romSize = 0x200000; // 2MB
+  const romData = new Uint8Array(romSize);
+
+  // 首先生成随机数据作为基础
+  const randomData = DebugSettings.generateRandomData(romSize);
+  romData.set(randomData);
+
+  // 创建GBA ROM标准头部
+  const encoder = new TextEncoder();
+
+  // 0x00-0x03: ARM7 入口点 (ARM opcode)
+  romData[0x00] = 0x00; // b #0x08000000 - 跳转到真正的入口点
+  romData[0x01] = 0x00;
+  romData[0x02] = 0x00;
+  romData[0x03] = 0xEA;
+
+  // 0x04-0x9F: Nintendo Logo (156字节) - 必需的任天堂LOGO
+  romData.set(GBA_NINTENDO_LOGO, 0x04);
+
+  // 0xA0-0xAB: 游戏标题 (12字节)
+  const title = 'TEST ROM    '; // 12字符，不足的用空格填充
+  const titleBytes = encoder.encode(title.substring(0, 12));
+  romData.set(titleBytes, 0xA0);
+
+  // 0xAC-0xAF: 游戏代码 (4字节)
+  const gameCode = 'TESJ'; // 4字符
+  const gameCodeBytes = encoder.encode(gameCode);
+  romData.set(gameCodeBytes, 0xAC);
+
+  // 0xB0-0xB1: 制造商代码 (2字节)
+  const makerCode = '01'; // 01 = Nintendo
+  const makerCodeBytes = encoder.encode(makerCode);
+  romData.set(makerCodeBytes, 0xB0);
+
+  // 0xB2: 固定值 (必须是0x96)
+  romData[0xB2] = 0x96;
+
+  // 0xB3: 主单元代码 (通常是0x00)
+  romData[0xB3] = 0x00;
+
+  // 0xB4: 设备类型 (通常是0x00)
+  romData[0xB4] = 0x00;
+
+  // 0xB5-0xBB: 保留区域 (7字节，通常是0x00)
+  for (let i = 0xB5; i <= 0xBB; i++) {
+    romData[i] = 0x00;
+  }
+
+  // 0xBC: 软件版本
+  romData[0xBC] = 0x01;
+
+  // 0xBD: 头部校验和 (计算0xA0-0xBC的补码校验和)
+  let headerSum = 0;
+  for (let i = 0xA0; i <= 0xBC; i++) {
+    headerSum += romData[i];
+  }
+  romData[0xBD] = (-(headerSum + 0x19)) & 0xFF;
+
+  // 0xBE-0xBF: 保留区域 (通常是0x00)
+  romData[0xBE] = 0x00;
+  romData[0xBF] = 0x00;
+
+  // 创建下载
+  const blob = new Blob([romData], { type: 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
