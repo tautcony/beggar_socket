@@ -14,7 +14,8 @@
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "test:coverage": "vitest --coverage",
-    "analyze": "analyze"
+    "test:performance": "npx tsx tests/performance/CRC16Performance.ts",
+    "bundle:analyze": "analyze"
   },
   "dependencies": {
     "@ionic/vue": "^8.5.8",
@@ -32,9 +33,12 @@
     "@typescript-eslint/eslint-plugin": "^8.33.1",
     "@typescript-eslint/parser": "^8.33.1",
     "@vitejs/plugin-vue": "^5.2.4",
+    "@vitest/coverage-v8": "^3.2.1",
     "@vitest/ui": "^3.2.1",
+    "@vue/test-utils": "^2.4.6",
     "eslint": "^9.28.0",
     "eslint-plugin-vue": "^10.1.0",
+    "jsdom": "^26.1.0",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
     "vite-bundle-analyzer": "^0.22.0",

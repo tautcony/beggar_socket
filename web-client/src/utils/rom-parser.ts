@@ -222,6 +222,9 @@ function parseGBRom(data: Uint8Array): RomInfo {
     default: region = 'Unknown'; break;
   }
 
+  // 版本号：0x14C
+  const version = data[0x14C];
+
   // 头部校验和：0x14D
   const checksumHeader = data[0x14D];
 
@@ -249,6 +252,7 @@ function parseGBRom(data: Uint8Array): RomInfo {
   return {
     title: title || 'Untitled',
     makerCode,
+    version,
     type,
     size: romSize,
     checksumHeader,

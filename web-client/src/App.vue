@@ -19,8 +19,8 @@
       @device-ready="onDeviceReady"
       @device-disconnected="onDeviceDisconnected"
     />
-    <FlashBurner
-      ref="flashBurnerRef"
+    <CartBurner
+      ref="cartBurnerRef"
       :device-ready="deviceReady"
       :device="device"
     />
@@ -47,7 +47,7 @@
 <script setup lang="ts">
 import { ref, computed, provide } from 'vue';
 import DeviceConnect from '@/components/DeviceConnect.vue';
-import FlashBurner from '@/components/CartBurner.vue';
+import CartBurner from '@/components/CartBurner.vue';
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
 import DebugSettingsPanel from '@/components/settings/DebugSettingsPanel.vue';
 import GitHubLink from '@/components/links/GitHubLink.vue';
@@ -69,8 +69,8 @@ const showDebugPanelModal = ref(false);
 // DeviceConnect 组件引用
 const deviceConnectRef = ref<InstanceType<typeof DeviceConnect> | null>(null);
 
-// FlashBurner 组件引用
-const flashBurnerRef = ref<InstanceType<typeof FlashBurner> | null>(null);
+// CartBurner 组件引用
+const cartBurnerRef = ref<InstanceType<typeof CartBurner> | null>(null);
 
 provide('showDebugPanelModal', showDebugPanelModal);
 provide('setShowDebugPanelModal', (val: boolean) => { showDebugPanelModal.value = val; });
@@ -130,8 +130,8 @@ function onClearMockData() {
   deviceReady.value = false;
 
   // 3. 重置 FlashBurner 组件状态（如果有引用的话）
-  if (flashBurnerRef.value && typeof flashBurnerRef.value.resetState === 'function') {
-    flashBurnerRef.value.resetState();
+  if (cartBurnerRef.value && typeof cartBurnerRef.value.resetState === 'function') {
+    cartBurnerRef.value.resetState();
   }
 
   console.log('[DEBUG] 模拟数据清除完成');
