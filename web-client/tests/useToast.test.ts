@@ -23,7 +23,7 @@ describe('useToast', () => {
           type: 'success',
           duration: 3000,
         },
-      })
+      }),
     );
 
     window.removeEventListener('show-toast', eventListener);
@@ -44,7 +44,7 @@ describe('useToast', () => {
           type: 'success',
           duration: 3000,
         },
-      })
+      }),
     );
 
     window.removeEventListener('show-toast', eventListener);
@@ -63,7 +63,7 @@ describe('useToast', () => {
         detail: expect.objectContaining({
           type: 'error',
         }),
-      })
+      }),
     );
 
     // 测试idle类型
@@ -73,7 +73,7 @@ describe('useToast', () => {
         detail: expect.objectContaining({
           type: 'idle',
         }),
-      })
+      }),
     );
 
     window.removeEventListener('show-toast', eventListener);
@@ -92,7 +92,7 @@ describe('useToast', () => {
         detail: expect.objectContaining({
           duration: 5000,
         }),
-      })
+      }),
     );
 
     window.removeEventListener('show-toast', eventListener);
