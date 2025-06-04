@@ -85,6 +85,8 @@
       "version": "Version",
       "region": "Region",
       "size": "File Size",
+      "cartType": "Cart Type",
+      "ramSize": "RAM Size",
       "valid": "Valid"
     },
     "ram": {

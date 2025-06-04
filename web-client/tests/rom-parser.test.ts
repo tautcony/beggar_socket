@@ -120,7 +120,7 @@ describe('rom-parser', () => {
       expect(result.version).toBe(1);
       expect(result.region).toBe('USA');
       expect(result.isValid).toBe(true);
-      expect(result.size).toBe(romData.length);
+      expect(result.romSize).toBe(romData.length);
     });
 
     it('应该处理标题中的空字符', () => {
@@ -208,7 +208,7 @@ describe('rom-parser', () => {
       expect(result.title).toBe('TEST_GAME');
       expect(result.version).toBe(1);
       expect(result.isValid).toBe(true);
-      expect(result.size).toBe(32768);
+      expect(result.romSize).toBe(32768);
     });
 
     it('应该正确解析GBC ROM', () => {
@@ -263,7 +263,7 @@ describe('rom-parser', () => {
 
       expect(result.type).toBe('Unknown');
       expect(result.isValid).toBe(false);
-      expect(result.size).toBe(0);
+      expect(result.romSize).toBe(0);
       expect(result.title).toBe('Empty ROM');
     });
 

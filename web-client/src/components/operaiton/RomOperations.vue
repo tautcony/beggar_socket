@@ -111,8 +111,22 @@
             <span class="rom-info-value">{{ romInfo.region }}</span>
           </div>
           <div class="rom-info-item">
-            <span class="rom-info-label">{{ $t('ui.rom.size') }}:</span>
-            <span class="rom-info-value">{{ formatRomSize(romInfo.size) }}</span>
+            <span class="rom-info-label">{{ $t('ui.rom.romSize') }}:</span>
+            <span class="rom-info-value">{{ formatBytes(romInfo.romSize) }}</span>
+          </div>
+          <div
+            v-if="romInfo.ramSize !== undefined && romInfo.ramSize > 0"
+            class="rom-info-item"
+          >
+            <span class="rom-info-label">{{ $t('ui.rom.ramSize') }}:</span>
+            <span class="rom-info-value">{{ formatBytes(romInfo.ramSize) }}</span>
+          </div>
+          <div
+            v-if="romInfo.cartType !== undefined"
+            class="rom-info-item"
+          >
+            <span class="rom-info-label">{{ $t('ui.rom.cartType') }}:</span>
+            <span class="rom-info-value">{{ CartridgeTypeMapper[romInfo.cartType] }}</span>
           </div>
           <div class="rom-info-item">
             <span class="rom-info-label">{{ $t('ui.rom.valid') }}:</span>
@@ -159,7 +173,8 @@ import { ref, watch } from 'vue';
 import { IonIcon } from '@ionic/vue';
 import FileDropZone from '../common/FileDropZone.vue';
 import { FileInfo } from '../../types/file-info.ts';
-import { parseRom, type RomInfo } from '../../utils/rom-parser.ts';
+import { parseRom, type RomInfo, CartridgeTypeMapper } from '../../utils/rom-parser.ts';
+import { formatBytes } from '@/utils/formatter-utils';
 
 const props = defineProps({
   mode: {
@@ -209,8 +224,8 @@ watch(() => props.romFileData, (newData) => {
     }
 
     // 根据ROM文件大小自动更新选择的ROM大小
-    if (romInfo.value?.size) {
-      const romSize = romInfo.value.size;
+    if (romInfo.value?.romSize) {
+      const romSize = romInfo.value.romSize;
       // 预定义的ROM大小选项
       const sizeOptions = [
         { value: '0x80000', size: 0x80000 }, // 512KB
@@ -237,17 +252,6 @@ watch(() => props.romFileData, (newData) => {
 // 切换ROM信息折叠状态
 function toggleRomInfoCollapsed() {
   isRomInfoCollapsed.value = !isRomInfoCollapsed.value;
-}
-
-// 格式化ROM大小显示
-function formatRomSize(size: number): string {
-  if (size < 1024) {
-    return `${size} B`;
-  } else if (size < 1024 * 1024) {
-    return `${(size / 1024).toFixed(1)} KB`;
-  } else {
-    return `${(size / 1024 / 1024).toFixed(2)} MB`;
-  }
 }
 
 function onFileSelected(fileInfo: FileInfo) {

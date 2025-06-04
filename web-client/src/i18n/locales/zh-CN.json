@@ -85,6 +85,8 @@
       "version": "版本",
       "region": "区域",
       "size": "文件大小",
+      "cartType": "卡带类型",
+      "ramSize": "RAM大小",
       "valid": "有效性"
     },
     "ram": {

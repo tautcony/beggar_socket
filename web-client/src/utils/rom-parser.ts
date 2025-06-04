@@ -9,9 +9,9 @@ export interface RomInfo {
   makerCode?: string;
   version?: number;
   type: 'GBA' | 'GB' | 'GBC' | 'Unknown';
-  size: number;
-  checksumHeader?: number;
-  checksumGlobal?: number;
+  cartType?: number;
+  romSize: number;
+  ramSize?: number;
   isValid: boolean;
   region?: string;
 }
@@ -40,6 +40,37 @@ export const GB_NINTENDO_LOGO = new Uint8Array([
   0x00, 0x08, 0x11, 0x1F, 0x88, 0x89, 0x00, 0x0E, 0xDC, 0xCC, 0x6E, 0xE6, 0xDD, 0xDD, 0xD9, 0x99,
   0xBB, 0xBB, 0x67, 0x63, 0x6E, 0x0E, 0xEC, 0xCC, 0xDD, 0xDC, 0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E,
 ]);
+
+export const CartridgeTypeMapper: { [key: number]: string } = {
+  0x00: 'ROM ONLY',
+  0x01: 'MBC1',
+  0x02: 'MBC1+RAM',
+  0x03: 'MBC1+RAM+BATTERY',
+  0x05: 'MBC2',
+  0x06: 'MBC2+BATTERY',
+  0x08: 'ROM+RAM',
+  0x09: 'ROM+RAM+BATTERY',
+  0x0B: 'MMM01',
+  0x0C: 'MMM01+RAM',
+  0x0D: 'MMM01+RAM+BATTERY',
+  0x0F: 'MBC3+TIMER+BATTERY',
+  0x10: 'MBC3+TIMER+RAM+BATTERY',
+  0x11: 'MBC3',
+  0x12: 'MBC3+RAM',
+  0x13: 'MBC3+RAM+BATTERY',
+  0x19: 'MBC5',
+  0x1A: 'MBC5+RAM',
+  0x1B: 'MBC5+RAM+BATTERY',
+  0x1C: 'MBC5+RUMBLE',
+  0x1D: 'MBC5+RUMBLE+RAM',
+  0x1E: 'MBC5+RUMBLE+RAM+BATTERY',
+  0x20: 'MBC6',
+  0x22: 'MBC7+SENSOR+RUMBLE+RAM+BATTERY',
+  0xFC: 'POCKET CAMERA',
+  0xFD: 'BANDAI TAMA5',
+  0xFE: 'HuC3',
+  0xFF: 'HuC1+RAM+BATTERY',
+};
 
 /**
  * 验证GBA Nintendo Logo
@@ -87,7 +118,7 @@ function parseGBARom(data: Uint8Array): RomInfo {
     return {
       title: 'Invalid GBA ROM',
       type: 'Unknown',
-      size: data.length,
+      romSize: data.length,
       isValid: false,
     };
   }
@@ -146,8 +177,7 @@ function parseGBARom(data: Uint8Array): RomInfo {
     makerCode,
     version,
     type: 'GBA',
-    size: data.length,
-    checksumHeader,
+    romSize: data.length,
     isValid,
     region,
   };
@@ -163,7 +193,7 @@ function parseGBRom(data: Uint8Array): RomInfo {
     return {
       title: 'Invalid ROM',
       type: 'Unknown',
-      size: data.length,
+      romSize: data.length,
       isValid: false,
     };
   }
@@ -254,9 +284,9 @@ function parseGBRom(data: Uint8Array): RomInfo {
     makerCode,
     version,
     type,
-    size: romSize,
-    checksumHeader,
-    checksumGlobal,
+    romSize,
+    ramSize,
+    cartType: cartridgeType,
     isValid,
     region,
   };
@@ -304,7 +334,7 @@ export function parseRom(data: Uint8Array): RomInfo {
     return {
       title: 'Empty ROM',
       type: 'Unknown',
-      size: 0,
+      romSize: 0,
       isValid: false,
     };
   }
@@ -320,7 +350,7 @@ export function parseRom(data: Uint8Array): RomInfo {
       return {
         title: 'Unknown ROM',
         type: 'Unknown',
-        size: data.length,
+        romSize: data.length,
         isValid: false,
       };
   }
