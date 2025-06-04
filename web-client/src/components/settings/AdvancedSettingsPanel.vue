@@ -529,61 +529,6 @@ onMounted(() => {
   border-color: #bbb;
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .advanced-settings {
-    background: #2d3748;
-    border-color: #4a5568;
-  }
-
-  .settings-header,
-  .settings-footer {
-    background: #1a202c;
-    border-color: #4a5568;
-  }
-
-  .settings-header h3,
-  .setting-group h4,
-  .setting-item label {
-    color: #e2e8f0;
-  }
-
-  .input-group input {
-    background: #4a5568;
-    border-color: #718096;
-    color: #e2e8f0;
-  }
-
-  .input-group input:focus {
-    border-color: #63b3ed;
-  }
-
-  .unit,
-  .hint {
-    color: #a0aec0;
-  }
-
-  .close-btn {
-    color: #a0aec0;
-  }
-
-  .close-btn:hover {
-    background: #4a5568;
-    color: #e2e8f0;
-  }
-
-  .btn-secondary {
-    background: #4a5568;
-    color: #e2e8f0;
-    border-color: #718096;
-  }
-
-  .btn-secondary:hover {
-    background: #2d3748;
-    border-color: #a0aec0;
-  }
-}
-
 /* Responsive design */
 @media (max-width: 768px) {
   .advanced-settings {

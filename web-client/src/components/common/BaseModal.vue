@@ -152,18 +152,4 @@ onUnmounted(() => {
   justify-content: flex-end;
   gap: 8px;
 }
-@media (prefers-color-scheme: dark) {
-  .modal-container {
-    background: #1f2937;
-    color: #f9fafb;
-  }
-  .modal-header { border-bottom-color: #374151; }
-  .modal-title { color: #f9fafb; }
-  .close-btn { color: #9ca3af; }
-  .close-btn:hover:not(:disabled) {
-    background: #374151;
-    color: #d1d5db;
-  }
-  .modal-footer { border-top-color: #374151; }
-}
 </style>

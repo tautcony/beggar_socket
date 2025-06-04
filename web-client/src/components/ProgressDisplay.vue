@@ -319,12 +319,4 @@ onUnmounted(() => {
   margin-left: 8px;
   font-size: 1.1em;
 }
-@media (prefers-color-scheme: dark) {
-  .progress-bar-container { background: #374151; }
-  .progress-percentage { color: #e5e7eb; }
-  .stat-item { background: #374151; border-color: #4b5563; }
-  .stat-label { color: #9ca3af; }
-  .stat-value { color: #f3f4f6; }
-  .operation-detail { background: #374151; color: #d1d5db; border-left-color: #3b82f6; }
-}
 </style>
