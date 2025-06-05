@@ -319,6 +319,10 @@ function resetGame() {
   try {
     // 使用 Wrapper 的 resetEmulator 方法
     gba.value.resetEmulator();
+
+    // 重置后重新设置错误处理器，因为resetEmulator可能会清除logger
+    setupErrorHandling();
+
     isPaused.value = false;
     hasError.value = false;
     errorMessage.value = '';
