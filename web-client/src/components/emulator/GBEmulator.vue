@@ -49,17 +49,13 @@
 
       <div class="emulator-footer">
         <div class="controls-help">
-          <div class="help-row">
-            <span class="key-combo">Arrow Keys</span>
-            <span class="key-desc">{{ $t('ui.emulator.dpad') }}</span>
-          </div>
-          <div class="help-row">
-            <span class="key-combo">Z / X</span>
-            <span class="key-desc">{{ $t('ui.emulator.buttons') }}</span>
-          </div>
-          <div class="help-row">
-            <span class="key-combo">Enter / Shift</span>
-            <span class="key-desc">{{ $t('ui.emulator.startSelect') }}</span>
+          <p>{{ $t('ui.emulator.controlsHelp') }}</p>
+          <div class="key-mappings">
+            <span class="key-mapping">{{ $t('ui.emulator.dpad') }}: Arrow Keys</span>
+            <span class="key-mapping">{{ $t('ui.emulator.aButton') }}: Z</span>
+            <span class="key-mapping">{{ $t('ui.emulator.bButton') }}: X</span>
+            <span class="key-mapping">{{ $t('ui.emulator.start') }}: Enter</span>
+            <span class="key-mapping">{{ $t('ui.emulator.select') }}: Shift</span>
           </div>
         </div>
       </div>
@@ -332,7 +328,7 @@ function handleOverlayClick(event: MouseEvent) {
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #5bcffa 0%, #f5abb9 100%);
   color: white;
 }
 
@@ -364,12 +360,15 @@ function handleOverlayClick(event: MouseEvent) {
   align-items: center;
   justify-content: center;
   font-size: 1.1rem;
-  padding: 6px 8px;
-  transition: background 0.2s;
+  padding: 8px;
+  transition: all 0.2s ease;
+  width: 36px;
+  height: 36px;
 }
 
 .control-btn:hover {
   background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
 }
 
 .control-btn.close-btn:hover {
@@ -402,37 +401,37 @@ function handleOverlayClick(event: MouseEvent) {
 }
 
 .controls-help {
+  text-align: center;
+}
+
+.controls-help p {
+  margin: 0 0 12px 0;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.key-mappings {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
+  gap: 12px;
   justify-content: center;
-}
-
-.help-row {
-  display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
 }
 
-.key-combo {
-  background: #374151;
-  color: white;
+.key-mapping {
+  background: #f3f4f6;
   padding: 4px 8px;
   border-radius: 4px;
-  font-family: 'Courier New', monospace;
-  font-weight: 500;
   font-size: 0.8rem;
-}
-
-.key-desc {
-  color: #6b7280;
+  color: #374151;
+  border: 1px solid #d1d5db;
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
   .emulator-container {
-    max-width: 95vw;
+    margin: 10px;
+    max-width: calc(100vw - 20px);
     max-height: 95vh;
   }
 
@@ -454,14 +453,12 @@ function handleOverlayClick(event: MouseEvent) {
     font-size: 1rem;
   }
 
-  .controls-help {
-    gap: 12px;
+  .key-mappings {
+    gap: 8px;
   }
 
-  .help-row {
-    flex-direction: column;
-    gap: 4px;
-    text-align: center;
+  .key-mapping {
+    font-size: 0.75rem;
   }
 }
 
@@ -473,6 +470,14 @@ function handleOverlayClick(event: MouseEvent) {
 
   .emulator-footer {
     padding: 12px 16px;
+  }
+
+  .emulator-header {
+    padding: 10px 12px;
+  }
+
+  .emulator-title {
+    font-size: 0.9rem;
   }
 }
 </style>

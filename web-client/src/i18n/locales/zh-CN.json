@@ -98,12 +98,22 @@
       "reset": "重置",
       "close": "关闭",
       "loading": "正在加载模拟器",
+      "loaded": "模拟器加载成功",
+      "resumed": "游戏继续",
       "initError": "模拟器初始化失败",
       "operationFailed": "操作失败",
       "resetFailed": "重置失败",
+      "loadFailed": "加载失败",
       "dpad": "方向键",
+      "aButton": "A按键",
+      "bButton": "B按键", 
+      "start": "开始",
+      "select": "选择",
+      "l": "L键",
+      "r": "R键",
       "buttons": "A/B按键",
       "startSelect": "开始/选择",
+      "controlsHelp": "使用键盘控制游戏",
       "initSuccess": "模拟器初始化成功",
       "invalidRom": "无效的ROM文件",
       "romLoadFailed": "ROM加载失败",
@@ -259,6 +269,11 @@
       "writeSummary": "ROM写入完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} KB",
       "readSummary": "ROM读取完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} KB"
     },
+    "emulator": {
+      "launched": "已启动模拟器预览: {name}",
+      "closed": "模拟器已关闭",
+      "unsupportedRom": "不支持的ROM文件格式"
+    },
     "ram": {
       "writing": "正在写入RAM，大小 {size} 字节",
       "written": "已写入 {written} 字节",
@@ -318,10 +333,6 @@
     },
     "debug": {
       "mockModeEnabled": "调试模式已启用 - 使用模拟设备"
-    },
-    "emulator": {
-      "launched": "已启动模拟器预览: {name}",
-      "closed": "模拟器已关闭"
     }
   }
 }

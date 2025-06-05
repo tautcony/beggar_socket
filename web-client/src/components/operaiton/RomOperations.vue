@@ -1,192 +1,238 @@
 <template>
-  <section class="section">
-    <div class="section-header">
-      <h2>{{ $t('ui.rom.title') }}</h2>
-      <div class="size-selector">
-        <label class="size-label">{{ $t('ui.rom.sizeLabel') }}</label>
-        <select
-          v-model="selectedRomSize"
-          :disabled="!deviceReady || busy"
-          class="size-dropdown"
-          @change="onRomSizeChange"
-        >
-          <option value="0x80000">
-            512KB
-          </option>
-          <option value="0x100000">
-            1MB
-          </option>
-          <option value="0x200000">
-            2MB
-          </option>
-          <option value="0x400000">
-            4MB
-          </option>
-          <option value="0x800000">
-            8MB
-          </option>
-          <option value="0x1000000">
-            16MB
-          </option>
-          <option value="0x2000000">
-            32MB
-          </option>
-        </select>
+  <div class="rom-operations-container">
+    <section class="section">
+      <div class="section-header">
+        <h2>{{ $t('ui.rom.title') }}</h2>
+        <div class="size-selector">
+          <label class="size-label">{{ $t('ui.rom.sizeLabel') }}</label>
+          <select
+            v-model="selectedRomSize"
+            :disabled="!deviceReady || busy"
+            class="size-dropdown"
+            @change="onRomSizeChange"
+          >
+            <option value="0x80000">
+              512KB
+            </option>
+            <option value="0x100000">
+              1MB
+            </option>
+            <option value="0x200000">
+              2MB
+            </option>
+            <option value="0x400000">
+              4MB
+            </option>
+            <option value="0x800000">
+              8MB
+            </option>
+            <option value="0x1000000">
+              16MB
+            </option>
+            <option value="0x2000000">
+              32MB
+            </option>
+          </select>
+        </div>
       </div>
-    </div>
-    <FileDropZone
-      :disabled="busy"
-      :file-data="romFileData"
-      :file-name="romFileName"
-      accept-types=".rom,.gba,.gb,.gbc"
-      accept-hint=".rom,.gba,.gb,.gbc"
-      icon="folder-open-outline"
-      :main-text="$t('ui.rom.selectFile')"
-      :file-title="romInfo?.title || ''"
-      @file-selected="onFileSelected"
-      @file-cleared="onFileCleared"
-    />
-
-    <!-- ROM信息显示 -->
-    <div
-      v-if="romFileData && romInfo"
-      class="rom-info-panel"
-    >
-      <h3
-        class="rom-info-title"
-        @click="toggleRomInfoCollapsed"
-      >
-        <IonIcon
-          name="information-circle-outline"
-          class="info-icon"
-        />
-        {{ $t('ui.rom.info') }}
-        <IonIcon
-          :name="isRomInfoCollapsed ? 'chevron-down' : 'chevron-up'"
-          class="collapse-icon"
-        />
-      </h3>
       <div
-        class="rom-info-content"
-        :class="{ 'collapsed': isRomInfoCollapsed }"
+        class="file-upload-container"
+        :class="{ 'has-play-button': romFileData && romInfo && canPreview }"
       >
-        <div class="rom-info-grid">
-          <div class="rom-info-item">
-            <span class="rom-info-label">{{ $t('ui.rom.romTitle') }}:</span>
-            <span class="rom-info-value">{{ romInfo.title }}</span>
-          </div>
-          <div class="rom-info-item">
-            <span class="rom-info-label">{{ $t('ui.rom.type') }}:</span>
-            <span
-              class="rom-info-value rom-type"
-              :class="romInfo.type.toLowerCase()"
-            >{{ romInfo.type }}</span>
-          </div>
-          <div
-            v-if="romInfo.gameCode"
-            class="rom-info-item"
-          >
-            <span class="rom-info-label">{{ $t('ui.rom.gameCode') }}:</span>
-            <span class="rom-info-value">{{ romInfo.gameCode }}</span>
-          </div>
-          <div
-            v-if="romInfo.makerCode"
-            class="rom-info-item"
-          >
-            <span class="rom-info-label">{{ $t('ui.rom.maker') }}:</span>
-            <span class="rom-info-value">{{ romInfo.makerCode }}</span>
-          </div>
-          <div
-            v-if="romInfo.version !== undefined"
-            class="rom-info-item"
-          >
-            <span class="rom-info-label">{{ $t('ui.rom.version') }}:</span>
-            <span class="rom-info-value">v{{ romInfo.version }}</span>
-          </div>
-          <div
-            v-if="romInfo.region"
-            class="rom-info-item"
-          >
-            <span class="rom-info-label">{{ $t('ui.rom.region') }}:</span>
-            <span class="rom-info-value">{{ romInfo.region }}</span>
-          </div>
-          <div class="rom-info-item">
-            <span class="rom-info-label">{{ $t('ui.rom.romSize') }}:</span>
-            <span class="rom-info-value">{{ formatBytes(romInfo.romSize) }}</span>
-          </div>
-          <div
-            v-if="romInfo.ramSize !== undefined && romInfo.ramSize > 0"
-            class="rom-info-item"
-          >
-            <span class="rom-info-label">{{ $t('ui.rom.ramSize') }}:</span>
-            <span class="rom-info-value">{{ formatBytes(romInfo.ramSize) }}</span>
-          </div>
-          <div
-            v-if="romInfo.cartType !== undefined"
-            class="rom-info-item"
-          >
-            <span class="rom-info-label">{{ $t('ui.rom.cartType') }}:</span>
-            <span class="rom-info-value">{{ CartridgeTypeMapper[romInfo.cartType] }}</span>
-          </div>
-          <div class="rom-info-item">
-            <span class="rom-info-label">{{ $t('ui.rom.valid') }}:</span>
-            <span
-              class="rom-info-value rom-validity"
-              :class="romInfo.isValid ? 'valid' : 'invalid'"
+        <FileDropZone
+          :disabled="busy"
+          :file-data="romFileData"
+          :file-name="romFileName"
+          accept-types=".rom,.gba,.gb,.gbc"
+          accept-hint=".rom,.gba,.gb,.gbc"
+          icon="folder-open-outline"
+          :main-text="$t('ui.rom.selectFile')"
+          :file-title="romInfo?.title || ''"
+          @file-selected="onFileSelected"
+          @file-cleared="onFileCleared"
+        />
+        <button
+          v-if="romFileData && romInfo && canPreview"
+          :disabled="busy"
+          class="play-button"
+          @click="playRom"
+        >
+          <IonIcon name="play-outline" />
+        </button>
+      </div>
+
+      <!-- ROM信息显示 -->
+      <div
+        v-if="romFileData && romInfo"
+        class="rom-info-panel"
+      >
+        <h3
+          class="rom-info-title"
+          @click="toggleRomInfoCollapsed"
+        >
+          <IonIcon
+            name="information-circle-outline"
+            class="info-icon"
+          />
+          {{ $t('ui.rom.info') }}
+          <IonIcon
+            :name="isRomInfoCollapsed ? 'chevron-down' : 'chevron-up'"
+            class="collapse-icon"
+          />
+        </h3>
+        <div
+          class="rom-info-content"
+          :class="{ 'collapsed': isRomInfoCollapsed }"
+        >
+          <div class="rom-info-grid">
+            <div class="rom-info-item">
+              <span class="rom-info-label">{{ $t('ui.rom.romTitle') }}:</span>
+              <span class="rom-info-value">{{ romInfo.title }}</span>
+            </div>
+            <div class="rom-info-item">
+              <span class="rom-info-label">{{ $t('ui.rom.type') }}:</span>
+              <span
+                class="rom-info-value rom-type"
+                :class="romInfo.type.toLowerCase()"
+              >{{ romInfo.type }}</span>
+            </div>
+            <div
+              v-if="romInfo.gameCode"
+              class="rom-info-item"
             >
-              <IonIcon
-                :name="romInfo.isValid ? 'checkmark-circle' : 'close-circle'"
-                class="validity-icon"
-              />
-              {{ romInfo.isValid ? $t('ui.common.yes') : $t('ui.common.no') }}
-            </span>
+              <span class="rom-info-label">{{ $t('ui.rom.gameCode') }}:</span>
+              <span class="rom-info-value">{{ romInfo.gameCode }}</span>
+            </div>
+            <div
+              v-if="romInfo.makerCode"
+              class="rom-info-item"
+            >
+              <span class="rom-info-label">{{ $t('ui.rom.maker') }}:</span>
+              <span class="rom-info-value">{{ romInfo.makerCode }}</span>
+            </div>
+            <div
+              v-if="romInfo.version !== undefined"
+              class="rom-info-item"
+            >
+              <span class="rom-info-label">{{ $t('ui.rom.version') }}:</span>
+              <span class="rom-info-value">v{{ romInfo.version }}</span>
+            </div>
+            <div
+              v-if="romInfo.region"
+              class="rom-info-item"
+            >
+              <span class="rom-info-label">{{ $t('ui.rom.region') }}:</span>
+              <span class="rom-info-value">{{ romInfo.region }}</span>
+            </div>
+            <div class="rom-info-item">
+              <span class="rom-info-label">{{ $t('ui.rom.romSize') }}:</span>
+              <span class="rom-info-value">{{ formatBytes(romInfo.romSize) }}</span>
+            </div>
+            <div
+              v-if="romInfo.ramSize !== undefined && romInfo.ramSize > 0"
+              class="rom-info-item"
+            >
+              <span class="rom-info-label">{{ $t('ui.rom.ramSize') }}:</span>
+              <span class="rom-info-value">{{ formatBytes(romInfo.ramSize) }}</span>
+            </div>
+            <div
+              v-if="romInfo.cartType !== undefined"
+              class="rom-info-item"
+            >
+              <span class="rom-info-label">{{ $t('ui.rom.cartType') }}:</span>
+              <span class="rom-info-value">{{ CartridgeTypeMapper[romInfo.cartType] }}</span>
+            </div>
+            <div class="rom-info-item">
+              <span class="rom-info-label">{{ $t('ui.rom.valid') }}:</span>
+              <span
+                class="rom-info-value rom-validity"
+                :class="romInfo.isValid ? 'valid' : 'invalid'"
+              >
+                <IonIcon
+                  :name="romInfo.isValid ? 'checkmark-circle' : 'close-circle'"
+                  class="validity-icon"
+                />
+                {{ romInfo.isValid ? $t('ui.common.yes') : $t('ui.common.no') }}
+              </span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="button-row">
-      <button
-        :disabled="!deviceReady || !romFileData || busy"
-        @click="$emit('write-rom')"
-      >
-        {{ $t('ui.rom.write') }}
-      </button>
-      <button
-        :disabled="!deviceReady || busy"
-        @click="$emit('read-rom')"
-      >
-        {{ $t('ui.rom.read') }}
-      </button>
-      <button
-        :disabled="!deviceReady || !romFileData || busy"
-        @click="$emit('verify-rom')"
-      >
-        {{ $t('ui.rom.verify') }}
-      </button>
-      <button
-        v-if="canPreview"
-        :disabled="!romFileData || busy"
-        class="preview-button"
-        @click="$emit('preview-rom')"
-      >
-        <IonIcon
-          name="play-outline"
-          class="button-icon"
-        />
-        {{ $t('ui.rom.preview') }}
-      </button>
-    </div>
-  </section>
+      <div class="button-row">
+        <button
+          :disabled="!deviceReady || !romFileData || busy"
+          @click="$emit('write-rom')"
+        >
+          {{ $t('ui.rom.write') }}
+        </button>
+        <button
+          :disabled="!deviceReady || busy"
+          @click="$emit('read-rom')"
+        >
+          {{ $t('ui.rom.read') }}
+        </button>
+        <button
+          :disabled="!deviceReady || !romFileData || busy"
+          @click="$emit('verify-rom')"
+        >
+          {{ $t('ui.rom.verify') }}
+        </button>
+      </div>
+    </section>
+
+    <!-- Game Boy Emulator -->
+    <Suspense>
+      <GBEmulator
+        v-if="showEmulator"
+        :rom-data="emulatorRomData"
+        :rom-name="emulatorRomName"
+        :is-visible="showEmulator"
+        @close="closeEmulator"
+      />
+      <template #fallback>
+        <div class="emulator-loading">
+          <div class="loading-spinner" />
+          <p>{{ $t('ui.emulator.loading') }}...</p>
+        </div>
+      </template>
+    </Suspense>
+
+    <!-- GBA Emulator -->
+    <Suspense>
+      <GBAEmulator
+        v-if="showGBAEmulator"
+        :rom-data="emulatorRomData"
+        :rom-name="emulatorRomName"
+        :is-visible="showGBAEmulator"
+        @close="closeEmulator"
+      />
+      <template #fallback>
+        <div class="emulator-loading">
+          <div class="loading-spinner" />
+          <p>{{ $t('ui.emulator.loading') }}...</p>
+        </div>
+      </template>
+    </Suspense>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, defineAsyncComponent } from 'vue';
 import { IonIcon } from '@ionic/vue';
 import FileDropZone from '../common/FileDropZone.vue';
 import { FileInfo } from '../../types/file-info.ts';
 import { parseRom, type RomInfo, CartridgeTypeMapper } from '../../utils/rom-parser.ts';
 import { formatBytes } from '@/utils/formatter-utils';
+import { useI18n } from 'vue-i18n';
+import { useToast } from '@/composables/useToast';
+
+// 动态加载模拟器组件
+const GBEmulator = defineAsyncComponent(() => import('@/components/emulator/GBEmulator.vue'));
+const GBAEmulator = defineAsyncComponent(() => import('@/components/emulator/GBAEmulator.vue'));
+
+const { t } = useI18n();
+const { showToast } = useToast();
 
 const props = defineProps({
   mode: {
@@ -215,7 +261,13 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['file-selected', 'file-cleared', 'write-rom', 'read-rom', 'verify-rom', 'preview-rom', 'rom-size-change', 'mode-switch-required']);
+const emit = defineEmits(['file-selected', 'file-cleared', 'write-rom', 'read-rom', 'verify-rom', 'rom-size-change', 'mode-switch-required']);
+
+// 模拟器相关状态
+const showEmulator = ref(false);
+const showGBAEmulator = ref(false);
+const emulatorRomData = ref<Uint8Array | null>(null);
+const emulatorRomName = ref('');
 
 const selectedRomSize = ref(props.selectedRomSize);
 const romInfo = ref<RomInfo | null>(null);
@@ -286,6 +338,39 @@ function onFileCleared() {
 function onRomSizeChange() {
   emit('rom-size-change', selectedRomSize.value);
 }
+
+function playRom() {
+  if (!props.romFileData || !props.romFileName || !romInfo.value) {
+    showToast(t('messages.operation.noRomFile'), 'error');
+    return;
+  }
+
+  // 设置模拟器数据
+  emulatorRomData.value = props.romFileData;
+  emulatorRomName.value = props.romFileName;
+
+  // 根据ROM类型选择正确的模拟器
+  if (romInfo.value.type === 'GBA') {
+    showGBAEmulator.value = true;
+    showEmulator.value = false;
+    showToast(t('messages.emulator.launched', { name: props.romFileName }), 'success');
+  } else if (romInfo.value.type === 'GB' || romInfo.value.type === 'GBC') {
+    showEmulator.value = true;
+    showGBAEmulator.value = false;
+    showToast(t('messages.emulator.launched', { name: props.romFileName }), 'success');
+  } else {
+    showToast(t('messages.emulator.unsupportedRom'), 'error');
+    return;
+  }
+}
+
+function closeEmulator() {
+  showEmulator.value = false;
+  showGBAEmulator.value = false;
+  emulatorRomData.value = null;
+  emulatorRomName.value = '';
+  showToast(t('messages.emulator.closed'), 'success');
+}
 </script>
 
 <style scoped>
@@ -346,6 +431,59 @@ function onRomSizeChange() {
   cursor: not-allowed;
 }
 
+.file-upload-container {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  width: 100%;
+}
+
+/* 默认情况下，FileDropZone 占满整个宽度 */
+.file-upload-container > *:first-child {
+  flex: 1;
+  width: 100%;
+}
+
+/* 当有播放按钮时的布局 */
+.file-upload-container.has-play-button > *:first-child {
+  flex: 0 0 80%;
+  width: 80%;
+}
+
+.file-upload-container.has-play-button .play-button {
+  max-width: none;
+  margin-bottom: 12px;
+}
+
+.play-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  min-width: 48px;
+  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1.2rem;
+}
+
+.play-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #45a049 0%, #3e8e41 100%) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+}
+
+.play-button:disabled {
+  background: #e9ecef !important;
+  color: #6c757d !important;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 .button-row {
   display: flex;
   gap: 12px;
@@ -385,7 +523,7 @@ button:not(:disabled):hover {
 
 /* ROM信息面板样式 */
 .rom-info-panel {
-  margin: 16px 0;
+  margin-bottom: 12px;
   padding: 16px;
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   border: 1px solid #dee2e6;

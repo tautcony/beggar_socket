@@ -69,7 +69,6 @@
             @write-rom="writeRom"
             @read-rom="readRom"
             @verify-rom="verifyRom"
-            @preview-rom="previewRom"
             @rom-size-change="onRomSizeChange"
             @mode-switch-required="onModeSwitchRequired"
           />
@@ -100,28 +99,11 @@
         @clear-logs="clearLog"
       />
     </div>
-
-    <!-- Game Boy Emulator -->
-    <Suspense>
-      <GameBoyEmulator
-        v-if="showEmulator"
-        :rom-data="emulatorRomData"
-        :rom-name="emulatorRomName"
-        :is-visible="showEmulator"
-        @close="closeEmulator"
-      />
-      <template #fallback>
-        <div class="emulator-loading">
-          <div class="loading-spinner" />
-          <p>{{ $t('ui.emulator.loading') }}...</p>
-        </div>
-      </template>
-    </Suspense>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, defineAsyncComponent } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ChipOperations from '@/components/operaiton/ChipOperations.vue';
 import RomOperations from '@/components/operaiton/RomOperations.vue';
@@ -138,9 +120,6 @@ import { DeviceInfo } from '@/types/device-info';
 import { FileInfo } from '@/types/file-info';
 import { formatBytes } from '@/utils/formatter-utils';
 import { useToast } from '@/composables/useToast';
-
-// 动态加载 GameBoy 模拟器组件
-const GameBoyEmulator = defineAsyncComponent(() => import('@/components/GameBoyEmulator.vue'));
 
 const { showToast } = useToast();
 const { t } = useI18n();
@@ -184,11 +163,6 @@ const ramFileData = ref<Uint8Array | null>(null);
 const ramFileName = ref('');
 const selectedRamSize = ref('0x8000'); // 默认32KB
 const selectedRamType = ref('SRAM'); // 默认SRAM
-
-// Emulator
-const showEmulator = ref(false);
-const emulatorRomData = ref<Uint8Array | null>(null);
-const emulatorRomName = ref('');
 
 // 计算当前显示的进度
 const currentProgress = computed(() => {
@@ -508,27 +482,6 @@ async function verifyRom() {
   }
 }
 
-function previewRom() {
-  if (!romFileData.value || !romFileName.value) {
-    showToast(t('messages.operation.noRomFile'), 'error');
-    return;
-  }
-
-  // 设置模拟器数据
-  emulatorRomData.value = romFileData.value;
-  emulatorRomName.value = romFileName.value;
-  showEmulator.value = true;
-
-  log(t('messages.emulator.launched', { name: romFileName.value }));
-}
-
-function closeEmulator() {
-  showEmulator.value = false;
-  emulatorRomData.value = null;
-  emulatorRomName.value = '';
-  log(t('messages.emulator.closed'));
-}
-
 async function writeRam() {
   busy.value = true;
   operateProgress.value = 0;
@@ -827,41 +780,5 @@ defineExpose({
 .tab-icon {
   margin-right: 6px;
   font-size: 1.2em;
-}
-
-/* 模拟器加载状态样式 */
-.emulator-loading {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  z-index: 9999;
-}
-
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  border-top: 4px solid #fff;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 16px;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.emulator-loading p {
-  font-size: 1.1rem;
-  margin: 0;
 }
 </style>

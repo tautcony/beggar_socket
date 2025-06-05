@@ -98,12 +98,22 @@
       "reset": "Reset",
       "close": "Close",
       "loading": "Loading Emulator",
+      "loaded": "Emulator loaded successfully",
+      "resumed": "Game resumed",
       "initError": "Failed to initialize emulator",
       "operationFailed": "Operation failed",
       "resetFailed": "Reset failed",
+      "loadFailed": "Load failed",
       "dpad": "D-Pad",
+      "aButton": "A Button",
+      "bButton": "B Button",
+      "start": "Start",
+      "select": "Select", 
+      "l": "L Button",
+      "r": "R Button",
       "buttons": "A/B Buttons",
       "startSelect": "Start/Select",
+      "controlsHelp": "Use keyboard to control the game",
       "initSuccess": "Emulator initialized successfully",
       "invalidRom": "Invalid ROM file",
       "romLoadFailed": "Failed to load ROM",
@@ -259,6 +269,11 @@
       "writeSummary": "ROM write complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} KB",
       "readSummary": "ROM read complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} KB"
     },
+    "emulator": {
+      "launched": "Emulator preview launched: {name}",
+      "closed": "Emulator closed",
+      "unsupportedRom": "Unsupported ROM file format"
+    },
     "ram": {
       "writing": "Writing RAM, size {size} bytes",
       "written": "Written {written} bytes",
@@ -317,10 +332,6 @@
     },
     "debug": {
       "mockModeEnabled": "Debug mode enabled - Using mock device"
-    },
-    "emulator": {
-      "launched": "Emulator preview launched: {name}",
-      "closed": "Emulator closed"
     }
   }
 }

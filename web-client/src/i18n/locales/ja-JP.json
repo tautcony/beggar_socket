@@ -98,12 +98,22 @@
       "reset": "リセット",
       "close": "閉じる",
       "loading": "エミュレーター読み込み中",
+      "loaded": "エミュレーターの読み込み完了",
+      "resumed": "ゲーム再開",
       "initError": "エミュレーター初期化に失敗しました",
       "operationFailed": "操作に失敗しました",
       "resetFailed": "リセットに失敗しました",
+      "loadFailed": "読み込みに失敗しました",
       "dpad": "十字キー",
+      "aButton": "Aボタン",
+      "bButton": "Bボタン",
+      "start": "スタート",
+      "select": "セレクト",
+      "l": "Lボタン",
+      "r": "Rボタン",
       "buttons": "A/Bボタン",
       "startSelect": "スタート/セレクト",
+      "controlsHelp": "キーボードでゲームを操作",
       "initSuccess": "エミュレーターの初期化が完了しました",
       "invalidRom": "無効なROMファイルです",
       "romLoadFailed": "ROMの読み込みに失敗しました",
@@ -259,6 +269,11 @@
       "writeSummary": "ROM書き込み完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} KB",
       "readSummary": "ROM読み取り完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} KB"
     },
+    "emulator": {
+      "launched": "エミュレータープレビューを開始: {name}",
+      "closed": "エミュレーターを終了",
+      "unsupportedRom": "サポートされていないROMファイルです"
+    },
     "ram": {
       "writing": "RAMを書き込み中、サイズ {size} バイト",
       "written": "{written} バイト書き込み済み",
@@ -317,10 +332,6 @@
     },
     "debug": {
       "mockModeEnabled": "デバッグモードが有効 - モックデバイスを使用"
-    },
-    "emulator": {
-      "launched": "エミュレータープレビューを起動しました: {name}",
-      "closed": "エミュレーターが閉じられました"
     }
   }
 }
