@@ -35,7 +35,7 @@
       </div>
     </div>
     <FileDropZone
-      :disabled="!deviceReady || busy"
+      :disabled="busy"
       :file-data="romFileData"
       :file-name="romFileName"
       accept-types=".rom,.gba,.gb,.gbc"
@@ -164,12 +164,24 @@
       >
         {{ $t('ui.rom.verify') }}
       </button>
+      <button
+        v-if="canPreview"
+        :disabled="!romFileData || busy"
+        class="preview-button"
+        @click="$emit('preview-rom')"
+      >
+        <IonIcon
+          name="play-outline"
+          class="button-icon"
+        />
+        {{ $t('ui.rom.preview') }}
+      </button>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { IonIcon } from '@ionic/vue';
 import FileDropZone from '../common/FileDropZone.vue';
 import { FileInfo } from '../../types/file-info.ts';
@@ -203,11 +215,20 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['file-selected', 'file-cleared', 'write-rom', 'read-rom', 'verify-rom', 'rom-size-change', 'mode-switch-required']);
+const emit = defineEmits(['file-selected', 'file-cleared', 'write-rom', 'read-rom', 'verify-rom', 'preview-rom', 'rom-size-change', 'mode-switch-required']);
 
 const selectedRomSize = ref(props.selectedRomSize);
 const romInfo = ref<RomInfo | null>(null);
 const isRomInfoCollapsed = ref(true); // 默认折叠
+
+// 计算是否可以预览ROM
+const canPreview = computed(() => {
+  if (!romInfo.value) return false;
+
+  // 只支持 Game Boy, Game Boy Color 和 Game Boy Advance ROM
+  const supportedTypes = ['GB', 'GBC', 'GBA'];
+  return supportedTypes.includes(romInfo.value.type);
+});
 
 // 当ROM文件数据变化时，解析ROM信息
 watch(() => props.romFileData, (newData) => {
@@ -493,5 +514,30 @@ button:not(:disabled):hover {
 
 .rom-validity.invalid {
   color: #dc3545;
+}
+
+.preview-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: white !important;
+  border: none !important;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.preview-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.preview-button:disabled {
+  background: #e9ecef !important;
+  color: #6c757d !important;
+}
+
+.button-icon {
+  font-size: 1rem;
 }
 </style>

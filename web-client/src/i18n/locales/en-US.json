@@ -74,6 +74,7 @@
       "write": "Write ROM",
       "read": "Export ROM",
       "verify": "Verify ROM",
+      "preview": "Preview",
       "bankSwitching": "Bank Switching",
       "romTitle": "ROM Title",
       "romSize": "ROM Size",
@@ -88,6 +89,21 @@
       "cartType": "Cart Type",
       "ramSize": "RAM Size",
       "valid": "Valid"
+    },
+    "emulator": {
+      "title": "Game Preview",
+      "running": "Running",
+      "paused": "Paused",
+      "pause": "Pause",
+      "reset": "Reset",
+      "close": "Close",
+      "loading": "Loading Emulator",
+      "initError": "Failed to initialize emulator",
+      "operationFailed": "Operation failed",
+      "resetFailed": "Reset failed",
+      "dpad": "D-Pad",
+      "buttons": "A/B Buttons",
+      "startSelect": "Start/Select"
     },
     "ram": {
       "title": "RAM Operations",
@@ -203,6 +219,7 @@
       "verifyFailed": "Verify failed",
       "cancelled": "Operation cancelled",
       "unsupportedMode": "Mode not supported or adapter uninitialized",
+      "noRomFile": "Please select a ROM file first",
       "unknownFlashId": "ID not recognized, may not be able to write",
       "eraseComplete": "Erase complete",
       "eraseInProgress": "Erasing in progress...",
@@ -296,6 +313,10 @@
     },
     "debug": {
       "mockModeEnabled": "Debug mode enabled - Using mock device"
+    },
+    "emulator": {
+      "launched": "Emulator preview launched: {name}",
+      "closed": "Emulator closed"
     }
   }
 }

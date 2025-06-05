@@ -74,6 +74,7 @@
       "write": "ROM書き込み",
       "read": "ROMをエクスポート",
       "verify": "ROM検証",
+      "preview": "プレビュー",
       "bankSwitching": "バンク切り替え",
       "romTitle": "ROMタイトル",
       "romSize": "ROMサイズ",
@@ -88,6 +89,21 @@
       "cartType": "カートタイプ",
       "ramSize": "RAMサイズ",
       "valid": "有効性"
+    },
+    "emulator": {
+      "title": "ゲームプレビュー",
+      "running": "実行中",
+      "paused": "一時停止",
+      "pause": "一時停止",
+      "reset": "リセット",
+      "close": "閉じる",
+      "loading": "エミュレーター読み込み中",
+      "initError": "エミュレーター初期化に失敗しました",
+      "operationFailed": "操作に失敗しました",
+      "resetFailed": "リセットに失敗しました",
+      "dpad": "十字キー",
+      "buttons": "A/Bボタン",
+      "startSelect": "スタート/セレクト"
     },
     "ram": {
       "title": "RAM操作",
@@ -203,6 +219,7 @@
       "verifyFailed": "検証失敗",
       "cancelled": "操作がキャンセルされました",
       "unsupportedMode": "未サポートのモードまたはアダプターが初期化されていません",
+      "noRomFile": "ROMファイルを選択してください",
       "unknownFlashId": "IDが未登録です、書き込みできない可能性があります",
       "eraseComplete": "消去完了",
       "eraseInProgress": "消去中...",
@@ -296,6 +313,10 @@
     },
     "debug": {
       "mockModeEnabled": "デバッグモードが有効 - モックデバイスを使用"
+    },
+    "emulator": {
+      "launched": "エミュレータープレビューを起動しました: {name}",
+      "closed": "エミュレーターが閉じられました"
     }
   }
 }

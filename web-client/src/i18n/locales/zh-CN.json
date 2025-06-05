@@ -74,6 +74,7 @@
       "write": "写入ROM",
       "read": "导出ROM",
       "verify": "校验ROM",
+      "preview": "预览",
       "bankSwitching": "Bank切换",
       "romTitle": "ROM标题",
       "romSize": "ROM大小",
@@ -88,6 +89,21 @@
       "cartType": "卡带类型",
       "ramSize": "RAM大小",
       "valid": "有效性"
+    },
+    "emulator": {
+      "title": "游戏预览",
+      "running": "运行中",
+      "paused": "已暂停",
+      "pause": "暂停",
+      "reset": "重置",
+      "close": "关闭",
+      "loading": "正在加载模拟器",
+      "initError": "模拟器初始化失败",
+      "operationFailed": "操作失败",
+      "resetFailed": "重置失败",
+      "dpad": "方向键",
+      "buttons": "A/B按键",
+      "startSelect": "开始/选择"
     },
     "ram": {
       "title": "RAM操作",
@@ -203,6 +219,7 @@
       "verifyFailed": "校验失败",
       "cancelled": "操作已取消",
       "unsupportedMode": "未支持的模式或适配器未初始化",
+      "noRomFile": "请先选择ROM文件",
       "unknownFlashId": "ID暂未收录，可能无法写入",
       "eraseComplete": "擦除完成",
       "eraseInProgress": "正在擦除...",
@@ -297,6 +314,10 @@
     },
     "debug": {
       "mockModeEnabled": "调试模式已启用 - 使用模拟设备"
+    },
+    "emulator": {
+      "launched": "已启动模拟器预览: {name}",
+      "closed": "模拟器已关闭"
     }
   }
 }

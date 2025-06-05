@@ -24,6 +24,7 @@
     "vue": "^3.5.16",
     "vue-i18n": "^11.1.5",
     "vue-router": "^4.5.1",
+    "wasmboy": "^0.7.1",
     "web-serial-polyfill": "^1.0.15"
   },
   "devDependencies": {
