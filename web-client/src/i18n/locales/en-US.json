@@ -103,7 +103,11 @@
       "resetFailed": "Reset failed",
       "dpad": "D-Pad",
       "buttons": "A/B Buttons",
-      "startSelect": "Start/Select"
+      "startSelect": "Start/Select",
+      "initSuccess": "Emulator initialized successfully",
+      "invalidRom": "Invalid ROM file",
+      "romLoadFailed": "Failed to load ROM",
+      "startGameFailed": "Failed to start game"
     },
     "ram": {
       "title": "RAM Operations",

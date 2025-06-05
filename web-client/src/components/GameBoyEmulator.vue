@@ -174,7 +174,28 @@ async function initEmulator() {
     await WasmBoy.config(config);
 
     // 加载 ROM
-    await WasmBoy.loadROM(props.romData);
+    try {
+      await WasmBoy.loadROM(props.romData);
+    } catch (romError: unknown) {
+      console.error('ROM loading failed:', romError);
+      // 尝试清理 WasmBoy 状态
+      try {
+        await WasmBoy.reset();
+      } catch (resetError) {
+        console.error('Reset after ROM load failure also failed:', resetError);
+      }
+
+      // 根据错误类型提供更具体的错误信息
+      let errorMessage = t('ui.emulator.romLoadFailed');
+      if (romError instanceof RangeError) {
+        errorMessage = t('ui.emulator.invalidRom');
+      } else if (romError instanceof Error && romError.message) {
+        errorMessage += `: ${romError.message}`;
+      }
+
+      showToast(errorMessage, 'error');
+      return;
+    }
 
     // 设置 Canvas 为可聚焦
     if (gameCanvas.value) {
@@ -183,7 +204,13 @@ async function initEmulator() {
     }
 
     // 开始游戏
-    await WasmBoy.play();
+    try {
+      await WasmBoy.play();
+    } catch (playError: unknown) {
+      console.error('Failed to start game:', playError);
+      showToast(`${t('ui.emulator.startGameFailed')}`, 'error');
+      return;
+    }
 
     wasmBoyInstance = WasmBoy;
     isPaused.value = false;
@@ -191,9 +218,12 @@ async function initEmulator() {
     // 设置键盘事件监听
     setupKeyboardControls();
 
-  } catch (error) {
+    showToast(t('ui.emulator.initSuccess'), 'success');
+
+  } catch (error: unknown) {
     console.error('Failed to initialize emulator:', error);
-    showToast(t('ui.emulator.initError'), 'error');
+    const errorMessage = error instanceof Error ? error.message : '未知错误';
+    showToast(`${t('ui.emulator.initError')}: ${errorMessage}`, 'error');
   }
 }
 
@@ -225,7 +255,7 @@ async function togglePause() {
       isPaused.value = true;
       showToast(t('ui.emulator.paused'), 'success');
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Failed to toggle pause:', error);
     showToast(t('ui.emulator.operationFailed'), 'error');
   }
@@ -239,7 +269,7 @@ async function resetGame() {
     await wasmBoyInstance.play();
     isPaused.value = false;
     showToast(t('ui.emulator.reset') + ' - ' + t('ui.emulator.running'), 'success');
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Failed to reset game:', error);
     showToast(t('ui.emulator.resetFailed'), 'error');
   }
@@ -255,7 +285,7 @@ function cleanup() {
     try {
       wasmBoyInstance.pause();
       wasmBoyInstance.disableDefaultJoypad();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error during cleanup:', error);
     }
     wasmBoyInstance = null;

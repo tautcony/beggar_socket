@@ -103,7 +103,11 @@
       "resetFailed": "重置失败",
       "dpad": "方向键",
       "buttons": "A/B按键",
-      "startSelect": "开始/选择"
+      "startSelect": "开始/选择",
+      "initSuccess": "模拟器初始化成功",
+      "invalidRom": "无效的ROM文件",
+      "romLoadFailed": "ROM加载失败",
+      "startGameFailed": "游戏启动失败"
     },
     "ram": {
       "title": "RAM操作",
