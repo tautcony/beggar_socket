@@ -432,14 +432,14 @@ onMounted(() => {
 }
 
 .input-group {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
 }
 
 .input-group input {
-  flex: 1;
-  padding: 8px 12px;
+  width: 100%;
+  padding: 8px 70px 8px 12px;
   border: 1px solid #ddd;
   border-radius: 4px;
   background: white;
@@ -460,10 +460,15 @@ onMounted(() => {
 }
 
 .unit {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   color: #666;
   font-size: 0.9em;
   white-space: nowrap;
-  min-width: 60px;
+  pointer-events: none;
+  user-select: none;
 }
 
 .hint {
