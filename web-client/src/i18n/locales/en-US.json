@@ -117,7 +117,11 @@
       "initSuccess": "Emulator initialized successfully",
       "invalidRom": "Invalid ROM file",
       "romLoadFailed": "Failed to load ROM",
-      "startGameFailed": "Failed to start game"
+      "startGameFailed": "Failed to start game",
+      "error": "Emulator error occurred",
+      "retry": "Retry",
+      "crashed": "Emulator has crashed",
+      "tooManyRetries": "Too many retries, please refresh the page"
     },
     "ram": {
       "title": "RAM Operations",

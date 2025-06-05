@@ -117,7 +117,11 @@
       "initSuccess": "模拟器初始化成功",
       "invalidRom": "无效的ROM文件",
       "romLoadFailed": "ROM加载失败",
-      "startGameFailed": "游戏启动失败"
+      "startGameFailed": "游戏启动失败",
+      "error": "模拟器发生错误",
+      "retry": "重试",
+      "crashed": "模拟器已崩溃",
+      "tooManyRetries": "重试次数过多，请刷新页面"
     },
     "ram": {
       "title": "RAM操作",

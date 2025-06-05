@@ -35,7 +35,24 @@
       </div>
 
       <div class="emulator-content">
+        <div
+          v-if="hasError"
+          class="error-display"
+        >
+          <div class="error-icon">
+            ⚠️
+          </div>
+          <h4>{{ $t('ui.emulator.error') }}</h4>
+          <p>{{ errorMessage }}</p>
+          <button
+            class="retry-btn"
+            @click="retryInitialization"
+          >
+            {{ $t('ui.emulator.retry') }}
+          </button>
+        </div>
         <canvas
+          v-else
           ref="gameCanvas"
           class="game-canvas"
           width="240"
@@ -82,6 +99,10 @@ const emit = defineEmits(['close']);
 const gameCanvas = ref<HTMLCanvasElement | null>(null);
 const gba = ref<Wrapper | null>(null);
 const isPaused = ref(false);
+const hasError = ref(false);
+const errorMessage = ref('');
+const crashCount = ref(0);
+const isInitializing = ref(false);
 
 const keyBindings: { [key: string]: number } = {
   'KeyW': 6, // UP
@@ -124,19 +145,48 @@ watch(() => props.romData, async (newRomData) => {
 });
 
 async function initializeEmulator() {
+  if (isInitializing.value) {
+    console.warn('Emulator is already initializing');
+    return;
+  }
+
   try {
-    if (!gameCanvas.value || !props.romData) {
-      console.error('Canvas or ROM data not available');
-      return;
+    isInitializing.value = true;
+    hasError.value = false;
+    errorMessage.value = '';
+
+    if (!gameCanvas.value) {
+      throw new Error('Canvas element not available');
+    }
+
+    if (!props.romData) {
+      throw new Error('ROM data not provided');
+    }
+
+    // 检查ROM数据有效性
+    if (props.romData.length < 1024) {
+      throw new Error('ROM data appears to be too small');
     }
 
     cleanup();
+
+    // 检查浏览器兼容性
+    if (!window.WebAssembly) {
+      throw new Error('WebAssembly is not supported in this browser');
+    }
 
     // 根据官方例子初始化 gbats Wrapper
     gba.value = new Wrapper({
       rom: props.romData.buffer,
       canvas: gameCanvas.value,
     });
+
+    if (!gba.value) {
+      throw new Error('Failed to create GBA emulator instance');
+    }
+
+    // 设置错误处理器
+    setupErrorHandling();
 
     // 设置图片格式
     gba.value.screenImageFormat = 'webp';
@@ -145,47 +195,121 @@ async function initializeEmulator() {
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('keyup', handleKeyUp);
 
+    // 重置错误计数
+    crashCount.value = 0;
+
     showToast(t('ui.emulator.loaded'), 'success');
   } catch (error) {
     console.error('Failed to initialize GBA emulator:', error);
+
+    crashCount.value++;
+    hasError.value = true;
+
+    if (error instanceof Error) {
+      errorMessage.value = error.message;
+    } else {
+      errorMessage.value = 'Unknown error occurred';
+    }
+
+    // 如果多次崩溃，显示特殊错误信息
+    if (crashCount.value > 1) {
+      errorMessage.value = `Multiple initialization failures (${crashCount.value}). Please check ROM compatibility.`;
+    }
+
     showToast(t('ui.emulator.loadFailed'), 'error');
+  } finally {
+    isInitializing.value = false;
   }
 }
 
-function handleKeyDown(event: KeyboardEvent) {
+function setupErrorHandling() {
   if (!gba.value) return;
+
+  try {
+    gba.value.emulator.setLogger((level: number, error: string) => {
+      handleEmulatorError(level, error);
+    });
+  } catch (error) {
+    console.warn('Could not set up error handling:', error);
+  }
+}
+
+function handleEmulatorError(level: number, error: string) {
+  console.error('Emulator error:', error);
+
+  if (gba.value) {
+    gba.value?.emulator.pause();
+  }
+
+  crashCount.value++;
+  hasError.value = true;
+  errorMessage.value = `Emulator crashed: ${error}`;
+
+  if (crashCount.value > 2) {
+    errorMessage.value = 'Multiple crashes detected. The ROM may be incompatible.';
+    gba.value?.emulator.pause();
+  }
+
+  showToast(t('ui.emulator.crashed'), 'error');
+}
+
+function retryInitialization() {
+  if (crashCount.value > 3) {
+    showToast(t('ui.emulator.tooManyRetries'), 'error');
+    return;
+  }
+
+  initializeEmulator();
+}
+
+function handleKeyDown(event: KeyboardEvent) {
+  if (!gba.value || hasError.value) return;
 
   const gamepadKey = keyBindings[event.code];
   if (gamepadKey !== undefined) {
     event.preventDefault();
-    gba.value.press(gamepadKey);
+    try {
+      gba.value.press(gamepadKey);
+    } catch (error) {
+      console.error('Error pressing key:', error);
+      handleEmulatorError(1, `Key press error: ${error}`);
+    }
   }
 }
 
 function handleKeyUp(event: KeyboardEvent) {
-  if (!gba.value) return;
+  if (!gba.value || hasError.value) return;
 
   const gamepadKey = keyBindings[event.code];
   if (gamepadKey !== undefined) {
     event.preventDefault();
-    // gbats 的 Wrapper 会自动处理按键释放
-    // 不需要手动调用释放函数
+    try {
+      // gbats 的 Wrapper 会自动处理按键释放
+      // 不需要手动调用释放函数
+    } catch (error) {
+      console.error('Error releasing key:', error);
+    }
   }
 }
 
 function togglePause() {
-  if (!gba.value) return;
+  if (!gba.value || hasError.value) return;
 
-  if (isPaused.value) {
-    // 恢复运行
-    gba.value.run(false);
-    isPaused.value = false;
-    showToast(t('ui.emulator.resumed'), 'success');
-  } else {
-    // 暂停
-    gba.value.pause();
-    isPaused.value = true;
-    showToast(t('ui.emulator.paused'), 'success');
+  try {
+    if (isPaused.value) {
+      // 恢复运行
+      gba.value.emulator.runStable();
+      isPaused.value = false;
+      showToast(t('ui.emulator.resumed'), 'success');
+    } else {
+      // 暂停
+      gba.value.emulator.pause();
+      isPaused.value = true;
+      showToast(t('ui.emulator.paused'), 'success');
+    }
+  } catch (error) {
+    console.error('Error toggling pause:', error);
+    handleEmulatorError(1, `Pause/resume error: ${error}`);
   }
 }
 
@@ -196,9 +320,12 @@ function resetGame() {
     // 使用 Wrapper 的 resetEmulator 方法
     gba.value.resetEmulator();
     isPaused.value = false;
+    hasError.value = false;
+    errorMessage.value = '';
     showToast(t('ui.emulator.reset'), 'success');
   } catch (error) {
     console.error('Failed to reset game:', error);
+    handleEmulatorError(1, `Reset error: ${error}`);
     showToast(t('ui.emulator.resetFailed'), 'error');
   }
 }
@@ -216,6 +343,10 @@ function cleanup() {
   // 停止模拟器
   if (gba.value) {
     try {
+      // 先暂停，然后清理
+      if (!isPaused.value) {
+        gba.value.pause();
+      }
       // gbats Wrapper 会自动清理资源
       gba.value = null;
     } catch (error) {
@@ -223,7 +354,11 @@ function cleanup() {
     }
   }
 
+  // 重置状态
   isPaused.value = false;
+  hasError.value = false;
+  errorMessage.value = '';
+  isInitializing.value = false;
 }
 </script>
 
@@ -313,6 +448,51 @@ function cleanup() {
   justify-content: center;
   padding: 20px;
   min-height: 200px;
+}
+
+.error-display {
+  text-align: center;
+  padding: 40px 20px;
+  color: #dc2626;
+}
+
+.error-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+}
+
+.error-display h4 {
+  margin: 0 0 12px 0;
+  font-size: 1.2rem;
+  color: #dc2626;
+}
+
+.error-display p {
+  margin: 0 0 20px 0;
+  color: #6b7280;
+  line-height: 1.5;
+  max-width: 400px;
+}
+
+.retry-btn {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.retry-btn:hover {
+  background: #b91c1c;
+}
+
+.retry-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
 }
 
 .game-canvas {

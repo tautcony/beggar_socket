@@ -117,7 +117,11 @@
       "initSuccess": "エミュレーターの初期化が完了しました",
       "invalidRom": "無効なROMファイルです",
       "romLoadFailed": "ROMの読み込みに失敗しました",
-      "startGameFailed": "ゲームの開始に失敗しました"
+      "startGameFailed": "ゲームの開始に失敗しました",
+      "error": "エミュレーターエラーが発生しました",
+      "retry": "再試行",
+      "crashed": "エミュレーターがクラッシュしました",
+      "tooManyRetries": "再試行回数が多すぎます。ページを更新してください"
     },
     "ram": {
       "title": "RAM操作",
