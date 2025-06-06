@@ -2,9 +2,10 @@ import pluginVue from 'eslint-plugin-vue'
 import tseslint from '@typescript-eslint/eslint-plugin'
 import tsparser from '@typescript-eslint/parser'
 import stylistic from '@stylistic/eslint-plugin'
+import simpleImportSort from 'eslint-plugin-simple-import-sort'
 import globals from 'globals'
 
-const commonTsRules = {
+const commonRules = {
   'no-undef': 'off',
   'no-extra-semi': 'off',
   '@typescript-eslint/no-unused-vars': 'off',
@@ -45,6 +46,9 @@ const commonTsRules = {
   'no-use-before-define': ['error', { functions: false, classes: true, variables: true }],
   'no-multi-spaces': 'error',
   'no-mixed-spaces-and-tabs': 'error',
+  'simple-import-sort/imports': 'error',
+  'simple-import-sort/exports': 'error',
+  'comma-spacing': 'error',
 }
 
 export default [
@@ -64,16 +68,11 @@ export default [
     },
     plugins: {
       '@typescript-eslint': tseslint,
-      '@stylistic': stylistic
+      '@stylistic': stylistic,
+      'simple-import-sort': simpleImportSort,
     },
     rules: {
-      ...commonTsRules,
-      'sort-imports': ['error', {
-        ignoreCase: true,
-        ignoreDeclarationSort: true,
-        ignoreMemberSort: false,
-        memberSyntaxSortOrder: ['none', 'all', 'multiple', 'single']
-      }],
+      ...commonRules,
     }
   },
   // Vue files configuration
@@ -93,7 +92,8 @@ export default [
     },
     plugins: {
       '@typescript-eslint': tseslint,
-      '@stylistic': stylistic
+      '@stylistic': stylistic,
+      'simple-import-sort': simpleImportSort,
     },
     rules: {
       // Vue specific rules
@@ -104,7 +104,7 @@ export default [
       'vue/no-multiple-template-root': 'off', // Vue 3 allows multiple root elements
       
       // TypeScript rules for Vue files
-      ...commonTsRules,
+      ...commonRules,
     }
   },
   // JavaScript files configuration

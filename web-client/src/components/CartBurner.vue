@@ -103,14 +103,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
-import ChipOperations from '@/components/operaiton/ChipOperations.vue';
-import RomOperations from '@/components/operaiton/RomOperations.vue';
-import RamOperations from '@/components/operaiton/RamOperations.vue';
-import LogViewer from '@/components/LogViewer.vue';
-import ProgressDisplay from '@/components/ProgressDisplay.vue';
 import { IonIcon } from '@ionic/vue';
+import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+import LogViewer from '@/components/LogViewer.vue';
+import ChipOperations from '@/components/operaiton/ChipOperations.vue';
+import RamOperations from '@/components/operaiton/RamOperations.vue';
+import RomOperations from '@/components/operaiton/RomOperations.vue';
+import ProgressDisplay from '@/components/ProgressDisplay.vue';
+import { useToast } from '@/composables/useToast';
 import { CartridgeAdapter, type ProgressInfo } from '@/services/cartridge-adapter';
 import { GBAAdapter } from '@/services/gba-adapter';
 import { MBC5Adapter } from '@/services/mbc5-adapter';
@@ -119,7 +121,6 @@ import { DebugSettings } from '@/settings/debug-settings';
 import { DeviceInfo } from '@/types/device-info';
 import { FileInfo } from '@/types/file-info';
 import { formatBytes } from '@/utils/formatter-utils';
-import { useToast } from '@/composables/useToast';
 
 const { showToast } = useToast();
 const { t } = useI18n();

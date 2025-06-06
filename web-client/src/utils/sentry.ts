@@ -1,5 +1,5 @@
-import * as Sentry from '@sentry/vue';
 import { browserTracingIntegration } from '@sentry/browser';
+import * as Sentry from '@sentry/vue';
 import type { App } from 'vue';
 
 export interface SentryConfig {

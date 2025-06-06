@@ -1,6 +1,6 @@
-import { DeviceInfo } from '@/types/device-info';
-import { CommandResult } from '@/types/command-result';
 import { CommandOptions } from '@/types/command-options';
+import { CommandResult } from '@/types/command-result';
+import { DeviceInfo } from '@/types/device-info';
 
 // 定义日志和进度回调函数类型
 export type LogCallback = (message: string, type?: 'info' | 'error' | 'success' | 'warning') => void;

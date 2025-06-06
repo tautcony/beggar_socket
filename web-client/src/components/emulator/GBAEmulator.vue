@@ -79,11 +79,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { IonIcon } from '@ionic/vue';
-import { useI18n } from 'vue-i18n';
-import { useToast } from '@/composables/useToast';
 import { Wrapper } from 'gbats';
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+import { useToast } from '@/composables/useToast';
 
 const { t } = useI18n();
 const { showToast } = useToast();

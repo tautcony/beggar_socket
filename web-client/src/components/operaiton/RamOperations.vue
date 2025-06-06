@@ -81,9 +81,10 @@
 </template>
 
 <script setup lang="ts">
-import FileDropZone from '../common/FileDropZone.vue';
-import { FileInfo } from '../../types/file-info.ts';
 import { ref, watch } from 'vue';
+
+import FileDropZone from '@/components/common/FileDropZone.vue';
+import { FileInfo } from '@/types/file-info.ts';
 
 const props = defineProps({
   mode: {

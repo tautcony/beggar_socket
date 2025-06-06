@@ -33,15 +33,16 @@
 </template>
 
 <script setup lang="ts">
-import { DeviceInfo } from '@/types/device-info';
-import { ref, computed } from 'vue';
+import { IonIcon } from '@ionic/vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { DebugSettings } from '@/settings/debug-settings';
 import {
   serial as polyfill, SerialPort as SerialPortPolyfill,
 } from 'web-serial-polyfill';
-import { IonIcon } from '@ionic/vue';
+
 import { useToast } from '@/composables/useToast';
+import { DebugSettings } from '@/settings/debug-settings';
+import { DeviceInfo } from '@/types/device-info';
 
 const { showToast } = useToast();
 const { t } = useI18n();

@@ -1,8 +1,9 @@
 import { gbc_direct_write, gbc_read, gbc_rom_program } from '@/protocol/beggar_socket/protocol';
-import { DeviceInfo } from '@/types/device-info';
 import { CartridgeAdapter, EnhancedProgressCallback, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
-import { CommandResult } from '@/types/command-result';
 import { CommandOptions } from '@/types/command-options';
+import { CommandResult } from '@/types/command-result';
+import { DeviceInfo } from '@/types/device-info';
+
 import { PerformanceTracker } from '../utils/sentry';
 
 /**

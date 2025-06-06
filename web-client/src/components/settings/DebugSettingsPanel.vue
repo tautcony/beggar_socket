@@ -146,8 +146,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { DebugSettings } from '@/settings/debug-settings';
 import { GBA_NINTENDO_LOGO } from '@/utils/rom-parser';
 

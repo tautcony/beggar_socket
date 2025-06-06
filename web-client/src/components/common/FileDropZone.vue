@@ -72,8 +72,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
 import { IonIcon } from '@ionic/vue';
+import { ref } from 'vue';
+
 import { FileInfo } from '@/types/file-info';
 import { formatBytes } from '@/utils/formatter-utils';
 

@@ -25,9 +25,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useI18n } from 'vue-i18n';
 import { IonIcon } from '@ionic/vue';
+import { onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const { locale } = useI18n();
 const currentLocale = ref(locale.value);

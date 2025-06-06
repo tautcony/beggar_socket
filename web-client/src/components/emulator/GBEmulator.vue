@@ -64,10 +64,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 import { IonIcon } from '@ionic/vue';
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { WasmBoy, type WasmBoyStatic } from 'wasmboy';
+
 import { useToast } from '@/composables/useToast';
 
 const { t } = useI18n();

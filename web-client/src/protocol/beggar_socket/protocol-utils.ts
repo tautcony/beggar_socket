@@ -1,8 +1,8 @@
 
 import { AdvancedSettings } from '@/settings/advanced-settings';
-import { PerformanceTracker } from '@/utils/sentry';
 import { withTimeout } from '@/utils/async-utils';
 import { modbusCRC16_lut } from '@/utils/crc-utils';
+import { PerformanceTracker } from '@/utils/sentry';
 
 export function toLittleEndian(value: number, byteLength: number): Uint8Array {
   const bytes = new Uint8Array(byteLength);

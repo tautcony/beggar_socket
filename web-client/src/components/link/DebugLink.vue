@@ -17,9 +17,9 @@
 </template>
 
 <script setup lang="ts">
-import FloatingLink from '@/components/common/FloatingLink.vue';
 import { IonIcon } from '@ionic/vue';
-import { useI18n } from 'vue-i18n';
+
+import FloatingLink from '@/components/common/FloatingLink.vue';
 
 const props = defineProps<{ modelValue: boolean }>();
 const emit = defineEmits(['update:modelValue']);

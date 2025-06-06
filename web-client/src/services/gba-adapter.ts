@@ -1,24 +1,23 @@
 import {
-  rom_readID,
-  // eslint-disable-next-line sort-imports
-  rom_eraseChip,
-  rom_sector_erase,
-  rom_program,
-  rom_direct_write,
-  rom_read,
-  rom_verify,
-  ram_write,
   ram_read,
+  ram_write,
   // ram_verify,
   ram_write_to_flash,
+  rom_direct_write,
+  rom_eraseChip,
+  rom_program,
+  rom_read,
+  rom_readID,
+  rom_sector_erase,
+  rom_verify,
 } from '@/protocol/beggar_socket/protocol';
-import { AdvancedSettings } from '@/settings/advanced-settings';
-import { DeviceInfo } from '@/types/device-info';
-import { CartridgeAdapter, EnhancedProgressCallback, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
-import { CommandResult } from '@/types/command-result';
-import { CommandOptions } from '@/types/command-options';
 import { getFlashId } from '@/protocol/beggar_socket/protocol-utils';
-import { PerformanceTracker } from '../utils/sentry';
+import { CartridgeAdapter, EnhancedProgressCallback, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
+import { AdvancedSettings } from '@/settings/advanced-settings';
+import { CommandOptions } from '@/types/command-options';
+import { CommandResult } from '@/types/command-result';
+import { DeviceInfo } from '@/types/device-info';
+import { PerformanceTracker } from '@/utils/sentry';
 
 /**
  * GBA Adapter - 封装GBA卡带的协议操作

@@ -31,8 +31,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
 import { IonIcon } from '@ionic/vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 
 interface Toast {
   id: number;

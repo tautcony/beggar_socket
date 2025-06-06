@@ -82,7 +82,7 @@ vi.mock('../src/components/settings/DebugSettingsPanel.vue', () => ({
   },
 }));
 
-vi.mock('../src/components/links/DebugLink.vue', () => ({
+vi.mock('../src/components/link/DebugLink.vue', () => ({
   default: {
     name: 'DebugLink',
     template: '<div class="debug-link">Debug Link</div>',
@@ -91,7 +91,7 @@ vi.mock('../src/components/links/DebugLink.vue', () => ({
   },
 }));
 
-vi.mock('../src/components/links/SettingsLink.vue', () => ({
+vi.mock('../src/components/link/SettingsLink.vue', () => ({
   default: {
     name: 'SettingsLink',
     template: '<div class="settings-link">Settings Link</div>',
@@ -99,7 +99,7 @@ vi.mock('../src/components/links/SettingsLink.vue', () => ({
   },
 }));
 
-vi.mock('../src/components/links/GitHubLink.vue', () => ({
+vi.mock('../src/components/link/GitHubLink.vue', () => ({
   default: {
     name: 'GitHubLink',
     template: '<div class="github-link">GitHub Link</div>',

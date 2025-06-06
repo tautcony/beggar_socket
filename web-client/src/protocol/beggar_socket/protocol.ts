@@ -1,6 +1,6 @@
 import { getPackage, getResult, sendPackage, toLittleEndian } from '@/protocol/beggar_socket/protocol-utils';
-import { DeviceInfo } from '@/types/device-info';
 import { AdvancedSettings } from '@/settings/advanced-settings';
+import { DeviceInfo } from '@/types/device-info';
 
 // --- GBA Commands ---
 

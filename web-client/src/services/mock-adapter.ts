@@ -1,7 +1,7 @@
-import { CartridgeAdapter, EnhancedProgressCallback, LogCallback, ProgressCallback, TranslateFunction } from './cartridge-adapter';
-import { CommandResult } from '@/types/command-result';
+import { CartridgeAdapter, EnhancedProgressCallback, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
+import { DebugSettings } from '@/settings/debug-settings';
 import { CommandOptions } from '@/types/command-options';
-import { DebugSettings } from '../settings/debug-settings';
+import { CommandResult } from '@/types/command-result';
 
 /**
  * 模拟适配器类

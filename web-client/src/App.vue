@@ -45,19 +45,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, provide } from 'vue';
-import DeviceConnect from '@/components/DeviceConnect.vue';
+import { computed, provide, ref } from 'vue';
+
 import CartBurner from '@/components/CartBurner.vue';
-import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
-import DebugSettingsPanel from '@/components/settings/DebugSettingsPanel.vue';
-import GitHubLink from '@/components/links/GitHubLink.vue';
-import AdvancedSettingsPanel from '@/components/settings/AdvancedSettingsPanel.vue';
-import SettingsLink from '@/components/links/SettingsLink.vue';
 import GlobalToast from '@/components/common/GlobalToast.vue';
-import DebugLink from '@/components/links/DebugLink.vue';
-import { DeviceInfo } from '@/types/device-info';
-import { DebugSettings } from '@/settings/debug-settings';
+import DeviceConnect from '@/components/DeviceConnect.vue';
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
+import DebugLink from '@/components/link/DebugLink.vue';
+import GitHubLink from '@/components/link/GitHubLink.vue';
+import SettingsLink from '@/components/link/SettingsLink.vue';
+import AdvancedSettingsPanel from '@/components/settings/AdvancedSettingsPanel.vue';
+import DebugSettingsPanel from '@/components/settings/DebugSettingsPanel.vue';
 import { useToast } from '@/composables/useToast';
+import { DebugSettings } from '@/settings/debug-settings';
+import { DeviceInfo } from '@/types/device-info';
 
 const { showToast } = useToast();
 

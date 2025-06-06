@@ -1,10 +1,12 @@
-import { createApp } from 'vue';
-import './style.css';
-import App from './App.vue';
-import i18n from './i18n';
-import { AdvancedSettings } from './settings/advanced-settings';
-import { initSentry } from './utils/sentry';
+import '@/style.css';
+
 import { IonIcon } from '@ionic/vue';
+import { createApp } from 'vue';
+
+import App from '@/App.vue';
+import i18n from '@/i18n';
+import { AdvancedSettings } from '@/settings/advanced-settings';
+import { initSentry } from '@/utils/sentry';
 
 // 初始化高级设置
 AdvancedSettings.loadSettings();

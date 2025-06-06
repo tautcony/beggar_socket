@@ -218,14 +218,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, defineAsyncComponent } from 'vue';
 import { IonIcon } from '@ionic/vue';
-import FileDropZone from '../common/FileDropZone.vue';
-import { FileInfo } from '../../types/file-info.ts';
-import { parseRom, type RomInfo, CartridgeTypeMapper } from '../../utils/rom-parser.ts';
-import { formatBytes } from '@/utils/formatter-utils';
+import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
+import FileDropZone from '@/components/common/FileDropZone.vue';
 import { useToast } from '@/composables/useToast';
+import { FileInfo } from '@/types/file-info.ts';
+import { formatBytes } from '@/utils/formatter-utils';
+import { CartridgeTypeMapper, parseRom, type RomInfo } from '@/utils/rom-parser.ts';
 
 // 动态加载模拟器组件
 const GBEmulator = defineAsyncComponent(() => import('@/components/emulator/GBEmulator.vue'));
