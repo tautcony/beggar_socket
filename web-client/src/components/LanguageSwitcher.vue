@@ -17,7 +17,7 @@
         </option>
       </select>
       <IonIcon
-        name="globe-outline"
+        :icon="globeOutline"
         class="lang-icon"
       />
     </div>
@@ -26,6 +26,7 @@
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
+import { globeOutline } from 'ionicons/icons';
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 

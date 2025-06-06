@@ -11,15 +11,15 @@
         <div class="toast-icon">
           <IonIcon
             v-if="toast.type === 'success'"
-            name="checkmark-circle"
+            :icon="checkmarkCircle"
           />
           <IonIcon
             v-else-if="toast.type === 'error'"
-            name="close-circle"
+            :icon="closeCircle"
           />
           <IonIcon
             v-else
-            name="information-circle"
+            :icon="informationCircle"
           />
         </div>
         <div class="toast-message">
@@ -32,6 +32,7 @@
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
+import { checkmarkCircle, closeCircle, informationCircle } from 'ionicons/icons';
 import { onMounted, onUnmounted, ref } from 'vue';
 
 interface Toast {

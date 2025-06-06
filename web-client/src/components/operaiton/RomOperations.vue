@@ -45,19 +45,22 @@
           :file-name="romFileName"
           accept-types=".rom,.gba,.gb,.gbc"
           accept-hint=".rom,.gba,.gb,.gbc"
-          icon="folder-open-outline"
           :main-text="$t('ui.rom.selectFile')"
           :file-title="romInfo?.title || ''"
           @file-selected="onFileSelected"
           @file-cleared="onFileCleared"
-        />
+        >
+          <template #icon>
+            <IonIcon :icon="folderOpenOutline" />
+          </template>
+        </FileDropZone>
         <button
           v-if="romFileData && romInfo && canPreview"
           :disabled="busy"
           class="play-button"
           @click="playRom"
         >
-          <IonIcon name="play-outline" />
+          <IonIcon :icon="playOutline" />
         </button>
       </div>
 
@@ -71,12 +74,12 @@
           @click="toggleRomInfoCollapsed"
         >
           <IonIcon
-            name="information-circle-outline"
+            :icon="informationCircleOutline"
             class="info-icon"
           />
           {{ $t('ui.rom.info') }}
           <IonIcon
-            :name="isRomInfoCollapsed ? 'chevron-down' : 'chevron-up'"
+            :icon="isRomInfoCollapsed ? chevronDown : chevronUp"
             class="collapse-icon"
           />
         </h3>
@@ -149,7 +152,7 @@
                 :class="romInfo.isValid ? 'valid' : 'invalid'"
               >
                 <IonIcon
-                  :name="romInfo.isValid ? 'checkmark-circle' : 'close-circle'"
+                  :name="romInfo.isValid ? checkmarkCircle : closeCircle"
                   class="validity-icon"
                 />
                 {{ romInfo.isValid ? $t('ui.common.yes') : $t('ui.common.no') }}
@@ -219,6 +222,7 @@
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
+import { checkmarkCircle, chevronDown, chevronUp, closeCircle, folderOpenOutline, informationCircleOutline, playOutline } from 'ionicons/icons';
 import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 

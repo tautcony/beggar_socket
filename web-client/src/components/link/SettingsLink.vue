@@ -9,15 +9,18 @@
   >
     <template #icon>
       <IonIcon
-        name="settings-outline"
-        style="font-size: 20px;"
+        :icon="settingsOutline"
+        size="large"
       />
     </template>
   </FloatingLink>
 </template>
 
 <script setup lang="ts">
-import FloatingLink from '../common/FloatingLink.vue';
+import { IonIcon } from '@ionic/vue';
+import { settingsOutline } from 'ionicons/icons';
+
+import FloatingLink from '@/components/common/FloatingLink.vue';
 defineEmits<{ click: [] }>();
 </script>
 

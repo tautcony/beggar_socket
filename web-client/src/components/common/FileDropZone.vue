@@ -22,11 +22,9 @@
       >
       <template v-if="!fileData">
         <div class="drop-zone-content">
-          <IonIcon
-            v-if="icon"
-            :name="icon"
-            class="upload-icon"
-          />
+          <div class="upload-icon">
+            <slot name="icon" />
+          </div>
           <div class="upload-text">
             <p class="main-text">
               {{ mainText }}
@@ -42,11 +40,9 @@
       </template>
       <template v-else>
         <div class="file-preview">
-          <IonIcon
-            v-if="icon"
-            :name="icon"
-            class="file-icon"
-          />
+          <div class="file-icon">
+            <slot name="icon" />
+          </div>
           <div class="file-details">
             <div class="file-name">
               {{ fileName }}
@@ -63,7 +59,7 @@
             :disabled="disabled"
             @click.stop="clearFile"
           >
-            <IonIcon name="close-outline" />
+            <IonIcon :icon="closeOutline" />
           </button>
         </div>
       </template>
@@ -73,6 +69,7 @@
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
+import { closeOutline } from 'ionicons/icons';
 import { ref } from 'vue';
 
 import { FileInfo } from '@/types/file-info';
@@ -88,10 +85,6 @@ const props = defineProps({
     required: true,
   },
   acceptHint: {
-    type: String,
-    required: true,
-  },
-  icon: {
     type: String,
     required: true,
   },
@@ -243,6 +236,9 @@ function handleDrop(e: DragEvent) {
 }
 
 .upload-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 2rem;
   margin-bottom: 4px;
   opacity: 0.7;

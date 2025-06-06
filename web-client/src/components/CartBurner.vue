@@ -20,7 +20,8 @@
       >
         <IonIcon
           class="tab-icon"
-          :name="gbaIcon"
+          size="medium"
+          :icon="gameControllerOutline"
         />
         {{ $t('ui.mode.gba') }}
       </button>
@@ -30,7 +31,8 @@
       >
         <IonIcon
           class="tab-icon"
-          :name="mbc5Icon"
+          size="medium"
+          :icon="hardwareChipOutline"
         />
         {{ $t('ui.mode.mbc5') }}
       </button>
@@ -104,6 +106,7 @@
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
+import { gameControllerOutline, hardwareChipOutline } from 'ionicons/icons';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -146,9 +149,6 @@ const deviceSize = ref<number | null>(null);
 const sectorCount = ref<number | null>(null);
 const sectorSize = ref<number | null>(null);
 const bufferWriteBytes = ref<number | null>(null);
-
-const gbaIcon = 'game-controller-outline';
-const mbc5Icon = 'hardware-chip-outline';
 
 // Adapter
 const gbaAdapter = ref<CartridgeAdapter | null>();

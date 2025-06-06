@@ -12,14 +12,16 @@
         <span
           v-if="isCompleted"
           class="completion-badge"
-        ><IonIcon name="checkmark-outline" /></span>
+        >
+          <IonIcon :icon="checkmarkOutline" />
+        </span>
       </h3>
       <button
         class="close-button"
         :disabled="!allowCancel && !isCompleted"
         @click="handleClose"
       >
-        <IonIcon name="close-outline" />
+        <IonIcon :icon="closeOutline" />
       </button>
     </template>
     <div class="modal-body">
@@ -83,6 +85,8 @@
 </template>
 
 <script setup lang="ts">
+import { IonIcon } from '@ionic/vue';
+import { checkmarkOutline, closeOutline } from 'ionicons/icons';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 

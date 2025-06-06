@@ -8,7 +8,7 @@
       <div class="emulator-header">
         <h3 class="emulator-title">
           <IonIcon
-            name="game-controller-outline"
+            :icon="gameControllerOutline"
             class="emulator-icon"
           />
           {{ $t('ui.emulator.title') }} - {{ romName }}
@@ -19,21 +19,21 @@
             :title="$t('ui.emulator.pause')"
             @click="togglePause"
           >
-            <IonIcon :name="isPaused ? 'play' : 'pause'" />
+            <IonIcon :icon="isPaused ? play : pause" />
           </button>
           <button
             class="control-btn"
             :title="$t('ui.emulator.reset')"
             @click="resetGame"
           >
-            <IonIcon name="refresh" />
+            <IonIcon :icon="refresh" />
           </button>
           <button
             class="control-btn close-btn"
             :title="$t('ui.emulator.close')"
             @click="closeEmulator"
           >
-            <IonIcon name="close" />
+            <IonIcon :icon="close" />
           </button>
         </div>
       </div>
@@ -65,6 +65,7 @@
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
+import { close, gameControllerOutline, pause, play, refresh } from 'ionicons/icons';
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { WasmBoy, type WasmBoyStatic } from 'wasmboy';

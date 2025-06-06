@@ -9,8 +9,8 @@
   >
     <template #icon>
       <IonIcon
-        name="bug-outline"
-        style="font-size: 20px;"
+        :icon="bugOutline"
+        size="large"
       />
     </template>
   </FloatingLink>
@@ -18,6 +18,7 @@
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
+import { bugOutline } from 'ionicons/icons';
 
 import FloatingLink from '@/components/common/FloatingLink.vue';
 

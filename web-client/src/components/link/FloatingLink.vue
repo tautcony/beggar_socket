@@ -25,33 +25,48 @@
 </template>
 
 <script setup lang="ts">
-import { computed, useAttrs } from 'vue';
+import { computed, type CSSProperties } from 'vue';
 
-const props = defineProps({
-  icon: { type: String, default: '' },
-  text: { type: String, default: '' },
-  color: { type: String, default: '#1976d2' },
-  href: { type: String, default: '' },
-  title: { type: String, default: '' },
-  bottom: { type: [String, Number], default: 20 },
-  right: { type: [String, Number], default: 20 },
-  customClass: { type: String, default: '' },
-  styleOverrides: { type: Object, default: () => ({}) },
-});
+interface Props {
+  icon?: string;
+  text?: string;
+  color?: string;
+  href?: string;
+  title?: string;
+  bottom?: string | number;
+  right?: string | number;
+  customClass?: string;
+  styleOverrides?: {
+    container?: CSSProperties;
+    button?: CSSProperties;
+  };
+}
+
+const {
+  icon = '',
+  text = '',
+  color = '#1976d2',
+  href = '',
+  title = '',
+  bottom = 20,
+  right = 20,
+  customClass = '',
+  styleOverrides = {},
+} = defineProps<Props>();
 
 const emits = defineEmits(['click']);
 
-const containerStyle = computed(() => ({
-  position: 'fixed',
-  bottom: typeof props.bottom === 'number' ? `${props.bottom}px` : props.bottom,
-  right: typeof props.right === 'number' ? `${props.right}px` : props.right,
+const containerStyle = computed((): CSSProperties => ({
+  position: 'fixed' as const,
+  bottom: typeof bottom === 'number' ? `${bottom}px` : bottom,
+  right: typeof right === 'number' ? `${right}px` : right,
   zIndex: 1000,
-  ...props.styleOverrides?.container,
+  ...styleOverrides?.container,
 }));
 
-const buttonStyle = computed(() => ({
-  background: props.color,
-  ...props.styleOverrides?.button,
+const buttonStyle = computed((): CSSProperties => ({
+  background: color,
+  ...styleOverrides?.button,
 }));
 </script>
 

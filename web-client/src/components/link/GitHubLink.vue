@@ -9,15 +9,18 @@
   >
     <template #icon>
       <IonIcon
-        name="logo-github"
-        style="font-size: 20px;"
+        :icon="logoGithub"
+        size="large"
       />
     </template>
   </FloatingLink>
 </template>
 
 <script setup lang="ts">
-import FloatingLink from '../common/FloatingLink.vue';
+import { IonIcon } from '@ionic/vue';
+import { logoGithub } from 'ionicons/icons';
+
+import FloatingLink from '@/components/common/FloatingLink.vue';
 </script>
 
 <style scoped>

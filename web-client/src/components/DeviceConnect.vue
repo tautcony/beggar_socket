@@ -8,7 +8,7 @@
       >
         <IonIcon
           class="icon"
-          :name="buttonIconName"
+          :icon="buttonIcon"
           style="font-size: 1.2em; margin-right: 4px;"
         />
         {{ buttonText }}
@@ -34,6 +34,7 @@
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
+import { checkmarkDoneOutline, flashOutline, reloadOutline } from 'ionicons/icons';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
@@ -145,10 +146,10 @@ const buttonText = computed(() => {
   return t('ui.device.connect');
 });
 
-const buttonIconName = computed(() => {
-  if (isConnecting.value && !connected.value) return 'reload-outline';
-  if (connected.value) return 'checkmark-done-outline';
-  return 'flash-outline';
+const buttonIcon = computed(() => {
+  if (isConnecting.value && !connected.value) return reloadOutline;
+  if (connected.value) return checkmarkDoneOutline;
+  return flashOutline;
 });
 
 const buttonClass = computed(() => {

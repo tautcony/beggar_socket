@@ -50,12 +50,15 @@
         :file-name="ramFileName"
         accept-types=".sav,.ram"
         accept-hint=".sav, .ram"
-        icon="save-outline"
         :main-text="$t('ui.ram.selectFile')"
         :file-title="''"
         @file-selected="onFileSelected"
         @file-cleared="onFileCleared"
-      />
+      >
+        <template #icon>
+          <IonIcon :icon="saveOutline" />
+        </template>
+      </FileDropZone>
       <div class="button-row">
         <button
           :disabled="!deviceReady || !ramFileData || busy"
@@ -81,6 +84,8 @@
 </template>
 
 <script setup lang="ts">
+import { IonIcon } from '@ionic/vue';
+import { saveOutline } from 'ionicons/icons';
 import { ref, watch } from 'vue';
 
 import FileDropZone from '@/components/common/FileDropZone.vue';
