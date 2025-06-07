@@ -23,7 +23,7 @@ export function fromLittleEndian(bytes: Uint8Array): number {
 }
 
 // 封装数据包
-export function buildPackage(payload: Uint8Array, withCrc: boolean = false): Uint8Array {
+function buildPackage(payload: Uint8Array, withCrc: boolean = false): Uint8Array {
   const size = 2 + payload.length + 2;
   const buf = new Uint8Array(size);
   const sizeBytes = toLittleEndian(size, 2);
@@ -92,11 +92,10 @@ export async function sendPackage(writer: WritableStreamDefaultWriter<Uint8Array
     'protocol.sendPackage',
     async () => {
       const timeout = timeoutMs ?? AdvancedSettings.packageSendTimeout;
-      const buf = buildPackage(payload);
-      formatPackage(buf);
+      formatPackage(payload);
 
       await withTimeout(
-        writer.write(buf),
+        writer.write(payload),
         timeout,
         `发送数据包超时 (${timeout}ms)`,
       );
