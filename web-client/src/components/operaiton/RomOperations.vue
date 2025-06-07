@@ -184,13 +184,13 @@
       </div>
     </section>
 
-    <!-- Game Boy Emulator -->
+    <!-- Game Boy Color Emulator -->
     <Suspense>
       <GBCEmulator
-        v-if="showEmulator"
+        v-if="currentEmulator === 'GBC' || currentEmulator === 'GB'"
+        :is-visible="currentEmulator === 'GBC' || currentEmulator === 'GB'"
         :rom-data="emulatorRomData"
         :rom-name="emulatorRomName"
-        :is-visible="showEmulator"
         @close="closeEmulator"
       />
       <template #fallback>
@@ -204,10 +204,10 @@
     <!-- GBA Emulator -->
     <Suspense>
       <GBAEmulator
-        v-if="showGBAEmulator"
+        v-if="currentEmulator === 'GBA'"
+        :is-visible="currentEmulator === 'GBA'"
         :rom-data="emulatorRomData"
         :rom-name="emulatorRomName"
-        :is-visible="showGBAEmulator"
         @close="closeEmulator"
       />
       <template #fallback>
@@ -233,6 +233,7 @@ import { formatBytes } from '@/utils/formatter-utils';
 import { CartridgeTypeMapper, parseRom, type RomInfo } from '@/utils/rom-parser.ts';
 
 // 动态加载模拟器组件
+// const GBEmulator = defineAsyncComponent(() => import('@/components/emulator/GBEmulator.vue'));
 const GBCEmulator = defineAsyncComponent(() => import('@/components/emulator/GBCEmulator.vue'));
 const GBAEmulator = defineAsyncComponent(() => import('@/components/emulator/GBAEmulator.vue'));
 
@@ -269,8 +270,7 @@ const props = defineProps({
 const emit = defineEmits(['file-selected', 'file-cleared', 'write-rom', 'read-rom', 'verify-rom', 'rom-size-change', 'mode-switch-required']);
 
 // 模拟器相关状态
-const showEmulator = ref(false);
-const showGBAEmulator = ref(false);
+const currentEmulator = ref<'GB' | 'GBC' | 'GBA' | null>(null); // 当前显示的模拟器类型
 const emulatorRomData = ref<Uint8Array | null>(null);
 const emulatorRomName = ref('');
 
@@ -355,23 +355,16 @@ function playRom() {
   emulatorRomName.value = props.romFileName;
 
   // 根据ROM类型选择正确的模拟器
-  if (romInfo.value.type === 'GBA') {
-    showGBAEmulator.value = true;
-    showEmulator.value = false;
-    showToast(t('messages.emulator.launched', { name: props.romFileName }), 'success');
-  } else if (romInfo.value.type === 'GB' || romInfo.value.type === 'GBC') {
-    showEmulator.value = true;
-    showGBAEmulator.value = false;
-    showToast(t('messages.emulator.launched', { name: props.romFileName }), 'success');
-  } else {
+  if (romInfo.value.type === 'Unknown') {
     showToast(t('messages.emulator.unsupportedRom'), 'error');
     return;
   }
+  currentEmulator.value = romInfo.value.type;
+  showToast(t('messages.emulator.launched', { name: props.romFileName }), 'success');
 }
 
 function closeEmulator() {
-  showEmulator.value = false;
-  showGBAEmulator.value = false;
+  currentEmulator.value = null;
   emulatorRomData.value = null;
   emulatorRomName.value = '';
   showToast(t('messages.emulator.closed'), 'success');

@@ -21,6 +21,7 @@
     "@ionic/vue": "^8.5.8",
     "@sentry/tracing": "^7.120.3",
     "@sentry/vue": "^9.25.1",
+    "gameboy-emulator": "^1.1.2",
     "gbats": "^1.0.9",
     "vue": "^3.5.16",
     "vue-i18n": "^11.1.5",
