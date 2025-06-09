@@ -92,7 +92,8 @@ export async function sendPackage(writer: WritableStreamDefaultWriter<Uint8Array
     'protocol.sendPackage',
     async () => {
       const timeout = timeoutMs ?? AdvancedSettings.packageSendTimeout;
-      formatPackage(payload);
+      // formatPackage(payload);
+      console.log(payload);
 
       await withTimeout(
         writer.write(payload),

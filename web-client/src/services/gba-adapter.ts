@@ -11,7 +11,7 @@ import {
   rom_sector_erase,
   rom_verify,
 } from '@/protocol/beggar_socket/protocol';
-import { getFlashId } from '@/protocol/beggar_socket/protocol-utils';
+import { getFlashId, toLittleEndian } from '@/protocol/beggar_socket/protocol-utils';
 import { CartridgeAdapter, EnhancedProgressCallback, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions } from '@/types/command-options';
@@ -51,7 +51,7 @@ export class GBAAdapter extends CartridgeAdapter {
       async () => {
         this.log(this.t('messages.operation.readId'));
         try {
-          const id = await rom_readID(this.device);
+          const id = [...await rom_readID(this.device)];
 
           const idStr = id.map(x => x.toString(16).padStart(2, '0')).join(' ');
           const flashId = getFlashId(id);
@@ -279,13 +279,13 @@ export class GBAAdapter extends CartridgeAdapter {
       this.log(this.t('messages.operation.queryingRomSize'));
 
       // CFI Query - 向地址0x55写入0x98命令
-      await rom_direct_write(this.device, new Uint8Array([0x98, 0x00]), 0x55);
+      await rom_direct_write(this.device, toLittleEndian(0x98, 2), 0x55);
 
       // 读取CFI数据 (20字节) - 从地址0x4E (0x27 << 1)开始读取
       const cfiData = await rom_read(this.device, 20, 0x27 << 1);
 
       // Reset - 向地址0x00写入0xf0命令
-      await rom_direct_write(this.device, new Uint8Array([0xf0, 0x00]), 0x00);
+      await rom_direct_write(this.device, toLittleEndian(0xf0, 2), 0x00);
 
       // 解析CFI数据
       // 设备容量 (地址0x27h对应索引0)

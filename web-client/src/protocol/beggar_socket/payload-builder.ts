@@ -75,8 +75,8 @@ export class PayloadBuilder {
    * @returns 完整的数据包
    */
   build(withCrc: boolean = false): Uint8Array {
-    const payloadSize = this.offset - 2; // 实际payload大小
-    const totalSize = 2 + payloadSize + (withCrc ? 2 : 0);
+    const payloadSize = this.offset; // 实际payload大小
+    const totalSize = 2 + payloadSize;
 
     // 写入大小字段（小端序）到预留的前2字节
     this.buffer[0] = totalSize & 0xFF;
