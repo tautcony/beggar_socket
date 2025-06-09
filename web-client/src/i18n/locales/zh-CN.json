@@ -194,10 +194,10 @@
       }
     },
     "progress": {
-      "title": "传输进度",
-      "transferred": "已传输",
+      "title": "完成进度",
+      "transferred": "已完成",
       "remaining": "剩余",
-      "speed": "传输速度",
+      "speed": "速度",
       "elapsed": "已用时间",
       "remaining_time": "剩余时间",
       "total_size": "总大小",
@@ -255,13 +255,17 @@
       "writeSuccess": "ROM写入成功",
       "writeFailed": "ROM写入失败",
       "reading": "正在读取ROM...",
+      "readingAt": "正在读取地址0x{address}... ({progress}%)",
       "readSuccess": "ROM读取成功，大小 {size} 字节",
       "readFailed": "ROM读取失败",
       "romSizeQueryFailed": "查询ROM容量失败",
       "verify": "ROM校验",
       "verifying": "正在校验ROM...",
+      "verifyingAt": "正在校验地址0x{address}... ({progress}%)",
       "verifySuccess": "ROM校验成功",
       "verifyFailed": "ROM校验失败",
+      "verifyFailedAt": "地址0x{address}校验失败，期望值0x{expected}，实际值0x{actual}",
+      "verifySummary": "校验完成 - 总时间: {totalTime}秒，平均速度: {avgSpeed} KB/s，最大速度: {maxSpeed} KB/s，总大小: {totalSize} KB",
       "sizeChanged": "ROM大小已更改为 {size}",
       "bankSwitch": "切换到ROM Bank {bank}",
       "eraseBeforeWrite": "Flash不为空，开始擦除...",
@@ -300,15 +304,15 @@
       "readSummary": "RAM读取完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} KB"
     },
     "progress": {
-      "writing": "已写入: {written}/{total} 字节",
-      "reading": "已读取: {read}/{total} 字节",
+      "writing": "已处理: {written}/{total} 字节",
+      "reading": "已处理: {read}/{total} 字节",
       "verifying": "已校验: {verified}/{total} 字节",
       "erasing": "已擦除: {erased}/{total} 扇区",
       "eraseSpeed": "擦除速度: {speed} 扇区/秒",
-      "writeSpeed": "写入速度: {speed} KB/s",
-      "readSpeed": "读取速度: {speed} KB/s",
+      "writeSpeed": "处理速度: {speed} KB/s",
+      "readSpeed": "处理速度: {speed} KB/s",
       "verifySpeed": "校验速度: {speed} KB/s",
-      "eraseCompleteReady": "擦除完成，准备写入"
+      "eraseCompleteReady": "擦除完成，准备继续"
     },
     "mode": {
       "autoSwitched": "检测到{romType}类型ROM文件，已自动从{from}模式切换至{to}模式"

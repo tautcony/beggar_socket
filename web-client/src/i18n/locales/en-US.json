@@ -255,13 +255,17 @@
       "writeSuccess": "ROM write successful",
       "writeFailed": "ROM write failed",
       "reading": "Reading ROM...",
+      "readingAt": "Reading address 0x{address}... ({progress}%)",
       "readSuccess": "ROM read successful, size {size} bytes",
       "readFailed": "ROM read failed",
       "romSizeQueryFailed": "Failed to query ROM capacity",
       "verify": "ROM verification",
       "verifying": "Verifying ROM...",
+      "verifyingAt": "Verifying address 0x{address}... ({progress}%)",
       "verifySuccess": "ROM verification successful",
       "verifyFailed": "ROM verification failed",
+      "verifyFailedAt": "Verification failed at address 0x{address}, expected 0x{expected}, got 0x{actual}",
+      "verifySummary": "Verification completed - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Max speed: {maxSpeed} KB/s, Total size: {totalSize} KB",
       "sizeChanged": "ROM size changed to {size}",
       "bankSwitch": "Switched to ROM Bank {bank}",
       "eraseBeforeWrite": "Flash is not empty, starting erase...",
@@ -300,15 +304,15 @@
       "readSummary": "RAM read complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} KB"
     },
     "progress": {
-      "writing": "Written: {written}/{total} bytes",
-      "reading": "Read: {read}/{total} bytes",
+      "writing": "Processed: {written}/{total} bytes",
+      "reading": "Processed: {read}/{total} bytes",
       "verifying": "Verified: {verified}/{total} bytes",
       "erasing": "Erased: {erased}/{total} sectors",
       "eraseSpeed": "Erase speed: {speed} sectors/sec",
-      "writeSpeed": "Write speed: {speed} KB/s",
-      "readSpeed": "Read speed: {speed} KB/s",
+      "writeSpeed": "Processing speed: {speed} KB/s",
+      "readSpeed": "Processing speed: {speed} KB/s",
       "verifySpeed": "Verify speed: {speed} KB/s",
-      "eraseCompleteReady": "Erase complete, ready to write"
+      "eraseCompleteReady": "Erase complete, ready to continue"
     },
     "mode": {
       "autoSwitched": "Detected {romType} ROM file, automatically switched from {from} mode to {to} mode"

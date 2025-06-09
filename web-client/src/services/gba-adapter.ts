@@ -86,25 +86,73 @@ export class GBAAdapter extends CartridgeAdapter {
 
   /**
    * 全片擦除
+   * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态和消息的对象
    */
-  async eraseChip() : Promise<CommandResult> {
+  async eraseChip(signal?: AbortSignal) : Promise<CommandResult> {
     return PerformanceTracker.trackAsyncOperation(
       'gba.eraseChip',
       async () => {
         this.log(this.t('messages.operation.eraseChip'));
 
         try {
+          // 检查是否已被取消
+          if (signal?.aborted) {
+            return {
+              success: false,
+              message: this.t('messages.operation.cancelled'),
+            };
+          }
+
           await rom_eraseChip(this.device);
+
+          const startTime = Date.now();
+          let elapsedSeconds = 0;
 
           // 验证擦除是否完成
           while (true) {
+            // 检查是否已被取消
+            if (signal?.aborted) {
+              this.log(this.t('messages.operation.cancelled'));
+              return {
+                success: false,
+                message: this.t('messages.operation.cancelled'),
+              };
+            }
+
             const eraseComplete = await this.isBlank(0x00, 0x100);
             if (eraseComplete) {
               this.log(this.t('messages.operation.eraseComplete'));
+              // 报告完成状态
+              this.updateProgress(this.createProgressInfo(
+                100,
+                this.t('messages.operation.eraseComplete'),
+                100,
+                100,
+                startTime,
+                0,
+                false, // 完成后禁用取消
+              ));
               break;
             } else {
+              elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
               this.log(this.t('messages.operation.eraseInProgress'));
+
+              // 报告擦除进度（基于时间估算）
+              // 通常全片擦除需要几秒到几十秒，这里以30秒为估计值
+              const estimatedDuration = 90; // 秒
+              const progress = Math.min(95, (elapsedSeconds / estimatedDuration) * 100);
+
+              this.updateProgress(this.createProgressInfo(
+                progress,
+                this.t('messages.operation.eraseInProgress') + ` (${elapsedSeconds}s)`,
+                100,
+                Math.floor(progress),
+                startTime,
+                0,
+                true, // 允许取消
+              ));
+
               await new Promise(resolve => setTimeout(resolve, 1000));
             }
           }
@@ -114,6 +162,14 @@ export class GBAAdapter extends CartridgeAdapter {
             message: this.t('messages.operation.eraseComplete'),
           };
         } catch (e) {
+          if (signal?.aborted) {
+            this.log(this.t('messages.operation.cancelled'));
+            return {
+              success: false,
+              message: this.t('messages.operation.cancelled'),
+            };
+          }
+
           this.log(`${this.t('messages.operation.eraseFailed')}: ${e}`);
           return {
             success: false,
@@ -184,10 +240,11 @@ export class GBAAdapter extends CartridgeAdapter {
   /**
    * 写入ROM
    * @param fileData - 文件数据
-    * @param options - 写入选项
+   * @param options - 写入选项
+   * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果
    */
-  async writeROM(fileData: Uint8Array, options: CommandOptions = { useDirectWrite: true }) : Promise<CommandResult> {
+  async writeROM(fileData: Uint8Array, options: CommandOptions = {}, signal?: AbortSignal) : Promise<CommandResult> {
     return PerformanceTracker.trackProgressOperation(
       'gba.writeROM',
       async () => {
@@ -200,9 +257,6 @@ export class GBAAdapter extends CartridgeAdapter {
           const startTime = Date.now();
           let maxSpeed = 0;
 
-          // 选择写入函数
-          const writeFunction = options.useDirectWrite ? rom_direct_write : rom_program;
-
           // const romInfo = await this.getROMSize();
           const blank = await this.isBlank(0, 0x100);
           if (!blank) {
@@ -212,8 +266,17 @@ export class GBAAdapter extends CartridgeAdapter {
           // 分块写入并更新进度
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
           for (let addr = 0; addr < total; addr += pageSize) {
+            // 检查是否已被取消
+            if (signal?.aborted) {
+              this.updateProgress({ allowCancel: false });
+              return {
+                success: false,
+                message: this.t('messages.operation.cancelled'),
+              };
+            }
+
             const chunk = fileData.slice(addr, Math.min(addr + pageSize, total));
-            await writeFunction(this.device, chunk, addr);
+            await rom_program(this.device, chunk, addr);
 
             written += chunk.length;
             const progress = Math.floor((written / total) * 100);
@@ -221,7 +284,6 @@ export class GBAAdapter extends CartridgeAdapter {
             const currentSpeed = elapsed > 0 ? (written / 1024) / elapsed : 0;
             maxSpeed = Math.max(maxSpeed, currentSpeed);
 
-            // 使用增强的进度回调
             this.updateProgress(this.createProgressInfo(
               progress,
               this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }),
@@ -229,10 +291,11 @@ export class GBAAdapter extends CartridgeAdapter {
               written,
               startTime,
               currentSpeed,
+              true, // 允许取消
             ));
 
-            // 每2个百分比记录一次日志
-            if (progress % 2 === 0 && progress !== lastLoggedProgress) {
+            // 每5个百分比记录一次日志
+            if (progress % 5 === 0 && progress !== lastLoggedProgress) {
               this.log(this.t('messages.rom.writingAt', { address: addr.toString(16).padStart(6, '0'), progress }));
               lastLoggedProgress = progress;
             }
@@ -264,7 +327,7 @@ export class GBAAdapter extends CartridgeAdapter {
       {
         adapter_type: 'gba',
         operation_type: 'write_rom',
-        write_method: options.useDirectWrite ? 'direct_write' : 'program',
+        write_method: 'program',
       },
       {
         fileSize: fileData.length,
@@ -337,13 +400,23 @@ export class GBAAdapter extends CartridgeAdapter {
    * 读取ROM
    * @param size - 读取大小
    * @param baseAddress - 基础地址
+   * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果，包含读取的数据
    */
-  async readROM(size = 0x200000, baseAddress = 0) : Promise<CommandResult> {
+  async readROM(size = 0x200000, baseAddress = 0, signal?: AbortSignal) : Promise<CommandResult> {
     return PerformanceTracker.trackAsyncOperation(
       'gba.readROM',
       async () => {
         try {
+          // 检查是否已被取消
+          if (signal?.aborted) {
+            this.updateProgress({ allowCancel: false });
+            return {
+              success: false,
+              message: this.t('messages.operation.cancelled'),
+            };
+          }
+
           this.log(this.t('messages.rom.reading'));
           const startTime = Date.now();
           const pageSize = AdvancedSettings.romPageSize;
@@ -353,7 +426,17 @@ export class GBAAdapter extends CartridgeAdapter {
           const data = new Uint8Array(size);
 
           // 分块读取以便计算速度统计
+          let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
           for (let addr = 0; addr < size; addr += pageSize) {
+            // 检查是否已被取消
+            if (signal?.aborted) {
+              this.updateProgress({ allowCancel: false });
+              return {
+                success: false,
+                message: this.t('messages.operation.cancelled'),
+              };
+            }
+
             const chunkSize = Math.min(pageSize, size - addr);
             const chunk = await rom_read(this.device, chunkSize, baseAddress + addr);
             data.set(chunk, addr);
@@ -372,7 +455,14 @@ export class GBAAdapter extends CartridgeAdapter {
                 totalRead,
                 startTime,
                 currentSpeed,
+                true, // 允许取消
               ));
+            }
+
+            // 每5个百分比记录一次日志
+            if (progress % 5 === 0 && progress !== lastLoggedProgress) {
+              this.log(this.t('messages.rom.readingAt', { address: (baseAddress + addr).toString(16).padStart(6, '0'), progress }));
+              lastLoggedProgress = progress;
             }
           }
 
@@ -387,12 +477,15 @@ export class GBAAdapter extends CartridgeAdapter {
             totalSize: (size / 1024).toFixed(1),
           }));
 
+          this.updateProgress({ allowCancel: false });
+
           return {
             success: true,
             data: data,
             message: this.t('messages.rom.readSuccess', { size: data.length }),
           };
         } catch (e) {
+          this.updateProgress({ detail: this.t('messages.rom.readFailed') });
           this.log(`${this.t('messages.rom.readFailed')}: ${e}`);
           return {
             success: false,
@@ -418,20 +511,113 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param baseAddress - 基础地址
    * @returns - 操作结果
    */
-  async verifyROM(fileData: Uint8Array, baseAddress = 0): Promise<CommandResult> {
+  async verifyROM(fileData: Uint8Array, baseAddress = 0, signal?: AbortSignal): Promise<CommandResult> {
     return PerformanceTracker.trackAsyncOperation(
       'gba.verifyROM',
       async () => {
+        // 检查是否已被取消
+        if (signal?.aborted) {
+          this.updateProgress({ allowCancel: false });
+          return {
+            success: false,
+            message: this.t('messages.operation.cancelled'),
+          };
+        }
         try {
           this.log(this.t('messages.rom.verifying'));
-          const ok = await rom_verify(this.device, fileData, baseAddress);
-          const message = ok ? this.t('messages.rom.verifySuccess') : this.t('messages.rom.verifyFailed');
-          this.log(`${this.t('messages.rom.verify')}: ${message}`);
+
+          const total = fileData.length;
+          let verified = 0;
+          const pageSize = AdvancedSettings.romPageSize;
+          const startTime = Date.now();
+          let maxSpeed = 0;
+          let success = true;
+          let failedAddress = -1;
+          let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
+
+          // 分块校验并更新进度
+          while (verified < total && success) {
+            // 检查是否已被取消
+            if (signal?.aborted) {
+              this.updateProgress({ allowCancel: false });
+              return {
+                success: false,
+                message: this.t('messages.operation.cancelled'),
+              };
+            }
+
+            const chunkSize = Math.min(pageSize, total - verified);
+            const expectedChunk = fileData.slice(verified, verified + chunkSize);
+
+            // 读取对应的ROM数据
+            const actualChunk = await rom_read(this.device, chunkSize, baseAddress + verified);
+
+            // 逐字节比较
+            for (let i = 0; i < chunkSize; i++) {
+              if (expectedChunk[i] !== actualChunk[i]) {
+                success = false;
+                failedAddress = verified + i;
+                this.log(this.t('messages.rom.verifyFailedAt', {
+                  address: failedAddress.toString(16).padStart(6, '0'),
+                  expected: expectedChunk[i].toString(16).padStart(2, '0'),
+                  actual: actualChunk[i].toString(16).padStart(2, '0'),
+                }));
+                break;
+              }
+            }
+
+            if (!success) break;
+
+            verified += chunkSize;
+            const progress = Math.floor((verified / total) * 100);
+            const elapsed = (Date.now() - startTime) / 1000;
+            const currentSpeed = elapsed > 0 ? (verified / 1024) / elapsed : 0;
+            maxSpeed = Math.max(maxSpeed, currentSpeed);
+
+            // 更新进度
+            this.updateProgress(this.createProgressInfo(
+              progress,
+              this.t('messages.progress.verifySpeed', { speed: currentSpeed.toFixed(1) }),
+              total,
+              verified,
+              startTime,
+              currentSpeed,
+              true, // 允许取消
+            ));
+
+            // 每5%记录一次日志
+            if (progress % 5 === 0 && progress !== lastLoggedProgress) {
+              this.log(this.t('messages.rom.verifyingAt', {
+                address: verified.toString(16).padStart(6, '0'),
+                progress,
+              }));
+              lastLoggedProgress = progress;
+            }
+          }
+
+          const totalTime = (Date.now() - startTime) / 1000;
+          const avgSpeed = totalTime > 0 ? (total / 1024) / totalTime : 0;
+
+          if (success) {
+            this.log(this.t('messages.rom.verifySuccess'));
+            this.log(this.t('messages.rom.verifySummary', {
+              totalTime: totalTime.toFixed(1),
+              avgSpeed: avgSpeed.toFixed(1),
+              maxSpeed: maxSpeed.toFixed(1),
+              totalSize: (total / 1024).toFixed(1),
+            }));
+          } else {
+            this.log(this.t('messages.rom.verifyFailed'));
+          }
+
+          this.updateProgress({ allowCancel: false });
+          const message = success ? this.t('messages.rom.verifySuccess') : this.t('messages.rom.verifyFailed');
           return {
-            success: ok,
+            success: success,
             message: message,
           };
         } catch (e) {
+          this.updateProgress({ detail: this.t('messages.rom.verifyFailed') });
           this.log(`${this.t('messages.rom.verifyFailed')}: ${e}`);
           return {
             success: false,
@@ -570,8 +756,8 @@ export class GBAAdapter extends CartridgeAdapter {
               currentSpeed,
             ));
 
-            // 每2个百分比记录一次日志
-            if (progress % 2 === 0 && progress !== lastLoggedProgress) {
+            // 每5个百分比记录一次日志
+            if (progress % 5 === 0 && progress !== lastLoggedProgress) {
               this.log(this.t('messages.ram.writingAt', { address: written.toString(16).padStart(6, '0'), progress }));
               lastLoggedProgress = progress;
             }

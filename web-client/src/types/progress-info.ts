@@ -1,5 +1,5 @@
 export interface ProgressInfo {
-  progress: number | null
+  progress?: number | null
   detail?: string
   totalBytes?: number
   transferredBytes?: number

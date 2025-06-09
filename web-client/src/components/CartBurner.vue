@@ -136,7 +136,7 @@ const props = defineProps<{
 
 const mode = ref<'GBA' | 'MBC5'>('GBA');
 const busy = ref(false);
-const operateProgress = ref<number | null>(null);
+const operateProgress = ref<number | null | undefined>(null);
 const operateProgressDetail = ref<string | undefined>('');
 const operateTotalBytes = ref<number | undefined>(undefined);
 const operateTransferredBytes = ref<number | undefined>(undefined);
@@ -150,6 +150,9 @@ const deviceSize = ref<number | null>(null);
 const sectorCount = ref<number | null>(null);
 const sectorSize = ref<number | null>(null);
 const bufferWriteBytes = ref<number | null>(null);
+
+// 取消控制器，用于中止长时间运行的操作
+const currentAbortController = ref<AbortController | null>(null);
 
 // Adapter
 const gbaAdapter = ref<CartridgeAdapter | null>();
@@ -229,18 +232,35 @@ watch(() => props.deviceReady, (newVal) => {
 });
 
 function updateProgress(progressInfo: ProgressInfo) {
-  operateProgress.value = progressInfo.progress;
-  operateProgressDetail.value = progressInfo.detail;
-  operateTotalBytes.value = progressInfo.totalBytes;
-  operateTransferredBytes.value = progressInfo.transferredBytes;
-  operateStartTime.value = progressInfo.startTime;
-  operateCurrentSpeed.value = progressInfo.currentSpeed;
-  operateAllowCancel.value = progressInfo.allowCancel ?? true;
+  if (progressInfo.progress !== undefined) {
+    operateProgress.value = progressInfo.progress;
+  }
+  if (progressInfo.detail !== undefined) {
+    operateProgressDetail.value = progressInfo.detail;
+  }
+  if (progressInfo.totalBytes !== undefined) {
+    operateTotalBytes.value = progressInfo.totalBytes;
+  }
+  if (progressInfo.transferredBytes !== undefined) {
+    operateTransferredBytes.value = progressInfo.transferredBytes;
+  }
+  if (progressInfo.startTime !== undefined) {
+    operateStartTime.value = progressInfo.startTime;
+  }
+  if (progressInfo.currentSpeed !== undefined) {
+    operateCurrentSpeed.value = progressInfo.currentSpeed;
+  }
+  if (progressInfo.allowCancel !== undefined) {
+    operateAllowCancel.value = progressInfo.allowCancel ?? true;
+  }
 }
 
 function handleProgressStop() {
-  log(t('messages.operation.cancelled'));
-  // TODO: 实现停止功能 - 需要在适配器中实现取消逻辑
+  // 中止当前操作
+  if (currentAbortController.value) {
+    currentAbortController.value.abort();
+    log(t('messages.operation.cancelled'));
+  }
 }
 
 function resetProgress() {
@@ -251,6 +271,30 @@ function resetProgress() {
   operateStartTime.value = undefined;
   operateCurrentSpeed.value = undefined;
   operateAllowCancel.value = true;
+
+  // 清理取消控制器
+  if (currentAbortController.value) {
+    currentAbortController.value = null;
+  }
+}
+
+// 创建一个新的可取消操作
+function startCancellableOperation(): AbortSignal {
+  // 清理之前的控制器
+  if (currentAbortController.value) {
+    currentAbortController.value.abort();
+  }
+
+  // 创建新的控制器
+  currentAbortController.value = new AbortController();
+  return currentAbortController.value.signal;
+}
+
+// 完成操作时清理控制器
+function finishOperation() {
+  if (currentAbortController.value) {
+    currentAbortController.value = null;
+  }
 }
 
 function log(msg: string) {
@@ -360,6 +404,7 @@ async function readID() {
 
 async function eraseChip() {
   busy.value = true;
+  const abortSignal = startCancellableOperation();
 
   try {
     const adapter = getAdapter();
@@ -367,13 +412,18 @@ async function eraseChip() {
       return;
     }
 
-    const response = await adapter.eraseChip();
+    const response = await adapter.eraseChip(abortSignal);
     showToast(response.message, response.success ? 'success' : 'error');
   } catch (e) {
+    if (e instanceof Error && e.name === 'AbortError') {
+      // 操作被取消，不显示错误消息，因为这是用户主动取消的
+      return;
+    }
     showToast(t('messages.operation.eraseFailed'), 'error');
     log(`${t('messages.operation.eraseFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
     busy.value = false;
+    finishOperation();
     // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
@@ -382,6 +432,7 @@ async function writeRom() {
   busy.value = true;
   operateProgress.value = 0;
   operateProgressDetail.value = '';
+  const abortSignal = startCancellableOperation();
 
   try {
     const adapter = getAdapter();
@@ -390,7 +441,7 @@ async function writeRom() {
       return;
     }
 
-    const response = await adapter.writeROM(romFileData.value, { useDirectWrite: false });
+    const response = await adapter.writeROM(romFileData.value, { }, abortSignal);
     showToast(response.message, response.success ? 'success' : 'error');
   } catch (e) {
     showToast(t('messages.rom.writeFailed'), 'error');
@@ -403,16 +454,16 @@ async function writeRom() {
 
 async function readRom() {
   busy.value = true;
+  const abortSignal = startCancellableOperation();
 
   try {
-
     const adapter = getAdapter();
     if (!adapter) {
       return;
     }
 
     const romSize = parseInt(selectedRomSize.value, 16);
-    const response = await adapter.readROM(romSize);
+    const response = await adapter.readROM(romSize, 0, abortSignal);
     if (response.success) {
       showToast(response.message, 'success');
       if (response.data) {
@@ -422,16 +473,22 @@ async function readRom() {
       showToast(response.message, 'error');
     }
   } catch (e) {
+    if (e instanceof Error && e.name === 'AbortError') {
+      // 操作被取消，不显示错误消息，因为这是用户主动取消的
+      return;
+    }
     showToast(t('messages.rom.readFailed'), 'error');
     log(`${t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
     busy.value = false;
+    finishOperation();
     // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
 async function verifyRom() {
   busy.value = true;
+  const abortSignal = startCancellableOperation();
 
   try {
     const adapter = getAdapter();
@@ -440,7 +497,7 @@ async function verifyRom() {
       return;
     }
 
-    const response = await adapter.verifyROM(romFileData.value);
+    const response = await adapter.verifyROM(romFileData.value, 0, abortSignal);
     showToast(response.message, response.success ? 'success' : 'error');
 
   } catch (e) {

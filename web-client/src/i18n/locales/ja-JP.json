@@ -255,13 +255,17 @@
       "writeSuccess": "ROM書き込み成功",
       "writeFailed": "ROM書き込み失敗",
       "reading": "ROMを読み取り中...",
+      "readingAt": "アドレス0x{address}を読み取り中... ({progress}%)",
       "readSuccess": "ROM読み取り成功、サイズ {size} バイト",
       "readFailed": "ROM読み取り失敗",
       "romSizeQueryFailed": "ROM容量の問い合わせ失敗",
       "verify": "ROM検証",
       "verifying": "ROMを検証中...",
+      "verifyingAt": "アドレス0x{address}を検証中... ({progress}%)",
       "verifySuccess": "ROM検証成功",
       "verifyFailed": "ROM検証失敗",
+      "verifyFailedAt": "アドレス0x{address}で検証失敗、期待値0x{expected}、実際値0x{actual}",
+      "verifySummary": "検証完了 - 総時間: {totalTime}秒、平均速度: {avgSpeed} KB/s、最大速度: {maxSpeed} KB/s、総サイズ: {totalSize} KB",
       "sizeChanged": "ROMサイズが {size} に変更されました",
       "bankSwitch": "ROMバンク {bank} に切り替え",
       "eraseBeforeWrite": "Flashが空ではないため消去を開始します",
@@ -300,15 +304,15 @@
       "readSummary": "RAM読み取り完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} KB"
     },
     "progress": {
-      "writing": "書き込み済み: {written}/{total} バイト",
-      "reading": "読み取り済み: {read}/{total} バイト",
+      "writing": "処理済み: {written}/{total} バイト",
+      "reading": "処理済み: {read}/{total} バイト",
       "verifying": "検証済み: {verified}/{total} バイト",
       "erasing": "消去済み: {erased}/{total} セクター",
       "eraseSpeed": "消去速度: {speed} セクター/秒",
-      "writeSpeed": "書き込み速度: {speed} KB/s",
-      "readSpeed": "読み取り速度: {speed} KB/s",
+      "writeSpeed": "処理速度: {speed} KB/s",
+      "readSpeed": "処理速度: {speed} KB/s",
       "verifySpeed": "検証速度: {speed} KB/s",
-      "eraseCompleteReady": "消去完了、書き込み準備完了"
+      "eraseCompleteReady": "消去完了、処理準備完了"
     },
     "mode": {
       "autoSwitched": "{romType}タイプのROMファイルを検出したため、{from}モードから{to}モードに自動切り替えしました"

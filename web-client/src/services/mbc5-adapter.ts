@@ -283,9 +283,10 @@ export class MBC5Adapter extends CartridgeAdapter {
    * 写入ROM
    * @param fileData - 文件数据
    * @param options - 写入选项
+   * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态和消息的对象
    */
-  async writeROM(fileData: Uint8Array, options: CommandOptions = {}) : Promise<CommandResult> {
+  async writeROM(fileData: Uint8Array, options: CommandOptions = {}, signal: AbortSignal) : Promise<CommandResult> {
     return PerformanceTracker.trackProgressOperation(
       'mbc5.writeROM',
       async () => {
@@ -392,13 +393,22 @@ export class MBC5Adapter extends CartridgeAdapter {
    * 读取ROM
    * @param size - 读取大小
    * @param baseAddress - 基础地址
+   * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态、数据和消息的对象
    */
-  async readROM(size: number, baseAddress = 0) : Promise<CommandResult> {
+  async readROM(size: number, baseAddress = 0, signal?: AbortSignal) : Promise<CommandResult> {
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.readROM',
       async () => {
         try {
+          // 检查是否已被取消
+          if (signal?.aborted) {
+            return {
+              success: false,
+              message: this.t('messages.operation.cancelled'),
+            };
+          }
+
           this.log(this.t('messages.rom.reading'));
 
           const result = new Uint8Array(size);
@@ -408,6 +418,15 @@ export class MBC5Adapter extends CartridgeAdapter {
           let maxSpeed = 0;
 
           while (readCount < size) {
+            // 检查是否已被取消
+            if (signal?.aborted) {
+              this.log(this.t('messages.operation.cancelled'));
+              return {
+                success: false,
+                message: this.t('messages.operation.cancelled'),
+              };
+            }
+
             // 分包处理
             let chunkSize = size - readCount;
             chunkSize = Math.min(chunkSize, 4096);
@@ -440,6 +459,7 @@ export class MBC5Adapter extends CartridgeAdapter {
               readCount,
               startTime,
               currentSpeed,
+              true, // 允许取消
             ));
           }
 
@@ -463,6 +483,14 @@ export class MBC5Adapter extends CartridgeAdapter {
             message: message,
           };
         } catch (error) {
+          if (signal?.aborted) {
+            this.log(this.t('messages.operation.cancelled'));
+            return {
+              success: false,
+              message: this.t('messages.operation.cancelled'),
+            };
+          }
+
           const message = `${this.t('messages.rom.readFailed')}: ${error}`;
           this.log(message);
           return {

@@ -55,9 +55,10 @@ export class CartridgeAdapter {
 
   /**
    * 擦除整个芯片
+   * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态和消息的对象
    */
-  async eraseChip(): Promise<CommandResult> {
+  async eraseChip(signal?: AbortSignal): Promise<CommandResult> {
     throw new Error('未实现的方法: eraseChip');
   }
 
@@ -75,10 +76,11 @@ export class CartridgeAdapter {
   /**
    * 写入ROM
    * @param fileData - 文件数据
-   * @param options - 写入选项
+   * * @param options - 写入选项
+   * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态和消息的对象
    */
-  async writeROM(fileData: Uint8Array, options?: CommandOptions): Promise<CommandResult> {
+  async writeROM(fileData: Uint8Array, options: CommandOptions = {}, signal?: AbortSignal): Promise<CommandResult> {
     throw new Error('未实现的方法: writeROM');
   }
 
@@ -86,9 +88,10 @@ export class CartridgeAdapter {
    * 读取ROM
    * @param size - 读取大小
    * @param baseAddress - 基础地址
+   * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态、数据和消息的对象
    */
-  async readROM(size: number, baseAddress: number = 0): Promise<CommandResult> {
+  async readROM(size: number, baseAddress: number = 0, signal?: AbortSignal): Promise<CommandResult> {
     throw new Error('未实现的方法: readROM');
   }
 
@@ -96,9 +99,10 @@ export class CartridgeAdapter {
    * 校验ROM
    * @param fileData - 文件数据
    * @param baseAddress - 基础地址
+   * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态和消息的对象
    */
-  async verifyROM(fileData: Uint8Array, baseAddress: number = 0): Promise<CommandResult> {
+  async verifyROM(fileData: Uint8Array, baseAddress: number = 0, signal: AbortSignal): Promise<CommandResult> {
     throw new Error('未实现的方法: verifyROM');
   }
 
@@ -144,7 +148,7 @@ export class CartridgeAdapter {
    * @returns 进度信息对象
    */
   protected createProgressInfo(
-    progress: number,
+    progress?: number,
     detail?: string,
     totalBytes?: number,
     transferredBytes?: number,

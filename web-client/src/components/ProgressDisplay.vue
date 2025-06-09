@@ -2,7 +2,7 @@
   <BaseModal
     :visible="visible"
     :title="$t('ui.progress.title')"
-    :close-disabled="!allowCancel && !isCompleted"
+    :close-disabled="!isCompleted && !isCancelled"
     :width="500"
     @close="handleClose"
   >
@@ -18,7 +18,7 @@
       </h3>
       <button
         class="close-button"
-        :disabled="!allowCancel && !isCompleted"
+        :disabled="!isCompleted && !isCancelled"
         @click="handleClose"
       >
         <IonIcon :icon="closeOutline" />
@@ -48,16 +48,16 @@
           <span class="stat-value">{{ formatBytes(remainingBytes) }}</span>
         </div>
         <div class="stat-item">
-          <span class="stat-label">{{ $t('ui.progress.speed') }}</span>
-          <span class="stat-value">{{ formatSpeed(currentSpeed) }}</span>
-        </div>
-        <div class="stat-item">
           <span class="stat-label">{{ $t('ui.progress.elapsed') }}</span>
           <span class="stat-value">{{ formatTime(elapsedTime) }}</span>
         </div>
         <div class="stat-item">
           <span class="stat-label">{{ $t('ui.progress.remaining_time') }}</span>
           <span class="stat-value">{{ formatTime(remainingTime) }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">{{ $t('ui.progress.speed') }}</span>
+          <span class="stat-value">{{ formatSpeed(currentSpeed) }}</span>
         </div>
         <div class="stat-item">
           <span class="stat-label">{{ $t('ui.progress.total_size') }}</span>
@@ -106,6 +106,7 @@ const emit = defineEmits<{
 
 const visible = ref(false);
 const isCompleted = ref(false);
+const isCancelled = ref(false);
 const now = ref(Date.now());
 let timer: number | undefined;
 
@@ -173,6 +174,7 @@ const totalBytes = computed(() => props.totalBytes || 0);
 function handleStop() {
   if (props.allowCancel !== false) {
     emit('stop');
+    isCancelled.value = true;
   }
 }
 
