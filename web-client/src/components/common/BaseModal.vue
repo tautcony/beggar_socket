@@ -22,7 +22,7 @@
               :disabled="closeDisabled"
               @click="$emit('close')"
             >
-              ×
+              <IonIcon :icon="closeOutline" />
             </button>
           </template>
         </div>
@@ -41,6 +41,8 @@
 </template>
 
 <script setup lang="ts">
+import { IonIcon } from '@ionic/vue';
+import { closeOutline } from 'ionicons/icons';
 import { computed, onMounted, onUnmounted } from 'vue';
 
 const props = defineProps({

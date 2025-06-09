@@ -2,7 +2,7 @@
   <BaseModal
     :visible="visible"
     :title="$t('ui.progress.title')"
-    :close-disabled="!isCompleted && !isCancelled"
+    :close-disabled="state === 'running'"
     :width="500"
     @close="handleClose"
   >
@@ -16,13 +16,6 @@
           <IonIcon :icon="checkmarkOutline" />
         </span>
       </h3>
-      <button
-        class="close-button"
-        :disabled="!isCompleted && !isCancelled"
-        @click="handleClose"
-      >
-        <IonIcon :icon="closeOutline" />
-      </button>
     </template>
     <div class="modal-body">
       <!-- Progress Bar -->
@@ -75,10 +68,17 @@
     <template #footer>
       <button
         class="stop-button"
-        :disabled="!allowCancel"
+        :disabled="(!allowCancel) || state === 'completed' || state === 'error'"
         @click="handleStop"
       >
         {{ $t('ui.progress.stop') }}
+      </button>
+      <button
+        class="close-button"
+        :disabled="state === 'running'"
+        @click="handleClose"
+      >
+        <IonIcon :icon="closeOutline" />
       </button>
     </template>
   </BaseModal>
@@ -105,10 +105,13 @@ const emit = defineEmits<{
 }>();
 
 const visible = ref(false);
-const isCompleted = ref(false);
 const isCancelled = ref(false);
 const now = ref(Date.now());
 let timer: number | undefined;
+
+const isCompleted = computed(() => {
+  return props.progress === 100 || props.state === 'completed';
+});
 
 watch(
   () => visible.value && !isCompleted.value,
@@ -128,19 +131,6 @@ watch(
 onUnmounted(() => {
   if (timer) clearInterval(timer);
 });
-
-// 监听进度变化来控制弹窗显示
-watch(() => props.progress, (newProgress) => {
-  if (newProgress !== null && newProgress !== undefined) {
-    visible.value = true;
-    isCompleted.value = false;
-  }
-
-  // 当进度达到100%时标记为完成，但不自动关闭
-  if (newProgress === 100) {
-    isCompleted.value = true;
-  }
-}, { immediate: true });
 
 // Computed statistics
 const transferredBytes = computed(() => {
@@ -181,14 +171,6 @@ function handleStop() {
 function handleClose() {
   visible.value = false;
   emit('close');
-}
-
-function onOverlayClick() {
-  // 只有在操作完成时才允许点击弹窗外关闭
-  if (isCompleted.value || props.progress === 100) {
-    visible.value = false;
-    emit('close');
-  }
 }
 
 // Keyboard handling

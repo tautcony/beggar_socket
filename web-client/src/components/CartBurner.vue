@@ -1,15 +1,16 @@
 <template>
   <div class="flashburner-container">
     <ProgressDisplay
-      v-if="currentProgress !== null && currentProgress !== undefined"
+      v-if="operateProgress !== null && operateProgress !== undefined"
       key="progress"
-      :progress="currentProgress"
-      :detail="currentProgressDetail"
-      :total-bytes="currentTotalBytes"
-      :transferred-bytes="currentTransferredBytes"
-      :start-time="currentStartTime"
-      :current-speed="currentSpeed"
-      :allow-cancel="currentAllowCancel"
+      :progress="operateProgress"
+      :detail="operateProgressDetail"
+      :total-bytes="operateTotalBytes"
+      :transferred-bytes="operateTransferredBytes"
+      :start-time="operateStartTime"
+      :current-speed="operateCurrentSpeed"
+      :allow-cancel="operateAllowCancel"
+      :state="operateState"
       @stop="handleProgressStop"
       @close="resetProgress"
     />
@@ -39,7 +40,6 @@
     </div>
     <div class="main-layout">
       <div class="content-area">
-        <!-- status-row 已移除，操作中/结果仅用全局 toast 提示 -->
         <TransitionGroup
           name="panel-move"
           tag="div"
@@ -111,19 +111,12 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import LogViewer from '@/components/LogViewer.vue';
-import ChipOperations from '@/components/operaiton/ChipOperations.vue';
-import RamOperations from '@/components/operaiton/RamOperations.vue';
-import RomOperations from '@/components/operaiton/RomOperations.vue';
+import { ChipOperations, RamOperations, RomOperations } from '@/components/operaiton';
 import ProgressDisplay from '@/components/ProgressDisplay.vue';
 import { useToast } from '@/composables/useToast';
-import { CartridgeAdapter } from '@/services/cartridge-adapter';
-import { GBAAdapter } from '@/services/gba-adapter';
-import { MBC5Adapter } from '@/services/mbc5-adapter';
-import { MockAdapter } from '@/services/mock-adapter';
+import { CartridgeAdapter, GBAAdapter, MBC5Adapter, MockAdapter } from '@/services';
 import { DebugSettings } from '@/settings/debug-settings';
-import { DeviceInfo } from '@/types/device-info';
-import { FileInfo } from '@/types/file-info';
-import { ProgressInfo } from '@/types/progress-info';
+import { DeviceInfo, FileInfo, ProgressInfo } from '@/types';
 import { formatBytes } from '@/utils/formatter-utils';
 
 const { showToast } = useToast();
@@ -136,6 +129,9 @@ const props = defineProps<{
 
 const mode = ref<'GBA' | 'MBC5'>('GBA');
 const busy = ref(false);
+const logs = ref<string[]>([]);
+
+// progress props
 const operateProgress = ref<number | null | undefined>(null);
 const operateProgressDetail = ref<string | undefined>('');
 const operateTotalBytes = ref<number | undefined>(undefined);
@@ -143,15 +139,15 @@ const operateTransferredBytes = ref<number | undefined>(undefined);
 const operateStartTime = ref<number | undefined>(undefined);
 const operateCurrentSpeed = ref<number | undefined>(undefined);
 const operateAllowCancel = ref<boolean>(true);
-const logs = ref<string[]>([]);
+const operateState = ref<'idle' | 'running' | 'paused' | 'completed' | 'error'>('idle');
 
+// chip props
 const idStr = ref<string | null>(null);
 const deviceSize = ref<number | null>(null);
 const sectorCount = ref<number | null>(null);
 const sectorSize = ref<number | null>(null);
 const bufferWriteBytes = ref<number | null>(null);
 
-// 取消控制器，用于中止长时间运行的操作
 const currentAbortController = ref<AbortController | null>(null);
 
 // Adapter
@@ -168,35 +164,6 @@ const ramFileData = ref<Uint8Array | null>(null);
 const ramFileName = ref('');
 const selectedRamSize = ref('0x8000'); // 默认32KB
 const selectedRamType = ref('SRAM'); // 默认SRAM
-
-// 计算当前显示的进度
-const currentProgress = computed(() => {
-  return operateProgress.value !== null ? operateProgress.value : undefined;
-});
-
-const currentProgressDetail = computed(() => {
-  return operateProgressDetail.value || undefined;
-});
-
-const currentTotalBytes = computed(() => {
-  return operateTotalBytes.value;
-});
-
-const currentTransferredBytes = computed(() => {
-  return operateTransferredBytes.value;
-});
-
-const currentStartTime = computed(() => {
-  return operateStartTime.value;
-});
-
-const currentSpeed = computed(() => {
-  return operateCurrentSpeed.value;
-});
-
-const currentAllowCancel = computed(() => {
-  return operateAllowCancel.value;
-});
 
 // 设备连接状态改变时，初始化适配器
 watch(() => props.deviceReady, (newVal) => {
@@ -252,6 +219,9 @@ function updateProgress(progressInfo: ProgressInfo) {
   }
   if (progressInfo.allowCancel !== undefined) {
     operateAllowCancel.value = progressInfo.allowCancel ?? true;
+  }
+  if (progressInfo.state !== undefined) {
+    operateState.value = progressInfo.state;
   }
 }
 

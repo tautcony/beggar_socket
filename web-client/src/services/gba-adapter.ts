@@ -485,7 +485,7 @@ export class GBAAdapter extends CartridgeAdapter {
             message: this.t('messages.rom.readSuccess', { size: data.length }),
           };
         } catch (e) {
-          this.updateProgress({ detail: this.t('messages.rom.readFailed') });
+          this.updateProgress({ detail: this.t('messages.rom.readFailed'), state: 'error' });
           this.log(`${this.t('messages.rom.readFailed')}: ${e}`);
           return {
             success: false,

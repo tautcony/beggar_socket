@@ -5,5 +5,6 @@ export interface ProgressInfo {
   transferredBytes?: number
   startTime?: number
   currentSpeed?: number // KB/s
-  allowCancel?: boolean
+  allowCancel?: boolean,
+  state?: 'idle' | 'running' | 'paused' | 'completed' | 'error'
 }
