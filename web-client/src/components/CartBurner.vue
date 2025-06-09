@@ -9,7 +9,7 @@
       :transferred-bytes="currentTransferredBytes"
       :start-time="currentStartTime"
       :current-speed="currentSpeed"
-      :allow-cancel="false"
+      :allow-cancel="currentAllowCancel"
       @stop="handleProgressStop"
       @close="resetProgress"
     />
@@ -116,13 +116,14 @@ import RamOperations from '@/components/operaiton/RamOperations.vue';
 import RomOperations from '@/components/operaiton/RomOperations.vue';
 import ProgressDisplay from '@/components/ProgressDisplay.vue';
 import { useToast } from '@/composables/useToast';
-import { CartridgeAdapter, type ProgressInfo } from '@/services/cartridge-adapter';
+import { CartridgeAdapter } from '@/services/cartridge-adapter';
 import { GBAAdapter } from '@/services/gba-adapter';
 import { MBC5Adapter } from '@/services/mbc5-adapter';
 import { MockAdapter } from '@/services/mock-adapter';
 import { DebugSettings } from '@/settings/debug-settings';
 import { DeviceInfo } from '@/types/device-info';
 import { FileInfo } from '@/types/file-info';
+import { ProgressInfo } from '@/types/progress-info';
 import { formatBytes } from '@/utils/formatter-utils';
 
 const { showToast } = useToast();
@@ -201,9 +202,8 @@ watch(() => props.deviceReady, (newVal) => {
       // 调试模式下使用 MockAdapter
       const adapter = new MockAdapter(
         (msg) => log(msg),
-        (progress, detail) => updateProgress(progress, detail),
+        updateProgress,
         t,
-        updateEnhancedProgress,
       );
       gbaAdapter.value = adapter;
       mbc5Adapter.value = adapter;
@@ -212,16 +212,14 @@ watch(() => props.deviceReady, (newVal) => {
       gbaAdapter.value = new GBAAdapter(
         props.device,
         (msg) => log(msg),
-        (progress, detail) => updateProgress(progress, detail),
+        updateProgress,
         t,
-        updateEnhancedProgress,
       );
       mbc5Adapter.value = new MBC5Adapter(
         props.device,
         (msg) => log(msg),
-        (progress, detail) => updateProgress(progress, detail),
+        updateProgress,
         t,
-        updateEnhancedProgress,
       );
     }
   } else {
@@ -230,36 +228,7 @@ watch(() => props.deviceReady, (newVal) => {
   }
 });
 
-function updateProgress(progress: number, detail: string | undefined, options?: {
-  totalBytes?: number
-  transferredBytes?: number
-  startTime?: number
-  currentSpeed?: number
-  allowCancel?: boolean
-}) {
-  operateProgress.value = progress;
-  operateProgressDetail.value = detail;
-
-  if (options) {
-    if (options.totalBytes !== undefined) {
-      operateTotalBytes.value = options.totalBytes;
-    }
-    if (options.transferredBytes !== undefined) {
-      operateTransferredBytes.value = options.transferredBytes;
-    }
-    if (options.startTime !== undefined) {
-      operateStartTime.value = options.startTime;
-    }
-    if (options.currentSpeed !== undefined) {
-      operateCurrentSpeed.value = options.currentSpeed;
-    }
-    if (options.allowCancel !== undefined) {
-      operateAllowCancel.value = options.allowCancel;
-    }
-  }
-}
-
-function updateEnhancedProgress(progressInfo: ProgressInfo) {
+function updateProgress(progressInfo: ProgressInfo) {
   operateProgress.value = progressInfo.progress;
   operateProgressDetail.value = progressInfo.detail;
   operateTotalBytes.value = progressInfo.totalBytes;
@@ -442,7 +411,7 @@ async function readRom() {
       return;
     }
 
-    const romSize = romFileData.value ? romFileData.value.length : parseInt(selectedRomSize.value, 16);
+    const romSize = parseInt(selectedRomSize.value, 16);
     const response = await adapter.readROM(romSize);
     if (response.success) {
       showToast(response.message, 'success');

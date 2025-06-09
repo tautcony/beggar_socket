@@ -1,5 +1,5 @@
 import { gbc_direct_write, gbc_read, gbc_rom_program } from '@/protocol/beggar_socket/protocol';
-import { CartridgeAdapter, EnhancedProgressCallback, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
+import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
@@ -16,16 +16,14 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param logCallback - 日志回调函数
    * @param progressCallback - 进度回调函数
    * @param translateFunc - 国际化翻译函数
-   * @param enhancedProgressCallback - 增强进度回调函数
    */
   constructor(
     device: DeviceInfo,
     logCallback: LogCallback | null = null,
     progressCallback: ProgressCallback | null = null,
     translateFunc: TranslateFunction | null = null,
-    enhancedProgressCallback: EnhancedProgressCallback | null = null,
   ) {
-    super(device, logCallback, progressCallback, translateFunc, enhancedProgressCallback);
+    super(device, logCallback, progressCallback, translateFunc);
   }
 
   /**
@@ -249,7 +247,14 @@ export class MBC5Adapter extends CartridgeAdapter {
 
         const elapsed = (Date.now() - startTime) / 1000;
         const speed = elapsed > 0 ? ((erasedSectors + 1) / elapsed).toFixed(1) : '0';
-        this.updateProgress((erasedSectors + 1) / totalSectors * 100, `擦除速度: ${speed} 扇区/秒`);
+        this.updateProgress(this.createProgressInfo(
+          (erasedSectors + 1) / totalSectors * 100,
+          this.t('messages.progress.eraseSpeed', { speed: speed }),
+          totalSectors * sectorSize,
+          (erasedSectors + 1) * sectorSize,
+          startTime,
+          parseFloat(speed),
+        ));
 
         // Wait for completion
         let temp;
@@ -283,7 +288,7 @@ export class MBC5Adapter extends CartridgeAdapter {
   async writeROM(fileData: Uint8Array, options: CommandOptions = {}) : Promise<CommandResult> {
     return PerformanceTracker.trackProgressOperation(
       'mbc5.writeROM',
-      async (progressCallback) => {
+      async () => {
         const baseAddress = options.baseAddress || 0;
         // const romSize = options.romSize || null;
 
@@ -334,8 +339,15 @@ export class MBC5Adapter extends CartridgeAdapter {
             maxSpeed = Math.max(maxSpeed, currentSpeed);
 
             const progress = (writtenCount / fileData.length) * 100;
-            this.updateProgress(progress, this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }));
-            progressCallback?.(progress);
+
+            this.updateProgress(this.createProgressInfo(
+              progress,
+              this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }),
+              fileData.length,
+              writtenCount,
+              startTime,
+              currentSpeed,
+            ));
           }
 
           const totalTime = (Date.now() - startTime) / 1000;
@@ -421,7 +433,14 @@ export class MBC5Adapter extends CartridgeAdapter {
             const elapsed = (Date.now() - startTime) / 1000;
             const currentSpeed = elapsed > 0 ? (readCount / 1024) / elapsed : 0;
             maxSpeed = Math.max(maxSpeed, currentSpeed);
-            this.updateProgress(readCount / size * 100, this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }));
+            this.updateProgress(this.createProgressInfo(
+              readCount / size * 100,
+              this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }),
+              size,
+              readCount,
+              startTime,
+              currentSpeed,
+            ));
           }
 
           const totalTime = (Date.now() - startTime) / 1000;
@@ -518,7 +537,14 @@ export class MBC5Adapter extends CartridgeAdapter {
             readCount += chunkSize;
             const elapsed = (Date.now() - startTime) / 1000;
             const speed = elapsed > 0 ? ((readCount / 1024) / elapsed).toFixed(1) : '0';
-            this.updateProgress(readCount / fileData.length * 100, `校验速度: ${speed} KB/s`);
+            this.updateProgress(this.createProgressInfo(
+              readCount / fileData.length * 100,
+              this.t('messages.progress.verifySpeed', { speed: speed }),
+              fileData.length,
+              readCount,
+              startTime,
+              parseFloat(speed),
+            ));
           }
 
           const elapsedTime = (Date.now() - startTime) / 1000;
@@ -600,7 +626,14 @@ export class MBC5Adapter extends CartridgeAdapter {
             const elapsed = (Date.now() - startTime) / 1000;
             const currentSpeed = elapsed > 0 ? (writtenCount / 1024) / elapsed : 0;
             maxSpeed = Math.max(maxSpeed, currentSpeed);
-            this.updateProgress(writtenCount / fileData.length * 100, this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }));
+            this.updateProgress(this.createProgressInfo(
+              writtenCount / fileData.length * 100,
+              this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }),
+              fileData.length,
+              writtenCount,
+              startTime,
+              currentSpeed,
+            ));
           }
 
           const totalTime = (Date.now() - startTime) / 1000;
@@ -689,7 +722,14 @@ export class MBC5Adapter extends CartridgeAdapter {
             const elapsed = (Date.now() - startTime) / 1000;
             const currentSpeed = elapsed > 0 ? (readCount / 1024) / elapsed : 0;
             maxSpeed = Math.max(maxSpeed, currentSpeed);
-            this.updateProgress(readCount / size * 100, this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }));
+            this.updateProgress(this.createProgressInfo(
+              readCount / size * 100,
+              this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }),
+              size,
+              readCount,
+              startTime,
+              currentSpeed,
+            ));
           }
 
           const totalTime = (Date.now() - startTime) / 1000;
@@ -790,7 +830,14 @@ export class MBC5Adapter extends CartridgeAdapter {
             readCount += chunkSize;
             const elapsed = (Date.now() - startTime) / 1000;
             const speed = elapsed > 0 ? ((readCount / 1024) / elapsed).toFixed(1) : '0';
-            this.updateProgress(readCount / fileData.length * 100, `校验速度: ${speed} KB/s`);
+            this.updateProgress(this.createProgressInfo(
+              readCount / fileData.length * 100,
+              this.t('messages.progress.verifySpeed', { speed: speed }),
+              fileData.length,
+              readCount,
+              startTime,
+              parseFloat(speed),
+            ));
           }
 
           const elapsedTime = (Date.now() - startTime) / 1000;

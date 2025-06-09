@@ -90,23 +90,14 @@ import { checkmarkOutline, closeOutline } from 'ionicons/icons';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { ProgressInfo } from '@/types/progress-info';
 import { formatBytes, formatSpeed, formatTime } from '@/utils/formatter-utils';
 
 import BaseModal from './common/BaseModal.vue';
 
 const { t } = useI18n();
 
-interface ProgressData {
-  progress: number | null
-  detail?: string
-  totalBytes?: number
-  transferredBytes?: number
-  startTime?: number
-  currentSpeed?: number // KB/s
-  allowCancel?: boolean
-}
-
-const props = defineProps<ProgressData>();
+const props = defineProps<ProgressInfo>();
 
 const emit = defineEmits<{
   stop: []

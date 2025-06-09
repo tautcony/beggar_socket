@@ -1,5 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import ProgressDisplay from '../src/components/ProgressDisplay.vue';
 import * as formatterUtils from '../src/utils/formatter-utils';
 

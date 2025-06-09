@@ -1,23 +1,12 @@
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
+import { ProgressInfo } from '@/types/progress-info';
 
 // 定义日志和进度回调函数类型
 export type LogCallback = (message: string, type?: 'info' | 'error' | 'success' | 'warning') => void;
-export type ProgressCallback = (progress: number, message?: string) => void;
 
-// 增强的进度回调接口，支持详细的传输统计
-export interface ProgressInfo {
-  progress: number
-  detail?: string
-  totalBytes?: number
-  transferredBytes?: number
-  startTime?: number
-  currentSpeed?: number // KB/s
-  allowCancel?: boolean
-}
-
-export type EnhancedProgressCallback = (progressInfo: ProgressInfo) => void;
+export type ProgressCallback = (progressInfo: ProgressInfo) => void;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type TranslateFunction = (key: string, params?: any) => string;
@@ -30,7 +19,6 @@ export class CartridgeAdapter {
   protected device: DeviceInfo;
   protected log: LogCallback;
   protected updateProgress: ProgressCallback;
-  protected updateEnhancedProgress: EnhancedProgressCallback | null;
   protected t: TranslateFunction;
 
   /**
@@ -39,19 +27,16 @@ export class CartridgeAdapter {
    * @param logCallback - 日志回调函数
    * @param progressCallback - 进度回调函数
    * @param translateFunc - 国际化翻译函数
-   * @param enhancedProgressCallback - 增强进度回调函数
    */
   constructor(
     device: DeviceInfo,
     logCallback: LogCallback | null = null,
     progressCallback: ProgressCallback | null = null,
     translateFunc: TranslateFunction | null = null,
-    enhancedProgressCallback: EnhancedProgressCallback | null = null,
   ) {
     this.device = device;
     this.log = logCallback || (() => {});
     this.updateProgress = progressCallback || (() => {});
-    this.updateEnhancedProgress = enhancedProgressCallback;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.t = translateFunc || ((key: string, params?: any) => key);
   }
@@ -148,20 +133,6 @@ export class CartridgeAdapter {
   }
 
   /**
-   * 发送增强的进度信息
-   * @param progressInfo - 进度信息对象
-   */
-  protected sendEnhancedProgress(progressInfo: ProgressInfo): void {
-    // 同时发送传统进度回调
-    this.updateProgress(progressInfo.progress, progressInfo.detail);
-
-    // 发送增强进度回调（如果可用）
-    if (this.updateEnhancedProgress) {
-      this.updateEnhancedProgress(progressInfo);
-    }
-  }
-
-  /**
    * 创建进度信息对象的辅助方法
    * @param progress - 进度百分比
    * @param detail - 详细信息
@@ -179,7 +150,7 @@ export class CartridgeAdapter {
     transferredBytes?: number,
     startTime?: number,
     currentSpeed?: number,
-    allowCancel?: boolean,
+    allowCancel: boolean = true,
   ): ProgressInfo {
     return {
       progress,

@@ -12,7 +12,7 @@ import {
   rom_verify,
 } from '@/protocol/beggar_socket/protocol';
 import { getFlashId, toLittleEndian } from '@/protocol/beggar_socket/protocol-utils';
-import { CartridgeAdapter, EnhancedProgressCallback, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
+import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
@@ -29,16 +29,14 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param logCallback - 日志回调函数
    * @param progressCallback - 进度回调函数
    * @param translateFunc - 国际化翻译函数
-   * @param enhancedProgressCallback - 增强进度回调函数
    */
   constructor(
     device: DeviceInfo,
     logCallback: LogCallback | null = null,
-    progressCallback: ProgressCallback | null = null,
+    enhancedProgressCallback: ProgressCallback | null = null,
     translateFunc: TranslateFunction | null = null,
-    enhancedProgressCallback: EnhancedProgressCallback | null = null,
   ) {
-    super(device, logCallback, progressCallback, translateFunc, enhancedProgressCallback);
+    super(device, logCallback, enhancedProgressCallback, translateFunc);
   }
 
   /**
@@ -157,8 +155,16 @@ export class GBAAdapter extends CartridgeAdapter {
 
         eraseCount++;
         const elapsed = (Date.now() - startTime) / 1000;
-        const speed = elapsed > 0 ? (eraseCount / elapsed).toFixed(1) : '0';
-        this.updateProgress(eraseCount / totalSectors * 100, this.t('messages.progress.eraseSpeed', { speed }));
+        const speed = elapsed > 0 ? (eraseCount * sectorSize) / elapsed : 0;
+        const sectorSpeed = elapsed > 0 ? (eraseCount / elapsed).toFixed(1) : '0';
+        this.updateProgress(this.createProgressInfo(
+          eraseCount / totalSectors * 1000,
+          this.t('messages.progress.eraseSpeed', { speed: sectorSpeed }),
+          endAddress - startAddress,
+          eraseCount * sectorSize,
+          startTime,
+          speed,
+        ));
       }
 
       this.log(this.t('messages.operation.eraseSuccess'));
@@ -184,7 +190,7 @@ export class GBAAdapter extends CartridgeAdapter {
   async writeROM(fileData: Uint8Array, options: CommandOptions = { useDirectWrite: true }) : Promise<CommandResult> {
     return PerformanceTracker.trackProgressOperation(
       'gba.writeROM',
-      async (updateProgress) => {
+      async () => {
         try {
           this.log(this.t('messages.rom.writing', { size: fileData.length }));
 
@@ -216,17 +222,14 @@ export class GBAAdapter extends CartridgeAdapter {
             maxSpeed = Math.max(maxSpeed, currentSpeed);
 
             // 使用增强的进度回调
-            this.sendEnhancedProgress(this.createProgressInfo(
+            this.updateProgress(this.createProgressInfo(
               progress,
               this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }),
               total,
               written,
               startTime,
               currentSpeed,
-              true,
             ));
-
-            updateProgress(progress);
 
             // 每2个百分比记录一次日志
             if (progress % 2 === 0 && progress !== lastLoggedProgress) {
@@ -357,11 +360,19 @@ export class GBAAdapter extends CartridgeAdapter {
 
             totalRead += chunkSize;
             const elapsed = (Date.now() - startTime) / 1000;
+            const progress = Math.floor((totalRead / size) * 100);
             if (elapsed > 0) {
               const currentSpeed = (totalRead / 1024) / elapsed;
               maxSpeed = Math.max(maxSpeed, currentSpeed);
-              const progress = Math.floor((totalRead / size) * 100);
-              this.updateProgress(progress, this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }));
+
+              this.updateProgress(this.createProgressInfo(
+                progress,
+                this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }),
+                size,
+                totalRead,
+                startTime,
+                currentSpeed,
+              ));
             }
           }
 
@@ -496,7 +507,14 @@ export class GBAAdapter extends CartridgeAdapter {
               this.log(this.t('messages.gba.eraseStatus', { status: result[0].toString(16) }));
               if (result[0] === 0xff) {
                 this.log(this.t('messages.gba.eraseComplete'));
-                this.updateProgress(0, this.t('messages.progress.eraseCompleteReady'));
+                this.updateProgress(this.createProgressInfo(
+                  100,
+                  this.t('messages.progress.eraseCompleteReady'),
+                  total,
+                  written,
+                  Date.now(),
+                  0,
+                ));
                 erased = true;
               } else {
                 await new Promise(resolve => setTimeout(resolve, 1000));
@@ -543,7 +561,14 @@ export class GBAAdapter extends CartridgeAdapter {
             const elapsed = (Date.now() - startTime) / 1000;
             const currentSpeed = elapsed > 0 ? (written / 1024) / elapsed : 0;
             maxSpeed = Math.max(maxSpeed, currentSpeed);
-            this.updateProgress(progress, this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }));
+            this.updateProgress(this.createProgressInfo(
+              progress,
+              this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }),
+              total,
+              written,
+              startTime,
+              currentSpeed,
+            ));
 
             // 每2个百分比记录一次日志
             if (progress % 2 === 0 && progress !== lastLoggedProgress) {
@@ -637,7 +662,14 @@ export class GBAAdapter extends CartridgeAdapter {
             const elapsed = (Date.now() - startTime) / 1000;
             const currentSpeed = elapsed > 0 ? (read / 1024) / elapsed : 0;
             maxSpeed = Math.max(maxSpeed, currentSpeed);
-            this.updateProgress(progress, this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }));
+            this.updateProgress(this.createProgressInfo(
+              progress,
+              this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }),
+              size,
+              read,
+              startTime,
+              currentSpeed,
+            ));
           }
 
           const totalTime = (Date.now() - startTime) / 1000;
@@ -736,7 +768,14 @@ export class GBAAdapter extends CartridgeAdapter {
             const progress = Math.floor((verified / total) * 100);
             const elapsed = (Date.now() - startTime) / 1000;
             const speed = elapsed > 0 ? ((verified / 1024) / elapsed).toFixed(1) : '0';
-            this.updateProgress(progress, this.t('messages.progress.verifySpeed', { speed }));
+            this.updateProgress(this.createProgressInfo(
+              progress,
+              this.t('messages.progress.verifySpeed', { speed }),
+              total,
+              verified,
+              startTime,
+              parseFloat(speed),
+            ));
           }
 
           const message = success ? this.t('messages.ram.verifySuccess') : this.t('messages.ram.verifyFailed');

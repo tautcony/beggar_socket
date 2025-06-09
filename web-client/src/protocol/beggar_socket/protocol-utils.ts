@@ -92,8 +92,6 @@ export async function sendPackage(writer: WritableStreamDefaultWriter<Uint8Array
     'protocol.sendPackage',
     async () => {
       const timeout = timeoutMs ?? AdvancedSettings.packageSendTimeout;
-      // formatPackage(payload);
-      console.log(payload);
 
       await withTimeout(
         writer.write(payload),
@@ -181,6 +179,9 @@ export function getFlashId(id: number[]) : string | null {
     { pattern: [0x01, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22], name: 'S29GL256' },
     { pattern: [0x89, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22], name: 'JS28F256' },
     { pattern: [0x01, 0x00, 0x7e, 0x22, 0x28, 0x22, 0x01, 0x22], name: 'S29GL01GS' },
+    { pattern: [0xc2, 0xc2, 0xcb, 0xcb], name: 'MX29LV640EB' },
+    { pattern: [0xc2, 0xc2, 0xc9, 0xc9], name: 'MX29LV640ET' },
+    { pattern: [0x01, 0x01, 0x7e, 0x7e], name: 'S29GL256N' },
   ];
 
   for (const flashType of flashTypes) {

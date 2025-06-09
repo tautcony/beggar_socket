@@ -1,4 +1,4 @@
-import { CartridgeAdapter, EnhancedProgressCallback, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
+import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
 import { DebugSettings } from '@/settings/debug-settings';
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
@@ -15,11 +15,10 @@ export class MockAdapter extends CartridgeAdapter {
     logCallback: LogCallback | null = null,
     progressCallback: ProgressCallback | null = null,
     translateFunc: TranslateFunction | null = null,
-    enhancedProgressCallback: EnhancedProgressCallback | null = null,
   ) {
     // 创建模拟设备
     const mockDeviceInfo = DebugSettings.createMockDeviceInfo();
-    super(mockDeviceInfo, logCallback, progressCallback, translateFunc, enhancedProgressCallback);
+    super(mockDeviceInfo, logCallback, progressCallback, translateFunc);
 
     this.log(this.t('messages.debug.mockModeEnabled') || '调试模式已启用 - 使用模拟设备');
   }
@@ -63,14 +62,13 @@ export class MockAdapter extends CartridgeAdapter {
         const elapsed = (Date.now() - startTime) / 1000;
         const erasedSectors = Math.floor(10 * progress / 100); // 假设10个扇区
         const speed = elapsed > 0 ? (erasedSectors / elapsed) : 0;
-        this.sendEnhancedProgress(this.createProgressInfo(
+        this.updateProgress(this.createProgressInfo(
           progress,
           this.t('messages.progress.eraseSpeed', { speed: speed.toFixed(1) }),
           10,
           erasedSectors,
           startTime,
           speed,
-          true,
         ));
       },
       2000,
@@ -110,14 +108,13 @@ export class MockAdapter extends CartridgeAdapter {
         const speed = elapsed > 0 ? (writtenBytes / 1024) / elapsed : 0;
 
         // 使用增强的进度回调
-        this.sendEnhancedProgress(this.createProgressInfo(
+        this.updateProgress(this.createProgressInfo(
           progress,
           this.t('messages.progress.writeSpeed', { speed: speed.toFixed(1) }),
           data.length,
           writtenBytes,
           startTime,
           speed,
-          true,
         ));
       },
       3000,
@@ -154,14 +151,13 @@ export class MockAdapter extends CartridgeAdapter {
         const elapsed = (Date.now() - startTime) / 1000;
         const readBytes = Math.floor(size * progress / 100);
         const speed = elapsed > 0 ? (readBytes / 1024) / elapsed : 0;
-        this.sendEnhancedProgress(this.createProgressInfo(
+        this.updateProgress(this.createProgressInfo(
           progress,
           this.t('messages.progress.readSpeed', { speed: speed.toFixed(1) }),
           size,
           readBytes,
           startTime,
           speed,
-          true,
         ));
       },
       2500,
@@ -199,14 +195,13 @@ export class MockAdapter extends CartridgeAdapter {
         const elapsed = (Date.now() - startTime) / 1000;
         const verifiedBytes = Math.floor(data.length * progress / 100);
         const speed = elapsed > 0 ? (verifiedBytes / 1024) / elapsed : 0;
-        this.sendEnhancedProgress(this.createProgressInfo(
+        this.updateProgress(this.createProgressInfo(
           progress,
           this.t('messages.progress.verifySpeed', { speed: speed.toFixed(1) }),
           data.length,
           verifiedBytes,
           startTime,
           speed,
-          true,
         ));
       },
       2000,
@@ -243,14 +238,13 @@ export class MockAdapter extends CartridgeAdapter {
         const elapsed = (Date.now() - startTime) / 1000;
         const writtenBytes = Math.floor(data.length * progress / 100);
         const speed = elapsed > 0 ? (writtenBytes / 1024) / elapsed : 0;
-        this.sendEnhancedProgress(this.createProgressInfo(
+        this.updateProgress(this.createProgressInfo(
           progress,
           this.t('messages.progress.writeSpeed', { speed: speed.toFixed(1) }),
           data.length,
           writtenBytes,
           startTime,
           speed,
-          true,
         ));
       },
       2000,
@@ -285,14 +279,13 @@ export class MockAdapter extends CartridgeAdapter {
         const elapsed = (Date.now() - startTime) / 1000;
         const readBytes = Math.floor(size * progress / 100);
         const speed = elapsed > 0 ? (readBytes / 1024) / elapsed : 0;
-        this.sendEnhancedProgress(this.createProgressInfo(
+        this.updateProgress(this.createProgressInfo(
           progress,
           this.t('messages.progress.readSpeed', { speed: speed.toFixed(1) }),
           size,
           readBytes,
           startTime,
           speed,
-          true,
         ));
       },
       2000,
@@ -328,14 +321,13 @@ export class MockAdapter extends CartridgeAdapter {
         const elapsed = (Date.now() - startTime) / 1000;
         const verifiedBytes = Math.floor(data.length * progress / 100);
         const speed = elapsed > 0 ? (verifiedBytes / 1024) / elapsed : 0;
-        this.sendEnhancedProgress(this.createProgressInfo(
+        this.updateProgress(this.createProgressInfo(
           progress,
           this.t('messages.progress.verifySpeed', { speed: speed.toFixed(1) }),
           data.length,
           verifiedBytes,
           startTime,
           speed,
-          true,
         ));
       },
       1500,
