@@ -279,7 +279,7 @@ export class GBAAdapter extends CartridgeAdapter {
             await rom_program(this.device, chunk, addr);
 
             written += chunk.length;
-            const progress = Math.floor((written / total) * 100);
+            const progress = (written / total) * 100;
             const elapsed = (Date.now() - startTime) / 1000;
             const currentSpeed = elapsed > 0 ? (written / 1024) / elapsed : 0;
             maxSpeed = Math.max(maxSpeed, currentSpeed);
@@ -443,7 +443,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
             totalRead += chunkSize;
             const elapsed = (Date.now() - startTime) / 1000;
-            const progress = Math.floor((totalRead / size) * 100);
+            const progress = (totalRead / size) * 100;
             if (elapsed > 0) {
               const currentSpeed = (totalRead / 1024) / elapsed;
               maxSpeed = Math.max(maxSpeed, currentSpeed);
@@ -569,7 +569,7 @@ export class GBAAdapter extends CartridgeAdapter {
             if (!success) break;
 
             verified += chunkSize;
-            const progress = Math.floor((verified / total) * 100);
+            const progress = (verified / total) * 100;
             const elapsed = (Date.now() - startTime) / 1000;
             const currentSpeed = elapsed > 0 ? (verified / 1024) / elapsed : 0;
             maxSpeed = Math.max(maxSpeed, currentSpeed);
@@ -743,7 +743,7 @@ export class GBAAdapter extends CartridgeAdapter {
             }
 
             written += chunkSize;
-            const progress = Math.floor((written / total) * 100);
+            const progress = (written / total) * 100;
             const elapsed = (Date.now() - startTime) / 1000;
             const currentSpeed = elapsed > 0 ? (written / 1024) / elapsed : 0;
             maxSpeed = Math.max(maxSpeed, currentSpeed);
@@ -844,7 +844,7 @@ export class GBAAdapter extends CartridgeAdapter {
             result.set(chunk, read);
 
             read += chunkSize;
-            const progress = Math.floor((read / size) * 100);
+            const progress = (read / size) * 100;
             const elapsed = (Date.now() - startTime) / 1000;
             const currentSpeed = elapsed > 0 ? (read / 1024) / elapsed : 0;
             maxSpeed = Math.max(maxSpeed, currentSpeed);
@@ -951,7 +951,7 @@ export class GBAAdapter extends CartridgeAdapter {
             }
 
             verified += chunkSize;
-            const progress = Math.floor((verified / total) * 100);
+            const progress = (verified / total) * 100;
             const elapsed = (Date.now() - startTime) / 1000;
             const speed = elapsed > 0 ? ((verified / 1024) / elapsed).toFixed(1) : '0';
             this.updateProgress(this.createProgressInfo(

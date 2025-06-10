@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { timeoutIn, withTimeout } from '../src/utils/async-utils';
 
 describe('async-utils', () => {

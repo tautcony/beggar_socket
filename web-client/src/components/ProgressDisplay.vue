@@ -2,7 +2,7 @@
   <BaseModal
     :visible="visible"
     :title="$t('ui.progress.title')"
-    :close-disabled="state === 'running'"
+    :close-disabled="true"
     :width="500"
     @close="handleClose"
   >
