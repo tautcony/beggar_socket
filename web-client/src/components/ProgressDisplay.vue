@@ -128,6 +128,12 @@ watch(
   { immediate: true },
 );
 
+watch(() => props.progress, (newProgress) => {
+  if (newProgress !== null && newProgress !== undefined) {
+    visible.value = true;
+  }
+}, { immediate: true });
+
 onUnmounted(() => {
   if (timer) clearInterval(timer);
 });

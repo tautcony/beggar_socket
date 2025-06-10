@@ -107,7 +107,7 @@
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import { gameControllerOutline, hardwareChipOutline } from 'ionicons/icons';
-import { computed, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import LogViewer from '@/components/LogViewer.vue';
@@ -374,6 +374,7 @@ async function readID() {
 
 async function eraseChip() {
   busy.value = true;
+  operateProgress.value = 0;
   const abortSignal = startCancellableOperation();
 
   try {
@@ -424,6 +425,7 @@ async function writeRom() {
 
 async function readRom() {
   busy.value = true;
+  operateProgress.value = 0;
   const abortSignal = startCancellableOperation();
 
   try {
@@ -458,6 +460,7 @@ async function readRom() {
 
 async function verifyRom() {
   busy.value = true;
+  operateProgress.value = 0;
   const abortSignal = startCancellableOperation();
 
   try {
@@ -504,6 +507,7 @@ async function writeRam() {
 
 async function readRam() {
   busy.value = true;
+  operateProgress.value = 0;
 
   try {
     const adapter = getAdapter();
@@ -532,6 +536,7 @@ async function readRam() {
 
 async function verifyRam() {
   busy.value = true;
+  operateProgress.value = 0;
 
   try {
     const adapter = getAdapter();

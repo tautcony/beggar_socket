@@ -6,7 +6,7 @@
     <div class="debug-header">
       <h3>
         <IonIcon
-          name="construct-outline"
+          :icon="constructOutline"
           style="vertical-align: middle; margin-right: 6px; font-size: 1.2em;"
         />
         {{ $t('ui.debug.title') }}
@@ -146,6 +146,8 @@
 </template>
 
 <script setup lang="ts">
+import { IonIcon } from '@ionic/vue';
+import { constructOutline } from 'ionicons/icons';
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
