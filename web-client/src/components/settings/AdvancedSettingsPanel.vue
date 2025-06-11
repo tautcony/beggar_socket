@@ -8,7 +8,7 @@
           :title="$t('ui.settings.actions.close')"
           @click="$emit('close')"
         >
-          ×
+          <IonIcon :icon="closeOutline" />
         </button>
       </div>
 
@@ -27,7 +27,7 @@
                   type="number"
                   :min="limits.pageSize.min"
                   :max="limits.pageSize.max"
-                  :step="256"
+                  :step="64"
                   @input="validateAndUpdate"
                 >
                 <span class="unit">{{ $t('ui.settings.pageSize.bytes') }}</span>
@@ -50,7 +50,7 @@
                   type="number"
                   :min="limits.pageSize.min"
                   :max="limits.pageSize.max"
-                  :step="256"
+                  :step="64"
                   @input="validateAndUpdate"
                 >
                 <span class="unit">{{ $t('ui.settings.pageSize.bytes') }}</span>
@@ -196,6 +196,8 @@
 </template>
 
 <script setup lang="ts">
+import { IonIcon } from '@ionic/vue';
+import { closeOutline } from 'ionicons/icons';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -240,17 +242,23 @@ const validationErrors = ref({
 // 验证单个值
 const validatePageSize = (value: number): string => {
   if (isNaN(value) || value < limits.pageSize.min || value > limits.pageSize.max) {
-    return `页面大小必须在 ${limits.pageSize.min} - ${limits.pageSize.max} 字节之间`;
+    return t('ui.settings.pageSize.validation.range', {
+      min: limits.pageSize.min,
+      max: limits.pageSize.max,
+    });
   }
-  if (value % 256 !== 0) {
-    return '页面大小必须是256的倍数';
+  if (value % 64 !== 0) {
+    return t('ui.settings.pageSize.validation.multiple', { multipler: 64 });
   }
   return '';
 };
 
 const validateTimeout = (value: number): string => {
   if (isNaN(value) || value < limits.timeout.min || value > limits.timeout.max) {
-    return `超时时间必须在 ${limits.timeout.min} - ${limits.timeout.max} 毫秒之间`;
+    return t('ui.settings.timeout.validation.range', {
+      min: limits.timeout.min,
+      max: limits.timeout.max,
+    });
   }
   return '';
 };
@@ -300,12 +308,12 @@ const applySettings = () => {
     // 应用设置
     AdvancedSettings.setSettings(localSettings.value);
 
-    console.log('设置已保存:', AdvancedSettings.getSettings());
+    console.log(t('ui.settings.messages.saveSuccess'), AdvancedSettings.getSettings());
     emit('applied');
     emit('close');
   } catch (error) {
-    console.error('保存设置失败:', error);
-    alert('保存设置失败，请检查输入值');
+    console.error(t('ui.settings.messages.saveError'), error);
+    alert(t('ui.settings.messages.saveError'));
   }
 };
 

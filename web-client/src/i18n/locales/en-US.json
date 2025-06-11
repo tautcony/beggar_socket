@@ -164,7 +164,9 @@
           "required": "This field is required",
           "min": "Minimum value is {min} bytes",
           "max": "Maximum value is {max} bytes",
-          "invalid": "Please enter a valid number"
+          "invalid": "Please enter a valid number",
+          "range": "Page size must be between {min} - {max} bytes",
+          "multiple": "Page size must be a multiple of {multipler}"
         }
       },
       "timeout": {
@@ -178,7 +180,8 @@
           "required": "This field is required",
           "min": "Minimum value is {min} ms",
           "max": "Maximum value is {max} ms",
-          "invalid": "Please enter a valid number"
+          "invalid": "Please enter a valid number",
+          "range": "Timeout must be between {min} - {max} milliseconds"
         }
       },
       "actions": {
@@ -190,7 +193,9 @@
       "messages": {
         "applied": "Settings applied successfully",
         "reset": "Settings reset to default values",
-        "validationError": "Please fix validation errors before applying settings"
+        "validationError": "Please fix validation errors before applying settings",
+        "saveError": "Failed to save settings, please check input values",
+        "saveSuccess": "Settings saved successfully"
       }
     },
     "progress": {

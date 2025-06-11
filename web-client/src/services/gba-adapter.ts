@@ -139,7 +139,7 @@ export class GBAAdapter extends CartridgeAdapter {
               this.log(this.t('messages.operation.eraseInProgress'));
 
               // 报告擦除进度（基于时间估算）
-              // 通常全片擦除需要几秒到几十秒，这里以30秒为估计值
+              // 通常全片擦除需要几秒到几十秒，这里以90秒为估计值
               const estimatedDuration = 90; // 秒
               const progress = Math.min(95, (elapsedSeconds / estimatedDuration) * 100);
 
@@ -265,7 +265,8 @@ export class GBAAdapter extends CartridgeAdapter {
 
           // 分块写入并更新进度
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
-          for (let addr = 0; addr < total; addr += pageSize) {
+          const baseAddr = options.baseAddress ?? 0;
+          for (let addr = baseAddr; addr < total; addr += pageSize) {
             // 检查是否已被取消
             if (signal?.aborted) {
               this.updateProgress({ allowCancel: false });

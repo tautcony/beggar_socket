@@ -4,8 +4,8 @@
  */
 export class AdvancedSettings {
   // 页面大小设置
-  private static _romPageSize = 0x400; // 1KB for ROM operations (默认值)
-  private static _ramPageSize = 0x200; // 512B for RAM operations (默认值)
+  private static _romPageSize = 0x200; // 512B for ROM operations (默认值)
+  private static _ramPageSize = 0x100; // 256B for RAM operations (默认值)
 
   // 超时设置（毫秒）
   private static _defaultTimeout = 3000; // 默认超时时间
@@ -14,8 +14,8 @@ export class AdvancedSettings {
   private static _operationTimeout = 100000; // 长时间操作超时（如芯片擦除）
 
   // 页面大小配置的有效范围
-  private static readonly MIN_PAGE_SIZE = 0x100; // 256 bytes
-  private static readonly MAX_PAGE_SIZE = 0x10000; // 64KB
+  private static readonly MIN_PAGE_SIZE = 0x40; // 256 bytes
+  private static readonly MAX_PAGE_SIZE = 0x4000; // 16KB
 
   // 超时配置的有效范围
   private static readonly MIN_TIMEOUT = 1000; // 1秒
@@ -173,8 +173,8 @@ export class AdvancedSettings {
    * 重置为默认设置
    */
   static resetToDefaults(): void {
-    this._romPageSize = 0x1000; // 4KB
-    this._ramPageSize = 0x800; // 1KB
+    this._romPageSize = 0x200; // 512B
+    this._ramPageSize = 0x100; // 256B
     this._defaultTimeout = 3000; // 3秒
     this._packageSendTimeout = 3000; // 3秒
     this._packageReceiveTimeout = 3000; // 3秒

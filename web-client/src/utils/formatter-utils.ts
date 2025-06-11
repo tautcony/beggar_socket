@@ -9,7 +9,7 @@
  * @returns - 格式化后的字符串
  */
 export function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
+  if (bytes === 0 || typeof bytes !== 'number') return '0 B';
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -27,7 +27,7 @@ export function formatBytes(bytes: number): string {
  * @returns - 格式化后的字符串
  */
 export function formatSpeed(speed: number): string {
-  if (speed === 0) return '0 KB/s';
+  if (speed === 0 || typeof speed !== 'number') return '0 KB/s';
   if (speed >= 1024) {
     return (speed / 1024).toFixed(1) + ' MB/s';
   }

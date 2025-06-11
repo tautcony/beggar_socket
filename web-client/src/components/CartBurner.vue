@@ -412,7 +412,7 @@ async function writeRom() {
       return;
     }
 
-    const response = await adapter.writeROM(romFileData.value, { }, abortSignal);
+    const response = await adapter.writeROM(romFileData.value, { baseAddress: 0 }, abortSignal);
     showToast(response.message, response.success ? 'success' : 'error');
   } catch (e) {
     showToast(t('messages.rom.writeFailed'), 'error');
