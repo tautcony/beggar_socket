@@ -20,17 +20,21 @@
       >
         {{ line }}
       </div>
+      <div
+        ref="scrollAnchor"
+        class="scroll-anchor"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue';
+import { nextTick, onUnmounted, ref, watch } from 'vue';
 
 const props = defineProps({
   title: {
     type: String,
-    default: '日志',
+    default: 'Log',
   },
   logs: {
     type: Array,
@@ -40,21 +44,96 @@ const props = defineProps({
     type: String,
     default: '350px',
   },
+  autoScroll: {
+    type: Boolean,
+    default: true,
+  },
 });
 
 const emit = defineEmits(['clear-logs']);
 
 const logBox = ref<HTMLDivElement | null>(null);
+const scrollAnchor = ref<HTMLDivElement | null>(null);
+const isUserScrolling = ref(false);
+const scrollTimeout = ref<ReturnType<typeof setTimeout>>();
 
 function clearLog() {
   emit('clear-logs');
 }
 
+// 检查是否滚动到底部
+function isScrolledToBottom(): boolean {
+  if (!logBox.value) return false;
+  const { scrollTop, scrollHeight, clientHeight } = logBox.value;
+  return Math.abs(scrollHeight - clientHeight - scrollTop) < 5; // 5px容差
+}
+
+// 处理用户滚动事件
+function handleScroll() {
+  isUserScrolling.value = true;
+
+  // 清除之前的超时
+  if (scrollTimeout.value) {
+    clearTimeout(scrollTimeout.value);
+  }
+
+  // 如果用户滚动到底部，重新启用自动滚动
+  if (isScrolledToBottom()) {
+    isUserScrolling.value = false;
+  } else {
+    // 2秒后重新启用自动滚动
+    scrollTimeout.value = setTimeout(() => {
+      if (isScrolledToBottom()) {
+        isUserScrolling.value = false;
+      }
+    }, 2000);
+  }
+}
+
+// 滚动到底部的函数
+function scrollToBottom() {
+  // 使用scrollAnchor确保滚动到最底部
+  if (scrollAnchor.value) {
+    scrollAnchor.value.scrollIntoView({ block: 'end', inline: 'nearest' });
+  }
+}
+
 // 自动滚动到底部
 watch(() => props.logs, async () => {
   await nextTick();
+  await nextTick(); // 双重nextTick确保DOM完全更新
+
+  // 只有在启用自动滚动且用户没有手动滚动时才自动滚动
+  if (props.autoScroll && !isUserScrolling.value) {
+    scrollToBottom();
+  }
+}, { flush: 'post' });
+
+// 组件挂载后设置滚动监听和初始滚动
+watch(logBox, (newLogBox, oldLogBox) => {
+  // 清理旧的事件监听器
+  if (oldLogBox) {
+    oldLogBox.removeEventListener('scroll', handleScroll);
+  }
+
+  if (newLogBox) {
+    // 添加滚动事件监听
+    newLogBox.addEventListener('scroll', handleScroll);
+
+    // 初始滚动到底部
+    if (props.autoScroll) {
+      scrollToBottom();
+    }
+  }
+}, { immediate: true });
+
+// 组件卸载时清理
+onUnmounted(() => {
   if (logBox.value) {
-    logBox.value.scrollTop = logBox.value.scrollHeight;
+    logBox.value.removeEventListener('scroll', handleScroll);
+  }
+  if (scrollTimeout.value) {
+    clearTimeout(scrollTimeout.value);
   }
 });
 </script>
@@ -108,7 +187,6 @@ watch(() => props.logs, async () => {
   font-size: 0.97rem;
   line-height: 1.6;
   height: calc(820px - 44px);
-  max-width: 355px;
 }
 
 .log-area-scroll::-webkit-scrollbar {
@@ -134,6 +212,11 @@ watch(() => props.logs, async () => {
   word-break: break-all;
   text-align: left;
   font-size: small;
+}
+
+.scroll-anchor {
+  height: 1px;
+  width: 1px;
 }
 
 /* 移动端响应式 */

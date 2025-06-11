@@ -121,38 +121,12 @@ export class GBAAdapter extends CartridgeAdapter {
             }
 
             const eraseComplete = await this.isBlank(0x00, 0x100);
+            elapsedSeconds = Date.now() - startTime;
             if (eraseComplete) {
-              this.log(this.t('messages.operation.eraseComplete'));
-              // 报告完成状态
-              this.updateProgress(this.createProgressInfo(
-                100,
-                this.t('messages.operation.eraseComplete'),
-                100,
-                100,
-                startTime,
-                0,
-                false, // 完成后禁用取消
-              ));
+              this.log(`${this.t('messages.operation.eraseComplete')} (${(elapsedSeconds / 1000).toFixed(1)}s)`);
               break;
             } else {
-              elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-              this.log(this.t('messages.operation.eraseInProgress'));
-
-              // 报告擦除进度（基于时间估算）
-              // 通常全片擦除需要几秒到几十秒，这里以90秒为估计值
-              const estimatedDuration = 90; // 秒
-              const progress = Math.min(95, (elapsedSeconds / estimatedDuration) * 100);
-
-              this.updateProgress(this.createProgressInfo(
-                progress,
-                this.t('messages.operation.eraseInProgress') + ` (${elapsedSeconds}s)`,
-                100,
-                Math.floor(progress),
-                startTime,
-                0,
-                true, // 允许取消
-              ));
-
+              this.log(`${this.t('messages.operation.eraseInProgress')} (${(elapsedSeconds / 1000).toFixed(1)}s)`);
               await new Promise(resolve => setTimeout(resolve, 1000));
             }
           }
@@ -258,10 +232,12 @@ export class GBAAdapter extends CartridgeAdapter {
           let maxSpeed = 0;
 
           // const romInfo = await this.getROMSize();
+          /*
           const blank = await this.isBlank(0, 0x100);
           if (!blank) {
             this.eraseSectors(0, fileData.length - 1, 1 << 17);
           }
+          */
 
           // 分块写入并更新进度
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
@@ -269,7 +245,16 @@ export class GBAAdapter extends CartridgeAdapter {
           for (let addr = baseAddr; addr < total; addr += pageSize) {
             // 检查是否已被取消
             if (signal?.aborted) {
-              this.updateProgress({ allowCancel: false });
+              this.updateProgress(this.createProgressInfo(
+                undefined,
+                this.t('messages.operation.cancelled'),
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                false,
+                'error',
+              ));
               return {
                 success: false,
                 message: this.t('messages.operation.cancelled'),
@@ -313,11 +298,33 @@ export class GBAAdapter extends CartridgeAdapter {
             totalSize: (total / 1024).toFixed(1),
           }));
 
+          // 报告完成状态
+          this.updateProgress(this.createProgressInfo(
+            100,
+            this.t('messages.rom.writeComplete'),
+            total,
+            total,
+            startTime,
+            avgSpeed,
+            false, // 完成后禁用取消
+            'completed',
+          ));
+
           return {
             success: true,
             message: this.t('messages.rom.writeSuccess'),
           };
         } catch (e) {
+          this.updateProgress(this.createProgressInfo(
+            undefined,
+            this.t('messages.rom.writeFailed'),
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            false,
+            'error',
+          ));
           this.log(`${this.t('messages.rom.writeFailed')}: ${e}`);
           return {
             success: false,
@@ -411,7 +418,16 @@ export class GBAAdapter extends CartridgeAdapter {
         try {
           // 检查是否已被取消
           if (signal?.aborted) {
-            this.updateProgress({ allowCancel: false });
+            this.updateProgress(this.createProgressInfo(
+              undefined,
+              this.t('messages.operation.cancelled'),
+              undefined,
+              undefined,
+              undefined,
+              undefined,
+              false,
+              'error',
+            ));
             return {
               success: false,
               message: this.t('messages.operation.cancelled'),
@@ -431,7 +447,16 @@ export class GBAAdapter extends CartridgeAdapter {
           for (let addr = 0; addr < size; addr += pageSize) {
             // 检查是否已被取消
             if (signal?.aborted) {
-              this.updateProgress({ allowCancel: false });
+              this.updateProgress(this.createProgressInfo(
+                undefined,
+                this.t('messages.operation.cancelled'),
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                false,
+                'error',
+              ));
               return {
                 success: false,
                 message: this.t('messages.operation.cancelled'),
@@ -478,7 +503,16 @@ export class GBAAdapter extends CartridgeAdapter {
             totalSize: (size / 1024).toFixed(1),
           }));
 
-          this.updateProgress({ allowCancel: false });
+          this.updateProgress(this.createProgressInfo(
+            100,
+            this.t('messages.rom.readSuccess', { size: data.length }),
+            size,
+            size,
+            startTime,
+            avgSpeed,
+            false,
+            'completed',
+          ));
 
           return {
             success: true,
@@ -486,7 +520,16 @@ export class GBAAdapter extends CartridgeAdapter {
             message: this.t('messages.rom.readSuccess', { size: data.length }),
           };
         } catch (e) {
-          this.updateProgress({ detail: this.t('messages.rom.readFailed'), state: 'error' });
+          this.updateProgress(this.createProgressInfo(
+            undefined,
+            this.t('messages.rom.readFailed'),
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            false,
+            'error',
+          ));
           this.log(`${this.t('messages.rom.readFailed')}: ${e}`);
           return {
             success: false,
@@ -518,7 +561,16 @@ export class GBAAdapter extends CartridgeAdapter {
       async () => {
         // 检查是否已被取消
         if (signal?.aborted) {
-          this.updateProgress({ allowCancel: false });
+          this.updateProgress(this.createProgressInfo(
+            undefined,
+            this.t('messages.operation.cancelled'),
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            false,
+            'error',
+          ));
           return {
             success: false,
             message: this.t('messages.operation.cancelled'),
@@ -540,7 +592,16 @@ export class GBAAdapter extends CartridgeAdapter {
           while (verified < total && success) {
             // 检查是否已被取消
             if (signal?.aborted) {
-              this.updateProgress({ allowCancel: false });
+              this.updateProgress(this.createProgressInfo(
+                undefined,
+                this.t('messages.operation.cancelled'),
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                false,
+                'error',
+              ));
               return {
                 success: false,
                 message: this.t('messages.operation.cancelled'),
@@ -611,14 +672,32 @@ export class GBAAdapter extends CartridgeAdapter {
             this.log(this.t('messages.rom.verifyFailed'));
           }
 
-          this.updateProgress({ allowCancel: false });
+          this.updateProgress(this.createProgressInfo(
+            success ? 100 : undefined,
+            success ? this.t('messages.rom.verifySuccess') : this.t('messages.rom.verifyFailed'),
+            total,
+            success ? total : verified,
+            startTime,
+            avgSpeed,
+            false,
+            success ? 'completed' : 'error',
+          ));
           const message = success ? this.t('messages.rom.verifySuccess') : this.t('messages.rom.verifyFailed');
           return {
             success: success,
             message: message,
           };
         } catch (e) {
-          this.updateProgress({ detail: this.t('messages.rom.verifyFailed') });
+          this.updateProgress(this.createProgressInfo(
+            undefined,
+            this.t('messages.rom.verifyFailed'),
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            false,
+            'error',
+          ));
           this.log(`${this.t('messages.rom.verifyFailed')}: ${e}`);
           return {
             success: false,
@@ -775,6 +854,16 @@ export class GBAAdapter extends CartridgeAdapter {
             totalSize: (total / 1024).toFixed(1),
           }));
 
+          this.updateProgress(this.createProgressInfo(
+            100,
+            this.t('messages.ram.writeComplete'),
+            total,
+            total,
+            startTime,
+            avgSpeed,
+            false,
+            'completed',
+          ));
           return {
             success: true,
             message: this.t('messages.ram.writeSuccess'),
@@ -870,6 +959,17 @@ export class GBAAdapter extends CartridgeAdapter {
             totalSize: (size / 1024).toFixed(1),
           }));
 
+          this.updateProgress(this.createProgressInfo(
+            100,
+            this.t('messages.ram.readSuccess', { size: result.length }),
+            size,
+            size,
+            startTime,
+            avgSpeed,
+            false,
+            'completed',
+          ));
+
           return {
             success: true,
             data: result,
@@ -913,6 +1013,7 @@ export class GBAAdapter extends CartridgeAdapter {
           const pageSize = AdvancedSettings.ramPageSize;
           let success = true;
           const startTime = Date.now();
+          let speed = '0';
 
           while (verified < total) {
             // 切bank
@@ -954,7 +1055,7 @@ export class GBAAdapter extends CartridgeAdapter {
             verified += chunkSize;
             const progress = (verified / total) * 100;
             const elapsed = (Date.now() - startTime) / 1000;
-            const speed = elapsed > 0 ? ((verified / 1024) / elapsed).toFixed(1) : '0';
+            speed = elapsed > 0 ? ((verified / 1024) / elapsed).toFixed(1) : '0';
             this.updateProgress(this.createProgressInfo(
               progress,
               this.t('messages.progress.verifySpeed', { speed }),
@@ -967,6 +1068,18 @@ export class GBAAdapter extends CartridgeAdapter {
 
           const message = success ? this.t('messages.ram.verifySuccess') : this.t('messages.ram.verifyFailed');
           this.log(`${this.t('messages.ram.verify')}: ${message}`);
+
+          this.updateProgress(this.createProgressInfo(
+            success ? 100 : undefined,
+            message,
+            total,
+            success ? total : verified,
+            startTime,
+            parseFloat(speed),
+            false,
+            success ? 'completed' : 'error',
+          ));
+
           return {
             success: success,
             message: message,

@@ -207,6 +207,7 @@
       "remaining_time": "剩余时间",
       "total_size": "总大小",
       "stop": "停止",
+      "close": "关闭",
       "completed": "已完成，可点击空白处关闭",
       "writing": "{written} / {total} 字节",
       "complete": "完成",

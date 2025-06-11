@@ -155,6 +155,7 @@ export class CartridgeAdapter {
     startTime?: number,
     currentSpeed?: number,
     allowCancel: boolean = true,
+    state: 'idle' | 'running' | 'paused' | 'completed' | 'error' = 'running',
   ): ProgressInfo {
     return {
       progress,
@@ -164,6 +165,7 @@ export class CartridgeAdapter {
       startTime,
       currentSpeed,
       allowCancel,
+      state,
     };
   }
 }

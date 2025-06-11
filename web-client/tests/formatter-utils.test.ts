@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { formatBytes, formatSpeed, formatTime } from '../src/utils/formatter-utils';
 
 describe('formatter-utils', () => {
@@ -62,6 +63,8 @@ describe('formatter-utils', () => {
     it('应该正确格式化0时间', () => {
       expect(formatTime(0)).toBe('00:00');
       expect(formatTime(0, 'ms')).toBe('00:00');
+      expect(formatTime(0, 's', true)).toBe('00:00.0');
+      expect(formatTime(0, 'ms', true)).toBe('00:00.0');
     });
 
     it('应该正确格式化秒数', () => {
@@ -86,10 +89,27 @@ describe('formatter-utils', () => {
       expect(formatTime(500, 'ms')).toBe('00:00');
     });
 
+    it('应该正确显示毫秒（100ms最小单位）', () => {
+      expect(formatTime(30.15, 's', true)).toBe('00:30.1');
+      expect(formatTime(30.95, 's', true)).toBe('00:30.9');
+      expect(formatTime(1550, 'ms', true)).toBe('00:01.5');
+      expect(formatTime(1990, 'ms', true)).toBe('00:01.9');
+      expect(formatTime(125.25, 's', true)).toBe('02:05.2');
+    });
+
     it('应该处理边界值', () => {
       expect(formatTime(1)).toBe('00:01');
       expect(formatTime(999, 'ms')).toBe('00:00');
       expect(formatTime(1000, 'ms')).toBe('00:01');
+      expect(formatTime(1, 's', true)).toBe('00:01.0');
+      expect(formatTime(999, 'ms', true)).toBe('00:00.9');
+      expect(formatTime(1000, 'ms', true)).toBe('00:01.0');
+    });
+
+    it('应该正确处理小于100ms的值', () => {
+      expect(formatTime(50, 'ms', true)).toBe('00:00.0');
+      expect(formatTime(150, 'ms', true)).toBe('00:00.1');
+      expect(formatTime(250, 'ms', true)).toBe('00:00.2');
     });
   });
 });

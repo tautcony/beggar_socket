@@ -42,11 +42,11 @@
         </div>
         <div class="stat-item">
           <span class="stat-label">{{ $t('ui.progress.elapsed') }}</span>
-          <span class="stat-value">{{ formatTime(elapsedTime) }}</span>
+          <span class="stat-value">{{ formatTime(elapsedTime, 'ms', true) }}</span>
         </div>
         <div class="stat-item">
           <span class="stat-label">{{ $t('ui.progress.remaining_time') }}</span>
-          <span class="stat-value">{{ formatTime(remainingTime) }}</span>
+          <span class="stat-value">{{ formatTime(remainingTime, 'ms', true) }}</span>
         </div>
         <div class="stat-item">
           <span class="stat-label">{{ $t('ui.progress.speed') }}</span>
@@ -78,7 +78,7 @@
         :disabled="state === 'running'"
         @click="handleClose"
       >
-        <IonIcon :icon="closeOutline" />
+        {{ $t('ui.progress.close') }}
       </button>
     </template>
   </BaseModal>
@@ -86,7 +86,7 @@
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
-import { checkmarkOutline, closeOutline } from 'ionicons/icons';
+import { checkmarkOutline } from 'ionicons/icons';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -119,10 +119,9 @@ watch(
     if (active) {
       timer = window.setInterval(() => {
         now.value = Date.now();
-      }, 500);
+      }, 100);
     } else if (timer) {
       clearInterval(timer);
-      timer = undefined;
     }
   },
   { immediate: true },
@@ -154,15 +153,15 @@ const remainingBytes = computed(() => {
 
 const elapsedTime = computed(() => {
   if (!props.startTime) return 0;
-  return Math.floor((now.value - props.startTime) / 1000);
+  return now.value - props.startTime;
 });
 
 const currentSpeed = computed(() => props.currentSpeed || 0);
 
 const remainingTime = computed(() => {
   if (!currentSpeed.value || currentSpeed.value <= 0) return 0;
-  const remainingKB = remainingBytes.value / 1024;
-  return Math.floor(remainingKB / currentSpeed.value);
+  const remainingKB = remainingBytes.value / 1024 * 1000;
+  return remainingKB / currentSpeed.value;
 });
 
 const totalBytes = computed(() => props.totalBytes || 0);
@@ -295,6 +294,32 @@ onUnmounted(() => {
   transform: translateY(0);
 }
 .stop-button:disabled {
+  background: #d1d5db;
+  color: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+.close-button {
+  background: #6b7280;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.875rem;
+}
+.close-button:hover:not(:disabled) {
+  background: #4b5563;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
+}
+.close-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+.close-button:disabled {
   background: #d1d5db;
   color: #9ca3af;
   cursor: not-allowed;

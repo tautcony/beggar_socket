@@ -218,8 +218,8 @@ const limits = AdvancedSettings.getLimits();
 // 本地设置状态
 const localSettings = ref({
   pageSize: {
-    rom: 0x1000,
-    ram: 0x800,
+    rom: 0x200,
+    ram: 0x100,
   },
   timeout: {
     default: 3000,

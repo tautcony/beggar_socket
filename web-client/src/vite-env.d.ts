@@ -6,3 +6,15 @@ declare module '*.vue' {
   const component: DefineComponent<{}, {}, any>
   export default component
 }
+
+// 扩展 Vite HMR 数据类型
+interface ImportMetaHot {
+  data: {
+    deviceConnection?: {
+      connected: boolean;
+      port: SerialPort | null;
+      reader: ReadableStreamDefaultReader<Uint8Array> | null;
+      writer: WritableStreamDefaultWriter<Uint8Array> | null;
+    };
+  };
+}

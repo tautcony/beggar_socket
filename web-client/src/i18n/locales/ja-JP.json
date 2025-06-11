@@ -207,6 +207,7 @@
       "remaining_time": "残り時間",
       "total_size": "総サイズ",
       "stop": "停止",
+      "close": "閉じる",
       "completed": "完了しました。外側をクリックして閉じる",
       "writing": "{written} / {total} バイト",
       "complete": "完了",

@@ -35,7 +35,7 @@
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import { checkmarkDoneOutline, flashOutline, reloadOutline } from 'ionicons/icons';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
   serial as polyfill, SerialPort as SerialPortPolyfill,
@@ -56,6 +56,75 @@ const usePolyfill = ref(false);
 let port: SerialPort | null = null;
 let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
 let writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
+
+// 热重载状态恢复 - 在开发模式下处理 HMR
+if (import.meta.hot) {
+  // 保存当前状态到 HMR 数据
+  import.meta.hot.data.deviceConnection = import.meta.hot.data.deviceConnection || {
+    connected: false,
+    port: null,
+    reader: null,
+    writer: null,
+  };
+
+  // 从 HMR 数据恢复状态
+  if (import.meta.hot.data.deviceConnection.connected) {
+    connected.value = import.meta.hot.data.deviceConnection.connected;
+    port = import.meta.hot.data.deviceConnection.port;
+    reader = import.meta.hot.data.deviceConnection.reader;
+    writer = import.meta.hot.data.deviceConnection.writer;
+  }
+
+  // 监听热重载事件，保存当前状态
+  import.meta.hot.dispose(() => {
+    if (import.meta.hot?.data) {
+      import.meta.hot.data.deviceConnection = {
+        connected: connected.value,
+        port,
+        reader,
+        writer,
+      };
+    }
+  });
+
+  // 热重载后验证连接状态
+  import.meta.hot.accept(() => {
+    // 检查串口连接是否仍然有效
+    if (port && connected.value) {
+      try {
+        // 检查端口是否仍然连接
+        if (!port.readable || !port.writable) {
+          // 连接已丢失，重置状态
+          connected.value = false;
+          port = null;
+          reader = null;
+          writer = null;
+          emit('device-disconnected');
+        }
+      } catch (e) {
+        // 连接检查失败，重置状态
+        connected.value = false;
+        port = null;
+        reader = null;
+        writer = null;
+        emit('device-disconnected');
+      }
+    }
+  });
+}
+
+// 组件挂载时验证连接状态
+onMounted(() => {
+  // 如果显示已连接但实际连接对象为空，重置状态
+  if (connected.value && (!port || !reader || !writer)) {
+    console.warn('[DeviceConnect] 检测到状态不一致，重置连接状态');
+    connected.value = false;
+    port = null;
+    reader = null;
+    writer = null;
+    emit('device-disconnected');
+  }
+});
 
 async function connect() {
   if (isConnecting.value || connected.value) return;

@@ -374,7 +374,6 @@ async function readID() {
 
 async function eraseChip() {
   busy.value = true;
-  operateProgress.value = 0;
   const abortSignal = startCancellableOperation();
 
   try {

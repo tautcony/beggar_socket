@@ -35,25 +35,46 @@ export function formatSpeed(speed: number): string {
 }
 
 /**
- * 格式化时间为 MM:SS 或带单位的字符串
+ * 格式化时间为 MM:SS 或 MM:SS.D 格式
  * @param value - 时间数值
  * @param unit - 时间单位，'s' 表示秒，'ms' 表示毫秒，默认为 's'
- * @param showUnit - 是否显示单位，默认为 false（显示为 MM:SS 格式）
- * @description 将时间格式化为 MM:SS 格式或带单位的字符串
+ * @param showMilliseconds - 是否显示毫秒（以100ms为最小单位，显示为0.1秒），默认为 false
+ * @description 将时间格式化为 MM:SS 格式或 MM:SS.D 格式（包含十分之一秒）
  * @example
  * formatTime(90) // "01:30"
- * formatTime(90, 's', true) // "90s"
- * formatTime(1500, 'ms', true) // "1500ms"
- * formatTime(1500, 'ms') // "00:01" (转换为秒后格式化)
+ * formatTime(90.15, 's', true) // "01:30.1"
+ * formatTime(1500, 'ms') // "00:01"
+ * formatTime(1550, 'ms', true) // "00:01.5"
  * formatTime(0) // "00:00"
+ * formatTime(0, 's', true) // "00:00.0"
  * @returns - 格式化后的字符串
  */
-export function formatTime(value: number, unit: 's' | 'ms' = 's'): string {
-  // 转换为秒数
-  const seconds = unit === 'ms' ? Math.floor(value / 1000) : value;
+export function formatTime(value: number, unit: 's' | 'ms' = 's', showMilliseconds: boolean = false): string {
+  let totalMs: number;
 
-  if (seconds === 0) return '00:00';
-  const minutes = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  // 转换为毫秒
+  if (unit === 'ms') {
+    totalMs = value;
+  } else {
+    totalMs = value * 1000;
+  }
+
+  // 如果值为0，根据是否显示毫秒返回相应格式
+  if (totalMs === 0) {
+    return showMilliseconds ? '00:00.0' : '00:00';
+  }
+
+  const totalSeconds = Math.floor(totalMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const remainingMs = totalMs % 1000;
+  const decisecond = Math.floor(remainingMs / 100); // 以100ms为单位，得到0-9的数字
+
+  const baseTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+  if (showMilliseconds) {
+    return `${baseTime}.${decisecond}`;
+  }
+
+  return baseTime;
 }

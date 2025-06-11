@@ -207,6 +207,7 @@
       "remaining_time": "Remaining Time",
       "total_size": "Total Size",
       "stop": "Stop",
+      "close": "Close",
       "completed": "Completed, click outside to close",
       "writing": "{written} / {total} bytes",
       "complete": "Complete",
