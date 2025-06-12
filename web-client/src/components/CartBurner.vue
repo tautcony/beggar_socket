@@ -483,8 +483,6 @@ async function verifyRom() {
 
 async function writeRam() {
   busy.value = true;
-  operateProgress.value = 0;
-  operateProgressDetail.value = '';
 
   try {
     const adapter = getAdapter();
@@ -500,13 +498,11 @@ async function writeRam() {
     log(`${t('messages.ram.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
     busy.value = false;
-    // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
 async function readRam() {
   busy.value = true;
-  operateProgress.value = 0;
 
   try {
     const adapter = getAdapter();
@@ -529,13 +525,11 @@ async function readRam() {
     log(`${t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
     busy.value = false;
-    // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
 async function verifyRam() {
   busy.value = true;
-  operateProgress.value = 0;
 
   try {
     const adapter = getAdapter();
@@ -551,7 +545,6 @@ async function verifyRam() {
     log(`${t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
     busy.value = false;
-    // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 

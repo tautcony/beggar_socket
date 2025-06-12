@@ -1,7 +1,6 @@
 import {
   ram_read,
   ram_write,
-  // ram_verify,
   ram_write_to_flash,
   rom_direct_write,
   rom_eraseChip,
@@ -9,7 +8,6 @@ import {
   rom_read,
   rom_readID,
   rom_sector_erase,
-  rom_verify,
 } from '@/protocol/beggar_socket/protocol';
 import { getFlashId, toLittleEndian } from '@/protocol/beggar_socket/protocol-utils';
 import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
@@ -231,13 +229,13 @@ export class GBAAdapter extends CartridgeAdapter {
           const startTime = Date.now();
           let maxSpeed = 0;
 
-          // const romInfo = await this.getROMSize();
-          /*
           const blank = await this.isBlank(0, 0x100);
           if (!blank) {
-            this.eraseSectors(0, fileData.length - 1, 1 << 17);
+            const romInfo = await this.getROMSize();
+            const startAddress = 0x00;
+            const endAddress = romInfo.sectorCount * romInfo.sectorSize;
+            this.eraseSectors(startAddress, endAddress, romInfo.sectorSize);
           }
-          */
 
           // 分块写入并更新进度
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
@@ -724,7 +722,7 @@ export class GBAAdapter extends CartridgeAdapter {
   async switchSRAMBank(bank: number) : Promise<void> {
     bank = bank === 0 ? 0 : 1;
     this.log(this.t('messages.gba.bankSwitchSram', { bank }));
-    await ram_write(this.device, new Uint8Array([bank]), 0x800000);
+    await rom_direct_write(this.device, toLittleEndian(bank, 2), 0x800000);
   }
 
   /**
@@ -934,18 +932,9 @@ export class GBAAdapter extends CartridgeAdapter {
             result.set(chunk, read);
 
             read += chunkSize;
-            const progress = (read / size) * 100;
             const elapsed = (Date.now() - startTime) / 1000;
             const currentSpeed = elapsed > 0 ? (read / 1024) / elapsed : 0;
             maxSpeed = Math.max(maxSpeed, currentSpeed);
-            this.updateProgress(this.createProgressInfo(
-              progress,
-              this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }),
-              size,
-              read,
-              startTime,
-              currentSpeed,
-            ));
           }
 
           const totalTime = (Date.now() - startTime) / 1000;
@@ -958,17 +947,6 @@ export class GBAAdapter extends CartridgeAdapter {
             maxSpeed: maxSpeed.toFixed(1),
             totalSize: (size / 1024).toFixed(1),
           }));
-
-          this.updateProgress(this.createProgressInfo(
-            100,
-            this.t('messages.ram.readSuccess', { size: result.length }),
-            size,
-            size,
-            startTime,
-            avgSpeed,
-            false,
-            'completed',
-          ));
 
           return {
             success: true,
@@ -1009,21 +987,19 @@ export class GBAAdapter extends CartridgeAdapter {
           this.log(this.t('messages.ram.verifying'));
 
           const total = fileData.length;
-          let verified = 0;
+          let currAddress = options.baseAddress || 0;
           const pageSize = AdvancedSettings.ramPageSize;
           let success = true;
-          const startTime = Date.now();
-          let speed = '0';
 
-          while (verified < total) {
+          while (currAddress < total) {
             // 切bank
-            if (verified === 0x00000) {
+            if (currAddress === 0x00000) {
               if (options.ramType === 'FLASH') {
                 await this.switchFlashBank(0);
               } else {
                 await this.switchSRAMBank(0);
               }
-            } else if (verified === 0x10000) {
+            } else if (currAddress === 0x10000) {
               if (options.ramType === 'FLASH') {
                 await this.switchFlashBank(1);
               } else {
@@ -1031,54 +1007,35 @@ export class GBAAdapter extends CartridgeAdapter {
               }
             }
 
-            const baseAddr = verified & 0xffff;
+            const relAddress = currAddress & 0xffff;
 
             // 分包
-            const remainingSize = total - verified;
+            const remainingSize = total - currAddress;
             const chunkSize = Math.min(pageSize, remainingSize);
 
             // 读取数据进行比较
-            const readData = await ram_read(this.device, chunkSize, baseAddr);
+            const readData = await ram_read(this.device, chunkSize, relAddress);
 
             // 校验数据
             for (let i = 0; i < chunkSize; i++) {
-              if (fileData[verified + i] !== readData[i]) {
+              if (fileData[currAddress + i] !== readData[i]) {
                 this.log(this.t('messages.ram.verifyFailedDetail', {
-                  address: (verified + i).toString(16),
-                  expected: fileData[verified + i].toString(16),
+                  address: (currAddress + i).toString(16),
+                  expected: fileData[currAddress + i].toString(16),
                   actual: readData[i].toString(16),
                 }));
                 success = false;
+                break;
               }
             }
 
-            verified += chunkSize;
-            const progress = (verified / total) * 100;
-            const elapsed = (Date.now() - startTime) / 1000;
-            speed = elapsed > 0 ? ((verified / 1024) / elapsed).toFixed(1) : '0';
-            this.updateProgress(this.createProgressInfo(
-              progress,
-              this.t('messages.progress.verifySpeed', { speed }),
-              total,
-              verified,
-              startTime,
-              parseFloat(speed),
-            ));
+            if (!success) break;
+
+            currAddress += chunkSize;
           }
 
           const message = success ? this.t('messages.ram.verifySuccess') : this.t('messages.ram.verifyFailed');
           this.log(`${this.t('messages.ram.verify')}: ${message}`);
-
-          this.updateProgress(this.createProgressInfo(
-            success ? 100 : undefined,
-            message,
-            total,
-            success ? total : verified,
-            startTime,
-            parseFloat(speed),
-            false,
-            success ? 'completed' : 'error',
-          ));
 
           return {
             success: success,

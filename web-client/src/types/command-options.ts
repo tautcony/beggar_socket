@@ -1,8 +1,10 @@
 export type RamType = 'SRAM' | 'FLASH';
 
 export interface CommandOptions {
-  ramType?: RamType,
-  baseAddress?: number,
   romSize?: number,
-  useDirectWrite?: boolean,
+  ramType?: RamType,
+  ramSize?: number,
+  baseAddress?: number,
+  size?: number,
+  bufferSize?: number,
 }

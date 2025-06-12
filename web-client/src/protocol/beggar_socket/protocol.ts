@@ -6,7 +6,9 @@ import { DeviceInfo } from '@/types/device-info';
 const INIT_ERROR_MESSAGE = 'Serial port not properly initialized';
 // --- GBA Commands ---
 
-// GBA: 读取ID (0xf0)
+/**
+ * GBA: 读取ID (0xf0)
+ */
 export async function rom_readID(device: DeviceInfo): Promise<Uint8Array> {
   const { writer, reader } = device;
   if (!writer || !reader) {
@@ -22,7 +24,9 @@ export async function rom_readID(device: DeviceInfo): Promise<Uint8Array> {
   }
 }
 
-// GBA: 擦除芯片 (0xf1)
+/**
+ * GBA: 擦除芯片 (0xf1)
+ */
 export async function rom_eraseChip(device: DeviceInfo): Promise<void> {
   const { writer, reader } = device;
   if (!writer || !reader) {
@@ -34,7 +38,9 @@ export async function rom_eraseChip(device: DeviceInfo): Promise<void> {
   if (!ack) throw new Error('GBA Erase failed');
 }
 
-// GBA: ROM Sector Erase (64KB) (0xf3)
+/**
+ * GBA: ROM Sector Erase (0xf3)
+ */
 export async function rom_sector_erase(device: DeviceInfo, sectorAddress: number): Promise<boolean> {
   const { writer, reader } = device;
   if (!writer || !reader) {
@@ -48,7 +54,9 @@ export async function rom_sector_erase(device: DeviceInfo, sectorAddress: number
   return ack;
 }
 
-// GBA: ROM Program (0xf4)
+/**
+ * GBA: ROM Program (0xf4)
+ */
 export async function rom_program(device: DeviceInfo, data: Uint8Array, baseAddress = 0, bufferSize = 512): Promise<void> {
   const { writer, reader } = device;
   if (!writer || !reader) {
@@ -66,8 +74,10 @@ export async function rom_program(device: DeviceInfo, data: Uint8Array, baseAddr
   if (!ack) throw new Error(`GBA ROM programming failed (Address: 0x${baseAddress.toString(16)})`);
 }
 
-// GBA: ROM Direct Write (透传) (0xf5)
-export async function rom_direct_write(device: DeviceInfo, fileData: Uint8Array, baseByteAddress = 0): Promise<void> {
+/**
+ * GBA: ROM Direct Write (0xf5)
+ */
+export async function rom_direct_write(device: DeviceInfo, data: Uint8Array, baseByteAddress = 0): Promise<void> {
   const { writer, reader } = device;
   if (!writer || !reader) {
     throw new Error(INIT_ERROR_MESSAGE);
@@ -75,15 +85,17 @@ export async function rom_direct_write(device: DeviceInfo, fileData: Uint8Array,
 
   const payload = createCommandPayload(GBACommand.DIRECT_WRITE)
     .addAddress(baseByteAddress)
-    .addBytes(fileData)
+    .addBytes(data)
     .build();
 
   await sendPackage(writer, payload);
   const ack = await getResult(reader);
-  if (!ack) throw new Error(`GBA ROM direct write failed (Address: 0x${baseByteAddress.toString(16)} [word address])`);
+  if (!ack) throw new Error(`GBA ROM direct write failed (Address: 0x${baseByteAddress.toString(16)})`);
 }
 
-// GBA: ROM 读取 (0xf6)
+/**
+ * GBA: ROM 读取 (0xf6)
+ */
 export async function rom_read(device: DeviceInfo, size: number, baseAddress = 0): Promise<Uint8Array> {
   const { writer, reader } = device;
   if (!writer || !reader) {
@@ -103,8 +115,10 @@ export async function rom_read(device: DeviceInfo, size: number, baseAddress = 0
   }
 }
 
-// GBA: RAM 写入 (0xf7)
-export async function ram_write(device: DeviceInfo, fileData: Uint8Array, baseAddress = 0): Promise<void> {
+/**
+ * GBA: RAM Write (0xf7)
+ */
+export async function ram_write(device: DeviceInfo, data: Uint8Array, baseAddress = 0): Promise<void> {
   const { writer, reader } = device;
   if (!writer || !reader) {
     throw new Error(INIT_ERROR_MESSAGE);
@@ -112,16 +126,17 @@ export async function ram_write(device: DeviceInfo, fileData: Uint8Array, baseAd
 
   const payload = createCommandPayload(GBACommand.RAM_WRITE)
     .addAddress(baseAddress)
-    .addBytes(fileData)
+    .addBytes(data)
     .build();
 
   await sendPackage(writer, payload);
   const ack = await getResult(reader);
   if (!ack) throw new Error(`RAM write failed (Address: 0x${baseAddress.toString(16)})`);
-
 }
 
-// GBA: RAM 读取 (0xf8)
+/**
+ * GBA: RAM Read (0xf8)
+ */
 export async function ram_read(device: DeviceInfo, size: number, baseAddress = 0): Promise<Uint8Array> {
   const { writer, reader } = device;
   if (!writer || !reader) {
@@ -142,7 +157,9 @@ export async function ram_read(device: DeviceInfo, size: number, baseAddress = 0
   }
 }
 
-// GBA: RAM Write to FLASH (0xf9)
+/**
+ * GBA: RAM Write to FLASH (0xf9)
+ */
 export async function ram_write_to_flash(device: DeviceInfo, data: Uint8Array, baseAddress = 0): Promise<void> {
   const { writer, reader } = device;
   if (!writer || !reader) {
@@ -157,12 +174,13 @@ export async function ram_write_to_flash(device: DeviceInfo, data: Uint8Array, b
   await sendPackage(writer, payload);
   const ack = await getResult(reader);
   if (!ack) throw new Error(`GBA RAM write to FLASH failed (Address: 0x${baseAddress.toString(16)})`);
-
 }
 
 // --- GBC Commands ---
 
-// GBC: Direct Write (透传) (0xfa)
+/**
+ * GBC: Direct Write (0xfa)
+ */
 export async function gbc_direct_write(device: DeviceInfo, data: Uint8Array, baseAddress = 0): Promise<void> {
   const { writer, reader } = device;
   if (!writer || !reader) {
@@ -179,7 +197,9 @@ export async function gbc_direct_write(device: DeviceInfo, data: Uint8Array, bas
   if (!ack) throw new Error(`GBC direct write failed (Address: 0x${baseAddress.toString(16)})`);
 }
 
-// GBC: Read (0xfb)
+/**
+ *  GBC: Read (0xfb)
+ */
 export async function gbc_read(device: DeviceInfo, size: number, baseAddress = 0): Promise<Uint8Array> {
   const { writer, reader } = device;
   if (!writer || !reader) {
@@ -199,8 +219,10 @@ export async function gbc_read(device: DeviceInfo, size: number, baseAddress = 0
   }
 }
 
-// GBC: ROM Program (0xfc)
-export async function gbc_rom_program(device: DeviceInfo, fileData: Uint8Array, baseAddress = 0, bufferSize = 512): Promise<void> {
+/**
+ * GBC: ROM Program (0xfc)
+ */
+export async function gbc_rom_program(device: DeviceInfo, data: Uint8Array, baseAddress = 0, bufferSize = 512): Promise<void> {
   const { writer, reader } = device;
   if (!writer || !reader) {
     throw new Error(INIT_ERROR_MESSAGE);
@@ -209,30 +231,10 @@ export async function gbc_rom_program(device: DeviceInfo, fileData: Uint8Array, 
   const payload = createCommandPayload(GBCCommand.ROM_PROGRAM)
     .addAddress(baseAddress)
     .addLength(bufferSize)
-    .addBytes(fileData)
+    .addBytes(data)
     .build();
 
   await sendPackage(writer, payload);
   const ack = await getResult(reader);
   if (!ack) throw new Error(`GBC ROM programming failed (Address: 0x${baseAddress.toString(16)})`);
-}
-
-// --- Verification Functions ---
-
-// 校验ROM
-export async function rom_verify(device: DeviceInfo, fileData: Uint8Array, baseAddress = 0): Promise<boolean> {
-  const readData = await rom_read(device, fileData.length, baseAddress);
-  for (let i = 0; i < fileData.length; ++i) {
-    if (fileData[i] !== readData[i]) return false;
-  }
-  return true;
-}
-
-// 校验RAM
-export async function ram_verify(device: DeviceInfo, fileData: Uint8Array, baseAddress = 0): Promise<boolean> {
-  const readData = await ram_read(device, fileData.length, baseAddress);
-  for (let i = 0; i < fileData.length; ++i) {
-    if (fileData[i] !== readData[i]) return false;
-  }
-  return true;
 }
