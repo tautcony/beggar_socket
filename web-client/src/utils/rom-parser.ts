@@ -14,6 +14,7 @@ export interface RomInfo {
   ramSize?: number;
   isValid: boolean;
   region?: string;
+  logoData?: Uint8Array;
 }
 
 /**
@@ -120,6 +121,7 @@ function parseGBARom(data: Uint8Array): RomInfo {
       type: 'Unknown',
       romSize: data.length,
       isValid: false,
+      logoData: new Uint8Array(0),
     };
   }
 
@@ -171,6 +173,9 @@ function parseGBARom(data: Uint8Array): RomInfo {
     }
   }
 
+  // 提取Logo数据 (0x04-0x9F, 156字节)
+  const logoData = data.slice(0x04, 0x04 + GBA_NINTENDO_LOGO.length);
+
   return {
     title: title || 'Untitled',
     gameCode,
@@ -180,6 +185,7 @@ function parseGBARom(data: Uint8Array): RomInfo {
     romSize: data.length,
     isValid,
     region,
+    logoData,
   };
 }
 
@@ -195,6 +201,7 @@ function parseGBRom(data: Uint8Array): RomInfo {
       type: 'Unknown',
       romSize: data.length,
       isValid: false,
+      logoData: new Uint8Array(0),
     };
   }
 
@@ -279,6 +286,9 @@ function parseGBRom(data: Uint8Array): RomInfo {
     type = 'GBC';
   }
 
+  // 提取Logo数据 (0x104-0x133, 48字节)
+  const logoData = data.slice(0x104, 0x104 + GB_NINTENDO_LOGO.length);
+
   return {
     title: title || 'Untitled',
     makerCode,
@@ -289,6 +299,7 @@ function parseGBRom(data: Uint8Array): RomInfo {
     cartType: cartridgeType,
     isValid,
     region,
+    logoData,
   };
 }
 
@@ -336,6 +347,7 @@ export function parseRom(data: Uint8Array): RomInfo {
       type: 'Unknown',
       romSize: 0,
       isValid: false,
+      logoData: new Uint8Array(0),
     };
   }
 
@@ -352,6 +364,7 @@ export function parseRom(data: Uint8Array): RomInfo {
         type: 'Unknown',
         romSize: data.length,
         isValid: false,
+        logoData: new Uint8Array(0),
       };
   }
 }

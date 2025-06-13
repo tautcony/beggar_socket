@@ -1,4 +1,4 @@
-import { gbc_direct_write, gbc_read, gbc_rom_program } from '@/protocol/beggar_socket/protocol';
+import { gbc_read, gbc_rom_program, gbc_write } from '@/protocol/beggar_socket/protocol';
 import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
@@ -38,15 +38,15 @@ export class MBC5Adapter extends CartridgeAdapter {
 
         try {
           // Enter autoselect mode
-          await gbc_direct_write(this.device, new Uint8Array([0xaa]), 0xaaa);
-          await gbc_direct_write(this.device, new Uint8Array([0x55]), 0x555);
-          await gbc_direct_write(this.device, new Uint8Array([0x90]), 0xaaa);
+          await gbc_write(this.device, new Uint8Array([0xaa]), 0xaaa);
+          await gbc_write(this.device, new Uint8Array([0x55]), 0x555);
+          await gbc_write(this.device, new Uint8Array([0x90]), 0xaaa);
 
           // Read ID (4 bytes)
           const id = await gbc_read(this.device, 4, 0);
 
           // Reset
-          await gbc_direct_write(this.device, new Uint8Array([0xf0]), 0x00);
+          await gbc_write(this.device, new Uint8Array([0xf0]), 0x00);
 
           const idStr = Array.from(id).map(x => x.toString(16).padStart(2, '0')).join(' ');
           this.log(this.t('messages.operation.readIdSuccess'));
@@ -88,12 +88,12 @@ export class MBC5Adapter extends CartridgeAdapter {
 
         try {
           // Chip Erase sequence
-          await gbc_direct_write(this.device, new Uint8Array([0xaa]), 0xaaa);
-          await gbc_direct_write(this.device, new Uint8Array([0x55]), 0x555);
-          await gbc_direct_write(this.device, new Uint8Array([0x80]), 0xaaa);
-          await gbc_direct_write(this.device, new Uint8Array([0xaa]), 0xaaa);
-          await gbc_direct_write(this.device, new Uint8Array([0x55]), 0x555);
-          await gbc_direct_write(this.device, new Uint8Array([0x10]), 0xaaa); // Chip Erase
+          await gbc_write(this.device, new Uint8Array([0xaa]), 0xaaa);
+          await gbc_write(this.device, new Uint8Array([0x55]), 0x555);
+          await gbc_write(this.device, new Uint8Array([0x80]), 0xaaa);
+          await gbc_write(this.device, new Uint8Array([0xaa]), 0xaaa);
+          await gbc_write(this.device, new Uint8Array([0x55]), 0x555);
+          await gbc_write(this.device, new Uint8Array([0x10]), 0xaaa); // Chip Erase
 
           // Wait for completion (poll for 0xff)
           let temp;
@@ -134,9 +134,9 @@ export class MBC5Adapter extends CartridgeAdapter {
     const b1 = (bank >> 8) & 0xff;
 
     // ROM addr [21:14]
-    await gbc_direct_write(this.device, new Uint8Array([b0]), 0x2000);
+    await gbc_write(this.device, new Uint8Array([b0]), 0x2000);
     // ROM addr [22]
-    await gbc_direct_write(this.device, new Uint8Array([b1]), 0x3000);
+    await gbc_write(this.device, new Uint8Array([b1]), 0x3000);
 
     this.log(this.t('messages.rom.bankSwitch', { bank }));
   }
@@ -147,7 +147,7 @@ export class MBC5Adapter extends CartridgeAdapter {
 
     const b = bank & 0xff;
     // RAM addr [16:13]
-    await gbc_direct_write(this.device, new Uint8Array([b]), 0x4000);
+    await gbc_write(this.device, new Uint8Array([b]), 0x4000);
 
     this.log(this.t('messages.ram.bankSwitch', { bank }));
   }
@@ -156,7 +156,7 @@ export class MBC5Adapter extends CartridgeAdapter {
   async getROMSize() : Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number }> {
     try {
       // CFI Query
-      await gbc_direct_write(this.device, new Uint8Array([0x98]), 0xaa);
+      await gbc_write(this.device, new Uint8Array([0x98]), 0xaa);
 
       // 读取设备大小 (0x4e地址)
       const deviceSizeData = await gbc_read(this.device, 1, 0x4e);
@@ -182,7 +182,7 @@ export class MBC5Adapter extends CartridgeAdapter {
       const sectorSize = ((sectorSizeHigh[0] << 8) | sectorSizeLow[0]) * 256;
 
       // Reset
-      await gbc_direct_write(this.device, new Uint8Array([0xf0]), 0x00);
+      await gbc_write(this.device, new Uint8Array([0xf0]), 0x00);
 
       this.log(this.t('messages.operation.romSizeQuerySuccess', {
         deviceSize: deviceSize.toString(),
@@ -238,12 +238,12 @@ export class MBC5Adapter extends CartridgeAdapter {
         }
 
         // Sector Erase sequence
-        await gbc_direct_write(this.device, new Uint8Array([0xaa]), 0xaaa);
-        await gbc_direct_write(this.device, new Uint8Array([0x55]), 0x555);
-        await gbc_direct_write(this.device, new Uint8Array([0x80]), 0xaaa);
-        await gbc_direct_write(this.device, new Uint8Array([0xaa]), 0xaaa);
-        await gbc_direct_write(this.device, new Uint8Array([0x55]), 0x555);
-        await gbc_direct_write(this.device, new Uint8Array([0x30]), sectorAddr); // Sector Erase
+        await gbc_write(this.device, new Uint8Array([0xaa]), 0xaaa);
+        await gbc_write(this.device, new Uint8Array([0x55]), 0x555);
+        await gbc_write(this.device, new Uint8Array([0x80]), 0xaaa);
+        await gbc_write(this.device, new Uint8Array([0xaa]), 0xaaa);
+        await gbc_write(this.device, new Uint8Array([0x55]), 0x555);
+        await gbc_write(this.device, new Uint8Array([0x30]), sectorAddr); // Sector Erase
 
         const elapsed = (Date.now() - startTime) / 1000;
         const speed = elapsed > 0 ? ((erasedSectors + 1) / elapsed).toFixed(1) : '0';
@@ -622,7 +622,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           this.log(this.t('messages.ram.writing'));
 
           // 开启RAM访问权限
-          await gbc_direct_write(this.device, new Uint8Array([0x0a]), 0x0000);
+          await gbc_write(this.device, new Uint8Array([0x0a]), 0x0000);
 
           const startTime = Date.now();
           let currentBank = -123;
@@ -648,7 +648,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             const cartAddress = 0xa000 + (ramAddress & 0x1fff);
 
             // 写入数据
-            await gbc_direct_write(this.device, chunk, cartAddress);
+            await gbc_write(this.device, chunk, cartAddress);
 
             writtenCount += chunkSize;
             const elapsed = (Date.now() - startTime) / 1000;
@@ -717,7 +717,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           this.log(this.t('messages.ram.reading'));
 
           // 开启RAM访问权限
-          await gbc_direct_write(this.device, new Uint8Array([0x0a]), 0x0000);
+          await gbc_write(this.device, new Uint8Array([0x0a]), 0x0000);
 
           const result = new Uint8Array(size);
           const startTime = Date.now();
@@ -816,7 +816,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           this.log(this.t('messages.ram.verifying'));
 
           // 开启RAM访问权限
-          await gbc_direct_write(this.device, new Uint8Array([0x0a]), 0x0000);
+          await gbc_write(this.device, new Uint8Array([0x0a]), 0x0000);
 
           const startTime = Date.now();
           let currentBank = -123;

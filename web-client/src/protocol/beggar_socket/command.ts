@@ -1,6 +1,7 @@
 export enum GBACommand {
   READ_ID = 0xf0,
   ERASE_CHIP = 0xf1,
+  BLOCK_ERASE = 0xf2,
   SECTOR_ERASE = 0xf3,
   PROGRAM = 0xf4,
   DIRECT_WRITE = 0xf5,

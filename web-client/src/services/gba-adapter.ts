@@ -1,13 +1,13 @@
 import {
+  ram_program_flash,
   ram_read,
   ram_write,
-  ram_write_to_flash,
-  rom_direct_write,
-  rom_eraseChip,
+  rom_erase_chip,
+  rom_erase_sector,
+  rom_get_id,
   rom_program,
   rom_read,
-  rom_readID,
-  rom_sector_erase,
+  rom_write,
 } from '@/protocol/beggar_socket/protocol';
 import { getFlashId, toLittleEndian } from '@/protocol/beggar_socket/protocol-utils';
 import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
@@ -47,7 +47,7 @@ export class GBAAdapter extends CartridgeAdapter {
       async () => {
         this.log(this.t('messages.operation.readId'));
         try {
-          const id = [...await rom_readID(this.device)];
+          const id = [...await rom_get_id(this.device)];
 
           const idStr = id.map(x => x.toString(16).padStart(2, '0')).join(' ');
           const flashId = getFlashId(id);
@@ -102,7 +102,7 @@ export class GBAAdapter extends CartridgeAdapter {
             };
           }
 
-          await rom_eraseChip(this.device);
+          await rom_erase_chip(this.device);
 
           const startTime = Date.now();
           let elapsedSeconds = 0;
@@ -179,7 +179,7 @@ export class GBAAdapter extends CartridgeAdapter {
       // 从高地址向低地址擦除
       for (let addr = alignedEndAddress; addr >= startAddress; addr -= sectorSize) {
         this.log(this.t('messages.operation.eraseSector', { address: addr.toString(16) }));
-        await rom_sector_erase(this.device, addr);
+        await rom_erase_sector(this.device, addr);
 
         eraseCount++;
         const elapsed = (Date.now() - startTime) / 1000;
@@ -351,13 +351,13 @@ export class GBAAdapter extends CartridgeAdapter {
       this.log(this.t('messages.operation.queryingRomSize'));
 
       // CFI Query - 向地址0x55写入0x98命令
-      await rom_direct_write(this.device, toLittleEndian(0x98, 2), 0x55);
+      await rom_write(this.device, toLittleEndian(0x98, 2), 0x55);
 
       // 读取CFI数据 (20字节) - 从地址0x4E (0x27 << 1)开始读取
       const cfiData = await rom_read(this.device, 20, 0x27 << 1);
 
       // Reset - 向地址0x00写入0xf0命令
-      await rom_direct_write(this.device, toLittleEndian(0xf0, 2), 0x00);
+      await rom_write(this.device, toLittleEndian(0xf0, 2), 0x00);
 
       // 解析CFI数据
       // 设备容量 (地址0x27h对应索引0)
@@ -722,7 +722,7 @@ export class GBAAdapter extends CartridgeAdapter {
   async switchSRAMBank(bank: number) : Promise<void> {
     bank = bank === 0 ? 0 : 1;
     this.log(this.t('messages.gba.bankSwitchSram', { bank }));
-    await rom_direct_write(this.device, toLittleEndian(bank, 2), 0x800000);
+    await rom_write(this.device, toLittleEndian(bank, 2), 0x800000);
   }
 
   /**
@@ -815,7 +815,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
             // 根据RAM类型选择写入方法
             if (options.ramType === 'FLASH') {
-              await ram_write_to_flash(this.device, chunk, baseAddr);
+              await ram_program_flash(this.device, chunk, baseAddr);
             } else {
               await ram_write(this.device, chunk, baseAddr);
             }
@@ -825,14 +825,6 @@ export class GBAAdapter extends CartridgeAdapter {
             const elapsed = (Date.now() - startTime) / 1000;
             const currentSpeed = elapsed > 0 ? (written / 1024) / elapsed : 0;
             maxSpeed = Math.max(maxSpeed, currentSpeed);
-            this.updateProgress(this.createProgressInfo(
-              progress,
-              this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }),
-              total,
-              written,
-              startTime,
-              currentSpeed,
-            ));
 
             // 每5个百分比记录一次日志
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
@@ -852,16 +844,6 @@ export class GBAAdapter extends CartridgeAdapter {
             totalSize: (total / 1024).toFixed(1),
           }));
 
-          this.updateProgress(this.createProgressInfo(
-            100,
-            this.t('messages.ram.writeComplete'),
-            total,
-            total,
-            startTime,
-            avgSpeed,
-            false,
-            'completed',
-          ));
           return {
             success: true,
             message: this.t('messages.ram.writeSuccess'),

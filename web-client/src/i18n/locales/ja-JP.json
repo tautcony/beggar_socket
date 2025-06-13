@@ -88,7 +88,8 @@
       "size": "ファイルサイズ",
       "cartType": "カートタイプ",
       "ramSize": "RAMサイズ",
-      "valid": "有効性"
+      "valid": "有効性",
+      "logo": "ロゴ"
     },
     "emulator": {
       "title": "ゲームプレビュー",

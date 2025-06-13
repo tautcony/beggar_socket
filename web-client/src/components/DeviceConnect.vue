@@ -2,7 +2,7 @@
   <div class="device-connect-container">
     <div class="device-connect">
       <button
-        :class="buttonClass"
+        :class="connected ? 'disconnect-btn' : 'connect-btn'"
         :disabled="isConnecting"
         @click="handleConnectDisconnect"
       >
@@ -38,7 +38,7 @@ import { checkmarkDoneOutline, flashOutline, reloadOutline } from 'ionicons/icon
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
-  serial as polyfill, SerialPort as SerialPortPolyfill,
+  serial as polyfill, SerialPolyfillProtocol, SerialPort as SerialPortPolyfill,
 } from 'web-serial-polyfill';
 
 import { useToast } from '@/composables/useToast';
@@ -136,10 +136,10 @@ async function connect() {
     if (DebugSettings.debugMode) {
       await new Promise(resolve => setTimeout(resolve, 1000));
       const mockPort = {
-        readable: new ReadableStream({ start(controller) {} }),
-        writable: new WritableStream({ write(chunk) {} }),
-        open: async () => {},
-        close: async () => {},
+        readable: new ReadableStream({ start(controller) { } }),
+        writable: new WritableStream({ write(chunk) { } }),
+        open: async () => { },
+        close: async () => { },
         getInfo: () => ({ usbVendorId: 0x1234, usbProductId: 0x5678 }),
       };
       port = mockPort as unknown as SerialPort;
@@ -158,10 +158,14 @@ async function connect() {
       if (!navigator.serial) throw new Error('Web Serial API is not supported in this browser');
       port = await navigator.serial.requestPort();
     }
+    if (!port) throw new Error('No serial port selected');
     await port.open({ baudRate: 9600, dataBits: 8, parity: 'none', stopBits: 1, flowControl: 'none' });
+
+    // send dtr & rts signals to ensure device is ready
     await port.setSignals({ dataTerminalReady: true, requestToSend: true });
     await new Promise(resolve => setTimeout(resolve, 100));
     await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+
     reader = port.readable?.getReader() || null;
     writer = port.writable?.getWriter() || null;
     if (!reader || !writer) throw new Error('Failed to get serial port reader/writer');
@@ -173,9 +177,9 @@ async function connect() {
     connected.value = false;
     isConnecting.value = false;
     showToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
-    if (reader) { try { await reader.releaseLock(); } catch {} reader = null; }
-    if (writer) { try { await writer.releaseLock(); } catch {} writer = null; }
-    if (port) { try { await port.close(); } catch {} port = null; }
+    if (reader) { try { reader.releaseLock(); } catch { } reader = null; }
+    if (writer) { try { writer.releaseLock(); } catch { } writer = null; }
+    if (port) { try { await port.close(); } catch { } port = null; }
     emit('device-disconnected');
   }
 }
@@ -221,11 +225,6 @@ const buttonIcon = computed(() => {
   return flashOutline;
 });
 
-const buttonClass = computed(() => {
-  if (connected.value) return 'disconnect-btn';
-  return 'connect-btn';
-});
-
 // 暴露方法给父组件
 defineExpose({
   connect,
@@ -236,7 +235,7 @@ defineExpose({
 
 <style scoped>
 .device-connect-container {
-  position: relative; /* For toast positioning context */
+  position: relative;
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -279,23 +278,23 @@ defineExpose({
   background-color: white;
   border-radius: 50%;
   transition: transform 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.toggle-input:checked + .toggle-slider {
+.toggle-input:checked+.toggle-slider {
   background-color: #007bff;
 }
 
-.toggle-input:checked + .toggle-slider::before {
+.toggle-input:checked+.toggle-slider::before {
   transform: translateX(20px);
 }
 
-.toggle-input:disabled + .toggle-slider {
+.toggle-input:disabled+.toggle-slider {
   background-color: #e0e0e0;
   cursor: not-allowed;
 }
 
-.toggle-input:disabled + .toggle-slider::before {
+.toggle-input:disabled+.toggle-slider::before {
   background-color: #f5f5f5;
 }
 
@@ -322,8 +321,10 @@ defineExpose({
 .disconnect-btn {
   padding: 6px 16px;
   border-radius: 6px;
-  border: none; /* Removed border, relying on background and shadow */
-  background: #007bff; /* Primary blue */
+  border: none;
+  /* Removed border, relying on background and shadow */
+  background: #007bff;
+  /* Primary blue */
   color: white;
   font-size: 1.1rem;
   font-weight: 600;
@@ -332,12 +333,13 @@ defineExpose({
   align-items: center;
   gap: 6px;
   transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .connect-btn:hover:not(:disabled) {
-  background: #0056b3; /* Darker blue on hover */
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  background: #0056b3;
+  /* Darker blue on hover */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .connect-btn:active:not(:disabled) {
@@ -345,13 +347,17 @@ defineExpose({
 }
 
 .disconnect-btn {
-  background: #6c757d; /* Grey for connected/disconnect */
+  background: #6c757d;
+  /* Grey for connected/disconnect */
   color: white;
 }
+
 .disconnect-btn:hover:not(:disabled) {
-  background: #545b62; /* Darker grey */
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  background: #545b62;
+  /* Darker grey */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
+
 .disconnect-btn:active:not(:disabled) {
   transform: translateY(1px);
 }

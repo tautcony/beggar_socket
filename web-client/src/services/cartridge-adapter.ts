@@ -42,7 +42,7 @@ export class CartridgeAdapter {
   }
 
   /**
-   * 读取ROM芯片IDx
+   * 读取ROM芯片ID
    * @returns {Promise<CommandResult & { idStr?: string }>} - 包含成功状态、ID字符串和消息的对象
    */
   async readID(): Promise<CommandResult & { idStr?: string }> {
@@ -75,12 +75,12 @@ export class CartridgeAdapter {
 
   /**
    * 写入ROM
-   * @param fileData - 文件数据
+   * @param data - 文件数据
    * * @param options - 写入选项
    * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态和消息的对象
    */
-  async writeROM(fileData: Uint8Array, options: CommandOptions = {}, signal?: AbortSignal): Promise<CommandResult> {
+  async writeROM(data: Uint8Array, options: CommandOptions = {}, signal?: AbortSignal): Promise<CommandResult> {
     throw new Error('未实现的方法: writeROM');
   }
 
@@ -97,22 +97,22 @@ export class CartridgeAdapter {
 
   /**
    * 校验ROM
-   * @param fileData - 文件数据
+   * @param data - 文件数据
    * @param baseAddress - 基础地址
    * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态和消息的对象
    */
-  async verifyROM(fileData: Uint8Array, baseAddress: number = 0, signal: AbortSignal): Promise<CommandResult> {
+  async verifyROM(data: Uint8Array, baseAddress: number = 0, signal: AbortSignal): Promise<CommandResult> {
     throw new Error('未实现的方法: verifyROM');
   }
 
   /**
    * 写入RAM
-   * @param fileData - 文件数据
+   * @param data - 文件数据
    * @param options - RAM类型或选项对象
    * @returns - 包含成功状态和消息的对象
    */
-  async writeRAM(fileData: Uint8Array, options?: CommandOptions): Promise<CommandResult> {
+  async writeRAM(data: Uint8Array, options?: CommandOptions): Promise<CommandResult> {
     throw new Error('未实现的方法: writeRAM');
   }
 
@@ -128,11 +128,11 @@ export class CartridgeAdapter {
 
   /**
    * 校验RAM
-   * @param fileData - 文件数据
+   * @param data - 文件数据
    * @param options - RAM类型或选项对象
    * @returns - 包含成功状态和消息的对象
    */
-  async verifyRAM(fileData: Uint8Array, options?: CommandOptions): Promise<CommandResult> {
+  async verifyRAM(data: Uint8Array, options?: CommandOptions): Promise<CommandResult> {
     throw new Error('未实现的方法: verifyRAM');
   }
 

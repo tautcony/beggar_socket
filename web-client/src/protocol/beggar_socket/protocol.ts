@@ -9,7 +9,7 @@ const INIT_ERROR_MESSAGE = 'Serial port not properly initialized';
 /**
  * GBA: 读取ID (0xf0)
  */
-export async function rom_readID(device: DeviceInfo): Promise<Uint8Array> {
+export async function rom_get_id(device: DeviceInfo): Promise<Uint8Array> {
   const { writer, reader } = device;
   if (!writer || !reader) {
     throw new Error(INIT_ERROR_MESSAGE);
@@ -27,7 +27,7 @@ export async function rom_readID(device: DeviceInfo): Promise<Uint8Array> {
 /**
  * GBA: 擦除芯片 (0xf1)
  */
-export async function rom_eraseChip(device: DeviceInfo): Promise<void> {
+export async function rom_erase_chip(device: DeviceInfo): Promise<void> {
   const { writer, reader } = device;
   if (!writer || !reader) {
     throw new Error(INIT_ERROR_MESSAGE);
@@ -41,7 +41,7 @@ export async function rom_eraseChip(device: DeviceInfo): Promise<void> {
 /**
  * GBA: ROM Sector Erase (0xf3)
  */
-export async function rom_sector_erase(device: DeviceInfo, sectorAddress: number): Promise<boolean> {
+export async function rom_erase_sector(device: DeviceInfo, sectorAddress: number): Promise<boolean> {
   const { writer, reader } = device;
   if (!writer || !reader) {
     throw new Error(INIT_ERROR_MESSAGE);
@@ -77,7 +77,7 @@ export async function rom_program(device: DeviceInfo, data: Uint8Array, baseAddr
 /**
  * GBA: ROM Direct Write (0xf5)
  */
-export async function rom_direct_write(device: DeviceInfo, data: Uint8Array, baseByteAddress = 0): Promise<void> {
+export async function rom_write(device: DeviceInfo, data: Uint8Array, baseByteAddress = 0): Promise<void> {
   const { writer, reader } = device;
   if (!writer || !reader) {
     throw new Error(INIT_ERROR_MESSAGE);
@@ -160,7 +160,7 @@ export async function ram_read(device: DeviceInfo, size: number, baseAddress = 0
 /**
  * GBA: RAM Write to FLASH (0xf9)
  */
-export async function ram_write_to_flash(device: DeviceInfo, data: Uint8Array, baseAddress = 0): Promise<void> {
+export async function ram_program_flash(device: DeviceInfo, data: Uint8Array, baseAddress = 0): Promise<void> {
   const { writer, reader } = device;
   if (!writer || !reader) {
     throw new Error(INIT_ERROR_MESSAGE);
@@ -181,7 +181,7 @@ export async function ram_write_to_flash(device: DeviceInfo, data: Uint8Array, b
 /**
  * GBC: Direct Write (0xfa)
  */
-export async function gbc_direct_write(device: DeviceInfo, data: Uint8Array, baseAddress = 0): Promise<void> {
+export async function gbc_write(device: DeviceInfo, data: Uint8Array, baseAddress = 0): Promise<void> {
   const { writer, reader } = device;
   if (!writer || !reader) {
     throw new Error(INIT_ERROR_MESSAGE);

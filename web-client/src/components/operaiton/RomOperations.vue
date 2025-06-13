@@ -65,102 +65,11 @@
       </div>
 
       <!-- ROM信息显示 -->
-      <div
+      <RomInfoPanel
         v-if="romFileData && romInfo"
-        class="rom-info-panel"
-      >
-        <h3
-          class="rom-info-title"
-          @click="toggleRomInfoCollapsed"
-        >
-          <IonIcon
-            :icon="informationCircleOutline"
-            class="info-icon"
-          />
-          {{ $t('ui.rom.info') }}
-          <IonIcon
-            :icon="isRomInfoCollapsed ? chevronDown : chevronUp"
-            class="collapse-icon"
-          />
-        </h3>
-        <div
-          class="rom-info-content"
-          :class="{ 'collapsed': isRomInfoCollapsed }"
-        >
-          <div class="rom-info-grid">
-            <div class="rom-info-item">
-              <span class="rom-info-label">{{ $t('ui.rom.romTitle') }}:</span>
-              <span class="rom-info-value">{{ romInfo.title }}</span>
-            </div>
-            <div class="rom-info-item">
-              <span class="rom-info-label">{{ $t('ui.rom.type') }}:</span>
-              <span
-                class="rom-info-value rom-type"
-                :class="romInfo.type.toLowerCase()"
-              >{{ romInfo.type }}</span>
-            </div>
-            <div
-              v-if="romInfo.gameCode"
-              class="rom-info-item"
-            >
-              <span class="rom-info-label">{{ $t('ui.rom.gameCode') }}:</span>
-              <span class="rom-info-value">{{ romInfo.gameCode }}</span>
-            </div>
-            <div
-              v-if="romInfo.makerCode"
-              class="rom-info-item"
-            >
-              <span class="rom-info-label">{{ $t('ui.rom.maker') }}:</span>
-              <span class="rom-info-value">{{ romInfo.makerCode }}</span>
-            </div>
-            <div
-              v-if="romInfo.version !== undefined"
-              class="rom-info-item"
-            >
-              <span class="rom-info-label">{{ $t('ui.rom.version') }}:</span>
-              <span class="rom-info-value">v{{ romInfo.version }}</span>
-            </div>
-            <div
-              v-if="romInfo.region"
-              class="rom-info-item"
-            >
-              <span class="rom-info-label">{{ $t('ui.rom.region') }}:</span>
-              <span class="rom-info-value">{{ romInfo.region }}</span>
-            </div>
-            <div class="rom-info-item">
-              <span class="rom-info-label">{{ $t('ui.rom.romSize') }}:</span>
-              <span class="rom-info-value">{{ formatBytes(romInfo.romSize) }}</span>
-            </div>
-            <div
-              v-if="romInfo.ramSize !== undefined && romInfo.ramSize > 0"
-              class="rom-info-item"
-            >
-              <span class="rom-info-label">{{ $t('ui.rom.ramSize') }}:</span>
-              <span class="rom-info-value">{{ formatBytes(romInfo.ramSize) }}</span>
-            </div>
-            <div
-              v-if="romInfo.cartType !== undefined"
-              class="rom-info-item"
-            >
-              <span class="rom-info-label">{{ $t('ui.rom.cartType') }}:</span>
-              <span class="rom-info-value">{{ CartridgeTypeMapper[romInfo.cartType] }}</span>
-            </div>
-            <div class="rom-info-item">
-              <span class="rom-info-label">{{ $t('ui.rom.valid') }}:</span>
-              <span
-                class="rom-info-value rom-validity"
-                :class="romInfo.isValid ? 'valid' : 'invalid'"
-              >
-                <IonIcon
-                  :name="romInfo.isValid ? checkmarkCircle : closeCircle"
-                  class="validity-icon"
-                />
-                {{ romInfo.isValid ? $t('ui.common.yes') : $t('ui.common.no') }}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+        v-model:is-collapsed="isRomInfoCollapsed"
+        :rom-info="romInfo"
+      />
 
       <div class="button-row">
         <button
@@ -227,6 +136,7 @@ import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import FileDropZone from '@/components/common/FileDropZone.vue';
+import RomInfoPanel from '@/components/common/RomInfoPanel.vue';
 import { useToast } from '@/composables/useToast';
 import { FileInfo } from '@/types/file-info.ts';
 import { formatBytes } from '@/utils/formatter-utils';
@@ -326,11 +236,6 @@ watch(() => props.romFileData, (newData) => {
     romInfo.value = null;
   }
 }, { immediate: true });
-
-// 切换ROM信息折叠状态
-function toggleRomInfoCollapsed() {
-  isRomInfoCollapsed.value = !isRomInfoCollapsed.value;
-}
 
 function onFileSelected(fileInfo: FileInfo) {
   emit('file-selected', fileInfo);
@@ -517,139 +422,6 @@ button:disabled {
 button:not(:disabled):hover {
   background: #e3f2fd;
   color: #1976d2;
-}
-
-/* ROM信息面板样式 */
-.rom-info-panel {
-  margin-bottom: 12px;
-  padding: 16px;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.rom-info-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #495057;
-  cursor: pointer;
-  transition: color 0.2s ease;
-  user-select: none;
-}
-
-.rom-info-title:hover {
-  color: #007bff;
-}
-
-.info-icon {
-  font-size: 1.2rem;
-  color: #007bff;
-}
-
-.collapse-icon {
-  margin-left: auto;
-  font-size: 1rem;
-  transition: transform 0.3s ease;
-  color: #6c757d;
-}
-
-.rom-info-content {
-  background: #ffffff;
-  border-radius: 6px;
-  padding: 16px;
-  border: 1px solid #e9ecef;
-  overflow: hidden;
-  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
-  max-height: 500px;
-  opacity: 1;
-  margin-top: 16px;
-}
-
-.rom-info-content.collapsed {
-  max-height: 0;
-  opacity: 0;
-  padding: 0 16px;
-  margin-top: 0;
-}
-
-.rom-info-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 12px;
-}
-
-.rom-info-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  background: #f8f9fa;
-  border-radius: 4px;
-  border-left: 3px solid #007bff;
-}
-
-.rom-info-label {
-  font-weight: 500;
-  color: #495057;
-  white-space: nowrap;
-}
-
-.rom-info-value {
-  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
-  color: #212529;
-  text-align: right;
-  word-break: break-all;
-}
-
-.rom-type {
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.rom-type.gba {
-  background: linear-gradient(45deg, #4e54c8, #8f94fb);
-  color: white;
-}
-
-.rom-type.gb {
-  background: linear-gradient(45deg, #90a955, #b8c77a);
-  color: white;
-}
-
-.rom-type.gbc {
-  background: linear-gradient(45deg, #ff6b6b, #ffa726);
-  color: white;
-}
-
-.rom-type.unknown {
-  background: linear-gradient(45deg, #6c757d, #adb5bd);
-  color: white;
-}
-
-.rom-validity {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.validity-icon {
-  font-size: 1.1rem;
-}
-
-.rom-validity.valid {
-  color: #28a745;
-}
-
-.rom-validity.invalid {
-  color: #dc3545;
 }
 
 .preview-button {

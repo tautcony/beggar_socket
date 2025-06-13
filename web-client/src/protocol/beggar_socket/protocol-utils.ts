@@ -1,7 +1,6 @@
 
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { withTimeout } from '@/utils/async-utils';
-import { modbusCRC16_lut } from '@/utils/crc-utils';
 import { PerformanceTracker } from '@/utils/sentry';
 
 export function toLittleEndian(value: number, byteLength: number): Uint8Array {
@@ -20,71 +19,6 @@ export function fromLittleEndian(bytes: Uint8Array): number {
     value |= (bytes[i] & 0xFF) << (i * 8);
   }
   return value;
-}
-
-// 封装数据包
-function buildPackage(payload: Uint8Array, withCrc: boolean = false): Uint8Array {
-  const size = 2 + payload.length + 2;
-  const buf = new Uint8Array(size);
-  const sizeBytes = toLittleEndian(size, 2);
-  buf.set(sizeBytes, 0);
-  buf.set(payload, 2);
-  // CRC16
-  if (withCrc) {
-    const crc = toLittleEndian(modbusCRC16_lut(buf.slice(0, size - 2)), 2);
-    buf.set(crc, size - 2);
-  }
-  return buf;
-}
-
-/**
- * 将数据包格式化为可读的表格形式
- * @param {Uint8Array} buf - 要格式化的数据包
- */
-export function formatPackage(buf: Uint8Array): void {
-  if (!buf || !buf.length) return;
-
-  const size = buf.length;
-  if (size < 5) return;
-
-  const header = buf.slice(0, 2);
-  const command = buf.slice(2, 3);
-  const payload = buf.slice(3, size - 2);
-  const crc = buf.slice(size - 2);
-
-  const bytesToHex = (bytes: Uint8Array): string => {
-    if (bytes.length <= 128) {
-      return Array.from(bytes).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
-    }
-
-    const start = Array.from(bytes.slice(0, 64)).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
-    const end = Array.from(bytes.slice(-64)).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
-    return `${start} ... ${end}`;
-  };
-
-  console.log(`数据包总大小: ${size} 字节`);
-  console.table([
-    {
-      section: 'Package Size',
-      hexValue: bytesToHex(header),
-      decValue: header[0] | (header[1] << 8),
-    },
-    {
-      section: 'Command',
-      hexValue: bytesToHex(command),
-      decValue: command[0],
-    },
-    {
-      section: 'Payload',
-      hexValue: bytesToHex(payload),
-      decValue: '',
-    },
-    {
-      section: 'CRC',
-      hexValue: bytesToHex(crc),
-      decValue: (crc[0] | (crc[1] << 8)),
-    },
-  ]);
 }
 
 export async function sendPackage(writer: WritableStreamDefaultWriter<Uint8Array>, payload: Uint8Array, timeoutMs?: number): Promise<boolean> {
