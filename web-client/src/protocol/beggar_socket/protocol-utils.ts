@@ -3,6 +3,8 @@ import { AdvancedSettings } from '@/settings/advanced-settings';
 import { withTimeout } from '@/utils/async-utils';
 import { PerformanceTracker } from '@/utils/sentry';
 
+const INIT_ERROR_MESSAGE = 'Serial port not properly initialized';
+
 export function toLittleEndian(value: number, byteLength: number): Uint8Array {
   const bytes = new Uint8Array(byteLength);
 
@@ -21,7 +23,10 @@ export function fromLittleEndian(bytes: Uint8Array): number {
   return value;
 }
 
-export async function sendPackage(writer: WritableStreamDefaultWriter<Uint8Array>, payload: Uint8Array, timeoutMs?: number): Promise<boolean> {
+export async function sendPackage(writer: WritableStreamDefaultWriter<Uint8Array> | null, payload: Uint8Array, timeoutMs?: number): Promise<boolean> {
+  if (!writer) {
+    throw new Error(INIT_ERROR_MESSAGE);
+  }
   return PerformanceTracker.trackAsyncOperation(
     'protocol.sendPackage',
     async () => {
@@ -45,7 +50,10 @@ export async function sendPackage(writer: WritableStreamDefaultWriter<Uint8Array
   );
 }
 
-export async function getPackage(reader: ReadableStreamDefaultReader<Uint8Array>, length: number = 64, timeoutMs?: number): Promise<{ data: Uint8Array }> {
+export async function getPackage(reader: ReadableStreamDefaultReader<Uint8Array> | null, length: number = 64, timeoutMs?: number): Promise<{ data: Uint8Array }> {
+  if (!reader) {
+    throw new Error(INIT_ERROR_MESSAGE);
+  }
   return PerformanceTracker.trackAsyncOperation(
     'protocol.getPackage',
     async () => {
@@ -93,7 +101,10 @@ export async function getPackage(reader: ReadableStreamDefaultReader<Uint8Array>
   );
 }
 
-export async function getResult(reader: ReadableStreamDefaultReader<Uint8Array>, timeoutMs?: number): Promise<boolean> {
+export async function getResult(reader: ReadableStreamDefaultReader<Uint8Array> | null, timeoutMs?: number): Promise<boolean> {
+  if (!reader) {
+    throw new Error(INIT_ERROR_MESSAGE);
+  }
   return PerformanceTracker.trackAsyncOperation(
     'protocol.getResult',
     async () => {

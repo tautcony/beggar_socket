@@ -228,6 +228,8 @@ export class GBAAdapter extends CartridgeAdapter {
           const pageSize = AdvancedSettings.romPageSize;
           const startTime = Date.now();
           let maxSpeed = 0;
+          let lastTime = startTime;
+          let lastWritten = 0;
 
           const blank = await this.isBlank(0, 0x100);
           if (!blank) {
@@ -239,6 +241,8 @@ export class GBAAdapter extends CartridgeAdapter {
 
           // 分块写入并更新进度
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
+          let chunkCount = 0; // 记录已处理的块数
+          const speedWindow: { time: number; bytes: number }[] = []; // 用于计算实时速度的滑动窗口
           const baseAddr = options.baseAddress ?? 0;
           for (let addr = baseAddr; addr < total; addr += pageSize) {
             // 检查是否已被取消
@@ -260,29 +264,60 @@ export class GBAAdapter extends CartridgeAdapter {
             }
 
             const chunk = fileData.slice(addr, Math.min(addr + pageSize, total));
+            const chunkStartTime = Date.now();
             await rom_program(this.device, chunk, addr);
+            const chunkEndTime = Date.now();
 
             written += chunk.length;
-            const progress = (written / total) * 100;
-            const elapsed = (Date.now() - startTime) / 1000;
-            const currentSpeed = elapsed > 0 ? (written / 1024) / elapsed : 0;
-            maxSpeed = Math.max(maxSpeed, currentSpeed);
+            chunkCount++;
 
-            this.updateProgress(this.createProgressInfo(
-              progress,
-              this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }),
-              total,
-              written,
-              startTime,
-              currentSpeed,
-              true, // 允许取消
-            ));
+            // 更新滑动窗口
+            speedWindow.push({
+              time: chunkEndTime,
+              bytes: chunk.length,
+            });
+
+            // 保持窗口大小为10
+            if (speedWindow.length > 10) {
+              speedWindow.shift();
+            }
+
+            // 每10次操作或最后一次更新进度
+            if (chunkCount % 10 === 0 || written >= total) {
+              const progress = (written / total) * 100;
+
+              // 计算实时速度（基于滑动窗口）
+              let currentSpeed = 0;
+              if (speedWindow.length > 1) {
+                const windowStart = speedWindow[0].time;
+                const windowEnd = speedWindow[speedWindow.length - 1].time;
+                const windowBytes = speedWindow.reduce((sum, item) => sum + item.bytes, 0);
+                const windowElapsed = (windowEnd - windowStart) / 1000;
+                currentSpeed = windowElapsed > 0 ? (windowBytes / 1024) / windowElapsed : 0;
+              }
+
+              maxSpeed = Math.max(maxSpeed, currentSpeed);
+
+              this.updateProgress(this.createProgressInfo(
+                progress,
+                this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }),
+                total,
+                written,
+                startTime,
+                currentSpeed,
+                true, // 允许取消
+              ));
+            }
 
             // 每5个百分比记录一次日志
+            const progress = (written / total) * 100;
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
               this.log(this.t('messages.rom.writingAt', { address: addr.toString(16).padStart(6, '0'), progress }));
               lastLoggedProgress = progress;
             }
+
+            lastTime = chunkEndTime;
+            lastWritten = written;
           }
 
           const totalTime = (Date.now() - startTime) / 1000;
@@ -442,6 +477,8 @@ export class GBAAdapter extends CartridgeAdapter {
 
           // 分块读取以便计算速度统计
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
+          let chunkCount = 0; // 记录已处理的块数
+          const speedWindow: { time: number; bytes: number }[] = []; // 用于计算实时速度的滑动窗口
           for (let addr = 0; addr < size; addr += pageSize) {
             // 检查是否已被取消
             if (signal?.aborted) {
@@ -462,14 +499,39 @@ export class GBAAdapter extends CartridgeAdapter {
             }
 
             const chunkSize = Math.min(pageSize, size - addr);
+            const chunkStartTime = Date.now();
             const chunk = await rom_read(this.device, chunkSize, baseAddress + addr);
+            const chunkEndTime = Date.now();
             data.set(chunk, addr);
 
             totalRead += chunkSize;
-            const elapsed = (Date.now() - startTime) / 1000;
-            const progress = (totalRead / size) * 100;
-            if (elapsed > 0) {
-              const currentSpeed = (totalRead / 1024) / elapsed;
+            chunkCount++;
+
+            // 更新滑动窗口
+            speedWindow.push({
+              time: chunkEndTime,
+              bytes: chunkSize,
+            });
+
+            // 保持窗口大小为10
+            if (speedWindow.length > 10) {
+              speedWindow.shift();
+            }
+
+            // 每10次操作或最后一次更新进度
+            if (chunkCount % 10 === 0 || totalRead >= size) {
+              const progress = (totalRead / size) * 100;
+
+              // 计算实时速度（基于滑动窗口）
+              let currentSpeed = 0;
+              if (speedWindow.length > 1) {
+                const windowStart = speedWindow[0].time;
+                const windowEnd = speedWindow[speedWindow.length - 1].time;
+                const windowBytes = speedWindow.reduce((sum, item) => sum + item.bytes, 0);
+                const windowElapsed = (windowEnd - windowStart) / 1000;
+                currentSpeed = windowElapsed > 0 ? (windowBytes / 1024) / windowElapsed : 0;
+              }
+
               maxSpeed = Math.max(maxSpeed, currentSpeed);
 
               this.updateProgress(this.createProgressInfo(
@@ -484,6 +546,7 @@ export class GBAAdapter extends CartridgeAdapter {
             }
 
             // 每5个百分比记录一次日志
+            const progress = (totalRead / size) * 100;
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
               this.log(this.t('messages.rom.readingAt', { address: (baseAddress + addr).toString(16).padStart(6, '0'), progress }));
               lastLoggedProgress = progress;
@@ -587,6 +650,8 @@ export class GBAAdapter extends CartridgeAdapter {
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
 
           // 分块校验并更新进度
+          let chunkCount = 0; // 记录已处理的块数
+          const speedWindow: { time: number; bytes: number }[] = []; // 用于计算实时速度的滑动窗口
           while (verified < total && success) {
             // 检查是否已被取消
             if (signal?.aborted) {
@@ -610,7 +675,9 @@ export class GBAAdapter extends CartridgeAdapter {
             const expectedChunk = fileData.slice(verified, verified + chunkSize);
 
             // 读取对应的ROM数据
+            const chunkStartTime = Date.now();
             const actualChunk = await rom_read(this.device, chunkSize, baseAddress + verified);
+            const chunkEndTime = Date.now();
 
             // 逐字节比较
             for (let i = 0; i < chunkSize; i++) {
@@ -629,23 +696,48 @@ export class GBAAdapter extends CartridgeAdapter {
             if (!success) break;
 
             verified += chunkSize;
-            const progress = (verified / total) * 100;
-            const elapsed = (Date.now() - startTime) / 1000;
-            const currentSpeed = elapsed > 0 ? (verified / 1024) / elapsed : 0;
-            maxSpeed = Math.max(maxSpeed, currentSpeed);
+            chunkCount++;
 
-            // 更新进度
-            this.updateProgress(this.createProgressInfo(
-              progress,
-              this.t('messages.progress.verifySpeed', { speed: currentSpeed.toFixed(1) }),
-              total,
-              verified,
-              startTime,
-              currentSpeed,
-              true, // 允许取消
-            ));
+            // 更新滑动窗口
+            speedWindow.push({
+              time: chunkEndTime,
+              bytes: chunkSize,
+            });
+
+            // 保持窗口大小为10
+            if (speedWindow.length > 10) {
+              speedWindow.shift();
+            }
+
+            // 每10次操作或最后一次更新进度
+            if (chunkCount % 10 === 0 || verified >= total) {
+              const progress = (verified / total) * 100;
+
+              // 计算实时速度（基于滑动窗口）
+              let currentSpeed = 0;
+              if (speedWindow.length > 1) {
+                const windowStart = speedWindow[0].time;
+                const windowEnd = speedWindow[speedWindow.length - 1].time;
+                const windowBytes = speedWindow.reduce((sum, item) => sum + item.bytes, 0);
+                const windowElapsed = (windowEnd - windowStart) / 1000;
+                currentSpeed = windowElapsed > 0 ? (windowBytes / 1024) / windowElapsed : 0;
+              }
+
+              maxSpeed = Math.max(maxSpeed, currentSpeed);
+
+              this.updateProgress(this.createProgressInfo(
+                progress,
+                this.t('messages.progress.verifySpeed', { speed: currentSpeed.toFixed(1) }),
+                total,
+                verified,
+                startTime,
+                currentSpeed,
+                true, // 允许取消
+              ));
+            }
 
             // 每5%记录一次日志
+            const progress = (verified / total) * 100;
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
               this.log(this.t('messages.rom.verifyingAt', {
                 address: verified.toString(16).padStart(6, '0'),
@@ -790,6 +882,8 @@ export class GBAAdapter extends CartridgeAdapter {
           const startTime = Date.now();
           let maxSpeed = 0;
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
+          const chunkCount = 0; // 记录已处理的块数
+          const speedWindow: { time: number; bytes: number }[] = []; // 用于计算实时速度的滑动窗口
           while (written < total) {
             // 切bank
             if (written === 0x00000) {
@@ -814,16 +908,21 @@ export class GBAAdapter extends CartridgeAdapter {
             const chunk = fileData.slice(written, written + chunkSize);
 
             // 根据RAM类型选择写入方法
+            const chunkStartTime = Date.now();
             if (options.ramType === 'FLASH') {
               await ram_program_flash(this.device, chunk, baseAddr);
             } else {
               await ram_write(this.device, chunk, baseAddr);
             }
+            const chunkEndTime = Date.now();
 
             written += chunkSize;
             const progress = (written / total) * 100;
-            const elapsed = (Date.now() - startTime) / 1000;
-            const currentSpeed = elapsed > 0 ? (written / 1024) / elapsed : 0;
+
+            // 计算实时速度（基于当前块的传输速度）
+            const chunkElapsed = (chunkEndTime - chunkStartTime) / 1000;
+            const currentSpeed = chunkElapsed > 0 ? (chunkSize / 1024) / chunkElapsed : 0;
+
             maxSpeed = Math.max(maxSpeed, currentSpeed);
 
             // 每5个百分比记录一次日志
@@ -910,12 +1009,17 @@ export class GBAAdapter extends CartridgeAdapter {
             const chunkSize = Math.min(pageSize, remainingSize);
 
             // 读取数据
+            const chunkStartTime = Date.now();
             const chunk = await ram_read(this.device, chunkSize, baseAddr);
+            const chunkEndTime = Date.now();
             result.set(chunk, read);
 
             read += chunkSize;
-            const elapsed = (Date.now() - startTime) / 1000;
-            const currentSpeed = elapsed > 0 ? (read / 1024) / elapsed : 0;
+
+            // 计算实时速度（基于当前块的传输速度）
+            const chunkElapsed = (chunkEndTime - chunkStartTime) / 1000;
+            const currentSpeed = chunkElapsed > 0 ? (chunkSize / 1024) / chunkElapsed : 0;
+
             maxSpeed = Math.max(maxSpeed, currentSpeed);
           }
 
