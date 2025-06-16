@@ -252,7 +252,8 @@
       "queryingRomSize": "ROM容量を問い合わせ中...",
       "romSizeQuerySuccess": "ROM容量問い合わせ成功、デバイスサイズ: {deviceSize}、セクター数: {sectorCount}、セクターサイズ: {sectorSize}、バッファ書き込みバイト: {bufferWriteBytes}",
       "romSizeQueryFailed": "ROM容量問い合わせ失敗",
-      "eraseSectorFailed": "セクター消去失敗"
+      "eraseSectorFailed": "セクター消去失敗",
+      "eraseSummary": "消去完了 - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総セクター数: {totalSectors}"
     },
     "rom": {
       "writing": "ROMを書き込み中、サイズ {size} バイト",
@@ -315,7 +316,7 @@
       "reading": "処理済み: {read}/{total} バイト",
       "verifying": "検証済み: {verified}/{total} バイト",
       "erasing": "消去済み: {erased}/{total} セクター",
-      "eraseSpeed": "消去速度: {speed} セクター/秒",
+      "eraseSpeed": "消去速度: {speed} KB/秒",
       "writeSpeed": "処理速度: {speed} KB/s",
       "readSpeed": "処理速度: {speed} KB/s",
       "verifySpeed": "検証速度: {speed} KB/s",

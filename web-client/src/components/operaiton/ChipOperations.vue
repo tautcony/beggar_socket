@@ -11,7 +11,7 @@
         {{ $t('ui.operation.readId') }}
       </button>
       <button
-        :disabled="!deviceReady || busy"
+        :disabled="!deviceReady || busy || !chipInfoValid"
         @click="$emit('erase-chip')"
       >
         {{ $t('ui.operation.eraseChip') }}
@@ -39,6 +39,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
@@ -71,6 +72,29 @@ const props = defineProps({
     type: [Number, String],
     default: undefined,
   },
+});
+
+// 检查芯片信息是否有效
+const chipInfoValid = computed(() => {
+  // 检查是否所有必要的参数都有值
+  if (!props.deviceSize || !props.sectorCount || !props.sectorSize) {
+    return false;
+  }
+
+  // 将值转换为数字进行检查
+  const deviceSizeNum = Number(props.deviceSize);
+  const sectorCountNum = Number(props.sectorCount);
+  const sectorSizeNum = Number(props.sectorSize);
+
+  // 检查是否为有效数字（不为 NaN 或 Infinity）
+  const isValidNumber = (num: number) =>
+    !isNaN(num) && isFinite(num) && num > 0;
+
+  return (
+    isValidNumber(deviceSizeNum) &&
+    isValidNumber(sectorCountNum) &&
+    isValidNumber(sectorSizeNum)
+  );
 });
 
 defineEmits(['read-id', 'erase-chip']);

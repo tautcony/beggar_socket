@@ -252,7 +252,8 @@
       "queryingRomSize": "正在查询ROM容量...",
       "romSizeQuerySuccess": "ROM容量查询成功，设备大小: {deviceSize}, 扇区数量: {sectorCount}, 扇区大小: {sectorSize}, 缓冲写入字节: {bufferWriteBytes}",
       "romSizeQueryFailed": "ROM容量查询失败",
-      "eraseSectorFailed": "扇区擦除失败"
+      "eraseSectorFailed": "扇区擦除失败",
+      "eraseSummary": "擦除完成 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总扇区数: {totalSectors}"
     },
     "rom": {
       "writing": "正在写入ROM，大小 {size} 字节",
@@ -315,7 +316,7 @@
       "reading": "已处理: {read}/{total} 字节",
       "verifying": "已校验: {verified}/{total} 字节",
       "erasing": "已擦除: {erased}/{total} 扇区",
-      "eraseSpeed": "擦除速度: {speed} 扇区/秒",
+      "eraseSpeed": "擦除速度: {speed} KB/秒",
       "writeSpeed": "处理速度: {speed} KB/s",
       "readSpeed": "处理速度: {speed} KB/s",
       "verifySpeed": "校验速度: {speed} KB/s",

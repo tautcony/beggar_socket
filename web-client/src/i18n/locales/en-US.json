@@ -252,7 +252,8 @@
       "queryingRomSize": "Querying ROM capacity...",
       "romSizeQuerySuccess": "ROM capacity query successful, device size: {deviceSize}, sector count: {sectorCount}, sector size: {sectorSize}, buffer write bytes: {bufferWriteBytes}",
       "romSizeQueryFailed": "ROM capacity query failed",
-      "eraseSectorFailed": "Sector erase failed"
+      "eraseSectorFailed": "Sector erase failed",
+      "eraseSummary": "Erase completed - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Max speed: {maxSpeed} KB/s, Total sectors: {totalSectors}"
     },
     "rom": {
       "writing": "Writing ROM, size {size} bytes",
@@ -315,7 +316,7 @@
       "reading": "Processed: {read}/{total} bytes",
       "verifying": "Verified: {verified}/{total} bytes",
       "erasing": "Erased: {erased}/{total} sectors",
-      "eraseSpeed": "Erase speed: {speed} sectors/sec",
+      "eraseSpeed": "Erase speed: {speed} KB/sec",
       "writeSpeed": "Processing speed: {speed} KB/s",
       "readSpeed": "Processing speed: {speed} KB/s",
       "verifySpeed": "Verify speed: {speed} KB/s",

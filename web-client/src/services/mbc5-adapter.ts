@@ -205,26 +205,26 @@ export class MBC5Adapter extends CartridgeAdapter {
 
   /**
    * 扇区擦除
-   * @param addrFrom - 起始地址
-   * @param addrTo - 结束地址
+   * @param startAddress - 起始地址
+   * @param endAddress - 结束地址
    * @param sectorSize - 扇区大小
    * @returns - 包含成功状态和消息的对象
    */
-  async eraseSectors(addrFrom: number, addrTo: number, sectorSize: number) : Promise<CommandResult> {
+  async eraseSectors(startAddress: number, endAddress: number, sectorSize: number, signal?: AbortSignal) : Promise<CommandResult> {
     const sectorMask = sectorSize - 1;
-    addrTo &= ~sectorMask;
+    endAddress &= ~sectorMask;
 
     this.log(this.t('messages.operation.eraseSector', {
-      from: addrFrom.toString(16).toUpperCase().padStart(8, '0'),
-      to: addrTo.toString(16).toUpperCase().padStart(8, '0'),
+      from: startAddress.toString(16).toUpperCase().padStart(8, '0'),
+      to: endAddress.toString(16).toUpperCase().padStart(8, '0'),
     }));
 
     try {
-      const totalSectors = Math.floor((addrTo - addrFrom) / sectorSize) + 1;
+      const totalSectors = Math.floor((endAddress - startAddress) / sectorSize) + 1;
       let erasedSectors = 0;
       const startTime = Date.now();
 
-      for (let sa = addrTo; sa >= addrFrom; sa -= sectorSize) {
+      for (let sa = endAddress; sa >= startAddress; sa -= sectorSize) {
         this.log(`    0x${sa.toString(16).toUpperCase().padStart(8, '0')}`);
 
         const bank = sa >> 14;
@@ -297,7 +297,7 @@ export class MBC5Adapter extends CartridgeAdapter {
         if (!isBlank) {
           this.log(this.t('messages.rom.eraseBeforeWrite'));
           const sizeInfo = await this.getROMSize();
-          await this.eraseSectors(0, fileData.length - 1, sizeInfo.sectorSize);
+          await this.eraseSectors(0, fileData.length - sizeInfo.sectorSize, sizeInfo.sectorSize, signal);
         }
 
         try {

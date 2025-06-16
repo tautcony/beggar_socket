@@ -382,7 +382,13 @@ async function eraseChip() {
       return;
     }
 
-    const response = await adapter.eraseChip(abortSignal);
+    const startAddress = 0x0;
+    if (!deviceSize.value || !sectorSize.value) {
+      showToast(t('messages.operation.unsupportedMode'), 'error');
+      return;
+    }
+    const endAddress = deviceSize.value - sectorSize.value;
+    const response = await adapter.eraseSectors(startAddress, endAddress, sectorSize.value, abortSignal);
     showToast(response.message, response.success ? 'success' : 'error');
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') {

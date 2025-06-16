@@ -161,52 +161,157 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param startAddress - 起始地址
    * @param endAddress - 结束地址
    * @param sectorSize - 扇区大小（默认64KB）
+   * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果
    */
-  async eraseSectors(startAddress: number = 0, endAddress: number, sectorSize = 0x10000) : Promise<CommandResult> {
-    try {
-      this.log(this.t('messages.operation.eraseSector', { address: startAddress.toString(16) }) + ' - ' +
-               this.t('messages.operation.eraseSector', { address: endAddress.toString(16) }));
+  async eraseSectors(startAddress: number = 0, endAddress: number, sectorSize = 0x10000, signal?: AbortSignal) : Promise<CommandResult> {
+    return PerformanceTracker.trackAsyncOperation(
+      'gba.eraseSectors',
+      async () => {
+        try {
+          // 确保扇区对齐
+          const sectorMask = sectorSize - 1;
+          const alignedEndAddress = endAddress & ~sectorMask;
 
-      // 确保扇区对齐
-      const sectorMask = sectorSize - 1;
-      const alignedEndAddress = endAddress & ~sectorMask;
+          let eraseCount = 0;
+          const totalSectors = Math.floor((alignedEndAddress - startAddress) / sectorSize) + 1;
+          const totalBytes = endAddress - startAddress;
+          const startTime = Date.now();
+          let maxSpeed = 0;
 
-      let eraseCount = 0;
-      const totalSectors = Math.floor((alignedEndAddress - startAddress) / sectorSize) + 1;
-      const startTime = Date.now();
+          // 滑动窗口用于计算实时速度
+          const speedWindow: { time: number; bytes: number }[] = [];
 
-      // 从高地址向低地址擦除
-      for (let addr = alignedEndAddress; addr >= startAddress; addr -= sectorSize) {
-        this.log(this.t('messages.operation.eraseSector', { address: addr.toString(16) }));
-        await rom_erase_sector(this.device, addr);
+          // 从高地址向低地址擦除
+          for (let addr = alignedEndAddress; addr >= startAddress; addr -= sectorSize) {
+            // 检查是否已被取消
+            if (signal?.aborted) {
+              this.updateProgress(this.createProgressInfo(
+                undefined,
+                this.t('messages.operation.cancelled'),
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                false,
+                'error',
+              ));
+              return {
+                success: false,
+                message: this.t('messages.operation.cancelled'),
+              };
+            }
 
-        eraseCount++;
-        const elapsed = (Date.now() - startTime) / 1000;
-        const speed = elapsed > 0 ? (eraseCount * sectorSize) / elapsed : 0;
-        const sectorSpeed = elapsed > 0 ? (eraseCount / elapsed).toFixed(1) : '0';
-        this.updateProgress(this.createProgressInfo(
-          eraseCount / totalSectors * 1000,
-          this.t('messages.progress.eraseSpeed', { speed: sectorSpeed }),
-          endAddress - startAddress,
-          eraseCount * sectorSize,
-          startTime,
-          speed,
-        ));
-      }
+            this.log(this.t('messages.operation.eraseSector', {
+              from: addr.toString(16).toUpperCase().padStart(8, '0'),
+              to: (addr + sectorSize - 1).toString(16).toUpperCase().padStart(8, '0'),
+            }));
 
-      this.log(this.t('messages.operation.eraseSuccess'));
-      return {
-        success: true,
-        message: this.t('messages.operation.eraseSuccess'),
-      };
-    } catch (e) {
-      this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${e}`);
-      return {
-        success: false,
-        message: this.t('messages.operation.eraseSectorFailed'),
-      };
-    }
+            const sectorStartTime = Date.now();
+            await rom_erase_sector(this.device, addr);
+            const sectorEndTime = Date.now();
+
+            eraseCount++;
+            const erasedBytes = eraseCount * sectorSize;
+
+            // 更新滑动窗口
+            speedWindow.push({
+              time: sectorEndTime,
+              bytes: sectorSize,
+            });
+
+            // 保持窗口大小为10
+            if (speedWindow.length > 10) {
+              speedWindow.shift();
+            }
+
+            // 计算实时速度（基于滑动窗口，以KB/s为单位）
+            let currentSpeed = 0;
+            if (speedWindow.length > 1) {
+              const windowStart = speedWindow[0].time;
+              const windowEnd = speedWindow[speedWindow.length - 1].time;
+              const windowBytes = speedWindow.reduce((sum, item) => sum + item.bytes, 0);
+              const windowElapsed = (windowEnd - windowStart) / 1000;
+              currentSpeed = windowElapsed > 0 ? (windowBytes / 1024) / windowElapsed : 0;
+            }
+
+            maxSpeed = Math.max(maxSpeed, currentSpeed);
+
+            this.updateProgress(this.createProgressInfo(
+              (eraseCount / totalSectors) * 100,
+              this.t('messages.progress.eraseSpeed', { speed: currentSpeed.toFixed(1) }),
+              totalBytes,
+              erasedBytes,
+              startTime,
+              currentSpeed,
+              true, // 允许取消
+            ));
+          }
+
+          const totalTime = (Date.now() - startTime) / 1000;
+          const avgSpeed = totalTime > 0 ? (totalBytes / 1024) / totalTime : 0;
+
+          this.log(this.t('messages.operation.eraseSuccess'));
+          this.log(this.t('messages.operation.eraseSummary', {
+            totalTime: totalTime.toFixed(1),
+            avgSpeed: avgSpeed.toFixed(1),
+            maxSpeed: maxSpeed.toFixed(1),
+            totalSectors: totalSectors,
+          }));
+
+          // 报告完成状态
+          this.updateProgress(this.createProgressInfo(
+            100,
+            this.t('messages.operation.eraseSuccess'),
+            totalBytes,
+            totalBytes,
+            startTime,
+            avgSpeed,
+            false, // 完成后禁用取消
+            'completed',
+          ));
+
+          return {
+            success: true,
+            message: this.t('messages.operation.eraseSuccess'),
+          };
+        } catch (e) {
+          if (signal?.aborted) {
+            this.log(this.t('messages.operation.cancelled'));
+            return {
+              success: false,
+              message: this.t('messages.operation.cancelled'),
+            };
+          }
+
+          this.updateProgress(this.createProgressInfo(
+            undefined,
+            this.t('messages.operation.eraseSectorFailed'),
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            false,
+            'error',
+          ));
+          this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${e}`);
+          return {
+            success: false,
+            message: this.t('messages.operation.eraseSectorFailed'),
+          };
+        }
+      },
+      {
+        adapter_type: 'gba',
+        operation_type: 'erase_sectors',
+      },
+      {
+        startAddress,
+        endAddress,
+        sectorSize,
+        totalSectors: Math.floor((endAddress & ~(sectorSize - 1) - startAddress) / sectorSize) + 1,
+      },
+    );
   }
 
   /**
@@ -236,7 +341,7 @@ export class GBAAdapter extends CartridgeAdapter {
             const romInfo = await this.getROMSize();
             const startAddress = 0x00;
             const endAddress = romInfo.sectorCount * romInfo.sectorSize;
-            this.eraseSectors(startAddress, endAddress, romInfo.sectorSize);
+            await this.eraseSectors(startAddress, endAddress, romInfo.sectorSize, signal);
           }
 
           // 分块写入并更新进度
@@ -310,7 +415,7 @@ export class GBAAdapter extends CartridgeAdapter {
             }
 
             // 每5个百分比记录一次日志
-            const progress = (written / total) * 100;
+            const progress = Math.floor((written / total) * 100);
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
               this.log(this.t('messages.rom.writingAt', { address: addr.toString(16).padStart(6, '0'), progress }));
               lastLoggedProgress = progress;
@@ -546,7 +651,7 @@ export class GBAAdapter extends CartridgeAdapter {
             }
 
             // 每5个百分比记录一次日志
-            const progress = (totalRead / size) * 100;
+            const progress = Math.floor((totalRead / size) * 100);
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
               this.log(this.t('messages.rom.readingAt', { address: (baseAddress + addr).toString(16).padStart(6, '0'), progress }));
               lastLoggedProgress = progress;
@@ -737,7 +842,7 @@ export class GBAAdapter extends CartridgeAdapter {
             }
 
             // 每5%记录一次日志
-            const progress = (verified / total) * 100;
+            const progress = Math.floor((verified / total) * 100);
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
               this.log(this.t('messages.rom.verifyingAt', {
                 address: verified.toString(16).padStart(6, '0'),
@@ -917,7 +1022,7 @@ export class GBAAdapter extends CartridgeAdapter {
             const chunkEndTime = Date.now();
 
             written += chunkSize;
-            const progress = (written / total) * 100;
+            const progress = Math.floor((written / total) * 100);
 
             // 计算实时速度（基于当前块的传输速度）
             const chunkElapsed = (chunkEndTime - chunkStartTime) / 1000;

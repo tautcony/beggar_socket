@@ -69,7 +69,7 @@ export class CartridgeAdapter {
    * @param sectorSize - 扇区大小
    * @returns - 包含成功状态和消息的对象
    */
-  async eraseSectors(startAddress: number, endAddress: number, sectorSize: number): Promise<CommandResult> {
+  async eraseSectors(startAddress: number, endAddress: number, sectorSize: number, signal?: AbortSignal): Promise<CommandResult> {
     throw new Error('未实现的方法: eraseSectors');
   }
 
