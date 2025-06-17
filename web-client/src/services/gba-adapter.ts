@@ -17,6 +17,7 @@ import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { CFIInfo, parseCFI } from '@/utils/cfi-parser';
 import { PerformanceTracker } from '@/utils/sentry';
+import { SpeedCalculator } from '@/utils/speed-calculator';
 
 /**
  * GBA Adapter - 封装GBA卡带的协议操作
@@ -176,10 +177,9 @@ export class GBAAdapter extends CartridgeAdapter {
           const totalSectors = Math.floor((alignedEndAddress - startAddress) / sectorSize) + 1;
           const totalBytes = endAddress - startAddress;
           const startTime = Date.now();
-          let maxSpeed = 0;
 
-          // 滑动窗口用于计算实时速度
-          const speedWindow: { time: number; bytes: number }[] = [];
+          // 使用速度计算器
+          const speedCalculator = new SpeedCalculator();
 
           // 从高地址向低地址擦除
           for (let addr = alignedEndAddress; addr >= startAddress; addr -= sectorSize) {
@@ -204,28 +204,11 @@ export class GBAAdapter extends CartridgeAdapter {
             eraseCount++;
             const erasedBytes = eraseCount * sectorSize;
 
-            // 更新滑动窗口
-            speedWindow.push({
-              time: sectorEndTime,
-              bytes: sectorSize,
-            });
+            // 添加数据点到速度计算器
+            speedCalculator.addDataPoint(sectorSize, sectorEndTime);
 
-            // 保持窗口大小为10
-            if (speedWindow.length > 10) {
-              speedWindow.shift();
-            }
-
-            // 计算实时速度（基于滑动窗口，以KB/s为单位）
-            let currentSpeed = 0;
-            if (speedWindow.length > 1) {
-              const windowStart = speedWindow[0].time;
-              const windowEnd = speedWindow[speedWindow.length - 1].time;
-              const windowBytes = speedWindow.reduce((sum, item) => sum + item.bytes, 0);
-              const windowElapsed = (windowEnd - windowStart) / 1000;
-              currentSpeed = windowElapsed > 0 ? (windowBytes / 1024) / windowElapsed : 0;
-            }
-
-            maxSpeed = Math.max(maxSpeed, currentSpeed);
+            // 计算当前速度
+            const currentSpeed = speedCalculator.calculateCurrentSpeed();
 
             this.updateProgress(this.createProgressInfo(
               (eraseCount / totalSectors) * 100,
@@ -239,7 +222,8 @@ export class GBAAdapter extends CartridgeAdapter {
           }
 
           const totalTime = (Date.now() - startTime) / 1000;
-          const avgSpeed = totalTime > 0 ? (totalBytes / 1024) / totalTime : 0;
+          const avgSpeed = SpeedCalculator.calculateAverageSpeed(totalBytes, totalTime);
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
           this.log(this.t('messages.operation.eraseSuccess'));
           this.log(this.t('messages.operation.eraseSummary', {
@@ -313,9 +297,6 @@ export class GBAAdapter extends CartridgeAdapter {
           const total = fileData.length;
           let written = 0;
           const pageSize = AdvancedSettings.romPageSize;
-          let maxSpeed = 0;
-          let lastTime = startTime;
-          let lastWritten = 0;
 
           const blank = await this.isBlank(0, 0x100);
           if (!blank) {
@@ -325,10 +306,12 @@ export class GBAAdapter extends CartridgeAdapter {
             await this.eraseSectors(startAddress, endAddress, romInfo.sectorSize, signal);
           }
 
+          // 使用速度计算器
+          const speedCalculator = new SpeedCalculator();
+
           // 分块写入并更新进度
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
           let chunkCount = 0; // 记录已处理的块数
-          const speedWindow: { time: number; bytes: number }[] = []; // 用于计算实时速度的滑动窗口
           const baseAddr = options.baseAddress ?? 0;
           for (let addr = baseAddr; addr < total; addr += pageSize) {
             // 检查是否已被取消
@@ -348,32 +331,15 @@ export class GBAAdapter extends CartridgeAdapter {
             written += chunk.length;
             chunkCount++;
 
-            // 更新滑动窗口
-            speedWindow.push({
-              time: chunkEndTime,
-              bytes: chunk.length,
-            });
-
-            // 保持窗口大小为10
-            if (speedWindow.length > 10) {
-              speedWindow.shift();
-            }
+            // 添加数据点到速度计算器
+            speedCalculator.addDataPoint(chunk.length, chunkEndTime);
 
             // 每10次操作或最后一次更新进度
             if (chunkCount % 10 === 0 || written >= total) {
               const progress = (written / total) * 100;
 
-              // 计算实时速度（基于滑动窗口）
-              let currentSpeed = 0;
-              if (speedWindow.length > 1) {
-                const windowStart = speedWindow[0].time;
-                const windowEnd = speedWindow[speedWindow.length - 1].time;
-                const windowBytes = speedWindow.reduce((sum, item) => sum + item.bytes, 0);
-                const windowElapsed = (windowEnd - windowStart) / 1000;
-                currentSpeed = windowElapsed > 0 ? (windowBytes / 1024) / windowElapsed : 0;
-              }
-
-              maxSpeed = Math.max(maxSpeed, currentSpeed);
+              // 计算当前速度
+              const currentSpeed = speedCalculator.calculateCurrentSpeed();
 
               this.updateProgress(this.createProgressInfo(
                 progress,
@@ -392,13 +358,11 @@ export class GBAAdapter extends CartridgeAdapter {
               this.log(this.t('messages.rom.writingAt', { address: addr.toString(16).padStart(6, '0'), progress }));
               lastLoggedProgress = progress;
             }
-
-            lastTime = chunkEndTime;
-            lastWritten = written;
           }
 
           const totalTime = (Date.now() - startTime) / 1000;
-          const avgSpeed = totalTime > 0 ? (total / 1024) / totalTime : 0;
+          const avgSpeed = SpeedCalculator.calculateAverageSpeed(total, totalTime);
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
           this.log(this.t('messages.rom.writeComplete'));
           this.log(this.t('messages.rom.writeSummary', {
@@ -534,15 +498,16 @@ export class GBAAdapter extends CartridgeAdapter {
 
           this.log(this.t('messages.rom.reading'));
           const pageSize = AdvancedSettings.romPageSize;
-          let maxSpeed = 0;
           let totalRead = 0;
 
           const data = new Uint8Array(size);
 
+          // 使用速度计算器
+          const speedCalculator = new SpeedCalculator();
+
           // 分块读取以便计算速度统计
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
           let chunkCount = 0; // 记录已处理的块数
-          const speedWindow: { time: number; bytes: number }[] = []; // 用于计算实时速度的滑动窗口
           for (let addr = 0; addr < size; addr += pageSize) {
             // 检查是否已被取消
             if (signal?.aborted) {
@@ -562,32 +527,15 @@ export class GBAAdapter extends CartridgeAdapter {
             totalRead += chunkSize;
             chunkCount++;
 
-            // 更新滑动窗口
-            speedWindow.push({
-              time: chunkEndTime,
-              bytes: chunkSize,
-            });
-
-            // 保持窗口大小为10
-            if (speedWindow.length > 10) {
-              speedWindow.shift();
-            }
+            // 添加数据点到速度计算器
+            speedCalculator.addDataPoint(chunkSize, chunkEndTime);
 
             // 每10次操作或最后一次更新进度
             if (chunkCount % 10 === 0 || totalRead >= size) {
               const progress = (totalRead / size) * 100;
 
-              // 计算实时速度（基于滑动窗口）
-              let currentSpeed = 0;
-              if (speedWindow.length > 1) {
-                const windowStart = speedWindow[0].time;
-                const windowEnd = speedWindow[speedWindow.length - 1].time;
-                const windowBytes = speedWindow.reduce((sum, item) => sum + item.bytes, 0);
-                const windowElapsed = (windowEnd - windowStart) / 1000;
-                currentSpeed = windowElapsed > 0 ? (windowBytes / 1024) / windowElapsed : 0;
-              }
-
-              maxSpeed = Math.max(maxSpeed, currentSpeed);
+              // 计算当前速度
+              const currentSpeed = speedCalculator.calculateCurrentSpeed();
 
               this.updateProgress(this.createProgressInfo(
                 progress,
@@ -609,7 +557,8 @@ export class GBAAdapter extends CartridgeAdapter {
           }
 
           const totalTime = (Date.now() - startTime) / 1000;
-          const avgSpeed = totalTime > 0 ? (size / 1024) / totalTime : 0;
+          const avgSpeed = SpeedCalculator.calculateAverageSpeed(size, totalTime);
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
           this.log(this.t('messages.rom.readSuccess', { size: data.length }));
           this.log(this.t('messages.rom.readSummary', {
@@ -681,14 +630,15 @@ export class GBAAdapter extends CartridgeAdapter {
           const total = fileData.length;
           let verified = 0;
           const pageSize = AdvancedSettings.romPageSize;
-          let maxSpeed = 0;
           let success = true;
           let failedAddress = -1;
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
 
+          // 使用速度计算器
+          const speedCalculator = new SpeedCalculator();
+
           // 分块校验并更新进度
           let chunkCount = 0; // 记录已处理的块数
-          const speedWindow: { time: number; bytes: number }[] = []; // 用于计算实时速度的滑动窗口
           while (verified < total && success) {
             // 检查是否已被取消
             if (signal?.aborted) {
@@ -726,32 +676,15 @@ export class GBAAdapter extends CartridgeAdapter {
             verified += chunkSize;
             chunkCount++;
 
-            // 更新滑动窗口
-            speedWindow.push({
-              time: chunkEndTime,
-              bytes: chunkSize,
-            });
-
-            // 保持窗口大小为10
-            if (speedWindow.length > 10) {
-              speedWindow.shift();
-            }
+            // 添加数据点到速度计算器
+            speedCalculator.addDataPoint(chunkSize, chunkEndTime);
 
             // 每10次操作或最后一次更新进度
             if (chunkCount % 10 === 0 || verified >= total) {
               const progress = (verified / total) * 100;
 
-              // 计算实时速度（基于滑动窗口）
-              let currentSpeed = 0;
-              if (speedWindow.length > 1) {
-                const windowStart = speedWindow[0].time;
-                const windowEnd = speedWindow[speedWindow.length - 1].time;
-                const windowBytes = speedWindow.reduce((sum, item) => sum + item.bytes, 0);
-                const windowElapsed = (windowEnd - windowStart) / 1000;
-                currentSpeed = windowElapsed > 0 ? (windowBytes / 1024) / windowElapsed : 0;
-              }
-
-              maxSpeed = Math.max(maxSpeed, currentSpeed);
+              // 计算当前速度
+              const currentSpeed = speedCalculator.calculateCurrentSpeed();
 
               this.updateProgress(this.createProgressInfo(
                 progress,
@@ -776,7 +709,8 @@ export class GBAAdapter extends CartridgeAdapter {
           }
 
           const totalTime = (Date.now() - startTime) / 1000;
-          const avgSpeed = totalTime > 0 ? (total / 1024) / totalTime : 0;
+          const avgSpeed = SpeedCalculator.calculateAverageSpeed(total, totalTime);
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
           if (success) {
             this.log(this.t('messages.rom.verifySuccess'));
@@ -900,10 +834,11 @@ export class GBAAdapter extends CartridgeAdapter {
 
           // 开始写入
           const startTime = Date.now();
-          let maxSpeed = 0;
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
-          const chunkCount = 0; // 记录已处理的块数
-          const speedWindow: { time: number; bytes: number }[] = []; // 用于计算实时速度的滑动窗口
+          let chunkCount = 0; // 记录已处理的块数
+
+          // 使用速度计算器
+          const speedCalculator = new SpeedCalculator();
           while (written < total) {
             // 切bank
             if (written === 0x00000) {
@@ -937,13 +872,12 @@ export class GBAAdapter extends CartridgeAdapter {
             const chunkEndTime = Date.now();
 
             written += chunkSize;
+            chunkCount++;
+
+            // 添加数据点到速度计算器
+            speedCalculator.addDataPoint(chunkSize, chunkEndTime);
+
             const progress = Math.floor((written / total) * 100);
-
-            // 计算实时速度（基于当前块的传输速度）
-            const chunkElapsed = (chunkEndTime - chunkStartTime) / 1000;
-            const currentSpeed = chunkElapsed > 0 ? (chunkSize / 1024) / chunkElapsed : 0;
-
-            maxSpeed = Math.max(maxSpeed, currentSpeed);
 
             // 每5个百分比记录一次日志
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
@@ -953,7 +887,8 @@ export class GBAAdapter extends CartridgeAdapter {
           }
 
           const totalTime = (Date.now() - startTime) / 1000;
-          const avgSpeed = totalTime > 0 ? (total / 1024) / totalTime : 0;
+          const avgSpeed = SpeedCalculator.calculateAverageSpeed(total, totalTime);
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
           this.log(this.t('messages.ram.writeComplete'));
           this.log(this.t('messages.ram.writeSummary', {
@@ -1004,7 +939,9 @@ export class GBAAdapter extends CartridgeAdapter {
           let read = 0;
           const pageSize = AdvancedSettings.ramPageSize;
           const startTime = Date.now();
-          let maxSpeed = 0;
+
+          // 使用速度计算器
+          const speedCalculator = new SpeedCalculator();
 
           while (read < size) {
             // 切bank
@@ -1036,15 +973,13 @@ export class GBAAdapter extends CartridgeAdapter {
 
             read += chunkSize;
 
-            // 计算实时速度（基于当前块的传输速度）
-            const chunkElapsed = (chunkEndTime - chunkStartTime) / 1000;
-            const currentSpeed = chunkElapsed > 0 ? (chunkSize / 1024) / chunkElapsed : 0;
-
-            maxSpeed = Math.max(maxSpeed, currentSpeed);
+            // 添加数据点到速度计算器
+            speedCalculator.addDataPoint(chunkSize, chunkEndTime);
           }
 
           const totalTime = (Date.now() - startTime) / 1000;
-          const avgSpeed = totalTime > 0 ? (size / 1024) / totalTime : 0;
+          const avgSpeed = SpeedCalculator.calculateAverageSpeed(size, totalTime);
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
           this.log(this.t('messages.ram.readSuccess', { size: result.length }));
           this.log(this.t('messages.ram.readSummary', {
