@@ -70,6 +70,7 @@ function isScrolledToBottom(): boolean {
 
 // 处理用户滚动事件
 function handleScroll() {
+  // 用户手动滚动，暂时禁用自动滚动
   isUserScrolling.value = true;
 
   // 清除之前的超时
@@ -81,7 +82,7 @@ function handleScroll() {
   if (isScrolledToBottom()) {
     isUserScrolling.value = false;
   } else {
-    // 2秒后重新启用自动滚动
+    // 2秒后重新启用自动滚动（如果仍在底部）
     scrollTimeout.value = setTimeout(() => {
       if (isScrolledToBottom()) {
         isUserScrolling.value = false;
@@ -92,22 +93,27 @@ function handleScroll() {
 
 // 滚动到底部的函数
 function scrollToBottom() {
-  // 使用scrollAnchor确保滚动到最底部
-  if (scrollAnchor.value) {
-    scrollAnchor.value.scrollIntoView({ block: 'end', inline: 'nearest' });
-  }
+  if (!logBox.value) return;
+
+  // 使用requestAnimationFrame确保DOM渲染完成
+  requestAnimationFrame(() => {
+    if (logBox.value) {
+      logBox.value.scrollTop = logBox.value.scrollHeight;
+    }
+  });
 }
 
 // 自动滚动到底部
 watch(() => props.logs, async () => {
+  if (!props.autoScroll || isUserScrolling.value) {
+    return;
+  }
+
   await nextTick();
   await nextTick(); // 双重nextTick确保DOM完全更新
 
-  // 只有在启用自动滚动且用户没有手动滚动时才自动滚动
-  if (props.autoScroll && !isUserScrolling.value) {
-    scrollToBottom();
-  }
-}, { flush: 'post' });
+  scrollToBottom();
+}, { deep: true, flush: 'post' });
 
 // 组件挂载后设置滚动监听和初始滚动
 watch(logBox, (newLogBox, oldLogBox) => {
