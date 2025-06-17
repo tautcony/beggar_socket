@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+
 import type { CommandResult } from '../src/types/command-result';
 import type { DeviceInfo } from '../src/types/device-info';
 

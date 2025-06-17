@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { DebugSettings } from '../src/settings/debug-settings';
 
 describe('DebugSettings', () => {

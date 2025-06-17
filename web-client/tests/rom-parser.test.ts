@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { GB_NINTENDO_LOGO, GBA_NINTENDO_LOGO, parseRom } from '../src/utils/rom-parser';
 
 function createGBARomHeader(dataSize = 0x200): Uint8Array {

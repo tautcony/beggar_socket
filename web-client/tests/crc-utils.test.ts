@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { modbusCRC16, modbusCRC16_lut } from '../src/utils/crc-utils';
 
 describe('crc-utils', () => {
