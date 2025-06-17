@@ -15,6 +15,7 @@ import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
+import { CFIInfo, parseCFI } from '@/utils/cfi-parser';
 import { PerformanceTracker } from '@/utils/sentry';
 
 /**
@@ -56,8 +57,6 @@ export class GBAAdapter extends CartridgeAdapter {
           } else {
             this.log(`${this.t('messages.operation.readIdSuccess')}: ${idStr} (${flashId})`);
           }
-
-          await this.getROMSize();
 
           return {
             success: true,
@@ -186,16 +185,7 @@ export class GBAAdapter extends CartridgeAdapter {
           for (let addr = alignedEndAddress; addr >= startAddress; addr -= sectorSize) {
             // 检查是否已被取消
             if (signal?.aborted) {
-              this.updateProgress(this.createProgressInfo(
-                undefined,
-                this.t('messages.operation.cancelled'),
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                false,
-                'error',
-              ));
+              this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
               return {
                 success: false,
                 message: this.t('messages.operation.cancelled'),
@@ -284,16 +274,7 @@ export class GBAAdapter extends CartridgeAdapter {
             };
           }
 
-          this.updateProgress(this.createProgressInfo(
-            undefined,
-            this.t('messages.operation.eraseSectorFailed'),
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            false,
-            'error',
-          ));
+          this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.eraseSectorFailed')));
           this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${e}`);
           return {
             success: false,
@@ -325,13 +306,13 @@ export class GBAAdapter extends CartridgeAdapter {
     return PerformanceTracker.trackProgressOperation(
       'gba.writeROM',
       async () => {
+        const startTime = Date.now(); // 移到 try 块外面以便在 catch 块中使用
         try {
           this.log(this.t('messages.rom.writing', { size: fileData.length }));
 
           const total = fileData.length;
           let written = 0;
           const pageSize = AdvancedSettings.romPageSize;
-          const startTime = Date.now();
           let maxSpeed = 0;
           let lastTime = startTime;
           let lastWritten = 0;
@@ -352,16 +333,7 @@ export class GBAAdapter extends CartridgeAdapter {
           for (let addr = baseAddr; addr < total; addr += pageSize) {
             // 检查是否已被取消
             if (signal?.aborted) {
-              this.updateProgress(this.createProgressInfo(
-                undefined,
-                this.t('messages.operation.cancelled'),
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                false,
-                'error',
-              ));
+              this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
               return {
                 success: false,
                 message: this.t('messages.operation.cancelled'),
@@ -453,16 +425,7 @@ export class GBAAdapter extends CartridgeAdapter {
             message: this.t('messages.rom.writeSuccess'),
           };
         } catch (e) {
-          this.updateProgress(this.createProgressInfo(
-            undefined,
-            this.t('messages.rom.writeFailed'),
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            false,
-            'error',
-          ));
+          this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.writeFailed')));
           this.log(`${this.t('messages.rom.writeFailed')}: ${e}`);
           return {
             success: false,
@@ -486,42 +449,40 @@ export class GBAAdapter extends CartridgeAdapter {
    * 获取ROM容量信息 - 通过CFI查询
    * @returns ROM容量相关信息
    */
-  async getROMSize(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number }> {
+  async getROMSize(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number, cfiInfo?: CFIInfo }> {
     try {
       this.log(this.t('messages.operation.queryingRomSize'));
 
-      // CFI Query - 向地址0x55写入0x98命令
+      // CFI Query
       await rom_write(this.device, toLittleEndian(0x98, 2), 0x55);
-
-      // 读取CFI数据 (20字节) - 从地址0x4E (0x27 << 1)开始读取
-      const cfiData = await rom_read(this.device, 20, 0x27 << 1);
-
-      // Reset - 向地址0x00写入0xf0命令
+      const cfiData = await rom_read(this.device, 0x400, 0x00);
+      // Reset
       await rom_write(this.device, toLittleEndian(0xf0, 2), 0x00);
 
-      // 解析CFI数据
-      // 设备容量 (地址0x27h对应索引0)
-      const deviceSizeExponent = cfiData[0] | (cfiData[1] << 8); // 16位小端序
-      const deviceSize = Math.pow(2, deviceSizeExponent);
+      const cfiInfo = parseCFI(cfiData);
 
-      // Buffer写入字节数 (地址0x2Ah对应索引6)
-      const bufferSizeExponent = cfiData[6] | (cfiData[7] << 8); // 16位小端序
-      let bufferWriteBytes;
-      if (bufferSizeExponent === 0) {
-        bufferWriteBytes = 0;
-      } else {
-        bufferWriteBytes = Math.pow(2, bufferSizeExponent);
+      if (!cfiInfo) {
+        this.log(this.t('messages.operation.cfiParseFailed'));
+        return {
+          deviceSize: -1,
+          sectorCount: -1,
+          sectorSize: -1,
+          bufferWriteBytes: -1,
+          cfiInfo: undefined,
+        };
       }
 
-      // 扇区数量 (地址0x2Dh和0x2Eh对应索引12和14)
-      const sectorCountLow = cfiData[12] | (cfiData[13] << 8);
-      const sectorCountHigh = cfiData[14] | (cfiData[15] << 8);
-      const sectorCount = (((sectorCountHigh & 0xff) << 8) | (sectorCountLow & 0xff)) + 1;
+      // 从CFI信息中提取所需数据
+      const deviceSize = cfiInfo.deviceSize;
+      const bufferWriteBytes = cfiInfo.bufferSize || 0;
 
-      // 扇区大小 (地址0x2Fh和0x30h对应索引16和18)
-      const sectorSizeLow = cfiData[16] | (cfiData[17] << 8);
-      const sectorSizeHigh = cfiData[18] | (cfiData[19] << 8);
-      const sectorSize = (((sectorSizeHigh & 0xff) << 8) | (sectorSizeLow & 0xff)) * 256;
+      // 获取第一个擦除区域的信息作为主要扇区信息
+      const sectorSize = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][0] : 0;
+      const sectorCount = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][1] : 0;
+
+      // 记录CFI解析结果
+      this.log(this.t('messages.operation.cfiParseSuccess'));
+      this.log(cfiInfo.info);
 
       this.log(this.t('messages.operation.romSizeQuerySuccess', {
         deviceSize: deviceSize.toString(),
@@ -535,10 +496,17 @@ export class GBAAdapter extends CartridgeAdapter {
         sectorCount,
         sectorSize,
         bufferWriteBytes,
+        cfiInfo,
       };
     } catch (error) {
       this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${error}`);
-      throw error;
+      return {
+        deviceSize: -1,
+        sectorCount: -1,
+        sectorSize: -1,
+        bufferWriteBytes: -1,
+        cfiInfo: undefined,
+      };
     }
   }
 
@@ -553,19 +521,11 @@ export class GBAAdapter extends CartridgeAdapter {
     return PerformanceTracker.trackAsyncOperation(
       'gba.readROM',
       async () => {
+        const startTime = Date.now(); // 移到 try 块外面以便在 catch 块中使用
         try {
           // 检查是否已被取消
           if (signal?.aborted) {
-            this.updateProgress(this.createProgressInfo(
-              undefined,
-              this.t('messages.operation.cancelled'),
-              undefined,
-              undefined,
-              undefined,
-              undefined,
-              false,
-              'error',
-            ));
+            this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
             return {
               success: false,
               message: this.t('messages.operation.cancelled'),
@@ -573,7 +533,6 @@ export class GBAAdapter extends CartridgeAdapter {
           }
 
           this.log(this.t('messages.rom.reading'));
-          const startTime = Date.now();
           const pageSize = AdvancedSettings.romPageSize;
           let maxSpeed = 0;
           let totalRead = 0;
@@ -587,16 +546,7 @@ export class GBAAdapter extends CartridgeAdapter {
           for (let addr = 0; addr < size; addr += pageSize) {
             // 检查是否已被取消
             if (signal?.aborted) {
-              this.updateProgress(this.createProgressInfo(
-                undefined,
-                this.t('messages.operation.cancelled'),
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                false,
-                'error',
-              ));
+              this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
               return {
                 success: false,
                 message: this.t('messages.operation.cancelled'),
@@ -686,16 +636,7 @@ export class GBAAdapter extends CartridgeAdapter {
             message: this.t('messages.rom.readSuccess', { size: data.length }),
           };
         } catch (e) {
-          this.updateProgress(this.createProgressInfo(
-            undefined,
-            this.t('messages.rom.readFailed'),
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            false,
-            'error',
-          ));
+          this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.readFailed')));
           this.log(`${this.t('messages.rom.readFailed')}: ${e}`);
           return {
             success: false,
@@ -727,28 +668,19 @@ export class GBAAdapter extends CartridgeAdapter {
       async () => {
         // 检查是否已被取消
         if (signal?.aborted) {
-          this.updateProgress(this.createProgressInfo(
-            undefined,
-            this.t('messages.operation.cancelled'),
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            false,
-            'error',
-          ));
+          this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
           return {
             success: false,
             message: this.t('messages.operation.cancelled'),
           };
         }
+        const startTime = Date.now(); // 移到 try 块外面以便在 catch 块中使用
         try {
           this.log(this.t('messages.rom.verifying'));
 
           const total = fileData.length;
           let verified = 0;
           const pageSize = AdvancedSettings.romPageSize;
-          const startTime = Date.now();
           let maxSpeed = 0;
           let success = true;
           let failedAddress = -1;
@@ -760,16 +692,7 @@ export class GBAAdapter extends CartridgeAdapter {
           while (verified < total && success) {
             // 检查是否已被取消
             if (signal?.aborted) {
-              this.updateProgress(this.createProgressInfo(
-                undefined,
-                this.t('messages.operation.cancelled'),
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                false,
-                'error',
-              ));
+              this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
               return {
                 success: false,
                 message: this.t('messages.operation.cancelled'),
@@ -863,36 +786,28 @@ export class GBAAdapter extends CartridgeAdapter {
               maxSpeed: maxSpeed.toFixed(1),
               totalSize: (total / 1024).toFixed(1),
             }));
+            this.updateProgress(this.createProgressInfo(
+              100,
+              this.t('messages.rom.verifySuccess'),
+              total,
+              total,
+              startTime,
+              avgSpeed,
+              false,
+              'completed',
+            ));
           } else {
             this.log(this.t('messages.rom.verifyFailed'));
+            this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.verifyFailed')));
           }
 
-          this.updateProgress(this.createProgressInfo(
-            success ? 100 : undefined,
-            success ? this.t('messages.rom.verifySuccess') : this.t('messages.rom.verifyFailed'),
-            total,
-            success ? total : verified,
-            startTime,
-            avgSpeed,
-            false,
-            success ? 'completed' : 'error',
-          ));
           const message = success ? this.t('messages.rom.verifySuccess') : this.t('messages.rom.verifyFailed');
           return {
             success: success,
             message: message,
           };
         } catch (e) {
-          this.updateProgress(this.createProgressInfo(
-            undefined,
-            this.t('messages.rom.verifyFailed'),
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            false,
-            'error',
-          ));
+          this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.verifyFailed')));
           this.log(`${this.t('messages.rom.verifyFailed')}: ${e}`);
           return {
             success: false,

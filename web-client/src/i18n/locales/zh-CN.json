@@ -252,6 +252,8 @@
       "queryingRomSize": "正在查询ROM容量...",
       "romSizeQuerySuccess": "ROM容量查询成功，设备大小: {deviceSize}, 扇区数量: {sectorCount}, 扇区大小: {sectorSize}, 缓冲写入字节: {bufferWriteBytes}",
       "romSizeQueryFailed": "ROM容量查询失败",
+      "cfiParseSuccess": "CFI解析成功",
+      "cfiParseFailed": "CFI解析失败",
       "eraseSectorFailed": "扇区擦除失败",
       "eraseSummary": "擦除完成 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总扇区数: {totalSectors}"
     },

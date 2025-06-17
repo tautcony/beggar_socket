@@ -168,6 +168,19 @@ export class CartridgeAdapter {
       state,
     };
   }
+
+  protected createErrorProgressInfo(detail: string) : ProgressInfo {
+    return this.createProgressInfo(
+      undefined,
+      detail,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      false,
+      'error',
+    );
+  }
 }
 
 export default CartridgeAdapter;

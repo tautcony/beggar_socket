@@ -110,7 +110,7 @@ const now = ref(Date.now());
 let timer: number | undefined;
 
 const isCompleted = computed(() => {
-  return props.progress === 100 || props.state === 'completed';
+  return props.progress === 100 || props.state === 'completed' || props.state === 'error';
 });
 
 watch(

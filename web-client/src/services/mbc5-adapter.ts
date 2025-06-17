@@ -3,6 +3,7 @@ import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } fr
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
+import { CFIInfo, CFIParser } from '@/utils/cfi-parser';
 
 import { PerformanceTracker } from '../utils/sentry';
 
@@ -50,8 +51,6 @@ export class MBC5Adapter extends CartridgeAdapter {
 
           const idStr = Array.from(id).map(x => x.toString(16).padStart(2, '0')).join(' ');
           this.log(this.t('messages.operation.readIdSuccess'));
-
-          await this.getROMSize();
 
           return {
             success: true,
@@ -153,7 +152,61 @@ export class MBC5Adapter extends CartridgeAdapter {
   }
 
   // 获取ROM容量信息 - 通过CFI查询
-  async getROMSize() : Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number }> {
+  async getROMSize() : Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number, cfiInfo?: CFIInfo }> {
+    try {
+      // CFI Query
+      await gbc_write(this.device, new Uint8Array([0x98]), 0xaa);
+
+      // 读取完整的CFI数据 (通常需要1KB的数据)
+      const cfiData = await gbc_read(this.device, 0x400, 0x00);
+
+      // Reset CFI查询模式
+      await gbc_write(this.device, new Uint8Array([0xf0]), 0x00);
+
+      // 使用CFI解析器解析数据
+      const cfiParser = new CFIParser();
+      const cfiInfo = cfiParser.parse(cfiData);
+
+      if (!cfiInfo) {
+        // 如果CFI解析失败，回退到原始实现
+        this.log(this.t('messages.operation.cfiParseFailed'));
+        return this.getROMSizeFallback();
+      }
+
+      // 从CFI信息中提取所需数据
+      const deviceSize = cfiInfo.deviceSize;
+      const bufferWriteBytes = cfiInfo.bufferSize || 0;
+
+      // 获取第一个擦除区域的信息作为主要扇区信息
+      const sectorSize = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][0] : 0;
+      const sectorCount = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][1] : 0;
+
+      // 记录CFI解析结果
+      this.log(this.t('messages.operation.cfiParseSuccess'));
+      this.log(cfiInfo.info);
+
+      this.log(this.t('messages.operation.romSizeQuerySuccess', {
+        deviceSize: deviceSize.toString(),
+        sectorCount: sectorCount.toString(),
+        sectorSize: sectorSize.toString(),
+        bufferWriteBytes: bufferWriteBytes.toString(),
+      }));
+
+      return {
+        deviceSize,
+        sectorCount,
+        sectorSize,
+        bufferWriteBytes,
+        cfiInfo,
+      };
+    } catch (error) {
+      this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${error}`);
+      throw error;
+    }
+  }
+
+  // 回退的ROM大小获取方法（保留原始实现）
+  private async getROMSizeFallback(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number }> {
     try {
       // CFI Query
       await gbc_write(this.device, new Uint8Array([0x98]), 0xaa);
@@ -521,10 +574,10 @@ export class MBC5Adapter extends CartridgeAdapter {
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.verifyROM',
       async () => {
+        const startTime = Date.now(); // 移到 try 块外面以便在 catch 块中使用
         try {
           this.log(this.t('messages.rom.verifying'));
 
-          const startTime = Date.now();
           let currentBank = -123;
           let readCount = 0;
           let success = true;
@@ -586,6 +639,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             message: message,
           };
         } catch (error) {
+          this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.verifyFailed')));
           const message = `${this.t('messages.rom.verifyFailed')}: ${error}`;
           this.log(message);
           return {

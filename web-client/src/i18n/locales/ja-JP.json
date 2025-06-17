@@ -252,6 +252,8 @@
       "queryingRomSize": "ROM容量を問い合わせ中...",
       "romSizeQuerySuccess": "ROM容量問い合わせ成功、デバイスサイズ: {deviceSize}、セクター数: {sectorCount}、セクターサイズ: {sectorSize}、バッファ書き込みバイト: {bufferWriteBytes}",
       "romSizeQueryFailed": "ROM容量問い合わせ失敗",
+      "cfiParseSuccess": "CFI解析成功",
+      "cfiParseFailed": "CFI解析失敗",
       "eraseSectorFailed": "セクター消去失敗",
       "eraseSummary": "消去完了 - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総セクター数: {totalSectors}"
     },

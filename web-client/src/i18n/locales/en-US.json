@@ -252,6 +252,8 @@
       "queryingRomSize": "Querying ROM capacity...",
       "romSizeQuerySuccess": "ROM capacity query successful, device size: {deviceSize}, sector count: {sectorCount}, sector size: {sectorSize}, buffer write bytes: {bufferWriteBytes}",
       "romSizeQueryFailed": "ROM capacity query failed",
+      "cfiParseSuccess": "CFI parsing successful",
+      "cfiParseFailed": "CFI parsing failed",
       "eraseSectorFailed": "Sector erase failed",
       "eraseSummary": "Erase completed - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Max speed: {maxSpeed} KB/s, Total sectors: {totalSectors}"
     },
