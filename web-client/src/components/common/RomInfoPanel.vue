@@ -123,8 +123,9 @@ import { checkmarkCircle, chevronDown, chevronUp, closeCircle, imageOutline, inf
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { processGBALogoData } from '@/utils/compression-utils';
 import { formatBytes } from '@/utils/formatter-utils';
-import { CartridgeTypeMapper, GB_NINTENDO_LOGO, GBA_NINTENDO_LOGO, type RomInfo } from '@/utils/rom-parser.ts';
+import { CartridgeTypeMapper, type RomInfo } from '@/utils/rom-parser.ts';
 
 const { t } = useI18n();
 
@@ -143,11 +144,11 @@ const logoCanvas = ref<HTMLCanvasElement>();
 // 根据ROM类型计算Logo画布大小
 const logoCanvasSize = computed(() => {
   if (props.romInfo.type === 'GBA') {
-    // GBA Logo 显示为十六进制网格，16列
-    return { width: 256, height: 160 };
+    // GBA Logo 104xx16像素
+    return { width: 416, height: 64 };
   } else {
-    // GB/GBC Logo 48x8像素，放大6倍显示，保持正确的宽高比
-    return { width: 288, height: 48 };
+    // GB/GBC Logo 48x8像素
+    return { width: 192, height: 32 };
   }
 });
 
@@ -156,7 +157,6 @@ function toggleCollapsed() {
   emit('update:isCollapsed', isCollapsed.value);
 }
 
-// 渲染Logo数据到Canvas
 function renderLogo() {
   if (!logoCanvas.value || !props.romInfo.logoData || props.romInfo.logoData.length === 0) {
     return;
@@ -180,6 +180,36 @@ function renderLogo() {
 }
 
 function renderGBALogo(ctx: CanvasRenderingContext2D, logoData: Uint8Array, width: number, height: number) {
+  const processedData = processGBALogoData(logoData);
+  if (processedData === null) {
+    return;
+  }
+
+  const logoWidth = 104;
+  const logoHeight = 16;
+  const scale = Math.round(Math.min(width / logoWidth, height / logoHeight));
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+
+  for (let tileRow = 0; tileRow < 2; tileRow++) {
+    for (let tileW = 0; tileW < 13; tileW++) {
+      for (let tileH = 0; tileH < 8; tileH++) {
+        for (let bit = 0; bit < 8; bit++) {
+          const pos = (tileRow * 13 * 8) + (tileW * 8) + tileH;
+          if (pos >= processedData.length) break;
+
+          const pixel = (processedData[pos] >> bit) & 1;
+          const x = tileW * 8 + bit;
+          const y = tileRow * 8 + tileH;
+
+          const fillStyle = pixel === 1 ? '#EA33F7' : '#FFFFFF';
+          ctx.fillStyle = fillStyle;
+          ctx.fillRect(x * scale, y * scale, scale, scale);
+        }
+      }
+    }
+  }
 
 }
 
