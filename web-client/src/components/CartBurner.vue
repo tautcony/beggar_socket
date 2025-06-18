@@ -115,6 +115,7 @@ import { ChipOperations, RamOperations, RomOperations } from '@/components/opera
 import ProgressDisplay from '@/components/ProgressDisplay.vue';
 import { useToast } from '@/composables/useToast';
 import { CartridgeAdapter, GBAAdapter, MBC5Adapter, MockAdapter } from '@/services';
+import { AdvancedSettings } from '@/settings/advanced-settings';
 import { DebugSettings } from '@/settings/debug-settings';
 import { DeviceInfo, FileInfo, ProgressInfo } from '@/types';
 import { formatBytes } from '@/utils/formatter-utils';
@@ -400,7 +401,7 @@ async function eraseChip() {
   } finally {
     busy.value = false;
     finishOperation();
-    // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
+
   }
 }
 
@@ -417,14 +418,14 @@ async function writeRom() {
       return;
     }
 
-    const response = await adapter.writeROM(romFileData.value, { baseAddress: 0 }, abortSignal);
+    const response = await adapter.writeROM(romFileData.value, { baseAddress: 0, bufferSize: AdvancedSettings.romBufferSize }, abortSignal);
     showToast(response.message, response.success ? 'success' : 'error');
   } catch (e) {
     showToast(t('messages.rom.writeFailed'), 'error');
     log(`${t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
     busy.value = false;
-    // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
+    finishOperation();
   }
 }
 
@@ -459,7 +460,6 @@ async function readRom() {
   } finally {
     busy.value = false;
     finishOperation();
-    // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
   }
 }
 
@@ -483,7 +483,7 @@ async function verifyRom() {
     log(`${t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
     busy.value = false;
-    // setTimeout(() => { operateProgress.value = null; operateProgressDetail.value = '' }, 1500)
+    finishOperation();
   }
 }
 

@@ -156,18 +156,19 @@
     "settings": {
       "title": "高级设置",
       "tooltip": "配置高级选项",
-      "pageSize": {
-        "title": "分页大小",
+      "size": {
+        "title": "读写设置",
         "romPageSize": "ROM读写分页大小",
         "ramPageSize": "RAM读写分页大小",
+        "romBufferSize": "ROM缓冲区大小",
         "bytes": "字节",
         "validation": {
           "required": "此字段为必填项",
           "min": "最小值为 {min} 字节",
           "max": "最大值为 {max} 字节",
           "invalid": "请输入有效数值",
-          "range": "页面大小必须在 {min} - {max} 字节之间",
-          "multiple": "页面大小必须是{multipler}的倍数"
+          "range": "大小必须在 {min} - {max} 字节之间",
+          "multiple": "大小必须是{multipler}的倍数"
         }
       },
       "timeout": {

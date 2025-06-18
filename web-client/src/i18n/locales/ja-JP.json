@@ -156,18 +156,19 @@
     "settings": {
       "title": "高度な設定",
       "tooltip": "高度なオプションを設定",
-      "pageSize": {
-        "title": "ページサイズ",
+      "size": {
+        "title": "読み書き設定",
         "romPageSize": "ROM読み書きページサイズ",
         "ramPageSize": "RAM読み書きページサイズ",
+        "romBufferSize": "ROMバッファサイズ",
         "bytes": "バイト",
         "validation": {
           "required": "この項目は必須です",
           "min": "最小値は {min} バイトです",
           "max": "最大値は {max} バイトです",
           "invalid": "有効な数値を入力してください",
-          "range": "ページサイズは {min} - {max} バイトの間で入力してください",
-          "multiple": "ページサイズは{multipler}の倍数である必要があります"
+          "range": "サイズは {min} - {max} バイトの間で入力してください",
+          "multiple": "サイズは{multipler}の倍数である必要があります"
         }
       },
       "timeout": {

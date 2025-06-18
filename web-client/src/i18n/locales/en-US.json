@@ -156,18 +156,19 @@
     "settings": {
       "title": "Advanced Settings",
       "tooltip": "Configure advanced options",
-      "pageSize": {
-        "title": "Page Size",
+      "size": {
+        "title": "Read/Write Settings",
         "romPageSize": "ROM Read/Write Page Size",
         "ramPageSize": "RAM Read/Write Page Size",
+        "romBufferSize": "ROM Buffer Size",
         "bytes": "bytes",
         "validation": {
           "required": "This field is required",
           "min": "Minimum value is {min} bytes",
           "max": "Maximum value is {max} bytes",
           "invalid": "Please enter a valid number",
-          "range": "Page size must be between {min} - {max} bytes",
-          "multiple": "Page size must be a multiple of {multipler}"
+          "range": "Size must be between {min} - {max} bytes",
+          "multiple": "Size must be a multiple of {multipler}"
         }
       },
       "timeout": {

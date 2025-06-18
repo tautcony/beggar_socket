@@ -293,11 +293,14 @@ export class GBAAdapter extends CartridgeAdapter {
         try {
           this.log(this.t('messages.rom.writing', { size: fileData.length }));
 
+          const baseAddr = options.baseAddress ?? 0x00;
+          const pageSize = AdvancedSettings.romPageSize;
+          const bufferSize = options.bufferSize ?? 0x200;
+
           const total = fileData.length;
           let written = 0;
-          const pageSize = AdvancedSettings.romPageSize;
 
-          const blank = await this.isBlank(0, 0x100);
+          const blank = await this.isBlank(baseAddr, 0x100);
           if (!blank) {
             const romInfo = await this.getROMSize();
             const startAddress = 0x00;
@@ -311,7 +314,6 @@ export class GBAAdapter extends CartridgeAdapter {
           // 分块写入并更新进度
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
           let chunkCount = 0; // 记录已处理的块数
-          const baseAddr = options.baseAddress ?? 0;
           for (let addr = baseAddr; addr < total; addr += pageSize) {
             // 检查是否已被取消
             if (signal?.aborted) {
@@ -324,7 +326,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
             const chunk = fileData.slice(addr, Math.min(addr + pageSize, total));
             const chunkStartTime = Date.now();
-            await rom_program(this.device, chunk, addr);
+            await rom_program(this.device, chunk, addr, bufferSize);
             const chunkEndTime = Date.now();
 
             written += chunk.length;
@@ -402,8 +404,8 @@ export class GBAAdapter extends CartridgeAdapter {
       },
       {
         fileSize: fileData.length,
-        baseAddress: options.baseAddress || -1,
-        bufferSize: options.bufferSize || -1,
+        baseAddress: options.baseAddress || 0,
+        bufferSize: options.bufferSize || 512,
         pageSize: AdvancedSettings.romPageSize,
       },
     );

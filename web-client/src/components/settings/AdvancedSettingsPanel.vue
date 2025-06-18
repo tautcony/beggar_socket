@@ -15,22 +15,22 @@
       <div class="settings-content">
         <!-- 页面大小设置 -->
         <div class="setting-group">
-          <h4>{{ $t('ui.settings.pageSize.title') }}</h4>
+          <h4>{{ $t('ui.settings.size.title') }}</h4>
 
           <div class="setting-row">
             <div class="setting-item">
-              <label for="rom-page-size">{{ $t('ui.settings.pageSize.romPageSize') }}</label>
+              <label for="rom-page-size">{{ $t('ui.settings.size.romPageSize') }}</label>
               <div class="input-group">
                 <input
                   id="rom-page-size"
-                  v-model.number="localSettings.pageSize.rom"
+                  v-model.number="localSettings.size.romPageSize"
                   type="number"
                   :min="limits.pageSize.min"
                   :max="limits.pageSize.max"
                   :step="64"
                   @input="validateAndUpdate"
                 >
-                <span class="unit">{{ $t('ui.settings.pageSize.bytes') }}</span>
+                <span class="unit">{{ $t('ui.settings.size.bytes') }}</span>
               </div>
               <div
                 v-if="validationErrors.romPageSize"
@@ -38,22 +38,22 @@
               >
                 {{ validationErrors.romPageSize }}
               </div>
-              <small class="hint">{{ formatBytes(localSettings.pageSize.rom) }}</small>
+              <small class="hint">{{ formatBytes(localSettings.size.romPageSize) }}</small>
             </div>
 
             <div class="setting-item">
-              <label for="ram-page-size">{{ $t('ui.settings.pageSize.ramPageSize') }}</label>
+              <label for="ram-page-size">{{ $t('ui.settings.size.ramPageSize') }}</label>
               <div class="input-group">
                 <input
                   id="ram-page-size"
-                  v-model.number="localSettings.pageSize.ram"
+                  v-model.number="localSettings.size.ramPageSize"
                   type="number"
                   :min="limits.pageSize.min"
                   :max="limits.pageSize.max"
                   :step="64"
                   @input="validateAndUpdate"
                 >
-                <span class="unit">{{ $t('ui.settings.pageSize.bytes') }}</span>
+                <span class="unit">{{ $t('ui.settings.size.bytes') }}</span>
               </div>
               <div
                 v-if="validationErrors.ramPageSize"
@@ -61,7 +61,30 @@
               >
                 {{ validationErrors.ramPageSize }}
               </div>
-              <small class="hint">{{ formatBytes(localSettings.pageSize.ram) }}</small>
+              <small class="hint">{{ formatBytes(localSettings.size.ramPageSize) }}</small>
+            </div>
+
+            <div class="setting-item">
+              <label for="rom-buffer-size">{{ $t('ui.settings.size.romBufferSize') }}</label>
+              <div class="input-group">
+                <input
+                  id="rom-buffer-size"
+                  v-model.number="localSettings.size.romBufferSize"
+                  type="number"
+                  :min="limits.pageSize.min"
+                  :max="limits.pageSize.max"
+                  :step="64"
+                  @input="validateAndUpdate"
+                >
+                <span class="unit">{{ $t('ui.settings.size.bytes') }}</span>
+              </div>
+              <div
+                v-if="validationErrors.romBufferSize"
+                class="validation-error"
+              >
+                {{ validationErrors.romBufferSize }}
+              </div>
+              <small class="hint">{{ formatBytes(localSettings.size.romBufferSize) }}</small>
             </div>
           </div>
         </div>
@@ -217,9 +240,10 @@ const limits = AdvancedSettings.getLimits();
 
 // 本地设置状态
 const localSettings = ref({
-  pageSize: {
-    rom: 0x200,
-    ram: 0x100,
+  size: {
+    romPageSize: 0x200,
+    ramPageSize: 0x100,
+    romBufferSize: 0x200,
   },
   timeout: {
     default: 3000,
@@ -233,6 +257,7 @@ const localSettings = ref({
 const validationErrors = ref({
   romPageSize: '',
   ramPageSize: '',
+  romBufferSize: '',
   defaultTimeout: '',
   packageSendTimeout: '',
   packageReceiveTimeout: '',
@@ -242,13 +267,13 @@ const validationErrors = ref({
 // 验证单个值
 const validatePageSize = (value: number): string => {
   if (isNaN(value) || value < limits.pageSize.min || value > limits.pageSize.max) {
-    return t('ui.settings.pageSize.validation.range', {
+    return t('ui.settings.size.validation.range', {
       min: limits.pageSize.min,
       max: limits.pageSize.max,
     });
   }
   if (value % 64 !== 0) {
-    return t('ui.settings.pageSize.validation.multiple', { multipler: 64 });
+    return t('ui.settings.size.validation.multiple', { multipler: 64 });
   }
   return '';
 };
@@ -266,8 +291,9 @@ const validateTimeout = (value: number): string => {
 // 验证并更新
 const validateAndUpdate = () => {
   // 验证页面大小
-  validationErrors.value.romPageSize = validatePageSize(localSettings.value.pageSize.rom);
-  validationErrors.value.ramPageSize = validatePageSize(localSettings.value.pageSize.ram);
+  validationErrors.value.romPageSize = validatePageSize(localSettings.value.size.romPageSize);
+  validationErrors.value.ramPageSize = validatePageSize(localSettings.value.size.ramPageSize);
+  validationErrors.value.romBufferSize = validatePageSize(localSettings.value.size.romBufferSize);
 
   // 验证超时
   validationErrors.value.defaultTimeout = validateTimeout(localSettings.value.timeout.default);
@@ -285,9 +311,10 @@ const isValid = computed(() => {
 const resetToDefaults = () => {
   if (confirm(t('ui.settings.actions.resetConfirm'))) {
     localSettings.value = {
-      pageSize: {
-        rom: 0x400,
-        ram: 0x200,
+      size: {
+        romPageSize: 0x400,
+        ramPageSize: 0x200,
+        romBufferSize: 0x200,
       },
       timeout: {
         default: 3000,
@@ -320,9 +347,10 @@ const applySettings = () => {
 // 组件挂载时加载当前设置
 onMounted(() => {
   localSettings.value = {
-    pageSize: {
-      rom: AdvancedSettings.romPageSize,
-      ram: AdvancedSettings.ramPageSize,
+    size: {
+      romPageSize: AdvancedSettings.romPageSize,
+      ramPageSize: AdvancedSettings.ramPageSize,
+      romBufferSize: AdvancedSettings.romBufferSize,
     },
     timeout: {
       default: AdvancedSettings.defaultTimeout,
@@ -355,7 +383,7 @@ onMounted(() => {
   border-radius: 8px;
   width: 90%;
   max-width: 600px;
-  max-height: 80vh;
+  /* max-height: 80vh; */
   overflow: hidden;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
