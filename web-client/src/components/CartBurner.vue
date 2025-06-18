@@ -172,6 +172,7 @@ watch(() => props.deviceReady, (newVal) => {
     if (DebugSettings.debugMode) {
       // 调试模式下使用 MockAdapter
       const adapter = new MockAdapter(
+        undefined,
         (msg) => log(msg),
         updateProgress,
         t,
@@ -193,9 +194,6 @@ watch(() => props.deviceReady, (newVal) => {
         t,
       );
     }
-  } else {
-    gbaAdapter.value = null;
-    mbc5Adapter.value = null;
   }
 });
 
@@ -329,13 +327,16 @@ function onModeSwitchRequired(targetMode: string, romType: string) {
 }
 
 function getAdapter() {
+  let adapter: CartridgeAdapter | null | undefined = null;
   if (mode.value === 'GBA') {
-    return gbaAdapter.value;
+    adapter = gbaAdapter.value;
   } else if (mode.value === 'MBC5') {
-    return mbc5Adapter.value;
+    adapter = mbc5Adapter.value;
   }
-  showToast(t('messages.operation.unsupportedMode'), 'error');
-  return null;
+  if (!adapter) {
+    showToast(t('messages.operation.unsupportedMode'), 'error');
+  }
+  return adapter;
 }
 
 async function readID() {
