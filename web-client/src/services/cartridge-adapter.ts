@@ -49,7 +49,7 @@ export class CartridgeAdapter {
     throw new Error('未实现的方法: readID');
   }
 
-  async getROMSize(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number }> {
+  async getCartInfo(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number }> {
     throw new Error('未实现的方法: getROMSize');
   }
 

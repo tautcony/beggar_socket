@@ -151,8 +151,8 @@ export class MBC5Adapter extends CartridgeAdapter {
     this.log(this.t('messages.ram.bankSwitch', { bank }));
   }
 
-  // 获取ROM容量信息 - 通过CFI查询
-  async getROMSize() : Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number, cfiInfo?: CFIInfo }> {
+  // 获取卡带信息 - 通过CFI查询
+  async getCartInfo() : Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number, cfiInfo?: CFIInfo }> {
     try {
       // CFI Query
       await gbc_write(this.device, new Uint8Array([0x98]), 0xaa);
@@ -170,7 +170,12 @@ export class MBC5Adapter extends CartridgeAdapter {
       if (!cfiInfo) {
         // 如果CFI解析失败，回退到原始实现
         this.log(this.t('messages.operation.cfiParseFailed'));
-        return this.getROMSizeFallback();
+        return {
+          deviceSize: -1,
+          sectorCount: -1,
+          sectorSize: -1,
+          bufferWriteBytes: -1,
+        };
       }
 
       // 从CFI信息中提取所需数据
@@ -198,57 +203,6 @@ export class MBC5Adapter extends CartridgeAdapter {
         sectorSize,
         bufferWriteBytes,
         cfiInfo,
-      };
-    } catch (error) {
-      this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${error}`);
-      throw error;
-    }
-  }
-
-  // 回退的ROM大小获取方法（保留原始实现）
-  private async getROMSizeFallback(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number }> {
-    try {
-      // CFI Query
-      await gbc_write(this.device, new Uint8Array([0x98]), 0xaa);
-
-      // 读取设备大小 (0x4e地址)
-      const deviceSizeData = await gbc_read(this.device, 1, 0x4e);
-      const deviceSize = Math.pow(2, deviceSizeData[0]);
-
-      // 读取buffer写入大小 (0x56和0x54地址)
-      const buffSizeHigh = await gbc_read(this.device, 1, 0x56);
-      const buffSizeLow = await gbc_read(this.device, 1, 0x54);
-      let bufferWriteBytes = (buffSizeHigh[0] << 8) | buffSizeLow[0];
-      if (bufferWriteBytes === 0) {
-        bufferWriteBytes = 0;
-      } else {
-        bufferWriteBytes = Math.pow(2, buffSizeLow[0]);
-      }
-
-      // 读取扇区信息
-      const sectorCountHigh = await gbc_read(this.device, 1, 0x5c);
-      const sectorCountLow = await gbc_read(this.device, 1, 0x5a);
-      const sectorCount = ((sectorCountHigh[0] << 8) | sectorCountLow[0]) + 1;
-
-      const sectorSizeHigh = await gbc_read(this.device, 1, 0x60);
-      const sectorSizeLow = await gbc_read(this.device, 1, 0x5e);
-      const sectorSize = ((sectorSizeHigh[0] << 8) | sectorSizeLow[0]) * 256;
-
-      // Reset
-      await gbc_write(this.device, new Uint8Array([0xf0]), 0x00);
-
-      this.log(this.t('messages.operation.romSizeQuerySuccess', {
-        deviceSize: deviceSize.toString(),
-        sectorCount: sectorCount.toString(),
-        sectorSize: sectorSize.toString(),
-        bufferWriteBytes: bufferWriteBytes.toString(),
-      }));
-
-      return {
-        deviceSize,
-        sectorCount,
-        sectorSize,
-        bufferWriteBytes,
       };
     } catch (error) {
       this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${error}`);
@@ -349,12 +303,12 @@ export class MBC5Adapter extends CartridgeAdapter {
         const isBlank = await this.isBlank(baseAddress);
         if (!isBlank) {
           this.log(this.t('messages.rom.eraseBeforeWrite'));
-          const sizeInfo = await this.getROMSize();
+          const sizeInfo = await this.getCartInfo();
           await this.eraseSectors(0, fileData.length - sizeInfo.sectorSize, sizeInfo.sectorSize, signal);
         }
 
         try {
-          const { sectorSize, bufferWriteBytes } = await this.getROMSize();
+          const { sectorSize, bufferWriteBytes } = await this.getCartInfo();
 
           this.log(`Sector Size: ${sectorSize}`);
           this.log(`Buffer Write Bytes: ${bufferWriteBytes}`);

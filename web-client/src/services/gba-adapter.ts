@@ -302,7 +302,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
           const blank = await this.isBlank(baseAddr, 0x100);
           if (!blank) {
-            const romInfo = await this.getROMSize();
+            const romInfo = await this.getCartInfo();
             const startAddress = 0x00;
             const endAddress = romInfo.sectorCount * romInfo.sectorSize;
             await this.eraseSectors(startAddress, endAddress, romInfo.sectorSize, signal);
@@ -412,10 +412,10 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 获取ROM容量信息 - 通过CFI查询
-   * @returns ROM容量相关信息
+   * 获取卡带信息 - 通过CFI查询
+   * @returns 卡带容量相关信息
    */
-  async getROMSize(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number, cfiInfo?: CFIInfo }> {
+  async getCartInfo(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number, cfiInfo?: CFIInfo }> {
     return PerformanceTracker.trackAsyncOperation(
       'GBA:getROMSize',
       async () => {
@@ -768,6 +768,26 @@ export class GBAAdapter extends CartridgeAdapter {
         baseAddress: baseAddress,
       },
     );
+  }
+
+  /**
+   * ROM Bank 切换
+   */
+  async switchROMBank(bank: number, isBankIn4m = false) : Promise<void> {
+    if (bank < 0) return;
+
+    if (isBankIn4m) {
+      const h = ((bank / 8) & 0x0f) << 4;
+      const l = 0x40 | ((bank % 8) << 3);
+
+      ram_write(this.device, new Uint8Array([h]), 0x02);
+      ram_write(this.device, new Uint8Array([l]), 0x03);
+    } else {
+      const h = (bank & 0x0f) << 4;
+
+      ram_write(this.device, new Uint8Array([h]), 0x02);
+      ram_write(this.device, new Uint8Array([0x40]), 0x03);
+    }
   }
 
   /**

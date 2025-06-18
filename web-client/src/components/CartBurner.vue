@@ -352,7 +352,7 @@ async function readID() {
       idStr.value = response.idStr || '';
       showToast(response.message, 'success');
       try {
-        const sizeInfo = await adapter.getROMSize();
+        const sizeInfo = await adapter.getCartInfo();
         deviceSize.value = sizeInfo.deviceSize;
         sectorCount.value = sizeInfo.sectorCount;
         sectorSize.value = sizeInfo.sectorSize;
