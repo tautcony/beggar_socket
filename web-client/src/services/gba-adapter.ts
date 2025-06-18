@@ -274,7 +274,6 @@ export class GBAAdapter extends CartridgeAdapter {
         startAddress,
         endAddress,
         sectorSize,
-        totalSectors: Math.floor((endAddress & ~(sectorSize - 1) - startAddress) / sectorSize) + 1,
       },
     );
   }
@@ -400,11 +399,12 @@ export class GBAAdapter extends CartridgeAdapter {
       {
         adapter_type: 'gba',
         operation_type: 'write_rom',
-        write_method: 'program',
       },
       {
         fileSize: fileData.length,
-        pageSizeKB: AdvancedSettings.romPageSize / 1024,
+        baseAddress: options.baseAddress || -1,
+        bufferSize: options.bufferSize || -1,
+        pageSize: AdvancedSettings.romPageSize,
       },
     );
   }
@@ -414,64 +414,73 @@ export class GBAAdapter extends CartridgeAdapter {
    * @returns ROM容量相关信息
    */
   async getROMSize(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number, cfiInfo?: CFIInfo }> {
-    try {
-      this.log(this.t('messages.operation.queryingRomSize'));
+    return PerformanceTracker.trackAsyncOperation(
+      'GBA:getROMSize',
+      async () => {
+        try {
+          this.log(this.t('messages.operation.queryingRomSize'));
 
-      // CFI Query
-      await rom_write(this.device, toLittleEndian(0x98, 2), 0x55);
-      const cfiData = await rom_read(this.device, 0x400, 0x00);
-      // Reset
-      await rom_write(this.device, toLittleEndian(0xf0, 2), 0x00);
+          // CFI Query
+          await rom_write(this.device, toLittleEndian(0x98, 2), 0x55);
+          const cfiData = await rom_read(this.device, 0x400, 0x00);
+          // Reset
+          await rom_write(this.device, toLittleEndian(0xf0, 2), 0x00);
 
-      const cfiInfo = parseCFI(cfiData);
+          const cfiInfo = parseCFI(cfiData);
 
-      if (!cfiInfo) {
-        this.log(this.t('messages.operation.cfiParseFailed'));
-        return {
-          deviceSize: -1,
-          sectorCount: -1,
-          sectorSize: -1,
-          bufferWriteBytes: -1,
-          cfiInfo: undefined,
-        };
-      }
+          if (!cfiInfo) {
+            this.log(this.t('messages.operation.cfiParseFailed'));
+            return {
+              deviceSize: -1,
+              sectorCount: -1,
+              sectorSize: -1,
+              bufferWriteBytes: -1,
+              cfiInfo: undefined,
+            };
+          }
 
-      // 从CFI信息中提取所需数据
-      const deviceSize = cfiInfo.deviceSize;
-      const bufferWriteBytes = cfiInfo.bufferSize || 0;
+          // 从CFI信息中提取所需数据
+          const deviceSize = cfiInfo.deviceSize;
+          const bufferWriteBytes = cfiInfo.bufferSize || 0;
 
-      // 获取第一个擦除区域的信息作为主要扇区信息
-      const sectorSize = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][0] : 0;
-      const sectorCount = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][1] : 0;
+          // 获取第一个擦除区域的信息作为主要扇区信息
+          const sectorSize = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][0] : 0;
+          const sectorCount = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][1] : 0;
 
-      // 记录CFI解析结果
-      this.log(this.t('messages.operation.cfiParseSuccess'));
-      this.log(cfiInfo.info);
+          // 记录CFI解析结果
+          this.log(this.t('messages.operation.cfiParseSuccess'));
+          this.log(cfiInfo.info);
 
-      this.log(this.t('messages.operation.romSizeQuerySuccess', {
-        deviceSize: deviceSize.toString(),
-        sectorCount: sectorCount.toString(),
-        sectorSize: sectorSize.toString(),
-        bufferWriteBytes: bufferWriteBytes.toString(),
-      }));
+          this.log(this.t('messages.operation.romSizeQuerySuccess', {
+            deviceSize: deviceSize.toString(),
+            sectorCount: sectorCount.toString(),
+            sectorSize: sectorSize.toString(),
+            bufferWriteBytes: bufferWriteBytes.toString(),
+          }));
 
-      return {
-        deviceSize,
-        sectorCount,
-        sectorSize,
-        bufferWriteBytes,
-        cfiInfo,
-      };
-    } catch (error) {
-      this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${error}`);
-      return {
-        deviceSize: -1,
-        sectorCount: -1,
-        sectorSize: -1,
-        bufferWriteBytes: -1,
-        cfiInfo: undefined,
-      };
-    }
+          return {
+            deviceSize,
+            sectorCount,
+            sectorSize,
+            bufferWriteBytes,
+            cfiInfo,
+          };
+        } catch (error) {
+          this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${error}`);
+          return {
+            deviceSize: -1,
+            sectorCount: -1,
+            sectorSize: -1,
+            bufferWriteBytes: -1,
+            cfiInfo: undefined,
+          };
+        }
+      },
+      {
+        adapter_type: 'gba',
+        operation_type: 'get_rom_size',
+      },
+    );
   }
 
   /**
@@ -600,7 +609,6 @@ export class GBAAdapter extends CartridgeAdapter {
       {
         dataSize: size,
         baseAddress: baseAddress,
-        devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
       },
     );
   }
@@ -756,7 +764,6 @@ export class GBAAdapter extends CartridgeAdapter {
       {
         fileSize: fileData.length,
         baseAddress: baseAddress,
-        devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
       },
     );
   }
@@ -917,7 +924,6 @@ export class GBAAdapter extends CartridgeAdapter {
       },
       {
         fileSize: fileData.length,
-        devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
       },
     );
   }
@@ -1009,7 +1015,6 @@ export class GBAAdapter extends CartridgeAdapter {
       },
       {
         dataSize: size,
-        devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
       },
     );
   }
@@ -1097,7 +1102,6 @@ export class GBAAdapter extends CartridgeAdapter {
       },
       {
         fileSize: fileData.length,
-        devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
       },
     );
   }

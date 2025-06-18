@@ -11,7 +11,6 @@ export function huffUnComp(data: Uint8Array): Uint8Array {
   const bits = data[0] & 15;
   const outSize = (data[1] | (data[2] << 8) | (data[3] << 16)) & 0xFFFF;
 
-  // 初始化变量
   let i = 6 + data[4] * 2;
   let nodeOffs = 5;
   let outUnits = 0;
