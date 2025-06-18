@@ -69,12 +69,12 @@ describe('TypeScript Types', () => {
       ondisconnect: null,
     } as unknown as SerialPort);
 
-    const createMockReader = (): ReadableStreamDefaultReader<Uint8Array> => ({
+    const createMockReader = (): ReadableStreamBYOBReader => ({
       read: vi.fn(),
       releaseLock: vi.fn(),
       cancel: vi.fn(),
       closed: Promise.resolve(undefined),
-    } as unknown as ReadableStreamDefaultReader<Uint8Array>);
+    } as unknown as ReadableStreamBYOBReader);
 
     const createMockWriter = (): WritableStreamDefaultWriter<Uint8Array> => ({
       write: vi.fn(),
