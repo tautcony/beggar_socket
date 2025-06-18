@@ -182,8 +182,8 @@ export class DebugSettings {
 
       // 模拟串口信息
       getInfo: () => ({
-        usbVendorId: 0x1234,
-        usbProductId: 0x5678,
+        usbVendorId: 0x0483,
+        usbProductId: 0x0721,
       }),
 
       // 模拟信号控制

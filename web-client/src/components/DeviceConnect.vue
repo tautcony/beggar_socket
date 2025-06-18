@@ -140,7 +140,7 @@ async function connect() {
         writable: new WritableStream({ write(chunk) { } }),
         open: async () => { },
         close: async () => { },
-        getInfo: () => ({ usbVendorId: 0x1234, usbProductId: 0x5678 }),
+        getInfo: () => ({ usbVendorId: 0x0483, usbProductId: 0x0721 }),
       };
       port = mockPort as unknown as SerialPort;
       reader = mockPort.readable.getReader();
@@ -151,12 +151,15 @@ async function connect() {
       emit('device-ready', { port, reader, writer } as DeviceInfo);
       return;
     }
+    const filters = [
+      { usbVendorId: 0x0483, usbProductId: 0x0721 },
+    ];
     if (usePolyfill.value) {
       if (!polyfill) throw new Error('Web Serial Polyfill is not available');
-      port = await polyfill.requestPort() as unknown as SerialPort;
+      port = await polyfill.requestPort({ filters }) as unknown as SerialPort;
     } else {
       if (!navigator.serial) throw new Error('Web Serial API is not supported in this browser');
-      port = await navigator.serial.requestPort();
+      port = await navigator.serial.requestPort({ filters });
     }
     if (!port) throw new Error('No serial port selected');
     await port.open({ baudRate: 9600, dataBits: 8, parity: 'none', stopBits: 1, flowControl: 'none' });
