@@ -54,7 +54,7 @@ const isConnecting = ref(false);
 const usePolyfill = ref(false);
 
 let port: SerialPort | null = null;
-let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+let reader: ReadableStreamBYOBReader | null = null;
 let writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
 
 // 热重载状态恢复 - 在开发模式下处理 HMR
@@ -169,7 +169,7 @@ async function connect() {
     await new Promise(resolve => setTimeout(resolve, 100));
     await port.setSignals({ dataTerminalReady: false, requestToSend: false });
 
-    reader = port.readable?.getReader() || null;
+    reader = port.readable?.getReader({ mode: 'byob' }) || null;
     writer = port.writable?.getWriter() || null;
     if (!reader || !writer) throw new Error('Failed to get serial port reader/writer');
     connected.value = true;

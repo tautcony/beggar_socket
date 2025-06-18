@@ -37,9 +37,7 @@ export function huffUnComp(data: Uint8Array): Uint8Array {
       }
 
       if (node << (inUnit >> b & 1) & 0x80) {
-        outReady >>>= bits;
-        outReady |= data[nodeOffs] << 32 - bits;
-        outReady &= 0xFFFFFFFF;
+        outReady = ((outReady >>> bits) | (data[nodeOffs] << 32 - bits)) & 0xFFFFFFFF;
         outUnits += 1;
 
         if (outUnits === bits % 8 + 4) {
@@ -106,20 +104,15 @@ export function diff16BitUnFilter(data: Uint8Array): Uint8Array {
 export function processGBALogoData(logoData: Uint8Array): Uint8Array | null {
   try {
     // 添加header数据
-    const temp = new Uint8Array([
-      0x09, 0x05, 0x0A, 0x06, 0x0B, 0x07, 0xC2, 0x0D, 0xC2, 0x02, 0x0E, 0x08,
-      0xC3, 0x04, 0x83, 0x01, 0x83, 0x03, 0xC3, 0x0C, 0x83, 0x0F, 0x83, 0x82,
-      0x82, 0x81, 0x01, 0x00, 0x00, 0x00, 0x40, 0x0F, 0x00, 0x00, 0xD4, 0x24,
+    const header = new Uint8Array([
+      0x24, 0xd4, 0x00, 0x00, 0x0f, 0x40, 0x00, 0x00, 0x00, 0x01, 0x81, 0x82,
+      0x82, 0x83, 0x0f, 0x83, 0x0c, 0xc3, 0x03, 0x83, 0x01, 0x83, 0x04, 0xc3,
+      0x08, 0x0e, 0x02, 0xc2, 0x0d, 0xc2, 0x07, 0x0b, 0x06, 0x0a, 0x05, 0x09,
     ]);
 
-    const reversedTemp = new Uint8Array(temp.length);
-    for (let i = 0; i < temp.length; i++) {
-      reversedTemp[i] = temp[temp.length - 1 - i];
-    }
-
-    const combinedData = new Uint8Array(reversedTemp.length + logoData.length);
-    combinedData.set(reversedTemp, 0);
-    combinedData.set(logoData, reversedTemp.length);
+    const combinedData = new Uint8Array(header.length + logoData.length);
+    combinedData.set(header, 0);
+    combinedData.set(logoData, header.length);
     const huffDecompressed = huffUnComp(combinedData);
     const finalData = diff16BitUnFilter(huffDecompressed);
 

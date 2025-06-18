@@ -1,5 +1,5 @@
 export interface DeviceInfo {
   port: SerialPort;
-  reader: ReadableStreamDefaultReader<Uint8Array> | null;
+  reader: ReadableStreamBYOBReader | null;
   writer: WritableStreamDefaultWriter<Uint8Array> | null;
 }

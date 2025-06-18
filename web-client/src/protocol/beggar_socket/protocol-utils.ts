@@ -36,25 +36,25 @@ export async function sendPackage(writer: WritableStreamDefaultWriter<Uint8Array
   return true;
 }
 
-export async function getPackage(reader: ReadableStreamDefaultReader<Uint8Array> | null, length: number = 64, timeoutMs?: number): Promise<{ data: Uint8Array }> {
+export async function getPackage(reader: ReadableStreamBYOBReader | null, length: number, timeoutMs?: number): Promise<{ data: Uint8Array }> {
   if (!reader) {
     throw new Error(INIT_ERROR_MESSAGE);
   }
   const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
-  const chunks: Uint8Array[] = [];
-  let totalLength = 0;
+  let buffer = new Uint8Array(length);
 
+  let offset = 0;
   const readTimeout = withTimeout(
     (async () => {
-      while (totalLength < length) {
-        const { value, done } = await reader.read();
+      while (offset < length) {
+        const { value, done } = await reader.read(
+          new Uint8Array(buffer, offset),
+        );
         if (done) {
           break;
         }
-        if (value) {
-          chunks.push(value);
-          totalLength += value.length;
-        }
+        buffer = value.buffer;
+        offset += value.byteLength;
       }
     })(),
     timeout,
@@ -63,24 +63,16 @@ export async function getPackage(reader: ReadableStreamDefaultReader<Uint8Array>
 
   await readTimeout;
 
-  // 合并所有数据块
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    result.set(chunk, offset);
-    offset += chunk.length;
-  }
-
-  return { data: result.slice(0, length) };
+  return { data: new Uint8Array(buffer) };
 }
 
-export async function getResult(reader: ReadableStreamDefaultReader<Uint8Array> | null, timeoutMs?: number): Promise<boolean> {
+export async function getResult(reader: ReadableStreamBYOBReader | null, timeoutMs?: number): Promise<boolean> {
   if (!reader) {
     throw new Error(INIT_ERROR_MESSAGE);
   }
   const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
   const result = await getPackage(reader, 1, timeout);
-  return result.data?.length > 0 && result.data[0] === 0xaa;
+  return result.data?.byteLength > 0 && result.data[0] === 0xaa;
 }
 
 export function getFlashId(id: number[]) : string | null {
