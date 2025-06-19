@@ -16,7 +16,7 @@ import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { CFIInfo, parseCFI } from '@/utils/cfi-parser';
-import { PerformanceTracker } from '@/utils/sentry';
+import { PerformanceTracker } from '@/utils/sentry-tracker';
 import { SpeedCalculator } from '@/utils/speed-calculator';
 
 /**
@@ -286,7 +286,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @returns - 操作结果
    */
   async writeROM(fileData: Uint8Array, options: CommandOptions = {}, signal?: AbortSignal) : Promise<CommandResult> {
-    return PerformanceTracker.trackProgressOperation(
+    return PerformanceTracker.trackAsyncOperation(
       'gba.writeROM',
       async () => {
         const startTime = Date.now(); // 移到 try 块外面以便在 catch 块中使用

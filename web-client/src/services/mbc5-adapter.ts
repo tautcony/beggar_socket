@@ -4,8 +4,7 @@ import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { CFIInfo, CFIParser } from '@/utils/cfi-parser';
-
-import { PerformanceTracker } from '../utils/sentry';
+import { PerformanceTracker } from '@/utils/sentry-tracker';
 
 /**
  * MBC5 Adapter - 封装MBC5卡带的协议操作
@@ -294,7 +293,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @returns - 包含成功状态和消息的对象
    */
   async writeROM(fileData: Uint8Array, options: CommandOptions = {}, signal: AbortSignal) : Promise<CommandResult> {
-    return PerformanceTracker.trackProgressOperation(
+    return PerformanceTracker.trackAsyncOperation(
       'mbc5.writeROM',
       async () => {
         const baseAddress = options.baseAddress || 0;
