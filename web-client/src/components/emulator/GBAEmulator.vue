@@ -65,12 +65,12 @@
           <p>{{ $t('ui.emulator.controlsHelp') }}</p>
           <div class="key-mappings">
             <span class="key-mapping">{{ $t('ui.emulator.dpad') }}: WASD</span>
-            <span class="key-mapping">{{ $t('ui.emulator.aButton') }}: Z</span>
-            <span class="key-mapping">{{ $t('ui.emulator.bButton') }}: X</span>
-            <span class="key-mapping">{{ $t('ui.emulator.start') }}: Enter</span>
-            <span class="key-mapping">{{ $t('ui.emulator.select') }}: Shift</span>
-            <span class="key-mapping">{{ $t('ui.emulator.l') }}: Q</span>
-            <span class="key-mapping">{{ $t('ui.emulator.r') }}: E</span>
+            <span class="key-mapping">{{ $t('ui.emulator.aButton') }}: J</span>
+            <span class="key-mapping">{{ $t('ui.emulator.bButton') }}: K</span>
+            <span class="key-mapping">{{ $t('ui.emulator.start') }}: C</span>
+            <span class="key-mapping">{{ $t('ui.emulator.select') }}: V</span>
+            <span class="key-mapping">{{ $t('ui.emulator.l') }}: Shift左</span>
+            <span class="key-mapping">{{ $t('ui.emulator.r') }}: Shift右</span>
           </div>
         </div>
       </div>
@@ -111,13 +111,12 @@ const keyBindings: { [key: string]: number } = {
   'KeyS': 7, // DOWN
   'KeyA': 5, // LEFT
   'KeyD': 4, // RIGHT
-  'KeyZ': 0, // A
-  'KeyX': 1, // B
-  'Enter': 3, // START
-  'ShiftLeft': 2, // SELECT
-  'ShiftRight': 2, // SELECT
-  'KeyQ': 9, // L
-  'KeyE': 8, // R
+  'KeyJ': 0, // A
+  'KeyK': 1, // B
+  'KeyC': 3, // START
+  'KeyV': 2, // SELECT
+  'ShiftLeft': 9, // L
+  'ShiftRight': 8, // R
 };
 
 onMounted(() => {

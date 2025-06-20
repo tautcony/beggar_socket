@@ -174,7 +174,7 @@ declare module 'wasmboy' {
     ResponsiveGamepad: new (options?: ResponsiveGamepadOptions) => ResponsiveGamepad;
     enableDefaultJoypad(): void;
     disableDefaultJoypad(): void;
-    setJoypadState(joypadState: JoypadState): void;
+    setJoypadState(up: number, right: number, down: number, left: number, a: number, b: number, select: number, start: number): void;
 
     // Audio
     resumeAudioContext(): Promise<void>;
