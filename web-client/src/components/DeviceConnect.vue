@@ -59,8 +59,14 @@ let writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
 
 // 热重载状态恢复 - 在开发模式下处理 HMR
 if (import.meta.hot) {
+  const data = import.meta.hot.data as { deviceConnection?: {
+    connected: boolean;
+    port: SerialPort | null;
+    reader: ReadableStreamBYOBReader | null;
+    writer: WritableStreamDefaultWriter<Uint8Array> | null;
+  } };
   // 保存当前状态到 HMR 数据
-  import.meta.hot.data.deviceConnection = import.meta.hot.data.deviceConnection || {
+  data.deviceConnection = data?.deviceConnection || {
     connected: false,
     port: null,
     reader: null,
@@ -68,17 +74,17 @@ if (import.meta.hot) {
   };
 
   // 从 HMR 数据恢复状态
-  if (import.meta.hot.data.deviceConnection.connected) {
-    connected.value = import.meta.hot.data.deviceConnection.connected;
-    port = import.meta.hot.data.deviceConnection.port;
-    reader = import.meta.hot.data.deviceConnection.reader;
-    writer = import.meta.hot.data.deviceConnection.writer;
+  if (data.deviceConnection.connected) {
+    connected.value = data.deviceConnection.connected;
+    port = data.deviceConnection.port;
+    reader = data.deviceConnection.reader;
+    writer = data.deviceConnection.writer;
   }
 
   // 监听热重载事件，保存当前状态
   import.meta.hot.dispose(() => {
     if (import.meta.hot?.data) {
-      import.meta.hot.data.deviceConnection = {
+      data.deviceConnection = {
         connected: connected.value,
         port,
         reader,
@@ -208,11 +214,11 @@ async function disconnect() {
   }
 }
 
-function handleConnectDisconnect() {
+async function handleConnectDisconnect() {
   if (connected.value) {
-    disconnect();
+    await disconnect();
   } else {
-    connect();
+    await connect();
   }
 }
 

@@ -1,65 +1,62 @@
 import pluginVue from 'eslint-plugin-vue'
-import tseslint from '@typescript-eslint/eslint-plugin'
-import tsparser from '@typescript-eslint/parser'
+import tseslint from 'typescript-eslint'
 import stylistic from '@stylistic/eslint-plugin'
 import simpleImportSort from 'eslint-plugin-simple-import-sort'
+import importPlugin from 'eslint-plugin-import';
 import globals from 'globals'
 
 const commonRules = {
-  'no-undef': 'off',
-  'no-extra-semi': 'off',
-  '@typescript-eslint/no-unused-vars': 'off',
+  '@stylistic/array-bracket-spacing': ['error', 'never'],
+  '@stylistic/arrow-spacing': ['error', { before: true, after: true }],
+  '@stylistic/brace-style': ['error', '1tbs', { allowSingleLine: true }],
+  '@stylistic/comma-dangle': ['error', 'always-multiline'],
+  '@stylistic/eol-last': 'error',
+  '@stylistic/indent': ['error', 2],
+  '@stylistic/keyword-spacing': ['error', { before: true, after: true }],
+  '@stylistic/no-multiple-empty-lines': ['error', { max: 1, maxEOF: 0 }],
+  '@stylistic/no-trailing-spaces': 'error',
+  '@stylistic/object-curly-spacing': ['error', 'always'],
+  '@stylistic/quotes': ['error', 'single', { avoidEscape: true }],
+  '@stylistic/semi': ['error', 'always'],
+  '@stylistic/space-before-function-paren': ['error', { anonymous: 'always', named: 'never', asyncArrow: 'always' }],
+  '@stylistic/space-infix-ops': 'error',
   '@typescript-eslint/explicit-function-return-type': 'off',
   '@typescript-eslint/explicit-module-boundary-types': 'off',
   '@typescript-eslint/no-explicit-any': 'warn',
   '@typescript-eslint/no-non-null-assertion': 'warn',
+  '@typescript-eslint/no-unused-vars': 'off',
   '@typescript-eslint/no-var-requires': 'error',
-  '@stylistic/no-trailing-spaces': 'error',
-  '@stylistic/indent': ['error', 2],
-  '@stylistic/quotes': ['error', 'single', { avoidEscape: true }],
-  '@stylistic/semi': ['error', 'always'],
-  '@stylistic/comma-dangle': ['error', 'always-multiline'],
-  '@stylistic/brace-style': ['error', '1tbs', { allowSingleLine: true }],
-  '@stylistic/space-before-function-paren': ['error', {
-    anonymous: 'always',
-    named: 'never',
-    asyncArrow: 'always'
-  }],
-  '@stylistic/space-infix-ops': 'error',
-  '@stylistic/keyword-spacing': ['error', {
-    before: true,
-    after: true
-  }],
-  '@stylistic/array-bracket-spacing': ['error', 'never'],
-  '@stylistic/object-curly-spacing': ['error', 'always'],
-  '@stylistic/arrow-spacing': ['error', { before: true, after: true }],
-  '@stylistic/no-multiple-empty-lines': ['error', { max: 1, maxEOF: 0 }],
-  'no-duplicate-imports': 'error',
-  'prefer-const': 'error',
-  'no-var': 'error',
+  'comma-spacing': 'error',
   'eqeqeq': ['error', 'always'],
+  'import/first': 'error',
+  'import/newline-after-import': 'error',
+  'import/no-duplicates': 'error',
+  'no-constant-condition': ['error', { checkLoops: false }],
+  'no-duplicate-imports': 'error',
+  'no-extra-semi': 'off',
+  'no-mixed-spaces-and-tabs': 'error',
+  'no-multi-spaces': 'error',
   'no-redeclare': 'error',
   'no-shadow': 'error',
   'no-throw-literal': 'error',
-  'no-constant-condition': ['error', { checkLoops: false }],
+  'no-undef': 'off',
   'no-unused-expressions': ['error', { allowShortCircuit: true, allowTernary: true }],
   'no-use-before-define': ['error', { functions: false, classes: true, variables: true }],
-  'no-multi-spaces': 'error',
-  'no-mixed-spaces-and-tabs': 'error',
-  'simple-import-sort/imports': 'error',
+  'no-var': 'error',
+  'prefer-const': 'error',
   'simple-import-sort/exports': 'error',
-  'comma-spacing': 'error',
+  'simple-import-sort/imports': 'error',
 }
 
-export default [
-  // TypeScript files configuration
+export default tseslint.config(
+  // TypeScript files with type checking
+  ...tseslint.configs.recommendedTypeChecked,
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
-      parser: tsparser,
       parserOptions: {
-        ecmaVersion: 'latest',
-        sourceType: 'module'
+        project: './tsconfig.json',
+        tsconfigRootDir: import.meta.dirname,
       },
       globals: {
         ...globals.browser,
@@ -67,33 +64,45 @@ export default [
       }
     },
     plugins: {
-      '@typescript-eslint': tseslint,
       '@stylistic': stylistic,
       'simple-import-sort': simpleImportSort,
+      'import': importPlugin,
     },
     rules: {
       ...commonRules,
-    }
+    },
+    settings: {
+      "import/resolver": {
+        typescript: {
+          project: './tsconfig.json',
+        },
+        node: false,
+      },
+    },
   },
   // Vue files configuration
+  ...pluginVue.configs['flat/base'],
   ...pluginVue.configs['flat/recommended'],
+  ...pluginVue.configs['flat/strongly-recommended'],
   {
     files: ['**/*.vue'],
     languageOptions: {
       parserOptions: {
-        parser: tsparser,
+        parser: tseslint.parser,
         ecmaVersion: 'latest',
         sourceType: 'module',
-        extraFileExtensions: ['.vue']
+        extraFileExtensions: ['.vue'],
+        project: './tsconfig.json',
+        tsconfigRootDir: import.meta.dirname,
       },
       globals: {
         ...globals.browser
       }
     },
     plugins: {
-      '@typescript-eslint': tseslint,
       '@stylistic': stylistic,
       'simple-import-sort': simpleImportSort,
+      'import': importPlugin,
     },
     rules: {
       // Vue specific rules
@@ -122,4 +131,4 @@ export default [
       'no-console': 'warn'
     }
   }
-]
+)

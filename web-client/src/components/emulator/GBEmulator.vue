@@ -100,9 +100,9 @@ onUnmounted(() => {
 });
 
 // 监听可见性变化
-watch(() => props.isVisible, (newVal) => {
+watch(() => props.isVisible, async (newVal) => {
   if (newVal && props.romData) {
-    nextTick(() => {
+    await nextTick(() => {
       initEmulator();
     });
   } else {
@@ -111,15 +111,15 @@ watch(() => props.isVisible, (newVal) => {
 });
 
 // 监听 ROM 数据变化
-watch(() => props.romData, (newData) => {
+watch(() => props.romData, async (newData) => {
   if (props.isVisible && newData) {
-    nextTick(() => {
+    await nextTick(() => {
       initEmulator();
     });
   }
 });
 
-async function initEmulator() {
+function initEmulator() {
   if (!gameCanvas.value || !props.romData) return;
 
   try {
@@ -128,6 +128,7 @@ async function initEmulator() {
 
     // 创建新的 GameBoy 实例
     gameboyInstance = new Gameboy();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     gameboyInstance.apu.disableSound();
 
     // 设置 Canvas
@@ -171,6 +172,7 @@ async function initEmulator() {
 
     // 启用音频
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       gameboyInstance.apu.enableSound();
     } catch (audioError: unknown) {
       console.warn('音频启用失败:', audioError);
@@ -206,6 +208,7 @@ async function initEmulator() {
   }
 }
 
+/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
 function setupKeyboardControls() {
   // 使用 keyboardManager 配置按键映射
   if (gameboyInstance && gameboyInstance.keyboardManager) {
@@ -226,8 +229,9 @@ function setupKeyboardControls() {
     });
   }
 }
+/* eslint-enable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
 
-async function togglePause() {
+function togglePause() {
   if (!gameboyInstance) return;
 
   try {
@@ -247,7 +251,7 @@ async function togglePause() {
   }
 }
 
-async function resetGame() {
+function resetGame() {
   if (!gameboyInstance || !props.romData) return;
 
   try {

@@ -71,7 +71,7 @@ function showToast(msg: string, toastType: 'success' | 'error' | 'idle' = 'succe
 }
 
 // 监听全局Toast事件
-function handleGlobalToast(event: CustomEvent) {
+function handleGlobalToast(event: CustomEvent<{ message: string, type: 'success' | 'error' | 'idle', duration: number }>) {
   const { message, type, duration } = event.detail;
   showToast(message, type, duration);
 }

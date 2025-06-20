@@ -120,9 +120,9 @@ const keyBindings: { [key: string]: number } = {
   'KeyE': 8, // R
 };
 
-onMounted(async () => {
+onMounted(() => {
   if (props.isVisible && props.romData) {
-    await initializeEmulator();
+    initializeEmulator();
   }
 });
 
@@ -133,7 +133,7 @@ onUnmounted(() => {
 watch(() => props.isVisible, async (newVisible) => {
   if (newVisible && props.romData) {
     await nextTick();
-    await initializeEmulator();
+    initializeEmulator();
   } else if (!newVisible) {
     cleanup();
   }
@@ -142,11 +142,11 @@ watch(() => props.isVisible, async (newVisible) => {
 watch(() => props.romData, async (newRomData) => {
   if (newRomData && props.isVisible) {
     await nextTick();
-    await initializeEmulator();
+    initializeEmulator();
   }
 });
 
-async function initializeEmulator() {
+function initializeEmulator() {
   if (isInitializing.value) {
     console.warn('Emulator is already initializing');
     return;
@@ -272,9 +272,9 @@ function handleKeyDown(event: KeyboardEvent) {
     event.preventDefault();
     try {
       gba.value.press(gamepadKey);
-    } catch (error) {
-      console.error('Error pressing key:', error);
-      handleEmulatorError(1, `Key press error: ${error}`);
+    } catch (e) {
+      console.error('Error pressing key:', e);
+      handleEmulatorError(1, `Key press error: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 }
@@ -309,9 +309,9 @@ function togglePause() {
       isPaused.value = true;
       showToast(t('ui.emulator.paused'), 'success');
     }
-  } catch (error) {
-    console.error('Error toggling pause:', error);
-    handleEmulatorError(1, `Pause/resume error: ${error}`);
+  } catch (e) {
+    console.error('Error toggling pause:', e);
+    handleEmulatorError(1, `Pause/resume error: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 
@@ -329,9 +329,9 @@ function resetGame() {
     hasError.value = false;
     errorMessage.value = '';
     showToast(t('ui.emulator.reset'), 'success');
-  } catch (error) {
-    console.error('Failed to reset game:', error);
-    handleEmulatorError(1, `Reset error: ${error}`);
+  } catch (e) {
+    console.error('Failed to reset game:', e);
+    handleEmulatorError(1, `Reset error: ${e instanceof Error ? e.message : String(e)}`);
     showToast(t('ui.emulator.resetFailed'), 'error');
   }
 }

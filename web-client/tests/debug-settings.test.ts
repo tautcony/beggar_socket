@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DebugSettings } from '../src/settings/debug-settings';

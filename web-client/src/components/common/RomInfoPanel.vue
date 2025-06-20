@@ -259,21 +259,21 @@ function renderGBLogo(ctx: CanvasRenderingContext2D, logoData: Uint8Array, width
 }
 
 // 监听logoData变化，重新渲染
-watch(() => props.romInfo.logoData, () => {
-  nextTick(() => {
+watch(() => props.romInfo.logoData, async () => {
+  await nextTick(() => {
     renderLogo();
   });
 }, { immediate: true });
 
 // 监听画布大小变化
-watch(logoCanvasSize, () => {
-  nextTick(() => {
+watch(logoCanvasSize, async () => {
+  await nextTick(() => {
     renderLogo();
   });
 });
 
-onMounted(() => {
-  nextTick(() => {
+onMounted(async () => {
+  await nextTick(() => {
     renderLogo();
   });
 });

@@ -57,7 +57,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             message: this.t('messages.operation.readIdSuccess'),
           };
         } catch (e) {
-          this.log(`${this.t('messages.operation.readIdFailed')}: ${e}`);
+          this.log(`${this.t('messages.operation.readIdFailed')}: ${e instanceof Error ? e.message : String(e)}`);
           return {
             success: false,
             message: this.t('messages.operation.readIdFailed'),
@@ -110,7 +110,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           this.log(this.t('messages.operation.eraseFailed'));
           return {
             success: false,
-            message: `${this.t('messages.operation.eraseFailed')}: ${e}`,
+            message: `${this.t('messages.operation.eraseFailed')}: ${e instanceof Error ? e.message : String(e)}`,
           };
         }
       },
@@ -203,9 +203,9 @@ export class MBC5Adapter extends CartridgeAdapter {
         bufferWriteBytes,
         cfiInfo,
       };
-    } catch (error) {
-      this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${error}`);
-      throw error;
+    } catch (e) {
+      this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+      throw e;
     }
   }
 
@@ -276,11 +276,11 @@ export class MBC5Adapter extends CartridgeAdapter {
         success: true,
         message: this.t('messages.operation.eraseSuccess'),
       };
-    } catch (error) {
+    } catch (e) {
       this.log(this.t('messages.operation.eraseFailed'));
       return {
         success: false,
-        message: `${this.t('messages.operation.eraseFailed')}: ${error}`,
+        message: `${this.t('messages.operation.eraseFailed')}: ${e instanceof Error ? e.message : String(e)}`,
       };
     }
   }
@@ -375,8 +375,8 @@ export class MBC5Adapter extends CartridgeAdapter {
             success: true,
             message: message,
           };
-        } catch (error) {
-          const message = `${this.t('messages.rom.writeFailed')}: ${error}`;
+        } catch (e) {
+          const message = `${this.t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`;
           this.log(message);
           return {
             success: false,
@@ -488,7 +488,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             data: result,
             message: message,
           };
-        } catch (error) {
+        } catch (e) {
           if (signal?.aborted) {
             this.log(this.t('messages.operation.cancelled'));
             return {
@@ -497,7 +497,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             };
           }
 
-          const message = `${this.t('messages.rom.readFailed')}: ${error}`;
+          const message = `${this.t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`;
           this.log(message);
           return {
             success: false,
@@ -591,9 +591,9 @@ export class MBC5Adapter extends CartridgeAdapter {
             success: success,
             message: message,
           };
-        } catch (error) {
+        } catch (e) {
           this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.verifyFailed')));
-          const message = `${this.t('messages.rom.verifyFailed')}: ${error}`;
+          const message = `${this.t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`;
           this.log(message);
           return {
             success: false,
@@ -689,8 +689,8 @@ export class MBC5Adapter extends CartridgeAdapter {
             success: true,
             message: message,
           };
-        } catch (error) {
-          const message = `${this.t('messages.ram.writeFailed')}: ${error}`;
+        } catch (e) {
+          const message = `${this.t('messages.ram.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`;
           this.log(message);
           return {
             success: false,
@@ -786,8 +786,8 @@ export class MBC5Adapter extends CartridgeAdapter {
             data: result,
             message: message,
           };
-        } catch (error) {
-          const message = `${this.t('messages.ram.readFailed')}: ${error}`;
+        } catch (e) {
+          const message = `${this.t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`;
           this.log(message);
           return {
             success: false,
@@ -885,8 +885,8 @@ export class MBC5Adapter extends CartridgeAdapter {
             success: success,
             message: message,
           };
-        } catch (error) {
-          const message = `${this.t('messages.ram.verifyFailed')}: ${error}`;
+        } catch (e) {
+          const message = `${this.t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`;
           this.log(message);
           return {
             success: false,

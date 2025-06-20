@@ -89,32 +89,32 @@ const gameCanvas = ref<HTMLCanvasElement>();
 const isPaused = ref(false);
 let wasmBoyInstance: WasmBoyStatic | null = null;
 
-onMounted(() => {
+onMounted(async () => {
   if (props.isVisible && props.romData) {
-    initEmulator();
+    await initEmulator();
   }
 });
 
-onUnmounted(() => {
-  cleanup();
+onUnmounted(async () => {
+  await cleanup();
 });
 
 // 监听可见性变化
-watch(() => props.isVisible, (newVal) => {
+watch(() => props.isVisible, async (newVal) => {
   if (newVal && props.romData) {
-    nextTick(() => {
-      initEmulator();
+    await nextTick(async () => {
+      await initEmulator();
     });
   } else {
-    cleanup();
+    await cleanup();
   }
 });
 
 // 监听 ROM 数据变化
-watch(() => props.romData, (newData) => {
+watch(() => props.romData, async (newData) => {
   if (props.isVisible && newData) {
-    nextTick(() => {
-      initEmulator();
+    await nextTick(async () => {
+      await initEmulator();
     });
   }
 });
@@ -124,7 +124,7 @@ async function initEmulator() {
 
   try {
     // 清理之前的实例
-    cleanup();
+    await cleanup();
 
     // 声明局部变量
     const wasmBoyCanvasRef = gameCanvas.value;
@@ -273,15 +273,15 @@ async function resetGame() {
   }
 }
 
-function closeEmulator() {
-  cleanup();
+async function closeEmulator() {
+  await cleanup();
   emit('close');
 }
 
-function cleanup() {
+async function cleanup() {
   if (wasmBoyInstance) {
     try {
-      wasmBoyInstance.pause();
+      await wasmBoyInstance.pause();
       wasmBoyInstance.disableDefaultJoypad();
     } catch (error: unknown) {
       console.error('Error during cleanup:', error);
@@ -292,9 +292,9 @@ function cleanup() {
 }
 
 // Handle overlay click to close emulator
-function handleOverlayClick(event: MouseEvent) {
+async function handleOverlayClick(event: MouseEvent) {
   if (event.target === event.currentTarget) {
-    closeEmulator();
+    await closeEmulator();
   }
 }
 </script>

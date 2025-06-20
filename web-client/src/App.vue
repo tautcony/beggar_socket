@@ -45,7 +45,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, provide, ref } from 'vue';
+// DeviceConnect 组件引用
+import { computed, provide, type Ref, ref } from 'vue';
 
 import CartBurner from '@/components/CartBurner.vue';
 import GlobalToast from '@/components/common/GlobalToast.vue';
@@ -67,11 +68,8 @@ const deviceReady = ref(false);
 const showSettings = ref(false);
 const showDebugPanelModal = ref(false);
 
-// DeviceConnect 组件引用
-const deviceConnectRef = ref<InstanceType<typeof DeviceConnect> | null>(null);
-
-// CartBurner 组件引用
-const cartBurnerRef = ref<InstanceType<typeof CartBurner> | null>(null);
+const deviceConnectRef = ref<InstanceType<typeof DeviceConnect>>();
+const cartBurnerRef = ref<InstanceType<typeof CartBurner>>();
 
 provide('showDebugPanelModal', showDebugPanelModal);
 provide('setShowDebugPanelModal', (val: boolean) => { showDebugPanelModal.value = val; });
@@ -109,6 +107,7 @@ function onConnectMockDevice() {
   // 如果当前没有连接设备，则通过 DeviceConnect 组件连接
   if (!deviceReady.value && deviceConnectRef.value) {
     // 通过 DeviceConnect 组件的 connect 方法连接模拟设备
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     deviceConnectRef.value.connect();
   } else {
     console.log('[DEBUG] 设备已连接，无需重复连接');
@@ -123,6 +122,7 @@ function onClearMockData() {
 
   // 1. 断开设备连接
   if (deviceConnectRef.value && deviceReady.value) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     deviceConnectRef.value.disconnect();
   }
 
@@ -131,7 +131,9 @@ function onClearMockData() {
   deviceReady.value = false;
 
   // 3. 重置 FlashBurner 组件状态（如果有引用的话）
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   if (cartBurnerRef.value && typeof cartBurnerRef.value.resetState === 'function') {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     cartBurnerRef.value.resetState();
   }
 

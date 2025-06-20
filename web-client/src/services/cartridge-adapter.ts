@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await */
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';

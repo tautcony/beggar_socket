@@ -21,6 +21,7 @@ import { IonIcon } from '@ionic/vue';
 import { settingsOutline } from 'ionicons/icons';
 
 import FloatingLink from '@/components/common/FloatingLink.vue';
+
 defineEmits<{ click: [] }>();
 </script>
 

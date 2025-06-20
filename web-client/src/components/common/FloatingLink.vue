@@ -27,31 +27,44 @@
 <script setup lang="ts">
 import { computed, useAttrs } from 'vue';
 
-const props = defineProps({
-  icon: { type: String, default: '' },
-  text: { type: String, default: '' },
-  color: { type: String, default: '#1976d2' },
-  href: { type: String, default: '' },
-  title: { type: String, default: '' },
-  bottom: { type: [String, Number], default: 20 },
-  right: { type: [String, Number], default: 20 },
-  customClass: { type: String, default: '' },
-  styleOverrides: { type: Object, default: () => ({}) },
+interface StyleOverrides {
+  container?: Record<string, string | number>;
+  button?: Record<string, string | number>;
+}
+
+const props = defineProps<{
+  icon?: string;
+  text?: string;
+  color?: string;
+  href?: string;
+  title?: string;
+  bottom?: string | number;
+  right?: string | number;
+  customClass?: string;
+  styleOverrides?: StyleOverrides;
+}>();
+
+const emits = defineEmits<{
+  click: [event: MouseEvent];
+}>();
+
+const containerStyle = computed<Record<string, string | number>>(() => {
+  const baseStyle: Record<string, string | number> = {
+    position: 'fixed',
+    bottom: typeof props.bottom === 'number' ? `${props.bottom}px` : (props.bottom ?? '20px'),
+    right: typeof props.right === 'number' ? `${props.right}px` : (props.right ?? '20px'),
+    zIndex: 1000,
+  };
+
+  return {
+    ...baseStyle,
+    ...(props.styleOverrides?.container ?? {}),
+  };
 });
 
-const emits = defineEmits(['click']);
-
-const containerStyle = computed(() => ({
-  position: 'fixed',
-  bottom: typeof props.bottom === 'number' ? `${props.bottom}px` : props.bottom,
-  right: typeof props.right === 'number' ? `${props.right}px` : props.right,
-  zIndex: 1000,
-  ...props.styleOverrides?.container,
-}));
-
-const buttonStyle = computed(() => ({
-  background: props.color,
-  ...props.styleOverrides?.button,
+const buttonStyle = computed<Record<string, string | number>>(() => ({
+  background: props.color ?? '#1976d2',
+  ...(props.styleOverrides?.button ?? {}),
 }));
 </script>
 

@@ -1,3 +1,18 @@
+
+export interface AdvancedSettingsConfig {
+  size?: {
+    romPageSize?: number;
+    ramPageSize?: number;
+    romBufferSize?: number;
+  };
+  timeout?: {
+    default?: number;
+    packageSend?: number;
+    packageReceive?: number;
+    operation?: number;
+  }
+};
+
 /**
  * 高级设置配置类
  * 用于管理页面大小、超时时间等可配置参数
@@ -143,19 +158,7 @@ export class AdvancedSettings {
   /**
    * 批量设置配置
    */
-  static setSettings(settings: {
-    size?: {
-      romPageSize?: number;
-      ramPageSize?: number;
-      romBufferSize?: number;
-    };
-    timeout?: {
-      default?: number;
-      packageSend?: number;
-      packageReceive?: number;
-      operation?: number;
-    };
-  }): void {
+  static setSettings(settings: AdvancedSettingsConfig): void {
     if (settings.size) {
       if (settings.size.romPageSize !== undefined) {
         this.romPageSize = settings.size.romPageSize;
@@ -205,7 +208,7 @@ export class AdvancedSettings {
     try {
       const saved = localStorage.getItem('advanced_settings');
       if (saved) {
-        const settings = JSON.parse(saved);
+        const settings = JSON.parse(saved) as AdvancedSettingsConfig;
         this.setSettings(settings);
       }
     } catch (error) {

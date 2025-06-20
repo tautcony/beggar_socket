@@ -242,7 +242,7 @@ export class MockAdapter extends CartridgeAdapter {
         success: true,
         message: this.t('messages.operation.eraseSuccess'),
       };
-    } catch (error) {
+    } catch (e) {
       if (signal?.aborted) {
         this.log(this.t('messages.operation.cancelled'));
         return {
@@ -251,7 +251,7 @@ export class MockAdapter extends CartridgeAdapter {
         };
       }
       this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.eraseSectorFailed')));
-      this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${error}`);
+      this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${e instanceof Error ? e.message : String(e)}`);
       return {
         success: false,
         message: this.t('messages.operation.eraseSectorFailed'),
@@ -367,9 +367,9 @@ export class MockAdapter extends CartridgeAdapter {
         success: true,
         message: this.t('messages.rom.writeSuccess'),
       };
-    } catch (error) {
+    } catch (e) {
       this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.writeFailed')));
-      this.log(`${this.t('messages.rom.writeFailed')}: ${error}`);
+      this.log(`${this.t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`);
       return {
         success: false,
         message: this.t('messages.rom.writeFailed'),
@@ -542,9 +542,9 @@ export class MockAdapter extends CartridgeAdapter {
         data: data,
         message: this.t('messages.rom.readSuccess', { size: data.length }),
       };
-    } catch (error) {
+    } catch (e) {
       this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.readFailed')));
-      this.log(`${this.t('messages.rom.readFailed')}: ${error}`);
+      this.log(`${this.t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`);
       return {
         success: false,
         message: this.t('messages.rom.readFailed'),
@@ -650,9 +650,9 @@ export class MockAdapter extends CartridgeAdapter {
         success: isMatch !== false,
         message,
       };
-    } catch (error) {
+    } catch (e) {
       this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.verifyFailed')));
-      this.log(`${this.t('messages.rom.verifyFailed')}: ${error}`);
+      this.log(`${this.t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`);
       return {
         success: false,
         message: this.t('messages.rom.verifyFailed'),
@@ -718,8 +718,8 @@ export class MockAdapter extends CartridgeAdapter {
         success: true,
         message: this.t('messages.ram.writeSuccess'),
       };
-    } catch (error) {
-      this.log(`${this.t('messages.ram.writeFailed')}: ${error}`);
+    } catch (e) {
+      this.log(`${this.t('messages.ram.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`);
       return {
         success: false,
         message: this.t('messages.ram.writeFailed'),
@@ -778,8 +778,8 @@ export class MockAdapter extends CartridgeAdapter {
         data: data,
         message: this.t('messages.ram.readSuccess', { size: data.length }),
       };
-    } catch (error) {
-      this.log(`${this.t('messages.ram.readFailed')}: ${error}`);
+    } catch (e) {
+      this.log(`${this.t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`);
       return {
         success: false,
         message: this.t('messages.ram.readFailed'),
@@ -823,8 +823,8 @@ export class MockAdapter extends CartridgeAdapter {
         success: isMatch !== false,
         message: message,
       };
-    } catch (error) {
-      this.log(`${this.t('messages.ram.verifyFailed')}: ${error}`);
+    } catch (e) {
+      this.log(`${this.t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`);
       return {
         success: false,
         message: this.t('messages.ram.verifyFailed'),

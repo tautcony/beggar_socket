@@ -23,8 +23,7 @@ export class PerformanceTracker {
           ...data,
         },
       },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      async (span: any) => {
+      async (span: Sentry.Span) => {
         try {
           const result = await operation();
           span.setStatus({ code: 1 }); // OK status
@@ -62,8 +61,7 @@ export class PerformanceTracker {
           ...data,
         },
       },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (span: any) => {
+      (span: Sentry.Span) => {
         try {
           const result = operation();
           span.setStatus({ code: 1 }); // OK status
@@ -128,17 +126,21 @@ export class PerformanceTracker {
  * 装饰器：用于自动跟踪方法性能
  */
 export function TrackPerformance(operationName?: string) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
-    const originalMethod = descriptor.value;
-    const name = operationName || `${target.constructor.name}.${propertyKey}`;
+  return function <T extends Record<string, unknown>>(
+    target: T,
+    propertyKey: string,
+    descriptor: PropertyDescriptor,
+  ) {
+    const originalMethod = descriptor.value as (...args: unknown[]) => unknown;
+    const targetConstructor = target.constructor as { name: string };
+    const name = operationName || `${targetConstructor.name}.${propertyKey}`;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    descriptor.value = function (...args: any[]) {
-      if (originalMethod.constructor.name === 'AsyncFunction') {
+    descriptor.value = function (this: T, ...args: unknown[]) {
+      const methodConstructor = originalMethod.constructor as { name: string };
+      if (methodConstructor.name === 'AsyncFunction') {
         return PerformanceTracker.trackAsyncOperation(
           name,
-          () => originalMethod.apply(this, args),
+          () => originalMethod.apply(this, args) as Promise<unknown>,
         );
       } else {
         return PerformanceTracker.trackSyncOperation(

@@ -65,7 +65,7 @@ export class GBAAdapter extends CartridgeAdapter {
             message: this.t('messages.operation.readIdSuccess'),
           };
         } catch (e) {
-          this.log(`${this.t('messages.operation.readIdFailed')}: ${e}`);
+          this.log(`${this.t('messages.operation.readIdFailed')}: ${e instanceof Error ? e.message : String(e)}`);
           return {
             success: false,
             message: this.t('messages.operation.readIdFailed'),
@@ -142,7 +142,7 @@ export class GBAAdapter extends CartridgeAdapter {
             };
           }
 
-          this.log(`${this.t('messages.operation.eraseFailed')}: ${e}`);
+          this.log(`${this.t('messages.operation.eraseFailed')}: ${e instanceof Error ? e.message : String(e)}`);
           return {
             success: false,
             message: this.t('messages.operation.eraseFailed'),
@@ -259,7 +259,7 @@ export class GBAAdapter extends CartridgeAdapter {
           }
 
           this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.eraseSectorFailed')));
-          this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${e}`);
+          this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${e instanceof Error ? e.message : String(e)}`);
           return {
             success: false,
             message: this.t('messages.operation.eraseSectorFailed'),
@@ -391,7 +391,7 @@ export class GBAAdapter extends CartridgeAdapter {
           };
         } catch (e) {
           this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.writeFailed')));
-          this.log(`${this.t('messages.rom.writeFailed')}: ${e}`);
+          this.log(`${this.t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`);
           return {
             success: false,
             message: this.t('messages.rom.writeFailed'),
@@ -467,8 +467,8 @@ export class GBAAdapter extends CartridgeAdapter {
             bufferWriteBytes,
             cfiInfo,
           };
-        } catch (error) {
-          this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${error}`);
+        } catch (e) {
+          this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${e instanceof Error ? e.message : String(e)}`);
           return {
             deviceSize: -1,
             sectorCount: -1,
@@ -597,7 +597,7 @@ export class GBAAdapter extends CartridgeAdapter {
           };
         } catch (e) {
           this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.readFailed')));
-          this.log(`${this.t('messages.rom.readFailed')}: ${e}`);
+          this.log(`${this.t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`);
           return {
             success: false,
             message: this.t('messages.rom.readFailed'),
@@ -752,7 +752,7 @@ export class GBAAdapter extends CartridgeAdapter {
           };
         } catch (e) {
           this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.verifyFailed')));
-          this.log(`${this.t('messages.rom.verifyFailed')}: ${e}`);
+          this.log(`${this.t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`);
           return {
             success: false,
             message: this.t('messages.rom.verifyFailed'),
@@ -780,13 +780,13 @@ export class GBAAdapter extends CartridgeAdapter {
       const h = ((bank / 8) & 0x0f) << 4;
       const l = 0x40 | ((bank % 8) << 3);
 
-      ram_write(this.device, new Uint8Array([h]), 0x02);
-      ram_write(this.device, new Uint8Array([l]), 0x03);
+      await ram_write(this.device, new Uint8Array([h]), 0x02);
+      await ram_write(this.device, new Uint8Array([l]), 0x03);
     } else {
       const h = (bank & 0x0f) << 4;
 
-      ram_write(this.device, new Uint8Array([h]), 0x02);
-      ram_write(this.device, new Uint8Array([0x40]), 0x03);
+      await ram_write(this.device, new Uint8Array([h]), 0x02);
+      await ram_write(this.device, new Uint8Array([0x40]), 0x03);
     }
   }
 
@@ -932,7 +932,7 @@ export class GBAAdapter extends CartridgeAdapter {
             message: this.t('messages.ram.writeSuccess'),
           };
         } catch (e) {
-          this.log(`${this.t('messages.ram.writeFailed')}: ${e}`);
+          this.log(`${this.t('messages.ram.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`);
           return {
             success: false,
             message: this.t('messages.ram.writeFailed'),
@@ -1023,7 +1023,7 @@ export class GBAAdapter extends CartridgeAdapter {
             message: this.t('messages.ram.readSuccess', { size: result.length }),
           };
         } catch (e) {
-          this.log(`${this.t('messages.ram.readFailed')}: ${e}`);
+          this.log(`${this.t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`);
           return {
             success: false,
             message: this.t('messages.ram.readFailed'),
@@ -1110,7 +1110,7 @@ export class GBAAdapter extends CartridgeAdapter {
             message: message,
           };
         } catch (e) {
-          this.log(`${this.t('messages.ram.verifyFailed')}: ${e}`);
+          this.log(`${this.t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`);
           return {
             success: false,
             message: this.t('messages.ram.verifyFailed'),
