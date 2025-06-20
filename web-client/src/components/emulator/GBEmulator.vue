@@ -159,9 +159,9 @@ function initEmulator() {
       console.error('ROM loading failed:', romError);
 
       // 根据错误类型提供更具体的错误信息
-      let errorMessage = t('ui.emulator.romLoadFailed');
+      let errorMessage = t('ui.emulator.errors.romLoadFailed');
       if (romError instanceof RangeError) {
-        errorMessage = t('ui.emulator.invalidRom');
+        errorMessage = t('ui.emulator.errors.invalidRom');
       } else if (romError instanceof Error && romError.message) {
         errorMessage += `: ${romError.message}`;
       }
@@ -203,8 +203,8 @@ function initEmulator() {
 
   } catch (error: unknown) {
     console.error('Failed to initialize emulator:', error);
-    const errorMessage = error instanceof Error ? error.message : '未知错误';
-    showToast(`${t('ui.emulator.initError')}: ${errorMessage}`, 'error');
+    const errorMessage = error instanceof Error ? error.message : t('ui.emulator.errors.unknownError');
+    showToast(`${t('ui.emulator.errors.error')}: ${errorMessage}`, 'error');
   }
 }
 

@@ -40,9 +40,9 @@
           class="error-display"
         >
           <div class="error-icon">
-            ⚠️
+            <IonIcon :icon="warning" class="error-icon" />
           </div>
-          <h4>{{ $t('ui.emulator.error') }}</h4>
+          <h4>{{ $t('ui.emulator.errors.error') }}</h4>
           <p>{{ errorMessage }}</p>
           <button
             class="retry-btn"
@@ -81,7 +81,7 @@
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import { Wrapper } from 'gbats';
-import { close, pause, play, refresh } from 'ionicons/icons';
+import { close, pause, play, refresh, warning } from 'ionicons/icons';
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -157,23 +157,23 @@ function initializeEmulator() {
     errorMessage.value = '';
 
     if (!gameCanvas.value) {
-      throw new Error('Canvas element not available');
+      throw new Error(t('ui.emulator.errors.canvasNotAvailable'));
     }
 
     if (!props.romData) {
-      throw new Error('ROM data not provided');
+      throw new Error(t('ui.emulator.errors.romDataNotProvided'));
     }
 
     // 检查ROM数据有效性
     if (props.romData.length < 1024) {
-      throw new Error('ROM data appears to be too small');
+      throw new Error(t('ui.emulator.errors.romTooSmall'));
     }
 
     cleanup();
 
     // 检查浏览器兼容性
     if (!window.WebAssembly) {
-      throw new Error('WebAssembly is not supported in this browser');
+      throw new Error(t('ui.emulator.errors.webAssemblyNotSupported'));
     }
 
     // 根据官方例子初始化 gbats Wrapper
@@ -183,7 +183,7 @@ function initializeEmulator() {
     });
 
     if (!gba.value) {
-      throw new Error('Failed to create GBA emulator instance');
+      throw new Error(t('ui.emulator.errors.createInstanceFailed'));
     }
 
     // 设置错误处理器
@@ -209,12 +209,12 @@ function initializeEmulator() {
     if (error instanceof Error) {
       errorMessage.value = error.message;
     } else {
-      errorMessage.value = 'Unknown error occurred';
+      errorMessage.value = t('ui.emulator.errors.unknownError');
     }
 
     // 如果多次崩溃，显示特殊错误信息
     if (crashCount.value > 1) {
-      errorMessage.value = `Multiple initialization failures (${crashCount.value}). Please check ROM compatibility.`;
+      errorMessage.value = t('ui.emulator.errors.multipleInitFailures', { count: crashCount.value });
     }
 
     showToast(t('ui.emulator.loadFailed'), 'error');
@@ -244,19 +244,19 @@ function handleEmulatorError(level: number, error: string) {
 
   crashCount.value++;
   hasError.value = true;
-  errorMessage.value = `Emulator crashed: ${error}`;
+  errorMessage.value = t('ui.emulator.errors.emulatorCrashed', { error });
 
   if (crashCount.value > 2) {
-    errorMessage.value = 'Multiple crashes detected. The ROM may be incompatible.';
+    errorMessage.value = t('ui.emulator.errors.multipleCrashes');
     gba.value?.emulator.pause();
   }
 
-  showToast(t('ui.emulator.crashed'), 'error');
+  showToast(t('ui.emulator.errors.crashed'), 'error');
 }
 
 function retryInitialization() {
   if (crashCount.value > 3) {
-    showToast(t('ui.emulator.tooManyRetries'), 'error');
+    showToast(t('ui.emulator.errors.tooManyRetries'), 'error');
     return;
   }
 
@@ -273,7 +273,7 @@ function handleKeyDown(event: KeyboardEvent) {
       gba.value.press(gamepadKey);
     } catch (e) {
       console.error('Error pressing key:', e);
-      handleEmulatorError(1, `Key press error: ${e instanceof Error ? e.message : String(e)}`);
+      handleEmulatorError(1, t('ui.emulator.errors.keyPressError', { error: e instanceof Error ? e.message : String(e) }));
     }
   }
 }
@@ -310,7 +310,7 @@ function togglePause() {
     }
   } catch (e) {
     console.error('Error toggling pause:', e);
-    handleEmulatorError(1, `Pause/resume error: ${e instanceof Error ? e.message : String(e)}`);
+    handleEmulatorError(1, t('ui.emulator.errors.pauseResumeError', { error: e instanceof Error ? e.message : String(e) }));
   }
 }
 
@@ -330,7 +330,7 @@ function resetGame() {
     showToast(t('ui.emulator.reset'), 'success');
   } catch (e) {
     console.error('Failed to reset game:', e);
-    handleEmulatorError(1, `Reset error: ${e instanceof Error ? e.message : String(e)}`);
+    handleEmulatorError(1, t('ui.emulator.errors.resetError', { error: e instanceof Error ? e.message : String(e) }));
     showToast(t('ui.emulator.resetFailed'), 'error');
   }
 }
