@@ -119,6 +119,7 @@ import { AdvancedSettings } from '@/settings/advanced-settings';
 import { DebugSettings } from '@/settings/debug-settings';
 import { DeviceInfo, FileInfo, ProgressInfo } from '@/types';
 import { formatBytes } from '@/utils/formatter-utils';
+import { parseRom } from '@/utils/rom-parser.ts';
 
 const { showToast } = useToast();
 const { t } = useI18n();
@@ -446,7 +447,12 @@ async function readRom() {
     if (response.success) {
       showToast(response.message, 'success');
       if (response.data) {
-        saveAsFile(response.data, 'exported.rom');
+        const romInfo = parseRom(response.data);
+        let fileName = 'exported.rom';
+        if (romInfo.type !== 'Unknown') {
+          fileName = `${romInfo.title} (${romInfo.region}).rom`;
+        }
+        saveAsFile(response.data, fileName);
       }
     } else {
       showToast(response.message, 'error');

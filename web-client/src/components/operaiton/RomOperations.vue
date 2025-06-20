@@ -131,7 +131,7 @@
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
-import { checkmarkCircle, chevronDown, chevronUp, closeCircle, folderOpenOutline, informationCircleOutline, playOutline } from 'ionicons/icons';
+import { folderOpenOutline, playOutline } from 'ionicons/icons';
 import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -139,8 +139,7 @@ import FileDropZone from '@/components/common/FileDropZone.vue';
 import RomInfoPanel from '@/components/common/RomInfoPanel.vue';
 import { useToast } from '@/composables/useToast';
 import { FileInfo } from '@/types/file-info.ts';
-import { formatBytes } from '@/utils/formatter-utils';
-import { CartridgeTypeMapper, parseRom, type RomInfo } from '@/utils/rom-parser.ts';
+import { parseRom, type RomInfo } from '@/utils/rom-parser.ts';
 
 // 动态加载模拟器组件
 // const GBEmulator = defineAsyncComponent(() => import('@/components/emulator/GBEmulator.vue'));
