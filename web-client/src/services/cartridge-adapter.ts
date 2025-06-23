@@ -3,6 +3,7 @@ import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { ProgressInfo } from '@/types/progress-info';
+import NotImplementedError from '@/utils/errors/NotImplementedError';
 
 // 定义日志和进度回调函数类型
 export type LogCallback = (message: string, type?: 'info' | 'error' | 'success' | 'warning') => void;
@@ -47,11 +48,7 @@ export class CartridgeAdapter {
    * @returns {Promise<CommandResult & { idStr?: string }>} - 包含成功状态、ID字符串和消息的对象
    */
   async readID(): Promise<CommandResult & { idStr?: string }> {
-    throw new Error('未实现的方法: readID');
-  }
-
-  async getCartInfo(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number }> {
-    throw new Error('未实现的方法: getROMSize');
+    throw new NotImplementedError();
   }
 
   /**
@@ -60,7 +57,7 @@ export class CartridgeAdapter {
    * @returns - 包含成功状态和消息的对象
    */
   async eraseChip(signal?: AbortSignal): Promise<CommandResult> {
-    throw new Error('未实现的方法: eraseChip');
+    throw new NotImplementedError();
   }
 
   /**
@@ -71,7 +68,7 @@ export class CartridgeAdapter {
    * @returns - 包含成功状态和消息的对象
    */
   async eraseSectors(startAddress: number, endAddress: number, sectorSize: number, signal?: AbortSignal): Promise<CommandResult> {
-    throw new Error('未实现的方法: eraseSectors');
+    throw new NotImplementedError();
   }
 
   /**
@@ -82,7 +79,7 @@ export class CartridgeAdapter {
    * @returns - 包含成功状态和消息的对象
    */
   async writeROM(data: Uint8Array, options: CommandOptions = {}, signal?: AbortSignal): Promise<CommandResult> {
-    throw new Error('未实现的方法: writeROM');
+    throw new NotImplementedError();
   }
 
   /**
@@ -93,7 +90,7 @@ export class CartridgeAdapter {
    * @returns - 包含成功状态、数据和消息的对象
    */
   async readROM(size: number, baseAddress: number = 0, signal?: AbortSignal): Promise<CommandResult> {
-    throw new Error('未实现的方法: readROM');
+    throw new NotImplementedError();
   }
 
   /**
@@ -104,7 +101,7 @@ export class CartridgeAdapter {
    * @returns - 包含成功状态和消息的对象
    */
   async verifyROM(data: Uint8Array, baseAddress: number = 0, signal: AbortSignal): Promise<CommandResult> {
-    throw new Error('未实现的方法: verifyROM');
+    throw new NotImplementedError();
   }
 
   /**
@@ -114,7 +111,7 @@ export class CartridgeAdapter {
    * @returns - 包含成功状态和消息的对象
    */
   async writeRAM(data: Uint8Array, options?: CommandOptions): Promise<CommandResult> {
-    throw new Error('未实现的方法: writeRAM');
+    throw new NotImplementedError();
   }
 
   /**
@@ -124,7 +121,7 @@ export class CartridgeAdapter {
    * @returns - 包含成功状态、数据和消息的对象
    */
   async readRAM(size: number, options?: CommandOptions): Promise<CommandResult> {
-    throw new Error('未实现的方法: readRAM');
+    throw new NotImplementedError();
   }
 
   /**
@@ -134,7 +131,14 @@ export class CartridgeAdapter {
    * @returns - 包含成功状态和消息的对象
    */
   async verifyRAM(data: Uint8Array, options?: CommandOptions): Promise<CommandResult> {
-    throw new Error('未实现的方法: verifyRAM');
+    throw new NotImplementedError();
+  }
+
+  /**
+   * 获取卡带信息
+   */
+  async getCartInfo(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number }> {
+    throw new NotImplementedError();
   }
 
   /**

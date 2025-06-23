@@ -136,92 +136,6 @@ export class MBC5Adapter extends CartridgeAdapter {
     );
   }
 
-  // ROM Bank 切换
-  async switchROMBank(bank: number) : Promise<void> {
-    if (bank < 0) return;
-
-    const b0 = bank & 0xff;
-    const b1 = (bank >> 8) & 0xff;
-
-    // ROM addr [21:14]
-    await gbc_write(this.device, new Uint8Array([b0]), 0x2000);
-    // ROM addr [22]
-    await gbc_write(this.device, new Uint8Array([b1]), 0x3000);
-
-    // this.log(this.t('messages.rom.bankSwitch', { bank }));
-  }
-
-  // RAM Bank 切换
-  async switchRAMBank(bank: number) : Promise<void> {
-    if (bank < 0) return;
-
-    const b = bank & 0xff;
-    // RAM addr [16:13]
-    await gbc_write(this.device, new Uint8Array([b]), 0x4000);
-
-    this.log(this.t('messages.ram.bankSwitch', { bank }));
-  }
-
-  // 获取卡带信息 - 通过CFI查询
-  async getCartInfo(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number, cfiInfo?: CFIInfo }> {
-    try {
-      // CFI Query
-      await gbc_write(this.device, new Uint8Array([0x98]), 0xaa);
-
-      // 读取完整的CFI数据 (通常需要1KB的数据)
-      const cfiData = await gbc_read(this.device, 0x400, 0x00);
-
-      // Reset CFI查询模式
-      await gbc_write(this.device, new Uint8Array([0xf0]), 0x00);
-
-      // 使用CFI解析器解析数据
-      const cfiParser = new CFIParser();
-      const cfiInfo = cfiParser.parse(cfiData);
-
-      if (!cfiInfo) {
-        // 如果CFI解析失败
-        this.log(this.t('messages.operation.cfiParseFailed'));
-        return {
-          deviceSize: -1,
-          sectorCount: -1,
-          sectorSize: -1,
-          bufferWriteBytes: -1,
-          cfiInfo: undefined,
-        };
-      }
-
-      // 从CFI信息中提取所需数据
-      const deviceSize = cfiInfo.deviceSize;
-      const bufferWriteBytes = cfiInfo.bufferSize || 0;
-
-      // 获取第一个擦除区域的信息作为主要扇区信息
-      const sectorSize = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][0] : 0;
-      const sectorCount = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][1] : 0;
-
-      // 记录CFI解析结果
-      this.log(this.t('messages.operation.cfiParseSuccess'));
-      this.log(cfiInfo.info);
-
-      this.log(this.t('messages.operation.romSizeQuerySuccess', {
-        deviceSize: deviceSize.toString(),
-        sectorCount: sectorCount.toString(),
-        sectorSize: sectorSize.toString(),
-        bufferWriteBytes: bufferWriteBytes.toString(),
-      }));
-
-      return {
-        deviceSize,
-        sectorCount,
-        sectorSize,
-        bufferWriteBytes,
-        cfiInfo,
-      };
-    } catch (e) {
-      this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${e instanceof Error ? e.message : String(e)}`);
-      throw e;
-    }
-  }
-
   /**
    * 扇区擦除
    * @param startAddress - 起始地址
@@ -1021,6 +935,92 @@ export class MBC5Adapter extends CartridgeAdapter {
         devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
       },
     );
+  }
+
+  // ROM Bank 切换
+  async switchROMBank(bank: number) : Promise<void> {
+    if (bank < 0) return;
+
+    const b0 = bank & 0xff;
+    const b1 = (bank >> 8) & 0xff;
+
+    // ROM addr [21:14]
+    await gbc_write(this.device, new Uint8Array([b0]), 0x2000);
+    // ROM addr [22]
+    await gbc_write(this.device, new Uint8Array([b1]), 0x3000);
+
+    // this.log(this.t('messages.rom.bankSwitch', { bank }));
+  }
+
+  // RAM Bank 切换
+  async switchRAMBank(bank: number) : Promise<void> {
+    if (bank < 0) return;
+
+    const b = bank & 0xff;
+    // RAM addr [16:13]
+    await gbc_write(this.device, new Uint8Array([b]), 0x4000);
+
+    this.log(this.t('messages.ram.bankSwitch', { bank }));
+  }
+
+  // 获取卡带信息 - 通过CFI查询
+  async getCartInfo(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number, cfiInfo?: CFIInfo }> {
+    try {
+      // CFI Query
+      await gbc_write(this.device, new Uint8Array([0x98]), 0xaa);
+
+      // 读取完整的CFI数据 (通常需要1KB的数据)
+      const cfiData = await gbc_read(this.device, 0x400, 0x00);
+
+      // Reset CFI查询模式
+      await gbc_write(this.device, new Uint8Array([0xf0]), 0x00);
+
+      // 使用CFI解析器解析数据
+      const cfiParser = new CFIParser();
+      const cfiInfo = cfiParser.parse(cfiData);
+
+      if (!cfiInfo) {
+        // 如果CFI解析失败
+        this.log(this.t('messages.operation.cfiParseFailed'));
+        return {
+          deviceSize: -1,
+          sectorCount: -1,
+          sectorSize: -1,
+          bufferWriteBytes: -1,
+          cfiInfo: undefined,
+        };
+      }
+
+      // 从CFI信息中提取所需数据
+      const deviceSize = cfiInfo.deviceSize;
+      const bufferWriteBytes = cfiInfo.bufferSize || 0;
+
+      // 获取第一个擦除区域的信息作为主要扇区信息
+      const sectorSize = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][0] : 0;
+      const sectorCount = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][1] : 0;
+
+      // 记录CFI解析结果
+      this.log(this.t('messages.operation.cfiParseSuccess'));
+      this.log(cfiInfo.info);
+
+      this.log(this.t('messages.operation.romSizeQuerySuccess', {
+        deviceSize: deviceSize.toString(),
+        sectorCount: sectorCount.toString(),
+        sectorSize: sectorSize.toString(),
+        bufferWriteBytes: bufferWriteBytes.toString(),
+      }));
+
+      return {
+        deviceSize,
+        sectorCount,
+        sectorSize,
+        bufferWriteBytes,
+        cfiInfo,
+      };
+    } catch (e) {
+      this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+      throw e;
+    }
   }
 
   // 检查区域是否为空

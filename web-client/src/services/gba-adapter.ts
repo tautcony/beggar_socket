@@ -412,80 +412,6 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 获取卡带信息 - 通过CFI查询
-   * @returns 卡带容量相关信息
-   */
-  async getCartInfo(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number, cfiInfo?: CFIInfo }> {
-    return PerformanceTracker.trackAsyncOperation(
-      'GBA:getROMSize',
-      async () => {
-        try {
-          this.log(this.t('messages.operation.queryingRomSize'));
-
-          // CFI Query
-          await rom_write(this.device, toLittleEndian(0x98, 2), 0x55);
-          const cfiData = await rom_read(this.device, 0x400, 0x00);
-          // Reset
-          await rom_write(this.device, toLittleEndian(0xf0, 2), 0x00);
-
-          const cfiInfo = parseCFI(cfiData);
-
-          if (!cfiInfo) {
-            this.log(this.t('messages.operation.cfiParseFailed'));
-            return {
-              deviceSize: -1,
-              sectorCount: -1,
-              sectorSize: -1,
-              bufferWriteBytes: -1,
-              cfiInfo: undefined,
-            };
-          }
-
-          // 从CFI信息中提取所需数据
-          const deviceSize = cfiInfo.deviceSize;
-          const bufferWriteBytes = cfiInfo.bufferSize || 0;
-
-          // 获取第一个擦除区域的信息作为主要扇区信息
-          const sectorSize = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][0] : 0;
-          const sectorCount = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][1] : 0;
-
-          // 记录CFI解析结果
-          this.log(this.t('messages.operation.cfiParseSuccess'));
-          this.log(cfiInfo.info);
-
-          this.log(this.t('messages.operation.romSizeQuerySuccess', {
-            deviceSize: deviceSize.toString(),
-            sectorCount: sectorCount.toString(),
-            sectorSize: sectorSize.toString(),
-            bufferWriteBytes: bufferWriteBytes.toString(),
-          }));
-
-          return {
-            deviceSize,
-            sectorCount,
-            sectorSize,
-            bufferWriteBytes,
-            cfiInfo,
-          };
-        } catch (e) {
-          this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${e instanceof Error ? e.message : String(e)}`);
-          return {
-            deviceSize: -1,
-            sectorCount: -1,
-            sectorSize: -1,
-            bufferWriteBytes: -1,
-            cfiInfo: undefined,
-          };
-        }
-      },
-      {
-        adapter_type: 'gba',
-        operation_type: 'get_rom_size',
-      },
-    );
-  }
-
-  /**
    * 读取ROM
    * @param size - 读取大小
    * @param baseAddress - 基础地址
@@ -768,50 +694,6 @@ export class GBAAdapter extends CartridgeAdapter {
         baseAddress: baseAddress,
       },
     );
-  }
-
-  /**
-   * ROM Bank 切换
-   */
-  async switchROMBank(bank: number, isBankIn4m = false) : Promise<void> {
-    if (bank < 0) return;
-
-    if (isBankIn4m) {
-      const h = ((bank / 8) & 0x0f) << 4;
-      const l = 0x40 | ((bank % 8) << 3);
-
-      await ram_write(this.device, new Uint8Array([h]), 0x02);
-      await ram_write(this.device, new Uint8Array([l]), 0x03);
-    } else {
-      const h = (bank & 0x0f) << 4;
-
-      await ram_write(this.device, new Uint8Array([h]), 0x02);
-      await ram_write(this.device, new Uint8Array([0x40]), 0x03);
-    }
-  }
-
-  /**
-   * 切换SRAM的Bank
-   * @param bank - Bank编号 (0或1)
-   */
-  async switchSRAMBank(bank: number) : Promise<void> {
-    bank = bank === 0 ? 0 : 1;
-    this.log(this.t('messages.gba.bankSwitchSram', { bank }));
-    await rom_write(this.device, toLittleEndian(bank, 2), 0x800000);
-  }
-
-  /**
-   * 切换Flash的Bank
-   * @param bank - Bank编号 (0或1)
-   */
-  async switchFlashBank(bank: number) : Promise<void> {
-    bank = bank === 0 ? 0 : 1;
-    this.log(this.t('messages.gba.bankSwitchFlash', { bank }));
-
-    await ram_write(this.device, new Uint8Array([0xaa]), 0x5555);
-    await ram_write(this.device, new Uint8Array([0x55]), 0x2aaa);
-    await ram_write(this.device, new Uint8Array([0xb0]), 0x5555); // FLASH_COMMAND_SWITCH_BANK
-    await ram_write(this.device, new Uint8Array([bank]), 0x0000);
   }
 
   /**
@@ -1126,6 +1008,124 @@ export class GBAAdapter extends CartridgeAdapter {
         fileSize: fileData.length,
       },
     );
+  }
+
+  /**
+   * 获取卡带信息 - 通过CFI查询
+   * @returns 卡带容量相关信息
+   */
+  async getCartInfo(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number, cfiInfo?: CFIInfo }> {
+    return PerformanceTracker.trackAsyncOperation(
+      'GBA:getROMSize',
+      async () => {
+        try {
+          this.log(this.t('messages.operation.queryingRomSize'));
+
+          // CFI Query
+          await rom_write(this.device, toLittleEndian(0x98, 2), 0x55);
+          const cfiData = await rom_read(this.device, 0x400, 0x00);
+          // Reset
+          await rom_write(this.device, toLittleEndian(0xf0, 2), 0x00);
+
+          const cfiInfo = parseCFI(cfiData);
+
+          if (!cfiInfo) {
+            this.log(this.t('messages.operation.cfiParseFailed'));
+            return {
+              deviceSize: -1,
+              sectorCount: -1,
+              sectorSize: -1,
+              bufferWriteBytes: -1,
+              cfiInfo: undefined,
+            };
+          }
+
+          // 从CFI信息中提取所需数据
+          const deviceSize = cfiInfo.deviceSize;
+          const bufferWriteBytes = cfiInfo.bufferSize || 0;
+
+          // 获取第一个擦除区域的信息作为主要扇区信息
+          const sectorSize = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][0] : 0;
+          const sectorCount = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][1] : 0;
+
+          // 记录CFI解析结果
+          this.log(this.t('messages.operation.cfiParseSuccess'));
+          this.log(cfiInfo.info);
+
+          this.log(this.t('messages.operation.romSizeQuerySuccess', {
+            deviceSize: deviceSize.toString(),
+            sectorCount: sectorCount.toString(),
+            sectorSize: sectorSize.toString(),
+            bufferWriteBytes: bufferWriteBytes.toString(),
+          }));
+
+          return {
+            deviceSize,
+            sectorCount,
+            sectorSize,
+            bufferWriteBytes,
+            cfiInfo,
+          };
+        } catch (e) {
+          this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          return {
+            deviceSize: -1,
+            sectorCount: -1,
+            sectorSize: -1,
+            bufferWriteBytes: -1,
+            cfiInfo: undefined,
+          };
+        }
+      },
+      {
+        adapter_type: 'gba',
+        operation_type: 'get_rom_size',
+      },
+    );
+  }
+
+  /**
+   * ROM Bank 切换
+   */
+  async switchROMBank(bank: number, isBankIn4m = false) : Promise<void> {
+    if (bank < 0) return;
+
+    if (isBankIn4m) {
+      const h = ((bank / 8) & 0x0f) << 4;
+      const l = 0x40 | ((bank % 8) << 3);
+
+      await ram_write(this.device, new Uint8Array([h]), 0x02);
+      await ram_write(this.device, new Uint8Array([l]), 0x03);
+    } else {
+      const h = (bank & 0x0f) << 4;
+
+      await ram_write(this.device, new Uint8Array([h]), 0x02);
+      await ram_write(this.device, new Uint8Array([0x40]), 0x03);
+    }
+  }
+
+  /**
+   * 切换SRAM的Bank
+   * @param bank - Bank编号 (0或1)
+   */
+  async switchSRAMBank(bank: number) : Promise<void> {
+    bank = bank === 0 ? 0 : 1;
+    this.log(this.t('messages.gba.bankSwitchSram', { bank }));
+    await rom_write(this.device, toLittleEndian(bank, 2), 0x800000);
+  }
+
+  /**
+   * 切换Flash的Bank
+   * @param bank - Bank编号 (0或1)
+   */
+  async switchFlashBank(bank: number) : Promise<void> {
+    bank = bank === 0 ? 0 : 1;
+    this.log(this.t('messages.gba.bankSwitchFlash', { bank }));
+
+    await ram_write(this.device, new Uint8Array([0xaa]), 0x5555);
+    await ram_write(this.device, new Uint8Array([0x55]), 0x2aaa);
+    await ram_write(this.device, new Uint8Array([0xb0]), 0x5555); // FLASH_COMMAND_SWITCH_BANK
+    await ram_write(this.device, new Uint8Array([bank]), 0x0000);
   }
 
   // 检查区域是否为空
