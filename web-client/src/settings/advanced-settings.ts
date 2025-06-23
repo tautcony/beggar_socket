@@ -30,8 +30,10 @@ export class AdvancedSettings {
   private static _operationTimeout = 100000; // 长时间操作超时（如芯片擦除）
 
   // 页面大小配置的有效范围
-  private static readonly MIN_PAGE_SIZE = 0x40; // 256 bytes
+  private static readonly MIN_PAGE_SIZE = 0x40; // 64 bytes
   private static readonly MAX_PAGE_SIZE = 0x4000; // 16KB
+  private static readonly MIN_BUFFER_SIZE = 0x20; // 32 bytes
+  private static readonly MAX_BUFFER_SIZE = 0x4000; // 16 KB
 
   // 超时配置的有效范围
   private static readonly MIN_TIMEOUT = 1000; // 1秒
@@ -61,7 +63,7 @@ export class AdvancedSettings {
   }
 
   static set romBufferSize(value: number) {
-    this._romBufferSize = this.validatePageSize(value);
+    this._romBufferSize = this.validateBufferSize(value);
     this.saveSettings();
   }
 
@@ -111,6 +113,22 @@ export class AdvancedSettings {
       return this.MIN_PAGE_SIZE;
     }
     if (size > this.MAX_PAGE_SIZE) {
+      console.warn(`页面大小 ${size} 大于最大值 ${this.MAX_PAGE_SIZE}，已调整为最大值`);
+      return this.MAX_PAGE_SIZE;
+    }
+    // 检查是否是2的幂
+    if ((size & (size - 1)) !== 0) {
+      console.warn(`页面大小 ${size} 不是2的幂，可能会导致性能问题`);
+    }
+    return size;
+  }
+
+  private static validateBufferSize(size: number): number {
+    if (size < this.MIN_BUFFER_SIZE) {
+      console.warn(`页面大小 ${size} 小于最小值 ${this.MIN_PAGE_SIZE}，已调整为最小值`);
+      return this.MIN_PAGE_SIZE;
+    }
+    if (size > this.MAX_BUFFER_SIZE) {
       console.warn(`页面大小 ${size} 大于最大值 ${this.MAX_PAGE_SIZE}，已调整为最大值`);
       return this.MAX_PAGE_SIZE;
     }
@@ -245,6 +263,10 @@ export class AdvancedSettings {
       pageSize: {
         min: this.MIN_PAGE_SIZE,
         max: this.MAX_PAGE_SIZE,
+      },
+      bufferSize: {
+        min: this.MIN_BUFFER_SIZE,
+        max: this.MAX_BUFFER_SIZE,
       },
       timeout: {
         min: this.MIN_TIMEOUT,
