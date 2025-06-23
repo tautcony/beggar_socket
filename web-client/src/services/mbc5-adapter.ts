@@ -1,10 +1,13 @@
-import { gbc_read, gbc_rom_program, gbc_write } from '@/protocol/beggar_socket/protocol';
+import { gbc_read, gbc_rom_erase_sector, gbc_rom_get_id, gbc_rom_program, gbc_write } from '@/protocol/beggar_socket/protocol';
+import { getFlashId } from '@/protocol/beggar_socket/protocol-utils';
 import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
+import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { CFIInfo, CFIParser } from '@/utils/cfi-parser';
 import { PerformanceTracker } from '@/utils/sentry-tracker';
+import { SpeedCalculator } from '@/utils/speed-calculator';
 
 /**
  * MBC5 Adapter - 封装MBC5卡带的协议操作
@@ -35,21 +38,16 @@ export class MBC5Adapter extends CartridgeAdapter {
       'mbc5.readID',
       async () => {
         this.log(this.t('messages.operation.readId'));
-
         try {
-          // Enter autoselect mode
-          await gbc_write(this.device, new Uint8Array([0xaa]), 0xaaa);
-          await gbc_write(this.device, new Uint8Array([0x55]), 0x555);
-          await gbc_write(this.device, new Uint8Array([0x90]), 0xaaa);
+          const id = [... await gbc_rom_get_id(this.device)];
 
-          // Read ID (4 bytes)
-          const id = await gbc_read(this.device, 4, 0);
-
-          // Reset
-          await gbc_write(this.device, new Uint8Array([0xf0]), 0x00);
-
-          const idStr = Array.from(id).map(x => x.toString(16).padStart(2, '0')).join(' ');
-          this.log(this.t('messages.operation.readIdSuccess'));
+          const idStr = id.map(x => x.toString(16).padStart(2, '0')).join(' ');
+          const flashId = getFlashId(id);
+          if (flashId === null) {
+            this.log(this.t('messages.operation.unknownFlashId'));
+          } else {
+            this.log(`${this.t('messages.operation.readIdSuccess')}: ${idStr} (${flashId})`);
+          }
 
           return {
             success: true,
@@ -76,15 +74,23 @@ export class MBC5Adapter extends CartridgeAdapter {
 
   /**
    * 全片擦除
+   * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态和消息的对象
    */
-  async eraseChip() : Promise<CommandResult> {
+  async eraseChip(signal?: AbortSignal) : Promise<CommandResult> {
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.eraseChip',
       async () => {
         this.log(this.t('messages.operation.eraseChip'));
 
         try {
+          // 检查是否已被取消
+          if (signal?.aborted) {
+            return {
+              success: false,
+              message: this.t('messages.operation.cancelled'),
+            };
+          }
           // Chip Erase sequence
           await gbc_write(this.device, new Uint8Array([0xaa]), 0xaaa);
           await gbc_write(this.device, new Uint8Array([0x55]), 0x555);
@@ -97,6 +103,12 @@ export class MBC5Adapter extends CartridgeAdapter {
           let temp;
           do {
             await new Promise(resolve => setTimeout(resolve, 1000));
+            if (signal?.aborted) {
+              return {
+                success: false,
+                message: this.t('messages.operation.cancelled'),
+              };
+            }
             temp = await gbc_read(this.device, 1, 0);
             this.log(`...... ${temp[0].toString(16).padStart(2, '0').toUpperCase()}`);
           } while (temp[0] !== 0xff);
@@ -136,7 +148,7 @@ export class MBC5Adapter extends CartridgeAdapter {
     // ROM addr [22]
     await gbc_write(this.device, new Uint8Array([b1]), 0x3000);
 
-    this.log(this.t('messages.rom.bankSwitch', { bank }));
+    // this.log(this.t('messages.rom.bankSwitch', { bank }));
   }
 
   // RAM Bank 切换
@@ -151,7 +163,7 @@ export class MBC5Adapter extends CartridgeAdapter {
   }
 
   // 获取卡带信息 - 通过CFI查询
-  async getCartInfo() : Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number, cfiInfo?: CFIInfo }> {
+  async getCartInfo(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number, cfiInfo?: CFIInfo }> {
     try {
       // CFI Query
       await gbc_write(this.device, new Uint8Array([0x98]), 0xaa);
@@ -167,13 +179,14 @@ export class MBC5Adapter extends CartridgeAdapter {
       const cfiInfo = cfiParser.parse(cfiData);
 
       if (!cfiInfo) {
-        // 如果CFI解析失败，回退到原始实现
+        // 如果CFI解析失败
         this.log(this.t('messages.operation.cfiParseFailed'));
         return {
           deviceSize: -1,
           sectorCount: -1,
           sectorSize: -1,
           bufferWriteBytes: -1,
+          cfiInfo: undefined,
         };
       }
 
@@ -217,72 +230,117 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @returns - 包含成功状态和消息的对象
    */
   async eraseSectors(startAddress: number, endAddress: number, sectorSize: number, signal?: AbortSignal) : Promise<CommandResult> {
-    const sectorMask = sectorSize - 1;
-    endAddress &= ~sectorMask;
+    return PerformanceTracker.trackAsyncOperation(
+      'mbc5.eraseSectors',
+      async () => {
+        try {
+          // 确保扇区对齐
+          const sectorMask = sectorSize - 1;
+          const alignedEndAddress = endAddress & ~sectorMask;
 
-    this.log(this.t('messages.operation.eraseSector', {
-      from: startAddress.toString(16).toUpperCase().padStart(8, '0'),
-      to: endAddress.toString(16).toUpperCase().padStart(8, '0'),
-    }));
+          let eraseCount = 0;
+          const totalSectors = Math.floor((alignedEndAddress - startAddress) / sectorSize) + 1;
+          const totalBytes = endAddress - startAddress;
+          const startTime = Date.now();
 
-    try {
-      const totalSectors = Math.floor((endAddress - startAddress) / sectorSize) + 1;
-      let erasedSectors = 0;
-      const startTime = Date.now();
+          // 使用速度计算器
+          const speedCalculator = new SpeedCalculator();
 
-      for (let sa = endAddress; sa >= startAddress; sa -= sectorSize) {
-        this.log(`    0x${sa.toString(16).toUpperCase().padStart(8, '0')}`);
+          // 从高地址向低地址擦除
+          for (let addr = alignedEndAddress; addr >= startAddress; addr -= sectorSize) {
+            // 检查是否已被取消
+            if (signal?.aborted) {
+              this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
+              return {
+                success: false,
+                message: this.t('messages.operation.cancelled'),
+              };
+            }
 
-        const bank = sa >> 14;
-        await this.switchROMBank(bank);
+            this.log(this.t('messages.operation.eraseSector', {
+              from: addr.toString(16).toUpperCase().padStart(8, '0'),
+              to: (addr + sectorSize - 1).toString(16).toUpperCase().padStart(8, '0'),
+            }));
 
-        let sectorAddr;
-        if (bank === 0) {
-          sectorAddr = 0x0000 + (sa & 0x3fff);
-        } else {
-          sectorAddr = 0x4000 + (sa & 0x3fff);
+            const sectorStartTime = Date.now();
+            await gbc_rom_erase_sector(this.device, addr);
+            const sectorEndTime = Date.now();
+
+            eraseCount++;
+            const erasedBytes = eraseCount * sectorSize;
+
+            // 添加数据点到速度计算器
+            speedCalculator.addDataPoint(sectorSize, sectorEndTime);
+
+            // 计算当前速度
+            const currentSpeed = speedCalculator.calculateCurrentSpeed();
+
+            this.updateProgress(this.createProgressInfo(
+              (eraseCount / totalSectors) * 100,
+              this.t('messages.progress.eraseSpeed', { speed: currentSpeed.toFixed(1) }),
+              totalBytes,
+              erasedBytes,
+              startTime,
+              currentSpeed,
+              true, // 允许取消
+            ));
+          }
+
+          const totalTime = (Date.now() - startTime) / 1000;
+          const avgSpeed = SpeedCalculator.calculateAverageSpeed(totalBytes, totalTime);
+          const maxSpeed = speedCalculator.getMaxSpeed();
+
+          this.log(this.t('messages.operation.eraseSuccess'));
+          this.log(this.t('messages.operation.eraseSummary', {
+            totalTime: totalTime.toFixed(1),
+            avgSpeed: avgSpeed.toFixed(1),
+            maxSpeed: maxSpeed.toFixed(1),
+            totalSectors: totalSectors,
+          }));
+
+          // 报告完成状态
+          this.updateProgress(this.createProgressInfo(
+            100,
+            this.t('messages.operation.eraseSuccess'),
+            totalBytes,
+            totalBytes,
+            startTime,
+            avgSpeed,
+            false, // 完成后禁用取消
+            'completed',
+          ));
+
+          return {
+            success: true,
+            message: this.t('messages.operation.eraseSuccess'),
+          };
+        } catch (e) {
+          if (signal?.aborted) {
+            this.log(this.t('messages.operation.cancelled'));
+            return {
+              success: false,
+              message: this.t('messages.operation.cancelled'),
+            };
+          }
+
+          this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.eraseSectorFailed')));
+          this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          return {
+            success: false,
+            message: this.t('messages.operation.eraseSectorFailed'),
+          };
         }
-
-        // Sector Erase sequence
-        await gbc_write(this.device, new Uint8Array([0xaa]), 0xaaa);
-        await gbc_write(this.device, new Uint8Array([0x55]), 0x555);
-        await gbc_write(this.device, new Uint8Array([0x80]), 0xaaa);
-        await gbc_write(this.device, new Uint8Array([0xaa]), 0xaaa);
-        await gbc_write(this.device, new Uint8Array([0x55]), 0x555);
-        await gbc_write(this.device, new Uint8Array([0x30]), sectorAddr); // Sector Erase
-
-        const elapsed = (Date.now() - startTime) / 1000;
-        const speed = elapsed > 0 ? ((erasedSectors + 1) / elapsed).toFixed(1) : '0';
-        this.updateProgress(this.createProgressInfo(
-          (erasedSectors + 1) / totalSectors * 100,
-          this.t('messages.progress.eraseSpeed', { speed: speed }),
-          totalSectors * sectorSize,
-          (erasedSectors + 1) * sectorSize,
-          startTime,
-          parseFloat(speed),
-        ));
-
-        // Wait for completion
-        let temp;
-        do {
-          await new Promise(resolve => setTimeout(resolve, 20));
-          temp = await gbc_read(this.device, 1, sectorAddr);
-        } while (temp[0] !== 0xff);
-
-        erasedSectors++;
-      }
-
-      return {
-        success: true,
-        message: this.t('messages.operation.eraseSuccess'),
-      };
-    } catch (e) {
-      this.log(this.t('messages.operation.eraseFailed'));
-      return {
-        success: false,
-        message: `${this.t('messages.operation.eraseFailed')}: ${e instanceof Error ? e.message : String(e)}`,
-      };
-    }
+      },
+      {
+        adapter_type: 'mbc5',
+        operation_type: 'erase_sectors',
+      },
+      {
+        startAddress,
+        endAddress,
+        sectorSize,
+      },
+    );
   }
 
   /**
@@ -290,97 +348,132 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param fileData - 文件数据
    * @param options - 写入选项
    * @param signal - 取消信号，用于中止操作
-   * @returns - 包含成功状态和消息的对象
+   * @returns - 操作结果
    */
-  async writeROM(fileData: Uint8Array, options: CommandOptions = {}, signal: AbortSignal) : Promise<CommandResult> {
+  async writeROM(fileData: Uint8Array, options: CommandOptions = {}, signal?: AbortSignal) : Promise<CommandResult> {
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.writeROM',
       async () => {
-        const baseAddress = options.baseAddress || 0;
-        // const romSize = options.romSize || null;
-
-        const isBlank = await this.isBlank(baseAddress);
-        if (!isBlank) {
-          this.log(this.t('messages.rom.eraseBeforeWrite'));
-          const sizeInfo = await this.getCartInfo();
-          await this.eraseSectors(0, fileData.length - sizeInfo.sectorSize, sizeInfo.sectorSize, signal);
-        }
-
+        const startTime = Date.now();
         try {
-          const { sectorSize, bufferWriteBytes } = await this.getCartInfo();
+          this.log(this.t('messages.rom.writing', { size: fileData.length }));
 
-          this.log(`Sector Size: ${sectorSize}`);
-          this.log(`Buffer Write Bytes: ${bufferWriteBytes}`);
-          this.log(this.t('messages.rom.writing', fileData.length));
+          const baseAddr = options.baseAddress ?? 0x00;
+          const pageSize = AdvancedSettings.romPageSize;
+          const bufferSize = options.bufferSize ?? 0x200;
 
-          const startTime = Date.now();
-          let currentBank = -123;
-          let writtenCount = 0;
-          let maxSpeed = 0;
+          const total = fileData.length;
+          let written = 0;
 
-          while (writtenCount < fileData.length) {
-            // 分包处理
-            let chunkSize = fileData.length - writtenCount;
-            chunkSize = Math.min(chunkSize, 4096);
+          const blank = await this.isBlank(baseAddr, 0x100);
+          if (!blank) {
+            const romInfo = await this.getCartInfo();
+            const startAddress = 0x00;
+            const endAddress = romInfo.sectorCount * romInfo.sectorSize;
+            await this.eraseSectors(startAddress, endAddress, romInfo.sectorSize, signal);
+          }
 
-            const chunk = fileData.slice(writtenCount, writtenCount + chunkSize);
-            const romAddress = baseAddress + writtenCount;
+          // 使用速度计算器
+          const speedCalculator = new SpeedCalculator();
+
+          // 分块写入并更新进度
+          let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
+          let chunkCount = 0; // 记录已处理的块数
+          let currentBank = -1; // 当前ROM Bank
+          for (let addr = baseAddr; addr < total; addr += pageSize) {
+            // 检查是否已被取消
+            if (signal?.aborted) {
+              this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
+              return {
+                success: false,
+                message: this.t('messages.operation.cancelled'),
+              };
+            }
+
+            const chunk = fileData.slice(addr, Math.min(addr + pageSize, total));
+            const chunkStartTime = Date.now();
 
             // 计算bank和地址
-            const bank = romAddress >> 14;
+            const bank = addr >> 14;
             if (bank !== currentBank) {
               currentBank = bank;
               await this.switchROMBank(bank);
             }
 
             const cartAddress = bank === 0 ?
-              0x0000 + (romAddress & 0x3fff) :
-              0x4000 + (romAddress & 0x3fff);
+              0x0000 + (addr & 0x3fff) :
+              0x4000 + (addr & 0x3fff);
 
             // 写入数据
             await gbc_rom_program(this.device, chunk, cartAddress);
+            const chunkEndTime = Date.now();
 
-            writtenCount += chunkSize;
-            const elapsed = (Date.now() - startTime) / 1000;
-            const currentSpeed = elapsed > 0 ? (writtenCount / 1024) / elapsed : 0;
-            maxSpeed = Math.max(maxSpeed, currentSpeed);
+            written += chunk.length;
+            chunkCount++;
 
-            const progress = (writtenCount / fileData.length) * 100;
+            // 添加数据点到速度计算器
+            speedCalculator.addDataPoint(chunk.length, chunkEndTime);
 
-            this.updateProgress(this.createProgressInfo(
-              progress,
-              this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }),
-              fileData.length,
-              writtenCount,
-              startTime,
-              currentSpeed,
-            ));
+            // 每10次操作或最后一次更新进度
+            if (chunkCount % 10 === 0 || written >= total) {
+              const progress = (written / total) * 100;
+
+              // 计算当前速度
+              const currentSpeed = speedCalculator.calculateCurrentSpeed();
+
+              this.updateProgress(this.createProgressInfo(
+                progress,
+                this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }),
+                total,
+                written,
+                startTime,
+                currentSpeed,
+                true, // 允许取消
+              ));
+            }
+
+            // 每5个百分比记录一次日志
+            const progress = Math.floor((written / total) * 100);
+            if (progress % 5 === 0 && progress !== lastLoggedProgress) {
+              this.log(this.t('messages.rom.writingAt', { address: addr.toString(16).padStart(6, '0'), progress }));
+              lastLoggedProgress = progress;
+            }
           }
 
           const totalTime = (Date.now() - startTime) / 1000;
-          const avgSpeed = totalTime > 0 ? (fileData.length / 1024) / totalTime : 0;
+          const avgSpeed = SpeedCalculator.calculateAverageSpeed(total, totalTime);
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
-          // Log comprehensive summary
+          this.log(this.t('messages.rom.writeComplete'));
           this.log(this.t('messages.rom.writeSummary', {
-            totalTime: totalTime.toFixed(2),
+            totalTime: totalTime.toFixed(1),
             avgSpeed: avgSpeed.toFixed(1),
             maxSpeed: maxSpeed.toFixed(1),
-            totalSize: fileData.length,
+            totalSize: (total / 1024).toFixed(1),
           }));
 
-          const message = this.t('messages.rom.writeComplete', { time: totalTime.toFixed(3) });
-          this.log(message);
+          // 报告完成状态
+          this.updateProgress(this.createProgressInfo(
+            100,
+            this.t('messages.rom.writeComplete'),
+            total,
+            total,
+            startTime,
+            avgSpeed,
+            false, // 完成后禁用取消
+            'completed',
+          ));
 
           return {
             success: true,
-            message: message,
+            message: this.t('messages.rom.writeSuccess'),
           };
         } catch (e) {
-          const message = `${this.t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`;
-          this.log(message);
+          this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.writeFailed')));
+          this.log(`${this.t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`);
           return {
             success: false,
-            message: message,
+            message: this.t('messages.rom.writeFailed'),
           };
         }
       },
@@ -390,7 +483,9 @@ export class MBC5Adapter extends CartridgeAdapter {
       },
       {
         fileSize: fileData.length,
-        devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
+        baseAddress: options.baseAddress || 0,
+        bufferSize: options.bufferSize || 512,
+        pageSize: AdvancedSettings.romPageSize,
       },
     );
   }
@@ -406,9 +501,11 @@ export class MBC5Adapter extends CartridgeAdapter {
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.readROM',
       async () => {
+        const startTime = Date.now();
         try {
           // 检查是否已被取消
           if (signal?.aborted) {
+            this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
             return {
               success: false,
               message: this.t('messages.operation.cancelled'),
@@ -416,92 +513,114 @@ export class MBC5Adapter extends CartridgeAdapter {
           }
 
           this.log(this.t('messages.rom.reading'));
+          const pageSize = AdvancedSettings.romPageSize;
+          let totalRead = 0;
 
-          const result = new Uint8Array(size);
-          const startTime = Date.now();
-          let currentBank = -123;
-          let readCount = 0;
-          let maxSpeed = 0;
+          const data = new Uint8Array(size);
 
-          while (readCount < size) {
+          // 使用速度计算器
+          const speedCalculator = new SpeedCalculator();
+
+          // 分块读取以便计算速度统计
+          let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
+          let chunkCount = 0; // 记录已处理的块数
+          let currentBank = -1;
+
+          for (let addr = 0; addr < size; addr += pageSize) {
             // 检查是否已被取消
             if (signal?.aborted) {
-              this.log(this.t('messages.operation.cancelled'));
+              this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
               return {
                 success: false,
                 message: this.t('messages.operation.cancelled'),
               };
             }
 
-            // 分包处理
-            let chunkSize = size - readCount;
-            chunkSize = Math.min(chunkSize, 4096);
-
-            const romAddress = baseAddress + readCount;
+            const chunkSize = Math.min(pageSize, size - addr);
+            const chunkStartTime = Date.now();
 
             // 计算bank和地址
-            const bank = romAddress >> 14;
+            const bank = addr >> 14;
             if (bank !== currentBank) {
               currentBank = bank;
               await this.switchROMBank(bank);
             }
 
             const cartAddress = bank === 0 ?
-              0x0000 + (romAddress & 0x3fff) :
-              0x4000 + (romAddress & 0x3fff);
+              0x0000 + (addr & 0x3fff) :
+              0x4000 + (addr & 0x3fff);
 
             // 读取数据
             const chunk = await gbc_read(this.device, chunkSize, cartAddress);
-            result.set(chunk, readCount);
+            const chunkEndTime = Date.now();
+            data.set(chunk, addr);
 
-            readCount += chunkSize;
-            const elapsed = (Date.now() - startTime) / 1000;
-            const currentSpeed = elapsed > 0 ? (readCount / 1024) / elapsed : 0;
-            maxSpeed = Math.max(maxSpeed, currentSpeed);
-            this.updateProgress(this.createProgressInfo(
-              readCount / size * 100,
-              this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }),
-              size,
-              readCount,
-              startTime,
-              currentSpeed,
-              true, // 允许取消
-            ));
+            totalRead += chunkSize;
+            chunkCount++;
+
+            // 添加数据点到速度计算器
+            speedCalculator.addDataPoint(chunkSize, chunkEndTime);
+
+            // 每10次操作或最后一次更新进度
+            if (chunkCount % 10 === 0 || totalRead >= size) {
+              const progress = (totalRead / size) * 100;
+
+              // 计算当前速度
+              const currentSpeed = speedCalculator.calculateCurrentSpeed();
+
+              this.updateProgress(this.createProgressInfo(
+                progress,
+                this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }),
+                size,
+                totalRead,
+                startTime,
+                currentSpeed,
+                true, // 允许取消
+              ));
+            }
+
+            // 每5个百分比记录一次日志
+            const progress = Math.floor((totalRead / size) * 100);
+            if (progress % 5 === 0 && progress !== lastLoggedProgress) {
+              this.log(this.t('messages.rom.readingAt', { address: (baseAddress + addr).toString(16).padStart(6, '0'), progress }));
+              lastLoggedProgress = progress;
+            }
           }
 
           const totalTime = (Date.now() - startTime) / 1000;
-          const avgSpeed = totalTime > 0 ? (size / 1024) / totalTime : 0;
+          const avgSpeed = SpeedCalculator.calculateAverageSpeed(size, totalTime);
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
-          // Log comprehensive summary
+          this.log(this.t('messages.rom.readSuccess', { size: data.length }));
           this.log(this.t('messages.rom.readSummary', {
-            totalTime: totalTime.toFixed(2),
+            totalTime: totalTime.toFixed(1),
             avgSpeed: avgSpeed.toFixed(1),
             maxSpeed: maxSpeed.toFixed(1),
-            totalSize: size,
+            totalSize: (size / 1024).toFixed(1),
           }));
 
-          const message = this.t('messages.rom.readSuccess', { time: totalTime.toFixed(3) });
-          this.log(message);
+          this.updateProgress(this.createProgressInfo(
+            100,
+            this.t('messages.rom.readSuccess', { size: data.length }),
+            size,
+            size,
+            startTime,
+            avgSpeed,
+            false,
+            'completed',
+          ));
 
           return {
             success: true,
-            data: result,
-            message: message,
+            data: data,
+            message: this.t('messages.rom.readSuccess', { size: data.length }),
           };
         } catch (e) {
-          if (signal?.aborted) {
-            this.log(this.t('messages.operation.cancelled'));
-            return {
-              success: false,
-              message: this.t('messages.operation.cancelled'),
-            };
-          }
-
-          const message = `${this.t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`;
-          this.log(message);
+          this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.readFailed')));
+          this.log(`${this.t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`);
           return {
             success: false,
-            message: message,
+            message: this.t('messages.rom.readFailed'),
           };
         }
       },
@@ -512,7 +631,6 @@ export class MBC5Adapter extends CartridgeAdapter {
       {
         dataSize: size,
         baseAddress,
-        devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
       },
     );
   }
