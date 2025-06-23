@@ -33,10 +33,10 @@ export class GBAAdapter extends CartridgeAdapter {
   constructor(
     device: DeviceInfo,
     logCallback: LogCallback | null = null,
-    enhancedProgressCallback: ProgressCallback | null = null,
+    progressCallback: ProgressCallback | null = null,
     translateFunc: TranslateFunction | null = null,
   ) {
-    super(device, logCallback, enhancedProgressCallback, translateFunc);
+    super(device, logCallback, progressCallback, translateFunc);
   }
 
   /**
@@ -289,7 +289,7 @@ export class GBAAdapter extends CartridgeAdapter {
     return PerformanceTracker.trackAsyncOperation(
       'gba.writeROM',
       async () => {
-        const startTime = Date.now(); // 移到 try 块外面以便在 catch 块中使用
+        const startTime = Date.now();
         try {
           this.log(this.t('messages.rom.writing', { size: fileData.length }));
 
@@ -496,7 +496,7 @@ export class GBAAdapter extends CartridgeAdapter {
     return PerformanceTracker.trackAsyncOperation(
       'gba.readROM',
       async () => {
-        const startTime = Date.now(); // 移到 try 块外面以便在 catch 块中使用
+        const startTime = Date.now();
         try {
           // 检查是否已被取消
           if (signal?.aborted) {
@@ -1131,6 +1131,7 @@ export class GBAAdapter extends CartridgeAdapter {
   // 检查区域是否为空
   async isBlank(address: number, size = 0x100) : Promise<boolean> {
     this.log(this.t('messages.rom.checkingIfBlank'));
+
     const data = await rom_read(this.device, size, address);
     const blank = data.every(byte => byte === 0xff);
 

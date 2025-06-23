@@ -11,6 +11,9 @@
             class="size-dropdown"
             @change="onRomSizeChange"
           >
+            <option value="0x40000">
+              256KB
+            </option>
             <option value="0x80000">
               512KB
             </option>
@@ -215,6 +218,7 @@ watch(() => props.romFileData, (newData) => {
       const romSize = romInfo.value.romSize;
       // 预定义的ROM大小选项
       const sizeOptions = [
+        { value: '0x40000', size: 0x40000 }, // 256KB
         { value: '0x80000', size: 0x80000 }, // 512KB
         { value: '0x100000', size: 0x100000 }, // 1MB
         { value: '0x200000', size: 0x200000 }, // 2MB
@@ -225,6 +229,7 @@ watch(() => props.romFileData, (newData) => {
       ];
 
       // 找到最接近且不小于ROM大小的选项
+      console.log(romSize);
       const matchedOption = sizeOptions.find(option => option.size >= romSize) || sizeOptions[sizeOptions.length - 1];
 
       selectedRomSize.value = matchedOption.value;
