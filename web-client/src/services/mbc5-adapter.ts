@@ -311,7 +311,8 @@ export class MBC5Adapter extends CartridgeAdapter {
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
           let chunkCount = 0; // 记录已处理的块数
           let currentBank = -1; // 当前ROM Bank
-          for (let currentAddress = baseAddress; currentAddress < baseAddress + total; currentAddress += pageSize) {
+
+          while (written < total) {
             // 检查是否已被取消
             if (signal?.aborted) {
               this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
@@ -321,7 +322,9 @@ export class MBC5Adapter extends CartridgeAdapter {
               };
             }
 
-            const chunk = fileData.slice(currentAddress, Math.min(currentAddress + pageSize, total));
+            const sentLen = Math.min(pageSize, total - written);
+            const chunk = fileData.slice(written, written + sentLen);
+            const currentAddress = baseAddress + written;
 
             // 计算bank和地址
             const bank = currentAddress >> 14;
@@ -334,11 +337,11 @@ export class MBC5Adapter extends CartridgeAdapter {
               0x0000 + (currentAddress & 0x3fff) :
               0x4000 + (currentAddress & 0x3fff);
 
-            // 写入数据
-            await gbc_rom_program(this.device, chunk, cartAddress);
+            // 写入数据，传递bufferSize参数
+            await gbc_rom_program(this.device, chunk, cartAddress, bufferSize);
             const chunkEndTime = Date.now();
 
-            written += chunk.length;
+            written += sentLen;
             chunkCount++;
 
             // 添加数据点到速度计算器
