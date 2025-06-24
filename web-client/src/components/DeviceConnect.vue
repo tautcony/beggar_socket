@@ -66,7 +66,7 @@ if (import.meta.hot) {
     writer: WritableStreamDefaultWriter<Uint8Array> | null;
   } };
   // 保存当前状态到 HMR 数据
-  data.deviceConnection = data?.deviceConnection || {
+  data.deviceConnection = data?.deviceConnection ?? {
     connected: false,
     port: null,
     reader: null,
@@ -175,8 +175,8 @@ async function connect() {
     await new Promise(resolve => setTimeout(resolve, 100));
     await port.setSignals({ dataTerminalReady: false, requestToSend: false });
 
-    reader = port.readable?.getReader({ mode: 'byob' }) || null;
-    writer = port.writable?.getWriter() || null;
+    reader = port.readable?.getReader({ mode: 'byob' }) ?? null;
+    writer = port.writable?.getWriter() ?? null;
     if (!reader || !writer) throw new Error('Failed to get serial port reader/writer');
     connected.value = true;
     isConnecting.value = false;
@@ -203,7 +203,7 @@ async function disconnect() {
     showToast(t('messages.device.disconnectionSuccess'), 'success');
   } catch (e) {
     console.error(t('messages.device.disconnectionFailed'), e);
-    showToast(`${t('messages.device.disconnectionFailed')}`, 'error');
+    showToast(t('messages.device.disconnectionFailed'), 'error');
   } finally {
     port = null;
     reader = null;

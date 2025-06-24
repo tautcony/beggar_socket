@@ -109,7 +109,7 @@ const errorMessage = ref('');
 const crashCount = ref(0);
 const isInitializing = ref(false);
 
-const keyBindings: { [key: string]: number } = {
+const keyBindings: Record<string, number> = {
   'KeyW': 6, // UP
   'KeyS': 7, // DOWN
   'KeyA': 5, // LEFT

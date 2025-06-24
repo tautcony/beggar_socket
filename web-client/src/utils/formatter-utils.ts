@@ -49,7 +49,7 @@ export function formatSpeed(speed: number): string {
  * formatTime(0, 's', true) // "00:00.0"
  * @returns - 格式化后的字符串
  */
-export function formatTime(value: number, unit: 's' | 'ms' = 's', showMilliseconds: boolean = false): string {
+export function formatTime(value: number, unit: 's' | 'ms' = 's', showMilliseconds = false): string {
   let totalMs: number;
 
   // 转换为毫秒

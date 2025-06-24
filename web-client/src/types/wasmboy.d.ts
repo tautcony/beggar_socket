@@ -112,7 +112,7 @@ declare module 'wasmboy' {
   export interface WasmBoyPlugin {
     name: string;
     graphics?: (rgbaArray: Uint8ClampedArray) => void;
-    audio?: (audioContext: AudioContext, headAudioNode: AudioNode, channelId: number) => AudioNode | void;
+    audio?: (audioContext: AudioContext, headAudioNode: AudioNode, channelId: number) => AudioNode | undefined;
     saveState?: (saveStateObject: Record<string, unknown>) => void;
     canvas?: (canvasElement: HTMLCanvasElement, canvasContext: CanvasRenderingContext2D, canvasImageData: ImageData) => void;
     breakpoint?: () => void;

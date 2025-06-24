@@ -27,17 +27,12 @@
             class="size-dropdown"
             @change="onRamSizeChange"
           >
-            <option value="0x2000">
-              8KB
-            </option>
-            <option value="0x8000">
-              32KB
-            </option>
-            <option value="0x10000">
-              64KB
-            </option>
-            <option value="0x20000">
-              128KB
+            <option
+              v-for="option in RAM_SIZE_RANGE"
+              :key="option.value"
+              :value="option.value"
+            >
+              {{ option.text }}
             </option>
           </select>
         </div>
@@ -122,6 +117,13 @@ const props = defineProps({
   },
 });
 
+const RAM_SIZE_RANGE = [
+  { value: '0x2000', size: 0x2000, text: '8KB' }, // 8KB
+  { value: '0x8000', size: 0x8000, text: '32KB' }, // 32KB
+  { value: '0x10000', size: 0x10000, text: '64KB' }, // 64KB
+  { value: '0x20000', size: 0x20000, text: '128KB' }, // 128KB
+];
+
 const emit = defineEmits(['file-selected', 'file-cleared', 'write-ram', 'read-ram', 'verify-ram', 'ram-size-change', 'ram-type-change']);
 
 const selectedRamSize = ref(props.selectedRamSize);
@@ -131,16 +133,9 @@ const selectedRamType = ref(props.selectedRamType);
 watch(() => props.ramFileData, (newData) => {
   if (newData && newData.length > 0) {
     const ramSize = newData.length;
-    // 预定义的RAM大小选项
-    const sizeOptions = [
-      { value: '0x2000', size: 0x2000 }, // 8KB
-      { value: '0x8000', size: 0x8000 }, // 32KB
-      { value: '0x10000', size: 0x10000 }, // 64KB
-      { value: '0x20000', size: 0x20000 }, // 128KB
-    ];
 
     // 找到最接近且不小于RAM大小的选项
-    const matchedOption = sizeOptions.find(option => option.size >= ramSize) || sizeOptions[sizeOptions.length - 1];
+    const matchedOption = RAM_SIZE_RANGE.find(option => option.size >= ramSize) ?? RAM_SIZE_RANGE[RAM_SIZE_RANGE.length - 1];
 
     selectedRamSize.value = matchedOption.value;
     // 发射事件通知父组件RAM大小已更改

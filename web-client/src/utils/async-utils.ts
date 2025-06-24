@@ -1,7 +1,7 @@
 
 export function timeoutIn(ms: number, message: string): Promise<never> {
   return new Promise((_, reject) => {
-    setTimeout(() => reject(new Error(message)), ms);
+    setTimeout(() => { reject(new Error(message)); }, ms);
   });
 }
 

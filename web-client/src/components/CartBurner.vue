@@ -174,7 +174,7 @@ watch(() => props.deviceReady, (newVal) => {
       // 调试模式下使用 MockAdapter
       const adapter = new MockAdapter(
         undefined,
-        (msg) => log(msg),
+        (msg) => { log(msg); },
         updateProgress,
         t,
       );
@@ -184,13 +184,13 @@ watch(() => props.deviceReady, (newVal) => {
       // 正常模式下使用真实适配器
       gbaAdapter.value = new GBAAdapter(
         props.device,
-        (msg) => log(msg),
+        (msg) => { log(msg); },
         updateProgress,
         t,
       );
       mbc5Adapter.value = new MBC5Adapter(
         props.device,
-        (msg) => log(msg),
+        (msg) => { log(msg); },
         updateProgress,
         t,
       );
@@ -351,7 +351,7 @@ async function readID() {
 
     const response = await adapter.readID();
     if (response.success) {
-      idStr.value = response.idStr || '';
+      idStr.value = response.idStr ?? '';
       showToast(response.message, 'success');
       try {
         const sizeInfo = await adapter.getCartInfo();

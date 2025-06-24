@@ -34,7 +34,7 @@ export class PayloadBuilder {
    * 添加单个字节
    * @param value - 字节值
    */
-  addByte(value: number): PayloadBuilder {
+  addByte(value: number): this {
     this.ensureCapacity(1);
     this.buffer[this.offset] = value & 0xFF;
     this.offset += 1;
@@ -46,7 +46,7 @@ export class PayloadBuilder {
    * @param value - 整数值
    * @param byteLength - 字节长度
    */
-  addLittleEndian(value: number, byteLength: number): PayloadBuilder {
+  addLittleEndian(value: number, byteLength: number): this {
     this.ensureCapacity(byteLength);
 
     // 直接写入缓冲区，避免调用 toLittleEndian 创建临时数组
@@ -61,7 +61,7 @@ export class PayloadBuilder {
    * 添加字节数组
    * @param data - 字节数组
    */
-  addBytes(data: Uint8Array): PayloadBuilder {
+  addBytes(data: Uint8Array): this {
     this.ensureCapacity(data.length);
     this.buffer.set(data, this.offset);
     this.offset += data.length;
@@ -74,7 +74,7 @@ export class PayloadBuilder {
    * @param withCrc - 是否添加 CRC16 校验
    * @returns 完整的数据包
    */
-  build(withCrc: boolean = false): Uint8Array {
+  build(withCrc = false): Uint8Array {
     const payloadSize = this.offset; // 实际payload大小
     const totalSize = 2 + payloadSize;
 
@@ -96,7 +96,7 @@ export class PayloadBuilder {
   /**
    * 重置构建器
    */
-  reset(): PayloadBuilder {
+  reset(): this {
     this.offset = 2; // 重置到预留位置
     return this;
   }
@@ -105,7 +105,7 @@ export class PayloadBuilder {
    * 添加地址字段（4字节小端序）
    * @param address - 地址值
    */
-  addAddress(address: number): PayloadBuilder {
+  addAddress(address: number): this {
     return this.addLittleEndian(address, 4);
   }
 
@@ -113,7 +113,7 @@ export class PayloadBuilder {
    * 添加长度字段（2字节小端序）
    * @param length - 长度值
    */
-  addLength(length: number): PayloadBuilder {
+  addLength(length: number): this {
     return this.addLittleEndian(length, 2);
   }
 
@@ -121,7 +121,7 @@ export class PayloadBuilder {
    * 添加命令字节
    * @param command - 命令值
    */
-  addCommand(command: number): PayloadBuilder {
+  addCommand(command: number): this {
     return this.addByte(command);
   }
 

@@ -6,7 +6,7 @@ export default class NotImplementedError extends Error {
     const sender = (new Error())
       .stack
       ?.split('\n')[2]
-      ?.replace(' at ', '') || 'unknown method';
+      ?.replace(' at ', '') ?? 'unknown_method';
 
     let errorMessage = `The method ${sender} isn't implemented.`;
 
@@ -16,7 +16,7 @@ export default class NotImplementedError extends Error {
     }
 
     // Clean up multiple spaces
-    while (errorMessage.indexOf('  ') > -1) {
+    while (errorMessage.includes('  ')) {
       errorMessage = errorMessage.replace('  ', ' ');
     }
 

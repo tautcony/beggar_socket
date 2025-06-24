@@ -142,11 +142,11 @@ const transferredBytes = computed(() => {
   if (props.totalBytes && props.progress) {
     return Math.floor((props.totalBytes * props.progress) / 100);
   }
-  return props.transferredBytes || 0;
+  return props.transferredBytes ?? 0;
 });
 
 const remainingBytes = computed(() => {
-  const total = props.totalBytes || 0;
+  const total = props.totalBytes ?? 0;
   const transferred = transferredBytes.value;
   return Math.max(0, total - transferred);
 });
@@ -156,7 +156,7 @@ const elapsedTime = computed(() => {
   return now.value - props.startTime;
 });
 
-const currentSpeed = computed(() => props.currentSpeed || 0);
+const currentSpeed = computed(() => props.currentSpeed ?? 0);
 
 const remainingTime = computed(() => {
   if (!currentSpeed.value || currentSpeed.value <= 0) return 0;
@@ -164,10 +164,10 @@ const remainingTime = computed(() => {
   return remainingKB / currentSpeed.value;
 });
 
-const totalBytes = computed(() => props.totalBytes || 0);
+const totalBytes = computed(() => props.totalBytes ?? 0);
 
 function handleStop() {
-  if (props.allowCancel !== false) {
+  if (props.allowCancel) {
     emit('stop');
     isCancelled.value = true;
   }
@@ -185,7 +185,7 @@ function handleKeydown(event: KeyboardEvent) {
       // 操作完成时允许ESC关闭
       visible.value = false;
       emit('close');
-    } else if (props.allowCancel !== false) {
+    } else if (props.allowCancel) {
       // 操作进行中时ESC触发停止
       handleStop();
     }

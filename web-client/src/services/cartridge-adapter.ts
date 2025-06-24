@@ -37,10 +37,10 @@ export class CartridgeAdapter {
     translateFunc: TranslateFunction | null = null,
   ) {
     this.device = device;
-    this.log = logCallback || (() => {});
-    this.updateProgress = progressCallback || (() => {});
+    this.log = logCallback ?? (() => { });
+    this.updateProgress = progressCallback ?? (() => { });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.t = translateFunc || ((key: string, params?: any) => key);
+    this.t = translateFunc ?? ((key: string, params?: any) => key);
   }
 
   /**
@@ -159,7 +159,7 @@ export class CartridgeAdapter {
     transferredBytes?: number,
     startTime?: number,
     currentSpeed?: number,
-    allowCancel: boolean = true,
+    allowCancel = true,
     state: 'idle' | 'running' | 'paused' | 'completed' | 'error' = 'running',
   ): ProgressInfo {
     return {

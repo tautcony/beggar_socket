@@ -74,7 +74,7 @@ export class MBC5Adapter extends CartridgeAdapter {
         operation_type: 'read_id',
       },
       {
-        devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
+        devicePortLabel: this.device.port?.getInfo?.()?.usbProductId ?? 'unknown',
       },
     );
   }
@@ -283,6 +283,9 @@ export class MBC5Adapter extends CartridgeAdapter {
    */
   async writeROM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
+    const pageSize = AdvancedSettings.romPageSize;
+    const bufferSize = AdvancedSettings.romBufferSize;
+
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.writeROM',
       async () => {
@@ -290,7 +293,6 @@ export class MBC5Adapter extends CartridgeAdapter {
         try {
           this.log(this.t('messages.rom.writing', { size: fileData.length }));
 
-          const pageSize = AdvancedSettings.romPageSize;
           const total = fileData.length;
           let written = 0;
 
@@ -411,9 +413,9 @@ export class MBC5Adapter extends CartridgeAdapter {
       },
       {
         fileSize: fileData.length,
-        baseAddress: options.baseAddress || 0,
-        bufferSize: options.bufferSize || 512,
-        pageSize: AdvancedSettings.romPageSize,
+        baseAddress,
+        pageSize,
+        bufferSize,
       },
     );
   }
@@ -739,7 +741,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @returns - 包含成功状态和消息的对象
    */
   async writeRAM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }) : Promise<CommandResult> {
-    const baseAddress = options.baseAddress || 0x00;
+    const baseAddress = options.baseAddress ?? 0x00;
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.writeRAM',
       async () => {
@@ -840,7 +842,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @returns - 操作结果，包含读取的数据
    */
   async readRAM(size: number, options: CommandOptions = { baseAddress: 0x00 }) : Promise<CommandResult> {
-    const baseAddress = options.baseAddress || 0x00;
+    const baseAddress = options.baseAddress ?? 0x00;
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.readRAM',
       async () => {
@@ -930,7 +932,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @returns - 操作结果
    */
   async verifyRAM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }) : Promise<CommandResult> {
-    const baseAddress = options.baseAddress || 0x00;
+    const baseAddress = options.baseAddress ?? 0x00;
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.verifyRAM',
       async () => {
@@ -1035,7 +1037,7 @@ export class MBC5Adapter extends CartridgeAdapter {
 
           // 从CFI信息中提取所需数据
           const deviceSize = cfiInfo.deviceSize;
-          const bufferWriteBytes = cfiInfo.bufferSize || 0;
+          const bufferWriteBytes = cfiInfo.bufferSize ?? 0;
 
           // 获取第一个擦除区域的信息作为主要扇区信息
           const sectorSize = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][0] : 0;

@@ -42,8 +42,8 @@ const CRC_TABLE = new Uint16Array(256);
  */
 export function modbusCRC16_lut(bytes: Uint8Array): number {
   let crc = 0xFFFF;
-  for (let i = 0; i < bytes.length; i++) {
-    const tableIndex = (crc ^ bytes[i]) & 0xFF;
+  for (const byte of bytes) {
+    const tableIndex = (crc ^ byte) & 0xFF;
     crc = (crc >>> 8) ^ CRC_TABLE[tableIndex];
   }
   return crc;

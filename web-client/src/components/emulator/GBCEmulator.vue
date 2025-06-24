@@ -146,7 +146,7 @@ async function initEmulator() {
           saveStateObject.screenshotCanvasDataURL = wasmBoyCanvasRef.toDataURL();
         }
       },
-      play: () => isPlaying.set(true),
+      play: () => { isPlaying.set(true); },
       pause: () => {
         isPlaying.set(false);
         setStatus('Paused', -1);
@@ -206,7 +206,7 @@ async function initEmulator() {
       await WasmBoy.play();
     } catch (playError: unknown) {
       console.error('Failed to start game:', playError);
-      showToast(`${t('ui.emulator.startGameFailed')}`, 'error');
+      showToast(t('ui.emulator.startGameFailed'), 'error');
       return;
     }
 

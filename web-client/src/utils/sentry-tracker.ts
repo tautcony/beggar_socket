@@ -85,7 +85,7 @@ export class PerformanceTracker {
    * 手动创建事务
    */
   static createTransaction(name: string, op: string, callback: (span: Sentry.Span) => void) {
-    return Sentry.startSpan({ name, op }, callback);
+    Sentry.startSpan({ name, op }, callback);
   }
 
   /**
@@ -126,16 +126,16 @@ export class PerformanceTracker {
  * 装饰器：用于自动跟踪方法性能
  */
 export function TrackPerformance(operationName?: string) {
-  return function <T extends Record<string, unknown>>(
-    target: T,
+  return function (
+    target: Record<string, unknown>,
     propertyKey: string,
     descriptor: PropertyDescriptor,
   ) {
     const originalMethod = descriptor.value as (...args: unknown[]) => unknown;
     const targetConstructor = target.constructor as { name: string };
-    const name = operationName || `${targetConstructor.name}.${propertyKey}`;
+    const name = operationName ?? `${targetConstructor.name}.${propertyKey}`;
 
-    descriptor.value = function (this: T, ...args: unknown[]) {
+    descriptor.value = function (this: Record<string, unknown>, ...args: unknown[]) {
       const methodConstructor = originalMethod.constructor as { name: string };
       if (methodConstructor.name === 'AsyncFunction') {
         return PerformanceTracker.trackAsyncOperation(

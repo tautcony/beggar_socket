@@ -78,7 +78,7 @@ export class GBAAdapter extends CartridgeAdapter {
         operation_type: 'read_id',
       },
       {
-        devicePortLabel: this.device.port?.getInfo?.()?.usbProductId || 'unknown',
+        devicePortLabel: this.device.port?.getInfo?.()?.usbProductId ?? 'unknown',
       },
     );
   }
@@ -165,7 +165,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果
    */
-  async eraseSectors(startAddress: number = 0, endAddress: number, sectorSize = 0x10000, signal?: AbortSignal) : Promise<CommandResult> {
+  async eraseSectors(startAddress = 0, endAddress: number, sectorSize = 0x10000, signal?: AbortSignal) : Promise<CommandResult> {
     return PerformanceTracker.trackAsyncOperation(
       'gba.eraseSectors',
       async () => {
@@ -823,7 +823,7 @@ export class GBAAdapter extends CartridgeAdapter {
       {
         adapter_type: 'gba',
         operation_type: 'write_ram',
-        ram_type: options.ramType || 'SRAM',
+        ram_type: options.ramType ?? 'SRAM',
       },
       {
         fileSize: fileData.length,
@@ -914,7 +914,7 @@ export class GBAAdapter extends CartridgeAdapter {
       {
         adapter_type: 'gba',
         operation_type: 'read_ram',
-        ram_type: options.ramType || 'SRAM',
+        ram_type: options.ramType ?? 'SRAM',
       },
       {
         dataSize: size,
@@ -929,18 +929,21 @@ export class GBAAdapter extends CartridgeAdapter {
    * @returns - 操作结果
    */
   async verifyRAM(fileData: Uint8Array, options: CommandOptions = { ramType: 'SRAM' }) {
+    const baseAddress = options.baseAddress ?? 0x00;
+    const pageSize = AdvancedSettings.ramPageSize;
+
     return PerformanceTracker.trackAsyncOperation(
       'gba.verifyRAM',
       async () => {
         try {
           this.log(this.t('messages.ram.verifying'));
 
+          let verified = 0;
           const total = fileData.length;
-          let currAddress = options.baseAddress || 0;
-          const pageSize = AdvancedSettings.ramPageSize;
           let success = true;
 
-          while (currAddress < total) {
+          while (verified < total) {
+            const currAddress = baseAddress + verified;
             // 切bank
             if (currAddress === 0x00000) {
               if (options.ramType === 'FLASH') {
@@ -980,7 +983,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
             if (!success) break;
 
-            currAddress += chunkSize;
+            verified += chunkSize;
           }
 
           const message = success ? this.t('messages.ram.verifySuccess') : this.t('messages.ram.verifyFailed');
@@ -1001,7 +1004,7 @@ export class GBAAdapter extends CartridgeAdapter {
       {
         adapter_type: 'gba',
         operation_type: 'verify_ram',
-        ram_type: options.ramType || 'SRAM',
+        ram_type: options.ramType ?? 'SRAM',
       },
       {
         fileSize: fileData.length,
@@ -1039,7 +1042,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
           // 从CFI信息中提取所需数据
           const deviceSize = cfiInfo.deviceSize;
-          const bufferWriteBytes = cfiInfo.bufferSize || 0;
+          const bufferWriteBytes = cfiInfo.bufferSize ?? 0;
 
           // 获取第一个擦除区域的信息作为主要扇区信息
           const sectorSize = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][0] : 0;

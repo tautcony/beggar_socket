@@ -112,7 +112,7 @@ const dragOver = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 
 function onFileChange(e: Event) {
-  if (e.target && (e.target as HTMLInputElement).files && (e.target as HTMLInputElement).files?.length) {
+  if (e.target && (e.target as HTMLInputElement).files?.length) {
     const files = (e.target as HTMLInputElement).files;
     if (!files || files.length === 0) {
       return;

@@ -13,14 +13,14 @@ interface SpeedDataPoint {
 export class SpeedCalculator {
   private speedWindow: SpeedDataPoint[] = [];
   private maxWindowSize: number;
-  private currentSpeed: number = 0;
-  private maxSpeed: number = 0;
+  private currentSpeed = 0;
+  private maxSpeed = 0;
 
   /**
    * 构造函数
    * @param windowSize - 滑动窗口大小，默认为20
    */
-  constructor(windowSize: number = 20) {
+  constructor(windowSize = 20) {
     this.maxWindowSize = windowSize;
   }
 

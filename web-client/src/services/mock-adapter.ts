@@ -28,7 +28,7 @@ export class MockAdapter extends CartridgeAdapter {
     translateFunc: TranslateFunction | null = null,
   ) {
     // 如果没有提供设备，创建模拟设备
-    const mockDeviceInfo = device || DebugSettings.createMockDeviceInfo();
+    const mockDeviceInfo = device ?? DebugSettings.createMockDeviceInfo();
     super(mockDeviceInfo, logCallback, progressCallback, translateFunc);
 
     this.log(this.t('messages.debug.mockModeEnabled'));
@@ -156,7 +156,7 @@ export class MockAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果
    */
-  async eraseSectors(startAddress: number = 0, endAddress: number, sectorSize = 0x10000, signal?: AbortSignal): Promise<CommandResult> {
+  async eraseSectors(startAddress = 0, endAddress: number, sectorSize = 0x10000, signal?: AbortSignal): Promise<CommandResult> {
     this.log(`擦除扇区 0x${startAddress.toString(16).toUpperCase().padStart(8, '0')} - 0x${endAddress.toString(16).toUpperCase().padStart(8, '0')}`);
 
     const totalSectors = Math.floor((endAddress - startAddress) / sectorSize) + 1;
@@ -513,7 +513,7 @@ export class MockAdapter extends CartridgeAdapter {
       }
 
       // 返回之前写入的数据或生成随机数据
-      const data = this.mockRomData?.slice(baseAddress, baseAddress + size) || DebugSettings.generateRandomData(size);
+      const data = this.mockRomData?.slice(baseAddress, baseAddress + size) ?? DebugSettings.generateRandomData(size);
 
       const totalTime = (Date.now() - startTime) / 1000;
       const avgSpeed = SpeedCalculator.calculateAverageSpeed(size, totalTime);
@@ -761,7 +761,7 @@ export class MockAdapter extends CartridgeAdapter {
         };
       }
 
-      const data = this.mockRamData?.slice(0, size) || DebugSettings.generateRandomData(size);
+      const data = this.mockRamData?.slice(0, size) ?? DebugSettings.generateRandomData(size);
 
       const totalTime = (Date.now() - startTime) / 1000;
       const avgSpeed = SpeedCalculator.calculateAverageSpeed(size, totalTime);
@@ -803,8 +803,7 @@ export class MockAdapter extends CartridgeAdapter {
     try {
       // 模拟进度
       await DebugSettings.simulateProgress(
-        (progress) => {
-        },
+        (progress) => { },
         1500,
       );
 

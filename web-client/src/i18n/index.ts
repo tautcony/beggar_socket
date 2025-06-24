@@ -29,7 +29,7 @@ export function getLanguage() {
 
   // 部分匹配 (比如 ja 匹配 ja-JP)
   for (const locale of locales) {
-    if (navigator.language && language.indexOf(locale.split('-')[0]) > -1) {
+    if (navigator.language && language.includes(locale.split('-')[0])) {
       return locale;
     }
   }

@@ -92,7 +92,7 @@ function startTimer(toast: Toast) {
 
 function pauseTimer(toastId: number) {
   const toast = toasts.value.find(t => t.id === toastId);
-  if (toast && toast.timer && !toast.isPaused) {
+  if (toast?.timer && !toast.isPaused) {
     clearTimeout(toast.timer);
     toast.timer = null;
     toast.isPaused = true;

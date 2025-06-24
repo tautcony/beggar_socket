@@ -118,7 +118,7 @@ export class DebugSettings {
    */
   static async simulateProgress(
     callback: (progress: number, detail?: string) => void,
-    totalTime: number = 3000,
+    totalTime = 3000,
     detail?: string,
   ): Promise<void> {
     if (!this.debugMode) return;

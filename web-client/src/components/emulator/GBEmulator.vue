@@ -193,7 +193,7 @@ function initEmulator() {
       gameboyInstance.run();
     } catch (playError: unknown) {
       console.error('Failed to start game:', playError);
-      showToast(`${t('ui.emulator.startGameFailed')}`, 'error');
+      showToast(t('ui.emulator.startGameFailed'), 'error');
       return;
     }
 
@@ -211,7 +211,7 @@ function initEmulator() {
 /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
 function setupKeyboardControls() {
   // 使用 keyboardManager 配置按键映射
-  if (gameboyInstance && gameboyInstance.keyboardManager) {
+  if (gameboyInstance?.keyboardManager) {
     // 设置自定义按键映射
     gameboyInstance.keyboardManager.left = 'ArrowLeft';
     gameboyInstance.keyboardManager.right = 'ArrowRight';

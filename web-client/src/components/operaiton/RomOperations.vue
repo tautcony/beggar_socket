@@ -212,7 +212,7 @@ watch(() => props.romFileData, (newData) => {
     const romSize = newData.byteLength;
 
     // 找到最接近且不小于ROM大小的选项
-    const matchedOption = ROM_SIZE_RANGE.find(option => option.size >= romSize) || ROM_SIZE_RANGE[ROM_SIZE_RANGE.length - 1];
+    const matchedOption = ROM_SIZE_RANGE.find(option => option.size >= romSize) ?? ROM_SIZE_RANGE[ROM_SIZE_RANGE.length - 1];
 
     selectedRomSize.value = matchedOption.value;
     // 发射事件通知父组件ROM大小已更改

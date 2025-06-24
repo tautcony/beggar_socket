@@ -59,9 +59,9 @@ const props = defineProps({
 const emit = defineEmits(['close']);
 
 const containerStyle = computed(() => ({
-  width: typeof props.width === 'number' ? props.width + 'px' : props.width,
-  maxWidth: typeof props.maxWidth === 'number' ? props.maxWidth + 'px' : props.maxWidth,
-  maxHeight: typeof props.maxHeight === 'number' ? props.maxHeight + 'px' : props.maxHeight,
+  width: typeof props.width === 'number' ? `${props.width}px` : props.width,
+  maxWidth: typeof props.maxWidth === 'number' ? `${props.maxWidth}px` : props.maxWidth,
+  maxHeight: typeof props.maxHeight === 'number' ? `${props.maxHeight}px` : props.maxHeight,
 }));
 
 function onOverlayClick() {
