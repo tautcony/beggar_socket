@@ -1,4 +1,5 @@
 import {
+  ram_erase_flash,
   ram_program_flash,
   ram_read,
   ram_write,
@@ -208,7 +209,7 @@ export class GBAAdapter extends CartridgeAdapter {
             speedCalculator.addDataPoint(sectorSize, sectorEndTime);
 
             // 计算当前速度
-            const currentSpeed = speedCalculator.calculateCurrentSpeed();
+            const currentSpeed = speedCalculator.getCurrentSpeed();
 
             this.updateProgress(this.createProgressInfo(
               (eraseCount / totalSectors) * 100,
@@ -340,7 +341,7 @@ export class GBAAdapter extends CartridgeAdapter {
               const progress = (written / total) * 100;
 
               // 计算当前速度
-              const currentSpeed = speedCalculator.calculateCurrentSpeed();
+              const currentSpeed = speedCalculator.getCurrentSpeed();
 
               this.updateProgress(this.createProgressInfo(
                 progress,
@@ -472,7 +473,7 @@ export class GBAAdapter extends CartridgeAdapter {
               const progress = (totalRead / size) * 100;
 
               // 计算当前速度
-              const currentSpeed = speedCalculator.calculateCurrentSpeed();
+              const currentSpeed = speedCalculator.getCurrentSpeed();
 
               this.updateProgress(this.createProgressInfo(
                 progress,
@@ -620,7 +621,7 @@ export class GBAAdapter extends CartridgeAdapter {
               const progress = (verified / total) * 100;
 
               // 计算当前速度
-              const currentSpeed = speedCalculator.calculateCurrentSpeed();
+              const currentSpeed = speedCalculator.getCurrentSpeed();
 
               this.updateProgress(this.createProgressInfo(
                 progress,
@@ -714,12 +715,7 @@ export class GBAAdapter extends CartridgeAdapter {
           const pageSize = AdvancedSettings.ramPageSize;
           if (options.ramType === 'FLASH') {
             this.log(this.t('messages.gba.erasingFlash'));
-            await ram_write(this.device, new Uint8Array([0xaa]), 0x5555);
-            await ram_write(this.device, new Uint8Array([0x55]), 0x2aaa);
-            await ram_write(this.device, new Uint8Array([0x80]), 0x5555);
-            await ram_write(this.device, new Uint8Array([0xaa]), 0x5555);
-            await ram_write(this.device, new Uint8Array([0x55]), 0x2aaa);
-            await ram_write(this.device, new Uint8Array([0x10]), 0x5555); // Chip-Erase
+            await ram_erase_flash(this.device);
 
             // 等待擦除完成
             let erased = false;
@@ -964,15 +960,15 @@ export class GBAAdapter extends CartridgeAdapter {
             const chunkSize = Math.min(pageSize, remainingSize);
 
             // 读取数据进行比较
-            const readData = await ram_read(this.device, chunkSize, relAddress);
+            const chunk = await ram_read(this.device, chunkSize, relAddress);
 
             // 校验数据
             for (let i = 0; i < chunkSize; i++) {
-              if (fileData[currAddress + i] !== readData[i]) {
+              if (fileData[currAddress + i] !== chunk[i]) {
                 this.log(this.t('messages.ram.verifyFailedDetail', {
                   address: (currAddress + i).toString(16),
                   expected: fileData[currAddress + i].toString(16),
-                  actual: readData[i].toString(16),
+                  actual: chunk[i].toString(16),
                 }));
                 success = false;
                 break;
@@ -1016,11 +1012,9 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   async getCartInfo(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number, cfiInfo?: CFIInfo }> {
     return PerformanceTracker.trackAsyncOperation(
-      'GBA:getROMSize',
+      'gba.getCartInfo',
       async () => {
         try {
-          this.log(this.t('messages.operation.queryingRomSize'));
-
           // CFI Query
           await rom_write(this.device, toLittleEndian(0x98, 2), 0x55);
           const cfiData = await rom_read(this.device, 0x400, 0x00);

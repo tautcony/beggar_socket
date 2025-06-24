@@ -148,6 +148,15 @@ export async function ram_program_flash(device: DeviceInfo, data: Uint8Array, ba
   if (!ack) throw new Error(`GBA RAM write to FLASH failed (Address: 0x${baseAddress.toString(16)})`);
 }
 
+export async function ram_erase_flash(device: DeviceInfo): Promise<void> {
+  await ram_write(device, new Uint8Array([0xaa]), 0x5555);
+  await ram_write(device, new Uint8Array([0x55]), 0x2aaa);
+  await ram_write(device, new Uint8Array([0x80]), 0x5555);
+  await ram_write(device, new Uint8Array([0xaa]), 0x5555);
+  await ram_write(device, new Uint8Array([0x55]), 0x2aaa);
+  await ram_write(device, new Uint8Array([0x10]), 0x5555); // Chip-Erase
+}
+
 // --- GBC Commands ---
 
 /**
@@ -213,6 +222,15 @@ export async function gbc_rom_get_id(device: DeviceInfo): Promise<Uint8Array> {
   const id = await gbc_read(device, 4, 0);
   await gbc_write(device, new Uint8Array([0xf0]), 0x00);
   return id;
+}
+
+export async function gbc_rom_erase_chip(device: DeviceInfo) {
+  await gbc_write(device, new Uint8Array([0xaa]), 0xaaa);
+  await gbc_write(device, new Uint8Array([0x55]), 0x555);
+  await gbc_write(device, new Uint8Array([0x80]), 0xaaa);
+  await gbc_write(device, new Uint8Array([0xaa]), 0xaaa);
+  await gbc_write(device, new Uint8Array([0x55]), 0x555);
+  await gbc_write(device, new Uint8Array([0x10]), 0xaaa);
 }
 
 /**

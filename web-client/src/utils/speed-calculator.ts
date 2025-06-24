@@ -13,6 +13,7 @@ interface SpeedDataPoint {
 export class SpeedCalculator {
   private speedWindow: SpeedDataPoint[] = [];
   private maxWindowSize: number;
+  private currentSpeed: number = 0;
   private maxSpeed: number = 0;
 
   /**
@@ -38,6 +39,7 @@ export class SpeedCalculator {
     if (this.speedWindow.length > this.maxWindowSize) {
       this.speedWindow.shift();
     }
+    this.calculateCurrentSpeed();
   }
 
   /**
@@ -54,10 +56,15 @@ export class SpeedCalculator {
     const windowBytes = this.speedWindow.reduce((sum, item) => sum + item.bytes, 0);
     const windowElapsed = (windowEnd - windowStart) / 1000;
 
-    const currentSpeed = windowElapsed > 0 ? (windowBytes / 1024) / windowElapsed : 0;
-    this.maxSpeed = Math.max(this.maxSpeed, currentSpeed);
+    const speed = windowElapsed > 0 ? (windowBytes / 1024) / windowElapsed : 0;
+    this.maxSpeed = Math.max(this.maxSpeed, speed);
+    this.currentSpeed = speed;
 
-    return currentSpeed;
+    return speed;
+  }
+
+  getCurrentSpeed(): number {
+    return this.currentSpeed;
   }
 
   /**
