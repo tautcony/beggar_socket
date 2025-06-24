@@ -323,7 +323,7 @@
       "verifyFailed": "RAM検証失敗",
       "sizeChanged": "RAMサイズが {size} に変更されました",
       "typeChanged": "RAMタイプが {type} に変更されました",
-      "verifyFailedDetail": "アドレス0x{address}で検証失敗、期待値 {expected}、実際の値 {actual}",
+      "verifyFailedAt": "アドレス0x{address}で検証失敗、期待値 {expected}、実際の値 {actual}",
       "bankSwitch": "RAMバンク {bank} に切り替え",
       "writeSummary": "RAM書き込み完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} KB",
       "readSummary": "RAM読み取り完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} KB"

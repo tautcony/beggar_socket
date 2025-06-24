@@ -970,10 +970,10 @@ export class MBC5Adapter extends CartridgeAdapter {
             // 校验数据
             for (let i = 0; i < chunkSize; i++) {
               if (fileData[currAddress + i] !== chunk[i]) {
-                this.log(this.t('messages.ram.verifyFailedDetail', {
-                  address: (currAddress + i).toString(16),
-                  expected: fileData[currAddress + i].toString(16),
-                  actual: chunk[i].toString(16),
+                this.log(this.t('messages.ram.verifyFailedAt', {
+                  address: (currAddress + i).toString(16).padStart(6, '0'),
+                  expected: fileData[currAddress + i].toString(16).padStart(2, '0'),
+                  actual: chunk[i].toString(16).padStart(2, '0'),
                 }));
                 success = false;
                 break;

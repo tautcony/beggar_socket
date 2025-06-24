@@ -323,7 +323,7 @@
       "verifyFailed": "RAM校验失败",
       "sizeChanged": "RAM大小已更改为 {size}",
       "typeChanged": "RAM类型已更改为 {type}",
-      "verifyFailedDetail": "地址0x{address}校验失败，期望值 {expected}，实际值 {actual}",
+      "verifyFailedAt": "地址0x{address}校验失败，期望值 {expected}，实际值 {actual}",
       "bankSwitch": "切换到RAM Bank {bank}",
       "writeSummary": "RAM写入完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} KB",
       "readSummary": "RAM读取完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} KB"

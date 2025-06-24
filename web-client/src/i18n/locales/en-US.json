@@ -323,7 +323,7 @@
       "verifyFailed": "RAM verification failed",
       "sizeChanged": "RAM size changed to {size}",
       "typeChanged": "RAM type changed to {type}",
-      "verifyFailedDetail": "Verification failed at address 0x{address}, expected {expected}, got {actual}",
+      "verifyFailedAt": "Verification failed at address 0x{address}, expected {expected}, got {actual}",
       "bankSwitch": "Switched to RAM Bank {bank}",
       "writeSummary": "RAM write complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} KB",
       "readSummary": "RAM read complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} KB"
