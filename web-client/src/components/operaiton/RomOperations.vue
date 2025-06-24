@@ -11,29 +11,12 @@
             class="size-dropdown"
             @change="onRomSizeChange"
           >
-            <option value="0x40000">
-              256KB
-            </option>
-            <option value="0x80000">
-              512KB
-            </option>
-            <option value="0x100000">
-              1MB
-            </option>
-            <option value="0x200000">
-              2MB
-            </option>
-            <option value="0x400000">
-              4MB
-            </option>
-            <option value="0x800000">
-              8MB
-            </option>
-            <option value="0x1000000">
-              16MB
-            </option>
-            <option value="0x2000000">
-              32MB
+            <option
+              v-for="option in ROM_SIZE_RANGE"
+              :key="option.value"
+              :value="option.value"
+            >
+              {{ option.text }}
             </option>
           </select>
         </div>
@@ -179,6 +162,18 @@ const props = defineProps({
   },
 });
 
+const ROM_SIZE_RANGE = [
+  { value: '0x40000', size: 0x40000, text: '256KB' },
+  { value: '0x80000', size: 0x80000, text: '512KB' },
+  { value: '0x100000', size: 0x100000, text: '1MB' },
+  { value: '0x200000', size: 0x200000, text: '2MB' },
+  { value: '0x400000', size: 0x400000, text: '4MB' },
+  { value: '0x800000', size: 0x800000, text: '8MB' },
+  { value: '0x1000000', size: 0x1000000, text: '16MB' },
+  { value: '0x2000000', size: 0x2000000, text: '32MB' },
+  { value: '0x4000000', size: 0x4000000, text: '64MB' },
+];
+
 const emit = defineEmits(['file-selected', 'file-cleared', 'write-rom', 'read-rom', 'verify-rom', 'rom-size-change', 'mode-switch-required']);
 
 // 模拟器相关状态
@@ -214,28 +209,14 @@ watch(() => props.romFileData, (newData) => {
     }
 
     // 根据ROM文件大小自动更新选择的ROM大小
-    if (romInfo.value?.romSize) {
-      const romSize = romInfo.value.romSize;
-      // 预定义的ROM大小选项
-      const sizeOptions = [
-        { value: '0x40000', size: 0x40000 }, // 256KB
-        { value: '0x80000', size: 0x80000 }, // 512KB
-        { value: '0x100000', size: 0x100000 }, // 1MB
-        { value: '0x200000', size: 0x200000 }, // 2MB
-        { value: '0x400000', size: 0x400000 }, // 4MB
-        { value: '0x800000', size: 0x800000 }, // 8MB
-        { value: '0x1000000', size: 0x1000000 }, // 16MB
-        { value: '0x2000000', size: 0x2000000 }, // 32MB
-      ];
+    const romSize = newData.byteLength;
 
-      // 找到最接近且不小于ROM大小的选项
-      console.log(romSize);
-      const matchedOption = sizeOptions.find(option => option.size >= romSize) || sizeOptions[sizeOptions.length - 1];
+    // 找到最接近且不小于ROM大小的选项
+    const matchedOption = ROM_SIZE_RANGE.find(option => option.size >= romSize) || ROM_SIZE_RANGE[ROM_SIZE_RANGE.length - 1];
 
-      selectedRomSize.value = matchedOption.value;
-      // 发射事件通知父组件ROM大小已更改
-      emit('rom-size-change', matchedOption.value);
-    }
+    selectedRomSize.value = matchedOption.value;
+    // 发射事件通知父组件ROM大小已更改
+    emit('rom-size-change', matchedOption.value);
   } else {
     romInfo.value = null;
   }
