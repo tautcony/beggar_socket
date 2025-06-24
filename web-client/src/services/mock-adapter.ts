@@ -455,7 +455,8 @@ export class MockAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果，包含读取的数据
    */
-  async readROM(size = 0x200000, baseAddress = 0, signal?: AbortSignal): Promise<CommandResult> {
+  async readROM(size = 0x200000, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal): Promise<CommandResult> {
+    const baseAddress = options.baseAddress ?? 0x00;
     this.log(this.t('messages.rom.reading'));
 
     const startTime = Date.now();
@@ -559,7 +560,8 @@ export class MockAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果
    */
-  async verifyROM(fileData: Uint8Array, baseAddress = 0, signal?: AbortSignal): Promise<CommandResult> {
+  async verifyROM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal): Promise<CommandResult> {
+    const baseAddress = options.baseAddress ?? 0x00;
     this.log(this.t('messages.rom.verifying'));
 
     const startTime = Date.now();

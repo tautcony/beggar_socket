@@ -74,7 +74,7 @@ export class CartridgeAdapter {
   /**
    * 写入ROM
    * @param data - 文件数据
-   * * @param options - 写入选项
+   * @param options - 选项对象
    * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态和消息的对象
    */
@@ -85,29 +85,29 @@ export class CartridgeAdapter {
   /**
    * 读取ROM
    * @param size - 读取大小
-   * @param baseAddress - 基础地址
+   * @param options - 选项对象
    * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态、数据和消息的对象
    */
-  async readROM(size: number, baseAddress: number = 0, signal?: AbortSignal): Promise<CommandResult> {
+  async readROM(size: number, options: CommandOptions = {}, signal?: AbortSignal): Promise<CommandResult> {
     throw new NotImplementedError();
   }
 
   /**
    * 校验ROM
    * @param data - 文件数据
-   * @param baseAddress - 基础地址
+   * @param options - 选项对象
    * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态和消息的对象
    */
-  async verifyROM(data: Uint8Array, baseAddress: number = 0, signal: AbortSignal): Promise<CommandResult> {
+  async verifyROM(data: Uint8Array, options: CommandOptions = {}, signal: AbortSignal): Promise<CommandResult> {
     throw new NotImplementedError();
   }
 
   /**
    * 写入RAM
    * @param data - 文件数据
-   * @param options - RAM类型或选项对象
+   * @param options - 选项对象
    * @returns - 包含成功状态和消息的对象
    */
   async writeRAM(data: Uint8Array, options?: CommandOptions): Promise<CommandResult> {

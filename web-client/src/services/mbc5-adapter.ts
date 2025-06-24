@@ -281,7 +281,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果
    */
-  async writeROM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0 }, signal?: AbortSignal) : Promise<CommandResult> {
+  async writeROM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.writeROM',
@@ -425,7 +425,8 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态、数据和消息的对象
    */
-  async readROM(size: number, baseAddress = 0, signal?: AbortSignal) : Promise<CommandResult> {
+  async readROM(size: number, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal) : Promise<CommandResult> {
+    const baseAddress = options.baseAddress ?? 0;
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.readROM',
       async () => {
@@ -568,7 +569,8 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param baseAddress - 基础地址
    * @returns - 操作结果
    */
-  async verifyROM(fileData: Uint8Array, baseAddress = 0, signal?: AbortSignal): Promise<CommandResult> {
+  async verifyROM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal): Promise<CommandResult> {
+    const baseAddress = options.baseAddress ?? 0;
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.verifyROM',
       async () => {
@@ -736,8 +738,8 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param options - 写入选项
    * @returns - 包含成功状态和消息的对象
    */
-  async writeRAM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0 }) : Promise<CommandResult> {
-    const baseAddress = options.baseAddress || 0;
+  async writeRAM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }) : Promise<CommandResult> {
+    const baseAddress = options.baseAddress || 0x00;
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.writeRAM',
       async () => {
@@ -837,8 +839,8 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param options - 读取参数
    * @returns - 操作结果，包含读取的数据
    */
-  async readRAM(size: number, options: CommandOptions = { baseAddress: 0 }) : Promise<CommandResult> {
-    const baseAddress = options.baseAddress || 0;
+  async readRAM(size: number, options: CommandOptions = { baseAddress: 0x00 }) : Promise<CommandResult> {
+    const baseAddress = options.baseAddress || 0x00;
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.readRAM',
       async () => {
@@ -927,8 +929,8 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param options - 选项对象
    * @returns - 操作结果
    */
-  async verifyRAM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0 }) : Promise<CommandResult> {
-    const baseAddress = options.baseAddress || 0;
+  async verifyRAM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }) : Promise<CommandResult> {
+    const baseAddress = options.baseAddress || 0x00;
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.verifyRAM',
       async () => {
@@ -1089,7 +1091,7 @@ export class MBC5Adapter extends CartridgeAdapter {
     // ROM addr [22]
     await gbc_write(this.device, new Uint8Array([b1]), 0x3000);
 
-    // this.log(this.t('messages.rom.bankSwitch', { bank }));
+    this.log(this.t('messages.rom.bankSwitch', { bank }));
   }
 
   /**

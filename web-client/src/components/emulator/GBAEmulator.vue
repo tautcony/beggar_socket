@@ -40,7 +40,10 @@
           class="error-display"
         >
           <div class="error-icon">
-            <IonIcon :icon="warning" class="error-icon" />
+            <IonIcon
+              :icon="warning"
+              class="error-icon"
+            />
           </div>
           <h4>{{ $t('ui.emulator.errors.error') }}</h4>
           <p>{{ errorMessage }}</p>

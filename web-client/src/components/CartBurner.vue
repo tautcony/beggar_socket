@@ -443,7 +443,7 @@ async function readRom() {
     }
 
     const romSize = parseInt(selectedRomSize.value, 16);
-    const response = await adapter.readROM(romSize, 0, abortSignal);
+    const response = await adapter.readROM(romSize, { baseAddress: 0x00 }, abortSignal);
     if (response.success) {
       showToast(response.message, 'success');
       if (response.data) {
@@ -482,7 +482,7 @@ async function verifyRom() {
       return;
     }
 
-    const response = await adapter.verifyROM(romFileData.value, 0, abortSignal);
+    const response = await adapter.verifyROM(romFileData.value, { baseAddress: 0x00 }, abortSignal);
     showToast(response.message, response.success ? 'success' : 'error');
 
   } catch (e) {

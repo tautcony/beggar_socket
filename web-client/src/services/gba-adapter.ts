@@ -286,7 +286,11 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果
    */
-  async writeROM(fileData: Uint8Array, options: CommandOptions = {}, signal?: AbortSignal) : Promise<CommandResult> {
+  async writeROM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal) : Promise<CommandResult> {
+    const baseAddress = options.baseAddress ?? 0x00;
+    const pageSize = AdvancedSettings.romPageSize;
+    const bufferSize = options.bufferSize ?? 0x200;
+
     return PerformanceTracker.trackAsyncOperation(
       'gba.writeROM',
       async () => {
@@ -294,14 +298,10 @@ export class GBAAdapter extends CartridgeAdapter {
         try {
           this.log(this.t('messages.rom.writing', { size: fileData.length }));
 
-          const baseAddr = options.baseAddress ?? 0x00;
-          const pageSize = AdvancedSettings.romPageSize;
-          const bufferSize = options.bufferSize ?? 0x200;
-
           const total = fileData.length;
           let written = 0;
 
-          const blank = await this.isBlank(baseAddr, 0x100);
+          const blank = await this.isBlank(baseAddress, 0x100);
           if (!blank) {
             const romInfo = await this.getCartInfo();
             const startAddress = 0x00;
@@ -315,7 +315,7 @@ export class GBAAdapter extends CartridgeAdapter {
           // 分块写入并更新进度
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
           let chunkCount = 0; // 记录已处理的块数
-          for (let addr = baseAddr; addr < total; addr += pageSize) {
+          for (let addr = baseAddress; addr < total; addr += pageSize) {
             // 检查是否已被取消
             if (signal?.aborted) {
               this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
@@ -405,9 +405,9 @@ export class GBAAdapter extends CartridgeAdapter {
       },
       {
         fileSize: fileData.length,
-        baseAddress: options.baseAddress || 0,
-        bufferSize: options.bufferSize || 512,
-        pageSize: AdvancedSettings.romPageSize,
+        baseAddress,
+        bufferSize,
+        pageSize,
       },
     );
   }
@@ -419,7 +419,9 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果，包含读取的数据
    */
-  async readROM(size = 0x200000, baseAddress = 0, signal?: AbortSignal) : Promise<CommandResult> {
+  async readROM(size = 0x200000, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal) : Promise<CommandResult> {
+    const baseAddress = options.baseAddress ?? 0x00;
+
     return PerformanceTracker.trackAsyncOperation(
       'gba.readROM',
       async () => {
@@ -548,7 +550,8 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param baseAddress - 基础地址
    * @returns - 操作结果
    */
-  async verifyROM(fileData: Uint8Array, baseAddress = 0, signal?: AbortSignal): Promise<CommandResult> {
+  async verifyROM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal): Promise<CommandResult> {
+    const baseAddress = options.baseAddress ?? 0x00;
     return PerformanceTracker.trackAsyncOperation(
       'gba.verifyROM',
       async () => {
@@ -1104,8 +1107,8 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   async switchSRAMBank(bank: number) : Promise<void> {
     bank = bank === 0 ? 0 : 1;
-    this.log(this.t('messages.gba.bankSwitchSram', { bank }));
     await rom_write(this.device, toLittleEndian(bank, 2), 0x800000);
+    this.log(this.t('messages.gba.bankSwitchSram', { bank }));
   }
 
   /**
@@ -1114,12 +1117,13 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   async switchFlashBank(bank: number) : Promise<void> {
     bank = bank === 0 ? 0 : 1;
-    this.log(this.t('messages.gba.bankSwitchFlash', { bank }));
 
     await ram_write(this.device, new Uint8Array([0xaa]), 0x5555);
     await ram_write(this.device, new Uint8Array([0x55]), 0x2aaa);
     await ram_write(this.device, new Uint8Array([0xb0]), 0x5555); // FLASH_COMMAND_SWITCH_BANK
     await ram_write(this.device, new Uint8Array([bank]), 0x0000);
+
+    this.log(this.t('messages.gba.bankSwitchFlash', { bank }));
   }
 
   // 检查区域是否为空
