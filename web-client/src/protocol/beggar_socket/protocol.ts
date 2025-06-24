@@ -47,7 +47,7 @@ export async function rom_erase_sector(device: DeviceInfo, sectorAddress: number
 /**
  * GBA: ROM Program (0xf4)
  */
-export async function rom_program(device: DeviceInfo, data: Uint8Array, baseAddress = 0, bufferSize = 512): Promise<void> {
+export async function rom_program(device: DeviceInfo, data: Uint8Array, baseAddress = 0, bufferSize: number): Promise<void> {
   const { writer, reader } = device;
 
   const payload = createCommandPayload(GBACommand.PROGRAM)
@@ -198,7 +198,7 @@ export async function gbc_read(device: DeviceInfo, size: number, baseAddress = 0
 /**
  * GBC: ROM Program (0xfc)
  */
-export async function gbc_rom_program(device: DeviceInfo, data: Uint8Array, baseAddress = 0, bufferSize = 512): Promise<void> {
+export async function gbc_rom_program(device: DeviceInfo, data: Uint8Array, baseAddress = 0, bufferSize: number): Promise<void> {
   const { writer, reader } = device;
 
   const payload = createCommandPayload(GBCCommand.ROM_PROGRAM)

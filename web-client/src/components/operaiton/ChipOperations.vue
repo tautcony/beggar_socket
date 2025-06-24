@@ -81,19 +81,30 @@ const chipInfoValid = computed(() => {
     return false;
   }
 
-  // 将值转换为数字进行检查
-  const deviceSizeNum = Number(props.deviceSize);
-  const sectorCountNum = Number(props.sectorCount);
-  const sectorSizeNum = Number(props.sectorSize);
+  // 支持逗号或其他分隔符分隔的一组数据，解析每一个数字
+  const parseAllNumbers = (val: string | number | undefined): number[] => {
+    if (typeof val === 'number') return [val];
+    if (typeof val === 'string') {
+      // 匹配所有数字（支持负号和小数点），以逗号、空格等分隔
+      return (val.match(/-?\d+(\.\d+)?/g) ?? []).map(Number);
+    }
+    return [];
+  };
 
   // 检查是否为有效数字（不为 NaN 或 Infinity）
   const isValidNumber = (num: number) =>
     !isNaN(num) && isFinite(num) && num > 0;
 
+  const deviceSizeNum = Number(props.deviceSize);
+  const sectorCountNums = parseAllNumbers(props.sectorCount);
+  const sectorSizeNums = parseAllNumbers(props.sectorSize);
+
   return (
     isValidNumber(deviceSizeNum) &&
-    isValidNumber(sectorCountNum) &&
-    isValidNumber(sectorSizeNum)
+    sectorCountNums.length > 0 &&
+    sectorSizeNums.length > 0 &&
+    sectorCountNums.every(isValidNumber) &&
+    sectorSizeNums.every(isValidNumber)
   );
 });
 

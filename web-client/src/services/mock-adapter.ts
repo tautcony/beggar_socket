@@ -266,7 +266,7 @@ export class MockAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果
    */
-  override async writeROM(fileData: Uint8Array, options: CommandOptions = {}, signal?: AbortSignal): Promise<CommandResult> {
+  override async writeROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     this.log(this.t('messages.rom.writing', { size: fileData.length }));
 
     const startTime = Date.now();
@@ -381,20 +381,14 @@ export class MockAdapter extends CartridgeAdapter {
    * 获取卡带信息 - 模拟CFI查询
    * @returns 卡带容量相关信息
    */
-  override async getCartInfo(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number, cfiInfo?: CFIInfo }> {
+  override async getCartInfo(): Promise<CFIInfo | false> {
     this.log(this.t('messages.operation.queryingRomSize'));
 
     await DebugSettings.delay();
 
     if (DebugSettings.shouldSimulateError()) {
       this.log(this.t('messages.operation.cfiParseFailed'));
-      return {
-        deviceSize: -1,
-        sectorCount: -1,
-        sectorSize: -1,
-        bufferWriteBytes: -1,
-        cfiInfo: undefined,
-      };
+      return false;
     }
 
     // 模拟CFI信息
@@ -433,20 +427,7 @@ export class MockAdapter extends CartridgeAdapter {
     this.log(this.t('messages.operation.cfiParseSuccess'));
     this.log(mockCfiInfo.info);
 
-    this.log(this.t('messages.operation.romSizeQuerySuccess', {
-      deviceSize: deviceSize.toString(),
-      sectorCount: sectorCount.toString(),
-      sectorSize: sectorSize.toString(),
-      bufferWriteBytes: bufferWriteBytes.toString(),
-    }));
-
-    return {
-      deviceSize,
-      sectorCount,
-      sectorSize,
-      bufferWriteBytes,
-      cfiInfo: mockCfiInfo,
-    };
+    return mockCfiInfo;
   }
   /**
    * 模拟读取ROM
@@ -455,7 +436,7 @@ export class MockAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果，包含读取的数据
    */
-  override async readROM(size = 0x200000, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal): Promise<CommandResult> {
+  override async readROM(size = 0x200000, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
     this.log(this.t('messages.rom.reading'));
 
@@ -560,7 +541,7 @@ export class MockAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果
    */
-  override async verifyROM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal): Promise<CommandResult> {
+  override async verifyROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
     this.log(this.t('messages.rom.verifying'));
 
@@ -668,7 +649,7 @@ export class MockAdapter extends CartridgeAdapter {
    * @param options - 写入选项
    * @returns - 操作结果
    */
-  override async writeRAM(fileData: Uint8Array, options: CommandOptions = { ramType: 'SRAM' }): Promise<CommandResult> {
+  override async writeRAM(fileData: Uint8Array, options: CommandOptions): Promise<CommandResult> {
     this.log(this.t('messages.ram.writing', { size: fileData.length }));
 
     const startTime = Date.now();
@@ -735,7 +716,7 @@ export class MockAdapter extends CartridgeAdapter {
    * @param options - 读取参数
    * @returns - 操作结果，包含读取的数据
    */
-  override async readRAM(size = 0x8000, options: CommandOptions = { ramType: 'SRAM' }) {
+  override async readRAM(size = 0x8000, options: CommandOptions) {
     this.log(this.t('messages.ram.reading'));
 
     const startTime = Date.now();
@@ -795,7 +776,7 @@ export class MockAdapter extends CartridgeAdapter {
    * @param options - 选项对象
    * @returns - 操作结果
    */
-  override async verifyRAM(fileData: Uint8Array, options: CommandOptions = { ramType: 'SRAM' }) {
+  override async verifyRAM(fileData: Uint8Array, options: CommandOptions) {
     this.log(this.t('messages.ram.verifying'));
 
     const startTime = Date.now();

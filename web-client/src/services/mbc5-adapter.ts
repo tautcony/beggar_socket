@@ -13,6 +13,7 @@ import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { CFIInfo, parseCFI } from '@/utils/cfi-parser';
+import { calcSectorUsage } from '@/utils/sector-utils';
 import { PerformanceTracker } from '@/utils/sentry-tracker';
 import { SpeedCalculator } from '@/utils/speed-calculator';
 
@@ -281,10 +282,10 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果
    */
-  override async writeROM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal) : Promise<CommandResult> {
+  override async writeROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
+    const bufferSize = options.cfiInfo.bufferSize ?? AdvancedSettings.romBufferSize;
     const pageSize = AdvancedSettings.romPageSize;
-    const bufferSize = AdvancedSettings.romBufferSize;
 
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.writeROM',
@@ -298,10 +299,10 @@ export class MBC5Adapter extends CartridgeAdapter {
 
           const blank = await this.isBlank(baseAddress, 0x100);
           if (!blank) {
-            const romInfo = await this.getCartInfo();
-            const startAddress = 0x00;
-            const endAddress = romInfo.sectorCount * romInfo.sectorSize;
-            await this.eraseSectors(startAddress, endAddress, romInfo.sectorSize, signal);
+            const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, total);
+            for (const { startAddress, endAddress, sectorSize } of sectorInfo) {
+              await this.eraseSectors(startAddress, endAddress, sectorSize, signal);
+            }
           }
 
           // 使用速度计算器
@@ -430,7 +431,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态、数据和消息的对象
    */
-  override async readROM(size: number, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal) : Promise<CommandResult> {
+  override async readROM(size: number, options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0;
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.readROM',
@@ -574,7 +575,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param baseAddress - 基础地址
    * @returns - 操作结果
    */
-  override async verifyROM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal): Promise<CommandResult> {
+  override async verifyROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0;
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.verifyROM',
@@ -743,7 +744,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param options - 写入选项
    * @returns - 包含成功状态和消息的对象
    */
-  override async writeRAM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }) : Promise<CommandResult> {
+  override async writeRAM(fileData: Uint8Array, options: CommandOptions) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.writeRAM',
@@ -844,7 +845,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param options - 读取参数
    * @returns - 操作结果，包含读取的数据
    */
-  override async readRAM(size: number, options: CommandOptions = { baseAddress: 0x00 }) : Promise<CommandResult> {
+  override async readRAM(size: number, options: CommandOptions) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.readRAM',
@@ -934,7 +935,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param options - 选项对象
    * @returns - 操作结果
    */
-  override async verifyRAM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }) : Promise<CommandResult> {
+  override async verifyRAM(fileData: Uint8Array, options: CommandOptions) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.verifyRAM',
@@ -1014,7 +1015,7 @@ export class MBC5Adapter extends CartridgeAdapter {
   }
 
   // 获取卡带信息 - 通过CFI查询
-  override async getCartInfo(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number, cfiInfo?: CFIInfo }> {
+  override async getCartInfo(): Promise<CFIInfo | false> {
     return PerformanceTracker.trackAsyncOperation(
       'gba.getCartInfo',
       async () => {
@@ -1029,55 +1030,22 @@ export class MBC5Adapter extends CartridgeAdapter {
 
           if (!cfiInfo) {
             this.log(this.t('messages.operation.cfiParseFailed'));
-            return {
-              deviceSize: -1,
-              sectorCount: -1,
-              sectorSize: -1,
-              bufferWriteBytes: -1,
-              cfiInfo: undefined,
-            };
+            return false;
           }
-
-          // 从CFI信息中提取所需数据
-          const deviceSize = cfiInfo.deviceSize;
-          const bufferWriteBytes = cfiInfo.bufferSize ?? 0;
-
-          // 获取第一个擦除区域的信息作为主要扇区信息
-          const sectorSize = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][0] : 0;
-          const sectorCount = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][1] : 0;
 
           // 记录CFI解析结果
           this.log(this.t('messages.operation.cfiParseSuccess'));
           this.log(cfiInfo.info);
 
-          this.log(this.t('messages.operation.romSizeQuerySuccess', {
-            deviceSize: deviceSize.toString(),
-            sectorCount: sectorCount.toString(),
-            sectorSize: sectorSize.toString(),
-            bufferWriteBytes: bufferWriteBytes.toString(),
-          }));
-
-          return {
-            deviceSize,
-            sectorCount,
-            sectorSize,
-            bufferWriteBytes,
-            cfiInfo,
-          };
+          return cfiInfo;
         } catch (e) {
           this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${e instanceof Error ? e.message : String(e)}`);
-          return {
-            deviceSize: -1,
-            sectorCount: -1,
-            sectorSize: -1,
-            bufferWriteBytes: -1,
-            cfiInfo: undefined,
-          };
+          return false;
         }
       },
       {
         adapter_type: 'gba',
-        operation_type: 'get_rom_size',
+        operation_type: 'get_cart_info',
       },
     );
   }

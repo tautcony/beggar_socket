@@ -17,6 +17,7 @@ import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { CFIInfo, parseCFI } from '@/utils/cfi-parser';
+import { calcSectorUsage } from '@/utils/sector-utils';
 import { PerformanceTracker } from '@/utils/sentry-tracker';
 import { SpeedCalculator } from '@/utils/speed-calculator';
 
@@ -286,10 +287,10 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果
    */
-  override async writeROM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal) : Promise<CommandResult> {
+  override async writeROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
     const pageSize = AdvancedSettings.romPageSize;
-    const bufferSize = options.bufferSize ?? 0x200;
+    const bufferSize = options.cfiInfo.bufferSize ?? AdvancedSettings.romBufferSize;
 
     return PerformanceTracker.trackAsyncOperation(
       'gba.writeROM',
@@ -303,10 +304,10 @@ export class GBAAdapter extends CartridgeAdapter {
 
           const blank = await this.isBlank(baseAddress, 0x100);
           if (!blank) {
-            const romInfo = await this.getCartInfo();
-            const startAddress = 0x00;
-            const endAddress = romInfo.sectorCount * romInfo.sectorSize;
-            await this.eraseSectors(startAddress, endAddress, romInfo.sectorSize, signal);
+            const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, total);
+            for (const { startAddress, endAddress, sectorSize } of sectorInfo) {
+              await this.eraseSectors(startAddress, endAddress, sectorSize, signal);
+            }
           }
 
           // 使用速度计算器
@@ -419,7 +420,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果，包含读取的数据
    */
-  override async readROM(size = 0x200000, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal) : Promise<CommandResult> {
+  override async readROM(size = 0x200000, options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
 
     return PerformanceTracker.trackAsyncOperation(
@@ -550,7 +551,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param baseAddress - 基础地址
    * @returns - 操作结果
    */
-  override async verifyROM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal): Promise<CommandResult> {
+  override async verifyROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
     return PerformanceTracker.trackAsyncOperation(
       'gba.verifyROM',
@@ -706,7 +707,8 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param options - 写入选项
    * @returns - 操作结果
    */
-  override async writeRAM(fileData: Uint8Array, options: CommandOptions = { ramType: 'SRAM' }): Promise<CommandResult> {
+  override async writeRAM(fileData: Uint8Array, options: CommandOptions): Promise<CommandResult> {
+    const ramType = options.ramType ?? 'SRAM';
     return PerformanceTracker.trackAsyncOperation(
       'gba.writeRAM',
       async () => {
@@ -716,7 +718,7 @@ export class GBAAdapter extends CartridgeAdapter {
           const total = fileData.length;
           let written = 0;
           const pageSize = AdvancedSettings.ramPageSize;
-          if (options.ramType === 'FLASH') {
+          if (ramType === 'FLASH') {
             this.log(this.t('messages.gba.erasingFlash'));
             await ram_erase_flash(this.device);
 
@@ -752,13 +754,13 @@ export class GBAAdapter extends CartridgeAdapter {
           while (written < total) {
             // 切bank
             if (written === 0x00000) {
-              if (options.ramType === 'FLASH') {
+              if (ramType === 'FLASH') {
                 await this.switchFlashBank(0);
               } else {
                 await this.switchSRAMBank(0);
               }
             } else if (written === 0x10000) {
-              if (options.ramType === 'FLASH') {
+              if (ramType === 'FLASH') {
                 await this.switchFlashBank(1);
               } else {
                 await this.switchSRAMBank(1);
@@ -774,7 +776,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
             // 根据RAM类型选择写入方法
             const chunkStartTime = Date.now();
-            if (options.ramType === 'FLASH') {
+            if (ramType === 'FLASH') {
               await ram_program_flash(this.device, chunk, baseAddr);
             } else {
               await ram_write(this.device, chunk, baseAddr);
@@ -823,7 +825,7 @@ export class GBAAdapter extends CartridgeAdapter {
       {
         adapter_type: 'gba',
         operation_type: 'write_ram',
-        ram_type: options.ramType ?? 'SRAM',
+        ram_type: ramType,
       },
       {
         fileSize: fileData.length,
@@ -837,7 +839,8 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param options - 读取参数
    * @returns - 操作结果，包含读取的数据
    */
-  override async readRAM(size = 0x8000, options: CommandOptions = { ramType: 'SRAM' }) {
+  override async readRAM(size = 0x8000, options: CommandOptions) {
+    const ramType = options.ramType ?? 'SRAM';
     return PerformanceTracker.trackAsyncOperation(
       'gba.readRAM',
       async () => {
@@ -855,13 +858,13 @@ export class GBAAdapter extends CartridgeAdapter {
           while (read < size) {
             // 切bank
             if (read === 0x00000) {
-              if (options.ramType === 'FLASH') {
+              if (ramType === 'FLASH') {
                 await this.switchFlashBank(0);
               } else {
                 await this.switchSRAMBank(0);
               }
             } else if (read === 0x10000) {
-              if (options.ramType === 'FLASH') {
+              if (ramType === 'FLASH') {
                 await this.switchFlashBank(1);
               } else {
                 await this.switchSRAMBank(1);
@@ -914,7 +917,7 @@ export class GBAAdapter extends CartridgeAdapter {
       {
         adapter_type: 'gba',
         operation_type: 'read_ram',
-        ram_type: options.ramType ?? 'SRAM',
+        ram_type: ramType ?? 'SRAM',
       },
       {
         dataSize: size,
@@ -928,7 +931,8 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param options - 选项对象
    * @returns - 操作结果
    */
-  override async verifyRAM(fileData: Uint8Array, options: CommandOptions = { ramType: 'SRAM' }) {
+  override async verifyRAM(fileData: Uint8Array, options: CommandOptions) {
+    const ramType = options.ramType ?? 'SRAM';
     const baseAddress = options.baseAddress ?? 0x00;
     const pageSize = AdvancedSettings.ramPageSize;
 
@@ -946,13 +950,13 @@ export class GBAAdapter extends CartridgeAdapter {
             const currAddress = baseAddress + verified;
             // 切bank
             if (currAddress === 0x00000) {
-              if (options.ramType === 'FLASH') {
+              if (ramType === 'FLASH') {
                 await this.switchFlashBank(0);
               } else {
                 await this.switchSRAMBank(0);
               }
             } else if (currAddress === 0x10000) {
-              if (options.ramType === 'FLASH') {
+              if (ramType === 'FLASH') {
                 await this.switchFlashBank(1);
               } else {
                 await this.switchSRAMBank(1);
@@ -1004,7 +1008,7 @@ export class GBAAdapter extends CartridgeAdapter {
       {
         adapter_type: 'gba',
         operation_type: 'verify_ram',
-        ram_type: options.ramType ?? 'SRAM',
+        ram_type: ramType ?? 'SRAM',
       },
       {
         fileSize: fileData.length,
@@ -1016,7 +1020,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * 获取卡带信息 - 通过CFI查询
    * @returns 卡带容量相关信息
    */
-  override async getCartInfo(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number, cfiInfo?: CFIInfo }> {
+  override async getCartInfo(): Promise<CFIInfo | false> {
     return PerformanceTracker.trackAsyncOperation(
       'gba.getCartInfo',
       async () => {
@@ -1031,50 +1035,17 @@ export class GBAAdapter extends CartridgeAdapter {
 
           if (!cfiInfo) {
             this.log(this.t('messages.operation.cfiParseFailed'));
-            return {
-              deviceSize: -1,
-              sectorCount: -1,
-              sectorSize: -1,
-              bufferWriteBytes: -1,
-              cfiInfo: undefined,
-            };
+            return false;
           }
-
-          // 从CFI信息中提取所需数据
-          const deviceSize = cfiInfo.deviceSize;
-          const bufferWriteBytes = cfiInfo.bufferSize ?? 0;
-
-          // 获取第一个擦除区域的信息作为主要扇区信息
-          const sectorSize = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][0] : 0;
-          const sectorCount = cfiInfo.eraseSectorBlocks.length > 0 ? cfiInfo.eraseSectorBlocks[0][1] : 0;
 
           // 记录CFI解析结果
           this.log(this.t('messages.operation.cfiParseSuccess'));
           this.log(cfiInfo.info);
 
-          this.log(this.t('messages.operation.romSizeQuerySuccess', {
-            deviceSize: deviceSize.toString(),
-            sectorCount: sectorCount.toString(),
-            sectorSize: sectorSize.toString(),
-            bufferWriteBytes: bufferWriteBytes.toString(),
-          }));
-
-          return {
-            deviceSize,
-            sectorCount,
-            sectorSize,
-            bufferWriteBytes,
-            cfiInfo,
-          };
+          return cfiInfo;
         } catch (e) {
           this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${e instanceof Error ? e.message : String(e)}`);
-          return {
-            deviceSize: -1,
-            sectorCount: -1,
-            sectorSize: -1,
-            bufferWriteBytes: -1,
-            cfiInfo: undefined,
-          };
+          return false;
         }
       },
       {

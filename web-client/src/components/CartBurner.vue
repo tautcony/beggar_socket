@@ -50,10 +50,10 @@
             :device-ready="deviceReady"
             :busy="busy"
             :id-str="idStr ?? undefined"
-            :device-size="deviceSize ?? undefined"
-            :sector-count="sectorCount ?? undefined"
-            :sector-size="sectorSize ?? undefined"
-            :buffer-write-bytes="bufferWriteBytes ?? undefined"
+            :device-size="cfiInfo?.deviceSize ?? undefined"
+            :sector-count="sectorCountInfo ?? undefined"
+            :sector-size="sectorSizeInfo ?? undefined"
+            :buffer-write-bytes="cfiInfo?.bufferSize ?? undefined"
             @read-id="readID"
             @erase-chip="eraseChip"
           />
@@ -107,7 +107,7 @@
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import { gameControllerOutline, hardwareChipOutline } from 'ionicons/icons';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import LogViewer from '@/components/LogViewer.vue';
@@ -118,8 +118,10 @@ import { CartridgeAdapter, GBAAdapter, MBC5Adapter, MockAdapter } from '@/servic
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { DebugSettings } from '@/settings/debug-settings';
 import { DeviceInfo, FileInfo, ProgressInfo } from '@/types';
+import { CFIInfo } from '@/utils/cfi-parser';
 import { formatBytes } from '@/utils/formatter-utils';
 import { parseRom } from '@/utils/rom-parser.ts';
+import { calcSectorUsage } from '@/utils/sector-utils';
 
 const { showToast } = useToast();
 const { t } = useI18n();
@@ -145,10 +147,21 @@ const operateState = ref<'idle' | 'running' | 'paused' | 'completed' | 'error'>(
 
 // chip props
 const idStr = ref<string | null>(null);
-const deviceSize = ref<number | null>(null);
-const sectorCount = ref<number | null>(null);
-const sectorSize = ref<number | null>(null);
-const bufferWriteBytes = ref<number | null>(null);
+const cfiInfo = ref<CFIInfo | null>(null);
+
+const sectorSizeInfo = computed(() => {
+  if (!cfiInfo.value) {
+    return null;
+  }
+  return cfiInfo.value.eraseSectorBlocks.map((block) => block[0]).join(', ');
+});
+
+const sectorCountInfo = computed(() => {
+  if (!cfiInfo.value) {
+    return null;
+  }
+  return cfiInfo.value.eraseSectorBlocks.map((block) => block[1]).join(', ');
+});
 
 const currentAbortController = ref<AbortController | null>(null);
 
@@ -269,7 +282,9 @@ function finishOperation() {
 
 function log(msg: string) {
   const time = new Date().toLocaleTimeString();
-  logs.value.push(`[${time}] ${msg}`);
+  const message = `[${time}] ${msg}`;
+  logs.value.push(message);
+  console.log(message);
   if (logs.value.length > 500) logs.value.shift();
 }
 
@@ -354,22 +369,21 @@ async function readID() {
       idStr.value = response.idStr ?? '';
       showToast(response.message, 'success');
       try {
-        const sizeInfo = await adapter.getCartInfo();
-        deviceSize.value = sizeInfo.deviceSize;
-        sectorCount.value = sizeInfo.sectorCount;
-        sectorSize.value = sizeInfo.sectorSize;
-        bufferWriteBytes.value = sizeInfo.bufferWriteBytes;
+        const info = await adapter.getCartInfo();
+        if (info) {
+          cfiInfo.value = info;
+        }
       } catch (e) {
-        deviceSize.value = sectorCount.value = sectorSize.value = bufferWriteBytes.value = null;
+        cfiInfo.value = null;
       }
     } else {
       showToast(response.message, 'error');
-      deviceSize.value = sectorCount.value = sectorSize.value = bufferWriteBytes.value = null;
+      cfiInfo.value = null;
     }
   } catch (e) {
     showToast(t('messages.operation.readIdFailed'), 'error');
     log(`${t('messages.operation.readIdFailed')}: ${e instanceof Error ? e.message : String(e)}`);
-    deviceSize.value = sectorCount.value = sectorSize.value = bufferWriteBytes.value = null;
+    cfiInfo.value = null;
   } finally {
     busy.value = false;
   }
@@ -382,17 +396,20 @@ async function eraseChip() {
   try {
     const adapter = getAdapter();
     if (!adapter) {
-      return;
-    }
-
-    const startAddress = 0x0;
-    if (!deviceSize.value || !sectorSize.value) {
       showToast(t('messages.operation.unsupportedMode'), 'error');
       return;
     }
-    const endAddress = deviceSize.value - sectorSize.value;
-    const response = await adapter.eraseSectors(startAddress, endAddress, sectorSize.value, abortSignal);
-    showToast(response.message, response.success ? 'success' : 'error');
+
+    if (!cfiInfo.value) {
+      return;
+    }
+
+    const sectorInfo = calcSectorUsage(cfiInfo.value.eraseSectorBlocks, cfiInfo.value.deviceSize, 0x00);
+    for (const { startAddress, endAddress, sectorSize } of sectorInfo) {
+      console.log(`Erasing sector from ${startAddress.toString(16)} to ${endAddress.toString(16)} with size ${sectorSize}`);
+      const response = await adapter.eraseSectors(startAddress, endAddress, sectorSize, abortSignal);
+      showToast(response.message, response.success ? 'success' : 'error');
+    }
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') {
       // 操作被取消，不显示错误消息，因为这是用户主动取消的
@@ -420,7 +437,11 @@ async function writeRom() {
       return;
     }
 
-    const response = await adapter.writeROM(romFileData.value, { baseAddress: 0, bufferSize: AdvancedSettings.romBufferSize }, abortSignal);
+    if (!cfiInfo.value) {
+      return;
+    }
+
+    const response = await adapter.writeROM(romFileData.value, { baseAddress: 0x00, cfiInfo: cfiInfo.value }, abortSignal);
     showToast(response.message, response.success ? 'success' : 'error');
   } catch (e) {
     showToast(t('messages.rom.writeFailed'), 'error');
@@ -439,11 +460,16 @@ async function readRom() {
   try {
     const adapter = getAdapter();
     if (!adapter) {
+      showToast(t('messages.operation.unsupportedMode'), 'error');
+      return;
+    }
+
+    if (!cfiInfo.value) {
       return;
     }
 
     const romSize = parseInt(selectedRomSize.value, 16);
-    const response = await adapter.readROM(romSize, { baseAddress: 0x00 }, abortSignal);
+    const response = await adapter.readROM(romSize, { baseAddress: 0x00, cfiInfo: cfiInfo.value }, abortSignal);
     if (response.success) {
       showToast(response.message, 'success');
       if (response.data) {
@@ -482,7 +508,11 @@ async function verifyRom() {
       return;
     }
 
-    const response = await adapter.verifyROM(romFileData.value, { baseAddress: 0x00 }, abortSignal);
+    if (!cfiInfo.value) {
+      return;
+    }
+
+    const response = await adapter.verifyROM(romFileData.value, { baseAddress: 0x00, cfiInfo: cfiInfo.value }, abortSignal);
     showToast(response.message, response.success ? 'success' : 'error');
 
   } catch (e) {
@@ -504,7 +534,11 @@ async function writeRam() {
       return;
     }
 
-    const response = await adapter.writeRAM(ramFileData.value, { ramType: selectedRamType.value as 'SRAM' | 'FLASH' });
+    if (!cfiInfo.value) {
+      return;
+    }
+
+    const response = await adapter.writeRAM(ramFileData.value, { ramType: selectedRamType.value as 'SRAM' | 'FLASH', cfiInfo: cfiInfo.value });
     showToast(response.message, response.success ? 'success' : 'error');
   } catch (e) {
     showToast(t('messages.ram.writeFailed'), 'error');
@@ -520,11 +554,16 @@ async function readRam() {
   try {
     const adapter = getAdapter();
     if (!adapter) {
+      showToast(t('messages.operation.unsupportedMode'), 'error');
+      return;
+    }
+
+    if (!cfiInfo.value) {
       return;
     }
 
     const defaultSize = ramFileData.value ? ramFileData.value.length : parseInt(selectedRamSize.value, 16);
-    const response = await adapter.readRAM(defaultSize, { ramType: selectedRamType.value as 'SRAM' | 'FLASH' });
+    const response = await adapter.readRAM(defaultSize, { ramType: selectedRamType.value as 'SRAM' | 'FLASH', cfiInfo: cfiInfo.value });
     if (response.success) {
       showToast(response.message, 'success');
       if (response.data) {
@@ -551,7 +590,11 @@ async function verifyRam() {
       return;
     }
 
-    const response = await adapter.verifyRAM(ramFileData.value, { ramType: selectedRamType.value as 'SRAM' | 'FLASH' });
+    if (!cfiInfo.value) {
+      return;
+    }
+
+    const response = await adapter.verifyRAM(ramFileData.value, { ramType: selectedRamType.value as 'SRAM' | 'FLASH', cfiInfo: cfiInfo.value });
     showToast(response.message, response.success ? 'success' : 'error');
   } catch (e) {
     showToast(t('messages.ram.verifyFailed'), 'error');
@@ -581,10 +624,7 @@ function resetState() {
   resetProgress();
 
   // 重置设备信息
-  deviceSize.value = null;
-  sectorCount.value = null;
-  sectorSize.value = null;
-  bufferWriteBytes.value = null;
+  cfiInfo.value = null;
 
   // 重置文件数据
   romFileData.value = null;

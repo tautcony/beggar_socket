@@ -3,6 +3,7 @@ import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { ProgressInfo } from '@/types/progress-info';
+import { CFIInfo } from '@/utils/cfi-parser';
 import NotImplementedError from '@/utils/errors/NotImplementedError';
 
 // 定义日志和进度回调函数类型
@@ -78,7 +79,7 @@ export class CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态和消息的对象
    */
-  async writeROM(data: Uint8Array, options: CommandOptions = {}, signal?: AbortSignal): Promise<CommandResult> {
+  async writeROM(data: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     throw new NotImplementedError();
   }
 
@@ -89,7 +90,7 @@ export class CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态、数据和消息的对象
    */
-  async readROM(size: number, options: CommandOptions = {}, signal?: AbortSignal): Promise<CommandResult> {
+  async readROM(size: number, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     throw new NotImplementedError();
   }
 
@@ -100,7 +101,7 @@ export class CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态和消息的对象
    */
-  async verifyROM(data: Uint8Array, options: CommandOptions = {}, signal: AbortSignal): Promise<CommandResult> {
+  async verifyROM(data: Uint8Array, options: CommandOptions, signal: AbortSignal): Promise<CommandResult> {
     throw new NotImplementedError();
   }
 
@@ -137,7 +138,7 @@ export class CartridgeAdapter {
   /**
    * 获取卡带信息
    */
-  async getCartInfo(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number }> {
+  async getCartInfo(): Promise<CFIInfo | false> {
     throw new NotImplementedError();
   }
 
