@@ -37,7 +37,7 @@ export class MockAdapter extends CartridgeAdapter {
   /**
    * 模拟读取芯片ID
    */
-  async readID(): Promise<CommandResult & { idStr?: string }> {
+  override async readID(): Promise<CommandResult & { idStr?: string }> {
     this.log(this.t('messages.operation.readId'));
 
     await DebugSettings.delay();
@@ -64,7 +64,7 @@ export class MockAdapter extends CartridgeAdapter {
    * 模拟擦除芯片
    * @param signal - 取消信号，用于中止操作
    */
-  async eraseChip(signal?: AbortSignal): Promise<CommandResult> {
+  override async eraseChip(signal?: AbortSignal): Promise<CommandResult> {
     this.log(this.t('messages.operation.eraseChip'));
 
     const startTime = Date.now();
@@ -156,7 +156,7 @@ export class MockAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果
    */
-  async eraseSectors(startAddress = 0, endAddress: number, sectorSize = 0x10000, signal?: AbortSignal): Promise<CommandResult> {
+  override async eraseSectors(startAddress = 0, endAddress: number, sectorSize = 0x10000, signal?: AbortSignal): Promise<CommandResult> {
     this.log(`擦除扇区 0x${startAddress.toString(16).toUpperCase().padStart(8, '0')} - 0x${endAddress.toString(16).toUpperCase().padStart(8, '0')}`);
 
     const totalSectors = Math.floor((endAddress - startAddress) / sectorSize) + 1;
@@ -266,7 +266,7 @@ export class MockAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果
    */
-  async writeROM(fileData: Uint8Array, options: CommandOptions = {}, signal?: AbortSignal): Promise<CommandResult> {
+  override async writeROM(fileData: Uint8Array, options: CommandOptions = {}, signal?: AbortSignal): Promise<CommandResult> {
     this.log(this.t('messages.rom.writing', { size: fileData.length }));
 
     const startTime = Date.now();
@@ -381,7 +381,7 @@ export class MockAdapter extends CartridgeAdapter {
    * 获取卡带信息 - 模拟CFI查询
    * @returns 卡带容量相关信息
    */
-  async getCartInfo(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number, cfiInfo?: CFIInfo }> {
+  override async getCartInfo(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number, cfiInfo?: CFIInfo }> {
     this.log(this.t('messages.operation.queryingRomSize'));
 
     await DebugSettings.delay();
@@ -455,7 +455,7 @@ export class MockAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果，包含读取的数据
    */
-  async readROM(size = 0x200000, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal): Promise<CommandResult> {
+  override async readROM(size = 0x200000, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal): Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
     this.log(this.t('messages.rom.reading'));
 
@@ -560,7 +560,7 @@ export class MockAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果
    */
-  async verifyROM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal): Promise<CommandResult> {
+  override async verifyROM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal): Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
     this.log(this.t('messages.rom.verifying'));
 
@@ -668,7 +668,7 @@ export class MockAdapter extends CartridgeAdapter {
    * @param options - 写入选项
    * @returns - 操作结果
    */
-  async writeRAM(fileData: Uint8Array, options: CommandOptions = { ramType: 'SRAM' }): Promise<CommandResult> {
+  override async writeRAM(fileData: Uint8Array, options: CommandOptions = { ramType: 'SRAM' }): Promise<CommandResult> {
     this.log(this.t('messages.ram.writing', { size: fileData.length }));
 
     const startTime = Date.now();
@@ -735,7 +735,7 @@ export class MockAdapter extends CartridgeAdapter {
    * @param options - 读取参数
    * @returns - 操作结果，包含读取的数据
    */
-  async readRAM(size = 0x8000, options: CommandOptions = { ramType: 'SRAM' }) {
+  override async readRAM(size = 0x8000, options: CommandOptions = { ramType: 'SRAM' }) {
     this.log(this.t('messages.ram.reading'));
 
     const startTime = Date.now();
@@ -795,7 +795,7 @@ export class MockAdapter extends CartridgeAdapter {
    * @param options - 选项对象
    * @returns - 操作结果
    */
-  async verifyRAM(fileData: Uint8Array, options: CommandOptions = { ramType: 'SRAM' }) {
+  override async verifyRAM(fileData: Uint8Array, options: CommandOptions = { ramType: 'SRAM' }) {
     this.log(this.t('messages.ram.verifying'));
 
     const startTime = Date.now();

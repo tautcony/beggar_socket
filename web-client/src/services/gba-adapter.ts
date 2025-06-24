@@ -44,7 +44,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * 读取ROM芯片ID
    * @returns - ID字符串
    */
-  async readID(): Promise<CommandResult & { idStr?: string }> {
+  override async readID(): Promise<CommandResult & { idStr?: string }> {
     return PerformanceTracker.trackAsyncOperation(
       'gba.readID',
       async () => {
@@ -88,7 +88,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态和消息的对象
    */
-  async eraseChip(signal?: AbortSignal) : Promise<CommandResult> {
+  override async eraseChip(signal?: AbortSignal) : Promise<CommandResult> {
     return PerformanceTracker.trackAsyncOperation(
       'gba.eraseChip',
       async () => {
@@ -165,7 +165,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果
    */
-  async eraseSectors(startAddress = 0, endAddress: number, sectorSize = 0x10000, signal?: AbortSignal) : Promise<CommandResult> {
+  override async eraseSectors(startAddress = 0, endAddress: number, sectorSize = 0x10000, signal?: AbortSignal) : Promise<CommandResult> {
     return PerformanceTracker.trackAsyncOperation(
       'gba.eraseSectors',
       async () => {
@@ -286,7 +286,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果
    */
-  async writeROM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal) : Promise<CommandResult> {
+  override async writeROM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
     const pageSize = AdvancedSettings.romPageSize;
     const bufferSize = options.bufferSize ?? 0x200;
@@ -419,7 +419,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果，包含读取的数据
    */
-  async readROM(size = 0x200000, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal) : Promise<CommandResult> {
+  override async readROM(size = 0x200000, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
 
     return PerformanceTracker.trackAsyncOperation(
@@ -550,7 +550,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param baseAddress - 基础地址
    * @returns - 操作结果
    */
-  async verifyROM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal): Promise<CommandResult> {
+  override async verifyROM(fileData: Uint8Array, options: CommandOptions = { baseAddress: 0x00 }, signal?: AbortSignal): Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
     return PerformanceTracker.trackAsyncOperation(
       'gba.verifyROM',
@@ -706,7 +706,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param options - 写入选项
    * @returns - 操作结果
    */
-  async writeRAM(fileData: Uint8Array, options: CommandOptions = { ramType: 'SRAM' }): Promise<CommandResult> {
+  override async writeRAM(fileData: Uint8Array, options: CommandOptions = { ramType: 'SRAM' }): Promise<CommandResult> {
     return PerformanceTracker.trackAsyncOperation(
       'gba.writeRAM',
       async () => {
@@ -837,7 +837,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param options - 读取参数
    * @returns - 操作结果，包含读取的数据
    */
-  async readRAM(size = 0x8000, options: CommandOptions = { ramType: 'SRAM' }) {
+  override async readRAM(size = 0x8000, options: CommandOptions = { ramType: 'SRAM' }) {
     return PerformanceTracker.trackAsyncOperation(
       'gba.readRAM',
       async () => {
@@ -928,7 +928,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param options - 选项对象
    * @returns - 操作结果
    */
-  async verifyRAM(fileData: Uint8Array, options: CommandOptions = { ramType: 'SRAM' }) {
+  override async verifyRAM(fileData: Uint8Array, options: CommandOptions = { ramType: 'SRAM' }) {
     const baseAddress = options.baseAddress ?? 0x00;
     const pageSize = AdvancedSettings.ramPageSize;
 
@@ -1016,7 +1016,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * 获取卡带信息 - 通过CFI查询
    * @returns 卡带容量相关信息
    */
-  async getCartInfo(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number, cfiInfo?: CFIInfo }> {
+  override async getCartInfo(): Promise<{ deviceSize: number, sectorCount: number, sectorSize: number, bufferWriteBytes: number, cfiInfo?: CFIInfo }> {
     return PerformanceTracker.trackAsyncOperation(
       'gba.getCartInfo',
       async () => {
