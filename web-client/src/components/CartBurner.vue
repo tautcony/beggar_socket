@@ -67,12 +67,14 @@
             :rom-file-data="romFileData || undefined"
             :rom-file-name="romFileName"
             :selected-rom-size="selectedRomSize"
+            :selected-base-address="selectedBaseAddress"
             @file-selected="onRomFileSelected"
             @file-cleared="onRomFileCleared"
             @write-rom="writeRom"
             @read-rom="readRom"
             @verify-rom="verifyRom"
             @rom-size-change="onRomSizeChange"
+            @base-address-change="onBaseAddressChange"
             @mode-switch-required="onModeSwitchRequired"
           />
 
@@ -179,6 +181,7 @@ const mbc5Adapter = ref<CartridgeAdapter | null>();
 const romFileData = ref<Uint8Array | null>(null);
 const romFileName = ref('');
 const selectedRomSize = ref('0x800000'); // 默认8MB
+const selectedBaseAddress = ref('0x00000000'); // 默认基址0x00
 
 // RAM
 const ramFileData = ref<Uint8Array | null>(null);
@@ -329,6 +332,11 @@ function onRomSizeChange(hexSize: string) {
   log(t('messages.rom.sizeChanged', { size: formatBytes(parseInt(hexSize, 16)) }));
 }
 
+function onBaseAddressChange(hexAddress: string) {
+  selectedBaseAddress.value = hexAddress;
+  log(t('messages.rom.baseAddressChanged', { address: hexAddress }));
+}
+
 function onRamSizeChange(hexSize: string) {
   selectedRamSize.value = hexSize;
   log(t('messages.ram.sizeChanged', { size: formatBytes(parseInt(hexSize, 16)) }));
@@ -452,7 +460,7 @@ async function writeRom() {
       return;
     }
 
-    const response = await adapter.writeROM(romFileData.value, { baseAddress: 0x00, cfiInfo: cfiInfo.value }, abortSignal);
+    const response = await adapter.writeROM(romFileData.value, { baseAddress: parseInt(selectedBaseAddress.value, 16), cfiInfo: cfiInfo.value }, abortSignal);
     showToast(response.message, response.success ? 'success' : 'error');
   } catch (e) {
     showToast(t('messages.rom.writeFailed'), 'error');
@@ -483,7 +491,7 @@ async function readRom() {
     }
 
     const romSize = parseInt(selectedRomSize.value, 16);
-    const response = await adapter.readROM(romSize, { baseAddress: 0x00, cfiInfo: cfiInfo.value }, abortSignal);
+    const response = await adapter.readROM(romSize, { baseAddress: parseInt(selectedBaseAddress.value, 16), cfiInfo: cfiInfo.value }, abortSignal);
     if (response.success) {
       showToast(response.message, 'success');
       if (response.data) {
@@ -529,7 +537,7 @@ async function verifyRom() {
       return;
     }
 
-    const response = await adapter.verifyROM(romFileData.value, { baseAddress: 0x00, cfiInfo: cfiInfo.value }, abortSignal);
+    const response = await adapter.verifyROM(romFileData.value, { baseAddress: parseInt(selectedBaseAddress.value, 16), cfiInfo: cfiInfo.value }, abortSignal);
     showToast(response.message, response.success ? 'success' : 'error');
 
   } catch (e) {
@@ -654,6 +662,7 @@ function resetState() {
 
   // 重置选择的大小为默认值
   selectedRomSize.value = '0x800000'; // 默认8MB
+  selectedBaseAddress.value = '0x00'; // 默认基址0x00
   selectedRamSize.value = '0x8000'; // 默认32KB
   selectedRamType.value = 'SRAM'; // 默认SRAM
 

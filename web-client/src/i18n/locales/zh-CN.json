@@ -87,6 +87,13 @@
       "romTitle": "ROM标题",
       "romSize": "ROM大小",
       "sizeLabel": "大小：",
+      "baseAddressLabel": "基址：",
+      "baseAddressOptions": {
+        "fullCart": "整卡",
+        "menu": "菜单",
+        "game": "游戏{index}",
+        "bank": "Bank{index}"
+      },
       "info": "ROM信息",
       "type": "类型",
       "gameCode": "游戏代码",
@@ -310,6 +317,7 @@
       "verifyFailedAt": "地址{address}校验失败，期望值{expected}，实际值{actual}",
       "verifySummary": "校验完成 - 总时间: {totalTime}秒，平均速度: {avgSpeed} KB/s，最大速度: {maxSpeed} KB/s，总大小: {totalSize} KB",
       "sizeChanged": "ROM大小已更改为 {size}",
+      "baseAddressChanged": "ROM基址已更改为 {address}",
       "bankSwitch": "切换到ROM Bank {bank}",
       "eraseBeforeWrite": "Flash不为空，开始擦除...",
       "capacityInfo": "容量: {deviceSize} 扇区数量: {sectorCount} 扇区大小: {sectorSize} 缓冲写入: {bufferWriteBytes}",

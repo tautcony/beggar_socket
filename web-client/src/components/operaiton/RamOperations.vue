@@ -1,81 +1,83 @@
 <template>
-  <section class="section">
-    <div class="section-header">
-      <h2>{{ $t('ui.ram.title') }}</h2>
-      <div class="selector-container">
-        <div class="type-selector">
-          <label class="type-label">{{ $t('ui.ram.typeLabel') }}</label>
-          <select
-            v-model="selectedRamType"
-            :disabled="!deviceReady || busy"
-            class="type-dropdown"
-            @change="onRamTypeChange"
-          >
-            <option value="SRAM">
-              {{ $t('ui.ram.typeSRAM') }}
-            </option>
-            <option value="FLASH">
-              {{ $t('ui.ram.typeFLASH') }}
-            </option>
-          </select>
-        </div>
-        <div class="size-selector">
-          <label class="size-label">{{ $t('ui.ram.sizeLabel') }}</label>
-          <select
-            v-model="selectedRamSize"
-            :disabled="!deviceReady || busy"
-            class="size-dropdown"
-            @change="onRamSizeChange"
-          >
-            <option
-              v-for="option in RAM_SIZE_RANGE"
-              :key="option.value"
-              :value="option.value"
+  <div class="rom-operations-container">
+    <section class="section">
+      <div class="section-header">
+        <h2>{{ $t('ui.ram.title') }}</h2>
+        <div class="selector-container">
+          <div class="type-selector">
+            <label class="type-label">{{ $t('ui.ram.typeLabel') }}</label>
+            <select
+              v-model="selectedRamType"
+              :disabled="!deviceReady || busy"
+              class="type-dropdown"
+              @change="onRamTypeChange"
             >
-              {{ option.text }}
-            </option>
-          </select>
+              <option value="SRAM">
+                {{ $t('ui.ram.typeSRAM') }}
+              </option>
+              <option value="FLASH">
+                {{ $t('ui.ram.typeFLASH') }}
+              </option>
+            </select>
+          </div>
+          <div class="size-selector">
+            <label class="size-label">{{ $t('ui.ram.sizeLabel') }}</label>
+            <select
+              v-model="selectedRamSize"
+              :disabled="!deviceReady || busy"
+              class="size-dropdown"
+              @change="onRamSizeChange"
+            >
+              <option
+                v-for="option in RAM_SIZE_RANGE"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.text }}
+              </option>
+            </select>
+          </div>
         </div>
       </div>
-    </div>
-    <div class="ram-content">
-      <FileDropZone
-        :disabled="!deviceReady || busy"
-        :file-data="ramFileData"
-        :file-name="ramFileName"
-        accept-types=".sav,.ram"
-        accept-hint=".sav, .ram"
-        :main-text="$t('ui.ram.selectFile')"
-        :file-title="''"
-        @file-selected="onFileSelected"
-        @file-cleared="onFileCleared"
-      >
-        <template #icon>
-          <IonIcon :icon="saveOutline" />
-        </template>
-      </FileDropZone>
-      <div class="button-row">
-        <button
-          :disabled="!deviceReady || !ramFileData || busy"
-          @click="$emit('write-ram')"
-        >
-          {{ $t('ui.ram.write') }}
-        </button>
-        <button
+      <div class="ram-content">
+        <FileDropZone
           :disabled="!deviceReady || busy"
-          @click="$emit('read-ram')"
+          :file-data="ramFileData"
+          :file-name="ramFileName"
+          accept-types=".sav,.ram"
+          accept-hint=".sav, .ram"
+          :main-text="$t('ui.ram.selectFile')"
+          :file-title="''"
+          @file-selected="onFileSelected"
+          @file-cleared="onFileCleared"
         >
-          {{ $t('ui.ram.read') }}
-        </button>
-        <button
-          :disabled="!deviceReady || !ramFileData || busy"
-          @click="$emit('verify-ram')"
-        >
-          {{ $t('ui.ram.verify') }}
-        </button>
+          <template #icon>
+            <IonIcon :icon="saveOutline" />
+          </template>
+        </FileDropZone>
+        <div class="button-row">
+          <button
+            :disabled="!deviceReady || !ramFileData || busy"
+            @click="$emit('write-ram')"
+          >
+            {{ $t('ui.ram.write') }}
+          </button>
+          <button
+            :disabled="!deviceReady || busy"
+            @click="$emit('read-ram')"
+          >
+            {{ $t('ui.ram.read') }}
+          </button>
+          <button
+            :disabled="!deviceReady || !ramFileData || busy"
+            @click="$emit('verify-ram')"
+          >
+            {{ $t('ui.ram.verify') }}
+          </button>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -203,6 +205,7 @@ function onRamTypeChange() {
   font-size: 0.9rem;
   color: #666;
   margin: 0;
+  white-space: nowrap;
 }
 
 .type-dropdown,
@@ -263,9 +266,14 @@ button {
   cursor: pointer;
   font-size: 0.95rem;
   transition: background 0.2s, color 0.2s;
+  outline: none;
   white-space: nowrap;
   min-width: fit-content;
   flex: 1 1 auto;
+}
+
+button:focus {
+  outline: none;
 }
 
 button:disabled {

@@ -3,22 +3,41 @@
     <section class="section">
       <div class="section-header">
         <h2>{{ $t('ui.rom.title') }}</h2>
-        <div class="size-selector">
-          <label class="size-label">{{ $t('ui.rom.sizeLabel') }}</label>
-          <select
-            v-model="selectedRomSize"
-            :disabled="!deviceReady || busy"
-            class="size-dropdown"
-            @change="onRomSizeChange"
-          >
-            <option
-              v-for="option in ROM_SIZE_RANGE"
-              :key="option.value"
-              :value="option.value"
+        <div class="selector-container">
+          <div class="base-address-selector">
+            <label class="base-address-label">{{ $t('ui.rom.baseAddressLabel') }}</label>
+            <select
+              v-model="selectedBaseAddress"
+              :disabled="!deviceReady || busy"
+              class="base-address-dropdown"
+              @change="onBaseAddressChange"
             >
-              {{ option.text }}
-            </option>
-          </select>
+              <option
+                v-for="option in baseAddressOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.text }}
+              </option>
+            </select>
+          </div>
+          <div class="size-selector">
+            <label class="size-label">{{ $t('ui.rom.sizeLabel') }}</label>
+            <select
+              v-model="selectedRomSize"
+              :disabled="!deviceReady || busy"
+              class="size-dropdown"
+              @change="onRomSizeChange"
+            >
+              <option
+                v-for="option in ROM_SIZE_RANGE"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.text }}
+              </option>
+            </select>
+          </div>
         </div>
       </div>
       <div
@@ -125,6 +144,7 @@ import FileDropZone from '@/components/common/FileDropZone.vue';
 import RomInfoPanel from '@/components/common/RomInfoPanel.vue';
 import { useToast } from '@/composables/useToast';
 import { FileInfo } from '@/types/file-info.ts';
+import { formatHex } from '@/utils/formatter-utils';
 import { parseRom, type RomInfo } from '@/utils/rom-parser.ts';
 
 // 动态加载模拟器组件
@@ -160,6 +180,10 @@ const props = defineProps({
     type: String,
     default: '0x800000',
   },
+  selectedBaseAddress: {
+    type: String,
+    default: '0x00000000',
+  },
 });
 
 const ROM_SIZE_RANGE = [
@@ -174,7 +198,27 @@ const ROM_SIZE_RANGE = [
   { value: '0x4000000', size: 0x4000000, text: '64MB' },
 ];
 
-const emit = defineEmits(['file-selected', 'file-cleared', 'write-rom', 'read-rom', 'verify-rom', 'rom-size-change', 'mode-switch-required']);
+// 不同cartType的baseAddress选项
+const getBaseAddressOptions = (romType: 'GBA' | 'MBC5') => {
+  const options: Record<string, { value: string; text: string }[]> = {
+    MBC5: [
+      { value: '0x00000000', text: t('ui.rom.baseAddressOptions.fullCart') },
+      { value: '0x00', text: t('ui.rom.baseAddressOptions.menu') },
+    ],
+    GBA: [
+      { value: '0x00000000', text: t('ui.rom.baseAddressOptions.fullCart') },
+    ],
+  };
+
+  for (let i = 1; i <= 16; ++i) {
+    options.MBC5.push({ value: formatHex(0x100000 * i, 4), text: t('ui.rom.baseAddressOptions.game', { index: i }) });
+    options.GBA.push({ value: formatHex(0x400000 * i, 4), text: t('ui.rom.baseAddressOptions.bank', { index: i }) });
+  }
+
+  return options[romType] ?? [];
+};
+
+const emit = defineEmits(['file-selected', 'file-cleared', 'write-rom', 'read-rom', 'verify-rom', 'rom-size-change', 'base-address-change', 'mode-switch-required']);
 
 // 模拟器相关状态
 const currentEmulator = ref<'GB' | 'GBC' | 'GBA' | null>(null); // 当前显示的模拟器类型
@@ -182,8 +226,14 @@ const emulatorRomData = ref<Uint8Array | null>(null);
 const emulatorRomName = ref('');
 
 const selectedRomSize = ref(props.selectedRomSize);
+const selectedBaseAddress = ref(props.selectedBaseAddress);
 const romInfo = ref<RomInfo | null>(null);
 const isRomInfoCollapsed = ref(true); // 默认折叠
+
+// 计算baseAddress选项
+const baseAddressOptions = computed(() => {
+  return getBaseAddressOptions(props.mode as 'GBA' | 'MBC5');
+});
 
 // 计算是否可以预览ROM
 const canPreview = computed(() => {
@@ -200,7 +250,7 @@ watch(() => props.romFileData, (newData) => {
     romInfo.value = parseRom(newData);
 
     // 检查ROM类型，根据类型自动切换模式
-    if (romInfo.value) {
+    if (romInfo.value?.isValid) {
       if (romInfo.value.type === 'GBA' && props.mode !== 'GBA') {
         emit('mode-switch-required', 'GBA', romInfo.value.type);
       } else if ((romInfo.value.type === 'GB' || romInfo.value.type === 'GBC') && props.mode !== 'MBC5') {
@@ -232,6 +282,10 @@ function onFileCleared() {
 
 function onRomSizeChange() {
   emit('rom-size-change', selectedRomSize.value);
+}
+
+function onBaseAddressChange() {
+  emit('base-address-change', selectedBaseAddress.value);
 }
 
 function playRom() {
@@ -282,20 +336,32 @@ function closeEmulator() {
   font-weight: 600;
 }
 
+.selector-container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  min-width: fit-content;
+}
+
+.base-address-selector,
 .size-selector {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: fit-content;
   flex-shrink: 0;
 }
 
+.base-address-label,
 .size-label {
   font-size: 0.9rem;
   color: #666;
   margin: 0;
+  white-space: nowrap;
 }
 
+.base-address-dropdown,
 .size-dropdown {
   padding: 4px 8px;
   border: 1px solid #ddd;
@@ -309,10 +375,12 @@ function closeEmulator() {
   white-space: nowrap;
 }
 
+.base-address-dropdown:hover:not(:disabled),
 .size-dropdown:hover:not(:disabled) {
   border-color: #1976d2;
 }
 
+.base-address-dropdown:disabled,
 .size-dropdown:disabled {
   background: #f5f5f5;
   color: #aaa;
