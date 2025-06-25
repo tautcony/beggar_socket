@@ -721,9 +721,9 @@ async function readRomInfo() {
 
 async function readGBAMultiCartRoms(adapter: CartridgeAdapter, deviceSize: number, cfi: CFIInfo): Promise<GameDetectionResult[]> {
   const results: GameDetectionResult[] = [];
+  log(t('ui.operation.startReadingMultiCart'));
 
   const bankCount = Math.floor(deviceSize / 0x400000);
-  log(t('ui.operation.gbaMultiCartDetected', { bankCount }));
 
   for (let i = 0; i < bankCount; i++) {
     const baseAddress = i * 0x400000;
@@ -748,29 +748,16 @@ async function readGBAMultiCartRoms(adapter: CartridgeAdapter, deviceSize: numbe
 
 async function readMBC5MultiCartRoms(adapter: CartridgeAdapter, deviceSize: number, cfi: CFIInfo): Promise<GameDetectionResult[]> {
   const results: GameDetectionResult[] = [];
+  log(t('ui.operation.startReadingMultiCart'));
 
   // MBC5 N合1卡带的地址范围定义
   const multiCardRanges = [
-    { from: 0x00000000, to: 0x000fffff, name: 'Menu' }, // 菜单
-    { from: 0x00100000, to: 0x001fffff, name: 'Game 1' }, // 游戏1
-    { from: 0x00200000, to: 0x003fffff, name: 'Game 2' }, // 游戏2
-    { from: 0x00400000, to: 0x005fffff, name: 'Game 3' }, // 游戏3
-    { from: 0x00600000, to: 0x007fffff, name: 'Game 4' }, // 游戏4
-    { from: 0x00800000, to: 0x009fffff, name: 'Game 5' }, // 游戏5
-    { from: 0x00a00000, to: 0x00bfffff, name: 'Game 6' }, // 游戏6
-    { from: 0x00c00000, to: 0x00dfffff, name: 'Game 7' }, // 游戏7
-    { from: 0x00e00000, to: 0x00ffffff, name: 'Game 8' }, // 游戏8
-    { from: 0x01000000, to: 0x011fffff, name: 'Game 9' }, // 游戏9
-    { from: 0x01200000, to: 0x013fffff, name: 'Game 10' }, // 游戏10
-    { from: 0x01400000, to: 0x015fffff, name: 'Game 11' }, // 游戏11
-    { from: 0x01600000, to: 0x017fffff, name: 'Game 12' }, // 游戏12
-    { from: 0x01800000, to: 0x019fffff, name: 'Game 13' }, // 游戏13
-    { from: 0x01a00000, to: 0x01bfffff, name: 'Game 14' }, // 游戏14
-    { from: 0x01c00000, to: 0x01dfffff, name: 'Game 15' }, // 游戏15
-    { from: 0x01e00000, to: 0x01ffffff, name: 'Game 16' }, // 游戏16
+    { from: 0x000000 }, // 菜单
+    { from: 0x100000 }, // 游戏1
   ];
-
-  log(t('ui.operation.mbc5MultiCartDetected'));
+  for (let i = 1; i < 16; ++i) {
+    multiCardRanges.push({ from: 0x200000 * i });
+  }
 
   // 检查每个可能的游戏位置
   for (const range of multiCardRanges) {
@@ -793,7 +780,6 @@ async function readMBC5MultiCartRoms(adapter: CartridgeAdapter, deviceSize: numb
   return results;
 }
 
-// 统一打印游戏检测结果
 function printGameDetectionResults(gameResults: GameDetectionResult[], cartType: 'GBA' | 'MBC5') {
   if (gameResults.length === 0) {
     log(t('ui.operation.noValidGameFound'));
@@ -801,21 +787,14 @@ function printGameDetectionResults(gameResults: GameDetectionResult[], cartType:
   }
 
   if (gameResults.length === 1 && gameResults[0].startAddress === 0) {
-    // 单个游戏
     const result = gameResults[0];
     log(t('ui.operation.singleGameDetected', {
       title: result.romInfo.title || 'Unknown',
       type: result.romInfo.type,
     }));
   } else {
-    // 多合一卡带
-    if (cartType === 'GBA') {
-      log(t('ui.operation.gbaMultiCartDetected', { bankCount: gameResults.length }));
-    } else {
-      log(t('ui.operation.mbc5MultiCartDetected'));
-    }
+    log(t('ui.operation.multiCartDetected'));
 
-    // 打印每个游戏的详细信息
     for (const result of gameResults) {
       const { startAddress, bank, romInfo } = result;
       const addressStr = formatHex(startAddress, 4);

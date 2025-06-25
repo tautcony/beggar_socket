@@ -180,6 +180,7 @@ const ROM_SIZE_RANGE = [
   { value: '0x1000000', size: 0x1000000, text: '16MB' },
   { value: '0x2000000', size: 0x2000000, text: '32MB' },
   { value: '0x4000000', size: 0x4000000, text: '64MB' },
+  { value: '0x8000000', size: 0x4000000, text: '128MB' },
 ];
 
 // 不同cartType的baseAddress选项

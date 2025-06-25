@@ -127,7 +127,7 @@ function parseGBARom(data: Uint8Array): RomInfo {
 
   // GBA ROM标题位置：0xA0-0xAB (12字节)
   const titleBytes = data.slice(0xA0, 0xAC);
-  const title = new TextDecoder('ascii').decode(titleBytes).replace(/\0/g, '').trim();
+  const title = new TextDecoder('utf-8').decode(titleBytes).replace(/\0/g, '').trim();
 
   // 游戏代码：0xAC-0xAF (4字节)
   const gameCodeBytes = data.slice(0xAC, 0xB0);
@@ -217,7 +217,7 @@ function parseGBRom(data: Uint8Array): RomInfo {
   }
 
   const titleBytes = data.slice(0x134, titleEnd);
-  const title = new TextDecoder('ascii').decode(titleBytes).replace(/\0/g, '').trim();
+  const title = new TextDecoder('utf-8').decode(titleBytes).replace(/\0/g, '').trim();
 
   // 制造商代码：0x13F-0x142 (新格式) 或包含在标题中 (旧格式)
   let makerCode = '';
