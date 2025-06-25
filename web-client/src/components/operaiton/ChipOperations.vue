@@ -12,6 +12,12 @@
       </button>
       <button
         :disabled="!deviceReady || busy || !chipInfoValid"
+        @click="$emit('read-rom-info')"
+      >
+        {{ $t('ui.operation.readRom') }}
+      </button>
+      <button
+        :disabled="!deviceReady || busy || !chipInfoValid"
         @click="$emit('erase-chip')"
       >
         {{ $t('ui.operation.eraseChip') }}
@@ -123,7 +129,7 @@ const chipInfoValid = computed(() => {
   );
 });
 
-defineEmits(['read-id', 'erase-chip']);
+defineEmits(['read-id', 'erase-chip', 'read-rom-info']);
 </script>
 
 <style scoped>
