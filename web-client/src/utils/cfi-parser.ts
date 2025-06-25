@@ -1,3 +1,5 @@
+import { formatHex } from '@/utils/formatter-utils';
+
 /**
  * CFI解析结果接口
  */
@@ -196,9 +198,9 @@ export class CFIParser {
           };
           info.tbBootSectorRaw = workBuffer[priAddress + 0x1E];
           info.tbBootSector = bootSectorTypes[workBuffer[priAddress + 0x1E]] ||
-                             `0x${workBuffer[priAddress + 0x1E].toString(16).padStart(2, '0').toUpperCase()}`;
+            formatHex(workBuffer[priAddress + 0x1E], 1);
           if (bootSectorTypes[workBuffer[priAddress + 0x1E]]) {
-            info.tbBootSector += ` (0x${workBuffer[priAddress + 0x1E].toString(16).padStart(2, '0').toUpperCase()})`;
+            info.tbBootSector += ` (${formatHex(workBuffer[priAddress + 0x1E], 1)})`;
           }
         }
       }
@@ -257,7 +259,7 @@ export class CFIParser {
     }
 
     // 设备信息
-    s += `Device size: 0x${info.deviceSize.toString(16).padStart(7, '0').toUpperCase()} (${(info.deviceSize / 1024 / 1024).toFixed(2)} MB)\n`;
+    s += `Device size: ${formatHex(info.deviceSize, 4)} (${(info.deviceSize / 1024 / 1024).toFixed(2)} MB)\n`;
     s += `Voltage: ${info.vddMin.toFixed(1)}–${info.vddMax.toFixed(1)} V\n`;
     s += `Single write: ${info.singleWrite}\n`;
 
@@ -288,7 +290,7 @@ export class CFIParser {
 
     for (let i = 0; i < info.eraseSectorRegions; i++) {
       const esb = info.eraseSectorBlocks[i];
-      s += `\nRegion ${i + 1}: 0x${pos.toString(16).padStart(7, '0').toUpperCase()}–0x${(pos + esb[2] - 1).toString(16).padStart(7, '0').toUpperCase()} @ 0x${esb[0].toString(16).toUpperCase()} Bytes × ${esb[1]}`;
+      s += `\nRegion ${i + 1}: ${formatHex(pos, 4)}–${formatHex(pos + esb[2] - 1, 4)} @ ${formatHex(esb[0], 2)} Bytes × ${esb[1]}`;
       if (oversize) {
         s += ' (alt)';
       }

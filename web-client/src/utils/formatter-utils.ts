@@ -60,7 +60,7 @@ export function formatTime(value: number, unit: 's' | 'ms' = 's', showMillisecon
   }
 
   // 如果值为0，根据是否显示毫秒返回相应格式
-  if (totalMs === 0) {
+  if (totalMs <= 0) {
     return showMilliseconds ? '00:00.0' : '00:00';
   }
 
@@ -78,3 +78,12 @@ export function formatTime(value: number, unit: 's' | 'ms' = 's', showMillisecon
 
   return baseTime;
 }
+
+export function formatHex(value: number, byteLength: 1 | 2 | 4 | 6) {
+  if (typeof value !== 'number' || byteLength <= 0) {
+    throw new Error('Invalid input for formatHex');
+  }
+
+  const hexString = value.toString(16).toUpperCase().padStart(byteLength * 2, '0');
+  return `0x${hexString}`;
+};

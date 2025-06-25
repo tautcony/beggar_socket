@@ -4,6 +4,7 @@ import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { CFIInfo } from '@/utils/cfi-parser';
+import { formatHex } from '@/utils/formatter-utils';
 import { SpeedCalculator } from '@/utils/speed-calculator';
 
 /**
@@ -157,7 +158,7 @@ export class MockAdapter extends CartridgeAdapter {
    * @returns - 操作结果
    */
   override async eraseSectors(startAddress = 0, endAddress: number, sectorSize = 0x10000, signal?: AbortSignal): Promise<CommandResult> {
-    this.log(`擦除扇区 0x${startAddress.toString(16).toUpperCase().padStart(8, '0')} - 0x${endAddress.toString(16).toUpperCase().padStart(8, '0')}`);
+    this.log(`擦除扇区 ${formatHex(startAddress, 4)} - ${formatHex(endAddress, 4)}`);
 
     const totalSectors = Math.floor((endAddress - startAddress) / sectorSize) + 1;
     const totalBytes = endAddress - startAddress;

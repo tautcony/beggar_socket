@@ -17,6 +17,7 @@ import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { CFIInfo, parseCFI } from '@/utils/cfi-parser';
+import { formatHex } from '@/utils/formatter-utils';
 import { calcSectorUsage } from '@/utils/sector-utils';
 import { PerformanceTracker } from '@/utils/sentry-tracker';
 import { SpeedCalculator } from '@/utils/speed-calculator';
@@ -170,6 +171,12 @@ export class GBAAdapter extends CartridgeAdapter {
     return PerformanceTracker.trackAsyncOperation(
       'gba.eraseSectors',
       async () => {
+        this.log(this.t('messages.operation.startEraseSectors', {
+          startAddress: formatHex(startAddress, 4),
+          endAddress: formatHex(endAddress, 4),
+          sectorSize,
+        }));
+
         try {
           // 确保扇区对齐
           const sectorMask = sectorSize - 1;
@@ -184,7 +191,7 @@ export class GBAAdapter extends CartridgeAdapter {
           const speedCalculator = new SpeedCalculator();
 
           // 从高地址向低地址擦除
-          for (let addr = alignedEndAddress; addr >= startAddress; addr -= sectorSize) {
+          for (let currentAddress = alignedEndAddress; currentAddress >= startAddress; currentAddress -= sectorSize) {
             // 检查是否已被取消
             if (signal?.aborted) {
               this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
@@ -195,12 +202,12 @@ export class GBAAdapter extends CartridgeAdapter {
             }
 
             this.log(this.t('messages.operation.eraseSector', {
-              from: addr.toString(16).toUpperCase().padStart(8, '0'),
-              to: (addr + sectorSize - 1).toString(16).toUpperCase().padStart(8, '0'),
+              from: formatHex(currentAddress, 4),
+              to: formatHex(currentAddress + sectorSize - 1, 4),
             }));
 
             const sectorStartTime = Date.now();
-            await rom_erase_sector(this.device, addr);
+            await rom_erase_sector(this.device, currentAddress);
             const sectorEndTime = Date.now();
 
             eraseCount++;
@@ -292,6 +299,13 @@ export class GBAAdapter extends CartridgeAdapter {
     const pageSize = AdvancedSettings.romPageSize;
     const bufferSize = options.cfiInfo.bufferSize ?? AdvancedSettings.romBufferSize;
 
+    this.log(this.t('messages.operation.startWriteROM', {
+      fileSize: fileData.length,
+      baseAddress: formatHex(baseAddress, 4),
+      pageSize,
+      bufferSize,
+    }));
+
     return PerformanceTracker.trackAsyncOperation(
       'gba.writeROM',
       async () => {
@@ -316,7 +330,7 @@ export class GBAAdapter extends CartridgeAdapter {
           // 分块写入并更新进度
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
           let chunkCount = 0; // 记录已处理的块数
-          for (let addr = baseAddress; addr < total; addr += pageSize) {
+          while (written < total) {
             // 检查是否已被取消
             if (signal?.aborted) {
               this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
@@ -326,9 +340,11 @@ export class GBAAdapter extends CartridgeAdapter {
               };
             }
 
-            const chunk = fileData.slice(addr, Math.min(addr + pageSize, total));
+            const chunkSize = Math.min(pageSize, total - written);
+            const chunk = fileData.slice(written, written + chunkSize);
+            const currentAddress = baseAddress + written;
             const chunkStartTime = Date.now();
-            await rom_program(this.device, chunk, addr, bufferSize);
+            await rom_program(this.device, chunk, currentAddress, bufferSize);
             const chunkEndTime = Date.now();
 
             written += chunk.length;
@@ -358,7 +374,7 @@ export class GBAAdapter extends CartridgeAdapter {
             // 每5个百分比记录一次日志
             const progress = Math.floor((written / total) * 100);
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
-              this.log(this.t('messages.rom.writingAt', { address: addr.toString(16).padStart(6, '0'), progress }));
+              this.log(this.t('messages.rom.writingAt', { address: formatHex(baseAddress + written, 4), progress }));
               lastLoggedProgress = progress;
             }
           }
@@ -423,6 +439,11 @@ export class GBAAdapter extends CartridgeAdapter {
   override async readROM(size = 0x200000, options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
 
+    this.log(this.t('messages.operation.startReadROM', {
+      size,
+      baseAddress: formatHex(baseAddress, 4),
+    }));
+
     return PerformanceTracker.trackAsyncOperation(
       'gba.readROM',
       async () => {
@@ -449,7 +470,7 @@ export class GBAAdapter extends CartridgeAdapter {
           // 分块读取以便计算速度统计
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
           let chunkCount = 0; // 记录已处理的块数
-          for (let addr = 0; addr < size; addr += pageSize) {
+          while (totalRead < size) {
             // 检查是否已被取消
             if (signal?.aborted) {
               this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
@@ -459,11 +480,12 @@ export class GBAAdapter extends CartridgeAdapter {
               };
             }
 
-            const chunkSize = Math.min(pageSize, size - addr);
+            const chunkSize = Math.min(pageSize, size - totalRead);
+            const currentAddress = baseAddress + totalRead;
             const chunkStartTime = Date.now();
-            const chunk = await rom_read(this.device, chunkSize, baseAddress + addr);
+            const chunk = await rom_read(this.device, chunkSize, currentAddress);
             const chunkEndTime = Date.now();
-            data.set(chunk, addr);
+            data.set(chunk, totalRead);
 
             totalRead += chunkSize;
             chunkCount++;
@@ -492,7 +514,7 @@ export class GBAAdapter extends CartridgeAdapter {
             // 每5个百分比记录一次日志
             const progress = Math.floor((totalRead / size) * 100);
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
-              this.log(this.t('messages.rom.readingAt', { address: (baseAddress + addr).toString(16).padStart(6, '0'), progress }));
+              this.log(this.t('messages.rom.readingAt', { address: formatHex(baseAddress + totalRead, 4), progress }));
               lastLoggedProgress = progress;
             }
           }
@@ -553,6 +575,12 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   override async verifyROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
+
+    this.log(this.t('messages.operation.startVerifyROM', {
+      fileSize: fileData.length,
+      baseAddress: formatHex(baseAddress, 4),
+    }));
+
     return PerformanceTracker.trackAsyncOperation(
       'gba.verifyROM',
       async () => {
@@ -604,9 +632,9 @@ export class GBAAdapter extends CartridgeAdapter {
                 success = false;
                 failedAddress = verified + i;
                 this.log(this.t('messages.rom.verifyFailedAt', {
-                  address: failedAddress.toString(16).padStart(6, '0'),
-                  expected: expectedChunk[i].toString(16).padStart(2, '0'),
-                  actual: actualChunk[i].toString(16).padStart(2, '0'),
+                  address: formatHex(failedAddress, 4),
+                  expected: formatHex(expectedChunk[i], 1),
+                  actual: formatHex(actualChunk[i], 1),
                 }));
                 break;
               }
@@ -642,7 +670,7 @@ export class GBAAdapter extends CartridgeAdapter {
             const progress = Math.floor((verified / total) * 100);
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
               this.log(this.t('messages.rom.verifyingAt', {
-                address: verified.toString(16).padStart(6, '0'),
+                address: formatHex(verified, 4),
                 progress,
               }));
               lastLoggedProgress = progress;
@@ -709,6 +737,13 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   override async writeRAM(fileData: Uint8Array, options: CommandOptions): Promise<CommandResult> {
     const ramType = options.ramType ?? 'SRAM';
+    const baseAddress = options.baseAddress ?? 0x00;
+
+    this.log(this.t('messages.operation.startWriteRAM', {
+      fileSize: fileData.length,
+      baseAddress: formatHex(baseAddress, 4),
+    }));
+
     return PerformanceTracker.trackAsyncOperation(
       'gba.writeRAM',
       async () => {
@@ -726,7 +761,7 @@ export class GBAAdapter extends CartridgeAdapter {
             let erased = false;
             while (!erased) {
               const result = await ram_read(this.device, 1, 0x0000);
-              this.log(this.t('messages.gba.eraseStatus', { status: result[0].toString(16) }));
+              this.log(this.t('messages.gba.eraseStatus', { status: formatHex(result[0], 1) }));
               if (result[0] === 0xff) {
                 this.log(this.t('messages.gba.eraseComplete'));
                 this.updateProgress(this.createProgressInfo(
@@ -793,7 +828,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
             // 每5个百分比记录一次日志
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
-              this.log(this.t('messages.ram.writingAt', { address: written.toString(16).padStart(6, '0'), progress }));
+              this.log(this.t('messages.ram.writingAt', { address: formatHex(written, 4), progress }));
               lastLoggedProgress = progress;
             }
           }
@@ -841,6 +876,13 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   override async readRAM(size = 0x8000, options: CommandOptions) {
     const ramType = options.ramType ?? 'SRAM';
+    const baseAddress = options.baseAddress ?? 0x00;
+
+    this.log(this.t('messages.operation.startReadRAM', {
+      size,
+      baseAddress: formatHex(baseAddress, 4),
+    }));
+
     return PerformanceTracker.trackAsyncOperation(
       'gba.readRAM',
       async () => {
@@ -936,6 +978,11 @@ export class GBAAdapter extends CartridgeAdapter {
     const baseAddress = options.baseAddress ?? 0x00;
     const pageSize = AdvancedSettings.ramPageSize;
 
+    this.log(this.t('messages.operation.startVerifyRAM', {
+      fileSize: fileData.length,
+      baseAddress: formatHex(baseAddress, 4),
+    }));
+
     return PerformanceTracker.trackAsyncOperation(
       'gba.verifyRAM',
       async () => {
@@ -976,9 +1023,9 @@ export class GBAAdapter extends CartridgeAdapter {
             for (let i = 0; i < chunkSize; i++) {
               if (fileData[currAddress + i] !== chunk[i]) {
                 this.log(this.t('messages.ram.verifyFailedAt', {
-                  address: (currAddress + i).toString(16).padStart(6, '0'),
-                  expected: fileData[currAddress + i].toString(16).padStart(2, '0'),
-                  actual: chunk[i].toString(16).padStart(2, '0'),
+                  address: formatHex(currAddress + i, 4),
+                  expected: formatHex(fileData[currAddress + i], 1),
+                  actual: formatHex(chunk[i], 1),
                 }));
                 success = false;
                 break;
@@ -1021,6 +1068,8 @@ export class GBAAdapter extends CartridgeAdapter {
    * @returns 卡带容量相关信息
    */
   override async getCartInfo(): Promise<CFIInfo | false> {
+    this.log(this.t('messages.operation.startGetCartInfo'));
+
     return PerformanceTracker.trackAsyncOperation(
       'gba.getCartInfo',
       async () => {

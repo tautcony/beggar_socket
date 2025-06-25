@@ -20,19 +20,34 @@
     <div class="chip-info-display">
       <div class="chip-info-row id-row">
         <span class="chip-info-label">ID:</span>
-        <span class="chip-info-value">{{ idStr || '--' }}</span>
+        <span
+          class="chip-info-value"
+          :title="idStr || '--'"
+        >{{ idStr || '--' }}</span>
       </div>
       <div class="chip-info-row">
         <span class="chip-info-label">{{ $t('ui.chip.deviceSize') }}:</span>
-        <span class="chip-info-value">{{ deviceSize ?? '--' }}</span>
+        <span
+          class="chip-info-value"
+          :title="String(deviceSize ?? '--')"
+        >{{ deviceSize ?? '--' }}</span>
         <span class="chip-info-label">{{ $t('ui.chip.sectorCount') }}:</span>
-        <span class="chip-info-value">{{ sectorCount ?? '--' }}</span>
+        <span
+          class="chip-info-value"
+          :title="sectorCount ?? '--'"
+        >{{ sectorCount ?? '--' }}</span>
       </div>
       <div class="chip-info-row">
         <span class="chip-info-label">{{ $t('ui.chip.sectorSize') }}:</span>
-        <span class="chip-info-value">{{ sectorSize ?? '--' }}</span>
+        <span
+          class="chip-info-value"
+          :title="sectorSize ?? '--'"
+        >{{ sectorSize ?? '--' }}</span>
         <span class="chip-info-label">{{ $t('ui.chip.bufferWrite') }}:</span>
-        <span class="chip-info-value">{{ bufferWriteBytes ?? '--' }}</span>
+        <span
+          class="chip-info-value"
+          :title="String(bufferWriteBytes ?? '--')"
+        >{{ bufferWriteBytes ?? '--' }}</span>
       </div>
     </div>
   </section>
@@ -61,11 +76,11 @@ const props = defineProps({
     default: undefined,
   },
   sectorCount: {
-    type: [Number, String],
+    type: [String],
     default: undefined,
   },
   sectorSize: {
-    type: [Number, String],
+    type: [String],
     default: undefined,
   },
   bufferWriteBytes: {

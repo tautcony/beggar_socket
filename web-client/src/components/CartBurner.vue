@@ -54,7 +54,7 @@
             :sector-count="sectorCountInfo ?? undefined"
             :sector-size="sectorSizeInfo ?? undefined"
             :buffer-write-bytes="cfiInfo?.bufferSize ?? undefined"
-            @read-id="readID"
+            @read-id="readCart"
             @erase-chip="eraseChip"
           />
 
@@ -115,7 +115,6 @@ import { ChipOperations, RamOperations, RomOperations } from '@/components/opera
 import ProgressDisplay from '@/components/ProgressDisplay.vue';
 import { useToast } from '@/composables/useToast';
 import { CartridgeAdapter, GBAAdapter, MBC5Adapter, MockAdapter } from '@/services';
-import { AdvancedSettings } from '@/settings/advanced-settings';
 import { DebugSettings } from '@/settings/debug-settings';
 import { DeviceInfo, FileInfo, ProgressInfo } from '@/types';
 import { CFIInfo } from '@/utils/cfi-parser';
@@ -355,7 +354,7 @@ function getAdapter() {
   return adapter;
 }
 
-async function readID() {
+async function readCart() {
   busy.value = true;
 
   try {
@@ -367,22 +366,23 @@ async function readID() {
     const response = await adapter.readID();
     if (response.success) {
       idStr.value = response.idStr ?? '';
-      showToast(response.message, 'success');
-      try {
-        const info = await adapter.getCartInfo();
-        if (info) {
-          cfiInfo.value = info;
-        }
-      } catch (e) {
-        cfiInfo.value = null;
-      }
     } else {
-      showToast(response.message, 'error');
       cfiInfo.value = null;
     }
+    const info = await adapter.getCartInfo();
+    if (info) {
+      cfiInfo.value = info;
+    }
+    if (idStr.value && cfiInfo.value) {
+      showToast(t('messages.operation.readCartSuccess'), 'success');
+      log(t('messages.operation.readCartSuccess'));
+    } else {
+      showToast(t('messages.operation.readCartFailed'), 'error');
+      log(t('messages.operation.readCartFailed'));
+    }
   } catch (e) {
-    showToast(t('messages.operation.readIdFailed'), 'error');
-    log(`${t('messages.operation.readIdFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+    showToast(t('messages.operation.readCartFailed'), 'error');
+    log(`${t('messages.operation.readCartFailed')}: ${e instanceof Error ? e.message : String(e)}`);
     cfiInfo.value = null;
   } finally {
     busy.value = false;
@@ -401,12 +401,13 @@ async function eraseChip() {
     }
 
     if (!cfiInfo.value) {
+      showToast(t('messages.operation.readCartInfoFirst'), 'error');
+      operateProgress.value = null;
       return;
     }
 
     const sectorInfo = calcSectorUsage(cfiInfo.value.eraseSectorBlocks, cfiInfo.value.deviceSize, 0x00);
     for (const { startAddress, endAddress, sectorSize } of sectorInfo) {
-      console.log(`Erasing sector from ${startAddress.toString(16)} to ${endAddress.toString(16)} with size ${sectorSize}`);
       const response = await adapter.eraseSectors(startAddress, endAddress, sectorSize, abortSignal);
       showToast(response.message, response.success ? 'success' : 'error');
     }
@@ -434,10 +435,13 @@ async function writeRom() {
     const adapter = getAdapter();
     if (!adapter || !romFileData.value) {
       showToast(t('messages.operation.unsupportedMode'), 'error');
+      operateProgress.value = null;
       return;
     }
 
     if (!cfiInfo.value) {
+      showToast(t('messages.operation.readCartInfoFirst'), 'error');
+      operateProgress.value = null;
       return;
     }
 
@@ -461,10 +465,13 @@ async function readRom() {
     const adapter = getAdapter();
     if (!adapter) {
       showToast(t('messages.operation.unsupportedMode'), 'error');
+      operateProgress.value = null;
       return;
     }
 
     if (!cfiInfo.value) {
+      showToast(t('messages.operation.readCartInfoFirst'), 'error');
+      operateProgress.value = null;
       return;
     }
 
@@ -505,10 +512,13 @@ async function verifyRom() {
     const adapter = getAdapter();
     if (!adapter || !romFileData.value) {
       showToast(t('messages.operation.unsupportedMode'), 'error');
+      operateProgress.value = null;
       return;
     }
 
     if (!cfiInfo.value) {
+      showToast(t('messages.operation.readCartInfoFirst'), 'error');
+      operateProgress.value = null;
       return;
     }
 
@@ -535,6 +545,7 @@ async function writeRam() {
     }
 
     if (!cfiInfo.value) {
+      showToast(t('messages.operation.readCartInfoFirst'), 'error');
       return;
     }
 
@@ -559,6 +570,7 @@ async function readRam() {
     }
 
     if (!cfiInfo.value) {
+      showToast(t('messages.operation.readCartInfoFirst'), 'error');
       return;
     }
 
@@ -591,6 +603,7 @@ async function verifyRam() {
     }
 
     if (!cfiInfo.value) {
+      showToast(t('messages.operation.readCartInfoFirst'), 'error');
       return;
     }
 
