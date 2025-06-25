@@ -63,29 +63,6 @@
               </div>
               <small class="hint">{{ formatBytes(localSettings.size.ramPageSize) }}</small>
             </div>
-
-            <div class="setting-item">
-              <label for="rom-buffer-size">{{ $t('ui.settings.size.romBufferSize') }}</label>
-              <div class="input-group">
-                <input
-                  id="rom-buffer-size"
-                  v-model.number="localSettings.size.romBufferSize"
-                  type="number"
-                  :min="limits.bufferSize.min"
-                  :max="limits.bufferSize.max"
-                  :step="32"
-                  @input="validateAndUpdate"
-                >
-                <span class="unit">{{ $t('ui.settings.size.bytes') }}</span>
-              </div>
-              <div
-                v-if="validationErrors.romBufferSize"
-                class="validation-error"
-              >
-                {{ validationErrors.romBufferSize }}
-              </div>
-              <small class="hint">{{ formatBytes(localSettings.size.romBufferSize) }}</small>
-            </div>
           </div>
         </div>
 
@@ -243,7 +220,6 @@ const localSettings = ref({
   size: {
     romPageSize: 0x200,
     ramPageSize: 0x100,
-    romBufferSize: 0x200,
   },
   timeout: {
     default: 3000,
@@ -257,7 +233,6 @@ const localSettings = ref({
 const validationErrors = ref({
   romPageSize: '',
   ramPageSize: '',
-  romBufferSize: '',
   defaultTimeout: '',
   packageSendTimeout: '',
   packageReceiveTimeout: '',
@@ -278,19 +253,6 @@ const validatePageSize = (value: number): string => {
   return '';
 };
 
-const validateBufferSize = (value: number): string => {
-  if (isNaN(value) || value < limits.bufferSize.min || value > limits.bufferSize.max) {
-    return t('ui.settings.size.validation.range', {
-      min: limits.bufferSize.min,
-      max: limits.bufferSize.max,
-    });
-  }
-  if (value % 32 !== 0) {
-    return t('ui.settings.size.validation.multiple', { multipler: 32 });
-  }
-  return '';
-};
-
 const validateTimeout = (value: number): string => {
   if (isNaN(value) || value < limits.timeout.min || value > limits.timeout.max) {
     return t('ui.settings.timeout.validation.range', {
@@ -306,7 +268,6 @@ const validateAndUpdate = () => {
   // 验证页面大小
   validationErrors.value.romPageSize = validatePageSize(localSettings.value.size.romPageSize);
   validationErrors.value.ramPageSize = validatePageSize(localSettings.value.size.ramPageSize);
-  validationErrors.value.romBufferSize = validateBufferSize(localSettings.value.size.romBufferSize);
 
   // 验证超时
   validationErrors.value.defaultTimeout = validateTimeout(localSettings.value.timeout.default);
@@ -327,7 +288,6 @@ const resetToDefaults = () => {
       size: {
         romPageSize: 0x400,
         ramPageSize: 0x200,
-        romBufferSize: 0x200,
       },
       timeout: {
         default: 3000,
@@ -363,7 +323,6 @@ onMounted(() => {
     size: {
       romPageSize: AdvancedSettings.romPageSize,
       ramPageSize: AdvancedSettings.ramPageSize,
-      romBufferSize: AdvancedSettings.romBufferSize,
     },
     timeout: {
       default: AdvancedSettings.defaultTimeout,

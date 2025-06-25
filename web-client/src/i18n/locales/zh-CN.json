@@ -174,7 +174,6 @@
         "title": "读写设置",
         "romPageSize": "ROM读写分页大小",
         "ramPageSize": "RAM读写分页大小",
-        "romBufferSize": "ROM缓冲区大小",
         "bytes": "字节",
         "validation": {
           "required": "此字段为必填项",

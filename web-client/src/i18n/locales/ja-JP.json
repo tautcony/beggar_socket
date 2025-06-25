@@ -174,7 +174,6 @@
         "title": "読み書き設定",
         "romPageSize": "ROM読み書きページサイズ",
         "ramPageSize": "RAM読み書きページサイズ",
-        "romBufferSize": "ROMバッファサイズ",
         "bytes": "バイト",
         "validation": {
           "required": "この項目は必須です",

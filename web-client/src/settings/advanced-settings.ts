@@ -3,7 +3,6 @@ export interface AdvancedSettingsConfig {
   size?: {
     romPageSize?: number;
     ramPageSize?: number;
-    romBufferSize?: number;
   };
   timeout?: {
     default?: number;
@@ -21,7 +20,6 @@ export class AdvancedSettings {
   // 页面大小设置
   private static _romPageSize = 0x200; // 512B for ROM operations (默认值)
   private static _ramPageSize = 0x100; // 256B for RAM operations (默认值)
-  private static _romBufferSize = 0x200; // 512B for ROM buffer size (默认值)
 
   // 超时设置（毫秒）
   private static _defaultTimeout = 3000; // 默认超时时间
@@ -32,8 +30,6 @@ export class AdvancedSettings {
   // 页面大小配置的有效范围
   private static readonly MIN_PAGE_SIZE = 0x40; // 64 bytes
   private static readonly MAX_PAGE_SIZE = 0x4000; // 16KB
-  private static readonly MIN_BUFFER_SIZE = 0x20; // 32 bytes
-  private static readonly MAX_BUFFER_SIZE = 0x4000; // 16 KB
 
   // 超时配置的有效范围
   private static readonly MIN_TIMEOUT = 1000; // 1秒
@@ -55,15 +51,6 @@ export class AdvancedSettings {
 
   static set ramPageSize(value: number) {
     this._ramPageSize = this.validatePageSize(value);
-    this.saveSettings();
-  }
-
-  static get romBufferSize(): number {
-    return this._romBufferSize;
-  }
-
-  static set romBufferSize(value: number) {
-    this._romBufferSize = this.validateBufferSize(value);
     this.saveSettings();
   }
 
@@ -123,22 +110,6 @@ export class AdvancedSettings {
     return size;
   }
 
-  private static validateBufferSize(size: number): number {
-    if (size < this.MIN_BUFFER_SIZE) {
-      console.warn(`页面大小 ${size} 小于最小值 ${this.MIN_PAGE_SIZE}，已调整为最小值`);
-      return this.MIN_PAGE_SIZE;
-    }
-    if (size > this.MAX_BUFFER_SIZE) {
-      console.warn(`页面大小 ${size} 大于最大值 ${this.MAX_PAGE_SIZE}，已调整为最大值`);
-      return this.MAX_PAGE_SIZE;
-    }
-    // 检查是否是2的幂
-    if ((size & (size - 1)) !== 0) {
-      console.warn(`页面大小 ${size} 不是2的幂，可能会导致性能问题`);
-    }
-    return size;
-  }
-
   /**
    * 验证超时时间是否在有效范围内
    */
@@ -162,7 +133,6 @@ export class AdvancedSettings {
       size: {
         romPageSize: this._romPageSize,
         ramPageSize: this._ramPageSize,
-        romBufferSize: this._romBufferSize,
       },
       timeout: {
         default: this._defaultTimeout,
@@ -183,9 +153,6 @@ export class AdvancedSettings {
       }
       if (settings.size.ramPageSize !== undefined) {
         this.ramPageSize = settings.size.ramPageSize;
-      }
-      if (settings.size.romBufferSize !== undefined) {
-        this.romBufferSize = settings.size.romBufferSize;
       }
     }
 
@@ -211,7 +178,6 @@ export class AdvancedSettings {
   static resetToDefaults(): void {
     this._romPageSize = 0x200; // 512B
     this._ramPageSize = 0x100; // 256B
-    this._romBufferSize = 0x200; // 512B
     this._defaultTimeout = 3000; // 3秒
     this._packageSendTimeout = 3000; // 3秒
     this._packageReceiveTimeout = 3000; // 3秒
@@ -264,10 +230,6 @@ export class AdvancedSettings {
         min: this.MIN_PAGE_SIZE,
         max: this.MAX_PAGE_SIZE,
       },
-      bufferSize: {
-        min: this.MIN_BUFFER_SIZE,
-        max: this.MAX_BUFFER_SIZE,
-      },
       timeout: {
         min: this.MIN_TIMEOUT,
         max: this.MAX_TIMEOUT,
@@ -290,11 +252,6 @@ export class AdvancedSettings {
       if (settings.size.ramPageSize !== undefined) {
         if (settings.size.ramPageSize < this.MIN_PAGE_SIZE || settings.size.ramPageSize > this.MAX_PAGE_SIZE) {
           errors.push(`RAM页面大小必须在 ${this.MIN_PAGE_SIZE} - ${this.MAX_PAGE_SIZE} 之间`);
-        }
-      }
-      if (settings.size.romBufferSize !== undefined) {
-        if (settings.size.romBufferSize < this.MIN_PAGE_SIZE || settings.size.romBufferSize > this.MAX_PAGE_SIZE) {
-          errors.push(`ROM缓冲区大小必须在 ${this.MIN_PAGE_SIZE} - ${this.MAX_PAGE_SIZE} 之间`);
         }
       }
     }

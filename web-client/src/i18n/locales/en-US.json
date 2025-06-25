@@ -174,7 +174,6 @@
         "title": "Read/Write Settings",
         "romPageSize": "ROM Read/Write Page Size",
         "ramPageSize": "RAM Read/Write Page Size",
-        "romBufferSize": "ROM Buffer Size",
         "bytes": "bytes",
         "validation": {
           "required": "This field is required",

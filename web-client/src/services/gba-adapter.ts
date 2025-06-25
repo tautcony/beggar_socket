@@ -297,7 +297,7 @@ export class GBAAdapter extends CartridgeAdapter {
   override async writeROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
     const pageSize = AdvancedSettings.romPageSize;
-    const bufferSize = options.cfiInfo.bufferSize ?? AdvancedSettings.romBufferSize;
+    const bufferSize = options.cfiInfo.bufferSize ?? 0;
 
     this.log(this.t('messages.operation.startWriteROM', {
       fileSize: fileData.length,
