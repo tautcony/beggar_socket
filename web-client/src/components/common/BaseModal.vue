@@ -45,15 +45,24 @@ import { IonIcon } from '@ionic/vue';
 import { closeOutline } from 'ionicons/icons';
 import { computed, onMounted, onUnmounted } from 'vue';
 
-const props = defineProps({
-  visible: Boolean,
-  title: { type: String, default: '' },
-  closeDisabled: { type: Boolean, default: false },
-  width: { type: [String, Number], default: 500 },
-  maxWidth: { type: [String, Number], default: '90vw' },
-  maxHeight: { type: [String, Number], default: '90vh' },
-  escClosable: { type: Boolean, default: true },
-  maskClosable: { type: Boolean, default: true },
+const props = withDefaults(defineProps<{
+  visible?: boolean;
+  title?: string;
+  closeDisabled?: boolean;
+  width?: string | number;
+  maxWidth?: string | number;
+  maxHeight?: string | number;
+  escClosable?: boolean;
+  maskClosable?: boolean;
+}>(), {
+  visible: false,
+  title: '',
+  closeDisabled: false,
+  width: '500px',
+  maxWidth: '90vw',
+  maxHeight: '90vh',
+  escClosable: true,
+  maskClosable: true,
 });
 
 const emit = defineEmits(['close']);

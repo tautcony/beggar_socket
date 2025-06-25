@@ -155,35 +155,19 @@ const GBAEmulator = defineAsyncComponent(() => import('@/components/emulator/GBA
 const { t } = useI18n();
 const { showToast } = useToast();
 
-const props = defineProps({
-  mode: {
-    type: String,
-    required: true,
-  },
-  deviceReady: {
-    type: Boolean,
-    required: true,
-  },
-  busy: {
-    type: Boolean,
-    required: true,
-  },
-  romFileData: {
-    type: Uint8Array,
-    default: null,
-  },
-  romFileName: {
-    type: String,
-    default: '',
-  },
-  selectedRomSize: {
-    type: String,
-    default: '0x800000',
-  },
-  selectedBaseAddress: {
-    type: String,
-    default: '0x00000000',
-  },
+const props = withDefaults(defineProps<{
+  mode: 'MBC5' | 'GBA';
+  deviceReady: boolean;
+  busy: boolean;
+  romFileData?: Uint8Array | null;
+  romFileName?: string;
+  selectedRomSize?: string;
+  selectedBaseAddress?: string;
+}>(), {
+  romFileData: null,
+  romFileName: '',
+  selectedRomSize: '0x800000',
+  selectedBaseAddress: '0x00000000',
 });
 
 const ROM_SIZE_RANGE = [
@@ -232,7 +216,7 @@ const isRomInfoCollapsed = ref(true); // 默认折叠
 
 // 计算baseAddress选项
 const baseAddressOptions = computed(() => {
-  return getBaseAddressOptions(props.mode as 'GBA' | 'MBC5');
+  return getBaseAddressOptions(props.mode);
 });
 
 // 计算是否可以预览ROM

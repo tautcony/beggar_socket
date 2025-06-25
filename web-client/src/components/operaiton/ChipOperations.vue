@@ -61,38 +61,21 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
 
-const { t } = useI18n();
-const props = defineProps({
-  deviceReady: {
-    type: Boolean,
-    required: true,
-  },
-  busy: {
-    type: Boolean,
-    required: true,
-  },
-  idStr: {
-    type: String,
-    default: '',
-  },
-  deviceSize: {
-    type: [Number, String],
-    default: undefined,
-  },
-  sectorCount: {
-    type: [String],
-    default: undefined,
-  },
-  sectorSize: {
-    type: [String],
-    default: undefined,
-  },
-  bufferWriteBytes: {
-    type: [Number, String],
-    default: undefined,
-  },
+const props = withDefaults(defineProps<{
+  deviceReady: boolean;
+  busy: boolean;
+  idStr?: string;
+  deviceSize?: number | string;
+  sectorCount?: string;
+  sectorSize?: string;
+  bufferWriteBytes?: number | string;
+}>(), {
+  idStr: '',
+  deviceSize: undefined,
+  sectorCount: undefined,
+  sectorSize: undefined,
+  bufferWriteBytes: undefined,
 });
 
 // 检查芯片信息是否有效

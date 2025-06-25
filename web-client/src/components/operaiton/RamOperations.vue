@@ -88,35 +88,19 @@ import { ref, watch } from 'vue';
 import FileDropZone from '@/components/common/FileDropZone.vue';
 import { FileInfo } from '@/types/file-info.ts';
 
-const props = defineProps({
-  mode: {
-    type: String,
-    required: true,
-  },
-  deviceReady: {
-    type: Boolean,
-    required: true,
-  },
-  busy: {
-    type: Boolean,
-    required: true,
-  },
-  ramFileData: {
-    type: Uint8Array,
-    default: null,
-  },
-  ramFileName: {
-    type: String,
-    default: '',
-  },
-  selectedRamSize: {
-    type: String,
-    default: '0x8000',
-  },
-  selectedRamType: {
-    type: String,
-    default: 'SRAM',
-  },
+const props = withDefaults(defineProps<{
+  mode: string;
+  deviceReady: boolean;
+  busy: boolean;
+  ramFileData?: Uint8Array | null;
+  ramFileName?: string;
+  selectedRamSize?: string;
+  selectedRamType?: string;
+}>(), {
+  ramFileData: null,
+  ramFileName: '',
+  selectedRamSize: '0x8000',
+  selectedRamType: 'SRAM',
 });
 
 const RAM_SIZE_RANGE = [

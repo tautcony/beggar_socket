@@ -75,35 +75,18 @@ import { ref } from 'vue';
 import { FileInfo } from '@/types/file-info';
 import { formatBytes } from '@/utils/formatter-utils';
 
-const props = defineProps({
-  disabled: {
-    type: Boolean,
-    default: false,
-  },
-  acceptTypes: {
-    type: String,
-    required: true,
-  },
-  acceptHint: {
-    type: String,
-    required: true,
-  },
-  mainText: {
-    type: String,
-    required: true,
-  },
-  fileTitle: {
-    type: String,
-    required: true,
-  },
-  fileData: {
-    type: Uint8Array,
-    default: null,
-  },
-  fileName: {
-    type: String,
-    default: '',
-  },
+const props = withDefaults(defineProps<{
+  disabled?: boolean;
+  acceptTypes: string;
+  acceptHint: string;
+  mainText: string;
+  fileTitle: string;
+  fileData?: Uint8Array | null;
+  fileName?: string;
+}>(), {
+  disabled: false,
+  fileData: null,
+  fileName: '',
 });
 
 const emit = defineEmits(['file-selected', 'file-cleared']);

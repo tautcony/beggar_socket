@@ -42,31 +42,31 @@ interface Props {
   };
 }
 
-const {
-  icon = '',
-  text = '',
-  color = '#1976d2',
-  href = '',
-  title = '',
-  bottom = 20,
-  right = 20,
-  customClass = '',
-  styleOverrides = {},
-} = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  icon: '',
+  text: '',
+  color: '#1976d2',
+  href: '',
+  title: '',
+  bottom: 20,
+  right: 20,
+  customClass: '',
+  styleOverrides: () => ({}),
+});
 
 const emits = defineEmits(['click']);
 
 const containerStyle = computed((): CSSProperties => ({
   position: 'fixed' as const,
-  bottom: typeof bottom === 'number' ? `${bottom}px` : bottom,
-  right: typeof right === 'number' ? `${right}px` : right,
+  bottom: typeof props.bottom === 'number' ? `${props.bottom}px` : props.bottom,
+  right: typeof props.right === 'number' ? `${props.right}px` : props.right,
   zIndex: 1000,
-  ...styleOverrides?.container,
+  ...(props.styleOverrides?.container ?? {}),
 }));
 
 const buttonStyle = computed((): CSSProperties => ({
-  background: color,
-  ...styleOverrides?.button,
+  background: props.color,
+  ...(props.styleOverrides?.button ?? {}),
 }));
 </script>
 

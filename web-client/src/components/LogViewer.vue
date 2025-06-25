@@ -31,23 +31,15 @@
 <script setup lang="ts">
 import { nextTick, onUnmounted, ref, watch } from 'vue';
 
-const props = defineProps({
-  title: {
-    type: String,
-    default: 'Log',
-  },
-  logs: {
-    type: Array,
-    required: true,
-  },
-  maxHeight: {
-    type: String,
-    default: '350px',
-  },
-  autoScroll: {
-    type: Boolean,
-    default: true,
-  },
+const props = withDefaults(defineProps<{
+  title?: string;
+  logs: string[];
+  maxHeight?: string;
+  autoScroll?: boolean;
+}>(), {
+  title: 'Log',
+  maxHeight: '350px',
+  autoScroll: true,
 });
 
 const emit = defineEmits(['clear-logs']);
