@@ -167,7 +167,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果
    */
-  override async eraseSectors(startAddress = 0, endAddress: number, sectorSize = 0x10000, signal?: AbortSignal) : Promise<CommandResult> {
+  override async eraseSectors(startAddress: number, endAddress: number, sectorSize = 0x10000, signal?: AbortSignal) : Promise<CommandResult> {
     return PerformanceTracker.trackAsyncOperation(
       'gba.eraseSectors',
       async () => {
@@ -311,14 +311,19 @@ export class GBAAdapter extends CartridgeAdapter {
       async () => {
         const startTime = Date.now();
         try {
-          this.log(this.t('messages.rom.writing', { size: fileData.length }));
-
-          const total = fileData.length;
+          const total = options.size ?? fileData.length;
           let written = 0;
+          this.log(this.t('messages.rom.writing', { size: total }));
+
+          const bankInfoCheck = this.romBankRelevantAddress(baseAddress);
+          if (options.cfiInfo.deviceSize > (1 << 25)) {
+            await this.switchROMBank(bankInfoCheck.bank);
+          }
 
           const blank = await this.isBlank(baseAddress, 0x100);
           if (!blank) {
-            const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, total);
+            const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, total, baseAddress);
+            console.log(sectorInfo);
             for (const { startAddress, endAddress, sectorSize } of sectorInfo) {
               await this.eraseSectors(startAddress, endAddress, sectorSize, signal);
             }
@@ -330,6 +335,7 @@ export class GBAAdapter extends CartridgeAdapter {
           // 分块写入并更新进度
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
           let chunkCount = 0; // 记录已处理的块数
+          let currentBank = -1;
           while (written < total) {
             // 检查是否已被取消
             if (signal?.aborted) {
@@ -344,7 +350,16 @@ export class GBAAdapter extends CartridgeAdapter {
             const chunk = fileData.slice(written, written + chunkSize);
             const currentAddress = baseAddress + written;
             const chunkStartTime = Date.now();
-            await rom_program(this.device, chunk, currentAddress, bufferSize);
+
+            const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress);
+            if (options.cfiInfo.deviceSize > (1 << 25)) {
+              if (bank !== currentBank) {
+                currentBank = bank;
+                await this.switchROMBank(bank);
+              }
+            }
+
+            await rom_program(this.device, chunk, cartAddress, bufferSize);
             const chunkEndTime = Date.now();
 
             written += chunk.length;
@@ -438,6 +453,7 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   override async readROM(size = 0x200000, options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
+    const pageSize = AdvancedSettings.romPageSize;
 
     this.log(this.t('messages.operation.startReadROM', {
       size,
@@ -459,7 +475,6 @@ export class GBAAdapter extends CartridgeAdapter {
           }
 
           this.log(this.t('messages.rom.reading'));
-          const pageSize = AdvancedSettings.romPageSize;
           let totalRead = 0;
 
           const data = new Uint8Array(size);
@@ -470,6 +485,7 @@ export class GBAAdapter extends CartridgeAdapter {
           // 分块读取以便计算速度统计
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
           let chunkCount = 0; // 记录已处理的块数
+          let currentBank = -1;
           while (totalRead < size) {
             // 检查是否已被取消
             if (signal?.aborted) {
@@ -483,7 +499,16 @@ export class GBAAdapter extends CartridgeAdapter {
             const chunkSize = Math.min(pageSize, size - totalRead);
             const currentAddress = baseAddress + totalRead;
             const chunkStartTime = Date.now();
-            const chunk = await rom_read(this.device, chunkSize, currentAddress);
+
+            const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress);
+            if (options.cfiInfo.deviceSize > (1 << 25)) {
+              if (bank !== currentBank) {
+                currentBank = bank;
+                await this.switchROMBank(bank);
+              }
+            }
+
+            const chunk = await rom_read(this.device, chunkSize, cartAddress);
             const chunkEndTime = Date.now();
             data.set(chunk, totalRead);
 
@@ -602,6 +627,7 @@ export class GBAAdapter extends CartridgeAdapter {
           let success = true;
           let failedAddress = -1;
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
+          let currentBank = -1;
 
           // 使用速度计算器
           const speedCalculator = new SpeedCalculator();
@@ -620,10 +646,19 @@ export class GBAAdapter extends CartridgeAdapter {
 
             const chunkSize = Math.min(pageSize, total - verified);
             const expectedChunk = fileData.slice(verified, verified + chunkSize);
+            const currentAddress = baseAddress + verified;
+
+            const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress);
+            if (options.cfiInfo.deviceSize > (1 << 25)) {
+              if (bank !== currentBank) {
+                currentBank = bank;
+                await this.switchROMBank(bank);
+              }
+            }
 
             // 读取对应的ROM数据
             const chunkStartTime = Date.now();
-            const actualChunk = await rom_read(this.device, chunkSize, baseAddress + verified);
+            const actualChunk = await rom_read(this.device, chunkSize, cartAddress);
             const chunkEndTime = Date.now();
 
             // 逐字节比较
@@ -1122,6 +1157,18 @@ export class GBAAdapter extends CartridgeAdapter {
       await ram_write(this.device, new Uint8Array([h]), 0x02);
       await ram_write(this.device, new Uint8Array([0x40]), 0x03);
     }
+
+    this.log(this.t('messages.rom.bankSwitch', { bank }));
+  }
+
+  romBankRelevantAddress(address: number) {
+    const bank = address >> 25;
+    const b = bank < 0 ? 0 : bank;
+
+    return {
+      bank: b,
+      cartAddress: address,
+    };
   }
 
   /**

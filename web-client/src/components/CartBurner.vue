@@ -110,7 +110,7 @@
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import { gameControllerOutline, hardwareChipOutline } from 'ionicons/icons';
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import LogViewer from '@/components/LogViewer.vue';
@@ -177,6 +177,52 @@ const currentAbortController = ref<AbortController | null>(null);
 const gbaAdapter = ref<CartridgeAdapter | null>();
 const mbc5Adapter = ref<CartridgeAdapter | null>();
 
+// 热重载状态恢复 - 保持适配器状态和日志
+if (import.meta.hot) {
+  const data = import.meta.hot.data as {
+    cartBurnerState?: {
+      gbaAdapter: CartridgeAdapter | null;
+      mbc5Adapter: CartridgeAdapter | null;
+      logs: string[];
+    }
+  };
+
+  // 初始化或恢复状态
+  data.cartBurnerState = data?.cartBurnerState ?? {
+    gbaAdapter: null,
+    mbc5Adapter: null,
+    logs: [],
+  };
+
+  // 从 HMR 数据恢复适配器状态
+  if (data.cartBurnerState.gbaAdapter) {
+    gbaAdapter.value = data.cartBurnerState.gbaAdapter;
+    console.log('[CartBurner] HMR: 恢复 GBA 适配器');
+  }
+  if (data.cartBurnerState.mbc5Adapter) {
+    mbc5Adapter.value = data.cartBurnerState.mbc5Adapter;
+    console.log('[CartBurner] HMR: 恢复 MBC5 适配器');
+  }
+
+  // 从 HMR 数据恢复日志状态
+  if (data.cartBurnerState.logs.length > 0) {
+    logs.value = [...data.cartBurnerState.logs];
+    console.log(`[CartBurner] HMR: 恢复 ${logs.value.length} 条日志`);
+  }
+
+  // 监听热重载事件，保存当前适配器和日志状态
+  import.meta.hot.dispose(() => {
+    if (import.meta.hot?.data) {
+      data.cartBurnerState = {
+        gbaAdapter: gbaAdapter.value ?? null,
+        mbc5Adapter: mbc5Adapter.value ?? null,
+        logs: [...logs.value],
+      };
+      console.log('[CartBurner] HMR: 保存适配器和日志状态');
+    }
+  });
+}
+
 // ROM
 const romFileData = ref<Uint8Array | null>(null);
 const romFileName = ref('');
@@ -190,8 +236,13 @@ const selectedRamSize = ref('0x8000'); // 默认32KB
 const selectedRamType = ref('SRAM'); // 默认SRAM
 
 // 设备连接状态改变时，初始化适配器
-watch(() => props.deviceReady, (newVal) => {
-  if (newVal && props.device) {
+function initializeAdapters() {
+  if (props.deviceReady && props.device) {
+    // 如果适配器已经存在且有效，不需要重新创建
+    if (gbaAdapter.value && mbc5Adapter.value) {
+      return;
+    }
+
     if (DebugSettings.debugMode) {
       // 调试模式下使用 MockAdapter
       const adapter = new MockAdapter(
@@ -217,7 +268,23 @@ watch(() => props.deviceReady, (newVal) => {
         t,
       );
     }
+  } else {
+    // 设备未连接时清空适配器
+    if (gbaAdapter.value || mbc5Adapter.value) {
+      gbaAdapter.value = null;
+      mbc5Adapter.value = null;
+      console.log('[CartBurner] 清空适配器');
+    }
   }
+}
+
+watch(() => props.deviceReady, () => {
+  initializeAdapters();
+});
+
+// 组件挂载时初始化适配器
+onMounted(() => {
+  initializeAdapters();
 });
 
 function updateProgress(progressInfo: ProgressInfo) {
@@ -459,8 +526,8 @@ async function writeRom() {
       operateProgress.value = null;
       return;
     }
-
-    const response = await adapter.writeROM(romFileData.value, { baseAddress: parseInt(selectedBaseAddress.value, 16), cfiInfo: cfiInfo.value }, abortSignal);
+    const romSize = parseInt(selectedRomSize.value, 16);
+    const response = await adapter.writeROM(romFileData.value, { baseAddress: parseInt(selectedBaseAddress.value, 16), size: romSize, cfiInfo: cfiInfo.value }, abortSignal);
     showToast(response.message, response.success ? 'success' : 'error');
   } catch (e) {
     showToast(t('messages.rom.writeFailed'), 'error');
@@ -707,7 +774,7 @@ async function readRomInfo() {
       return;
     }
 
-    printGameDetectionResults(gameResults, mode.value);
+    printGameDetectionResults(gameResults);
 
     showToast(t('ui.operation.readMultiCartSuccess'), 'success');
   } catch (e) {
@@ -719,16 +786,14 @@ async function readRomInfo() {
   }
 }
 
-async function readGBAMultiCartRoms(adapter: CartridgeAdapter, deviceSize: number, cfi: CFIInfo): Promise<GameDetectionResult[]> {
+async function readGBAMultiCartRoms(adapter: CartridgeAdapter, deviceSize: number, cfi: CFIInfo) {
   const results: GameDetectionResult[] = [];
-  log(t('ui.operation.startReadingMultiCart'));
 
   const bankCount = Math.floor(deviceSize / 0x400000);
 
   for (let i = 0; i < bankCount; i++) {
     const baseAddress = i * 0x400000;
-    // 读取头部数据
-    const headerResult = await adapter.readROM(200, { baseAddress, cfiInfo: cfi });
+    const headerResult = await adapter.readROM(0x150, { baseAddress, cfiInfo: cfi });
 
     if (headerResult.success && headerResult.data) {
       const romInfo = parseRom(headerResult.data);
@@ -736,7 +801,7 @@ async function readGBAMultiCartRoms(adapter: CartridgeAdapter, deviceSize: numbe
       if (romInfo.isValid) {
         results.push({
           startAddress: baseAddress,
-          bank: i + 1,
+          bank: i,
           romInfo,
         });
       }
@@ -748,7 +813,6 @@ async function readGBAMultiCartRoms(adapter: CartridgeAdapter, deviceSize: numbe
 
 async function readMBC5MultiCartRoms(adapter: CartridgeAdapter, deviceSize: number, cfi: CFIInfo): Promise<GameDetectionResult[]> {
   const results: GameDetectionResult[] = [];
-  log(t('ui.operation.startReadingMultiCart'));
 
   // MBC5 N合1卡带的地址范围定义
   const multiCardRanges = [
@@ -763,7 +827,7 @@ async function readMBC5MultiCartRoms(adapter: CartridgeAdapter, deviceSize: numb
   for (const range of multiCardRanges) {
     if (range.from >= deviceSize) break; // 超出芯片容量
 
-    // 解析完整ROM信息（读取包含头部的前336字节）
+    // 解析完整ROM信息
     const fullHeaderResult = await adapter.readROM(0x150, { baseAddress: range.from, cfiInfo: cfi });
     if (fullHeaderResult.success && fullHeaderResult.data) {
       const romInfo = parseRom(fullHeaderResult.data);
@@ -780,35 +844,22 @@ async function readMBC5MultiCartRoms(adapter: CartridgeAdapter, deviceSize: numb
   return results;
 }
 
-function printGameDetectionResults(gameResults: GameDetectionResult[], cartType: 'GBA' | 'MBC5') {
+function printGameDetectionResults(gameResults: GameDetectionResult[]) {
   if (gameResults.length === 0) {
     log(t('ui.operation.noValidGameFound'));
     return;
   }
 
   if (gameResults.length === 1 && gameResults[0].startAddress === 0) {
-    const result = gameResults[0];
-    log(t('ui.operation.singleGameDetected', {
-      title: result.romInfo.title || 'Unknown',
-      type: result.romInfo.type,
-    }));
+    log(t('ui.operation.singleGameDetected'));
   } else {
     log(t('ui.operation.multiCartDetected'));
+  }
 
-    for (const result of gameResults) {
-      const { startAddress, bank, romInfo } = result;
-      const addressStr = formatHex(startAddress, 4);
-
-      if (romInfo.type === 'GBA') {
-        const sizeInMB = Math.floor((romInfo.romSize || 4 * 1024 * 1024) / (1024 * 1024));
-        log(`[${addressStr}] BANK::${bank} (${sizeInMB}MB): ${romInfo.title}`);
-      } else {
-        const cartTypeStr = romInfo.cartType !== undefined
-          ? CartridgeTypeMapper[romInfo.cartType] || `Unknown(${formatHex(romInfo.cartType, 1)})`
-          : 'Unknown';
-        log(`[${addressStr}] BANK::${bank}: ${romInfo.title} (${romInfo.type}, ${cartTypeStr})`);
-      }
-    }
+  for (const result of gameResults) {
+    const { startAddress, bank, romInfo } = result;
+    const addressStr = formatHex(startAddress, 4);
+    log(`[${addressStr}]@[Bank${bank}] (${romInfo.type}): ${romInfo.title}`);
   }
 }
 

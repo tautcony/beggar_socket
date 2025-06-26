@@ -24,5 +24,10 @@ export function calcSectorUsage(
     }
   }
 
+  // 检查是否还有未满足的空间需求
+  if (remaining > 0) {
+    throw new Error(`Insufficient sector space: need ${size} bytes, but only ${size - remaining} bytes available`);
+  }
+
   return result;
 }

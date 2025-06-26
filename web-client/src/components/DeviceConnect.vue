@@ -65,6 +65,7 @@ if (import.meta.hot) {
     reader: ReadableStreamBYOBReader | null;
     writer: WritableStreamDefaultWriter<Uint8Array> | null;
   } };
+
   // 保存当前状态到 HMR 数据
   data.deviceConnection = data?.deviceConnection ?? {
     connected: false,
@@ -75,10 +76,23 @@ if (import.meta.hot) {
 
   // 从 HMR 数据恢复状态
   if (data.deviceConnection.connected) {
-    connected.value = data.deviceConnection.connected;
-    port = data.deviceConnection.port;
-    reader = data.deviceConnection.reader;
-    writer = data.deviceConnection.writer;
+    // 验证恢复的状态是否完整
+    if (data.deviceConnection.port && data.deviceConnection.reader && data.deviceConnection.writer) {
+      connected.value = data.deviceConnection.connected;
+      port = data.deviceConnection.port;
+      reader = data.deviceConnection.reader;
+      writer = data.deviceConnection.writer;
+      console.log('[DeviceConnect] HMR: 成功恢复设备连接状态');
+    } else {
+      // 状态信息不完整，重置为断开状态
+      console.warn('[DeviceConnect] HMR: 检测到状态信息丢失，重置为断开状态');
+      connected.value = false;
+      port = null;
+      reader = null;
+      writer = null;
+      // 在下一个tick中发出断开事件
+      setTimeout(() => { emit('device-disconnected'); }, 0);
+    }
   }
 
   // 监听热重载事件，保存当前状态
@@ -95,12 +109,26 @@ if (import.meta.hot) {
 
   // 热重载后验证连接状态
   import.meta.hot.accept(() => {
+    console.log('[DeviceConnect] HMR: 验证连接状态', { connected: connected.value, hasPort: !!port });
+
     // 检查串口连接是否仍然有效
-    if (port && connected.value) {
+    if (connected.value) {
+      if (!port || !reader || !writer) {
+        // 连接对象丢失，重置状态
+        console.warn('[DeviceConnect] HMR: 连接对象丢失，重置状态');
+        connected.value = false;
+        port = null;
+        reader = null;
+        writer = null;
+        emit('device-disconnected');
+        return;
+      }
+
       try {
         // 检查端口是否仍然连接
         if (!port.readable || !port.writable) {
           // 连接已丢失，重置状态
+          console.warn('[DeviceConnect] HMR: 端口流已失效，重置状态');
           connected.value = false;
           port = null;
           reader = null;
@@ -109,6 +137,7 @@ if (import.meta.hot) {
         }
       } catch (e) {
         // 连接检查失败，重置状态
+        console.error('[DeviceConnect] HMR: 连接验证失败，重置状态', e);
         connected.value = false;
         port = null;
         reader = null;

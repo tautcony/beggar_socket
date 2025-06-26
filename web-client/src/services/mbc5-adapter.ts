@@ -168,8 +168,8 @@ export class MBC5Adapter extends CartridgeAdapter {
       'mbc5.eraseSectors',
       async () => {
         this.log(this.t('messages.operation.startEraseSectors', {
-          startAddress: formatHex(startAddress, 4).toUpperCase().padStart(8, '0'),
-          endAddress: formatHex(endAddress, 4).toUpperCase().padStart(8, '0'),
+          startAddress: formatHex(startAddress, 4),
+          endAddress: formatHex(endAddress, 4),
           sectorSize,
         }));
 

@@ -393,7 +393,7 @@ export class MockAdapter extends CartridgeAdapter {
     }
 
     // 模拟CFI信息
-    const deviceSize = 0x200000; // 2MB
+    const deviceSize = 134217728; // 128MB
     const sectorSize = 0x10000; // 64KB
     const sectorCount = deviceSize / sectorSize; // 32个扇区
     const bufferWriteBytes = 512;

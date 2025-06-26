@@ -197,6 +197,8 @@ const getBaseAddressOptions = (romType: 'GBA' | 'MBC5') => {
 
   for (let i = 1; i <= 16; ++i) {
     options.MBC5.push({ value: formatHex(0x100000 * i, 4), text: t('ui.rom.baseAddressOptions.game', { index: i }) });
+  }
+  for (let i = 0; i < 32; ++i) {
     options.GBA.push({ value: formatHex(0x400000 * i, 4), text: t('ui.rom.baseAddressOptions.bank', { index: i }) });
   }
 

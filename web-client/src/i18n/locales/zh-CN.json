@@ -31,7 +31,7 @@
       "readMultiCartSuccess": "读取N合1卡带完成",
       "readMultiCartFailed": "读取N合1卡带失败",
       "multiCartDetected": "检测到合卡",
-      "singleGameDetected": "检测到单卡游戏：{title} ({type})",
+      "singleGameDetected": "检测到单卡游戏",
       "noValidGameFound": "未找到有效游戏",
       "chipInfo": "芯片信息",
       "manufacturer": "制造商",
