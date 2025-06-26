@@ -188,7 +188,7 @@ const getBaseAddressOptions = (romType: 'GBA' | 'MBC5') => {
   const options: Record<string, { value: string; text: string }[]> = {
     MBC5: [
       { value: '0x00000000', text: t('ui.rom.baseAddressOptions.fullCart') },
-      { value: '0x00', text: t('ui.rom.baseAddressOptions.menu') },
+      { value: '0x00000000', text: t('ui.rom.baseAddressOptions.menu') },
     ],
     GBA: [
       { value: '0x00000000', text: t('ui.rom.baseAddressOptions.fullCart') },

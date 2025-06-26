@@ -127,7 +127,7 @@ import { calcSectorUsage } from '@/utils/sector-utils';
 
 interface GameDetectionResult {
   startAddress: number;
-  bank: number;
+  desc: string;
   romInfo: RomInfo;
 }
 
@@ -801,7 +801,7 @@ async function readGBAMultiCartRoms(adapter: CartridgeAdapter, deviceSize: numbe
       if (romInfo.isValid) {
         results.push({
           startAddress: baseAddress,
-          bank: i,
+          desc: `Bank ${i}`,
           romInfo,
         });
       }
@@ -816,11 +816,11 @@ async function readMBC5MultiCartRoms(adapter: CartridgeAdapter, deviceSize: numb
 
   // MBC5 N合1卡带的地址范围定义
   const multiCardRanges = [
-    { from: 0x000000 }, // 菜单
-    { from: 0x100000 }, // 游戏1
+    { from: 0x000000, name: 'Menu' }, // 菜单
+    { from: 0x100000, name: 'Game 1' }, // 游戏1
   ];
   for (let i = 1; i < 16; ++i) {
-    multiCardRanges.push({ from: 0x200000 * i });
+    multiCardRanges.push({ from: 0x200000 * i, name: `Game ${i + 1}` });
   }
 
   // 检查每个可能的游戏位置
@@ -834,7 +834,7 @@ async function readMBC5MultiCartRoms(adapter: CartridgeAdapter, deviceSize: numb
       if (romInfo.isValid) {
         results.push({
           startAddress: range.from,
-          bank: -1,
+          desc: range.name,
           romInfo,
         });
       }
@@ -857,9 +857,9 @@ function printGameDetectionResults(gameResults: GameDetectionResult[]) {
   }
 
   for (const result of gameResults) {
-    const { startAddress, bank, romInfo } = result;
+    const { startAddress, desc, romInfo } = result;
     const addressStr = formatHex(startAddress, 4);
-    log(`[${addressStr}]@[Bank${bank}] (${romInfo.type}): ${romInfo.title}`);
+    log(`${romInfo.title}[${desc}] @ ${addressStr}`);
   }
 }
 
