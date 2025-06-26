@@ -182,6 +182,7 @@ export class GBAAdapter extends CartridgeAdapter {
           const sectorMask = sectorSize - 1;
           const alignedEndAddress = endAddress & ~sectorMask;
 
+          let currentBank = -1;
           let eraseCount = 0;
           const totalSectors = Math.floor((alignedEndAddress - startAddress) / sectorSize) + 1;
           const totalBytes = endAddress - startAddress;
@@ -201,12 +202,19 @@ export class GBAAdapter extends CartridgeAdapter {
               };
             }
 
+            const { bank } = this.romBankRelevantAddress(currentAddress);
+            if (endAddress > (1 << 25)) {
+              if (bank !== currentBank) {
+                currentBank = bank;
+                await this.switchROMBank(bank);
+              }
+            }
+
             this.log(this.t('messages.operation.eraseSector', {
               from: formatHex(currentAddress, 4),
               to: formatHex(currentAddress + sectorSize - 1, 4),
             }));
 
-            const sectorStartTime = Date.now();
             await rom_erase_sector(this.device, currentAddress);
             const sectorEndTime = Date.now();
 
@@ -315,15 +323,16 @@ export class GBAAdapter extends CartridgeAdapter {
           let written = 0;
           this.log(this.t('messages.rom.writing', { size: total }));
 
-          const bankInfoCheck = this.romBankRelevantAddress(baseAddress);
-          if (options.cfiInfo.deviceSize > (1 << 25)) {
-            await this.switchROMBank(bankInfoCheck.bank);
+          {
+            const { bank } = this.romBankRelevantAddress(baseAddress);
+            if (options.cfiInfo.deviceSize > (1 << 25)) {
+              await this.switchROMBank(bank);
+            }
           }
 
           const blank = await this.isBlank(baseAddress, 0x100);
           if (!blank) {
             const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, total, baseAddress);
-            console.log(sectorInfo);
             for (const { startAddress, endAddress, sectorSize } of sectorInfo) {
               await this.eraseSectors(startAddress, endAddress, sectorSize, signal);
             }
@@ -349,7 +358,6 @@ export class GBAAdapter extends CartridgeAdapter {
             const chunkSize = Math.min(pageSize, total - written);
             const chunk = fileData.slice(written, written + chunkSize);
             const currentAddress = baseAddress + written;
-            const chunkStartTime = Date.now();
 
             const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress);
             if (options.cfiInfo.deviceSize > (1 << 25)) {
@@ -498,7 +506,6 @@ export class GBAAdapter extends CartridgeAdapter {
 
             const chunkSize = Math.min(pageSize, size - totalRead);
             const currentAddress = baseAddress + totalRead;
-            const chunkStartTime = Date.now();
 
             const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress);
             if (options.cfiInfo.deviceSize > (1 << 25)) {
@@ -657,7 +664,6 @@ export class GBAAdapter extends CartridgeAdapter {
             }
 
             // 读取对应的ROM数据
-            const chunkStartTime = Date.now();
             const actualChunk = await rom_read(this.device, chunkSize, cartAddress);
             const chunkEndTime = Date.now();
 
@@ -845,7 +851,6 @@ export class GBAAdapter extends CartridgeAdapter {
             const chunk = fileData.slice(written, written + chunkSize);
 
             // 根据RAM类型选择写入方法
-            const chunkStartTime = Date.now();
             if (ramType === 'FLASH') {
               await ram_program_flash(this.device, chunk, baseAddr);
             } else {
@@ -955,7 +960,6 @@ export class GBAAdapter extends CartridgeAdapter {
             const chunkSize = Math.min(pageSize, remainingSize);
 
             // 读取数据
-            const chunkStartTime = Date.now();
             const chunk = await ram_read(this.device, chunkSize, baseAddr);
             const chunkEndTime = Date.now();
             result.set(chunk, read);

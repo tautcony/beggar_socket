@@ -21,6 +21,19 @@
       "mbc5": "MBC5",
       "title": "Operation Mode"
     },
+    "menu": {
+      "tools": "Tools",
+      "romAssembly": "ROM Assembly",
+      "romAssemblyDesc": "Assemble multiple ROM files into a multi-cart",
+      "romExtractor": "ROM Extractor",
+      "romExtractorDesc": "Extract individual ROM files from a multi-cart",
+      "romAnalyzer": "ROM Analyzer",
+      "romAnalyzerDesc": "Analyze ROM file structure and information",
+      "settings": "Settings",
+      "settingsDesc": "Configure application options",
+      "about": "About",
+      "aboutDesc": "View application information and version"
+    },
     "operation": {
       "title": "Chip Operations",
       "busy": "Operating...",
@@ -86,6 +99,14 @@
       "romTitle": "ROM Title",
       "romSize": "ROM Size",
       "sizeLabel": "Size:",
+      "baseAddressLabel": "Base Address:",
+      "useAssembledRom": "Use Assembled ROM",
+      "baseAddressOptions": {
+        "fullCart": "Full Cart",
+        "menu": "Menu",
+        "game": "Game{index}",
+        "bank": "Bank{index}"
+      },
       "info": "ROM Information",
       "type": "Type",
       "gameCode": "Game Code",
@@ -97,6 +118,22 @@
       "ramSize": "RAM Size",
       "valid": "Valid",
       "logo": "Logo"
+    },
+    "romAssembly": {
+      "title": "ROM Assembly",
+      "romType": "ROM Type",
+      "totalSize": "Total Size",
+      "alignment": "Alignment",
+      "uploadFiles": "Upload Files",
+      "selectFiles": "Select ROM files or drag them here",
+      "pendingFiles": "Pending Files",
+      "requiredSlots": "Requires {count} slot(s)",
+      "romLayout": "ROM Layout",
+      "usageStats": "Used: {used} / {total} ({percentage}%)",
+      "emptySlot": "Empty Slot",
+      "clearAll": "Clear All",
+      "assemble": "Assemble ROM",
+      "assembleAndApply": "Assemble & Apply"
     },
     "emulator": {
       "title": "Game Preview",
@@ -237,7 +274,8 @@
     },
     "common": {
       "yes": "Yes",
-      "no": "No"
+      "no": "No",
+      "cancel": "Cancel"
     }
   },
   "messages": {
@@ -317,12 +355,27 @@
       "areaIsBlank": "Area is blank",
       "areaNotBlank": "Area is not blank",
       "writeSummary": "ROM write complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} KB",
-      "readSummary": "ROM read complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} KB"
+      "readSummary": "ROM read complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} KB",
+      "assembledRomApplied": "Assembled ROM has been applied",
+      "assembledRomTypeMismatch": "Assembled ROM type ({assembled}) does not match current mode ({current})",
+      "noAssembledRom": "No assembled ROM available"
     },
     "emulator": {
       "launched": "Emulator preview launched: {name}",
       "closed": "Emulator closed",
       "unsupportedRom": "Unsupported ROM file format"
+    },
+    "romAssembly": {
+      "fileTooLarge": "File {name} is too large to fit in any slot",
+      "cannotPlaceFile": "Cannot place file in this slot",
+      "filePlaced": "File {name} has been placed",
+      "fileRemoved": "File {name} has been removed",
+      "allCleared": "All slots have been cleared",
+      "assembled": "ROM assembly completed, total size: {size}, used slots: {usedSlots}",
+      "applied": "ROM assembly has been applied to main interface"
+    },
+    "common": {
+      "featureComingSoon": "Feature coming soon"
     },
     "ram": {
       "writing": "Writing RAM, size {size} bytes",

@@ -78,6 +78,12 @@
 
       <div class="button-row">
         <button
+          v-if="hasAssembledRom"
+          @click="useAssembledRom"
+        >
+          {{ $t('ui.rom.useAssembledRom') }}
+        </button>
+        <button
           :disabled="!deviceReady || !romFileData || busy"
           @click="$emit('write-rom')"
         >
@@ -143,7 +149,9 @@ import { useI18n } from 'vue-i18n';
 import FileDropZone from '@/components/common/FileDropZone.vue';
 import RomInfoPanel from '@/components/common/RomInfoPanel.vue';
 import { useToast } from '@/composables/useToast';
+import { assembledRomState, clearAssembledRom } from '@/stores/assembled-rom-store';
 import { FileInfo } from '@/types/file-info.ts';
+import type { AssembledRom } from '@/types/rom-assembly';
 import { formatHex } from '@/utils/formatter-utils';
 import { parseRom, type RomInfo } from '@/utils/rom-parser.ts';
 
@@ -166,22 +174,20 @@ const props = withDefaults(defineProps<{
 }>(), {
   romFileData: null,
   romFileName: '',
-  selectedRomSize: '0x800000',
+  selectedRomSize: '0x00800000',
   selectedBaseAddress: '0x00000000',
 });
 
 const ROM_SIZE_RANGE = [
-  { value: '0x40000', size: 0x40000, text: '256KB' },
-  { value: '0x80000', size: 0x80000, text: '512KB' },
-  { value: '0x100000', size: 0x100000, text: '1MB' },
-  { value: '0x200000', size: 0x200000, text: '2MB' },
-  { value: '0x400000', size: 0x400000, text: '4MB' },
-  { value: '0x800000', size: 0x800000, text: '8MB' },
-  { value: '0x1000000', size: 0x1000000, text: '16MB' },
-  { value: '0x2000000', size: 0x2000000, text: '32MB' },
-  { value: '0x4000000', size: 0x4000000, text: '64MB' },
-  { value: '0x8000000', size: 0x4000000, text: '128MB' },
+  { value: '0x00040000', size: 0x00040000, text: '256KB' },
+  { value: '0x00080000', size: 0x00080000, text: '512KB' },
+  { value: '0x00100000', size: 0x00100000, text: '1MB' },
+  { value: '0x00200000', size: 0x00200000, text: '2MB' },
 ];
+
+for (let i = 1; i <= 32; ++i) {
+  ROM_SIZE_RANGE.push({ value: formatHex(0x00400000 * i, 4), size: 0x00400000 * i, text: `${i * 4}MB` });
+}
 
 // 不同cartType的baseAddress选项
 const getBaseAddressOptions = (romType: 'GBA' | 'MBC5') => {
@@ -300,6 +306,52 @@ function closeEmulator() {
   emulatorRomName.value = '';
   showToast(t('messages.emulator.closed'), 'success');
 }
+
+function onRomAssembled(assembled: AssembledRom) {
+  // 将组装的ROM数据作为单个文件传递给父组件
+  const assembledFileInfo: FileInfo = {
+    name: `assembled_${props.mode.toLowerCase()}_${new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')}.bin`,
+    data: assembled.data,
+    size: assembled.data.length,
+  };
+
+  emit('file-selected', assembledFileInfo);
+  showToast(t('messages.romAssembly.assembled', {
+    size: assembled.totalSize.toString(),
+    usedSlots: assembled.slots.filter(s => s.file).length.toString(),
+  }), 'success');
+}
+
+// 使用组装的ROM
+function useAssembledRom() {
+  if (assembledRomState.value && assembledRomState.value.romType === props.mode) {
+    const fileInfo: FileInfo = {
+      name: `assembled_${props.mode.toLowerCase()}_${Date.now()}.bin`,
+      data: assembledRomState.value.rom.data,
+      size: assembledRomState.value.rom.data.length,
+    };
+
+    // 将组装的ROM作为文件选择
+    emit('file-selected', fileInfo);
+
+    // 清除组装的ROM状态
+    clearAssembledRom();
+
+    showToast(t('messages.rom.assembledRomApplied'), 'success');
+  } else if (assembledRomState.value && assembledRomState.value.romType !== props.mode) {
+    showToast(t('messages.rom.assembledRomTypeMismatch', {
+      assembled: assembledRomState.value.romType,
+      current: props.mode,
+    }), 'error');
+  } else {
+    showToast(t('messages.rom.noAssembledRom'), 'error');
+  }
+}
+
+// 计算是否存在已组装的ROM
+const hasAssembledRom = computed(() => {
+  return assembledRomState.value !== null && assembledRomState.value.romType === props.mode;
+});
 </script>
 
 <style scoped>

@@ -21,6 +21,19 @@
       "mbc5": "MBC5",
       "title": "操作模式"
     },
+    "menu": {
+      "tools": "工具",
+      "romAssembly": "ROM组装",
+      "romAssemblyDesc": "将多个ROM文件组装成一个合卡",
+      "romExtractor": "ROM提取",
+      "romExtractorDesc": "从合卡中提取单个ROM文件",
+      "romAnalyzer": "ROM分析",
+      "romAnalyzerDesc": "分析ROM文件的结构和信息",
+      "settings": "设置",
+      "settingsDesc": "配置应用程序选项",
+      "about": "关于",
+      "aboutDesc": "查看应用程序信息和版本"
+    },
     "operation": {
       "title": "芯片操作",
       "busy": "操作中...",
@@ -87,6 +100,7 @@
       "romSize": "ROM大小",
       "sizeLabel": "大小：",
       "baseAddressLabel": "基址：",
+      "useAssembledRom": "使用组装ROM",
       "baseAddressOptions": {
         "fullCart": "整卡",
         "menu": "菜单",
@@ -104,6 +118,22 @@
       "ramSize": "RAM大小",
       "valid": "有效性",
       "logo": "Logo"
+    },
+    "romAssembly": {
+      "title": "ROM组装",
+      "romType": "ROM类型",
+      "totalSize": "总容量",
+      "alignment": "对齐要求",
+      "uploadFiles": "上传文件",
+      "selectFiles": "选择ROM文件或拖拽到此处",
+      "pendingFiles": "待放置文件",
+      "requiredSlots": "需要{count}个槽位",
+      "romLayout": "ROM布局",
+      "usageStats": "已使用: {used} / {total} ({percentage}%)",
+      "emptySlot": "空槽位",
+      "clearAll": "清空全部",
+      "assemble": "组装ROM",
+      "assembleAndApply": "组装并应用"
     },
     "emulator": {
       "title": "游戏预览",
@@ -244,7 +274,8 @@
     },
     "common": {
       "yes": "是",
-      "no": "否"
+      "no": "否",
+      "cancel": "取消"
     }
   },
   "messages": {
@@ -325,12 +356,27 @@
       "areaIsBlank": "区域为空白",
       "areaNotBlank": "区域不为空白",
       "writeSummary": "ROM写入完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} KB",
-      "readSummary": "ROM读取完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} KB"
+      "readSummary": "ROM读取完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} KB",
+      "assembledRomApplied": "组装ROM已应用",
+      "assembledRomTypeMismatch": "组装ROM类型({assembled})与当前模式({current})不匹配",
+      "noAssembledRom": "没有可用的组装ROM"
     },
     "emulator": {
       "launched": "已启动模拟器预览: {name}",
       "closed": "模拟器已关闭",
       "unsupportedRom": "不支持的ROM文件格式"
+    },
+    "romAssembly": {
+      "fileTooLarge": "文件 {name} 过大，无法放入任何槽位",
+      "cannotPlaceFile": "无法在此槽位放置文件",
+      "filePlaced": "文件 {name} 已放置",
+      "fileRemoved": "文件 {name} 已移除",
+      "allCleared": "所有槽位已清空",
+      "assembled": "ROM组装完成，总大小: {size}，使用槽位: {usedSlots}",
+      "applied": "ROM组装已应用到主界面"
+    },
+    "common": {
+      "featureComingSoon": "功能即将推出"
     },
     "ram": {
       "writing": "正在写入RAM，大小 {size} 字节",

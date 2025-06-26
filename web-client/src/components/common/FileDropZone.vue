@@ -17,6 +17,7 @@
         type="file"
         :accept="acceptTypes"
         :disabled="disabled"
+        :multiple="multiple"
         style="display: none"
         @change="onFileChange"
       >
@@ -83,10 +84,12 @@ const props = withDefaults(defineProps<{
   fileTitle: string;
   fileData?: Uint8Array | null;
   fileName?: string;
+  multiple?: boolean;
 }>(), {
   disabled: false,
   fileData: null,
   fileName: '',
+  multiple: false,
 });
 
 const emit = defineEmits(['file-selected', 'file-cleared']);
@@ -100,7 +103,35 @@ function onFileChange(e: Event) {
     if (!files || files.length === 0) {
       return;
     }
-    processFile(files[0]);
+
+    if (props.multiple) {
+      processFiles(Array.from(files));
+    } else {
+      processFile(files[0]);
+    }
+  }
+}
+
+function processFiles(files: File[]) {
+  const fileInfos: FileInfo[] = [];
+  let processedCount = 0;
+
+  for (const file of files) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const data = new Uint8Array(reader.result as ArrayBuffer);
+      fileInfos.push({
+        name: file.name,
+        data: data,
+        size: data.length,
+      } as FileInfo);
+
+      processedCount++;
+      if (processedCount === files.length) {
+        emit('file-selected', fileInfos);
+      }
+    };
+    reader.readAsArrayBuffer(file);
   }
 }
 
@@ -145,7 +176,11 @@ function handleDrop(e: DragEvent) {
 
   const files = e.dataTransfer?.files;
   if (files && files.length > 0) {
-    processFile(files[0]);
+    if (props.multiple) {
+      processFiles(Array.from(files));
+    } else {
+      processFile(files[0]);
+    }
   }
 }
 </script>

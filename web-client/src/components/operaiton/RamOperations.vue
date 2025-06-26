@@ -99,13 +99,13 @@ const props = withDefaults(defineProps<{
 }>(), {
   ramFileData: null,
   ramFileName: '',
-  selectedRamSize: '0x8000',
+  selectedRamSize: '0x08000',
   selectedRamType: 'SRAM',
 });
 
 const RAM_SIZE_RANGE = [
-  { value: '0x2000', size: 0x2000, text: '8KB' }, // 8KB
-  { value: '0x8000', size: 0x8000, text: '32KB' }, // 32KB
+  { value: '0x02000', size: 0x02000, text: '8KB' }, // 8KB
+  { value: '0x08000', size: 0x08000, text: '32KB' }, // 32KB
   { value: '0x10000', size: 0x10000, text: '64KB' }, // 64KB
   { value: '0x20000', size: 0x20000, text: '128KB' }, // 128KB
 ];

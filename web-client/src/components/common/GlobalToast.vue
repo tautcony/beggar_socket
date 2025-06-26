@@ -38,7 +38,7 @@ import { onMounted, onUnmounted, ref } from 'vue';
 interface Toast {
   id: number;
   message: string;
-  type: 'success' | 'error' | 'idle';
+  type: 'info' | 'success' | 'error' | 'idle';
   timer: ReturnType<typeof setTimeout> | null;
   duration: number;
   isPaused: boolean;
@@ -49,7 +49,7 @@ interface Toast {
 const toasts = ref<Toast[]>([]);
 let toastIdCounter = 0;
 
-function showToast(msg: string, toastType: 'success' | 'error' | 'idle' = 'success', duration = 3000) {
+function showToast(msg: string, toastType: 'info' | 'success' | 'error' | 'idle' = 'success', duration = 3000) {
   const id = ++toastIdCounter;
 
   const toast: Toast = {
@@ -71,7 +71,7 @@ function showToast(msg: string, toastType: 'success' | 'error' | 'idle' = 'succe
 }
 
 // 监听全局Toast事件
-function handleGlobalToast(event: CustomEvent<{ message: string, type: 'success' | 'error' | 'idle', duration: number }>) {
+function handleGlobalToast(event: CustomEvent<{ message: string, type: 'info' | 'success' | 'error' | 'idle', duration: number }>) {
   const { message, type, duration } = event.detail;
   showToast(message, type, duration);
 }
@@ -129,7 +129,7 @@ function removeToast(toastId: number) {
 
 declare global {
   interface Window {
-    showToast?: (msg: string, type?: 'success' | 'error' | 'idle', duration?: number) => void;
+    showToast?: (msg: string, type?: 'info' | 'success' | 'error' | 'idle', duration?: number) => void;
   }
 }
 

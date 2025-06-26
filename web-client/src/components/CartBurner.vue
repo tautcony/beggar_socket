@@ -122,7 +122,7 @@ import { DebugSettings } from '@/settings/debug-settings';
 import { DeviceInfo, FileInfo, ProgressInfo } from '@/types';
 import { CFIInfo } from '@/utils/cfi-parser';
 import { formatBytes, formatHex } from '@/utils/formatter-utils';
-import { CartridgeTypeMapper, parseRom, RomInfo } from '@/utils/rom-parser.ts';
+import { parseRom, RomInfo } from '@/utils/rom-parser.ts';
 import { calcSectorUsage } from '@/utils/sector-utils';
 
 interface GameDetectionResult {
@@ -181,28 +181,17 @@ const mbc5Adapter = ref<CartridgeAdapter | null>();
 if (import.meta.hot) {
   const data = import.meta.hot.data as {
     cartBurnerState?: {
-      gbaAdapter: CartridgeAdapter | null;
-      mbc5Adapter: CartridgeAdapter | null;
       logs: string[];
     }
   };
 
   // 初始化或恢复状态
   data.cartBurnerState = data?.cartBurnerState ?? {
-    gbaAdapter: null,
-    mbc5Adapter: null,
     logs: [],
   };
 
-  // 从 HMR 数据恢复适配器状态
-  if (data.cartBurnerState.gbaAdapter) {
-    gbaAdapter.value = data.cartBurnerState.gbaAdapter;
-    console.log('[CartBurner] HMR: 恢复 GBA 适配器');
-  }
-  if (data.cartBurnerState.mbc5Adapter) {
-    mbc5Adapter.value = data.cartBurnerState.mbc5Adapter;
-    console.log('[CartBurner] HMR: 恢复 MBC5 适配器');
-  }
+  // 重新初始化适配器
+  initializeAdapters();
 
   // 从 HMR 数据恢复日志状态
   if (data.cartBurnerState.logs.length > 0) {
@@ -214,8 +203,6 @@ if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     if (import.meta.hot?.data) {
       data.cartBurnerState = {
-        gbaAdapter: gbaAdapter.value ?? null,
-        mbc5Adapter: mbc5Adapter.value ?? null,
         logs: [...logs.value],
       };
       console.log('[CartBurner] HMR: 保存适配器和日志状态');
@@ -226,7 +213,7 @@ if (import.meta.hot) {
 // ROM
 const romFileData = ref<Uint8Array | null>(null);
 const romFileName = ref('');
-const selectedRomSize = ref('0x800000'); // 默认8MB
+const selectedRomSize = ref('0x00800000'); // 默认8MB
 const selectedBaseAddress = ref('0x00000000'); // 默认基址0x00
 
 // RAM
@@ -503,7 +490,6 @@ async function eraseChip() {
   } finally {
     busy.value = false;
     finishOperation();
-
   }
 }
 
@@ -801,7 +787,7 @@ async function readGBAMultiCartRoms(adapter: CartridgeAdapter, deviceSize: numbe
       if (romInfo.isValid) {
         results.push({
           startAddress: baseAddress,
-          desc: `Bank ${i}`,
+          desc: `Bank ${i.toString().padStart(2, '0')}`,
           romInfo,
         });
       }
@@ -816,11 +802,11 @@ async function readMBC5MultiCartRoms(adapter: CartridgeAdapter, deviceSize: numb
 
   // MBC5 N合1卡带的地址范围定义
   const multiCardRanges = [
-    { from: 0x000000, name: 'Menu' }, // 菜单
-    { from: 0x100000, name: 'Game 1' }, // 游戏1
+    { from: 0x000000, name: 'Menu   ' }, // 菜单
+    { from: 0x100000, name: 'Game 01' }, // 游戏1
   ];
   for (let i = 1; i < 16; ++i) {
-    multiCardRanges.push({ from: 0x200000 * i, name: `Game ${i + 1}` });
+    multiCardRanges.push({ from: 0x200000 * i, name: `Game ${(i + 1).toString().padStart(2, '0')}` });
   }
 
   // 检查每个可能的游戏位置
@@ -859,7 +845,7 @@ function printGameDetectionResults(gameResults: GameDetectionResult[]) {
   for (const result of gameResults) {
     const { startAddress, desc, romInfo } = result;
     const addressStr = formatHex(startAddress, 4);
-    log(`${romInfo.title}[${desc}] @ ${addressStr}`);
+    log(`${addressStr}[${desc}] => ${romInfo.title}`);
   }
 }
 

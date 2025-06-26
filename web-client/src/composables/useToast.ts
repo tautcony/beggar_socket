@@ -2,7 +2,7 @@
 export function useToast() {
   const showToast = (
     message: string,
-    type: 'success' | 'error' | 'idle' = 'success',
+    type: 'info' | 'success' | 'error' | 'idle' = 'success',
     duration = 3000,
   ) => {
     const event = new CustomEvent('show-toast', {

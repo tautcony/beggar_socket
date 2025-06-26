@@ -138,7 +138,7 @@ onUnmounted(() => {
 
 <style scoped>
 .log-section {
-  width: 350px;
+  width: 450px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;

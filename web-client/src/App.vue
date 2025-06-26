@@ -1,6 +1,10 @@
 <template>
   <div>
     <div class="top-bar">
+      <AppMenu
+        :current-mode="currentMode"
+        @rom-assembled="onRomAssembled"
+      />
       <LanguageSwitcher />
     </div>
     <h1 class="title-container">
@@ -38,7 +42,6 @@
       v-if="showDebugPanel"
       v-model="showDebugPanelModal"
     />
-    <SettingsLink @click="showSettings = true" />
     <GitHubLink />
     <GlobalToast />
   </div>
@@ -49,17 +52,19 @@
 import { computed, provide, type Ref, ref } from 'vue';
 
 import CartBurner from '@/components/CartBurner.vue';
+import AppMenu from '@/components/common/AppMenu.vue';
 import GlobalToast from '@/components/common/GlobalToast.vue';
 import DeviceConnect from '@/components/DeviceConnect.vue';
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
 import DebugLink from '@/components/link/DebugLink.vue';
 import GitHubLink from '@/components/link/GitHubLink.vue';
-import SettingsLink from '@/components/link/SettingsLink.vue';
 import AdvancedSettingsPanel from '@/components/settings/AdvancedSettingsPanel.vue';
 import DebugSettingsPanel from '@/components/settings/DebugSettingsPanel.vue';
 import { useToast } from '@/composables/useToast';
 import { DebugSettings } from '@/settings/debug-settings';
+import { setAssembledRom } from '@/stores/assembled-rom-store';
 import { DeviceInfo } from '@/types/device-info';
+import type { AssembledRom } from '@/types/rom-assembly';
 
 const { showToast } = useToast();
 
@@ -67,6 +72,7 @@ const device = ref<DeviceInfo | null>(null);
 const deviceReady = ref(false);
 const showSettings = ref(false);
 const showDebugPanelModal = ref(false);
+const currentMode = ref<'MBC5' | 'GBA'>('GBA');
 
 const deviceConnectRef = ref<InstanceType<typeof DeviceConnect>>();
 const cartBurnerRef = ref<InstanceType<typeof CartBurner>>();
@@ -140,6 +146,21 @@ function onClearMockData() {
   console.log('[DEBUG] 模拟数据清除完成');
 
   showToast('模拟数据已清除', 'success', 2000);
+}
+
+/**
+ * 处理ROM组装完成事件
+ */
+function onRomAssembled(rom: AssembledRom, romType: 'MBC5' | 'GBA') {
+  console.log(`[ROM Assembly] ROM assembled for ${romType}, size: ${rom.totalSize} bytes`);
+
+  // 更新当前模式
+  currentMode.value = romType;
+
+  // 将组装的ROM数据保存到全局状态
+  setAssembledRom(rom, romType);
+
+  showToast(`已组装${romType} ROM，大小: ${(rom.totalSize / 1024 / 1024).toFixed(2)}MB，可在ROM操作界面使用`, 'success', 4000);
 }
 </script>
 
