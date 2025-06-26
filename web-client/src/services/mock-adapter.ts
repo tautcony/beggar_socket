@@ -818,13 +818,12 @@ export class MockAdapter extends CartridgeAdapter {
   /**
    * 模拟ROM Bank 切换
    * @param bank - Bank编号
-   * @param isBankIn4m - 是否为4M模式的Bank
    */
-  async switchROMBank(bank: number, isBankIn4m = false): Promise<void> {
+  async switchROMBank(bank: number): Promise<void> {
     if (bank < 0) return;
 
     await DebugSettings.delay(50); // 短暂延迟模拟操作
-    this.log(`模拟ROM Bank切换到 ${bank} ${isBankIn4m ? '(4M模式)' : ''}`);
+    this.log(`模拟ROM Bank切换到 ${bank}`);
   }
 
   /**

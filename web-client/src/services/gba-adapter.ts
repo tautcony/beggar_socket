@@ -1142,21 +1142,12 @@ export class GBAAdapter extends CartridgeAdapter {
   /**
    * ROM Bank 切换
    */
-  async switchROMBank(bank: number, isBankIn4m = false) : Promise<void> {
+  async switchROMBank(bank: number) : Promise<void> {
     if (bank < 0) return;
+    const h = (bank & 0x0f) << 4;
 
-    if (isBankIn4m) {
-      const h = ((bank / 8) & 0x0f) << 4;
-      const l = 0x40 | ((bank % 8) << 3);
-
-      await ram_write(this.device, new Uint8Array([h]), 0x02);
-      await ram_write(this.device, new Uint8Array([l]), 0x03);
-    } else {
-      const h = (bank & 0x0f) << 4;
-
-      await ram_write(this.device, new Uint8Array([h]), 0x02);
-      await ram_write(this.device, new Uint8Array([0x40]), 0x03);
-    }
+    await ram_write(this.device, new Uint8Array([h]), 0x02);
+    await ram_write(this.device, new Uint8Array([0x40]), 0x03);
 
     this.log(this.t('messages.rom.bankSwitch', { bank }));
   }
