@@ -33,10 +33,10 @@ typedef struct __attribute__((packed))
 } Desc_respon_t;
 
 uint16_t cmdBuf_p = 0;
-uint8_t cmdBuf[1024];  // bootloader中缓冲区较小
+uint8_t cmdBuf[1536];
 
 // uint16_t responBuf_p = 0;
-uint8_t responBuf[1024];  // bootloader中缓冲区较小
+uint8_t responBuf[256];
 
 Desc_cmdHeader_t *uart_cmd = (Desc_cmdHeader_t *)cmdBuf;
 Desc_respon_t *uart_respon = (Desc_respon_t *)responBuf;
@@ -52,11 +52,80 @@ void iapProgramFlash();
 void iapJumpToApp();
 void uart_processCommand();
 
-// CRC16 计算函数
-uint16_t crc16_ccitt(const uint8_t *data, size_t length);
+uint16_t modbusCRC16(uint8_t *buf, uint16_t len)
+{
+    uint16_t crc = 0xffff;
 
-// 错误处理函数
+    for (int i = 0; i < len; i++)
+    {
+        crc = crc ^ buf[i];
+        for (int ii = 0; ii < 8; ii++)
+        {
+            uint16_t temp = crc & 0x0001;
+            crc = crc >> 1;
+            crc = crc & 0x7fff;
+            if (temp)
+                crc = crc ^ 0xa001;
+        }
+    }
+
+    return crc;
+}
+
 void uart_sendError(uint8_t errorCode);
+
+void uart_setControlLine(uint8_t rts, uint8_t dtr)
+{
+    static uint8_t currentRts = 0;
+    static uint8_t currentDtr = 0;
+
+    if (((currentRts == 0) && (rts != 0)) ||
+        ((currentDtr == 0) && (dtr != 0)))
+    {
+        cmdBuf_p = 0;
+        memset(cmdBuf, 0, sizeof(cmdBuf));
+    }
+
+    currentRts = rts;
+    currentDtr = dtr;
+}
+
+void uart_responData(uint8_t *dat, uint16_t len)
+{
+    // uart_respon->crc16 = modbusCRC16(dat, len); // 计算crc
+
+    if (dat != NULL)
+        memcpy(uart_respon->payload, dat, len); // 填充数据
+
+    USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)hUsbDeviceFS.pClassData;
+
+    // 分批发送
+    uint16_t packSize = SIZE_CRC + len;
+    uint16_t transCount = 0;
+    while (transCount < packSize)
+    {
+        uint16_t transLen = packSize - transCount;
+        if (transLen > BATCH_SIZE_RESPON)
+            transLen = BATCH_SIZE_RESPON;
+
+        while (hcdc->TxState != 0)
+            ;
+        CDC_Transmit_FS(responBuf + transCount, transLen);
+
+        transCount += transLen;
+    }
+}
+
+void uart_responAck()
+{
+    USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)hUsbDeviceFS.pClassData;
+
+    while (hcdc->TxState != 0)
+        ;
+
+    uint8_t ack = 0xaa;
+    CDC_Transmit_FS(&ack, 1);
+}
 
 // usb 接收回调
 void uart_cmdRecv(uint8_t *buf, uint32_t len)
@@ -105,7 +174,7 @@ void uart_processCommand()
 
     // 验证CRC
     uint16_t receivedCrc = *(uint16_t*)(cmdBuf + cmdSize - 2);
-    uint16_t calculatedCrc = crc16_ccitt(cmdBuf, cmdSize - 2);
+    uint16_t calculatedCrc = modbusCRC16(cmdBuf, cmdSize - 2);
 
     if (receivedCrc != calculatedCrc)
     {
@@ -116,16 +185,16 @@ void uart_processCommand()
     // 处理bootloader支持的命令
     switch (cmdCode)
     {
-        case 0x01: // 获取版本信息
+        case 0x00: // 获取版本信息
             iapGetVersion();
             break;
-        case 0x02: // 擦除Flash
+        case 0x01: // 擦除Flash
             iapEraseFlash();
             break;
-        case 0x03: // 编程Flash
+        case 0x02: // 编程Flash
             iapProgramFlash();
             break;
-        case 0x04: // 跳转到应用程序
+        case 0xff: // 跳转到应用程序
             iapJumpToApp();
             break;
         default:
@@ -147,7 +216,7 @@ void iapGetVersion()
     memcpy(payload, &version_info, sizeof(version_info_t));
 
     uint16_t totalLen = SIZE_RESPON_HEADER + sizeof(version_info_t);
-    uint16_t crc = crc16_ccitt(responBuf + 2, totalLen - 2);
+    uint16_t crc = modbusCRC16(responBuf + 2, totalLen - 2);
     uart_respon->crc16 = crc;
 
     // 发送回复
@@ -171,10 +240,10 @@ void iapEraseFlash()
 
     // 构造回复
     uart_respon->crc16 = 0;
-    uart_respon->payload[0] = (result == IAP_OK) ? 0x00 : 0xFF;
+    uart_respon->payload[0] = (result == IAP_OK) ? 0xaa : 0xFF;
 
     uint16_t totalLen = SIZE_RESPON_HEADER + 1;
-    uint16_t crc = crc16_ccitt(responBuf + 2, totalLen - 2);
+    uint16_t crc = modbusCRC16(responBuf + 2, totalLen - 2);
     uart_respon->crc16 = crc;
 
     CDC_Transmit_FS(responBuf, totalLen);
@@ -198,10 +267,10 @@ void iapProgramFlash()
 
     // 构造回复
     uart_respon->crc16 = 0;
-    uart_respon->payload[0] = (result == IAP_OK) ? 0x00 : 0xFF;
+    uart_respon->payload[0] = (result == IAP_OK) ? 0xaa : 0xFF;
 
     uint16_t totalLen = SIZE_RESPON_HEADER + 1;
-    uint16_t crc = crc16_ccitt(responBuf + 2, totalLen - 2);
+    uint16_t crc = modbusCRC16(responBuf + 2, totalLen - 2);
     uart_respon->crc16 = crc;
 
     CDC_Transmit_FS(responBuf, totalLen);
@@ -211,10 +280,10 @@ void iapJumpToApp()
 {
     // 构造回复
     uart_respon->crc16 = 0;
-    uart_respon->payload[0] = 0x00; // 成功
+    uart_respon->payload[0] = 0xaa; // 成功
 
     uint16_t totalLen = SIZE_RESPON_HEADER + 1;
-    uint16_t crc = crc16_ccitt(responBuf + 2, totalLen - 2);
+    uint16_t crc = modbusCRC16(responBuf + 2, totalLen - 2);
     uart_respon->crc16 = crc;
 
     CDC_Transmit_FS(responBuf, totalLen);
@@ -233,43 +302,8 @@ void uart_sendError(uint8_t errorCode)
     uart_respon->payload[1] = errorCode;
 
     uint16_t totalLen = SIZE_RESPON_HEADER + 2;
-    uint16_t crc = crc16_ccitt(responBuf + 2, totalLen - 2);
+    uint16_t crc = modbusCRC16(responBuf + 2, totalLen - 2);
     uart_respon->crc16 = crc;
 
     CDC_Transmit_FS(responBuf, totalLen);
-}
-
-// USB CDC 控制线设置函数 (bootloader 精简版)
-void uart_setControlLine(uint8_t rts, uint8_t dtr) {
-    static uint8_t currentRts = 0;
-    static uint8_t currentDtr = 0;
-
-    if (((currentRts == 0) && (rts != 0)) ||
-        ((currentDtr == 0) && (dtr != 0)))
-    {
-        cmdBuf_p = 0;
-        memset(cmdBuf, 0, sizeof(cmdBuf));
-    }
-
-    currentRts = rts;
-    currentDtr = dtr;
-}
-
-uint16_t crc16_ccitt(const uint8_t *data, size_t length)
-{
-    uint16_t crc = 0xFFFF;
-
-    for (size_t i = 0; i < length; i++)
-    {
-        crc ^= (uint16_t)data[i] << 8;
-        for (int j = 0; j < 8; j++)
-        {
-            if (crc & 0x8000)
-                crc = (crc << 1) ^ 0x1021;
-            else
-                crc <<= 1;
-        }
-    }
-
-    return crc;
 }

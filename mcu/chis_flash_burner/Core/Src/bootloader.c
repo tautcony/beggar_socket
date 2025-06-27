@@ -50,7 +50,7 @@
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-static void MX_GPIO_Init_Bootloader(void);
+static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -97,7 +97,7 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-  MX_GPIO_Init_Bootloader();
+  MX_GPIO_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 
@@ -113,7 +113,6 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
     uart_cmdHandler();
-    // 可选：LED闪烁指示bootloader运行状态
     // HAL_Delay(1000);
     // HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1);
     // HAL_Delay(1000);
@@ -168,27 +167,36 @@ void SystemClock_Config(void)
 }
 
 /**
-  * @brief GPIO Initialization Function for Bootloader (LED only)
+  * @brief GPIO Initialization Function
   * @param None
   * @retval None
   */
-static void MX_GPIO_Init_Bootloader(void)
+static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
+/* USER CODE BEGIN MX_GPIO_Init_1 */
+/* USER CODE END MX_GPIO_Init_1 */
 
-  /* GPIO Ports Clock Enable - 仅启用LED所需的GPIOC */
+  /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
 
-  /*Configure GPIO pin Output Level - 仅LED */
-  HAL_GPIO_WritePin(GPIOC, led_Pin, GPIO_PIN_SET);
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, cs2_Pin|led_Pin, GPIO_PIN_SET);
 
-  /*Configure GPIO pins : 仅LED控制 */
-  GPIO_InitStruct.Pin = led_Pin;
+  /*Configure GPIO pin Output Level */
+  /*Configure GPIO pins : cs2_Pin led_Pin */
+  GPIO_InitStruct.Pin = cs2_Pin|led_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+/* USER CODE BEGIN MX_GPIO_Init_2 */
+/* USER CODE END MX_GPIO_Init_2 */
 }
+
+/* USER CODE BEGIN 4 */
+
+/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.

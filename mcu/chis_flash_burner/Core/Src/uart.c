@@ -247,15 +247,14 @@ void uart_cmdHandler()
                 gbcRomProgram(); // gbc rom编程
                 break;
 
-            case 0xfd: // 获取版本信息
-                iapGetVersion();
-                break;
-
-            case 0xfe: // IAP 相关命令
+            case 0xff: // IAP 相关命令
                 {
                     uint8_t iap_cmd = uart_cmd->payload[0];
                     switch (iap_cmd) {
-                        case 0x04: // 重启到bootloader模式
+                        case 0x00:
+                            iapGetVersion();
+                            break;
+                        case 0xff: // 重启到bootloader模式
                             iapReboot();
                             break;
                         default:
@@ -825,13 +824,9 @@ void iapGetVersion()
 // o 2B.CRC 1B.status
 void iapReboot()
 {
+    // 回复ack
     uart_clearRecvBuf();
-
-    // 发送响应
-    uart_respon->payload[0] = 0x00;  // 成功状态
-    uart_respon->crc16 = modbusCRC16(uart_respon->payload, 1);
-
-    CDC_Transmit_FS((uint8_t*)uart_respon, 1 + SIZE_RESPON_HEADER);
+    uart_responAck();
 
     // 等待数据发送完成
     HAL_Delay(100);
