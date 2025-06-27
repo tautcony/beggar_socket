@@ -16,7 +16,7 @@ jobs:
   build-stm32:
     name: Build STM32F103 Firmware
     runs-on: ubuntu-latest
-    
+
     strategy:
       matrix:
         config:
@@ -33,7 +33,7 @@ jobs:
             target: "app"
 #          - name: "legacy"
 #            target: "legacy"
-    
+
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
@@ -94,7 +94,7 @@ jobs:
     name: Static Code Analysis
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    
+
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
@@ -136,7 +136,7 @@ jobs:
     name: Security Scan
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    
+
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4

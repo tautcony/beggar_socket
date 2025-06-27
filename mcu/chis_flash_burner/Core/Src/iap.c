@@ -51,11 +51,11 @@ static const uint32_t crc32_table[256] = {
 uint32_t iap_crc32(uint8_t *data, uint32_t size)
 {
     uint32_t crc = 0xFFFFFFFF;
-    
+
     for (uint32_t i = 0; i < size; i++) {
         crc = crc32_table[(crc ^ data[i]) & 0xFF] ^ (crc >> 8);
     }
-    
+
     return crc ^ 0xFFFFFFFF;
 }
 
@@ -70,27 +70,27 @@ iap_status_t iap_flash_erase(uint32_t start_addr, uint32_t size)
     HAL_StatusTypeDef status;
     FLASH_EraseInitTypeDef erase_init;
     uint32_t page_error;
-    
+
     /* 检查地址合法性 */
     if (start_addr < IAP_APPLICATION_BASE_ADDR || 
         (start_addr + size) > (IAP_FLASH_BASE_ADDR + IAP_FLASH_SIZE)) {
         return IAP_ERROR_INVALID_ADDR;
     }
-    
+
     /* 解锁 Flash */
     HAL_FLASH_Unlock();
-    
+
     /* 配置擦除参数 */
     erase_init.TypeErase = FLASH_TYPEERASE_PAGES;
     erase_init.PageAddress = start_addr;
     erase_init.NbPages = (size + IAP_PAGE_SIZE - 1) / IAP_PAGE_SIZE;
-    
+
     /* 执行擦除 */
     status = HAL_FLASHEx_Erase(&erase_init, &page_error);
-    
+
     /* 锁定 Flash */
     HAL_FLASH_Lock();
-    
+
     return (status == HAL_OK) ? IAP_OK : IAP_ERROR_FLASH_ERASE;
 }
 
@@ -105,35 +105,35 @@ iap_status_t iap_flash_write(uint32_t addr, uint8_t *data, uint32_t size)
 {
     HAL_StatusTypeDef status = HAL_OK;
     uint32_t i;
-    
+
     /* 检查地址合法性 */
     if (addr < IAP_APPLICATION_BASE_ADDR || 
         (addr + size) > (IAP_FLASH_BASE_ADDR + IAP_FLASH_SIZE)) {
         return IAP_ERROR_INVALID_ADDR;
     }
-    
+
     /* 解锁 Flash */
     HAL_FLASH_Unlock();
-    
+
     /* 按半字(16bit)写入数据 */
     for (i = 0; i < size; i += 2) {
         uint16_t half_word;
-        
+
         if (i + 1 < size) {
             half_word = (data[i + 1] << 8) | data[i];
         } else {
             half_word = 0xFF00 | data[i];  /* 奇数字节时，高字节填充0xFF */
         }
-        
+
         status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, addr + i, half_word);
         if (status != HAL_OK) {
             break;
         }
     }
-    
+
     /* 锁定 Flash */
     HAL_FLASH_Lock();
-    
+
     return (status == HAL_OK) ? IAP_OK : IAP_ERROR_FLASH_WRITE;
 }
 
@@ -151,10 +151,10 @@ iap_status_t iap_flash_read(uint32_t addr, uint8_t *data, uint32_t size)
         (addr + size) > (IAP_FLASH_BASE_ADDR + IAP_FLASH_SIZE)) {
         return IAP_ERROR_INVALID_ADDR;
     }
-    
+
     /* 直接从 Flash 读取数据 */
     memcpy(data, (uint8_t*)addr, size);
-    
+
     return IAP_OK;
 }
 
@@ -202,18 +202,18 @@ void iap_jump_to_app(void)
 {
     uint32_t app_stack_addr = *((uint32_t*)IAP_APPLICATION_BASE_ADDR);
     uint32_t app_reset_addr = *((uint32_t*)(IAP_APPLICATION_BASE_ADDR + 4));
-    
+
     /* 检查栈指针是否合法 */
     if ((app_stack_addr & 0x2FFE0000) == 0x20000000) {
         /* 关闭中断 */
         __disable_irq();
-        
+
         /* 复位所有外设 */
         HAL_DeInit();
-        
+
         /* 设置栈指针 */
         __set_MSP(app_stack_addr);
-        
+
         /* 跳转到应用程序 */
         ((void(*)(void))app_reset_addr)();
     }
@@ -226,7 +226,7 @@ void iap_jump_to_app(void)
 uint8_t iap_check_app_valid(void)
 {
     uint32_t app_stack_addr = *((uint32_t*)IAP_APPLICATION_BASE_ADDR);
-    
+
     /* 检查栈指针是否指向 RAM 区域 */
     return ((app_stack_addr & 0x2FFE0000) == 0x20000000) ? 1 : 0;
 }
@@ -244,10 +244,10 @@ void iap_upgrade_start(uint32_t app_size, uint32_t app_crc)
     upgrade_info.packet_size = 512;  /* 默认包大小 */
     upgrade_info.total_packets = (app_size + upgrade_info.packet_size - 1) / upgrade_info.packet_size;
     upgrade_info.current_packet = 0;
-    
+
     /* 设置写入地址 */
     write_addr = IAP_APPLICATION_BASE_ADDR;
-    
+
     /* 擦除应用程序区域 */
     iap_flash_erase(IAP_APPLICATION_BASE_ADDR, app_size);
 }
@@ -262,27 +262,27 @@ void iap_upgrade_start(uint32_t app_size, uint32_t app_crc)
 iap_status_t iap_upgrade_data(uint32_t packet_num, uint8_t *data, uint32_t size)
 {
     iap_status_t status;
-    
+
     /* 检查包序号 */
     if (packet_num != upgrade_info.current_packet) {
         return IAP_ERROR_INVALID_SIZE;
     }
-    
+
     /* 写入数据到 Flash */
     status = iap_flash_write(write_addr, data, size);
     if (status != IAP_OK) {
         return status;
     }
-    
+
     /* 验证写入的数据 */
     if (!iap_flash_verify(write_addr, data, size)) {
         return IAP_ERROR_FLASH_VERIFY;
     }
-    
+
     /* 更新地址和包序号 */
     write_addr += size;
     upgrade_info.current_packet++;
-    
+
     return IAP_OK;
 }
 
@@ -294,20 +294,20 @@ iap_status_t iap_upgrade_finish(void)
 {
     uint8_t *app_data;
     uint32_t calculated_crc;
-    
+
     /* 分配内存读取应用程序数据进行 CRC 校验 */
     app_data = (uint8_t*)IAP_APPLICATION_BASE_ADDR;
-    
+
     /* 计算 CRC32 */
     calculated_crc = iap_crc32(app_data, upgrade_info.app_size);
-    
+
     /* 验证 CRC */
     if (calculated_crc != upgrade_info.app_crc) {
         return IAP_ERROR_CRC_FAIL;
     }
-    
+
     /* 清除升级标志 */
     iap_clear_upgrade_flag();
-    
+
     return IAP_OK;
 }

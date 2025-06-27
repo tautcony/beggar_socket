@@ -88,10 +88,10 @@ void uart_cmdHandler()
         {
             busy = 1;
             HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);
-            
+
             // 处理命令
             uart_processCommand();
-            
+
             HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1);
             uart_clearRecvBuf();
         }
@@ -102,17 +102,17 @@ void uart_processCommand()
 {
     uint16_t cmdSize = uart_cmd->cmdSize;
     uint8_t cmdCode = uart_cmd->cmdCode;
-    
+
     // 验证CRC
     uint16_t receivedCrc = *(uint16_t*)(cmdBuf + cmdSize - 2);
     uint16_t calculatedCrc = crc16_ccitt(cmdBuf, cmdSize - 2);
-    
+
     if (receivedCrc != calculatedCrc)
     {
         uart_sendError(0x02); // CRC错误
         return;
     }
-    
+
     // 处理bootloader支持的命令
     switch (cmdCode)
     {
@@ -138,18 +138,18 @@ void iapGetVersion()
 {
     version_info_t version_info;
     version_get_info(&version_info);
-    
+
     // 构造回复
     uart_respon->crc16 = 0; // 先设为0
-    
+
     // 复制版本信息到payload
     uint8_t *payload = uart_respon->payload;
     memcpy(payload, &version_info, sizeof(version_info_t));
-    
+
     uint16_t totalLen = SIZE_RESPON_HEADER + sizeof(version_info_t);
     uint16_t crc = crc16_ccitt(responBuf + 2, totalLen - 2);
     uart_respon->crc16 = crc;
-    
+
     // 发送回复
     CDC_Transmit_FS(responBuf, totalLen);
 }
@@ -162,21 +162,21 @@ void iapEraseFlash()
         uart_sendError(0x04); // 参数不足
         return;
     }
-    
+
     uint32_t address = *(uint32_t*)uart_cmd->payload;
     uint32_t size = *(uint32_t*)(uart_cmd->payload + 4);
-    
+
     // 执行擦除
     iap_status_t result = iap_flash_erase(address, size);
-    
+
     // 构造回复
     uart_respon->crc16 = 0;
     uart_respon->payload[0] = (result == IAP_OK) ? 0x00 : 0xFF;
-    
+
     uint16_t totalLen = SIZE_RESPON_HEADER + 1;
     uint16_t crc = crc16_ccitt(responBuf + 2, totalLen - 2);
     uart_respon->crc16 = crc;
-    
+
     CDC_Transmit_FS(responBuf, totalLen);
 }
 
@@ -188,22 +188,22 @@ void iapProgramFlash()
         uart_sendError(0x04); // 参数不足
         return;
     }
-    
+
     uint32_t address = *(uint32_t*)uart_cmd->payload;
     uint32_t dataLen = uart_cmd->cmdSize - SIZE_CMD_HEADER - SIZE_BASE_ADDRESS - SIZE_CRC;
     uint8_t *data = uart_cmd->payload + SIZE_BASE_ADDRESS;
-    
+
     // 执行编程
     iap_status_t result = iap_flash_write(address, data, dataLen);
-    
+
     // 构造回复
     uart_respon->crc16 = 0;
     uart_respon->payload[0] = (result == IAP_OK) ? 0x00 : 0xFF;
-    
+
     uint16_t totalLen = SIZE_RESPON_HEADER + 1;
     uint16_t crc = crc16_ccitt(responBuf + 2, totalLen - 2);
     uart_respon->crc16 = crc;
-    
+
     CDC_Transmit_FS(responBuf, totalLen);
 }
 
@@ -212,16 +212,16 @@ void iapJumpToApp()
     // 构造回复
     uart_respon->crc16 = 0;
     uart_respon->payload[0] = 0x00; // 成功
-    
+
     uint16_t totalLen = SIZE_RESPON_HEADER + 1;
     uint16_t crc = crc16_ccitt(responBuf + 2, totalLen - 2);
     uart_respon->crc16 = crc;
-    
+
     CDC_Transmit_FS(responBuf, totalLen);
-    
+
     // 等待数据发送完成
     HAL_Delay(100);
-    
+
     // 跳转到应用程序
     iap_jump_to_app();
 }
@@ -231,11 +231,11 @@ void uart_sendError(uint8_t errorCode)
     uart_respon->crc16 = 0;
     uart_respon->payload[0] = 0xFF; // 错误标志
     uart_respon->payload[1] = errorCode;
-    
+
     uint16_t totalLen = SIZE_RESPON_HEADER + 2;
     uint16_t crc = crc16_ccitt(responBuf + 2, totalLen - 2);
     uart_respon->crc16 = crc;
-    
+
     CDC_Transmit_FS(responBuf, totalLen);
 }
 
@@ -258,7 +258,7 @@ void uart_setControlLine(uint8_t rts, uint8_t dtr) {
 uint16_t crc16_ccitt(const uint8_t *data, size_t length)
 {
     uint16_t crc = 0xFFFF;
-    
+
     for (size_t i = 0; i < length; i++)
     {
         crc ^= (uint16_t)data[i] << 8;
@@ -270,6 +270,6 @@ uint16_t crc16_ccitt(const uint8_t *data, size_t length)
                 crc <<= 1;
         }
     }
-    
+
     return crc;
 }

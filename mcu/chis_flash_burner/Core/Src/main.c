@@ -24,7 +24,6 @@
 /* USER CODE BEGIN Includes */
 #include "cart_adapter.h"
 #include "uart.h"
-#include "version.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -173,33 +172,31 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
-  /*Configure GPIO pin Output Level - LED */
-  HAL_GPIO_WritePin(GPIOC, led_Pin, GPIO_PIN_SET);
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, cs2_Pin|led_Pin, GPIO_PIN_SET);
 
-  /*Configure GPIO pin Output Level - 卡带适配器控制信号 */
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, cs1_Pin|rd_Pin|wr_Pin, GPIO_PIN_SET);
 
-  /*Configure GPIO pins : LED控制 */
-  GPIO_InitStruct.Pin = led_Pin;
+  /*Configure GPIO pins : cs2_Pin led_Pin */
+  GPIO_InitStruct.Pin = cs2_Pin|led_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins - 卡带适配器地址总线
-                         a16_Pin a17_Pin a18_Pin a19_Pin
-                         a20_Pin a21_Pin a22_Pin a23_Pin */
+  /*Configure GPIO pins : a16_Pin a17_Pin a18_Pin a19_Pin
+                           a20_Pin a21_Pin a22_Pin a23_Pin */
   GPIO_InitStruct.Pin = a16_Pin|a17_Pin|a18_Pin|a19_Pin
                           |a20_Pin|a21_Pin|a22_Pin|a23_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins - 卡带适配器数据总线
-                         ad0_Pin ad1_Pin ad2_Pin ad10_Pin
-                         ad11_Pin ad12_Pin ad13_Pin ad14_Pin
-                         ad15_Pin ad3_Pin ad4_Pin ad5_Pin
-                         ad6_Pin ad7_Pin ad8_Pin ad9_Pin */
+  /*Configure GPIO pins : ad0_Pin ad1_Pin ad2_Pin ad10_Pin
+                           ad11_Pin ad12_Pin ad13_Pin ad14_Pin
+                           ad15_Pin ad3_Pin ad4_Pin ad5_Pin
+                           ad6_Pin ad7_Pin ad8_Pin ad9_Pin */
   GPIO_InitStruct.Pin = ad0_Pin|ad1_Pin|ad2_Pin|ad10_Pin
                           |ad11_Pin|ad12_Pin|ad13_Pin|ad14_Pin
                           |ad15_Pin|ad3_Pin|ad4_Pin|ad5_Pin
@@ -208,7 +205,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins - 卡带适配器控制信号 : cs1_Pin rd_Pin wr_Pin */
+  /*Configure GPIO pins : cs1_Pin rd_Pin wr_Pin */
   GPIO_InitStruct.Pin = cs1_Pin|rd_Pin|wr_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_PULLUP;

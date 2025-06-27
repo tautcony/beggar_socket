@@ -69,7 +69,7 @@ set_build_mode() {
 # Function to install ARM toolchain on different systems
 install_arm_toolchain() {
     log_info "Installing ARM toolchain..."
-    
+
     if command_exists apt-get; then
         # Ubuntu/Debian
         sudo apt-get update
@@ -100,7 +100,7 @@ install_arm_toolchain() {
 # Function to install build tools
 install_build_tools() {
     log_info "Installing build tools..."
-    
+
     if command_exists apt-get; then
         sudo apt-get install -y make cmake git
     elif command_exists yum; then
@@ -119,17 +119,17 @@ install_build_tools() {
 # Function to check toolchain
 check_toolchain() {
     log_info "Checking ARM toolchain..."
-    
+
     if ! command_exists ${TARGET_ARCH}-gcc; then
         log_warning "ARM toolchain not found. Installing..."
         install_arm_toolchain
     fi
-    
+
     if ! command_exists make; then
         log_warning "Build tools not found. Installing..."
         install_build_tools
     fi
-    
+
     # Verify installation
     if command_exists ${TARGET_ARCH}-gcc; then
         log_success "ARM GCC found: $(${TARGET_ARCH}-gcc --version | head -n1)"
@@ -137,7 +137,7 @@ check_toolchain() {
         log_error "ARM toolchain installation failed"
         exit 1
     fi
-    
+
     if command_exists make; then
         log_success "Make found: $(make --version | head -n1)"
     else
@@ -149,7 +149,7 @@ check_toolchain() {
 # Function to check Makefile exists
 check_makefile() {
     local makefile_path="${PROJECT_NAME}/Makefile"
-    
+
     if [ ! -f "$makefile_path" ]; then
         log_error "Makefile not found at $makefile_path"
         log_info "The Makefile should be included in the project"
@@ -162,14 +162,14 @@ check_makefile() {
 # Function to build the project
 build_project() {
     local target="${1:-legacy}"
-    
+
     log_info "Building project: $PROJECT_NAME (${BUILD_MODE} mode, target: $target)"
-    
+
     cd "$PROJECT_NAME"
-    
+
     # Create build directory if it doesn't exist
     mkdir -p "$BUILD_DIR"
-    
+
     # Build specific targets based on Makefile targets
     case "$target" in
         "bootloader"|"boot")
@@ -191,13 +191,13 @@ build_project() {
                 cd ..
                 exit 1
             fi
-            
+
             # Build application second
             log_info "Step 2/2: Building application..."
             if make app DEBUG=$DEBUG_FLAG; then
                 log_success "Application build completed"
                 log_success "Complete IAP solution built successfully!"
-                
+
                 # Show summary
                 log_info "IAP Build Summary:"
                 if [ -f "$BUILD_DIR/bootloader/chis_flash_burner_bootloader.elf" ] && [ -f "$BUILD_DIR/app/chis_flash_burner_app.elf" ]; then
@@ -213,7 +213,7 @@ build_project() {
                 cd ..
                 exit 1
             fi
-            
+
             cd ..
             return 0
             ;;
@@ -228,12 +228,12 @@ build_project() {
             exit 1
             ;;
     esac
-    
+
     # Build the project with appropriate flags
     log_info "Running: $make_cmd"
     if eval "$make_cmd"; then
         log_success "Build completed successfully!"
-        
+
         # Show build artifacts
         if [ -d "$BUILD_DIR" ]; then
             log_info "Build artifacts:"
@@ -258,17 +258,17 @@ build_project() {
         log_error "Build failed!"
         exit 1
     fi
-    
+
     cd ..
 }
 
 # Function to clean build
 clean_project() {
     local target="${1:-all}"
-    
+
     log_info "Cleaning project (target: $target)..."
     cd "$PROJECT_NAME"
-    
+
     if [ -f "Makefile" ]; then
         case "$target" in
             "bootloader"|"boot")
@@ -302,7 +302,7 @@ clean_project() {
         rm -rf "$BUILD_DIR"
         log_success "Build directory removed"
     fi
-    
+
     cd ..
 }
 
@@ -343,10 +343,10 @@ show_status() {
     echo -e "\n${BLUE}=== Build Status ===${NC}"
     if [ -d "$PROJECT_NAME/$BUILD_DIR" ]; then
         echo -e "${GREEN}✅ Build directory exists${NC}"
-        
+
         # Check for different build targets
         local found_builds=false
-        
+
         if [ -f "$PROJECT_NAME/$BUILD_DIR/bootloader/chis_flash_burner_bootloader.elf" ]; then
             echo -e "${GREEN}✅ Bootloader build exists${NC}"
             found_builds=true
@@ -356,7 +356,7 @@ show_status() {
                 echo "$size_info"
             fi
         fi
-        
+
         if [ -f "$PROJECT_NAME/$BUILD_DIR/app/chis_flash_burner_app.elf" ]; then
             echo -e "${GREEN}✅ Application build exists${NC}"
             found_builds=true
@@ -366,7 +366,7 @@ show_status() {
                 echo "$size_info"
             fi
         fi
-        
+
         if [ -f "$PROJECT_NAME/$BUILD_DIR/chis_flash_burner_legacy.elf" ]; then
             echo -e "${GREEN}✅ Legacy build exists${NC}"
             found_builds=true
@@ -376,11 +376,11 @@ show_status() {
                 echo "$size_info"
             fi
         fi
-        
+
         if [ "$found_builds" = false ]; then
             echo -e "${YELLOW}⚠️  No firmware builds found - project needs to be built${NC}"
         fi
-        
+
         echo -e "\n${BLUE}📁 Build artifacts:${NC}"
         ls -lh "$PROJECT_NAME/$BUILD_DIR"/*.{elf,hex,bin,map} 2>/dev/null | \
         awk '{printf "   %s (%s)\n", $9, $5}' || echo "   No artifacts found"
@@ -451,7 +451,7 @@ main() {
     local action="${1:-build}"
     local target="${2:-legacy}"
     local build_mode="${3:-debug}"
-    
+
     # Handle cases where second argument is build mode instead of target
     case "$target" in
         "debug"|"d"|"release"|"r")
@@ -459,7 +459,7 @@ main() {
             target="legacy"
             ;;
     esac
-    
+
     case "$action" in
         "build")
             set_build_mode "$build_mode"
