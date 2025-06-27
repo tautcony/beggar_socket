@@ -8,6 +8,8 @@
 
 #include "uart.h"
 #include "cart_adapter.h"
+#include "version.h"
+#include "iap.h"
 
 #define BATCH_SIZE_RW 512
 #define BATCH_SIZE_RESPON 512
@@ -75,6 +77,9 @@ void ramProgramFlash();
 void gbcWrite();
 void gbcRead();
 void gbcRomProgram();
+
+void iapGetVersion();
+void iapReboot();
 
 uint16_t modbusCRC16(uint8_t *buf, uint16_t len)
 {
@@ -240,6 +245,25 @@ void uart_cmdHandler()
 
             case 0xfc:
                 gbcRomProgram(); // gbc rom编程
+                break;
+
+            case 0xfd: // 获取版本信息
+                iapGetVersion();
+                break;
+
+            case 0xfe: // IAP 相关命令
+                {
+                    uint8_t iap_cmd = uart_cmd->payload[0];
+                    switch (iap_cmd) {
+                        case 0x04: // 重启到bootloader模式
+                            iapReboot();
+                            break;
+                        default:
+                            // 其他IAP命令应在bootloader中处理
+                            // 发送错误响应或忽略
+                            break;
+                    }
+                }
                 break;
 
             default:
@@ -752,4 +776,67 @@ void gbcRomProgram()
     // 回复ack
     uart_clearRecvBuf();
     uart_responAck();
+}
+
+// 获取版本信息
+// i 2B.包大小 0xfd 2B.CRC
+// o 2B.CRC 版本信息数据
+void iapGetVersion()
+{
+    version_info_t version_info;
+    version_get_info(&version_info);
+    
+    uart_clearRecvBuf();
+    
+    // 构建响应数据
+    uint8_t *payload = uart_respon->payload;
+    
+    // 版本号
+    payload[0] = version_info.major;
+    payload[1] = version_info.minor;
+    payload[2] = version_info.patch;
+    
+    // 构建号 (16位)
+    payload[3] = (uint8_t)(version_info.build & 0xFF);
+    payload[4] = (uint8_t)((version_info.build >> 8) & 0xFF);
+    
+    // 时间戳 (32位)
+    payload[5] = (uint8_t)(version_info.timestamp & 0xFF);
+    payload[6] = (uint8_t)((version_info.timestamp >> 8) & 0xFF);
+    payload[7] = (uint8_t)((version_info.timestamp >> 16) & 0xFF);
+    payload[8] = (uint8_t)((version_info.timestamp >> 24) & 0xFF);
+    
+    // 版本字符串
+    const char* version_str = version_get_string();
+    uint8_t str_len = strlen(version_str);
+    if (str_len > 50) str_len = 50;  // 限制长度
+    
+    payload[9] = str_len;
+    memcpy(&payload[10], version_str, str_len);
+    
+    uint16_t total_len = 10 + str_len;
+    uart_respon->crc16 = modbusCRC16(uart_respon->payload, total_len);
+    
+    CDC_Transmit_FS((uint8_t*)uart_respon, total_len + SIZE_RESPON_HEADER);
+}
+
+// IAP 重启到bootloader模式
+// i 2B.包大小 0xfe 0x04 2B.CRC
+// o 2B.CRC 1B.status
+void iapReboot()
+{
+    uart_clearRecvBuf();
+    
+    // 发送响应
+    uart_respon->payload[0] = 0x00;  // 成功状态
+    uart_respon->crc16 = modbusCRC16(uart_respon->payload, 1);
+    
+    CDC_Transmit_FS((uint8_t*)uart_respon, 1 + SIZE_RESPON_HEADER);
+    
+    // 等待数据发送完成
+    HAL_Delay(100);
+    
+    // 设置升级标志并重启到bootloader模式
+    iap_set_upgrade_flag();
+    NVIC_SystemReset();
 }
