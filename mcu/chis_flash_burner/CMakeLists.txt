@@ -191,37 +191,37 @@ set(COMMON_LINKER_FLAGS
 function(create_target TARGET_NAME SOURCES DEFINES LINKER_SCRIPT BUILD_DIR_SUFFIX)
     # Create the target
     add_executable(${TARGET_NAME} ${HAL_SOURCES} ${SOURCES} ${ASM_SOURCES})
-    
+
     # Set target properties
     set_target_properties(${TARGET_NAME} PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BUILD_DIR_SUFFIX}
         SUFFIX ".elf"
     )
-    
+
     # Compiler flags
     target_compile_options(${TARGET_NAME} PRIVATE
         ${COMMON_FLAGS}
         ${OPTIMIZATION_FLAGS}
     )
-    
+
     # Include directories
     target_include_directories(${TARGET_NAME} PRIVATE ${INCLUDE_DIRECTORIES})
-    
+
     # Defines
     target_compile_definitions(${TARGET_NAME} PRIVATE
         ${COMMON_DEFINES}
         ${DEFINES}
     )
-    
+
     # Linker script and flags
     set(LINKER_FLAGS 
         ${COMMON_LINKER_FLAGS} 
         -T${CMAKE_CURRENT_SOURCE_DIR}/${LINKER_SCRIPT}
         -Wl,-Map=$<TARGET_FILE_DIR:${TARGET_NAME}>/${TARGET_NAME}.map,--cref
     )
-    
+
     target_link_options(${TARGET_NAME} PRIVATE ${LINKER_FLAGS})
-    
+
     # Generate hex and bin files
     add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
         COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:${TARGET_NAME}> $<TARGET_FILE_DIR:${TARGET_NAME}>/${TARGET_NAME}.hex
@@ -229,7 +229,7 @@ function(create_target TARGET_NAME SOURCES DEFINES LINKER_SCRIPT BUILD_DIR_SUFFI
         COMMAND ${CMAKE_SIZE} $<TARGET_FILE:${TARGET_NAME}>
         COMMENT "Building ${TARGET_NAME} hex and bin files"
     )
-    
+
     # Print size information
     add_custom_target(${TARGET_NAME}_size
         COMMAND ${CMAKE_SIZE} $<TARGET_FILE:${TARGET_NAME}>
@@ -250,22 +250,22 @@ if(BUILD_BOOTLOADER)
     else()
         set(BOOTLOADER_OPT_FLAGS -Os -fno-unwind-tables -fno-asynchronous-unwind-tables)
     endif()
-    
+
     create_target(chis_flash_burner_bootloader
         "${BOOTLOADER_SOURCES}"
         "-DIAP_BOOTLOADER_BUILD"
         "STM32F103C8TX_FLASH_IAP.ld"
         "bootloader"
     )
-    
+
     # Override optimization for bootloader
     target_compile_options(chis_flash_burner_bootloader PRIVATE
         ${BOOTLOADER_OPT_FLAGS}
     )
-    
+
     # Bootloader uses aggressive linker optimization
     target_link_options(chis_flash_burner_bootloader PRIVATE -Wl,--strip-all)
-    
+
     message(STATUS "Configuring bootloader target")
 endif()
 
@@ -277,7 +277,7 @@ if(BUILD_APP)
         "STM32F103C8TX_FLASH_APP.ld"
         "app"
     )
-    
+
     message(STATUS "Configuring application target")
 endif()
 
@@ -289,7 +289,7 @@ if(BUILD_LEGACY)
         "STM32F103C8TX_FLASH.ld"
         ""
     )
-    
+
     message(STATUS "Configuring legacy target")
 endif()
 

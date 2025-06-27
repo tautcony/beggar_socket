@@ -3,7 +3,7 @@
 **
 ** @file        : STM32F103C8TX_FLASH_IAP.ld
 **
-** @author      : Modified for IAP support
+** @author      : Modified for Bootloader in IAP mode
 **
 ** @brief       : Linker script for STM32F103C8Tx Device with IAP support
 **                      64KBytes FLASH (20KB BootLoader + 44KB Application)
@@ -84,7 +84,7 @@ SECTIONS
     *(.ARM.extab* .gnu.linkonce.armextab.*)
     . = ALIGN(4);
   } >BOOTLOADER
-  
+
   .ARM : {
     . = ALIGN(4);
     __exidx_start = .;
@@ -111,7 +111,7 @@ SECTIONS
     PROVIDE_HIDDEN (__init_array_end = .);
     . = ALIGN(4);
   } >BOOTLOADER
-  
+
   .fini_array :
   {
     . = ALIGN(4);
@@ -126,7 +126,7 @@ SECTIONS
   _sidata = LOADADDR(.data);
 
   /* Initialized data sections into "RAM" Ram type memory */
-  .data : 
+  .data :
   {
     . = ALIGN(4);
     _sdata = .;        /* create a global symbol at data start */
@@ -135,7 +135,7 @@ SECTIONS
 
     . = ALIGN(4);
     _edata = .;        /* define a global symbol at data end */
-    
+
   } >RAM AT> BOOTLOADER
 
   /* Uninitialized data section into "RAM" Ram type memory */

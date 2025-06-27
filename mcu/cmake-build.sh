@@ -48,7 +48,7 @@ check_cmake() {
         print_info "Please install CMake (version 3.16 or higher)"
         exit 1
     fi
-    
+
     CMAKE_VERSION=$(cmake --version | head -n1 | cut -d' ' -f3)
     print_info "Using CMake version: $CMAKE_VERSION"
 }
@@ -60,7 +60,7 @@ check_toolchain() {
         print_info "Please install arm-none-eabi-gcc toolchain"
         exit 1
     fi
-    
+
     GCC_VERSION=$(arm-none-eabi-gcc --version | head -n1)
     print_info "Using toolchain: $GCC_VERSION"
 }
@@ -70,7 +70,7 @@ build_target() {
     local target=$1
     local build_dir="build-$target"
     local cmake_option=""
-    
+
     case $target in
         "bootloader")
             cmake_option="-DBUILD_BOOTLOADER=ON"
@@ -86,23 +86,23 @@ build_target() {
             return 1
             ;;
     esac
-    
+
     print_info "Building $target..."
-    
+
     # Configure
     if ! cmake -B "$build_dir" $cmake_option -DCMAKE_BUILD_TYPE=Debug; then
         print_error "Failed to configure $target"
         return 1
     fi
-    
+
     # Build
     if ! cmake --build "$build_dir"; then
         print_error "Failed to build $target"
         return 1
     fi
-    
+
     print_success "$target built successfully"
-    
+
     # Show output files
     echo
     print_info "Output files:"
@@ -117,7 +117,7 @@ build_target() {
 # Clean function
 clean_target() {
     local target=$1
-    
+
     if [[ "$target" == "all" ]]; then
         print_info "Cleaning all build directories..."
         rm -rf build-*
@@ -138,10 +138,10 @@ clean_target() {
 # Status function
 show_status() {
     print_header
-    
+
     echo "Build Status:"
     echo "============="
-    
+
     for target in bootloader app legacy; do
         build_dir="build-$target"
         if [[ -d "$build_dir" ]]; then
@@ -159,11 +159,11 @@ show_status() {
             print_info "$target: Not configured"
         fi
     done
-    
+
     echo
     echo "Available Files:"
     echo "==============="
-    
+
     for target in bootloader app legacy; do
         build_dir="build-$target"
         if [[ -d "$build_dir" ]]; then
@@ -187,7 +187,7 @@ flash_target() {
     local target=$1
     local build_dir="build-$target"
     local hex_file=""
-    
+
     case $target in
         "bootloader")
             hex_file="$build_dir/bootloader/chis_flash_burner_bootloader.hex"
@@ -203,20 +203,20 @@ flash_target() {
             return 1
             ;;
     esac
-    
+
     if [[ ! -f "$hex_file" ]]; then
         print_error "Hex file not found: $hex_file"
         print_info "Please build the $target first"
         return 1
     fi
-    
+
     if ! command -v openocd &> /dev/null; then
         print_error "OpenOCD is not installed or not in PATH"
         return 1
     fi
-    
+
     print_info "Flashing $target..."
-    
+
     if openocd -f interface/stlink.cfg -f target/stm32f1x.cfg \
         -c "program $hex_file verify reset exit"; then
         print_success "$target flashed successfully"
@@ -229,7 +229,7 @@ flash_target() {
 # Help function
 show_help() {
     print_header
-    
+
     echo "Usage: $0 <command> [target]"
     echo
     echo "Commands:"
@@ -261,15 +261,15 @@ show_help() {
 # Main script logic
 main() {
     cd "$PROJECT_DIR/chis_flash_burner"
-    
+
     if [[ $# -eq 0 ]]; then
         show_help
         exit 0
     fi
-    
+
     command=$1
     target=$2
-    
+
     case $command in
         "build")
             if [[ -z "$target" ]]; then

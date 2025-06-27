@@ -68,13 +68,13 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-  
+
   /* 检查是否需要跳转到应用程序 */
   if (!iap_check_upgrade_flag() && iap_check_app_valid()) {
       /* 没有升级标志且应用程序有效，跳转到应用程序 */
       iap_jump_to_app();
   }
-  
+
   /* 清除升级标志，继续运行 BootLoader */
   iap_clear_upgrade_flag();
 
