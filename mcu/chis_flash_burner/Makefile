@@ -28,35 +28,36 @@ BUILD_DIR = build
 ######################################
 # C sources
 C_SOURCES =  \
-Core/Src/main.c \
-Core/Src/stm32f1xx_it.c \
-Core/Src/stm32f1xx_hal_msp.c \
 Core/Src/cart_adapter.c \
-Core/Src/uart.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_gpio_ex.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pcd.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pcd_ex.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_ll_usb.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_rcc.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_rcc_ex.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_gpio.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_dma.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_cortex.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pwr.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_flash.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_flash_ex.c \
+Core/Src/main.c \
+Core/Src/stm32f1xx_hal_msp.c \
+Core/Src/stm32f1xx_it.c \
+Core/Src/syscalls.c \
+Core/Src/sysmem.c \
 Core/Src/system_stm32f1xx.c \
+Core/Src/uart.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_cortex.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_dma.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_exti.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_flash_ex.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_flash.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_gpio_ex.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_gpio.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pcd_ex.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pcd.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pwr.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_rcc_ex.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_rcc.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_ll_usb.c \
+Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc.c \
 Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.c \
 Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ctlreq.c \
 Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.c \
-Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc.c \
 USB_DEVICE/App/usb_device.c \
-USB_DEVICE/App/usbd_desc.c \
 USB_DEVICE/App/usbd_cdc_if.c \
-USB_DEVICE/Target/usbd_conf.c \
-Core/Src/syscalls.c \
-Core/Src/sysmem.c
+USB_DEVICE/App/usbd_desc.c \
+USB_DEVICE/Target/usbd_conf.c
 
 # ASM sources
 ASM_SOURCES =  \
@@ -111,14 +112,14 @@ AS_INCLUDES =
 # C includes
 C_INCLUDES =  \
 -ICore/Inc \
--IDrivers/STM32F1xx_HAL_Driver/Inc \
--IDrivers/STM32F1xx_HAL_Driver/Inc/Legacy \
 -IDrivers/CMSIS/Device/ST/STM32F1xx/Include \
 -IDrivers/CMSIS/Include \
--IUSB_DEVICE/App \
--IUSB_DEVICE/Target \
+-IDrivers/STM32F1xx_HAL_Driver/Inc \
+-IDrivers/STM32F1xx_HAL_Driver/Inc/Legacy \
+-IMiddlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc \
 -IMiddlewares/ST/STM32_USB_Device_Library/Core/Inc \
--IMiddlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc
+-IUSB_DEVICE/App \
+-IUSB_DEVICE/Target
 
 # compile gcc flags
 ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
@@ -130,7 +131,7 @@ CFLAGS += -g -gdwarf-2
 endif
 
 # Additional flags to ensure proper standard library linking
-CFLAGS += -std=c99 -fno-common -fmessage-length=0 -fno-exceptions -ffunction-sections -fdata-sections -fomit-frame-pointer
+CFLAGS += -std=c11 -fno-common -fmessage-length=0 -fno-exceptions -ffunction-sections -fdata-sections -fomit-frame-pointer
 # Force freestanding environment to use GCC's own stdint.h
 CFLAGS += -ffreestanding
 CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
