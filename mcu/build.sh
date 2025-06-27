@@ -21,7 +21,6 @@ TARGET_ARCH="arm-none-eabi"
 # Build configuration
 BUILD_MODE="debug"  # Default to debug mode
 DEBUG_FLAG="1"
-OPT_FLAG="-Og"
 
 # Logging functions
 log_info() {
@@ -52,13 +51,11 @@ set_build_mode() {
         "debug"|"d")
             BUILD_MODE="debug"
             DEBUG_FLAG="1"
-            OPT_FLAG="-Og"
             log_info "Build mode set to: DEBUG (with debug symbols and minimal optimization)"
             ;;
         "release"|"r")
             BUILD_MODE="release"
             DEBUG_FLAG="0"
-            OPT_FLAG="-O2"
             log_info "Build mode set to: RELEASE (optimized for size and speed)"
             ;;
         *)
@@ -164,22 +161,98 @@ check_makefile() {
 
 # Function to build the project
 build_project() {
-    log_info "Building project: $PROJECT_NAME (${BUILD_MODE} mode)"
+    local target="${1:-legacy}"
+    
+    log_info "Building project: $PROJECT_NAME (${BUILD_MODE} mode, target: $target)"
     
     cd "$PROJECT_NAME"
     
     # Create build directory if it doesn't exist
     mkdir -p "$BUILD_DIR"
     
+    # Build specific targets based on Makefile targets
+    case "$target" in
+        "bootloader"|"boot")
+            log_info "Building IAP bootloader..."
+            make_cmd="make bootloader DEBUG=$DEBUG_FLAG"
+            ;;
+        "app"|"application")
+            log_info "Building IAP application..."
+            make_cmd="make app DEBUG=$DEBUG_FLAG"
+            ;;
+        "complete"|"iap"|"both")
+            log_info "Building complete IAP solution (bootloader + application)..."
+            # Build bootloader first
+            log_info "Step 1/2: Building bootloader..."
+            if make bootloader DEBUG=$DEBUG_FLAG; then
+                log_success "Bootloader build completed"
+            else
+                log_error "Bootloader build failed!"
+                cd ..
+                exit 1
+            fi
+            
+            # Build application second
+            log_info "Step 2/2: Building application..."
+            if make app DEBUG=$DEBUG_FLAG; then
+                log_success "Application build completed"
+                log_success "Complete IAP solution built successfully!"
+                
+                # Show summary
+                log_info "IAP Build Summary:"
+                if [ -f "$BUILD_DIR/bootloader/chis_flash_burner_bootloader.elf" ] && [ -f "$BUILD_DIR/app/chis_flash_burner_app.elf" ]; then
+                    if command_exists ${TARGET_ARCH}-size; then
+                        echo -e "${BLUE}Bootloader size:${NC}"
+                        ${TARGET_ARCH}-size "$BUILD_DIR/bootloader/chis_flash_burner_bootloader.elf"
+                        echo -e "${BLUE}Application size:${NC}"
+                        ${TARGET_ARCH}-size "$BUILD_DIR/app/chis_flash_burner_app.elf"
+                    fi
+                fi
+            else
+                log_error "Application build failed!"
+                cd ..
+                exit 1
+            fi
+            
+            cd ..
+            return 0
+            ;;
+        "legacy")
+            log_info "Building legacy single firmware image..."
+            make_cmd="make legacy DEBUG=$DEBUG_FLAG"
+            ;;
+        *)
+            log_error "Unknown build target: $target"
+            log_info "Valid targets: bootloader, app, complete, legacy"
+            cd ..
+            exit 1
+            ;;
+    esac
+    
     # Build the project with appropriate flags
-    log_info "Running make with DEBUG=$DEBUG_FLAG OPT=$OPT_FLAG..."
-    if make -j$(nproc 2>/dev/null || echo 4) DEBUG=$DEBUG_FLAG OPT=$OPT_FLAG; then
+    log_info "Running: $make_cmd"
+    if eval "$make_cmd"; then
         log_success "Build completed successfully!"
         
         # Show build artifacts
         if [ -d "$BUILD_DIR" ]; then
             log_info "Build artifacts:"
-            ls -la "$BUILD_DIR"/*.elf "$BUILD_DIR"/*.hex "$BUILD_DIR"/*.bin 2>/dev/null || true
+            case "$target" in
+                "bootloader"|"boot")
+                    ls -la "$BUILD_DIR"/bootloader/chis_flash_burner_bootloader.* 2>/dev/null || true
+                    ;;
+                "app"|"application")
+                    ls -la "$BUILD_DIR"/app/chis_flash_burner_app.* 2>/dev/null || true
+                    ;;
+                "complete"|"iap"|"both")
+                    log_info "Complete IAP build artifacts:"
+                    ls -la "$BUILD_DIR"/bootloader/chis_flash_burner_bootloader.* 2>/dev/null || true
+                    ls -la "$BUILD_DIR"/app/chis_flash_burner_app.* 2>/dev/null || true
+                    ;;
+                "legacy")
+                    ls -la "$BUILD_DIR"/chis_flash_burner_legacy.* 2>/dev/null || true
+                    ;;
+            esac
         fi
     else
         log_error "Build failed!"
@@ -191,15 +264,45 @@ build_project() {
 
 # Function to clean build
 clean_project() {
-    log_info "Cleaning project..."
+    local target="${1:-all}"
+    
+    log_info "Cleaning project (target: $target)..."
     cd "$PROJECT_NAME"
+    
     if [ -f "Makefile" ]; then
-        make clean
-        log_success "Clean completed"
+        case "$target" in
+            "bootloader"|"boot")
+                log_info "Cleaning bootloader build artifacts..."
+                make clean-bootloader
+                log_success "Bootloader clean completed"
+                ;;
+            "app"|"application")
+                log_info "Cleaning application build artifacts..."
+                make clean-app
+                log_success "Application clean completed"
+                ;;
+            "legacy")
+                log_info "Cleaning legacy build artifacts..."
+                make clean-legacy
+                log_success "Legacy clean completed"
+                ;;
+            "complete"|"iap"|"both")
+                log_info "Cleaning IAP build artifacts (bootloader + application)..."
+                make clean-bootloader
+                make clean-app
+                log_success "IAP clean completed"
+                ;;
+            "all"|*)
+                log_info "Cleaning all build artifacts..."
+                make clean
+                log_success "Complete clean completed"
+                ;;
+        esac
     else
         rm -rf "$BUILD_DIR"
         log_success "Build directory removed"
     fi
+    
     cd ..
 }
 
@@ -241,47 +344,55 @@ show_status() {
     if [ -d "$PROJECT_NAME/$BUILD_DIR" ]; then
         echo -e "${GREEN}✅ Build directory exists${NC}"
         
-        if [ -f "$PROJECT_NAME/$BUILD_DIR/${PROJECT_NAME}.elf" ]; then
-            echo -e "${GREEN}✅ ELF file exists${NC}"
-            
-            # Show file info
-            elf_file="$PROJECT_NAME/$BUILD_DIR/${PROJECT_NAME}.elf"
+        # Check for different build targets
+        local found_builds=false
+        
+        if [ -f "$PROJECT_NAME/$BUILD_DIR/bootloader/chis_flash_burner_bootloader.elf" ]; then
+            echo -e "${GREEN}✅ Bootloader build exists${NC}"
+            found_builds=true
             if command_exists ${TARGET_ARCH}-size; then
-                size_info=$(${TARGET_ARCH}-size "$elf_file" 2>/dev/null || echo "Size info unavailable")
-                echo -e "${BLUE}📊 Firmware size:${NC}"
+                size_info=$(${TARGET_ARCH}-size "$PROJECT_NAME/$BUILD_DIR/bootloader/chis_flash_burner_bootloader.elf" 2>/dev/null || echo "Size info unavailable")
+                echo -e "${BLUE}📊 Bootloader size:${NC}"
                 echo "$size_info"
             fi
-            
-            echo -e "\n${BLUE}📁 Build artifacts:${NC}"
-            ls -lh "$PROJECT_NAME/$BUILD_DIR"/*.{elf,hex,bin,map} 2>/dev/null | \
-            awk '{printf "   %s (%s)\n", $9, $5}' || echo "   No artifacts found"
-        else
-            echo -e "${YELLOW}⚠️  No ELF file found - project needs to be built${NC}"
         fi
+        
+        if [ -f "$PROJECT_NAME/$BUILD_DIR/app/chis_flash_burner_app.elf" ]; then
+            echo -e "${GREEN}✅ Application build exists${NC}"
+            found_builds=true
+            if command_exists ${TARGET_ARCH}-size; then
+                size_info=$(${TARGET_ARCH}-size "$PROJECT_NAME/$BUILD_DIR/app/chis_flash_burner_app.elf" 2>/dev/null || echo "Size info unavailable")
+                echo -e "${BLUE}📊 Application size:${NC}"
+                echo "$size_info"
+            fi
+        fi
+        
+        if [ -f "$PROJECT_NAME/$BUILD_DIR/chis_flash_burner_legacy.elf" ]; then
+            echo -e "${GREEN}✅ Legacy build exists${NC}"
+            found_builds=true
+            if command_exists ${TARGET_ARCH}-size; then
+                size_info=$(${TARGET_ARCH}-size "$PROJECT_NAME/$BUILD_DIR/chis_flash_burner_legacy.elf" 2>/dev/null || echo "Size info unavailable")
+                echo -e "${BLUE}📊 Legacy size:${NC}"
+                echo "$size_info"
+            fi
+        fi
+        
+        if [ "$found_builds" = false ]; then
+            echo -e "${YELLOW}⚠️  No firmware builds found - project needs to be built${NC}"
+        fi
+        
+        echo -e "\n${BLUE}📁 Build artifacts:${NC}"
+        ls -lh "$PROJECT_NAME/$BUILD_DIR"/*.{elf,hex,bin,map} 2>/dev/null | \
+        awk '{printf "   %s (%s)\n", $9, $5}' || echo "   No artifacts found"
     else
         echo -e "${YELLOW}⚠️  Build directory not found - project has not been built${NC}"
     fi
-
-    # Show recent build logs
-    log_file="$PROJECT_NAME/$BUILD_DIR/build.log"
-    if [ -f "$log_file" ]; then
-        echo -e "\n${BLUE}=== Recent Build Log ===${NC}"
-        tail -n 10 "$log_file"
-    fi
-
-    echo -e "\n${BLUE}=== Quick Commands ===${NC}"
-    echo "  ./build.sh setup       - Setup environment"
-    echo "  ./build.sh build       - Build in debug mode (default)"
-    echo "  ./build.sh build debug - Build in debug mode"
-    echo "  ./build.sh build release - Build in release mode"
-    echo "  ./build.sh clean       - Clean build"
-    echo "  ./build.sh status      - Show this status"
 }
 
 # Function to show help
 show_help() {
     echo "STM32F103 Build Script"
-    echo "Usage: $0 [OPTION] [BUILD_MODE]"
+    echo "Usage: $0 [OPTION] [TARGET] [BUILD_MODE]"
     echo ""
     echo "Options:"
     echo "  build     Build the project (default)"
@@ -290,34 +401,64 @@ show_help() {
     echo "  status    Show project status and build information"
     echo "  help      Show this help message"
     echo ""
+    echo "Build targets:"
+    echo "  bootloader (boot) - IAP bootloader build (~15KB partition)"
+    echo "  app (application) - IAP application build (~23KB + data)"
+    echo "  complete (iap)    - Complete IAP solution (bootloader + application)"
+    echo "  legacy            - Legacy single firmware image (~40KB, default)"
+    echo ""
     echo "Build modes:"
-    echo "  debug     Debug build with symbols and minimal optimization (-Og)"
-    echo "  release   Release build with full optimization (-O2)"
-    echo "  d         Short for debug"
-    echo "  r         Short for release"
+    echo "  debug     Debug build with symbols and minimal optimization (default)"
+    echo "  release   Release build with full optimization"
+    echo ""
+    echo "Clean targets:"
+    echo "  all               - Clean all build artifacts (default)"
+    echo "  bootloader (boot) - Clean bootloader artifacts only"
+    echo "  app (application) - Clean application artifacts only"
+    echo "  complete (iap)    - Clean IAP artifacts (bootloader + application)"
+    echo "  legacy            - Clean legacy artifacts only"
     echo ""
     echo "Environment variables:"
     echo "  GCC_PATH  Path to ARM GCC toolchain (optional)"
     echo ""
     echo "Examples:"
-    echo "  $0                    # Build project in debug mode"
-    echo "  $0 build              # Build project in debug mode"
-    echo "  $0 build release      # Build project in release mode"
-    echo "  $0 build r            # Build project in release mode (short)"
-    echo "  $0 clean              # Clean project"
-    echo "  $0 setup              # Setup environment only"
-    echo "  $0 status             # Show project status"
-    echo "  GCC_PATH=/opt/gcc $0  # Use custom toolchain path"
+    echo "  $0                              # Build legacy project in debug mode"
+    echo "  $0 build                        # Build legacy project in debug mode"
+    echo "  $0 build bootloader debug       # Build bootloader in debug mode"
+    echo "  $0 build app release            # Build application in release mode"
+    echo "  $0 build complete debug         # Build complete IAP solution"
+    echo "  $0 build legacy                 # Build legacy in debug mode"
+    echo "  $0 clean                        # Clean all artifacts"
+    echo "  $0 clean complete               # Clean IAP artifacts only"
+    echo "  $0 setup                        # Setup environment only"
+    echo "  $0 status                       # Show project status"
+    echo "  GCC_PATH=/opt/gcc $0            # Use custom toolchain path"
     echo ""
     echo "Build configuration:"
-    echo "  Debug mode:   DEBUG=1 OPT=-Og (default)"
-    echo "  Release mode: DEBUG=0 OPT=-O2"
+    echo "  Debug mode:   DEBUG=1 (default, optimization set by Makefile)"
+    echo "  Release mode: DEBUG=0 (optimization set by Makefile)"
+    echo ""
+    echo "Notes:"
+    echo "  - Different build targets have separate build directories"
+    echo "  - Bootloader and app are designed for IAP (In-Application Programming)"
+    echo "  - Legacy build is a single monolithic firmware image"
+    echo "  - Flash memory layout: Bootloader@0x08000000, App@0x08005000"
+    echo "  - Use 'complete' target to build both bootloader and application"
 }
 
 # Main script logic
 main() {
     local action="${1:-build}"
-    local build_mode="${2:-debug}"
+    local target="${2:-legacy}"
+    local build_mode="${3:-debug}"
+    
+    # Handle cases where second argument is build mode instead of target
+    case "$target" in
+        "debug"|"d"|"release"|"r")
+            build_mode="$target"
+            target="legacy"
+            ;;
+    esac
     
     case "$action" in
         "build")
@@ -325,10 +466,10 @@ main() {
             log_info "Starting STM32F103 build process..."
             check_toolchain
             check_makefile
-            build_project
+            build_project "$target"
             ;;
         "clean")
-            clean_project
+            clean_project "$target"
             ;;
         "setup")
             check_toolchain
@@ -342,14 +483,25 @@ main() {
             show_help
             ;;
         *)
-            # Check if the first argument is a build mode
+            # Check if the first argument is a build target or mode
             case "$action" in
+                "bootloader"|"boot"|"app"|"application"|"complete"|"iap"|"both"|"legacy")
+                    # First arg is target, second is build mode
+                    target="$action"
+                    build_mode="${2:-debug}"
+                    set_build_mode "$build_mode"
+                    log_info "Starting STM32F103 build process..."
+                    check_toolchain
+                    check_makefile
+                    build_project "$target"
+                    ;;
                 "debug"|"d"|"release"|"r")
+                    # First arg is build mode, use default target
                     set_build_mode "$action"
                     log_info "Starting STM32F103 build process..."
                     check_toolchain
                     check_makefile
-                    build_project
+                    build_project "legacy"
                     ;;
                 *)
                     log_error "Unknown option: $action"

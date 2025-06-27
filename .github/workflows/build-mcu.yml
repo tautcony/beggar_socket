@@ -74,9 +74,9 @@ jobs:
       working-directory: mcu
       run: |
         if [ "${{ matrix.config.build_type }}" = "Release" ]; then
-          ./build.sh build release
+          ./build.sh build complete release
         else
-          ./build.sh build release
+          ./build.sh build complete debug
         fi
 
     - name: Check Build Artifacts

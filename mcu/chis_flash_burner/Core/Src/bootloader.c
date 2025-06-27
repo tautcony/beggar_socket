@@ -1,8 +1,8 @@
 /* USER CODE BEGIN Header */
 /**
  ******************************************************************************
- * @file           : main.c
- * @brief          : Main program body
+ * @file           : bootloader.c
+ * @brief          : Bootloader main program body
  ******************************************************************************
  * @attention
  *
@@ -17,14 +17,14 @@
  */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
+#include "bootloader.h"
 #include "usb_device.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "cart_adapter.h"
 #include "uart.h"
 #include "version.h"
+#include "iap.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,7 +50,7 @@
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-static void MX_GPIO_Init(void);
+static void MX_GPIO_Init_Bootloader(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -61,13 +61,22 @@ static void MX_GPIO_Init(void);
 /* USER CODE END 0 */
 
 /**
-  * @brief  The application entry point.
+  * @brief  The bootloader entry point.
   * @retval int
   */
 int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+  
+  /* 检查是否需要跳转到应用程序 */
+  if (!iap_check_upgrade_flag() && iap_check_app_valid()) {
+      /* 没有升级标志且应用程序有效，跳转到应用程序 */
+      iap_jump_to_app();
+  }
+  
+  /* 清除升级标志，继续运行 BootLoader */
+  iap_clear_upgrade_flag();
 
   /* USER CODE END 1 */
 
@@ -88,7 +97,7 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-  MX_GPIO_Init();
+  MX_GPIO_Init_Bootloader();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 
@@ -104,6 +113,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
     uart_cmdHandler();
+    // 可选：LED闪烁指示bootloader运行状态
     // HAL_Delay(1000);
     // HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1);
     // HAL_Delay(1000);
@@ -158,70 +168,27 @@ void SystemClock_Config(void)
 }
 
 /**
-  * @brief GPIO Initialization Function
+  * @brief GPIO Initialization Function for Bootloader (LED only)
   * @param None
   * @retval None
   */
-static void MX_GPIO_Init(void)
+static void MX_GPIO_Init_Bootloader(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-/* USER CODE BEGIN MX_GPIO_Init_1 */
-/* USER CODE END MX_GPIO_Init_1 */
 
-  /* GPIO Ports Clock Enable */
+  /* GPIO Ports Clock Enable - 仅启用LED所需的GPIOC */
   __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
 
-  /*Configure GPIO pin Output Level - LED */
+  /*Configure GPIO pin Output Level - 仅LED */
   HAL_GPIO_WritePin(GPIOC, led_Pin, GPIO_PIN_SET);
 
-  /*Configure GPIO pin Output Level - 卡带适配器控制信号 */
-  HAL_GPIO_WritePin(GPIOA, cs1_Pin|rd_Pin|wr_Pin, GPIO_PIN_SET);
-
-  /*Configure GPIO pins : LED控制 */
+  /*Configure GPIO pins : 仅LED控制 */
   GPIO_InitStruct.Pin = led_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-  /*Configure GPIO pins - 卡带适配器地址总线
-                         a16_Pin a17_Pin a18_Pin a19_Pin
-                         a20_Pin a21_Pin a22_Pin a23_Pin */
-  GPIO_InitStruct.Pin = a16_Pin|a17_Pin|a18_Pin|a19_Pin
-                          |a20_Pin|a21_Pin|a22_Pin|a23_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pins - 卡带适配器数据总线
-                         ad0_Pin ad1_Pin ad2_Pin ad10_Pin
-                         ad11_Pin ad12_Pin ad13_Pin ad14_Pin
-                         ad15_Pin ad3_Pin ad4_Pin ad5_Pin
-                         ad6_Pin ad7_Pin ad8_Pin ad9_Pin */
-  GPIO_InitStruct.Pin = ad0_Pin|ad1_Pin|ad2_Pin|ad10_Pin
-                          |ad11_Pin|ad12_Pin|ad13_Pin|ad14_Pin
-                          |ad15_Pin|ad3_Pin|ad4_Pin|ad5_Pin
-                          |ad6_Pin|ad7_Pin|ad8_Pin|ad9_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pins - 卡带适配器控制信号 : cs1_Pin rd_Pin wr_Pin */
-  GPIO_InitStruct.Pin = cs1_Pin|rd_Pin|wr_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-/* USER CODE BEGIN MX_GPIO_Init_2 */
-/* USER CODE END MX_GPIO_Init_2 */
 }
-
-/* USER CODE BEGIN 4 */
-
-/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.

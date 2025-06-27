@@ -26,29 +26,32 @@ BUILD_DIR = build
 ######################################
 # source
 ######################################
-# C sources
-C_SOURCES =  \
-Core/Src/cart_adapter.c \
-Core/Src/main.c \
+# C sources - Common HAL sources (shared by all builds)
+C_SOURCES_HAL =  \
 Core/Src/stm32f1xx_hal_msp.c \
 Core/Src/stm32f1xx_it.c \
 Core/Src/syscalls.c \
 Core/Src/sysmem.c \
 Core/Src/system_stm32f1xx.c \
-Core/Src/uart.c \
+Core/Src/version.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_cortex.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_dma.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_exti.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_flash_ex.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_flash.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_gpio_ex.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_gpio.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pcd_ex.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pcd.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pwr.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_rcc_ex.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_rcc.c \
-Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal.c
+
+# BootLoader specific sources (minimal)
+C_SOURCES_BOOTLOADER = \
+Core/Src/bootloader.c \
+Core/Src/iap.c \
+Core/Src/uart_bootloader.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pcd_ex.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pcd.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_ll_usb.c \
 Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc.c \
 Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.c \
@@ -58,6 +61,28 @@ USB_DEVICE/App/usb_device.c \
 USB_DEVICE/App/usbd_cdc_if.c \
 USB_DEVICE/App/usbd_desc.c \
 USB_DEVICE/Target/usbd_conf.c
+
+# Application/Legacy sources (full functionality)  
+C_SOURCES_APP = \
+Core/Src/main.c \
+Core/Src/cart_adapter.c \
+Core/Src/iap.c \
+Core/Src/uart.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_dma.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pcd_ex.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pcd.c \
+Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_ll_usb.c \
+Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc.c \
+Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.c \
+Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ctlreq.c \
+Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.c \
+USB_DEVICE/App/usb_device.c \
+USB_DEVICE/App/usbd_cdc_if.c \
+USB_DEVICE/App/usbd_desc.c \
+USB_DEVICE/Target/usbd_conf.c
+
+# Default to app sources
+C_SOURCES = $(C_SOURCES_HAL) $(C_SOURCES_APP)
 
 # ASM sources
 ASM_SOURCES =  \
@@ -104,7 +129,52 @@ AS_DEFS =
 # C defines
 C_DEFS =  \
 -DUSE_HAL_DRIVER \
--DSTM32F103xB
+-DSTM32F103xB \
+-DBUILD_TIMESTAMP=$(shell date +%s)
+
+# Override for different build types
+ifeq ($(BUILD_TYPE), APP)
+LDSCRIPT = STM32F103C8TX_FLASH_APP.ld
+TARGET = chis_flash_burner_app
+BUILD_DIR = build/app
+C_DEFS += -DIAP_APPLICATION_BUILD
+C_SOURCES = $(C_SOURCES_HAL) $(C_SOURCES_APP)
+endif
+
+ifeq ($(BUILD_TYPE), LEGACY)
+LDSCRIPT = STM32F103C8TX_FLASH.ld
+TARGET = chis_flash_burner_legacy
+BUILD_DIR = build
+C_SOURCES = $(C_SOURCES_HAL) $(C_SOURCES_APP)
+endif
+
+# Default is BootLoader
+ifeq ($(BUILD_TYPE), BOOTLOADER)
+LDSCRIPT = STM32F103C8TX_FLASH_IAP.ld
+TARGET = chis_flash_burner_bootloader
+BUILD_DIR = build/bootloader
+C_DEFS += -DIAP_BOOTLOADER_BUILD
+C_SOURCES = $(C_SOURCES_HAL) $(C_SOURCES_BOOTLOADER)
+# BootLoader 使用更激进的优化和精简选项
+ifeq ($(DEBUG), 1)
+OPT = -Os -fno-unwind-tables -fno-asynchronous-unwind-tables
+else
+OPT = -Os -fno-unwind-tables -fno-asynchronous-unwind-tables
+endif
+endif
+
+ifndef BUILD_TYPE
+BUILD_TYPE = BOOTLOADER
+BUILD_DIR = build/bootloader
+C_DEFS += -DIAP_BOOTLOADER_BUILD
+C_SOURCES = $(C_SOURCES_HAL) $(C_SOURCES_BOOTLOADER)
+# BootLoader 使用更激进的优化和精简选项
+ifeq ($(DEBUG), 1)
+OPT = -Os -fno-unwind-tables -fno-asynchronous-unwind-tables
+else
+OPT = -Os -fno-unwind-tables -fno-asynchronous-unwind-tables
+endif
+endif
 
 # AS includes
 AS_INCLUDES = 
@@ -143,15 +213,34 @@ ASFLAGS += -x assembler-with-cpp
 # LDFLAGS
 #######################################
 # link script
+# Default to IAP BootLoader
+LDSCRIPT = STM32F103C8TX_FLASH_IAP.ld
+
+# Override for different build types
+ifeq ($(BUILD_TYPE), APP)
+LDSCRIPT = STM32F103C8TX_FLASH_APP.ld
+endif
+
+ifeq ($(BUILD_TYPE), LEGACY)
 LDSCRIPT = STM32F103C8TX_FLASH.ld
+endif
 
 # libraries
 LIBS = -lc -lm -lnosys 
 LIBDIR = 
-LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections
 
-# default action: build all
-all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
+# BootLoader 使用更激进的链接优化
+ifeq ($(BUILD_TYPE), BOOTLOADER)
+LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections -Wl,--strip-all
+else
+LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections
+endif
+
+# default action: build legacy (single image)
+all: legacy
+
+# Build specific target
+build: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
 
 #######################################
 # build the application
@@ -163,30 +252,42 @@ vpath %.c $(sort $(dir $(C_SOURCES)))
 OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(ASM_SOURCES:.s=.o)))
 vpath %.s $(sort $(dir $(ASM_SOURCES)))
 
-$(BUILD_DIR)/%.o: %.c Makefile | $(BUILD_DIR) 
+$(BUILD_DIR)/%.o: %.c Makefile
+	@mkdir -p $(BUILD_DIR)
 	$(CC) -c $(CFLAGS) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.c=.lst)) $< -o $@
 
-$(BUILD_DIR)/%.o: %.s Makefile | $(BUILD_DIR)
+$(BUILD_DIR)/%.o: %.s Makefile
+	@mkdir -p $(BUILD_DIR)
 	$(AS) -c $(CFLAGS) $< -o $@
 
 $(BUILD_DIR)/$(TARGET).elf: $(OBJECTS) Makefile
+	@mkdir -p $(BUILD_DIR)
 	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
 	$(SZ) $@
 
-$(BUILD_DIR)/%.hex: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
+$(BUILD_DIR)/%.hex: $(BUILD_DIR)/%.elf
+	@mkdir -p $(BUILD_DIR)
 	$(HEX) $< $@
 	
-$(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
-	$(BIN) $< $@	
-	
-$(BUILD_DIR):
-	mkdir $@		
+$(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf
+	@mkdir -p $(BUILD_DIR)
+	$(BIN) $< $@
 
 #######################################
 # clean up
 #######################################
 clean:
-	-rm -fR $(BUILD_DIR)
+	-rm -fR build
+
+# Clean specific build type
+clean-bootloader:
+	-rm -fR build/bootloader
+
+clean-app:
+	-rm -fR build/app
+
+clean-legacy:
+	-rm -fR build/chis_flash_burner_legacy.*
 
 #######################################
 # additional targets
@@ -195,55 +296,42 @@ clean:
 size: $(BUILD_DIR)/$(TARGET).elf
 	$(SZ) $<
 
-# Show detailed size information
-size-detailed: $(BUILD_DIR)/$(TARGET).elf
-	$(SZ) -A $<
+# Flash the bootloader
+flash: $(BUILD_DIR)/$(TARGET).hex
+	openocd -f interface/stlink.cfg -f target/stm32f1x.cfg -c "program $(BUILD_DIR)/$(TARGET).hex verify reset exit"
 
-# Flash using st-flash (if available)
-flash: $(BUILD_DIR)/$(TARGET).bin
-	@if command -v st-flash >/dev/null 2>&1; then \
-		st-flash write $< 0x8000000; \
-	else \
-		echo "st-flash not found. Install st-link tools to flash firmware."; \
-	fi
+# Build BootLoader (IAP)
+bootloader:
+	$(MAKE) BUILD_TYPE=BOOTLOADER build
 
-# Flash using openocd (if available)
-flash-openocd: $(BUILD_DIR)/$(TARGET).hex
-	@if command -v openocd >/dev/null 2>&1; then \
-		openocd -f interface/stlink.cfg -f target/stm32f1x.cfg \
-		-c "program $< verify reset exit"; \
-	else \
-		echo "openocd not found. Install OpenOCD to flash firmware."; \
-	fi
+# Build Application (for IAP)
+app:
+	$(MAKE) BUILD_TYPE=APP build
 
-# Generate disassembly
-disasm: $(BUILD_DIR)/$(TARGET).elf
-	$(PREFIX)objdump -S $< > $(BUILD_DIR)/$(TARGET).dis
+# Build Legacy (single image)
+legacy:
+	$(MAKE) BUILD_TYPE=LEGACY build
 
-# Show help
+# Help target
 help:
 	@echo "Available targets:"
-	@echo "  all (default)   - Build firmware (.elf, .hex, .bin)"
-	@echo "  clean          - Remove build artifacts"
-	@echo "  size           - Show firmware size"
-	@echo "  size-detailed  - Show detailed size information"
-	@echo "  flash          - Flash firmware using st-flash"
-	@echo "  flash-openocd  - Flash firmware using OpenOCD"
-	@echo "  disasm         - Generate disassembly"
-	@echo "  help           - Show this help"
+	@echo "  all       - Build legacy single image (default)"
+	@echo "  bootloader- Build IAP BootLoader only (build/bootloader/)"
+	@echo "  app       - Build Application for IAP only (build/app/)"
+	@echo "  legacy    - Build legacy single image (build/)"
+	@echo "  clean     - Clean all build files"
+	@echo "  clean-bootloader - Clean bootloader build files only"
+	@echo "  clean-app - Clean application build files only"
+	@echo "  clean-legacy - Clean legacy build files only"
+	@echo "  size      - Show size information"
+	@echo "  flash     - Flash firmware using OpenOCD"
+	@echo "  help      - Show this help"
 	@echo ""
-	@echo "Variables:"
-	@echo "  DEBUG=1/0      - Enable/disable debug build (default: 1)"
-	@echo "  OPT=-Ox        - Set optimization level (default: -Og)"
-	@echo "  GCC_PATH=path  - Set custom ARM GCC path"
-	@echo ""
-	@echo "Examples:"
-	@echo "  make                    - Build with debug"
-	@echo "  make DEBUG=0 OPT=-O2    - Build optimized release"
-	@echo "  make clean all          - Clean and rebuild"
-	@echo "  make size              - Show firmware size"
+	@echo "Build configurations:"
+	@echo "  DEBUG=1   - Enable debug symbols (default)"
+	@echo "  DEBUG=0   - Release build"
 
-.PHONY: all clean size size-detailed flash flash-openocd disasm help
+.PHONY: all clean clean-bootloader clean-app clean-legacy size flash bootloader app legacy help
 
 #######################################
 # dependencies
