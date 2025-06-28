@@ -3,6 +3,8 @@
 
 #include "bootloader.h"
 #include "usbd_cdc_if.h"
+// #include "usbd_def.h"
+// #include "usbd_cdc.h"
 
 #include "uart.h"
 #include "version.h"
@@ -25,7 +27,7 @@ typedef struct __attribute__((packed))
     uint8_t payload[]; // 最后两个字节是crc
 } Desc_cmdHeader_t;
 
-// 回复头
+// 响应包
 typedef struct __attribute__((packed))
 {
     uint16_t crc16;
@@ -45,12 +47,13 @@ volatile uint8_t busy = 0;
 
 extern USBD_HandleTypeDef hUsbDeviceFS;
 
-// BootLoader 专用功能函数声明
 void iapGetVersion();
 void iapEraseFlash(); 
 void iapProgramFlash();
+void iapUpgradeStart();
+void iapUpgradeData();
+void iapUpgradeFinish();
 void iapJumpToApp();
-void uart_processCommand();
 
 uint16_t modbusCRC16(uint8_t *buf, uint16_t len)
 {
@@ -70,24 +73,6 @@ uint16_t modbusCRC16(uint8_t *buf, uint16_t len)
     }
 
     return crc;
-}
-
-void uart_sendError(uint8_t errorCode);
-
-void uart_setControlLine(uint8_t rts, uint8_t dtr)
-{
-    static uint8_t currentRts = 0;
-    static uint8_t currentDtr = 0;
-
-    if (((currentRts == 0) && (rts != 0)) ||
-        ((currentDtr == 0) && (dtr != 0)))
-    {
-        cmdBuf_p = 0;
-        memset(cmdBuf, 0, sizeof(cmdBuf));
-    }
-
-    currentRts = rts;
-    currentDtr = dtr;
 }
 
 void uart_responData(uint8_t *dat, uint16_t len)
@@ -116,18 +101,53 @@ void uart_responData(uint8_t *dat, uint16_t len)
     }
 }
 
-void uart_responAck()
+void uart_responAck(int success)
 {
     USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)hUsbDeviceFS.pClassData;
 
     while (hcdc->TxState != 0)
         ;
 
-    uint8_t ack = 0xaa;
-    CDC_Transmit_FS(&ack, 1);
+    uart_respon->crc16 = 0;
+    uart_respon->payload[0] = success ? 0xaa : 0xFF;
+
+    uint16_t totalLen = SIZE_RESPON_HEADER + 1;
+    uint16_t crc = modbusCRC16(responBuf + 2, totalLen - 2);
+    uart_respon->crc16 = crc;
+
+    CDC_Transmit_FS(responBuf, totalLen);
 }
 
-// usb 接收回调
+void uart_sendError(uint8_t errorCode)
+{
+    uart_respon->crc16 = 0;
+    uart_respon->payload[0] = 0xFF; // 错误标志
+    uart_respon->payload[1] = errorCode;
+
+    uint16_t totalLen = SIZE_RESPON_HEADER + 2;
+    uint16_t crc = modbusCRC16(responBuf + 2, totalLen - 2);
+    uart_respon->crc16 = crc;
+
+    CDC_Transmit_FS(responBuf, totalLen);
+}
+
+/* UART Callback */
+void uart_setControlLine(uint8_t rts, uint8_t dtr)
+{
+    static uint8_t currentRts = 0;
+    static uint8_t currentDtr = 0;
+
+    if (((currentRts == 0) && (rts != 0)) ||
+        ((currentDtr == 0) && (dtr != 0)))
+    {
+        cmdBuf_p = 0;
+        memset(cmdBuf, 0, sizeof(cmdBuf));
+    }
+
+    currentRts = rts;
+    currentDtr = dtr;
+}
+
 void uart_cmdRecv(uint8_t *buf, uint32_t len)
 {
     if (busy)
@@ -155,72 +175,110 @@ void uart_cmdHandler()
     {
         if (uart_cmd->cmdSize == cmdBuf_p)
         {
+            // check crc
+            /*
+            uint16_t cmdCrc = *((uint16_t *)(cmdBuf + uart_cmd->cmdSize - 2));
+            uint16_t localCrc = modbusCRC16(cmdBuf, uart_cmd->cmdSize - 2);
+
+            if (cmdCrc != localCrc)
+            {
+                uart_clearRecvBuf();
+                uart_sendError(0x02); // CRC错误
+                return;
+            }
+            */
+
             busy = 1;
             HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);
 
-            // 处理命令
-            uart_processCommand();
+            // execute cmd
+            switch (uart_cmd->cmdCode)
+            {
+            case 0xff: // IAP 相关命令
+                {
+                    uint8_t iap_cmd = uart_cmd->payload[0];
+                    switch (iap_cmd) {
+                        case 0x00: // 获取版本信息
+                            iapGetVersion();
+                            break;
+                        case 0x01: // 擦除Flash
+                            iapEraseFlash();
+                            break;
+                        case 0x02: // 编程Flash
+                            iapProgramFlash();
+                            break;
+                        case 0x10: // 开始升级流程
+                            iapUpgradeStart();
+                            break;
+                        case 0x11: // 升级数据传输
+                            iapUpgradeData();
+                            break;
+                        case 0x12: // 完成升级流程
+                            iapUpgradeFinish();
+                            break;
+                        case 0xff: // 跳转到应用程序
+                            iapJumpToApp();
+                            break;
+                        default:
+                            uart_sendError(0x03); // 不支持的命令
+                            break;
+                    }
+                    break;
+                }
+            default:
+                uart_sendError(0x03); // 不支持的命令
+                break;
+            }
 
             HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1);
-            uart_clearRecvBuf();
+            // 统一清除busy和缓冲区
+            cmdBuf_p = 0;
+            memset(cmdBuf, 0, sizeof(cmdBuf));
+            busy = 0;
         }
     }
 }
 
-void uart_processCommand()
-{
-    uint16_t cmdSize = uart_cmd->cmdSize;
-    uint8_t cmdCode = uart_cmd->cmdCode;
+/* IAP Command Implement */
 
-    // 验证CRC
-    uint16_t receivedCrc = *(uint16_t*)(cmdBuf + cmdSize - 2);
-    uint16_t calculatedCrc = modbusCRC16(cmdBuf, cmdSize - 2);
-
-    if (receivedCrc != calculatedCrc)
-    {
-        uart_sendError(0x02); // CRC错误
-        return;
-    }
-
-    // 处理bootloader支持的命令
-    switch (cmdCode)
-    {
-        case 0x00: // 获取版本信息
-            iapGetVersion();
-            break;
-        case 0x01: // 擦除Flash
-            iapEraseFlash();
-            break;
-        case 0x02: // 编程Flash
-            iapProgramFlash();
-            break;
-        case 0xff: // 跳转到应用程序
-            iapJumpToApp();
-            break;
-        default:
-            uart_sendError(0x03); // 不支持的命令
-            break;
-    }
-}
-
+// 获取版本信息
+// i 2B.包大小 0xfd 2B.CRC
+// o 2B.CRC 版本信息数据
 void iapGetVersion()
 {
     version_info_t version_info;
     version_get_info(&version_info);
 
-    // 构造回复
-    uart_respon->crc16 = 0; // 先设为0
-
-    // 复制版本信息到payload
+    // 构建响应数据
     uint8_t *payload = uart_respon->payload;
-    memcpy(payload, &version_info, sizeof(version_info_t));
 
-    uint16_t totalLen = SIZE_RESPON_HEADER + sizeof(version_info_t);
-    uint16_t crc = modbusCRC16(responBuf + 2, totalLen - 2);
-    uart_respon->crc16 = crc;
+    // 版本号
+    payload[0] = version_info.major;
+    payload[1] = version_info.minor;
+    payload[2] = version_info.patch;
 
-    // 发送回复
-    CDC_Transmit_FS(responBuf, totalLen);
+    // 构建号 (16位)
+    payload[3] = (uint8_t)(version_info.build & 0xFF);
+    payload[4] = (uint8_t)((version_info.build >> 8) & 0xFF);
+
+    // 时间戳 (32位)
+    payload[5] = (uint8_t)(version_info.timestamp & 0xFF);
+    payload[6] = (uint8_t)((version_info.timestamp >> 8) & 0xFF);
+    payload[7] = (uint8_t)((version_info.timestamp >> 16) & 0xFF);
+    payload[8] = (uint8_t)((version_info.timestamp >> 24) & 0xFF);
+
+    // 版本字符串
+    const char* version_str = version_get_string();
+    uint8_t str_len = strlen(version_str);
+    if (str_len > 50) str_len = 50;  // 限制长度
+
+    payload[9] = str_len;
+    memcpy(&payload[10], version_str, str_len);
+
+    uint16_t total_len = 10 + str_len;
+    uart_respon->crc16 = modbusCRC16(uart_respon->payload, total_len);
+
+    CDC_Transmit_FS((uint8_t*)uart_respon, total_len + SIZE_RESPON_HEADER);
 }
 
 void iapEraseFlash()
@@ -238,15 +296,7 @@ void iapEraseFlash()
     // 执行擦除
     iap_status_t result = iap_flash_erase(address, size);
 
-    // 构造回复
-    uart_respon->crc16 = 0;
-    uart_respon->payload[0] = (result == IAP_OK) ? 0xaa : 0xFF;
-
-    uint16_t totalLen = SIZE_RESPON_HEADER + 1;
-    uint16_t crc = modbusCRC16(responBuf + 2, totalLen - 2);
-    uart_respon->crc16 = crc;
-
-    CDC_Transmit_FS(responBuf, totalLen);
+    uart_responAck(result == IAP_OK);
 }
 
 void iapProgramFlash()
@@ -265,28 +315,16 @@ void iapProgramFlash()
     // 执行编程
     iap_status_t result = iap_flash_write(address, data, dataLen);
 
-    // 构造回复
-    uart_respon->crc16 = 0;
-    uart_respon->payload[0] = (result == IAP_OK) ? 0xaa : 0xFF;
-
-    uint16_t totalLen = SIZE_RESPON_HEADER + 1;
-    uint16_t crc = modbusCRC16(responBuf + 2, totalLen - 2);
-    uart_respon->crc16 = crc;
-
-    CDC_Transmit_FS(responBuf, totalLen);
+    uart_responAck(result == IAP_OK);
 }
 
+// IAP 跳转到app模式
+// i 2B.包大小 0xfe 0x04 2B.CRC
+// o 2B.CRC 1B.status
 void iapJumpToApp()
 {
-    // 构造回复
-    uart_respon->crc16 = 0;
-    uart_respon->payload[0] = 0xaa; // 成功
-
-    uint16_t totalLen = SIZE_RESPON_HEADER + 1;
-    uint16_t crc = modbusCRC16(responBuf + 2, totalLen - 2);
-    uart_respon->crc16 = crc;
-
-    CDC_Transmit_FS(responBuf, totalLen);
+    uart_clearRecvBuf();
+    uart_responAck(1);
 
     // 等待数据发送完成
     HAL_Delay(100);
@@ -295,15 +333,62 @@ void iapJumpToApp()
     iap_jump_to_app();
 }
 
-void uart_sendError(uint8_t errorCode)
+/* IAP升级流程函数实现 */
+
+// 开始升级流程
+// i 2B.包大小 0xff 0x10 4B.app_size 4B.app_crc 2B.CRC
+// o 2B.CRC 1B.status
+void iapUpgradeStart()
 {
-    uart_respon->crc16 = 0;
-    uart_respon->payload[0] = 0xFF; // 错误标志
-    uart_respon->payload[1] = errorCode;
+    // 检查参数长度
+    if (uart_cmd->cmdSize < SIZE_CMD_HEADER + 1 + 8 + SIZE_CRC) {
+        uart_sendError(0x04); // 参数不足
+        return;
+    }
 
-    uint16_t totalLen = SIZE_RESPON_HEADER + 2;
-    uint16_t crc = modbusCRC16(responBuf + 2, totalLen - 2);
-    uart_respon->crc16 = crc;
+    uint32_t app_size = *(uint32_t*)(uart_cmd->payload + 1);
+    uint32_t app_crc = *(uint32_t*)(uart_cmd->payload + 5);
 
-    CDC_Transmit_FS(responBuf, totalLen);
+    // 检查应用程序大小是否合理
+    if (app_size == 0 || app_size > IAP_APPLICATION_SIZE) {
+        uart_sendError(0x05); // 大小无效
+        return;
+    }
+
+    // 开始升级流程
+    iap_upgrade_start(app_size, app_crc);
+
+    uart_responAck(1); // 成功
+}
+
+// 升级数据传输
+// i 2B.包大小 0xff 0x11 4B.packet_num nB.data 2B.CRC
+// o 2B.CRC 1B.status
+void iapUpgradeData()
+{
+    // 检查参数长度
+    if (uart_cmd->cmdSize < SIZE_CMD_HEADER + 1 + 4 + 1 + SIZE_CRC) {
+        uart_sendError(0x04); // 参数不足
+        return;
+    }
+
+    uint32_t packet_num = *(uint32_t*)(uart_cmd->payload + 1);
+    uint32_t data_len = uart_cmd->cmdSize - SIZE_CMD_HEADER - 1 - 4 - SIZE_CRC;
+    uint8_t *data = uart_cmd->payload + 5;
+
+    // 传输数据
+    iap_status_t result = iap_upgrade_data(packet_num, data, data_len);
+
+    uart_responAck(result == IAP_OK);
+}
+
+// 完成升级流程
+// i 2B.包大小 0xff 0x12 2B.CRC
+// o 2B.CRC 1B.status
+void iapUpgradeFinish()
+{
+    // 完成升级并验证
+    iap_status_t result = iap_upgrade_finish();
+
+    uart_responAck(result == IAP_OK);
 }
