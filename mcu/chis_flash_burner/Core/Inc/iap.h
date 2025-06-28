@@ -42,8 +42,8 @@ typedef struct {
 } iap_upgrade_info_t;
 
 /* IAP 功能函数 */
-iap_status_t iap_flash_erase(uint32_t start_addr, uint32_t size);
-iap_status_t iap_flash_write(uint32_t addr, uint8_t *data, uint32_t size);
+__RAM_FUNC iap_status_t iap_flash_erase(uint32_t start_addr, uint32_t size);
+__RAM_FUNC iap_status_t iap_flash_write(uint32_t addr, uint8_t *data, uint32_t size);
 iap_status_t iap_flash_read(uint32_t addr, uint8_t *data, uint32_t size);
 uint8_t iap_flash_verify(uint32_t addr, uint8_t *data, uint32_t size);
 

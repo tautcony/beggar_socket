@@ -251,7 +251,7 @@ void uart_cmdHandler()
                 {
                     uint8_t iap_cmd = uart_cmd->payload[0];
                     switch (iap_cmd) {
-                        case 0x00:
+                        case 0x00: // 获取版本信息
                             iapGetVersion();
                             break;
                         case 0xff: // 重启到bootloader模式

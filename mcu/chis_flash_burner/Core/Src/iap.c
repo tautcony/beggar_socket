@@ -65,7 +65,7 @@ uint32_t iap_crc32(uint8_t *data, uint32_t size)
  * @param size 擦除大小
  * @return IAP 状态
  */
-iap_status_t iap_flash_erase(uint32_t start_addr, uint32_t size)
+__RAM_FUNC iap_status_t iap_flash_erase(uint32_t start_addr, uint32_t size)
 {
     HAL_StatusTypeDef status;
     FLASH_EraseInitTypeDef erase_init;
@@ -101,7 +101,7 @@ iap_status_t iap_flash_erase(uint32_t start_addr, uint32_t size)
  * @param size 数据大小
  * @return IAP 状态
  */
-iap_status_t iap_flash_write(uint32_t addr, uint8_t *data, uint32_t size)
+__RAM_FUNC iap_status_t iap_flash_write(uint32_t addr, uint8_t *data, uint32_t size)
 {
     HAL_StatusTypeDef status = HAL_OK;
     uint32_t i;
