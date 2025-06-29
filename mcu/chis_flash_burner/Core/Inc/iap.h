@@ -9,13 +9,13 @@
 #define IAP_FLASH_SIZE              (64 * 1024) /* 64KB Flash */
 #define IAP_PAGE_SIZE               0x400       /* 1KB per page */
 
-/* BootLoader 区域 (前20KB) */
+/* BootLoader 区域 (前24KB) */
 #define IAP_BOOTLOADER_BASE_ADDR    0x08000000
-#define IAP_BOOTLOADER_SIZE         (20 * 1024)
+#define IAP_BOOTLOADER_SIZE         (24 * 1024)
 
-/* Application 区域 (后44KB) */
-#define IAP_APPLICATION_BASE_ADDR   0x08005000
-#define IAP_APPLICATION_SIZE        (44 * 1024)
+/* Application 区域 (后40KB) */
+#define IAP_APPLICATION_BASE_ADDR   0x08006000
+#define IAP_APPLICATION_SIZE        (40 * 1024)
 
 /* IAP 标志存储地址 (在 RAM 中) */
 #define IAP_FLAG_ADDR               0x20004000  /* RAM 末尾预留区域 */

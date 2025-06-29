@@ -273,7 +273,7 @@ endif()
 if(BUILD_APP)
     create_target(chis_flash_burner_app
         "${APP_SOURCES}"
-        "-DIAP_APPLICATION_BUILD"
+        "-DIAP_APPLICATION_BUILD;-DUSER_VECT_TAB_ADDRESS;-DVECT_TAB_OFFSET=0x6000U"
         "STM32F103C8TX_FLASH_APP.ld"
         "app"
     )
