@@ -260,12 +260,15 @@ void uart_cmdHandler()
                         default:
                             // 其他IAP命令应在bootloader中处理
                             // 发送错误响应或忽略
+                            uart_clearRecvBuf();
                             break;
                     }
                 }
                 break;
 
             default:
+                // 未知命令，清除缓冲区避免busy死锁
+                uart_clearRecvBuf();
                 break;
             }
 
