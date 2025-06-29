@@ -6,11 +6,11 @@
 ** @author      : Modified for Application in IAP mode
 **
 ** @brief       : Linker script for STM32F103C8Tx Device with IAP support
-**                      64KBytes FLASH (20KB BootLoader + 44KB Application)
+**                      64KBytes FLASH (24KB BootLoader + 40KB Application)
 **                      20KBytes RAM
 **
-**  BootLoader  : 0x08000000 - 0x08004FFF (20KB)
-**  Application : 0x08005000 - 0x0800FFFF (44KB)
+**  BootLoader  : 0x08000000 - 0x08005FFF (24KB)
+**  Application : 0x08006000 - 0x0800FFFF (40KB)
 **
 ******************************************************************************
 ** @attention
@@ -38,7 +38,7 @@ _Min_Stack_Size = 0x400; /* required amount of stack */
 MEMORY
 {
   RAM         (xrw) : ORIGIN = 0x20000000,   LENGTH = 20K
-  APPLICATION (rx)  : ORIGIN = 0x8005000,    LENGTH = 44K
+  APPLICATION (rx)  : ORIGIN = 0x8006000,    LENGTH = 40K
 }
 
 /* Sections */
