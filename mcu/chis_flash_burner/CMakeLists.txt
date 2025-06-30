@@ -78,11 +78,8 @@ set(HAL_SOURCES
     Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal.c
 )
 
-# BootLoader specific sources (minimal)
-set(BOOTLOADER_SOURCES
-    Core/Src/bootloader.c
-    Core/Src/iap.c
-    Core/Src/uart_bootloader.c
+# USB Device Library sources (shared by bootloader and app)
+set(USB_SOURCES
     Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pcd_ex.c
     Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pcd.c
     Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_ll_usb.c
@@ -96,24 +93,23 @@ set(BOOTLOADER_SOURCES
     USB_DEVICE/Target/usbd_conf.c
 )
 
+# IAP functionality (shared by bootloader and app)  
+set(IAP_SOURCES
+    Core/Src/iap.c
+)
+
+# BootLoader specific sources (minimal)
+set(BOOTLOADER_SOURCES
+    Core/Src/bootloader.c
+    Core/Src/uart_bootloader.c
+)
+
 # Application/Legacy sources (full functionality)
 set(APP_SOURCES
     Core/Src/main.c
     Core/Src/cart_adapter.c
-    Core/Src/iap.c
     Core/Src/uart.c
     Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_dma.c
-    Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pcd_ex.c
-    Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_pcd.c
-    Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_ll_usb.c
-    Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc.c
-    Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.c
-    Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ctlreq.c
-    Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.c
-    USB_DEVICE/App/usb_device.c
-    USB_DEVICE/App/usbd_cdc_if.c
-    USB_DEVICE/App/usbd_desc.c
-    USB_DEVICE/Target/usbd_conf.c
 )
 
 # ASM sources
@@ -252,7 +248,7 @@ if(BUILD_BOOTLOADER)
     endif()
 
     create_target(chis_flash_burner_bootloader
-        "${BOOTLOADER_SOURCES}"
+        "${BOOTLOADER_SOURCES};${USB_SOURCES};${IAP_SOURCES}"
         "-DIAP_BOOTLOADER_BUILD"
         "STM32F103C8TX_FLASH_IAP.ld"
         "bootloader"
@@ -272,7 +268,7 @@ endif()
 # Application target
 if(BUILD_APP)
     create_target(chis_flash_burner_app
-        "${APP_SOURCES}"
+        "${APP_SOURCES};${USB_SOURCES};${IAP_SOURCES}"
         "-DIAP_APPLICATION_BUILD;-DUSER_VECT_TAB_ADDRESS;-DVECT_TAB_OFFSET=0x6000U"
         "STM32F103C8TX_FLASH_APP.ld"
         "app"
@@ -284,7 +280,7 @@ endif()
 # Legacy target
 if(BUILD_LEGACY)
     create_target(chis_flash_burner_legacy
-        "${APP_SOURCES}"
+        "${APP_SOURCES};${USB_SOURCES};${IAP_SOURCES}"
         ""
         "STM32F103C8TX_FLASH.ld"
         ""
