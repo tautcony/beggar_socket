@@ -299,9 +299,10 @@ endif()
 
 # Clean all builds
 add_custom_target(clean-all
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/bootloader
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/app
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}
+    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/build/bootloader
+    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/build/app
+    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/build/legacy
+    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/build
     COMMENT "Cleaning all build directories"
 )
 
@@ -309,7 +310,7 @@ add_custom_target(clean-all
 if(BUILD_BOOTLOADER)
     add_custom_target(flash-bootloader
         COMMAND openocd -f interface/stlink.cfg -f target/stm32f1x.cfg 
-                -c "program ${CMAKE_BINARY_DIR}/bootloader/chis_flash_burner_bootloader.hex verify reset exit"
+                -c "program ${CMAKE_BINARY_DIR}/build/bootloader/chis_flash_burner_bootloader.hex verify reset exit"
         DEPENDS chis_flash_burner_bootloader
         COMMENT "Flashing bootloader"
     )
@@ -318,7 +319,7 @@ endif()
 if(BUILD_APP)
     add_custom_target(flash-app
         COMMAND openocd -f interface/stlink.cfg -f target/stm32f1x.cfg 
-                -c "program ${CMAKE_BINARY_DIR}/app/chis_flash_burner_app.hex verify reset exit"
+                -c "program ${CMAKE_BINARY_DIR}/build/app/chis_flash_burner_app.hex verify reset exit"
         DEPENDS chis_flash_burner_app
         COMMENT "Flashing application"
     )
@@ -327,7 +328,7 @@ endif()
 if(BUILD_LEGACY)
     add_custom_target(flash-legacy
         COMMAND openocd -f interface/stlink.cfg -f target/stm32f1x.cfg 
-                -c "program ${CMAKE_BINARY_DIR}/chis_flash_burner_legacy.hex verify reset exit"
+                -c "program ${CMAKE_BINARY_DIR}/build/legacy/chis_flash_burner_legacy.hex verify reset exit"
         DEPENDS chis_flash_burner_legacy
         COMMENT "Flashing legacy firmware"
     )
@@ -347,15 +348,15 @@ add_custom_target(cmake-help
     COMMAND ${CMAKE_COMMAND} -E echo "  -DBUILD_APP=ON         - Build Application for IAP only"
     COMMAND ${CMAKE_COMMAND} -E echo "  -DBUILD_LEGACY=ON      - Build legacy single image"
     COMMAND ${CMAKE_COMMAND} -E echo ""
-    COMMAND ${CMAKE_COMMAND} -E echo "Example usage:"
-    COMMAND ${CMAKE_COMMAND} -E echo "  cmake -B build-bootloader -DBUILD_BOOTLOADER=ON"
-    COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-bootloader"
+    COMMAND ${CMAKE_COMMAND} -E    echo "Example usage:"
+    COMMAND ${CMAKE_COMMAND} -E echo "  cmake -B build/bootloader -DBUILD_BOOTLOADER=ON"
+    COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build/bootloader"
     COMMAND ${CMAKE_COMMAND} -E echo ""
-    COMMAND ${CMAKE_COMMAND} -E echo "  cmake -B build-app -DBUILD_APP=ON"
-    COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-app"
+    COMMAND ${CMAKE_COMMAND} -E echo "  cmake -B build/app -DBUILD_APP=ON"
+    COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build/app"
     COMMAND ${CMAKE_COMMAND} -E echo ""
-    COMMAND ${CMAKE_COMMAND} -E echo "  cmake -B build-legacy -DBUILD_LEGACY=ON"
-    COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build-legacy"
+    COMMAND ${CMAKE_COMMAND} -E echo "  cmake -B build/legacy -DBUILD_LEGACY=ON"
+    COMMAND ${CMAKE_COMMAND} -E echo "  cmake --build build/legacy"
     COMMAND ${CMAKE_COMMAND} -E echo ""
     COMMAND ${CMAKE_COMMAND} -E echo "Additional targets:"
     COMMAND ${CMAKE_COMMAND} -E echo "  clean-all              - Clean all build directories"

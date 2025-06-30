@@ -93,7 +93,7 @@ function Test-Ninja {
 function Build-Target {
     param([string]$TargetName)
     
-    $buildDir = "build-$TargetName"
+    $buildDir = "build/$TargetName"
     $cmakeOption = switch ($TargetName) {
         "bootloader" { "-DBUILD_BOOTLOADER=ON" }
         "app" { "-DBUILD_APP=ON" }
@@ -146,13 +146,10 @@ function Clean-Target {
     
     if ($TargetName -eq "all" -or $TargetName -eq "") {
         Write-Info "Cleaning all build directories..."
-        Get-ChildItem -Path . -Directory -Name "build-*" | ForEach-Object {
-            Remove-Item -Path $_ -Recurse -Force -ErrorAction SilentlyContinue
-        }
         Remove-Item -Path "build" -Recurse -Force -ErrorAction SilentlyContinue
         Write-Success "All build directories cleaned"
     } else {
-        $buildDir = "build-$TargetName"
+        $buildDir = "build/$TargetName"
         if (Test-Path $buildDir) {
             Write-Info "Cleaning $TargetName build directory..."
             Remove-Item -Path $buildDir -Recurse -Force
@@ -171,7 +168,7 @@ function Show-Status {
 
     $targets = @("bootloader", "app", "legacy")
     foreach ($target in $targets) {
-        $buildDir = "build-$target"
+        $buildDir = "build/$target"
         if (Test-Path $buildDir) {
             $elfFile = Get-ChildItem -Path $buildDir -Recurse -Include "*.elf" | Select-Object -First 1
             if ($elfFile) {
@@ -197,7 +194,7 @@ function Show-Status {
     Write-Host "==============="
 
     foreach ($target in $targets) {
-        $buildDir = "build-$target"
+        $buildDir = "build/$target"
         if (Test-Path $buildDir) {
             $files = Get-ChildItem -Path $buildDir -Recurse -Include "*.elf", "*.hex", "*.bin"
             if ($files) {
@@ -214,7 +211,7 @@ function Show-Status {
 function Flash-Target {
     param([string]$TargetName)
     
-    $buildDir = "build-$TargetName"
+    $buildDir = "build/$TargetName"
     $hexFile = switch ($TargetName) {
         "bootloader" { "$buildDir\bootloader\chis_flash_burner_bootloader.hex" }
         "app" { "$buildDir\app\chis_flash_burner_app.hex" }

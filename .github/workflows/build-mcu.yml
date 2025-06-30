@@ -83,10 +83,10 @@ jobs:
       with:
         name: stm32-cmake-${{ matrix.target.target }}-${{ matrix.config.build_type }}-${{ github.sha }}
         path: |
-          mcu/chis_flash_burner/build-${{ matrix.target.target }}/**/*.elf
-          mcu/chis_flash_burner/build-${{ matrix.target.target }}/**/*.hex
-          mcu/chis_flash_burner/build-${{ matrix.target.target }}/**/*.bin
-          mcu/chis_flash_burner/build-${{ matrix.target.target }}/**/*.map
+          mcu/chis_flash_burner/build/${{ matrix.target.target }}/**/*.elf
+          mcu/chis_flash_burner/build/${{ matrix.target.target }}/**/*.hex
+          mcu/chis_flash_burner/build/${{ matrix.target.target }}/**/*.bin
+          mcu/chis_flash_burner/build/${{ matrix.target.target }}/**/*.map
         retention-days: 30
 
   # Static analysis job

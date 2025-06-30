@@ -68,7 +68,7 @@ check_toolchain() {
 # Build function
 build_target() {
     local target=$1
-    local build_dir="build-$target"
+    local build_dir="build/$target"
     local cmake_option=""
 
     case $target in
@@ -120,11 +120,10 @@ clean_target() {
 
     if [[ "$target" == "all" ]]; then
         print_info "Cleaning all build directories..."
-        rm -rf build-*
-        rm -rf build
+        rm -rf build/
         print_success "All build directories cleaned"
     else
-        local build_dir="build-$target"
+        local build_dir="build/$target"
         if [[ -d "$build_dir" ]]; then
             print_info "Cleaning $target build directory..."
             rm -rf "$build_dir"
@@ -143,7 +142,7 @@ show_status() {
     echo "============="
 
     for target in bootloader app legacy; do
-        build_dir="build-$target"
+        build_dir="build/$target"
         if [[ -d "$build_dir" ]]; then
             elf_file=$(find "$build_dir" -name "*.elf" | head -n1)
             if [[ -f "$elf_file" ]]; then
@@ -165,7 +164,7 @@ show_status() {
     echo "==============="
 
     for target in bootloader app legacy; do
-        build_dir="build-$target"
+        build_dir="build/$target"
         if [[ -d "$build_dir" ]]; then
             files_found=false
             find "$build_dir" -name "*.elf" -o -name "*.hex" -o -name "*.bin" | while read -r file; do
@@ -185,7 +184,7 @@ show_status() {
 # Flash function
 flash_target() {
     local target=$1
-    local build_dir="build-$target"
+    local build_dir="build/$target"
     local hex_file=""
 
     case $target in
