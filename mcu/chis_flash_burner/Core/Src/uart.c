@@ -10,6 +10,7 @@
 #include "cart_adapter.h"
 #include "version.h"
 #include "iap.h"
+#include "modbus_crc.h"
 
 #define BATCH_SIZE_RW 512
 #define BATCH_SIZE_RESPON 512
@@ -80,26 +81,6 @@ void gbcRomProgram();
 
 void iapGetVersion();
 void iapReboot();
-
-uint16_t modbusCRC16(uint8_t *buf, uint16_t len)
-{
-    uint16_t crc = 0xffff;
-
-    for (int i = 0; i < len; i++)
-    {
-        crc = crc ^ buf[i];
-        for (int ii = 0; ii < 8; ii++)
-        {
-            uint16_t temp = crc & 0x0001;
-            crc = crc >> 1;
-            crc = crc & 0x7fff;
-            if (temp)
-                crc = crc ^ 0xa001;
-        }
-    }
-
-    return crc;
-}
 
 void uart_setControlLine(uint8_t rts, uint8_t dtr)
 {
@@ -817,7 +798,7 @@ void iapGetVersion()
     memcpy(&payload[10], version_str, str_len);
 
     uint16_t total_len = 10 + str_len;
-    uart_respon->crc16 = modbusCRC16(uart_respon->payload, total_len);
+    uart_respon->crc16 = modbusCRC16_lut(uart_respon->payload, total_len);
 
     CDC_Transmit_FS((uint8_t*)uart_respon, total_len + SIZE_RESPON_HEADER);
 }

@@ -11,6 +11,7 @@
 #include "iap.h"
 #include "morse_code.h"
 #include "version.h"
+#include "modbus_crc.h"
 
 #define BATCH_SIZE_RW 512
 #define BATCH_SIZE_RESPON 512
@@ -118,36 +119,12 @@ void iapUpgradeData();
 void iapUpgradeFinish();
 void iapJumpToApp();
 
-uint16_t modbusCRC16(const uint8_t * restrict buf, uint16_t len)
-{
-    if (buf == NULL && len > 0) {
-        return 0;
-    }
-    
-    uint16_t crc = 0xFFFF;
-
-    for (uint16_t i = 0; i < len; i++)
-    {
-        crc ^= buf[i];
-        for (uint8_t bit = 0; bit < 8; bit++)
-        {
-            if (crc & 0x0001) {
-                crc = (crc >> 1) ^ 0xA001;
-            } else {
-                crc >>= 1;
-            }
-        }
-    }
-
-    return crc;
-}
-
 void uart_responData(uint8_t *dat, uint16_t len)
 {
-    uart_respon->crc16 = modbusCRC16(dat, len); // 计算crc
+    uart_respon->crc16 = modbusCRC16_lut(dat, len);
 
-    if (dat != NULL)
-        memcpy(uart_respon->payload, dat, len); // 填充数据
+    if (dat != NULL && uart_respon->payload != dat)
+        memcpy(uart_respon->payload, dat, len);
 
     USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)hUsbDeviceFS.pClassData;
 
@@ -179,7 +156,7 @@ void uart_responAck(bool success)
     uart_respon->payload[0] = success ? 0xaa : 0xFF;
 
     uint16_t totalLen = SIZE_RESPON_HEADER + 1;
-    uint16_t crc = modbusCRC16(responBuf + 2, totalLen - 2);
+    uint16_t crc = modbusCRC16_lut(responBuf + 2, totalLen - 2);
     uart_respon->crc16 = crc;
 
     CDC_Transmit_FS(responBuf, totalLen);
@@ -192,7 +169,7 @@ void uart_sendError(uint8_t errorCode)
     uart_respon->payload[1] = errorCode;
 
     uint16_t totalLen = SIZE_RESPON_HEADER + 2;
-    uint16_t crc = modbusCRC16(responBuf + 2, totalLen - 2);
+    uint16_t crc = modbusCRC16_lut(responBuf + 2, totalLen - 2);
     uart_respon->crc16 = crc;
 
     CDC_Transmit_FS(responBuf, totalLen);
@@ -255,7 +232,7 @@ void uart_cmdHandler()
             // check crc
             /*
             uint16_t cmdCrc = *((uint16_t *)(cmdBuf + uart_cmd->package_size - 2));
-            uint16_t localCrc = modbusCRC16(cmdBuf, uart_cmd->package_size - 2);
+            uint16_t localCrc = modbusCRC16_lut(cmdBuf, uart_cmd->package_size - 2);
 
             if (cmdCrc != localCrc)
             {
