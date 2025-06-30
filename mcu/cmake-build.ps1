@@ -5,7 +5,7 @@ param(
     [Parameter(Mandatory=$true, Position=0)]
     [ValidateSet("build", "clean", "flash", "status", "help")]
     [string]$Command,
-    
+
     [Parameter(Position=1)]
     [ValidateSet("bootloader", "app", "legacy", "all")]
     [string]$Target
@@ -92,7 +92,7 @@ function Test-Ninja {
 
 function Build-Target {
     param([string]$TargetName)
-    
+
     $buildDir = "build/$TargetName"
     $cmakeOption = switch ($TargetName) {
         "bootloader" { "-DBUILD_BOOTLOADER=ON" }
@@ -137,13 +137,13 @@ function Build-Target {
         $size = [math]::Round($_.Length / 1KB, 2)
         Write-Host "  $($_.Name) ($size KB)"
     }
-    
+
     return $true
 }
 
 function Clean-Target {
     param([string]$TargetName)
-    
+
     if ($TargetName -eq "all" -or $TargetName -eq "") {
         Write-Info "Cleaning all build directories..."
         Remove-Item -Path "build" -Recurse -Force -ErrorAction SilentlyContinue
@@ -210,7 +210,7 @@ function Show-Status {
 
 function Flash-Target {
     param([string]$TargetName)
-    
+
     $buildDir = "build/$TargetName"
     $hexFile = switch ($TargetName) {
         "bootloader" { "$buildDir\bootloader\chis_flash_burner_bootloader.hex" }

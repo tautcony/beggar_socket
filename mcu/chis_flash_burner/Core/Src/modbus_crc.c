@@ -49,15 +49,15 @@ uint16_t modbusCRC16_lut(const uint8_t * restrict buf, uint16_t len)
     if (buf == NULL && len > 0) {
         return 0;
     }
-    
+
     uint16_t crc = 0xFFFF;
-    
+
     for (uint16_t i = 0; i < len; i++)
     {
         uint8_t table_index = (crc ^ buf[i]) & 0xFF;
         crc = (crc >> 8) ^ CRC_TABLE[table_index];
     }
-    
+
     return crc;
 }
 
@@ -72,7 +72,7 @@ uint16_t modbusCRC16(const uint8_t * restrict buf, uint16_t len)
     if (buf == NULL && len > 0) {
         return 0;
     }
-    
+
     uint16_t crc = 0xFFFF;
 
     for (uint16_t i = 0; i < len; i++)

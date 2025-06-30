@@ -13,7 +13,7 @@ static void iap_crc32_init(void)
 {
     /* 使能CRC外设时钟 */
     __HAL_RCC_CRC_CLK_ENABLE();
-    
+
     /* 复位CRC计算单元 */
     CRC->CR = CRC_CR_RESET;
 }
@@ -31,14 +31,14 @@ uint32_t iap_crc32(uint8_t *data, uint32_t size)
     uint32_t remaining_bytes;
     uint32_t temp_word;
     uint32_t *word_ptr = (uint32_t*)data;
-    
+
     /* 初始化CRC计算单元 */
     iap_crc32_init();
-    
+
     /* 计算4字节对齐的字数 */
     word_count = size / 4;
     remaining_bytes = size % 4;
-    
+
     /* 按32位字进行CRC计算 - 检查地址是否4字节对齐 */
     if ((uint32_t)data % 4 == 0) {
         /* 地址对齐，直接按字访问 */
@@ -53,7 +53,7 @@ uint32_t iap_crc32(uint8_t *data, uint32_t size)
             CRC->DR = temp_word;
         }
     }
-    
+
     /* 处理剩余字节 */
     if (remaining_bytes > 0) {
         temp_word = 0;
@@ -62,7 +62,7 @@ uint32_t iap_crc32(uint8_t *data, uint32_t size)
         }
         CRC->DR = temp_word;
     }
-    
+
     return CRC->DR;
 }
 
