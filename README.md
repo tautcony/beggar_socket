@@ -199,6 +199,8 @@ A lightweight gba cartridge burner, with limited functionality
 
 ### 获取版本信息
 
+> 在应用程序模式下返回应用程序版本信息
+
 - 发送
 
 | 字节数 | 2         | 1    | 1    | 2   |
@@ -207,9 +209,13 @@ A lightweight gba cartridge burner, with limited functionality
 
 - 返回
 
-| 字节数 | 2   | 1      | 1      | 1      | 2        | 4        | 1        | n              |
-| ------ | --- | ------ | ------ | ------ | -------- | -------- | -------- | -------------- |
-| 定义   | CRC | 主版本 | 次版本 | 补丁号 | 构建号   | 时间戳   | 字符串长度 | 版本字符串     |
+| 字节数 | 2   | 1      | 1      | 1      | 2        | 4        | 1        | 1        | n              |
+| ------ | --- | ------ | ------ | ------ | -------- | -------- | -------- | -------- | -------------- |
+| 定义   | CRC | 主版本 | 次版本 | 补丁号 | 构建号   | 时间戳   | 版本类型 | 字符串长度 | 版本字符串     |
+
+**版本类型说明：**
+- 0: Bootloader版本
+- 1: Application版本
 
 ### 重启到bootloader模式
 
@@ -231,6 +237,8 @@ A lightweight gba cartridge burner, with limited functionality
 
 ### 获取bootloader版本信息
 
+> 在bootloader模式下返回bootloader版本信息
+
 - 发送
 
 | 字节数 | 2         | 1    | 1    | 2   |
@@ -239,9 +247,13 @@ A lightweight gba cartridge burner, with limited functionality
 
 - 返回
 
-| 字节数 | 2   | 1      | 1      | 1      | 2        | 4        | 1        | n              |
-| ------ | --- | ------ | ------ | ------ | -------- | -------- | -------- | -------------- |
-| 定义   | CRC | 主版本 | 次版本 | 补丁号 | 构建号   | 时间戳   | 字符串长度 | 版本字符串     |
+| 字节数 | 2   | 1      | 1      | 1      | 2        | 4        | 1        | 1        | n              |
+| ------ | --- | ------ | ------ | ------ | -------- | -------- | -------- | -------- | -------------- |
+| 定义   | CRC | 主版本 | 次版本 | 补丁号 | 构建号   | 时间戳   | 版本类型 | 字符串长度 | 版本字符串     |
+
+**版本类型说明：**
+- 0: Bootloader版本
+- 1: Application版本
 
 ### 擦除Flash
 
@@ -285,7 +297,7 @@ A lightweight gba cartridge burner, with limited functionality
 | ------ | --- | ------------------------ |
 | 定义   | CRC | 0xaa(成功)<br>0xFF(失败) |
 
-### 开始升级流程 (高级IAP)
+### 开始升级流程
 
 - 发送
 
@@ -299,7 +311,7 @@ A lightweight gba cartridge burner, with limited functionality
 | ------ | --- | ------------------------ |
 | 定义   | CRC | 0xaa(成功)<br>0xFF(失败) |
 
-### 升级数据传输 (高级IAP)
+### 升级数据传输
 
 - 发送
 
@@ -313,7 +325,7 @@ A lightweight gba cartridge burner, with limited functionality
 | ------ | --- | ------------------------ |
 | 定义   | CRC | 0xaa(成功)<br>0xFF(失败) |
 
-### 完成升级流程 (高级IAP)
+### 完成升级流程
 
 - 发送
 
@@ -329,9 +341,10 @@ A lightweight gba cartridge burner, with limited functionality
 
 ### Bootloader错误码
 
-| 错误码 | 含义           |
-| ------ | -------------- |
-| 0x02   | CRC校验错误    |
-| 0x03   | 不支持的命令   |
-| 0x04   | 参数不足       |
-| 0x05   | 应用程序大小无效 |
+| 错误码 | 含义                 |
+| ------ | -------------------- |
+| 0x01   | 无效参数             |
+| 0x02   | 缓冲区满             |
+| 0x03   | CRC校验错误          |
+| 0x04   | 不支持的命令         |
+| 0x05   | 大小不匹配           |

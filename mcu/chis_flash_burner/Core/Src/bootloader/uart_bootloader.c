@@ -38,22 +38,22 @@ typedef enum {
     UART_ERROR_SIZE_MISMATCH = 5
 } uart_result_t;
 
-typedef enum {
-    IAP_CMD_GET_VERSION = 0x00,
-    IAP_CMD_ERASE_FLASH = 0x01,
-    IAP_CMD_PROGRAM_FLASH = 0x02,
-    IAP_CMD_UPGRADE_START = 0x10,
-    IAP_CMD_UPGRADE_DATA = 0x11,
-    IAP_CMD_UPGRADE_FINISH = 0x12,
-    IAP_CMD_JUMP_TO_APP = 0xFF
-} iap_cmd_t;
+#define IAP_CMD_GET_VERSION     0x00
+#define IAP_CMD_ERASE_FLASH     0x01
+#define IAP_CMD_PROGRAM_FLASH   0x02
+#define IAP_CMD_UPGRADE_START   0x10
+#define IAP_CMD_UPGRADE_DATA    0x11
+#define IAP_CMD_UPGRADE_FINISH  0x12
+#define IAP_CMD_JUMP_TO_APP     0xFF
+
+typedef uint8_t iap_cmd_t;
 
 // 命令头
 typedef struct __attribute__((packed))
 {
-    uint16_t package_size;        // 包大小 (整个包的大小，包括CRC)
-    uint8_t cmd_code;         // 命令码 (0xff表示IAP命令)
-    iap_cmd_t sub_cmd_code;    // 子命令码
+    uint16_t package_size;  // 包大小 (整个包的大小，包括CRC)
+    uint8_t cmd_code;       // 命令码 (0xff表示IAP命令)
+    iap_cmd_t sub_cmd_code; // 子命令码
     union {
         // 擦除Flash命令 (0x01)
         struct {
@@ -61,31 +61,31 @@ typedef struct __attribute__((packed))
             uint32_t size;
             uint16_t crc16;
         } erase_op;
-        
+
         // 编程Flash命令 (0x02)
         struct {
             uint32_t address;
-            // 数据紧跟在address后面，通过指针计算访问
+            // 数据从 raw_data[4] 开始访问
         } program_op;
-        
+
         // 开始升级命令 (0x10)
         struct {
             uint32_t app_size;
             uint32_t app_crc;
             uint16_t crc16;
         } upgrade_start;
-        
+
         // 升级数据命令 (0x11)
         struct {
             uint32_t packet_num;
-            // 数据紧跟在packet_num后面，通过指针计算访问
+            // 数据从 raw_data[4] 开始访问
         } upgrade_op;
-        
+
         // 仅CRC的命令 (如获取版本0x00, 跳转0xFF, 完成升级0x12)
         struct {
             uint16_t crc16;
         } simple;
-        
+
         // 原始字节访问
         uint8_t raw_data[0];
     };
@@ -164,6 +164,11 @@ void uart_responAck(bool success)
 
 void uart_sendError(uint8_t errorCode)
 {
+    USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)hUsbDeviceFS.pClassData;
+
+    while (hcdc->TxState != 0)
+        ;
+
     uart_respon->crc16 = 0;
     uart_respon->payload[0] = 0xFF; // 错误标志
     uart_respon->payload[1] = errorCode;
@@ -288,7 +293,7 @@ void uart_cmdHandler()
 void iapGetVersion()
 {
     version_info_t version_info;
-    version_get_info(&version_info);
+    version_get_current_info(&version_info);
 
     // 构建响应数据
     uint8_t *payload = uart_respon->payload;
@@ -308,18 +313,20 @@ void iapGetVersion()
     payload[7] = (uint8_t)((version_info.timestamp >> 16) & 0xFF);
     payload[8] = (uint8_t)((version_info.timestamp >> 24) & 0xFF);
 
+    // 版本类型 (1位)
+    payload[9] = (uint8_t)version_info.type;
+
     // 版本字符串
-    const char* version_str = version_get_string();
+    const char* version_str = version_get_current_string();
     uint8_t str_len = strlen(version_str);
-    if (str_len > 50) str_len = 50;  // 限制长度
+    if (str_len > 45) str_len = 45;  // 限制长度，为版本类型字段留出空间
 
-    payload[9] = str_len;
-    memcpy(&payload[10], version_str, str_len);
+    payload[10] = str_len;
+    memcpy(&payload[11], version_str, str_len);
 
-    uint16_t total_len = 10 + str_len;
-    uart_respon->crc16 = modbusCRC16(uart_respon->payload, total_len);
+    uint16_t total_len = 11 + str_len;
 
-    CDC_Transmit_FS((uint8_t*)uart_respon, total_len + SIZE_RESPON_HEADER);
+    uart_responData(uart_respon->payload, total_len);
 }
 
 void iapEraseFlash()
@@ -350,8 +357,8 @@ void iapProgramFlash()
     }
 
     uint32_t address = uart_cmd->program_op.address;
-    // 数据紧跟在address后面
-    uint8_t *data = (uint8_t *)&uart_cmd->program_op.address + sizeof(uint32_t);
+    // 数据从 raw_data[4] 开始（跳过address的4个字节）
+    uint8_t *data = &uart_cmd->raw_data[4];
     uint32_t data_len = uart_cmd->package_size - SIZE_CMD_HEADER - SIZE_BASE_ADDRESS - SIZE_CRC;
 
     // 执行编程
@@ -415,8 +422,8 @@ void iapUpgradeData()
     }
 
     uint32_t packet_num = uart_cmd->upgrade_op.packet_num;
-    // 数据紧跟在packet_num后面
-    uint8_t *data = (uint8_t *)&uart_cmd->upgrade_op.packet_num + sizeof(uint32_t);
+    // 数据从 raw_data[4] 开始（跳过packet_num的4个字节）
+    uint8_t *data = &uart_cmd->raw_data[4];
     uint32_t data_len = uart_cmd->package_size - SIZE_CMD_HEADER - 1 - 4 - SIZE_CRC;
 
     // 传输数据
@@ -457,9 +464,9 @@ void morse_handler(void)
         morse_led_control(0);
         return;
     }
-    
+
     uint32_t current_tick = HAL_GetTick();
-    
+
     // 获取当前字符
     char current_char = morse_message[morse_index];
     if (current_char == '\0') {
@@ -473,7 +480,7 @@ void morse_handler(void)
         }
         return;
     }
-    
+
     // 处理空格（单词间隔）
     if (current_char == ' ') {
         morse_led_control(0);
@@ -485,7 +492,7 @@ void morse_handler(void)
         }
         return;
     }
-    
+
     // 获取摩尔斯电码
     const char* code = morse_get_code(current_char);
     if (code == NULL) {
@@ -497,7 +504,7 @@ void morse_handler(void)
         morse_led_control(0);
         return;
     }
-    
+
     // 检查当前字符的摩尔斯电码是否发送完毕
     if (morse_bit_index >= strlen(code)) {
         // 字符间隔
@@ -510,10 +517,10 @@ void morse_handler(void)
         }
         return;
     }
-    
+
     // 发送当前位
     char current_bit = code[morse_bit_index];
-    
+
     if (morse_led_state == 0) {
         // 开始发送新的位
         morse_led_control(1);

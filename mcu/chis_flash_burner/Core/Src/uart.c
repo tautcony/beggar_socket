@@ -762,12 +762,12 @@ void gbcRomProgram()
 }
 
 // 获取版本信息
-// i 2B.包大小 0xfd 2B.CRC
+// i 2B.包大小 0xff 0x00 2B.CRC
 // o 2B.CRC 版本信息数据
 void iapGetVersion()
 {
     version_info_t version_info;
-    version_get_info(&version_info);
+    version_get_current_info(&version_info);  // 在app模式下获取app版本
 
     uart_clearRecvBuf();
 
@@ -789,15 +789,18 @@ void iapGetVersion()
     payload[7] = (uint8_t)((version_info.timestamp >> 16) & 0xFF);
     payload[8] = (uint8_t)((version_info.timestamp >> 24) & 0xFF);
 
+    // 版本类型 (1位)
+    payload[9] = (uint8_t)version_info.type;
+
     // 版本字符串
-    const char* version_str = version_get_string();
+    const char* version_str = version_get_current_string();
     uint8_t str_len = strlen(version_str);
-    if (str_len > 50) str_len = 50;  // 限制长度
+    if (str_len > 45) str_len = 45;  // 限制长度，为版本类型字段留出空间
 
-    payload[9] = str_len;
-    memcpy(&payload[10], version_str, str_len);
+    payload[10] = str_len;
+    memcpy(&payload[11], version_str, str_len);
 
-    uint16_t total_len = 10 + str_len;
+    uint16_t total_len = 11 + str_len;
     uart_respon->crc16 = modbusCRC16_lut(uart_respon->payload, total_len);
 
     CDC_Transmit_FS((uint8_t*)uart_respon, total_len + SIZE_RESPON_HEADER);
