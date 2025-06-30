@@ -102,6 +102,7 @@ set(IAP_SOURCES
 set(BOOTLOADER_SOURCES
     Core/Src/bootloader.c
     Core/Src/uart_bootloader.c
+    Core/Src/morse_code.c
 )
 
 # Application/Legacy sources (full functionality)
