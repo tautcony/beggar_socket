@@ -19,6 +19,35 @@
 #define SIZE_CRC 2
 #define SIZE_BUFF_SIZE 2
 
+/* 摩尔斯电码相关定义 */
+#define MORSE_DOT_TIME    100   // 点的持续时间(ms)
+#define MORSE_DASH_TIME   300   // 划的持续时间(ms)
+#define MORSE_GAP_TIME    100   // 符号间隔时间(ms)
+#define MORSE_LETTER_GAP  300   // 字母间隔时间(ms)
+#define MORSE_WORD_GAP    700   // 单词间隔时间(ms)
+
+/* 摩尔斯电码表 */
+typedef struct {
+    char character;
+    const char* code;
+} morse_code_t;
+
+static const morse_code_t morse_table[] = {
+    {'A', ".-"},    {'B', "-..."},  {'C', "-.-."},  {'D', "-.."},   {'E', "."},
+    {'F', "..-."},  {'G', "--."},   {'H', "...."},  {'I', ".."},    {'J', ".---"},
+    {'K', "-.-"},   {'L', ".-.."},  {'M', "--"},    {'N', "-."},    {'O', "---"},
+    {'P', ".--."},  {'Q', "--.-"},  {'R', ".-."},   {'S', "..."},   {'T', "-"},
+    {'U', "..-"},   {'V', "...-"},  {'W', ".--"},   {'X', "-..-"},  {'Y', "-.--"},
+    {'Z', "--.."},  {' ', " "}
+};
+
+/* 摩尔斯电码状态变量 */
+static uint32_t morse_tick = 0;
+static uint8_t morse_index = 0;
+static uint8_t morse_bit_index = 0;
+static uint8_t morse_led_state = 0;
+static const char morse_message[] = "BOOTLOADER ";
+
 // 命令头
 typedef struct __attribute__((packed))
 {
@@ -391,4 +420,115 @@ void iapUpgradeFinish()
     iap_status_t result = iap_upgrade_finish();
 
     uart_responAck(result == IAP_OK);
+}
+
+/* 摩尔斯电码相关函数 */
+
+/**
+ * @brief 查找字符对应的摩尔斯电码
+ * @param c 字符
+ * @return 摩尔斯电码字符串，NULL表示未找到
+ */
+static const char* morse_get_code(char c)
+{
+    for (int i = 0; i < sizeof(morse_table) / sizeof(morse_table[0]); i++) {
+        if (morse_table[i].character == c) {
+            return morse_table[i].code;
+        }
+    }
+    return NULL;
+}
+
+/**
+ * @brief 摩尔斯电码LED控制
+ * @param state 1-点亮LED, 0-熄灭LED
+ */
+static void morse_led_control(uint8_t state)
+{
+    HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, state ? GPIO_PIN_RESET : GPIO_PIN_SET);
+}
+
+/**
+ * @brief 摩尔斯电码处理函数
+ */
+void morse_handler(void)
+{
+    // 如果系统忙碌，停止摩尔斯电码输出
+    if (busy) {
+        morse_led_control(0);
+        return;
+    }
+    
+    uint32_t current_tick = HAL_GetTick();
+    
+    // 获取当前字符
+    char current_char = morse_message[morse_index];
+    if (current_char == '\0') {
+        // 消息结束，等待单词间隔后重新开始
+        morse_led_control(0);
+        if (current_tick - morse_tick >= MORSE_WORD_GAP) {
+            morse_index = 0;
+            morse_bit_index = 0;
+            morse_led_state = 0;
+            morse_tick = current_tick;
+        }
+        return;
+    }
+    
+    // 处理空格（单词间隔）
+    if (current_char == ' ') {
+        morse_led_control(0);
+        if (current_tick - morse_tick >= MORSE_WORD_GAP) {
+            morse_index++;
+            morse_bit_index = 0;
+            morse_led_state = 0;
+            morse_tick = current_tick;
+        }
+        return;
+    }
+    
+    // 获取摩尔斯电码
+    const char* code = morse_get_code(current_char);
+    if (code == NULL) {
+        // 未知字符，跳过
+        morse_index++;
+        morse_bit_index = 0;
+        morse_led_state = 0;
+        morse_tick = current_tick;
+        morse_led_control(0);
+        return;
+    }
+    
+    // 检查当前字符的摩尔斯电码是否发送完毕
+    if (morse_bit_index >= strlen(code)) {
+        // 字符间隔
+        morse_led_control(0);
+        if (current_tick - morse_tick >= MORSE_LETTER_GAP) {
+            morse_index++;
+            morse_bit_index = 0;
+            morse_led_state = 0;
+            morse_tick = current_tick;
+        }
+        return;
+    }
+    
+    // 发送当前位
+    char current_bit = code[morse_bit_index];
+    
+    if (morse_led_state == 0) {
+        // 开始发送新的位
+        morse_led_control(1);
+        morse_led_state = 1;
+        morse_tick = current_tick;
+    } else {
+        // 正在发送位，检查时间
+        uint32_t bit_time = (current_bit == '.') ? MORSE_DOT_TIME : MORSE_DASH_TIME;
+        if (current_tick - morse_tick >= bit_time) {
+            // 位发送完毕，进入间隔
+            morse_led_control(0);
+            morse_led_state = 0;
+            morse_bit_index++;
+            morse_tick = current_tick;
+        }
+    }
 }
