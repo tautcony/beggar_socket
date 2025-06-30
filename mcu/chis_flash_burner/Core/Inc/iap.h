@@ -19,7 +19,7 @@
 
 /* IAP 标志存储地址 (在 RAM 中) */
 #define IAP_FLAG_ADDR               0x20004000  /* RAM 末尾预留区域 */
-#define IAP_FLAG_VALUE              0x12345678  /* IAP 升级标志值 */
+#define IAP_FLAG_VALUE              0x43464253  /* IAP 升级标志值 */
 
 /* IAP 状态枚举 */
 typedef enum {
