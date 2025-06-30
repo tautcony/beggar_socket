@@ -144,7 +144,7 @@ uint16_t modbusCRC16(const uint8_t * restrict buf, uint16_t len)
 
 void uart_responData(uint8_t *dat, uint16_t len)
 {
-    // uart_respon->crc16 = modbusCRC16(dat, len); // 计算crc
+    uart_respon->crc16 = modbusCRC16(dat, len); // 计算crc
 
     if (dat != NULL)
         memcpy(uart_respon->payload, dat, len); // 填充数据

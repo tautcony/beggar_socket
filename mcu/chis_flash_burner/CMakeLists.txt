@@ -100,9 +100,9 @@ set(IAP_SOURCES
 
 # BootLoader specific sources (minimal)
 set(BOOTLOADER_SOURCES
-    Core/Src/bootloader.c
-    Core/Src/uart_bootloader.c
-    Core/Src/morse_code.c
+    Core/Src/bootloader/bootloader.c
+    Core/Src/bootloader/uart_bootloader.c
+    Core/Src/bootloader/morse_code.c
 )
 
 # Application/Legacy sources (full functionality)
