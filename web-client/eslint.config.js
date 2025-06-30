@@ -58,7 +58,10 @@ export default tseslint.config(
   tseslint.configs.strictTypeChecked,
   tseslint.configs.stylisticTypeChecked,
   {
-    files: ['**/*.{ts,tsx}'],
+    files: [
+      'src/**/*.{ts,tsx}',
+      'tests/**/*.{ts,tsx}'
+    ],
     languageOptions: {
       parserOptions: {
         project: './tsconfig.json',

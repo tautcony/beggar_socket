@@ -110,6 +110,7 @@
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import { gameControllerOutline, hardwareChipOutline } from 'ionicons/icons';
+import { DateTime } from 'luxon';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -219,7 +220,7 @@ const selectedBaseAddress = ref('0x00000000'); // 默认基址0x00
 // RAM
 const ramFileData = ref<Uint8Array | null>(null);
 const ramFileName = ref('');
-const selectedRamSize = ref('0x8000'); // 默认32KB
+const selectedRamSize = ref('0x08000'); // 默认32KB
 const selectedRamType = ref('SRAM'); // 默认SRAM
 
 // 设备连接状态改变时，初始化适配器
@@ -549,7 +550,9 @@ async function readRom() {
       showToast(response.message, 'success');
       if (response.data) {
         const romInfo = parseRom(response.data);
-        let fileName = 'exported.rom';
+        const now = DateTime.now().toLocal().toISO();
+
+        let fileName = `exported_${now}.rom`;
         if (romInfo.type !== 'Unknown') {
           fileName = `${romInfo.title} (${romInfo.region}).rom`;
         }
@@ -647,7 +650,9 @@ async function readRam() {
     if (response.success) {
       showToast(response.message, 'success');
       if (response.data) {
-        saveAsFile(response.data, 'exported.sav');
+        const now = DateTime.now().toLocal().toFormat('yyyyMMdd-HHmmss');
+
+        saveAsFile(response.data, `exported_${now}.sav`);
       }
     } else {
       showToast(response.message, 'error');
