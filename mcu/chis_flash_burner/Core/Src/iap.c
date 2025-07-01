@@ -1,5 +1,5 @@
 #include "iap.h"
-#include "main.h"
+// #include "main.h"
 #include <string.h>
 
 /* 全局变量 */
