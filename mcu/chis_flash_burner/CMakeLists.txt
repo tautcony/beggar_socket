@@ -243,9 +243,9 @@ endfunction()
 
 # Bootloader target
 if(BUILD_BOOTLOADER)
-    # Bootloader uses aggressive optimization
+    # Bootloader uses aggressive optimization for size
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        set(BOOTLOADER_OPT_FLAGS -Og -g -gdwarf-2)
+        set(BOOTLOADER_OPT_FLAGS -Os -g1)  # Use -Os even in debug for size, minimal debug info
     else()
         set(BOOTLOADER_OPT_FLAGS -Os)
     endif()
@@ -257,13 +257,23 @@ if(BUILD_BOOTLOADER)
         "bootloader"
     )
 
-    # Override optimization for bootloader
+    # Override optimization for bootloader with aggressive size optimization
     target_compile_options(chis_flash_burner_bootloader PRIVATE
         ${BOOTLOADER_OPT_FLAGS}
+        -fno-unwind-tables
+        -fno-asynchronous-unwind-tables
+        -ffunction-sections
+        -fdata-sections
+        -flto
     )
 
     # Bootloader uses aggressive linker optimization
-    target_link_options(chis_flash_burner_bootloader PRIVATE -Wl,--strip-all)
+    target_link_options(chis_flash_burner_bootloader PRIVATE 
+        -Wl,--strip-all
+        -Wl,--gc-sections
+        -Wl,--strip-debug
+        -flto
+    )
 
     message(STATUS "Configuring bootloader target")
 endif()
