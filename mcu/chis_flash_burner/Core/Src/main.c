@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include "cart_adapter.h"
 #include "uart.h"
+#include "error_handler.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -67,6 +68,13 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+  /* IAP环境下必须首先使能全局中断 - bootloader跳转时可能禁用了中断 */
+  __enable_irq();
+
+  /* 确保SysTick被正确复位 - 在IAP环境下特别重要 */
+  SysTick->CTRL = 0;      /* 禁用SysTick */
+  SysTick->LOAD = 0;      /* 清除重载值 */
+  SysTick->VAL = 0;       /* 清除当前值 */
 
   /* USER CODE END 1 */
 
@@ -88,8 +96,24 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+
+  /* 强制使能USB时钟 - 在USB初始化前确保时钟已开启 */
+  __HAL_RCC_USB_CLK_ENABLE();
+
+  /* USB初始化 - 在IAP环境下可能失败，不影响主要功能 */
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
+
+  /* 强制重新使能USB时钟 - IAP环境下可能被bootloader影响 */
+  __HAL_RCC_USB_CLK_ENABLE();
+
+  /* 测试LED - 立即翻转几次确认工作状态 */
+  for(int i = 0; i < 5; i++) {
+    HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);  // LED on (假设低电平有效)
+    HAL_Delay(200);
+    HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1);  // LED off
+    HAL_Delay(200);
+  }
 
   /* USER CODE END 2 */
 
@@ -132,7 +156,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL12;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
-    Error_Handler();
+    Error_Handler_With_Code(ERROR_CODE_OSC_CONFIG);
   }
 
   /** Initializes the CPU, AHB and APB buses clocks
@@ -146,13 +170,13 @@ void SystemClock_Config(void)
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
   {
-    Error_Handler();
+    Error_Handler_With_Code(ERROR_CODE_CLOCK_CONFIG);
   }
   PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
   PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLL;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
-    Error_Handler();
+    Error_Handler_With_Code(ERROR_CODE_USB_CLOCK);
   }
 }
 
@@ -219,21 +243,6 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
-
-/**
-  * @brief  This function is executed in case of error occurrence.
-  * @retval None
-  */
-void Error_Handler(void)
-{
-  /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
-  /* USER CODE END Error_Handler_Debug */
-}
 
 #ifdef  USE_FULL_ASSERT
 /**

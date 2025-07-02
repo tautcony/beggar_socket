@@ -27,7 +27,7 @@
 #include "usbd_cdc_if.h"
 
 /* USER CODE BEGIN Includes */
-
+#include "error_handler.h"
 /* USER CODE END Includes */
 
 /* USER CODE BEGIN PV */
@@ -65,24 +65,27 @@ void MX_USB_DEVICE_Init(void)
 {
   /* USER CODE BEGIN USB_DEVICE_Init_PreTreatment */
 
+  /* 使能USB时钟 */
+  __HAL_RCC_USB_CLK_ENABLE();
+
   /* USER CODE END USB_DEVICE_Init_PreTreatment */
 
   /* Init Device Library, add supported class and start the library. */
   if (USBD_Init(&hUsbDeviceFS, &FS_Desc, DEVICE_FS) != USBD_OK)
   {
-    Error_Handler();
+    Error_Handler_With_Code(4); // ERROR_CODE_USB_INIT
   }
   if (USBD_RegisterClass(&hUsbDeviceFS, &USBD_CDC) != USBD_OK)
   {
-    Error_Handler();
+    Error_Handler_With_Code(5); // ERROR_CODE_USB_REGISTER
   }
   if (USBD_CDC_RegisterInterface(&hUsbDeviceFS, &USBD_Interface_fops_FS) != USBD_OK)
   {
-    Error_Handler();
+    Error_Handler_With_Code(6); // ERROR_CODE_USB_CDC_REG
   }
   if (USBD_Start(&hUsbDeviceFS) != USBD_OK)
   {
-    Error_Handler();
+    Error_Handler_With_Code(7); // ERROR_CODE_USB_START
   }
 
   /* USER CODE BEGIN USB_DEVICE_Init_PostTreatment */

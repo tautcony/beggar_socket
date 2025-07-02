@@ -26,7 +26,7 @@
 #include "usbd_cdc.h"
 
 /* USER CODE BEGIN Includes */
-
+#include "error_handler.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -177,7 +177,7 @@ void HAL_PCD_ResetCallback(PCD_HandleTypeDef *hpcd)
 
   if ( hpcd->Init.speed != PCD_SPEED_FULL)
   {
-    Error_Handler();
+    Error_Handler_With_Code(8); // ERROR_CODE_USB_RESET
   }
     /* Set Speed. */
   USBD_LL_SetSpeed((USBD_HandleTypeDef*)hpcd->pData, speed);
@@ -310,7 +310,7 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
   hpcd_USB_FS.Init.battery_charging_enable = DISABLE;
   if (HAL_PCD_Init(&hpcd_USB_FS) != HAL_OK)
   {
-    Error_Handler( );
+    Error_Handler_With_Code(9); // ERROR_CODE_USB_PCD_INIT
   }
 
 #if (USE_HAL_PCD_REGISTER_CALLBACKS == 1U)

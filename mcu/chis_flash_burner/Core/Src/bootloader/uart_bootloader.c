@@ -217,6 +217,22 @@ void uart_clearRecvBuf()
     busy = 0;
 }
 
+// USB状态检查和恢复函数
+static void uart_checkUsbState(void)
+{
+    extern USBD_HandleTypeDef hUsbDeviceFS;
+    USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)hUsbDeviceFS.pClassData;
+
+    // 检查USB设备状态
+    if (hUsbDeviceFS.dev_state != USBD_STATE_CONFIGURED || hcdc == NULL) {
+        // USB未正确配置，尝试重新初始化
+        USBD_Stop(&hUsbDeviceFS);
+        HAL_Delay(100);
+        USBD_Start(&hUsbDeviceFS);
+        HAL_Delay(500);
+    }
+}
+
 static const struct { iap_cmd_t cmd; void (*handler)(void); } cmd_handlers[] = {
     {IAP_CMD_GET_VERSION, iapGetVersion},
     {IAP_CMD_ERASE_FLASH, iapEraseFlash},
@@ -229,6 +245,16 @@ static const struct { iap_cmd_t cmd; void (*handler)(void); } cmd_handlers[] = {
 
 void uart_cmdHandler()
 {
+    /*
+    // 定期检查USB状态
+    static uint32_t lastUsbCheck = 0;
+    uint32_t currentTick = HAL_GetTick();
+    if (currentTick - lastUsbCheck > 1000) { // 每秒检查一次
+        uart_checkUsbState();
+        lastUsbCheck = currentTick;
+    }
+    */
+
     // 判断命令结束
     if (cmdBuf_p > 2)
     {

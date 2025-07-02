@@ -67,6 +67,7 @@ set(HAL_SOURCES
     Core/Src/system_stm32f1xx.c
     Core/Src/version.c
     Core/Src/modbus_crc.c
+    Core/Src/error_handler.c
     Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_cortex.c
     Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_exti.c
     Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_flash_ex.c

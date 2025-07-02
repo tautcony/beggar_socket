@@ -11,6 +11,7 @@
 #include "version.h"
 #include "iap.h"
 #include "modbus_crc.h"
+#include "error_handler.h"
 
 #define BATCH_SIZE_RW 512
 #define BATCH_SIZE_RESPON 512
@@ -817,6 +818,20 @@ void iapReboot()
 
     // 等待数据发送完成
     HAL_Delay(100);
+
+    /* 在重启前正确关闭USB设备 */
+    extern USBD_HandleTypeDef hUsbDeviceFS;
+    USBD_Stop(&hUsbDeviceFS);
+    USBD_DeInit(&hUsbDeviceFS);
+
+    /* 禁用USB时钟 */
+    __HAL_RCC_USB_CLK_DISABLE();
+
+    /* 重置USB相关GPIO */
+    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_11 | GPIO_PIN_12);
+
+    /* 等待USB完全关闭 */
+    HAL_Delay(200);
 
     // 设置升级标志并重启到bootloader模式
     iap_set_upgrade_flag();

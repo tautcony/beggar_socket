@@ -44,14 +44,14 @@ const char* version_get_string(version_type_t type)
 {
     if (type == VERSION_TYPE_BOOTLOADER) {
         snprintf(version_string, sizeof(version_string), 
-                 "ChisFlashBurner Bootloader v%d.%d.%d (Build %d)",
+                 "ChisFlashBurner Bootloader v%d.%d.%d.%d",
                  BOOTLOADER_VERSION_MAJOR,
                  BOOTLOADER_VERSION_MINOR, 
                  BOOTLOADER_VERSION_PATCH,
                  BOOTLOADER_BUILD_NUMBER);
     } else {
         snprintf(version_string, sizeof(version_string), 
-                 "ChisFlashBurner App v%d.%d.%d (Build %d)",
+                 "ChisFlashBurner App v%d.%d.%d.%d",
                  APPLICATION_VERSION_MAJOR,
                  APPLICATION_VERSION_MINOR, 
                  APPLICATION_VERSION_PATCH,
@@ -68,12 +68,13 @@ const char* version_get_string(version_type_t type)
 void version_get_current_info(version_info_t* version_info)
 {
     // 通过检查程序计数器地址来判断当前运行环境
-    // Bootloader通常在低地址空间，Application在较高地址空间
-    uint32_t pc = (uint32_t)__builtin_return_address(0);
-    
-    // 假设bootloader在0x08000000-0x08007FFF，app在0x08008000及以上
-    // 这个地址需要根据你的实际Flash布局调整
-    if (pc < 0x08008000) {
+    // 使用当前函数地址而不是返回地址，更准确地判断运行环境
+    uint32_t current_addr = (uint32_t)version_get_current_info;
+
+    // 根据实际Flash布局判断：
+    // Bootloader: 0x08000000-0x08005FFF (24KB)
+    // App:        0x08006000-0x0800FFFF (40KB)
+    if (current_addr < 0x08006000) {
         // 在 bootloader 中运行，返回 bootloader 版本
         version_get_info(version_info, VERSION_TYPE_BOOTLOADER);
     } else {
@@ -88,10 +89,13 @@ void version_get_current_info(version_info_t* version_info)
  */
 const char* version_get_current_string(void)
 {
-    // 通过检查程序计数器地址来判断当前运行环境
-    uint32_t pc = (uint32_t)__builtin_return_address(0);
-    
-    if (pc < 0x08008000) {
+    // 通过检查当前函数地址来判断运行环境
+    uint32_t current_addr = (uint32_t)version_get_current_string;
+
+    // 根据实际Flash布局判断：
+    // Bootloader: 0x08000000-0x08005FFF (24KB)
+    // App:        0x08006000-0x0800FFFF (40KB)
+    if (current_addr < 0x08006000) {
         // 在 bootloader 中运行，返回 bootloader 版本
         return version_get_string(VERSION_TYPE_BOOTLOADER);
     } else {

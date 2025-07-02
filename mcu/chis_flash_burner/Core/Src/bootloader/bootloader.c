@@ -25,6 +25,7 @@
 #include "uart.h"
 #include "version.h"
 #include "iap.h"
+#include "error_handler.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -78,6 +79,11 @@ int main(void)
   /* 清除升级标志，继续运行 BootLoader */
   iap_clear_upgrade_flag();
 
+  /* 确保SysTick被正确复位 - 在IAP环境下特别重要 */
+  SysTick->CTRL = 0;      /* 禁用SysTick */
+  SysTick->LOAD = 0;      /* 清除重载值 */
+  SysTick->VAL = 0;       /* 清除当前值 */
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -98,9 +104,32 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+
+  /* 确保USB完全重置后再初始化 - 处理从App重启的情况 */
+  /* 禁用USB时钟 */
+  __HAL_RCC_USB_CLK_DISABLE();
+  HAL_Delay(100);
+
+  /* 重置USB相关GPIO */
+  HAL_GPIO_DeInit(GPIOA, GPIO_PIN_11 | GPIO_PIN_12);
+  HAL_Delay(50);
+
+  /* 重新配置USB GPIO */
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  GPIO_InitStruct.Pin = GPIO_PIN_11 | GPIO_PIN_12;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /* 重新使能USB时钟 */
+  __HAL_RCC_USB_CLK_ENABLE();
+  HAL_Delay(100);
+
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 
+  __HAL_RCC_USB_CLK_ENABLE();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -194,21 +223,6 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
-
-/**
-  * @brief  This function is executed in case of error occurrence.
-  * @retval None
-  */
-void Error_Handler(void)
-{
-  /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
-  /* USER CODE END Error_Handler_Debug */
-}
 
 #ifdef  USE_FULL_ASSERT
 /**

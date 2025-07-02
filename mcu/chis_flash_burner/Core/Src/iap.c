@@ -1,6 +1,7 @@
 #include "iap.h"
 // #include "main.h"
 #include <string.h>
+#include "error_handler.h"
 
 /* 全局变量 */
 static iap_upgrade_info_t upgrade_info;
@@ -210,19 +211,85 @@ void iap_jump_to_app(void)
     uint32_t app_stack_addr = *((uint32_t*)IAP_APPLICATION_BASE_ADDR);
     uint32_t app_reset_addr = *((uint32_t*)(IAP_APPLICATION_BASE_ADDR + 4));
 
-    /* 检查栈指针是否合法 */
-    if ((app_stack_addr & 0x2FFE0000) == 0x20000000) {
-        /* 关闭中断 */
-        __disable_irq();
+    /* 检查栈指针是否合法 (RAM区域: 0x20000000 - 0x20004FFF, 实际有效范围) */
+    if ((app_stack_addr & 0x2FFE0000) == 0x20000000 && 
+        app_stack_addr >= 0x20000000 && 
+        app_stack_addr <= 0x20004FFF) {
 
-        /* 复位所有外设 */
-        HAL_DeInit();
+        /* 检查复位向量地址是否合法 (Application区域: 0x08006000 - 0x0800FFFF) */
+        if (app_reset_addr >= IAP_APPLICATION_BASE_ADDR && 
+            app_reset_addr < (IAP_APPLICATION_BASE_ADDR + IAP_APPLICATION_SIZE)) {
 
-        /* 设置栈指针 */
-        __set_MSP(app_stack_addr);
+            /* 定义跳转函数类型 */
+            typedef void (*app_func_t)(void);
+            app_func_t app_func;
 
-        /* 跳转到应用程序 */
-        ((void(*)(void))app_reset_addr)();
+            /* 全局关闭中断 */
+            __disable_irq();
+
+            /* 关闭SysTick */
+            SysTick->CTRL = 0;
+            SysTick->LOAD = 0;
+            SysTick->VAL = 0;
+
+            /* 禁用所有中断 */
+            for (int i = 0; i < 8; i++) {
+                NVIC->ICER[i] = 0xFFFFFFFF;  /* 禁用中断 */
+                NVIC->ICPR[i] = 0xFFFFFFFF;  /* 清除pending中断 */
+            }
+
+            /* 复位系统控制寄存器 */
+            SCB->ICSR |= SCB_ICSR_PENDSTCLR_Msk;  /* 清除SysTick pending */
+
+            /* 复位所有外设（在禁用中断后） */
+            HAL_DeInit();
+
+            /* 强制重置关键外设 */
+            /* 重置USB外设 */
+            __HAL_RCC_USB_FORCE_RESET();
+            __HAL_RCC_USB_RELEASE_RESET();
+
+            /* 重置所有GPIO */
+            __HAL_RCC_GPIOA_FORCE_RESET();
+            __HAL_RCC_GPIOA_RELEASE_RESET();
+            __HAL_RCC_GPIOB_FORCE_RESET();
+            __HAL_RCC_GPIOB_RELEASE_RESET();
+            __HAL_RCC_GPIOC_FORCE_RESET();
+            __HAL_RCC_GPIOC_RELEASE_RESET();
+
+            /* 重要：等待所有操作完成 */
+            __DSB();  /* 数据同步屏障 */
+            __ISB();  /* 指令同步屏障 */
+
+            /* 设置向量表偏移到应用程序 */
+            SCB->VTOR = IAP_APPLICATION_BASE_ADDR;
+
+            /* 确保向量表设置生效 */
+            __DSB();
+            __ISB();
+
+            /* 设置主栈指针 */
+            __set_MSP(app_stack_addr);
+
+            /* 确保栈指针设置生效 */
+            __DSB();
+            __ISB();
+
+            /* 准备跳转函数 */
+            app_func = (app_func_t)app_reset_addr;
+
+            /* 跳转到应用程序 - 使用汇编确保正确跳转 */
+            __asm volatile (
+                "mov sp, %0\n\t"      /* 再次设置栈指针 */
+                "bx %1\n\t"           /* 跳转到应用程序 */
+                :
+                : "r" (app_stack_addr), "r" (app_reset_addr)
+                : "memory"
+            );
+
+            /* 如果跳转失败，这里会执行到（不应该发生） */
+            while(1);
+        }
     }
 }
 
@@ -233,9 +300,27 @@ void iap_jump_to_app(void)
 uint8_t iap_check_app_valid(void)
 {
     uint32_t app_stack_addr = *((uint32_t*)IAP_APPLICATION_BASE_ADDR);
+    uint32_t app_reset_addr = *((uint32_t*)(IAP_APPLICATION_BASE_ADDR + 4));
 
-    /* 检查栈指针是否指向 RAM 区域 */
-    return ((app_stack_addr & 0x2FFE0000) == 0x20000000) ? 1 : 0;
+    /* 检查栈指针是否指向 RAM 区域 (0x20000000 - 0x20004FFF, 实际有效范围) */
+    if ((app_stack_addr & 0x2FFE0000) != 0x20000000 || 
+        app_stack_addr < 0x20000000 || 
+        app_stack_addr > 0x20004FFF) {
+        return 0;
+    }
+
+    /* 检查复位向量地址是否在Application区域 */
+    if (app_reset_addr < IAP_APPLICATION_BASE_ADDR || 
+        app_reset_addr >= (IAP_APPLICATION_BASE_ADDR + IAP_APPLICATION_SIZE)) {
+        return 0;
+    }
+
+    /* 检查复位向量是否为Thumb指令 (最低位必须为1) */
+    if ((app_reset_addr & 0x01) == 0) {
+        return 0;
+    }
+
+    return 1;
 }
 
 /**

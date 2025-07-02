@@ -50,7 +50,8 @@ extern "C" {
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
-void Error_Handler(void);
+// void Error_Handler(void);
+// void Error_Handler_With_Code(uint8_t error_code);
 
 /* USER CODE BEGIN EFP */
 
