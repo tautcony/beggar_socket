@@ -1,7 +1,8 @@
-import { GBACommand, GBCCommand } from '@/protocol/beggar_socket/command';
+import { BootloaderSubCommand, GBACommand, GBCCommand, IAPCommand, IAPSubCommand } from '@/protocol/beggar_socket/command';
 import { createCommandPayload } from '@/protocol/beggar_socket/payload-builder';
 import { getPackage, getResult, sendPackage } from '@/protocol/beggar_socket/protocol-utils';
 import { DeviceInfo } from '@/types/device-info';
+import { DeviceVersionInfo } from '@/types/device-version';
 import { formatHex } from '@/utils/formatter-utils';
 
 // --- GBA Commands ---
@@ -261,4 +262,178 @@ export async function gbc_rom_erase_sector(device: DeviceInfo, sectorAddress: nu
   } catch (error) {
     throw new Error(`GBC ROM single sector erase failed (Address: ${formatHex(sectorAddress, 4)})`);
   }
+}
+
+// --- IAP Commands ---
+
+/**
+ * IAP: Get Version Info (0xff 0x00)
+ */
+export async function iap_get_version_info(device: DeviceInfo): Promise<DeviceVersionInfo> {
+  const { writer, reader } = device;
+
+  const payload = createCommandPayload(IAPCommand.IAP_CMD)
+    .addByte(IAPSubCommand.GET_VERSION_INFO)
+    .build(); // 使用默认的CRC
+
+  await sendPackage(writer, payload);
+
+  // 返回格式: CRC(2) + 主版本(1) + 次版本(1) + 补丁号(1) + 构建号(2) + 时间戳(4) + 版本类型(1) + 字符串长度(1) + 版本字符串(n)
+  const header = await getPackage(reader, 13); // 最少13字节
+  if (!header.data || header.data.byteLength < 13) {
+    throw new Error('Invalid version info response');
+  }
+
+  const dataView = new DataView(header.data.buffer, header.data.byteOffset + 2); // 跳过CRC
+  const majorVersion = dataView.getUint8(0);
+  const minorVersion = dataView.getUint8(1);
+  const patchVersion = dataView.getUint8(2);
+  const buildNumber = dataView.getUint16(3, true); // little-endian
+  const timestamp = dataView.getUint32(5, true); // little-endian
+  const versionType = dataView.getUint8(9);
+  const stringLength = dataView.getUint8(10);
+
+  let versionString = '';
+  if (stringLength > 0) {
+    // 如果有版本字符串，需要读取额外的字节
+    if (header.data.byteLength < 13 + stringLength) {
+      const remaining = await getPackage(reader, stringLength);
+      if (remaining.data) {
+        versionString = new TextDecoder().decode(remaining.data);
+      }
+    } else {
+      versionString = new TextDecoder().decode(header.data.slice(13, 13 + stringLength));
+    }
+  }
+
+  return {
+    majorVersion,
+    minorVersion,
+    patchVersion,
+    buildNumber,
+    timestamp,
+    versionType,
+    versionString,
+  };
+}
+
+/**
+ * IAP: Restart to Bootloader (0xff 0xff)
+ */
+export async function iap_restart_to_bootloader(device: DeviceInfo): Promise<boolean> {
+  const { writer, reader } = device;
+
+  const payload = createCommandPayload(IAPCommand.IAP_CMD)
+    .addByte(IAPSubCommand.RESTART_TO_BOOTLOADER)
+    .build(); // 使用默认的CRC
+
+  await sendPackage(writer, payload);
+  const ack = await getResult(reader);
+  return ack;
+}
+
+/**
+ * Bootloader: Get Version Info (0xff 0x00)
+ */
+export async function bootloader_get_version_info(device: DeviceInfo): Promise<DeviceVersionInfo> {
+  // Bootloader模式下的版本信息获取和应用程序模式相同
+  return await iap_get_version_info(device);
+}
+
+/**
+ * Bootloader: Erase Flash (0xff 0x01)
+ */
+export async function bootloader_erase_flash(device: DeviceInfo, startAddress: number, eraseSize: number): Promise<boolean> {
+  const { writer, reader } = device;
+
+  const payload = createCommandPayload(IAPCommand.IAP_CMD)
+    .addByte(BootloaderSubCommand.ERASE_FLASH)
+    .addAddress(startAddress)
+    .addLittleEndian(eraseSize, 4)
+    .build(); // 使用默认的CRC
+
+  await sendPackage(writer, payload);
+  const ack = await getResult(reader);
+  return ack;
+}
+
+/**
+ * Bootloader: Program Flash (0xff 0x02)
+ */
+export async function bootloader_program_flash(device: DeviceInfo, startAddress: number, data: Uint8Array): Promise<boolean> {
+  const { writer, reader } = device;
+
+  const payload = createCommandPayload(IAPCommand.IAP_CMD)
+    .addByte(BootloaderSubCommand.PROGRAM_FLASH)
+    .addAddress(startAddress)
+    .addBytes(data)
+    .build(); // 使用默认的CRC
+
+  await sendPackage(writer, payload);
+  const ack = await getResult(reader);
+  return ack;
+}
+
+/**
+ * Bootloader: Start Upgrade (0xff 0x10)
+ */
+export async function bootloader_start_upgrade(device: DeviceInfo, appSize: number, appCrc: number): Promise<boolean> {
+  const { writer, reader } = device;
+
+  const payload = createCommandPayload(IAPCommand.IAP_CMD)
+    .addByte(BootloaderSubCommand.START_UPGRADE)
+    .addLittleEndian(appSize, 4)
+    .addLittleEndian(appCrc, 4)
+    .build(); // 使用默认的CRC
+
+  await sendPackage(writer, payload);
+  const ack = await getResult(reader);
+  return ack;
+}
+
+/**
+ * Bootloader: Upgrade Data (0xff 0x11)
+ */
+export async function bootloader_upgrade_data(device: DeviceInfo, packetNum: number, data: Uint8Array): Promise<boolean> {
+  const { writer, reader } = device;
+
+  const payload = createCommandPayload(IAPCommand.IAP_CMD)
+    .addByte(BootloaderSubCommand.UPGRADE_DATA)
+    .addLittleEndian(packetNum, 4)
+    .addBytes(data)
+    .build(); // 使用默认的CRC
+
+  await sendPackage(writer, payload);
+  const ack = await getResult(reader);
+  return ack;
+}
+
+/**
+ * Bootloader: Finish Upgrade (0xff 0x12)
+ */
+export async function bootloader_finish_upgrade(device: DeviceInfo): Promise<boolean> {
+  const { writer, reader } = device;
+
+  const payload = createCommandPayload(IAPCommand.IAP_CMD)
+    .addByte(BootloaderSubCommand.FINISH_UPGRADE)
+    .build(); // 使用默认的CRC
+
+  await sendPackage(writer, payload);
+  const ack = await getResult(reader);
+  return ack;
+}
+
+/**
+ * Bootloader: Jump to Application (0xff 0xff)
+ */
+export async function bootloader_jump_to_app(device: DeviceInfo): Promise<boolean> {
+  const { writer, reader } = device;
+
+  const payload = createCommandPayload(IAPCommand.IAP_CMD)
+    .addByte(BootloaderSubCommand.JUMP_TO_APP)
+    .build(); // 使用默认的CRC
+
+  await sendPackage(writer, payload);
+  const ack = await getResult(reader);
+  return ack;
 }

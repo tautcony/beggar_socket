@@ -29,6 +29,8 @@
       "romExtractorDesc": "从合卡中提取单个ROM文件",
       "romAnalyzer": "ROM分析",
       "romAnalyzerDesc": "分析ROM文件的结构和信息",
+      "deviceInfo": "设备信息",
+      "deviceInfoDesc": "查看设备版本信息并升级固件",
       "settings": "设置",
       "settingsDesc": "配置应用程序选项",
       "about": "关于",

@@ -74,23 +74,24 @@ export class PayloadBuilder {
    * @param withCrc - 是否添加 CRC16 校验
    * @returns 完整的数据包
    */
-  build(withCrc = false): Uint8Array {
-    const payloadSize = this.offset; // 实际payload大小
-    const totalSize = 2 + payloadSize;
+  build(withCrc = true): Uint8Array {
+    const payloadSize = this.offset - 2; // 实际payload大小（不包含预留的size字段）
+    const totalSize = withCrc ? payloadSize + 4 : payloadSize + 2; // 包括size(2字节)和可选的crc(2字节)
 
-    // 写入大小字段（小端序）到预留的前2字节
+    // 写入包大小字段（小端序）到预留的前2字节 - 包大小包括整个包
     this.buffer[0] = totalSize & 0xFF;
     this.buffer[1] = (totalSize >> 8) & 0xFF;
 
     // 如果需要CRC，计算并写入
     if (withCrc) {
-      const crc = modbusCRC16_lut(this.buffer.subarray(0, this.offset));
+      // 计算CRC时不包括size字段，只计算payload部分
+      const crc = modbusCRC16_lut(this.buffer.subarray(2, this.offset));
       this.buffer[this.offset] = crc & 0xFF;
       this.buffer[this.offset + 1] = (crc >> 8) & 0xFF;
       return this.buffer.subarray(0, this.offset + 2);
     }
 
-    return this.buffer.subarray(0, this.offset + 2);
+    return this.buffer.subarray(0, this.offset);
   }
 
   /**

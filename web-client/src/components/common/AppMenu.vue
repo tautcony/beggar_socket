@@ -61,6 +61,17 @@
           </div>
         </button>
 
+        <button
+          class="menu-item"
+          @click="openDeviceInfo"
+        >
+          <IonIcon :icon="hardwareChipOutline" />
+          <div class="menu-item-content">
+            <span class="menu-item-title">{{ $t('ui.menu.deviceInfo') }}</span>
+            <span class="menu-item-desc">{{ $t('ui.menu.deviceInfoDesc') }}</span>
+          </div>
+        </button>
+
         <div class="menu-divider" />
 
         <button
@@ -102,6 +113,12 @@
       @close="closeSettings"
       @applied="onSettingsApplied"
     />
+
+    <!-- 设备信息弹窗 -->
+    <DeviceInfoModal
+      :is-visible="isDeviceInfoVisible"
+      @close="closeDeviceInfo"
+    />
   </div>
 </template>
 
@@ -111,6 +128,7 @@ import {
   analyticsOutline,
   archiveOutline,
   constructOutline,
+  hardwareChipOutline,
   informationCircleOutline,
   menuOutline,
   settingsOutline,
@@ -118,6 +136,7 @@ import {
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import DeviceInfoModal from '@/components/common/DeviceInfoModal.vue';
 import RomAssemblyModal from '@/components/common/RomAssemblyModal.vue';
 import AdvancedSettingsPanel from '@/components/settings/AdvancedSettingsPanel.vue';
 import { useToast } from '@/composables/useToast';
@@ -139,6 +158,7 @@ const emit = defineEmits<{
 const isMenuOpen = ref(false);
 const isRomAssemblyVisible = ref(false);
 const isSettingsVisible = ref(false);
+const isDeviceInfoVisible = ref(false);
 
 function toggleMenu() {
   isMenuOpen.value = !isMenuOpen.value;
@@ -183,6 +203,15 @@ function closeSettings() {
 
 function onSettingsApplied() {
   showToast(t('ui.settings.messages.applied'), 'success');
+}
+
+function openDeviceInfo() {
+  closeMenu();
+  isDeviceInfoVisible.value = true;
+}
+
+function closeDeviceInfo() {
+  isDeviceInfoVisible.value = false;
 }
 
 function openAbout() {
