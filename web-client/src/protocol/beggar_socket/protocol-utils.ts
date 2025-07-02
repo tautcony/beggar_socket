@@ -71,16 +71,9 @@ export async function getResult(reader: ReadableStreamBYOBReader | null, timeout
     throw new Error(INIT_ERROR_MESSAGE);
   }
   const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
-  
-  // MCU响应格式: CRC16(2字节) + payload(1字节状态)
-  const result = await getPackage(reader, 3, timeout);
-  if (!result.data || result.data.byteLength < 3) {
-    return false;
-  }
-  
-  // 跳过前2字节的CRC，检查第3字节的状态
-  const status = result.data[2];
-  return status === 0xaa;
+
+  const result = await getPackage(reader, 1, timeout);
+  return result.data?.byteLength > 0 && result.data[0] === 0xaa;
 }
 
 export function getFlashId(id: number[]) : string | null {

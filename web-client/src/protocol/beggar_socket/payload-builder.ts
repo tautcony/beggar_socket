@@ -74,9 +74,9 @@ export class PayloadBuilder {
    * @param withCrc - 是否添加 CRC16 校验
    * @returns 完整的数据包
    */
-  build(withCrc = true): Uint8Array {
-    const payloadSize = this.offset - 2; // 实际payload大小（不包含预留的size字段）
-    const totalSize = withCrc ? payloadSize + 4 : payloadSize + 2; // 包括size(2字节)和可选的crc(2字节)
+  build(withCrc = false): Uint8Array {
+    const payloadSize = this.offset; // 实际payload大小
+    const totalSize = 2 + payloadSize;
 
     // 写入包大小字段（小端序）到预留的前2字节 - 包大小包括整个包
     this.buffer[0] = totalSize & 0xFF;
@@ -91,7 +91,7 @@ export class PayloadBuilder {
       return this.buffer.subarray(0, this.offset + 2);
     }
 
-    return this.buffer.subarray(0, this.offset);
+    return this.buffer.subarray(0, this.offset + 2);
   }
 
   /**
