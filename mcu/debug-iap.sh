@@ -1,7 +1,8 @@
 #!/bin/bash
 
 ##########################################################################################################################
-# Debug Helper Script for STM32F103C8T6 IAP Issue Diagnosis
+# STM32F103C8T6 综合调试工具
+# 整合了IAP、USB、PC定位等多种调试功能
 ##########################################################################################################################
 
 set -e
@@ -30,9 +31,9 @@ print_info() {
 }
 
 print_header() {
-    echo -e "${BLUE}=================================${NC}"
-    echo -e "${BLUE}STM32F103C8T6 IAP Debug Helper${NC}"
-    echo -e "${BLUE}=================================${NC}"
+    echo -e "${BLUE}===========================================${NC}"
+    echo -e "${BLUE}STM32F103C8T6 综合调试工具${NC}"
+    echo -e "${BLUE}===========================================${NC}"
     echo
 }
 
@@ -900,12 +901,789 @@ analyze_pc_location() {
     fi
 }
 
-# Quick fault check - combines device state and PC analysis
+# 一键PC定位和源码查看功能 - 整合debug-pc.sh功能
+quick_pc_analysis() {
+    print_info "一键PC定位和源码分析..."
+
+    if ! command -v openocd &> /dev/null; then
+        print_error "OpenOCD is not installed"
+        return 1
+    fi
+
+    if ! command -v arm-none-eabi-objdump &> /dev/null; then
+        print_error "arm-none-eabi-objdump is not installed"
+        print_info "Install with: brew install --cask gcc-arm-embedded"
+        return 1
+    fi
+
+    # Start OpenOCD and read PC
+    print_info "启动OpenOCD并读取PC值..."
+    openocd -f interface/stlink.cfg -f target/stm32f1x.cfg > /tmp/pc_debug.log 2>&1 &
+    local openocd_pid=$!
+    sleep 3
+
+    if ! kill -0 $openocd_pid 2>/dev/null; then
+        print_error "OpenOCD启动失败"
+        cat /tmp/pc_debug.log
+        return 1
+    fi
+
+    # Read PC value
+    local pc_output
+    pc_output=$({
+        echo "halt"
+        sleep 0.5
+        echo "reg pc"
+        sleep 0.5
+        echo "reg sp"
+        sleep 0.5
+        echo "reg lr"
+        sleep 0.5
+        echo "mdw 0xE000ED08 1"  # VTOR
+        sleep 0.5
+        echo "resume"
+        sleep 0.5
+        echo "exit"
+    } | telnet localhost 4444 2>/dev/null || true)
+
+    # Clean up
+    kill $openocd_pid 2>/dev/null || true
+    wait $openocd_pid 2>/dev/null || true
+
+    # Extract PC value
+    local pc_value=$(echo "$pc_output" | grep -E "pc.*:" | sed 's/.*pc.*: \(0x[0-9a-fA-F]*\).*/\1/')
+    local sp_value=$(echo "$pc_output" | grep -E "(msp|sp).*:" | sed 's/.*: \(0x[0-9a-fA-F]*\).*/\1/')
+    local lr_value=$(echo "$pc_output" | grep -E "lr.*:" | sed 's/.*lr.*: \(0x[0-9a-fA-F]*\).*/\1/')
+    local vtor_value=$(echo "$pc_output" | grep "0xe000ed08:" | sed 's/.*0xe000ed08: \([0-9a-fA-F]*\).*/0x\1/')
+
+    if [[ -z "$pc_value" ]]; then
+        print_error "无法读取PC值"
+        print_warning "OpenOCD输出:"
+        echo "$pc_output"
+        return 1
+    fi
+
+    print_success "CPU状态读取成功:"
+    echo "==================="
+    echo "PC (程序计数器): $pc_value"
+    echo "SP (栈指针):     $sp_value"
+    echo "LR (链接寄存器): $lr_value"
+    echo "VTOR (中断向量): $vtor_value"
+    echo
+
+    # Determine which region and ELF file to use
+    local elf_file=""
+    local region_name=""
+    local region_description=""
+
+    if [[ "$pc_value" =~ ^0x0800[0-5] ]]; then
+        elf_file="build/bootloader_Debug/bootloader/chis_flash_burner_bootloader.elf"
+        if [[ ! -f "$elf_file" ]]; then
+            elf_file="build/bootloader_Release/bootloader/chis_flash_burner_bootloader.elf"
+        fi
+        if [[ ! -f "$elf_file" ]]; then
+            elf_file="build/bootloader/bootloader/chis_flash_burner_bootloader.elf"
+        fi
+        region_name="bootloader"
+        region_description="引导程序区域 (0x08000000-0x08005FFF)"
+        print_info "设备正在运行 $region_description"
+    elif [[ "$pc_value" =~ ^0x0800[6-9A-Fa-f] ]]; then
+        elf_file="build/app_Debug/app/chis_flash_burner_app.elf"
+        if [[ ! -f "$elf_file" ]]; then
+            elf_file="build/app_Release/app/chis_flash_burner_app.elf"
+        fi
+        if [[ ! -f "$elf_file" ]]; then
+            elf_file="build/app/app/chis_flash_burner_app.elf"
+        fi
+        region_name="application"
+        region_description="应用程序区域 (0x08006000-0x0800FFFF)"
+        print_info "设备正在运行 $region_description"
+    elif [[ "$pc_value" =~ ^0x2000 ]]; then
+        print_warning "PC在RAM区域 - 可能正在运行RAM代码或已崩溃"
+        region_name="ram"
+        region_description="RAM区域 (0x20000000-0x20004FFF)"
+        # Try app first, then bootloader
+        elf_file="build/app_Debug/app/chis_flash_burner_app.elf"
+        if [[ ! -f "$elf_file" ]]; then
+            elf_file="build/app_Release/app/chis_flash_burner_app.elf"
+        fi
+        if [[ ! -f "$elf_file" ]]; then
+            elf_file="build/bootloader_Debug/bootloader/chis_flash_burner_bootloader.elf"
+        fi
+    else
+        print_error "PC在意外区域: $pc_value"
+        region_name="unknown"
+        region_description="未知区域"
+        # Try to find any available ELF file
+        for possible_elf in "build/app_Debug/app/chis_flash_burner_app.elf" \
+                           "build/app_Release/app/chis_flash_burner_app.elf" \
+                           "build/bootloader_Debug/bootloader/chis_flash_burner_bootloader.elf" \
+                           "build/bootloader_Release/bootloader/chis_flash_burner_bootloader.elf" \
+                           "build/app/app/chis_flash_burner_app.elf" \
+                           "build/bootloader/bootloader/chis_flash_burner_bootloader.elf"; do
+            if [[ -f "$possible_elf" ]]; then
+                elf_file="$possible_elf"
+                break
+            fi
+        done
+    fi
+
+    if [[ -z "$elf_file" || ! -f "$elf_file" ]]; then
+        print_error "无法找到合适的ELF文件进行PC分析"
+        print_warning "期望的文件:"
+        echo "  引导程序: build/bootloader/bootloader/chis_flash_burner_bootloader.elf"
+        echo "  应用程序: build/app/app/chis_flash_burner_app.elf"
+        print_info "请先构建项目: ./cmake-build.sh build"
+        return 1
+    fi
+
+    print_success "使用的ELF文件: $elf_file ($region_name)"
+
+    # Use objdump to find the function and instruction at PC
+    print_info "使用objdump分析代码位置..."
+
+    # Convert PC to decimal for addr2line if available
+    local pc_decimal
+    pc_decimal=$(printf "%d" "$pc_value" 2>/dev/null || echo "")
+
+    # Method 1: Use addr2line if available
+    if command -v arm-none-eabi-addr2line &> /dev/null && [[ -n "$pc_decimal" ]]; then
+        print_info "使用addr2line查找源位置..."
+        local source_info
+        source_info=$(arm-none-eabi-addr2line -e "$elf_file" -f -C "$pc_value" 2>/dev/null || echo "")
+
+        if [[ -n "$source_info" && "$source_info" != "??:0" && "$source_info" != "??:?" ]]; then
+            print_success "找到源位置:"
+            echo "$source_info" | while IFS= read -r line; do
+                echo "  $line"
+            done
+        else
+            print_warning "addr2line无法解析源位置"
+        fi
+        echo
+    fi
+
+    # Method 2: Use objdump disassembly around PC
+    print_info "反汇编PC附近代码..."
+
+    # Calculate a range around PC (±64 bytes)
+    local pc_num
+    pc_num=$(printf "%d" "$pc_value" 2>/dev/null || echo "0")
+
+    if [[ "$pc_num" -gt 0 ]]; then
+        local start_addr
+        local end_addr
+        start_addr=$(printf "0x%x" $((pc_num - 32)))
+        end_addr=$(printf "0x%x" $((pc_num + 32)))
+
+        print_info "反汇编范围: $start_addr 到 $end_addr"
+
+        # Use objdump to show disassembly around PC
+        local disasm_output
+        disasm_output=$(arm-none-eabi-objdump -d -C "$elf_file" --start-address="$start_addr" --stop-address="$end_addr" 2>/dev/null || echo "")
+
+        if [[ -n "$disasm_output" ]]; then
+            print_success "PC附近代码反汇编:"
+            echo "$disasm_output" | while IFS= read -r line; do
+                # Highlight the current PC line
+                if echo "$line" | grep -q "$pc_value"; then
+                    echo -e "${RED}>>> $line ${NC}"
+                else
+                    echo "    $line"
+                fi
+            done
+        else
+            print_warning "无法反汇编PC附近代码"
+        fi
+    fi
+
+    echo
+
+    # Method 3: Find the function containing PC
+    print_info "查找包含PC的函数..."
+
+    # Use objdump with -t to get symbol table
+    local symbol_output
+    symbol_output=$(arm-none-eabi-objdump -t "$elf_file" 2>/dev/null | grep -E " F " | sort || echo "")
+
+    if [[ -n "$symbol_output" ]]; then
+        local current_function=""
+        local pc_num_hex
+        pc_num_hex=$(printf "%08x" "$pc_num" 2>/dev/null || echo "")
+
+        # Find function that contains this PC
+        while IFS= read -r line; do
+            local func_addr=$(echo "$line" | awk '{print $1}')
+            local func_name=$(echo "$line" | awk '{print $NF}')
+
+            if [[ -n "$func_addr" && -n "$func_name" ]]; then
+                local func_addr_num
+                func_addr_num=$(printf "%d" "0x$func_addr" 2>/dev/null || echo "0")
+
+                if [[ "$func_addr_num" -le "$pc_num" ]]; then
+                    current_function="$func_name (0x$func_addr)"
+                fi
+            fi
+        done <<< "$symbol_output"
+
+        if [[ -n "$current_function" ]]; then
+            print_success "可能的函数: $current_function"
+        else
+            print_warning "无法确定包含PC的函数"
+        fi
+    else
+        print_warning "无法读取ELF文件的符号表"
+    fi
+
+    echo
+
+    # Method 4: Show full disassembly of the function if we can find it
+    if [[ -n "$current_function" ]]; then
+        local func_name_only=$(echo "$current_function" | sed 's/ (.*//')
+        print_info "反汇编函数: $func_name_only"
+
+        local func_disasm
+        func_disasm=$(arm-none-eabi-objdump -d -C "$elf_file" 2>/dev/null | \
+                     awk "/^[0-9a-f]+ <$func_name_only[>:]/{flag=1} flag && /^$/{exit} flag" || echo "")
+
+        if [[ -n "$func_disasm" ]]; then
+            print_success "函数反汇编:"
+            echo "$func_disasm" | while IFS= read -r line; do
+                # Highlight the current PC line
+                if echo "$line" | grep -q "$pc_value"; then
+                    echo -e "${RED}>>> $line ${NC}"
+                else
+                    echo "    $line"
+                fi
+            done
+        else
+            print_warning "无法反汇编函数 $func_name_only"
+        fi
+    fi
+
+    # Summary
+    echo
+    print_info "PC分析总结:"
+    echo "  当前PC: $pc_value"
+    echo "  区域: $region_name"
+    echo "  ELF文件: $elf_file"
+    if [[ -n "$current_function" ]]; then
+        echo "  函数: $current_function"
+    fi
+
+    # Suggest next steps based on PC location
+    if [[ "$pc_value" =~ ^0x0800[0-5] ]]; then
+        print_info "设备正在运行引导程序代码"
+        echo "  - 如果设备刚上电或处于IAP模式，这是预期行为"
+        echo "  - 检查引导程序是否尝试跳转到应用程序"
+    elif [[ "$pc_value" =~ ^0x0800[6-9A-Fa-f] ]]; then
+        print_info "设备正在运行应用程序代码"
+        echo "  - 这表明引导程序->应用程序的过渡成功"
+        echo "  - 如果应用程序不工作，请检查初始化问题"
+    else
+        print_warning "设备PC在意外位置"
+        echo "  - 设备可能崩溃或处于故障处理程序中"
+        echo "  - 检查HardFault或其他异常"
+    fi
+}
+
+# Advanced device diagnostics - comprehensive hardware analysis
+diagnose_device() {
+    if ! command -v openocd &> /dev/null; then
+        print_error "OpenOCD is not installed or not in PATH"
+        return 1
+    fi
+
+    print_info "Starting advanced device diagnostics..."
+    print_warning "This will halt the device temporarily for register inspection"
+
+    # Start OpenOCD and perform detailed diagnostics
+    openocd -f interface/stlink.cfg -f target/stm32f1x.cfg > /tmp/device_diag.log 2>&1 &
+    local openocd_pid=$!
+    sleep 3
+
+    if ! kill -0 $openocd_pid 2>/dev/null; then
+        print_error "Failed to start OpenOCD"
+        cat /tmp/device_diag.log
+        return 1
+    fi
+
+    # Comprehensive device diagnostics
+    local diag_info
+    diag_info=$({
+        echo "halt"
+        sleep 0.5
+
+        # Core registers
+        echo "reg pc"
+        sleep 0.2
+        echo "reg sp"
+        sleep 0.2
+        echo "reg lr"
+        sleep 0.2
+
+        # System control registers
+        echo "mdw 0xE000ED08 1"  # VTOR
+        sleep 0.2
+        echo "mdw 0xE000ED0C 1"  # AIRCR
+        sleep 0.2
+        echo "mdw 0xE000ED24 1"  # SHCSR
+        sleep 0.2
+
+        # RCC registers (Clock configuration)
+        echo "mdw 0x40021000 1"  # RCC_CR
+        sleep 0.2
+        echo "mdw 0x40021004 1"  # RCC_CFGR
+        sleep 0.2
+        echo "mdw 0x40021018 1"  # RCC_APB2ENR
+        sleep 0.2
+        echo "mdw 0x4002101C 1"  # RCC_APB1ENR
+        sleep 0.2
+
+        # GPIO registers (for LED and USB detection)
+        echo "mdw 0x40010C00 4"  # GPIOC_CRL/CRH/IDR/ODR
+        sleep 0.2
+        echo "mdw 0x40010800 4"  # GPIOA_CRL/CRH/IDR/ODR
+        sleep 0.2
+
+        # USB registers
+        echo "mdw 0x40005C00 1"  # USB_CNTR
+        sleep 0.2
+        echo "mdw 0x40005C44 1"  # USB_DADDR
+        sleep 0.2
+        echo "mdw 0x40005C40 1"  # USB_ISTR
+        sleep 0.2
+
+        # Vector table content
+        echo "mdw 0x08006000 8"  # App vector table (first 8 vectors)
+        sleep 0.2
+
+        echo "resume"
+        sleep 0.5
+        echo "exit"
+    } | telnet localhost 4444 2>/dev/null || true)
+
+    # Clean up
+    kill $openocd_pid 2>/dev/null || true
+    wait $openocd_pid 2>/dev/null
+
+    if [[ -n "$diag_info" ]]; then
+        print_success "Device Diagnostic Report:"
+        echo "=========================="
+
+        # Parse and display core registers
+        local pc_val=$(echo "$diag_info" | grep "pc " | sed 's/.*pc.*: \(0x[0-9a-fA-F]*\).*/\1/')
+        local sp_val=$(echo "$diag_info" | grep -E "(msp|sp) " | sed 's/.*: \(0x[0-9a-fA-F]*\).*/\1/')
+        local lr_val=$(echo "$diag_info" | grep "lr " | sed 's/.*lr.*: \(0x[0-9a-fA-F]*\).*/\1/')
+        local vtor_val=$(echo "$diag_info" | grep "0xe000ed08:" | sed 's/.*0xe000ed08: \([0-9a-fA-F]*\).*/0x\1/')
+
+        echo "CORE REGISTERS:"
+        echo "---------------"
+        echo "PC (Program Counter): $pc_val"
+        echo "SP (Stack Pointer):   $sp_val"
+        echo "LR (Link Register):   $lr_val"
+        echo "VTOR (Vector Table):  $vtor_val"
+        echo
+
+        # Analyze clock configuration
+        local rcc_cr=$(echo "$diag_info" | grep "0x40021000:" | sed 's/.*0x40021000: \([0-9a-fA-F]*\).*/0x\1/')
+        local rcc_cfgr=$(echo "$diag_info" | grep "0x40021004:" | sed 's/.*0x40021004: \([0-9a-fA-F]*\).*/0x\1/')
+        local rcc_apb2enr=$(echo "$diag_info" | grep "0x40021018:" | sed 's/.*0x40021018: \([0-9a-fA-F]*\).*/0x\1/')
+        local rcc_apb1enr=$(echo "$diag_info" | grep "0x4002101c:" | sed 's/.*0x4002101c: \([0-9a-fA-F]*\).*/0x\1/')
+
+        echo "CLOCK CONFIGURATION:"
+        echo "--------------------"
+        echo "RCC_CR (Clock Control):     $rcc_cr"
+        echo "RCC_CFGR (Clock Config):    $rcc_cfgr"
+        echo "RCC_APB2ENR (APB2 Enable):  $rcc_apb2enr"
+        echo "RCC_APB1ENR (APB1 Enable):  $rcc_apb1enr"
+
+        # Analyze clock settings
+        if [[ -n "$rcc_cr" ]]; then
+            local cr_val=$((rcc_cr))
+            if ((cr_val & 0x02000000)); then
+                print_success "✓ PLL is ready"
+            else
+                print_warning "⚠ PLL is not ready"
+            fi
+
+            if ((cr_val & 0x01000000)); then
+                print_info "→ PLL is enabled"
+            else
+                print_warning "→ PLL is disabled"
+            fi
+
+            if ((cr_val & 0x00020000)); then
+                print_success "✓ HSE (External oscillator) is ready"
+            else
+                print_warning "⚠ HSE is not ready - may be using HSI internal oscillator"
+            fi
+        fi
+        echo
+
+        # Analyze GPIO configuration
+        local gpioc_crl=$(echo "$diag_info" | grep "0x40010c00:" | sed 's/.*0x40010c00: \([0-9a-fA-F]*\).*/0x\1/')
+        local gpioc_crh=$(echo "$diag_info" | grep "0x40010c04:" | sed 's/.*0x40010c04: \([0-9a-fA-F]*\).*/0x\1/')
+        local gpioc_odr=$(echo "$diag_info" | grep "0x40010c0c:" | sed 's/.*0x40010c0c: \([0-9a-fA-F]*\).*/0x\1/')
+
+        echo "GPIO CONFIGURATION:"
+        echo "-------------------"
+        echo "GPIOC_CRL (Control Low):   $gpioc_crl"
+        echo "GPIOC_CRH (Control High):  $gpioc_crh" 
+        echo "GPIOC_ODR (Output Data):   $gpioc_odr"
+
+        # Check LED configuration (typically PC13)
+        if [[ -n "$gpioc_crh" ]]; then
+            local crh_val=$((gpioc_crh))
+            local pc13_config=$(((crh_val >> 20) & 0xF))
+            echo "PC13 Configuration: 0x$(printf '%X' $pc13_config)"
+
+            if ((pc13_config == 0x1)) || ((pc13_config == 0x2)) || ((pc13_config == 0x3)); then
+                print_success "✓ PC13 configured as output (LED pin)"
+            elif ((pc13_config == 0x4)) || ((pc13_config == 0x8)); then
+                print_info "→ PC13 configured as input"
+            else
+                print_warning "⚠ PC13 configuration unclear: 0x$(printf '%X' $pc13_config)"
+            fi
+        fi
+
+        if [[ -n "$gpioc_odr" ]]; then
+            local odr_val=$((gpioc_odr))
+            if ((odr_val & 0x2000)); then
+                echo "PC13 Output: HIGH (LED off - typical for active-low LED)"
+            else
+                echo "PC13 Output: LOW (LED on - if active-low)"
+            fi
+        fi
+        echo
+
+        # Analyze USB configuration
+        local usb_cntr=$(echo "$diag_info" | grep "0x40005c00:" | sed 's/.*0x40005c00: \([0-9a-fA-F]*\).*/0x\1/')
+        local usb_daddr=$(echo "$diag_info" | grep "0x40005c44:" | sed 's/.*0x40005c44: \([0-9a-fA-F]*\).*/0x\1/')
+
+        echo "USB CONFIGURATION:"
+        echo "------------------"
+        echo "USB_CNTR (Control):   $usb_cntr"
+        echo "USB_DADDR (Address):  $usb_daddr"
+
+        if [[ -n "$usb_cntr" ]]; then
+            local cntr_val=$((usb_cntr))
+            if ((cntr_val & 0x01)); then
+                print_success "✓ USB is enabled"
+            else
+                print_warning "⚠ USB is disabled"
+            fi
+
+            if ((cntr_val & 0x02)); then
+                print_warning "→ USB in reset state"
+            fi
+        fi
+
+        # Check if USB clock is enabled
+        if [[ -n "$rcc_apb1enr" ]]; then
+            local apb1_val=$((rcc_apb1enr))
+            if ((apb1_val & 0x800000)); then
+                print_success "✓ USB clock is enabled"
+            else
+                print_warning "⚠ USB clock is disabled"
+            fi
+        fi
+        echo
+
+        # Check vector table
+        echo "VECTOR TABLE (App @ 0x08006000):"
+        echo "--------------------------------"
+        local vectors=$(echo "$diag_info" | grep "0x08006000:")
+        if [[ -n "$vectors" ]]; then
+            echo "$vectors"
+
+            # Parse initial SP and Reset vector
+            local vector_line=$(echo "$vectors" | head -n1)
+            local initial_sp=$(echo "$vector_line" | sed 's/.*0x08006000: \([0-9a-fA-F]*\).*/\1/')
+            local reset_vector=$(echo "$vector_line" | sed 's/.*0x08006004: \([0-9a-fA-F]*\).*/\1/')
+
+            if [[ -n "$initial_sp" && "$initial_sp" != "00000000" && "$initial_sp" != "ffffffff" ]]; then
+                print_success "✓ Valid initial stack pointer in vector table"
+            else
+                print_error "✗ Invalid initial stack pointer: 0x$initial_sp"
+            fi
+
+            if [[ -n "$reset_vector" && "$reset_vector" != "00000000" && "$reset_vector" != "ffffffff" ]]; then
+                print_success "✓ Valid reset vector in vector table"
+            else
+                print_error "✗ Invalid reset vector: 0x$reset_vector"
+            fi
+        else
+            print_error "✗ Could not read vector table"
+        fi
+        echo
+
+        # Overall assessment
+        print_info "DIAGNOSTIC SUMMARY:"
+        echo "==================="
+
+        local issues_found=0
+
+        # Check if app is properly relocated
+        if [[ "$vtor_val" != "0x08006000" ]]; then
+            print_error "• VTOR not relocated to app address"
+            echo "  Expected: 0x08006000, Got: $vtor_val"
+            ((issues_found++))
+        fi
+
+        # Check clock configuration
+        if [[ -n "$rcc_cr" ]]; then
+            local cr_val=$((rcc_cr))
+            if ! ((cr_val & 0x02000000)); then
+                print_warning "• PLL not ready - clock may be running slow"
+                ((issues_found++))
+            fi
+        fi
+
+        # Check USB clock
+        if [[ -n "$rcc_apb1enr" ]]; then
+            local apb1_val=$((rcc_apb1enr))
+            if ! ((apb1_val & 0x800000)); then
+                print_error "• USB clock disabled - CDC will not work"
+                ((issues_found++))
+            fi
+        fi
+
+        # Check GPIO clock for LED
+        if [[ -n "$rcc_apb2enr" ]]; then
+            local apb2_val=$((rcc_apb2enr))
+            if ! ((apb2_val & 0x10)); then
+                print_error "• GPIOC clock disabled - LED will not work"
+                ((issues_found++))
+            fi
+        fi
+
+        if ((issues_found == 0)); then
+            print_success "• No obvious hardware configuration issues found"
+            echo "• Issue may be in application code logic or timing"
+        else
+            print_warning "• Found $issues_found potential hardware configuration issues"
+        fi
+
+        echo
+        print_info "NEXT STEPS:"
+        echo "• If VTOR issue: Check app startup code SCB->VTOR setting"
+        echo "• If clock issues: Check SystemInit() and clock configuration"
+        echo "• If GPIO issues: Check GPIO initialization in app"
+        echo "• If USB issues: Check USB initialization and clock setup"
+        echo "• Consider debugging with GDB for step-by-step analysis"
+
+    else
+        print_error "Could not perform diagnostics - communication failed"
+        return 1
+    fi
+}
+
+# Check if device is in fault handler
+check_fault_state() {
+    if ! command -v openocd &> /dev/null; then
+        print_error "OpenOCD is not installed or not in PATH"
+        return 1
+    fi
+
+    print_info "Checking for fault conditions..."
+
+    # Start OpenOCD and check fault-related registers
+    openocd -f interface/stlink.cfg -f target/stm32f1x.cfg > /tmp/fault_check.log 2>&1 &
+    local openocd_pid=$!
+    sleep 3
+
+    if ! kill -0 $openocd_pid 2>/dev/null; then
+        print_error "Failed to start OpenOCD"
+        cat /tmp/fault_check.log
+        return 1
+    fi
+
+    # Check fault status registers
+    local fault_info
+    fault_info=$({
+        echo "halt"
+        sleep 0.5
+
+        # Core registers
+        echo "reg pc"
+        sleep 0.2
+        echo "reg sp"
+        sleep 0.2
+        echo "reg lr"
+        sleep 0.2
+
+        # Fault status registers
+        echo "mdw 0xE000ED28 1"  # CFSR (Configurable Fault Status Register)
+        sleep 0.2
+        echo "mdw 0xE000ED2C 1"  # HFSR (Hard Fault Status Register)
+        sleep 0.2
+        echo "mdw 0xE000ED30 1"  # DFSR (Debug Fault Status Register)
+        sleep 0.2
+        echo "mdw 0xE000ED34 1"  # MMFAR (Memory Management Fault Address Register)
+        sleep 0.2
+        echo "mdw 0xE000ED38 1"  # BFAR (Bus Fault Address Register)
+        sleep 0.2
+
+        # Check stack area for more context
+        echo "mdw 0x20004fe0 8"  # Current stack area
+        sleep 0.2
+
+        echo "resume"
+        sleep 0.5
+        echo "exit"
+    } | telnet localhost 4444 2>/dev/null || true)
+
+    # Clean up
+    kill $openocd_pid 2>/dev/null || true
+    wait $openocd_pid 2>/dev/null
+
+    if [[ -n "$fault_info" ]]; then
+        print_info "Fault Analysis Report:"
+        echo "======================"
+
+        # Extract PC and check if it's in a fault handler
+        local pc_val=$(echo "$fault_info" | grep "pc " | sed 's/.*pc.*: \(0x[0-9a-fA-F]*\).*/\1/')
+        local lr_val=$(echo "$fault_info" | grep "lr " | sed 's/.*lr.*: \(0x[0-9a-fA-F]*\).*/\1/')
+
+        echo "PC (Program Counter): $pc_val"
+        echo "LR (Link Register):   $lr_val"
+
+        # Check if PC is in known fault handlers
+        if [[ "$pc_val" == "0x08006456" ]]; then
+            print_error "✗ Device is stuck in HardFault_Handler!"
+            echo "  This indicates a serious hardware or memory fault occurred"
+        elif [[ "$pc_val" == "0x08006454" ]]; then
+            print_error "✗ Device is stuck in NMI_Handler!"
+        elif [[ "$pc_val" == "0x08006458" ]]; then
+            print_error "✗ Device is stuck in MemManage_Handler!"
+        elif [[ "$pc_val" == "0x0800645a" ]]; then
+            print_error "✗ Device is stuck in BusFault_Handler!"
+        elif [[ "$pc_val" == "0x0800645c" ]]; then
+            print_error "✗ Device is stuck in UsageFault_Handler!"
+        else
+            print_success "✓ Device not in known fault handler"
+        fi
+        echo
+
+        # Analyze fault status registers
+        local cfsr=$(echo "$fault_info" | grep "0xe000ed28:" | sed 's/.*0xe000ed28: \([0-9a-fA-F]*\).*/0x\1/')
+        local hfsr=$(echo "$fault_info" | grep "0xe000ed2c:" | sed 's/.*0xe000ed2c: \([0-9a-fA-F]*\).*/0x\1/')
+        local mmfar=$(echo "$fault_info" | grep "0xe000ed34:" | sed 's/.*0xe000ed34: \([0-9a-fA-F]*\).*/0x\1/')
+        local bfar=$(echo "$fault_info" | grep "0xe000ed38:" | sed 's/.*0xe000ed38: \([0-9a-fA-F]*\).*/0x\1/')
+
+        echo "FAULT STATUS REGISTERS:"
+        echo "-----------------------"
+        echo "CFSR (Configurable Fault Status): $cfsr"
+        echo "HFSR (Hard Fault Status):         $hfsr"
+        echo "MMFAR (Mem Mgmt Fault Address):   $mmfar"
+        echo "BFAR (Bus Fault Address):         $bfar"
+        echo
+
+        # Decode fault status
+        if [[ -n "$cfsr" && "$cfsr" != "0x00000000" ]]; then
+            local cfsr_val=$((cfsr))
+            print_warning "CFSR indicates active faults:"
+
+            # Memory Management Faults (bits 0-7)
+            if ((cfsr_val & 0x01)); then echo "  • IACCVIOL: Instruction access violation"; fi
+            if ((cfsr_val & 0x02)); then echo "  • DACCVIOL: Data access violation"; fi
+            if ((cfsr_val & 0x08)); then echo "  • MUNSTKERR: MemManage fault during unstacking"; fi
+            if ((cfsr_val & 0x10)); then echo "  • MSTKERR: MemManage fault during stacking"; fi
+            if ((cfsr_val & 0x20)); then echo "  • MLSPERR: MemManage fault during lazy FP stacking"; fi
+            if ((cfsr_val & 0x80)); then echo "  • MMARVALID: MMFAR contains valid address"; fi
+
+            # Bus Faults (bits 8-15)
+            if ((cfsr_val & 0x0100)); then echo "  • IBUSERR: Instruction bus error"; fi
+            if ((cfsr_val & 0x0200)); then echo "  • PRECISERR: Precise data bus error"; fi
+            if ((cfsr_val & 0x0400)); then echo "  • IMPRECISERR: Imprecise data bus error"; fi
+            if ((cfsr_val & 0x0800)); then echo "  • UNSTKERR: Bus fault during unstacking"; fi
+            if ((cfsr_val & 0x1000)); then echo "  • STKERR: Bus fault during stacking"; fi
+            if ((cfsr_val & 0x2000)); then echo "  • LSPERR: Bus fault during lazy FP stacking"; fi
+            if ((cfsr_val & 0x8000)); then echo "  • BFARVALID: BFAR contains valid address"; fi
+
+            # Usage Faults (bits 16-31)
+            if ((cfsr_val & 0x00010000)); then echo "  • UNDEFINSTR: Undefined instruction"; fi
+            if ((cfsr_val & 0x00020000)); then echo "  • INVSTATE: Invalid state (Thumb/ARM)"; fi
+            if ((cfsr_val & 0x00040000)); then echo "  • INVPC: Invalid PC load"; fi
+            if ((cfsr_val & 0x00080000)); then echo "  • NOCP: No coprocessor"; fi
+            if ((cfsr_val & 0x01000000)); then echo "  • UNALIGNED: Unaligned access"; fi
+            if ((cfsr_val & 0x02000000)); then echo "  • DIVBYZERO: Divide by zero"; fi
+        fi
+
+        if [[ -n "$hfsr" && "$hfsr" != "0x00000000" ]]; then
+            local hfsr_val=$((hfsr))
+            print_warning "HFSR indicates hard faults:"
+            if ((hfsr_val & 0x02)); then echo "  • VECTTBL: Vector table hard fault"; fi
+            if ((hfsr_val & 0x40000000)); then echo "  • FORCED: Forced hard fault"; fi
+            if ((hfsr_val & 0x80000000)); then echo "  • DEBUGEVT: Debug event hard fault"; fi
+        fi
+
+        echo
+        print_info "FAULT ANALYSIS:"
+        echo "==============="
+
+        if [[ "$pc_val" == "0x08006456" ]]; then
+            print_error "The device is in a hard fault state. This typically happens due to:"
+            echo "• Invalid memory access (wrong pointer, uninitialized variables)"
+            echo "• Stack overflow"
+            echo "• Jump to invalid address"
+            echo "• Clock configuration issues causing bus faults"
+            echo "• Problems with vector table relocation"
+            echo
+            print_info "RECOMMENDED DEBUGGING STEPS:"
+            echo "1. Check if the problem occurs during HAL_Init() or SystemClock_Config()"
+            echo "2. Verify that stack pointer and vector table are correctly set"
+            echo "3. Use a debugger to step through initialization code"
+            echo "4. Check if HSE crystal is properly connected (if using external crystal)"
+            echo "5. Verify that bootloader properly set up the jump to application"
+        fi
+
+    else
+        print_error "Could not retrieve fault information"
+        return 1
+    fi
+}
+
+# Print usage information
+print_usage() {
+    echo "用法: $0 [命令]"
+    echo
+    echo "命令:"
+    echo "  comprehensive   - 综合诊断 (默认，包含所有检查)"
+    echo "  diagnose        - 高级设备诊断 (寄存器、时钟、GPIO、USB分析)"
+    echo "  fault-check     - 深度故障分析 (检查故障状态寄存器)"
+    echo "  quick-fault     - 快速故障检查与PC分析"
+    echo "  pc-analysis     - 仅PC位置分析"
+    echo "  usb-check       - USB寄存器诊断"
+    echo "  device-state    - 显示当前设备状态"
+    echo "  flash-check     - 检查flash内容"
+    echo "  deps            - 检查系统依赖"
+    echo "  help            - 显示此帮助"
+    echo
+    echo "示例:"
+    echo "  $0                    # 运行综合诊断"
+    echo "  $0 diagnose          # 高级设备诊断"
+    echo "  $0 fault-check       # 深度故障分析"
+    echo "  $0 quick-fault       # 快速故障检查"
+    echo "  $0 pc-analysis       # 分析当前PC位置"
+    echo "  $0 usb-check         # USB寄存器诊断"
+    echo
+    echo "功能说明:"
+    echo "  comprehensive - 完整的设备诊断，包括连接、状态、flash、USB等"
+    echo "  diagnose      - 高级硬件诊断，详细分析寄存器、时钟、GPIO、USB配置"
+    echo "  fault-check   - 深度故障分析，检查故障状态寄存器和异常处理程序"
+    echo "  quick-fault   - 快速检查设备是否正常，重点分析PC位置"
+    echo "  pc-analysis   - 详细分析当前PC位置，包括反汇编和源码定位"
+    echo "  usb-check     - 专门诊断USB相关的时钟、寄存器、GPIO配置"
+}
+
+# Quick fault check function
 quick_fault_check() {
     print_header
 
-    print_info "Quick Fault Check - Device Status & PC Analysis"
-    echo "=================================================="
+    print_info "快速故障检查 - 设备状态与PC分析"
+    echo "============================================"
     echo
 
     # Quick dependency check
@@ -915,128 +1693,141 @@ quick_fault_check() {
     fi
 
     # Check connection
-    print_info "1. Checking device connection..."
+    print_info "1. 检查设备连接..."
     if ! check_stlink_connection > /dev/null 2>&1; then
-        print_error "Cannot connect to device - check connections"
+        print_error "无法连接到设备 - 检查连接"
         return 1
     fi
-    print_success "Device connected"
+    print_success "设备已连接"
     echo
 
-    # Show current state
-    print_info "2. Reading device state..."
-    show_device_state
+    # Show current state and PC analysis in one go
+    print_info "2. 综合状态分析..."
+    quick_pc_analysis
     echo
 
-    # Analyze PC location
-    print_info "3. Analyzing PC location..."
-    analyze_pc_location
-
-    echo
-    print_info "Quick diagnosis completed!"
+    print_info "快速诊断完成!"
 }
 
-# Main debug function
-main_debug() {
+# 综合诊断 - 包含所有功能的完整检查
+comprehensive_diagnosis() {
     print_header
+
+    print_info "STM32F103C8T6 综合诊断"
+    echo "======================"
+    echo
 
     # Check system dependencies first
     if ! check_dependencies; then
-        print_error "Missing required dependencies"
+        print_error "缺少必要的依赖"
         return 1
     fi
 
     echo
 
     # First check if we can connect to the device
-    print_info "Checking device connection..."
+    print_info "1. 检查设备连接..."
     if ! check_stlink_connection; then
-        print_error "Cannot establish connection to STM32 device"
-        print_info "Please check:"
-        echo "- ST-Link is connected via USB"
-        echo "- Target board is powered"
-        echo "- SWD/JTAG connections are correct"
-        echo "- No other debugger is using the device"
-        echo "- On macOS, you may need to install drivers: https://www.st.com/en/development-tools/stsw-link009.html"
+        print_error "无法建立与STM32设备的连接"
+        print_info "请检查:"
+        echo "- ST-Link通过USB连接"
+        echo "- 目标板已上电"
+        echo "- SWD/JTAG连接正确"
+        echo "- 没有其他调试器在使用设备"
+        echo "- 在macOS上，可能需要安装驱动: https://www.st.com/en/development-tools/stsw-link009.html"
         echo
-        print_info "You can still analyze hex files without device connection:"
+        print_info "在没有设备连接的情况下，您仍可以分析hex文件:"
         analyze_hex_files
         return 1
     fi
 
     echo
+    print_info "2. 内存布局信息"
     show_memory_layout
 
-    # Show current device state
-    show_device_state
+    print_info "3. 设备状态和PC分析"
+    quick_pc_analysis
     echo
 
+    print_info "4. Flash内容检查"
     check_flash_blank
-    echo
-    analyze_hex_files
     echo
     verify_flash_content
     echo
 
-    # Compare with hex files if they exist
-    local bootloader_hex="build/bootloader/bootloader/chis_flash_burner_bootloader.hex"
-    local app_hex="build/app/app/chis_flash_burner_app.hex"
+    print_info "5. USB寄存器诊断"
+    check_usb_registers
+    echo
 
-    if [[ -f "$bootloader_hex" ]]; then
+    print_info "6. Hex文件分析"
+    analyze_hex_files
+    echo
+
+    # Compare with hex files if they exist
+    local bootloader_hex_debug="build/bootloader_Debug/bootloader/chis_flash_burner_bootloader.hex"
+    local bootloader_hex_release="build/bootloader_Release/bootloader/chis_flash_burner_bootloader.hex"
+    local bootloader_hex_legacy="build/bootloader/bootloader/chis_flash_burner_bootloader.hex"
+    local app_hex_debug="build/app_Debug/app/chis_flash_burner_app.hex"
+    local app_hex_release="build/app_Release/app/chis_flash_burner_app.hex"
+    local app_hex_legacy="build/app/app/chis_flash_burner_app.hex"
+
+    # Find available hex files and verify
+    print_info "7. Flash验证"
+    local bootloader_hex=""
+    local app_hex=""
+
+    # Find bootloader hex
+    for hex in "$bootloader_hex_debug" "$bootloader_hex_release" "$bootloader_hex_legacy"; do
+        if [[ -f "$hex" ]]; then
+            bootloader_hex="$hex"
+            break
+        fi
+    done
+
+    # Find app hex
+    for hex in "$app_hex_debug" "$app_hex_release" "$app_hex_legacy"; do
+        if [[ -f "$hex" ]]; then
+            app_hex="$hex"
+            break
+        fi
+    done
+
+    if [[ -n "$bootloader_hex" ]]; then
         compare_flash_with_hex "$bootloader_hex" "0x08000000" "Bootloader"
         echo
     fi
 
-    if [[ -f "$app_hex" ]]; then
-        compare_flash_with_hex "$app_hex" "0x08006000" "Application"
+    if [[ -n "$app_hex" ]]; then
+        compare_flash_with_hex "$app_hex" "0x08006000" "Application" 
         echo
     fi
 
-    print_info "Debug Steps to Try:"
-    echo "1. Build both bootloader and app:"
+    print_info "调试步骤建议:"
+    echo "============"
+    echo "1. 构建引导程序和应用程序:"
     echo "   ./cmake-build.sh build bootloader"
     echo "   ./cmake-build.sh build app"
     echo
-    echo "2. Flash bootloader first:"
+    echo "2. 先烧录引导程序:"
     echo "   ./cmake-build.sh flash bootloader"
     echo
-    echo "3. Test bootloader (should show IAP mode)"
+    echo "3. 测试引导程序 (应显示IAP模式)"
     echo
-    echo "4. Flash app safely:"
-    echo "   ./cmake-build.sh flash-app-safe"
+    echo "4. 安全烧录应用程序:"
+    echo "   ./cmake-build.sh flash app"
     echo
-    echo "5. Reset device and check if it boots to app"
+    echo "5. 复位设备并检查是否启动到应用程序"
     echo
-    print_warning "If app still doesn't work, check:"
-    echo "- Vector table relocation (VTOR register)"
-    echo "- Application compilation with correct offset"
-    echo "- Stack pointer validity"
-    echo "- Reset vector validity"
+    print_warning "如果应用程序仍不工作，检查:"
+    echo "- 中断向量表重定位 (VTOR寄存器)"
+    echo "- 应用程序编译时使用正确的偏移"
+    echo "- 栈指针有效性"
+    echo "- 复位向量有效性"
     echo
-    print_info "Additional verification commands:"
-    echo "- Run this script again to verify flash content"
-    echo "- Check OpenOCD connection with: openocd -f interface/stlink.cfg -f target/stm32f1x.cfg"
-    echo "- Manual telnet test: telnet localhost 4444"
-}
-
-# Print usage information
-print_usage() {
-    echo "Usage: $0 [command]"
-    echo
-    echo "Commands:"
-    echo "  diagnose       - Full diagnostic (default)"
-    echo "  check-fault    - Quick fault check with PC analysis"
-    echo "  pc-analysis    - Analyze current PC location only" 
-    echo "  device-state   - Show current device state only"
-    echo "  flash-check    - Check flash content only"
-    echo "  deps           - Check system dependencies"
-    echo "  help           - Show this help"
-    echo
-    echo "Examples:"
-    echo "  $0                    # Run full diagnostic"
-    echo "  $0 check-fault       # Quick fault check"
-    echo "  $0 pc-analysis       # Analyze current PC location"
-    echo
+    print_info "其他验证命令:"
+    echo "- 再次运行此脚本验证flash内容"
+    echo "- 检查OpenOCD连接: openocd -f interface/stlink.cfg -f target/stm32f1x.cfg"
+    echo "- 手动telnet测试: telnet localhost 4444"
 }
 
 # Project directory
@@ -1044,16 +1835,24 @@ PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJECT_DIR/chis_flash_burner"
 
 # Parse command line arguments
-case "${1:-diagnose}" in
-    "diagnose"|"")
-        check_dependencies
-        main_debug
+case "${1:-comprehensive}" in
+    "comprehensive"|"")
+        comprehensive_diagnosis
         ;;
-    "check-fault")
+    "diagnose")
+        diagnose_device
+        ;;
+    "fault-check")
+        check_fault_state
+        ;;
+    "quick-fault")
         quick_fault_check
         ;;
     "pc-analysis")
-        analyze_pc_location
+        quick_pc_analysis
+        ;;
+    "usb-check")
+        check_usb_registers
         ;;
     "device-state")
         show_device_state
@@ -1070,7 +1869,7 @@ case "${1:-diagnose}" in
         print_usage
         ;;
     *)
-        print_error "Unknown command: $1"
+        print_error "未知命令: $1"
         echo
         print_usage
         exit 1

@@ -20,9 +20,9 @@ jobs:
     strategy:
       matrix:
         config:
-#          - name: "Debug Build"
-#            build_type: "Debug"
-#            debug: 1
+          - name: "Debug Build"
+            build_type: "Debug"
+            debug: 1
           - name: "Release Build"
             build_type: "Release"
             debug: 0
@@ -66,11 +66,7 @@ jobs:
       working-directory: mcu
       run: |
         chmod +x cmake-build.sh
-        if [ "${{ matrix.config.build_type }}" = "Release" ]; then
-          ./cmake-build.sh build ${{ matrix.target.target }}
-        else
-          ./cmake-build.sh build ${{ matrix.target.target }}
-        fi
+        ./cmake-build.sh build ${{ matrix.target.target }} ${{ matrix.config.build_type }}
 
     - name: Check CMake Build Artifacts
       working-directory: mcu

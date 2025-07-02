@@ -245,9 +245,9 @@ endfunction()
 if(BUILD_BOOTLOADER)
     # Bootloader uses aggressive optimization
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        set(BOOTLOADER_OPT_FLAGS -Os -fno-unwind-tables -fno-asynchronous-unwind-tables -g -gdwarf-2)
+        set(BOOTLOADER_OPT_FLAGS -Og -g -gdwarf-2)
     else()
-        set(BOOTLOADER_OPT_FLAGS -Os -fno-unwind-tables -fno-asynchronous-unwind-tables)
+        set(BOOTLOADER_OPT_FLAGS -Os)
     endif()
 
     create_target(chis_flash_burner_bootloader
