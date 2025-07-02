@@ -9,10 +9,10 @@ extern "C" {
 
 /* 摩尔斯电码相关定义 */
 #define MORSE_DOT_TIME    100   // 点的持续时间(ms)
-#define MORSE_DASH_TIME   300   // 划的持续时间(ms)
+#define MORSE_DASH_TIME   400   // 划的持续时间(ms)
 #define MORSE_GAP_TIME    100   // 符号间隔时间(ms)
 #define MORSE_LETTER_GAP  300   // 字母间隔时间(ms)
-#define MORSE_WORD_GAP    700   // 单词间隔时间(ms)
+#define MORSE_WORD_GAP   1000   // 单词间隔时间(ms)
 
 /* 摩尔斯电码状态枚举 */
 typedef enum {

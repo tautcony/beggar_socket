@@ -13,6 +13,10 @@ A lightweight gba cartridge burner, with limited functionality
 - 以下所有的crc都是没用的，不论填什么都不会影响功能。毕竟usb自带校验，每个包再算一次<br>
   还浪费性能，干脆无视。
 - 都是小端模式
+- **重要更新**：协议响应格式已优化：
+  - **有数据返回的命令**（如获取版本信息、读取数据等）：仍保留CRC + 数据的格式
+  - **无数据状态返回的命令**（如擦除、编程、跳转等）：简化为只返回状态字节，不再包含CRC
+  - **错误响应**：返回2字节（0xFF + 错误码），不包含CRC
 
 ## GBA命令
 
@@ -227,9 +231,9 @@ A lightweight gba cartridge burner, with limited functionality
 
 - 返回
 
-| 字节数 | 2   | 1                        |
-| ------ | --- | ------------------------ |
-| 定义   | CRC | 0xaa(成功)<br>其它(失败) |
+| 字节数 | 1                        |
+| ------ | ------------------------ |
+| 定义   | 0xaa(成功)<br>0xFF(失败) |
 
 ## Bootloader命令
 
@@ -265,9 +269,9 @@ A lightweight gba cartridge burner, with limited functionality
 
 - 返回
 
-| 字节数 | 2   | 1                        |
-| ------ | --- | ------------------------ |
-| 定义   | CRC | 0xaa(成功)<br>0xFF(失败) |
+| 字节数 | 1                        |
+| ------ | ------------------------ |
+| 定义   | 0xaa(成功)<br>0xFF(失败) |
 
 ### 编程Flash
 
@@ -279,9 +283,9 @@ A lightweight gba cartridge burner, with limited functionality
 
 - 返回
 
-| 字节数 | 2   | 1                        |
-| ------ | --- | ------------------------ |
-| 定义   | CRC | 0xaa(成功)<br>0xFF(失败) |
+| 字节数 | 1                        |
+| ------ | ------------------------ |
+| 定义   | 0xaa(成功)<br>0xFF(失败) |
 
 ### 跳转到应用程序
 
@@ -293,9 +297,9 @@ A lightweight gba cartridge burner, with limited functionality
 
 - 返回
 
-| 字节数 | 2   | 1                        |
-| ------ | --- | ------------------------ |
-| 定义   | CRC | 0xaa(成功)<br>0xFF(失败) |
+| 字节数 | 1                        |
+| ------ | ------------------------ |
+| 定义   | 0xaa(成功)<br>0xFF(失败) |
 
 ### 开始升级流程
 
@@ -307,9 +311,9 @@ A lightweight gba cartridge burner, with limited functionality
 
 - 返回
 
-| 字节数 | 2   | 1                        |
-| ------ | --- | ------------------------ |
-| 定义   | CRC | 0xaa(成功)<br>0xFF(失败) |
+| 字节数 | 1                        |
+| ------ | ------------------------ |
+| 定义   | 0xaa(成功)<br>0xFF(失败) |
 
 ### 升级数据传输
 
@@ -321,9 +325,9 @@ A lightweight gba cartridge burner, with limited functionality
 
 - 返回
 
-| 字节数 | 2   | 1                        |
-| ------ | --- | ------------------------ |
-| 定义   | CRC | 0xaa(成功)<br>0xFF(失败) |
+| 字节数 | 1                        |
+| ------ | ------------------------ |
+| 定义   | 0xaa(成功)<br>0xFF(失败) |
 
 ### 完成升级流程
 
@@ -335,9 +339,9 @@ A lightweight gba cartridge burner, with limited functionality
 
 - 返回
 
-| 字节数 | 2   | 1                        |
-| ------ | --- | ------------------------ |
-| 定义   | CRC | 0xaa(成功)<br>0xFF(失败) |
+| 字节数 | 1                        |
+| ------ | ------------------------ |
+| 定义   | 0xaa(成功)<br>0xFF(失败) |
 
 ### Bootloader错误码
 

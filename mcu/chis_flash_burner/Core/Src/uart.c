@@ -796,7 +796,7 @@ void iapGetVersion()
     // 版本字符串
     const char* version_str = version_get_current_string();
     uint8_t str_len = strlen(version_str);
-    if (str_len > 45) str_len = 45;  // 限制长度，为版本类型字段留出空间
+    if (str_len > 45) str_len = 45;
 
     payload[10] = str_len;
     memcpy(&payload[11], version_str, str_len);

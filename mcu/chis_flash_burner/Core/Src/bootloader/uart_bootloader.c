@@ -16,11 +16,9 @@
 #define BATCH_SIZE_RW 512
 #define BATCH_SIZE_RESPON 512
 
-#define SIZE_CMD_HEADER 3
-#define SIZE_RESPON_HEADER 2
+#define SIZE_CMD_HEADER 4
 #define SIZE_BASE_ADDRESS 4
 #define SIZE_CRC 2
-#define SIZE_BUFF_SIZE 2
 
 /* 摩尔斯电码状态变量 */
 static uint32_t morse_tick = 0;
@@ -152,14 +150,9 @@ void uart_responAck(bool success)
     while (hcdc->TxState != 0)
         ;
 
-    uart_respon->crc16 = 0;
-    uart_respon->payload[0] = success ? 0xaa : 0xFF;
-
-    uint16_t totalLen = SIZE_RESPON_HEADER + 1;
-    uint16_t crc = modbusCRC16_lut(responBuf + 2, totalLen - 2);
-    uart_respon->crc16 = crc;
-
-    CDC_Transmit_FS(responBuf, totalLen);
+    // 无数据的状态返回，不需要CRC，只发送状态字节
+    uint8_t status = success ? 0xaa : 0xFF;
+    CDC_Transmit_FS(&status, 1);
 }
 
 void uart_sendError(uint8_t errorCode)
@@ -169,15 +162,9 @@ void uart_sendError(uint8_t errorCode)
     while (hcdc->TxState != 0)
         ;
 
-    uart_respon->crc16 = 0;
-    uart_respon->payload[0] = 0xFF; // 错误标志
-    uart_respon->payload[1] = errorCode;
-
-    uint16_t totalLen = SIZE_RESPON_HEADER + 2;
-    uint16_t crc = modbusCRC16_lut(responBuf + 2, totalLen - 2);
-    uart_respon->crc16 = crc;
-
-    CDC_Transmit_FS(responBuf, totalLen);
+    // 错误响应，不需要CRC，只发送错误标志和错误码
+    uint8_t errorData[2] = {0xFF, errorCode}; // 0xFF为错误标志
+    CDC_Transmit_FS(errorData, 2);
 }
 
 /* UART Callback */
@@ -345,7 +332,7 @@ void iapGetVersion()
     // 版本字符串
     const char* version_str = version_get_current_string();
     uint8_t str_len = strlen(version_str);
-    if (str_len > 45) str_len = 45;  // 限制长度，为版本类型字段留出空间
+    if (str_len > 45) str_len = 45;
 
     payload[10] = str_len;
     memcpy(&payload[11], version_str, str_len);
@@ -358,7 +345,7 @@ void iapGetVersion()
 void iapEraseFlash()
 {
     // 从命令中获取地址和大小
-    if (uart_cmd->package_size < SIZE_CMD_HEADER + SIZE_BASE_ADDRESS + SIZE_BUFF_SIZE + SIZE_CRC)
+    if (uart_cmd->package_size < SIZE_CMD_HEADER + SIZE_BASE_ADDRESS + 4 + SIZE_CRC)
     {
         uart_sendError(0x04); // 参数不足
         return;
@@ -416,7 +403,7 @@ void iapJumpToApp()
 void iapUpgradeStart()
 {
     // 检查参数长度
-    if (uart_cmd->package_size < SIZE_CMD_HEADER + 1 + 8 + SIZE_CRC) {
+    if (uart_cmd->package_size < SIZE_CMD_HEADER + 4 + 4 + SIZE_CRC) {
         uart_sendError(0x04); // 参数不足
         return;
     }
@@ -442,7 +429,7 @@ void iapUpgradeStart()
 void iapUpgradeData()
 {
     // 检查参数长度
-    if (uart_cmd->package_size < SIZE_CMD_HEADER + 1 + 4 + 1 + SIZE_CRC) {
+    if (uart_cmd->package_size < SIZE_CMD_HEADER + 4 + SIZE_CRC) {
         uart_sendError(0x04); // 参数不足
         return;
     }
