@@ -55,50 +55,55 @@ USBD_HandleTypeDef hUsbDeviceFS;
  */
 /* USER CODE BEGIN 1 */
 
-/**
-  * @brief  强制USB断开并重新连接，确保主机检测到设备变化
-  * @note   在IAP环境或重启后调用，让主机重新读取USB描述符
-  * @retval None
-  */
-void USB_ForceReconnect(void)
+void USB_DEVICE_ReInit(void)
 {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-  
-  /* 禁用USB外设 */
-  __HAL_RCC_USB_FORCE_RESET();
-  
-  /* 配置USB D+ D-为推挽输出，拉低模拟断开 */
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  HAL_GPIO_DeInit(GPIOA, GPIO_PIN_11 | GPIO_PIN_12);
-  
-  GPIO_InitStruct.Pin = GPIO_PIN_11 | GPIO_PIN_12;  // USB D- and D+
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-  
-  /* 拉低D+ D-，模拟USB设备断开 */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11 | GPIO_PIN_12, GPIO_PIN_RESET);
-  
-  /* 保持断开状态200ms，确保主机检测到断开 */
+  /* 更强力的USB重新初始化流程 */
+  extern USBD_HandleTypeDef hUsbDeviceFS;
+
+  /* 完全停止USB */
+  USBD_Stop(&hUsbDeviceFS);
+  USBD_DeInit(&hUsbDeviceFS);
   HAL_Delay(200);
-  
-  /* 释放USB复位 */
-  __HAL_RCC_USB_RELEASE_RESET();
-  
-  /* 重新配置USB引脚为复用功能 */
-  HAL_GPIO_DeInit(GPIOA, GPIO_PIN_11 | GPIO_PIN_12);
-  GPIO_InitStruct.Pin = GPIO_PIN_11 | GPIO_PIN_12;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+
+  /* 禁用USB时钟 */
+  __HAL_RCC_USB_CLK_DISABLE();
+  HAL_Delay(100);
+
+  /* 重新使能USB时钟 */
+  __HAL_RCC_USB_CLK_ENABLE();
+  HAL_Delay(100);
+
+  /* 强制USB断开 - 通过GPIO控制 */
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  GPIO_InitStruct.Pin = GPIO_PIN_11 | GPIO_PIN_12;  // USB DM和DP
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-  
-  /* 确保USB时钟使能 */
-  __HAL_RCC_USB_CLK_ENABLE();
-  
-  /* 等待USB硬件稳定 */
-  HAL_Delay(50);
+
+  /* 拉低USB线 */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);  // USB DM
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);  // USB DP
+  HAL_Delay(200);
+
+  /* 重新配置USB GPIO为备用功能 */
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_Delay(100);
+
+  /* 重新初始化USB设备 */
+  MX_USB_DEVICE_Init();
+
+  /* 启动USB */
+  USBD_Start(&hUsbDeviceFS);
+
+  /* 等待USB枚举完成，最多等待5秒 */
+  uint32_t usb_wait_count = 0;
+  while(hUsbDeviceFS.dev_state != USBD_STATE_CONFIGURED && usb_wait_count < 500) {
+    HAL_Delay(10);
+    usb_wait_count++;
+  }
 }
 
 /* USER CODE END 1 */
@@ -111,27 +116,24 @@ void MX_USB_DEVICE_Init(void)
 {
   /* USER CODE BEGIN USB_DEVICE_Init_PreTreatment */
 
-  /* 使能USB时钟 */
-  __HAL_RCC_USB_CLK_ENABLE();
-
   /* USER CODE END USB_DEVICE_Init_PreTreatment */
 
   /* Init Device Library, add supported class and start the library. */
   if (USBD_Init(&hUsbDeviceFS, &FS_Desc, DEVICE_FS) != USBD_OK)
   {
-    Error_Handler_With_Code(4); // ERROR_CODE_USB_INIT
+    Error_Handler();
   }
   if (USBD_RegisterClass(&hUsbDeviceFS, &USBD_CDC) != USBD_OK)
   {
-    Error_Handler_With_Code(5); // ERROR_CODE_USB_REGISTER
+    Error_Handler();
   }
   if (USBD_CDC_RegisterInterface(&hUsbDeviceFS, &USBD_Interface_fops_FS) != USBD_OK)
   {
-    Error_Handler_With_Code(6); // ERROR_CODE_USB_CDC_REG
+    Error_Handler();
   }
   if (USBD_Start(&hUsbDeviceFS) != USBD_OK)
   {
-    Error_Handler_With_Code(7); // ERROR_CODE_USB_START
+    Error_Handler();
   }
 
   /* USER CODE BEGIN USB_DEVICE_Init_PostTreatment */

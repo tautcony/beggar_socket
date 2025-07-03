@@ -54,6 +54,10 @@ void iap_clear_upgrade_flag(void);
 void iap_jump_to_app(void);
 uint8_t iap_check_app_valid(void);
 void iap_jump_to_bootloader(void);
+uint8_t iap_check_bootloader_valid(void);
+
+/* 调试函数 */
+uint32_t iap_debug_bootloader_info(uint32_t *stack_addr, uint32_t *reset_addr);
 
 /* IAP 升级流程函数 */
 void iap_upgrade_start(uint32_t app_size, uint32_t app_crc);

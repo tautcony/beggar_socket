@@ -24,8 +24,8 @@
 /* USER CODE BEGIN Includes */
 #include "uart.h"
 #include "version.h"
-#include "iap.h"
 #include "error_handler.h"
+#include "iap.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,6 +52,7 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+void debug_state_output(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -69,7 +70,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
   /* 检查是否需要跳转到应用程序 */
   if (!iap_check_upgrade_flag() && iap_check_app_valid()) {
       /* 没有升级标志且应用程序有效，跳转到应用程序 */
@@ -79,13 +79,18 @@ int main(void)
   /* 清除升级标志，继续运行 BootLoader */
   iap_clear_upgrade_flag();
 
-  /* 确保SysTick被正确复位 - 在IAP环境下特别重要 */
+  /* 首先设置向量表偏移 - 确保应用程序能正确运行 */
+  SCB->VTOR = IAP_BOOTLOADER_BASE_ADDR;
+  __DSB();  /* 数据同步屏障 */
+  __ISB();  /* 指令同步屏障 */
+
+  /* IAP环境下必须首先使能全局中断 */
+  __enable_irq();
+
+  /* 确保SysTick被正确复位 */
   SysTick->CTRL = 0;      /* 禁用SysTick */
   SysTick->LOAD = 0;      /* 清除重载值 */
   SysTick->VAL = 0;       /* 清除当前值 */
-
-  /* 强制USB断开重连 - 确保主机能检测到设备变化并重新读取描述符 */
-  // USB_ForceReconnect();
 
   /* USER CODE END 1 */
 
@@ -108,22 +113,25 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
 
-  /* 延时确保GPIO初始化完成 */
-  HAL_Delay(50);
-
-  /* USB初始化 */
+  /* USB初始化 - 在IAP环境下可能失败，不影响主要功能 */
   MX_USB_DEVICE_Init();
+  USB_DEVICE_ReInit();
   /* USER CODE BEGIN 2 */
-
-  __HAL_RCC_USB_CLK_ENABLE();
 
   /* 测试LED - 立即翻转几次确认工作状态 */
   for(int i = 0; i < 3; i++) {
     HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);  // LED on (假设低电平有效)
-    HAL_Delay(200);
+    HAL_Delay(100);
     HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1);  // LED off
-    HAL_Delay(200);
+    HAL_Delay(100);
   }
+
+  debug_state_output();
+
+#ifdef DEBUG
+  debug_state_output();
+#endif
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -215,6 +223,112 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void debug_state_output(void)
+{
+  /* 调试：检查程序运行地址和IAP状态 */
+  {
+    uint32_t current_addr = (uint32_t)main;
+    uint32_t vtor_value = SCB->VTOR;  // 读取向量表偏移寄存器
+    uint32_t current_pc;
+
+    // 获取当前程序计数器值
+    __asm volatile ("mov %0, pc" : "=r" (current_pc));
+
+    uint8_t is_app_valid = iap_check_app_valid();
+    uint8_t is_bootloader_valid = iap_check_bootloader_valid();
+    uint8_t upgrade_flag = iap_check_upgrade_flag();
+
+    // 检查USB状态
+    extern USBD_HandleTypeDef hUsbDeviceFS;
+    uint8_t usb_state = hUsbDeviceFS.dev_state;
+    uint8_t usb_configured = (usb_state == USBD_STATE_CONFIGURED) ? 1 : 0;
+
+    // 检查编译宏状态
+    uint8_t is_bootloader_build = 0;
+    uint8_t is_app_build = 0;
+
+#ifdef IAP_BOOTLOADER_BUILD
+    is_bootloader_build = 1;
+#endif
+
+#ifdef IAP_APPLICATION_BUILD
+    is_app_build = 1;
+#endif
+
+    // 通过LED闪烁次数来指示状态：
+	  // 1次：main函数在app区域（不应该发生）
+    // 2次：PC在app区域（不应该发生）
+    // 3次：main函数在bootloader区域，USB状态为USBD_STATE_DEFAULT
+    // 4次：main函数在bootloader区域，USB状态为USBD_STATE_ADDRESSED  
+    // 5次：main函数在bootloader区域，USB状态为USBD_STATE_CONFIGURED (正常)
+    // 6次：main函数在bootloader区域，USB状态为USBD_STATE_SUSPENDED
+    // 7次：main函数在bootloader区域，USB状态为其他未知状态
+    // 8次：向量表偏移错误
+    // 9次：存在升级标志
+    // 10次：编译宏错误（IAP_APPLICATION_BUILD在bootloader中被定义）
+    // 11次：没有定义任何编译宏
+    // 12次：在bootloader区域但没有定义IAP_BOOTLOADER_BUILD宏
+    uint8_t flash_count = 0;
+
+    if (current_addr >= 0x08006000) {
+      flash_count = 1; // main函数在app区域（异常）
+    } else if (current_pc >= 0x08006000) {
+      flash_count = 2; // PC在app区域（异常）
+    } else {
+      // 在bootloader区域，根据USB状态分类
+      switch(usb_state) {
+        case USBD_STATE_DEFAULT:
+          flash_count = 3;
+          break;
+        case USBD_STATE_ADDRESSED:
+          flash_count = 4;
+          break;
+        case USBD_STATE_CONFIGURED:
+          flash_count = 5; // 正常状态
+          break;
+        case USBD_STATE_SUSPENDED:
+          flash_count = 6;
+          break;
+        default:
+          flash_count = 7; // 未知状态
+          break;
+      }
+    }
+
+    if (vtor_value != IAP_BOOTLOADER_BASE_ADDR) {
+      flash_count = 8; // 向量表偏移错误
+    }
+
+    if (upgrade_flag) {
+      flash_count = 9; // 存在升级标志
+    }
+
+    if (is_app_build && current_addr < 0x08006000) {
+      flash_count = 10; // 编译宏错误：在bootloader区域但定义了app宏
+    }
+
+    if (!is_bootloader_build && !is_app_build) {
+      flash_count = 11; // 没有定义任何编译宏
+    }
+
+    // 额外检查：如果程序在bootloader区域但没有定义IAP_BOOTLOADER_BUILD
+    if (current_addr < 0x08006000 && !is_bootloader_build) {
+      flash_count = 12; // 在bootloader区域但没有定义IAP_BOOTLOADER_BUILD宏
+    }
+
+    // 用LED闪烁指示状态
+    HAL_Delay(1000);
+    for(int i = 0; i < flash_count; i++) {
+      HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);  // LED on
+      HAL_Delay(300);
+      HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1);  // LED off
+      HAL_Delay(300);
+    }
+    HAL_Delay(1000);
+  }
+
+}
 
 /* USER CODE END 4 */
 

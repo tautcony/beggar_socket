@@ -188,7 +188,12 @@ uint8_t iap_flash_verify(uint32_t addr, uint8_t *data, uint32_t size)
  */
 void iap_set_upgrade_flag(void)
 {
-    *((uint32_t*)IAP_FLAG_ADDR) = IAP_FLAG_VALUE;
+    /* 使用volatile确保写入操作不被优化 */
+    volatile uint32_t *flag_addr = (volatile uint32_t*)IAP_FLAG_ADDR;
+    *flag_addr = IAP_FLAG_VALUE;
+
+    /* 确保写入操作完成 */
+    __DSB();
 }
 
 /**
@@ -197,7 +202,8 @@ void iap_set_upgrade_flag(void)
  */
 uint8_t iap_check_upgrade_flag(void)
 {
-    return (*((uint32_t*)IAP_FLAG_ADDR) == IAP_FLAG_VALUE) ? 1 : 0;
+    volatile uint32_t *flag_addr = (volatile uint32_t*)IAP_FLAG_ADDR;
+    return (*flag_addr == IAP_FLAG_VALUE) ? 1 : 0;
 }
 
 /**
@@ -205,7 +211,11 @@ uint8_t iap_check_upgrade_flag(void)
  */
 void iap_clear_upgrade_flag(void)
 {
-    *((uint32_t*)IAP_FLAG_ADDR) = 0;
+    volatile uint32_t *flag_addr = (volatile uint32_t*)IAP_FLAG_ADDR;
+    *flag_addr = 0;
+
+    /* 确保写入操作完成 */
+    __DSB();
 }
 
 /**
@@ -265,7 +275,7 @@ void iap_jump_to_app(void)
             __HAL_RCC_GPIOC_FORCE_RESET();
             for(volatile int i = 0; i < 100; i++);
             __HAL_RCC_GPIOC_RELEASE_RESET();
-            
+
             /* 重置时钟系统到默认状态 */
             HAL_RCC_DeInit();
 
@@ -329,7 +339,7 @@ uint8_t iap_check_app_valid(void)
     if (app_stack_addr == 0xFFFFFFFF || app_reset_addr == 0xFFFFFFFF) {
         return 0;
     }
-    
+
     /* 检查是否为全0（无效状态） */
     if (app_stack_addr == 0x00000000 || app_reset_addr == 0x00000000) {
         return 0;
@@ -364,7 +374,12 @@ void iap_jump_to_bootloader(void)
 {
     uint32_t bootloader_stack_addr = *((uint32_t*)IAP_BOOTLOADER_BASE_ADDR);
     uint32_t bootloader_reset_addr = *((uint32_t*)(IAP_BOOTLOADER_BASE_ADDR + 4));
-    
+
+    /* 检查bootloader是否有效 */
+    if (!iap_check_bootloader_valid()) {
+        return;  /* bootloader无效，直接返回 */
+    }
+
     /* 定义跳转函数类型 */
     typedef void (*bootloader_func_t)(void);
     bootloader_func_t bootloader_func;
@@ -405,7 +420,7 @@ void iap_jump_to_bootloader(void)
     __HAL_RCC_GPIOC_FORCE_RESET();
     for(volatile int i = 0; i < 100; i++);
     __HAL_RCC_GPIOC_RELEASE_RESET();
-    
+
     /* 重置时钟系统到默认状态 */
     HAL_RCC_DeInit();
 
@@ -427,25 +442,75 @@ void iap_jump_to_bootloader(void)
     __DSB();
     __ISB();
 
-    /* 设置升级标志 - 让bootloader知道这是从app跳转过来的 */
-    iap_set_upgrade_flag();
-
     /* 准备跳转函数 */
     bootloader_func = (bootloader_func_t)bootloader_reset_addr;
 
-    /* 跳转到bootloader - 使用汇编确保正确跳转 */
+    /* 设置升级标志 - 在跳转前最后设置，让bootloader知道这是从app跳转过来的 */
+    iap_set_upgrade_flag();
+
+    /* 跳转到bootloader - 使用更健壮的汇编跳转 */
     __asm volatile (
-        "mov sp, %0\n\t"      /* 再次设置栈指针 */
-        "bx %1\n\t"           /* 跳转到bootloader */
+        "cpsid i\n\t"         /* 再次禁用中断 */
+        "mov r3, %0\n\t"      /* 将栈指针保存到r3 */
+        "mov r4, %1\n\t"      /* 将复位地址保存到r4 */
+        "msr msp, r3\n\t"     /* 设置主栈指针 */
+        "dsb\n\t"             /* 数据同步屏障 */
+        "isb\n\t"             /* 指令同步屏障 */
+        "mov lr, #0xFFFFFFFF\n\t"  /* 清除链接寄存器 */
+        "mov r0, #0\n\t"      /* 清除r0寄存器 */
+        "mov r1, #0\n\t"      /* 清除r1寄存器 */
+        "mov r2, #0\n\t"      /* 清除r2寄存器 */
+        "bx r4\n\t"           /* 跳转到bootloader */
         :
         : "r" (bootloader_stack_addr), "r" (bootloader_reset_addr)
-        : "memory"
+        : "r0", "r1", "r2", "r3", "r4", "lr", "memory"
     );
 
     /* 如果跳转失败，这里会执行到（不应该发生） */
     while(1) {
         __NOP();
     }
+}
+
+
+/**
+ * @brief 检查bootloader程序是否有效
+ * @return 1-有效，0-无效
+ */
+uint8_t iap_check_bootloader_valid(void)
+{
+    uint32_t bootloader_stack_addr = *((uint32_t*)IAP_BOOTLOADER_BASE_ADDR);
+    uint32_t bootloader_reset_addr = *((uint32_t*)(IAP_BOOTLOADER_BASE_ADDR + 4));
+
+    /* 检查是否为全0xFF（未编程状态） */
+    if (bootloader_stack_addr == 0xFFFFFFFF || bootloader_reset_addr == 0xFFFFFFFF) {
+        return 0;
+    }
+
+    /* 检查是否为全0（无效状态） */
+    if (bootloader_stack_addr == 0x00000000 || bootloader_reset_addr == 0x00000000) {
+        return 0;
+    }
+
+    /* 检查栈指针是否指向 RAM 区域 (0x20000000 - 0x20004FFF) */
+    if ((bootloader_stack_addr & 0x2FFE0000) != 0x20000000 || 
+        bootloader_stack_addr < 0x20000000 || 
+        bootloader_stack_addr > 0x20004FFF) {
+        return 0;
+    }
+
+    /* 检查复位地址是否在Bootloader区域 */
+    if (bootloader_reset_addr < IAP_BOOTLOADER_BASE_ADDR || 
+        bootloader_reset_addr >= (IAP_BOOTLOADER_BASE_ADDR + IAP_BOOTLOADER_SIZE)) {
+        return 0;
+    }
+
+    /* 检查复位向量是否为Thumb指令 (最低位必须为1) */
+    if ((bootloader_reset_addr & 0x01) == 0) {
+        return 0;
+    }
+
+    return 1;
 }
 
 
@@ -528,4 +593,40 @@ iap_status_t iap_upgrade_finish(void)
     iap_clear_upgrade_flag();
 
     return IAP_OK;
+}
+
+/**
+ * @brief 调试函数：检查bootloader信息
+ * @param stack_addr 输出栈地址
+ * @param reset_addr 输出复位地址
+ * @return 检查结果的详细状态码
+ */
+uint32_t iap_debug_bootloader_info(uint32_t *stack_addr, uint32_t *reset_addr)
+{
+    uint32_t bootloader_stack_addr = *((uint32_t*)IAP_BOOTLOADER_BASE_ADDR);
+    uint32_t bootloader_reset_addr = *((uint32_t*)(IAP_BOOTLOADER_BASE_ADDR + 4));
+    uint32_t result = 0;
+
+    if (stack_addr) *stack_addr = bootloader_stack_addr;
+    if (reset_addr) *reset_addr = bootloader_reset_addr;
+
+    /* 检查各种条件并设置相应的位 */
+    if (bootloader_stack_addr == 0xFFFFFFFF) result |= (1 << 0);  /* 栈地址全FF */
+    if (bootloader_reset_addr == 0xFFFFFFFF) result |= (1 << 1);  /* 复位地址全FF */
+    if (bootloader_stack_addr == 0x00000000) result |= (1 << 2);  /* 栈地址全0 */
+    if (bootloader_reset_addr == 0x00000000) result |= (1 << 3);  /* 复位地址全0 */
+
+    /* 栈指针范围检查 */
+    if ((bootloader_stack_addr & 0x2FFE0000) != 0x20000000) result |= (1 << 4);
+    if (bootloader_stack_addr < 0x20000000) result |= (1 << 5);
+    if (bootloader_stack_addr > 0x20004FFF) result |= (1 << 6);
+
+    /* 复位地址范围检查 */
+    if (bootloader_reset_addr < IAP_BOOTLOADER_BASE_ADDR) result |= (1 << 7);
+    if (bootloader_reset_addr >= (IAP_BOOTLOADER_BASE_ADDR + IAP_BOOTLOADER_SIZE)) result |= (1 << 8);
+
+    /* Thumb指令检查 */
+    if ((bootloader_reset_addr & 0x01) == 0) result |= (1 << 9);
+
+    return result;  /* 返回0表示所有检查都通过 */
 }

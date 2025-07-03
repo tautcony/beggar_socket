@@ -773,7 +773,7 @@ void gbcRomProgram()
 void iapGetVersion()
 {
     version_info_t version_info;
-    version_get_current_info(&version_info);  // 在app模式下获取app版本
+    version_get_current_info(&version_info);
 
     uart_clearRecvBuf();
 
