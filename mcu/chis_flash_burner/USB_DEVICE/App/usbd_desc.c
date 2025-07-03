@@ -62,12 +62,16 @@
   * @{
   */
 
-#define USBD_VID     0x0483
-#define USBD_LANGID_STRING     1033
+#define USBD_VID                     0x0483
+#define USBD_LANGID_STRING           1033
 #define USBD_MANUFACTURER_STRING     "CNY Industry"
-#define USBD_PID_FS     0x0721
-#define USBD_PRODUCT_STRING_FS     "GBA Burner for ChisFlash"
-#define USBD_CONFIGURATION_STRING_FS     "CDC Config"
+#define USBD_PID_FS                  0x0721
+#ifdef IAP_BOOTLOADER_BUILD
+#define USBD_PRODUCT_STRING_FS       "GBA Burner Bootloader"
+#else
+#define USBD_PRODUCT_STRING_FS       "GBA Burner for ChisFlash"
+#endif
+#define USBD_CONFIGURATION_STRING_FS "CDC Config"
 #define USBD_INTERFACE_STRING_FS     "CDC Interface"
 
 /* USER CODE BEGIN PRIVATE_DEFINES */

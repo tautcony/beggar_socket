@@ -245,14 +245,14 @@ endfunction()
 if(BUILD_BOOTLOADER)
     # Bootloader uses aggressive optimization for size
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        set(BOOTLOADER_OPT_FLAGS -Os -g1)  # Use -Os even in debug for size, minimal debug info
+        set(BOOTLOADER_OPT_FLAGS -g1)  # Use -Os even in debug for size, minimal debug info
     else()
         set(BOOTLOADER_OPT_FLAGS -Os)
     endif()
 
     create_target(chis_flash_burner_bootloader
         "${BOOTLOADER_SOURCES};${USB_SOURCES};${IAP_SOURCES}"
-        "-DIAP_BOOTLOADER_BUILD"
+        "-DIAP_BOOTLOADER_BUILD;-DUSER_VECT_TAB_ADDRESS;-DVECT_TAB_OFFSET=0x0000U"
         "STM32F103C8TX_FLASH_IAP.ld"
         "bootloader"
     )

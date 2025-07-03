@@ -3,6 +3,7 @@
 
 #include "main.h"
 #include "usbd_cdc_if.h"
+#include "usb_device.h"
 // #include "usbd_def.h"
 // #include "usbd_cdc.h"
 
@@ -11,6 +12,9 @@
 #include "version.h"
 #include "iap.h"
 #include "modbus_crc.h"
+
+/* 外部变量声明 */
+extern USBD_HandleTypeDef hUsbDeviceFS;
 #include "error_handler.h"
 
 #define BATCH_SIZE_RW 512
@@ -82,6 +86,7 @@ void gbcRomProgram();
 
 void iapGetVersion();
 void iapReboot();
+void iap_jump_to_bootloader();
 
 void uart_setControlLine(uint8_t rts, uint8_t dtr)
 {
@@ -819,21 +824,7 @@ void iapReboot()
     // 等待数据发送完成
     HAL_Delay(100);
 
-    /* 在重启前正确关闭USB设备 */
-    extern USBD_HandleTypeDef hUsbDeviceFS;
-    USBD_Stop(&hUsbDeviceFS);
-    USBD_DeInit(&hUsbDeviceFS);
-
-    /* 禁用USB时钟 */
-    __HAL_RCC_USB_CLK_DISABLE();
-
-    /* 重置USB相关GPIO */
-    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_11 | GPIO_PIN_12);
-
-    /* 等待USB完全关闭 */
-    HAL_Delay(200);
-
-    // 设置升级标志并重启到bootloader模式
-    iap_set_upgrade_flag();
-    NVIC_SystemReset();
+    // 跳转到bootloader而不是重启
+    iap_jump_to_bootloader();
+    // NVIC_SystemReset();
 }

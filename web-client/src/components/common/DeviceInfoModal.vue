@@ -366,14 +366,7 @@ async function refreshVersionInfo() {
   versionInfo.value = undefined;
 
   try {
-    // 首先尝试应用程序模式
-    try {
-      versionInfo.value = await iap_get_version_info(currentDevice.value);
-    } catch (error) {
-      // 如果应用程序模式失败，尝试Bootloader模式
-      console.log('尝试Bootloader模式获取版本信息');
-      versionInfo.value = await bootloader_get_version_info(currentDevice.value);
-    }
+    versionInfo.value = await iap_get_version_info(currentDevice.value);
 
     showToast('版本信息已更新', 'success');
   } catch (error) {
@@ -393,8 +386,8 @@ async function restartToBootloader() {
     if (success) {
       showToast('设备正在重启到Bootloader模式...', 'info');
       // 等待一段时间后刷新版本信息
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      await refreshVersionInfo();
+      // await new Promise(resolve => setTimeout(resolve, 2000));
+      // await refreshVersionInfo();
     } else {
       throw new Error('重启命令失败');
     }
@@ -413,11 +406,8 @@ async function jumpToApplication() {
     if (success) {
       showToast('设备正在跳转到应用程序...', 'info');
       // 等待一段时间后刷新版本信息
-      setTimeout(() => {
-        refreshVersionInfo().catch((error: unknown) => {
-          console.error('刷新版本信息失败:', error);
-        });
-      }, 2000);
+      // await new Promise(resolve => setTimeout(resolve, 2000));
+      // await refreshVersionInfo();
     } else {
       throw new Error('跳转命令失败');
     }

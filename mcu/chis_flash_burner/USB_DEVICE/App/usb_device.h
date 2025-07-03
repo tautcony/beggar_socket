@@ -82,6 +82,9 @@ void MX_USB_DEVICE_Init(void);
  */
 /* USER CODE BEGIN FD */
 
+/** USB强制重连函数声明 */
+void USB_ForceReconnect(void);
+
 /* USER CODE END FD */
 /**
   * @}

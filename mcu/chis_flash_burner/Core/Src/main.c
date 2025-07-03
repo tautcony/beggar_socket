@@ -97,9 +97,6 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
 
-  /* 强制使能USB时钟 - 在USB初始化前确保时钟已开启 */
-  __HAL_RCC_USB_CLK_ENABLE();
-
   /* USB初始化 - 在IAP环境下可能失败，不影响主要功能 */
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */

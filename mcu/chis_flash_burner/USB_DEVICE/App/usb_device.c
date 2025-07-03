@@ -55,6 +55,52 @@ USBD_HandleTypeDef hUsbDeviceFS;
  */
 /* USER CODE BEGIN 1 */
 
+/**
+  * @brief  强制USB断开并重新连接，确保主机检测到设备变化
+  * @note   在IAP环境或重启后调用，让主机重新读取USB描述符
+  * @retval None
+  */
+void USB_ForceReconnect(void)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  
+  /* 禁用USB外设 */
+  __HAL_RCC_USB_FORCE_RESET();
+  
+  /* 配置USB D+ D-为推挽输出，拉低模拟断开 */
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  HAL_GPIO_DeInit(GPIOA, GPIO_PIN_11 | GPIO_PIN_12);
+  
+  GPIO_InitStruct.Pin = GPIO_PIN_11 | GPIO_PIN_12;  // USB D- and D+
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  
+  /* 拉低D+ D-，模拟USB设备断开 */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11 | GPIO_PIN_12, GPIO_PIN_RESET);
+  
+  /* 保持断开状态200ms，确保主机检测到断开 */
+  HAL_Delay(200);
+  
+  /* 释放USB复位 */
+  __HAL_RCC_USB_RELEASE_RESET();
+  
+  /* 重新配置USB引脚为复用功能 */
+  HAL_GPIO_DeInit(GPIOA, GPIO_PIN_11 | GPIO_PIN_12);
+  GPIO_InitStruct.Pin = GPIO_PIN_11 | GPIO_PIN_12;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  
+  /* 确保USB时钟使能 */
+  __HAL_RCC_USB_CLK_ENABLE();
+  
+  /* 等待USB硬件稳定 */
+  HAL_Delay(50);
+}
+
 /* USER CODE END 1 */
 
 /**
