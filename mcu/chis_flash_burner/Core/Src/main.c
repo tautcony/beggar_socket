@@ -112,8 +112,7 @@ int main(void)
 
   /* USB初始化 */
   MX_USB_DEVICE_Init();
-  MX_USB_DEVICE_DeInit();
-  MX_USB_DEVICE_Init();
+  MX_USB_DEVICE_ReInit();
   /* USER CODE BEGIN 2 */
 
   /* 测试LED - 立即翻转几次确认工作状态 */

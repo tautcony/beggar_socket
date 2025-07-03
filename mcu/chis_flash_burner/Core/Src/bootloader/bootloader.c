@@ -78,17 +78,18 @@ int main(void)
   __enable_irq();
 
   /* 确保SysTick被正确复位 */
+  
   SysTick->CTRL = 0;      /* 禁用SysTick */
   SysTick->LOAD = 0;      /* 清除重载值 */
   SysTick->VAL = 0;       /* 清除当前值 */
 
   /* 检查是否需要跳转到应用程序 */
-  if (!iap_check_upgrade_flag() && iap_check_app_valid()) {
+  uint8_t iap_upgrade_flag = iap_check_upgrade_flag();
+  if (!iap_upgrade_flag && iap_check_app_valid()) {
       /* 没有升级标志且应用程序有效，跳转到应用程序 */
       iap_jump_to_app();
   }
-
-  /* 清除升级标志，继续运行 BootLoader */
+  /* 清除升级标志，继续运行 */
   iap_clear_upgrade_flag();
 
   /* USER CODE END 1 */
@@ -114,8 +115,7 @@ int main(void)
 
   /* USB初始化 */
   MX_USB_DEVICE_Init();
-  MX_USB_DEVICE_DeInit();
-  MX_USB_DEVICE_Init();
+  MX_USB_DEVICE_ReInit();
   /* USER CODE BEGIN 2 */
 
   /* 测试LED - 立即翻转几次确认工作状态 */
@@ -126,7 +126,6 @@ int main(void)
     HAL_Delay(100);
   }
 
-  debug_state_output();
 #ifdef DEBUG
   debug_state_output();
 #endif

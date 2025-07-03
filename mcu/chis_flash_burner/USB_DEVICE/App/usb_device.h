@@ -76,12 +76,14 @@
 
 /** USB Device initialization function. */
 void MX_USB_DEVICE_Init(void);
-void MX_USB_DEVICE_DeInit(void);
 
 /*
  * -- Insert functions declaration here --
  */
 /* USER CODE BEGIN FD */
+
+/** USB强制重连函数声明 */
+void MX_USB_DEVICE_ReInit(void);
 
 /* USER CODE END FD */
 /**
