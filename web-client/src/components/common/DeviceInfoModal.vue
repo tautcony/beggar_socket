@@ -159,6 +159,7 @@
             </button>
 
             <button
+              v-if="versionInfo.versionType === 0"
               class="upgrade-btn"
               :disabled="!canStartUpgrade"
               @click="startFirmwareUpgrade"
@@ -166,6 +167,14 @@
               <IonIcon :icon="cloudUploadOutline" />
               {{ isUpgrading ? '升级中...' : '开始升级' }}
             </button>
+
+            <div
+              v-else
+              class="upgrade-notice"
+            >
+              <IonIcon :icon="warningOutline" />
+              <span>请先重启到Bootloader模式才能进行固件升级</span>
+            </div>
           </div>
         </div>
 
@@ -272,6 +281,7 @@ const canStartUpgrade = computed(() => {
   return selectedFirmwareFile.value &&
          isConnected.value &&
          versionInfo.value &&
+         versionInfo.value.versionType === 0 && // 只有在Bootloader模式下才能升级
          !isUpgrading.value;
 });
 
@@ -385,9 +395,15 @@ async function restartToBootloader() {
     const success = await iap_restart_to_bootloader(currentDevice.value);
     if (success) {
       showToast('设备正在重启到Bootloader模式...', 'info');
-      // 等待一段时间后刷新版本信息
-      // await new Promise(resolve => setTimeout(resolve, 2000));
-      // await refreshVersionInfo();
+
+      // 等待一段时间让设备重启
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // 断开当前连接
+      await disconnectDevice();
+
+      // 提示用户重新连接
+      showToast('设备已重启到Bootloader模式，请重新连接设备', 'info');
     } else {
       throw new Error('重启命令失败');
     }
@@ -405,9 +421,15 @@ async function jumpToApplication() {
     const success = await bootloader_jump_to_app(currentDevice.value);
     if (success) {
       showToast('设备正在跳转到应用程序...', 'info');
-      // 等待一段时间后刷新版本信息
-      // await new Promise(resolve => setTimeout(resolve, 2000));
-      // await refreshVersionInfo();
+
+      // 等待一段时间让设备跳转
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // 断开当前连接
+      await disconnectDevice();
+
+      // 提示用户重新连接
+      showToast('设备已跳转到应用程序模式，请重新连接设备', 'info');
     } else {
       throw new Error('跳转命令失败');
     }
@@ -466,29 +488,9 @@ async function startFirmwareUpgrade() {
     const firmwareCrc = calculateSTM32CRC32(firmwareData);
     console.log(`固件大小: ${firmwareData.length} 字节, CRC32: 0x${firmwareCrc.toString(16).toUpperCase()}`);
 
-    // 3. 如果是Application模式，先重启到Bootloader
-    if (versionInfo.value.versionType === 1) {
-      upgradeProgress.value.message = '正在重启到Bootloader模式...';
-      upgradeProgress.value.progress = 15;
-
-      const restartSuccess = await iap_restart_to_bootloader(device);
-      if (!restartSuccess) {
-        throw new Error('重启到Bootloader失败');
-      }
-
-      // 等待设备重启
-      upgradeProgress.value.message = '等待设备重启...';
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
-      // 刷新版本信息以确认处于Bootloader模式
-      try {
-        versionInfo.value = await bootloader_get_version_info(device);
-        if (versionInfo.value.versionType !== 0) {
-          throw new Error('设备未进入Bootloader模式');
-        }
-      } catch (error) {
-        throw new Error('无法连接到Bootloader模式');
-      }
+    // 3. 确认处于Bootloader模式
+    if (versionInfo.value.versionType !== 0) {
+      throw new Error('请先重启到Bootloader模式才能进行固件升级');
     }
 
     // 4. 发送升级开始命令
@@ -501,7 +503,7 @@ async function startFirmwareUpgrade() {
     }
 
     // 5. 分包发送固件数据
-    const PACKET_SIZE = 512; // 每包512字节，与MCU端BATCH_SIZE_RW保持一致
+    const PACKET_SIZE = 1024;
     const totalPackets = Math.ceil(firmwareData.length / PACKET_SIZE);
 
     for (let packetNum = 0; packetNum < totalPackets; packetNum++) {
@@ -537,13 +539,6 @@ async function startFirmwareUpgrade() {
     };
 
     showToast('固件升级成功！', 'success');
-
-    // 等待一下后刷新版本信息
-    setTimeout(() => {
-      refreshVersionInfo().catch((error: unknown) => {
-        console.error('刷新版本信息失败:', error);
-      });
-    }, 2000);
 
   } catch (error) {
     console.error('固件升级失败:', error);
@@ -852,6 +847,19 @@ function formatFileSize(bytes: number): string {
 .upgrade-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.upgrade-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .upgrade-progress {

@@ -74,7 +74,7 @@ int main(void)
   SCB->VTOR = IAP_APPLICATION_BASE_ADDR;
   __DSB();  /* 数据同步屏障 */
   __ISB();  /* 指令同步屏障 */
-  
+
   /* IAP环境下必须首先使能全局中断 */
   __enable_irq();
 
@@ -84,9 +84,10 @@ int main(void)
   SysTick->VAL = 0;       /* 清除当前值 */
 
   /* 检查并清除IAP标志 - 确保不会被误认为是bootloader */
-  if (iap_check_upgrade_flag()) {
-    iap_clear_upgrade_flag();
-  }
+
+
+  /* 清除升级标志，继续运行 */
+  iap_clear_upgrade_flag();
 
   /* USER CODE END 1 */
 
@@ -109,9 +110,8 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
 
-  /* USB初始化 - 在IAP环境下可能失败，不影响主要功能 */
+  /* USB初始化 */
   MX_USB_DEVICE_Init();
-  USB_DEVICE_ReInit();
   /* USER CODE BEGIN 2 */
 
   /* 测试LED - 立即翻转几次确认工作状态 */
@@ -256,23 +256,23 @@ void debug_state_output(void)
     uint32_t current_addr = (uint32_t)main;
     uint32_t vtor_value = SCB->VTOR;  // 读取向量表偏移寄存器
     uint32_t current_pc;
-    
+
     // 获取当前程序计数器值
     __asm volatile ("mov %0, pc" : "=r" (current_pc));
-    
+
     uint8_t is_app_valid = iap_check_app_valid();
     uint8_t is_bootloader_valid = iap_check_bootloader_valid();
     uint8_t upgrade_flag = iap_check_upgrade_flag();
-    
+
     // 检查USB状态
     extern USBD_HandleTypeDef hUsbDeviceFS;
     uint8_t usb_state = hUsbDeviceFS.dev_state;
     uint8_t usb_configured = (usb_state == USBD_STATE_CONFIGURED) ? 1 : 0;
-    
+
     // 检查编译宏状态
     uint8_t is_bootloader_build = 0;
     uint8_t is_app_build = 0;
-    
+
 #ifdef IAP_BOOTLOADER_BUILD
     is_bootloader_build = 1;
 #endif
@@ -280,17 +280,17 @@ void debug_state_output(void)
 #ifdef IAP_APPLICATION_BUILD
     is_app_build = 1;
 #endif
-    
+
     // 通过LED闪烁次数来指示状态：
-    // 1次：main函数在bootloader区域
-    // 2次：main函数在app区域，但PC在bootloader区域
-    // 3次：USB状态为USBD_STATE_DEFAULT
-    // 4次：USB状态为USBD_STATE_ADDRESSED
-    // 5次：USB状态为USBD_STATE_CONFIGURED (正常)
-    // 6次：USB状态为USBD_STATE_SUSPENDED
-    // 7次：USB状态为其他未知状态
-    // 8次：向量表偏移错误
-    // 9次：存在升级标志
+    // 01次：main函数在bootloader区域
+    // 02次：main函数在app区域，但PC在bootloader区域
+    // 03次：USB状态为USBD_STATE_DEFAULT
+    // 04次：USB状态为USBD_STATE_ADDRESSED
+    // 05次：USB状态为USBD_STATE_CONFIGURED (正常)
+    // 06次：USB状态为USBD_STATE_SUSPENDED
+    // 07次：USB状态为其他未知状态
+    // 08次：向量表偏移错误
+    // 09次：存在升级标志
     // 10次：编译宏错误（IAP_BOOTLOADER_BUILD在app中被定义）
     // 11次：没有定义任何编译宏
     // 12次：在app区域但没有定义IAP_APPLICATION_BUILD宏
@@ -320,28 +320,28 @@ void debug_state_output(void)
           break;
       }
     }
-    
-    if (vtor_value != IAP_APPLICATION_BASE_ADDR) {
+
+    if (vtor_value != IAP_BOOTLOADER_BASE_ADDR) {
       flash_count = 8; // 向量表偏移错误
     }
-    
+
     if (upgrade_flag) {
       flash_count = 9; // 存在升级标志
     }
-    
+
     if (is_bootloader_build && current_addr >= 0x08006000) {
       flash_count = 10; // 编译宏错误：在app区域但定义了bootloader宏
     }
-    
+
     if (!is_bootloader_build && !is_app_build) {
       flash_count = 11; // 没有定义任何编译宏
     }
-    
+
     // 额外检查：如果程序在app区域但没有定义IAP_APPLICATION_BUILD
     if (current_addr >= 0x08006000 && !is_app_build) {
       flash_count = 12; // 在app区域但没有定义IAP_APPLICATION_BUILD宏
     }
-    
+
     // 用LED闪烁指示状态
     HAL_Delay(1000);
     for(int i = 0; i < flash_count; i++) {

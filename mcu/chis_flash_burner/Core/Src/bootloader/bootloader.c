@@ -23,7 +23,6 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "uart.h"
-#include "version.h"
 #include "error_handler.h"
 #include "iap.h"
 /* USER CODE END Includes */
@@ -70,15 +69,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-  /* 检查是否需要跳转到应用程序 */
-  if (!iap_check_upgrade_flag() && iap_check_app_valid()) {
-      /* 没有升级标志且应用程序有效，跳转到应用程序 */
-      iap_jump_to_app();
-  }
-
-  /* 清除升级标志，继续运行 BootLoader */
-  iap_clear_upgrade_flag();
-
   /* 首先设置向量表偏移 - 确保应用程序能正确运行 */
   SCB->VTOR = IAP_BOOTLOADER_BASE_ADDR;
   __DSB();  /* 数据同步屏障 */
@@ -91,6 +81,15 @@ int main(void)
   SysTick->CTRL = 0;      /* 禁用SysTick */
   SysTick->LOAD = 0;      /* 清除重载值 */
   SysTick->VAL = 0;       /* 清除当前值 */
+
+  /* 检查是否需要跳转到应用程序 */
+  if (!iap_check_upgrade_flag() && iap_check_app_valid()) {
+      /* 没有升级标志且应用程序有效，跳转到应用程序 */
+      iap_jump_to_app();
+  }
+
+  /* 清除升级标志，继续运行 BootLoader */
+  iap_clear_upgrade_flag();
 
   /* USER CODE END 1 */
 
@@ -113,9 +112,8 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
 
-  /* USB初始化 - 在IAP环境下可能失败，不影响主要功能 */
+  /* USB初始化 */
   MX_USB_DEVICE_Init();
-  USB_DEVICE_ReInit();
   /* USER CODE BEGIN 2 */
 
   /* 测试LED - 立即翻转几次确认工作状态 */
@@ -125,8 +123,6 @@ int main(void)
     HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1);  // LED off
     HAL_Delay(100);
   }
-
-  debug_state_output();
 
 #ifdef DEBUG
   debug_state_output();
@@ -257,15 +253,15 @@ void debug_state_output(void)
 #endif
 
     // 通过LED闪烁次数来指示状态：
-	  // 1次：main函数在app区域（不应该发生）
-    // 2次：PC在app区域（不应该发生）
-    // 3次：main函数在bootloader区域，USB状态为USBD_STATE_DEFAULT
-    // 4次：main函数在bootloader区域，USB状态为USBD_STATE_ADDRESSED  
-    // 5次：main函数在bootloader区域，USB状态为USBD_STATE_CONFIGURED (正常)
-    // 6次：main函数在bootloader区域，USB状态为USBD_STATE_SUSPENDED
-    // 7次：main函数在bootloader区域，USB状态为其他未知状态
-    // 8次：向量表偏移错误
-    // 9次：存在升级标志
+    // 01次：main函数在app区域（不应该发生）
+    // 02次：PC在app区域（不应该发生）
+    // 03次：main函数在bootloader区域，USB状态为USBD_STATE_DEFAULT
+    // 04次：main函数在bootloader区域，USB状态为USBD_STATE_ADDRESSED  
+    // 05次：main函数在bootloader区域，USB状态为USBD_STATE_CONFIGURED (正常)
+    // 06次：main函数在bootloader区域，USB状态为USBD_STATE_SUSPENDED
+    // 07次：main函数在bootloader区域，USB状态为其他未知状态
+    // 08次：向量表偏移错误
+    // 09次：存在升级标志
     // 10次：编译宏错误（IAP_APPLICATION_BUILD在bootloader中被定义）
     // 11次：没有定义任何编译宏
     // 12次：在bootloader区域但没有定义IAP_BOOTLOADER_BUILD宏

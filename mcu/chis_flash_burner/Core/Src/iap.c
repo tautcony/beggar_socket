@@ -302,17 +302,17 @@ void iap_jump_to_app(void)
 
             /* 跳转到应用程序 - 使用更健壮的汇编跳转 */
             __asm volatile (
-                "cpsid i\n\t"         /* 再次禁用中断 */
-                "mov r3, %0\n\t"      /* 将栈指针保存到r3 */
-                "mov r4, %1\n\t"      /* 将复位地址保存到r4 */
-                "msr msp, r3\n\t"     /* 设置主栈指针 */
-                "dsb\n\t"             /* 数据同步屏障 */
-                "isb\n\t"             /* 指令同步屏障 */
+                "cpsid i\n\t"              /* 再次禁用中断 */
+                "mov r3, %0\n\t"           /* 将栈指针保存到r3 */
+                "mov r4, %1\n\t"           /* 将复位地址保存到r4 */
+                "msr msp, r3\n\t"          /* 设置主栈指针 */
+                "dsb\n\t"                  /* 数据同步屏障 */
+                "isb\n\t"                  /* 指令同步屏障 */
                 "mov lr, #0xFFFFFFFF\n\t"  /* 清除链接寄存器 */
-                "mov r0, #0\n\t"      /* 清除r0寄存器 */
-                "mov r1, #0\n\t"      /* 清除r1寄存器 */
-                "mov r2, #0\n\t"      /* 清除r2寄存器 */
-                "bx r4\n\t"           /* 跳转到应用程序 */
+                "mov r0, #0\n\t"           /* 清除r0寄存器 */
+                "mov r1, #0\n\t"           /* 清除r1寄存器 */
+                "mov r2, #0\n\t"           /* 清除r2寄存器 */
+                "bx r4\n\t"                /* 跳转到应用程序 */
                 :
                 : "r" (app_stack_addr), "r" (app_reset_addr)
                 : "r0", "r1", "r2", "r3", "r4", "lr", "memory"
@@ -450,17 +450,17 @@ void iap_jump_to_bootloader(void)
 
     /* 跳转到bootloader - 使用更健壮的汇编跳转 */
     __asm volatile (
-        "cpsid i\n\t"         /* 再次禁用中断 */
-        "mov r3, %0\n\t"      /* 将栈指针保存到r3 */
-        "mov r4, %1\n\t"      /* 将复位地址保存到r4 */
-        "msr msp, r3\n\t"     /* 设置主栈指针 */
-        "dsb\n\t"             /* 数据同步屏障 */
-        "isb\n\t"             /* 指令同步屏障 */
+        "cpsid i\n\t"              /* 再次禁用中断 */
+        "mov r3, %0\n\t"           /* 将栈指针保存到r3 */
+        "mov r4, %1\n\t"           /* 将复位地址保存到r4 */
+        "msr msp, r3\n\t"          /* 设置主栈指针 */
+        "dsb\n\t"                  /* 数据同步屏障 */
+        "isb\n\t"                  /* 指令同步屏障 */
         "mov lr, #0xFFFFFFFF\n\t"  /* 清除链接寄存器 */
-        "mov r0, #0\n\t"      /* 清除r0寄存器 */
-        "mov r1, #0\n\t"      /* 清除r1寄存器 */
-        "mov r2, #0\n\t"      /* 清除r2寄存器 */
-        "bx r4\n\t"           /* 跳转到bootloader */
+        "mov r0, #0\n\t"           /* 清除r0寄存器 */
+        "mov r1, #0\n\t"           /* 清除r1寄存器 */
+        "mov r2, #0\n\t"           /* 清除r2寄存器 */
+        "bx r4\n\t"                /* 跳转到bootloader */
         :
         : "r" (bootloader_stack_addr), "r" (bootloader_reset_addr)
         : "r0", "r1", "r2", "r3", "r4", "lr", "memory"
