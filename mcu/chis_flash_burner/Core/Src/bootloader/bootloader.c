@@ -67,8 +67,8 @@ void debug_state_output(void);
   */
 int main(void)
 {
-
   /* USER CODE BEGIN 1 */
+  
   /* 首先设置向量表偏移 - 确保应用程序能正确运行 */
   SCB->VTOR = IAP_BOOTLOADER_BASE_ADDR;
   __DSB();  /* 数据同步屏障 */
@@ -114,6 +114,8 @@ int main(void)
 
   /* USB初始化 */
   MX_USB_DEVICE_Init();
+  MX_USB_DEVICE_DeInit();
+  MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 
   /* 测试LED - 立即翻转几次确认工作状态 */
@@ -124,6 +126,7 @@ int main(void)
     HAL_Delay(100);
   }
 
+  debug_state_output();
 #ifdef DEBUG
   debug_state_output();
 #endif
