@@ -117,7 +117,7 @@
             <input
               ref="firmwareFileInput"
               type="file"
-              accept=".bin,.hex"
+              accept=".bin"
               @change="onFirmwareFileSelected"
             >
             <button
@@ -125,8 +125,13 @@
               @click="selectFirmwareFile"
             >
               <IonIcon :icon="documentOutline" />
-              选择固件文件
+              选择固件文件 (.bin)
             </button>
+          </div>
+
+          <div class="file-format-notice">
+            <IonIcon :icon="warningOutline" />
+            <span>请选择 .bin 格式的固件文件（最大1MB）</span>
           </div>
 
           <div
@@ -173,7 +178,7 @@
               class="upgrade-notice"
             >
               <IonIcon :icon="warningOutline" />
-              <span>请先重启到Bootloader模式才能进行固件升级</span>
+              <span>请先重启到Bootloader模式</span>
             </div>
           </div>
         </div>
@@ -448,6 +453,22 @@ function onFirmwareFileSelected(event: Event) {
   const target = event.target as HTMLInputElement;
   const file = target.files?.[0];
   if (file) {
+    // 检查文件扩展名
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.bin')) {
+      showToast('请选择 .bin 格式的固件文件', 'error');
+      target.value = ''; // 清空输入
+      return;
+    }
+
+    // 检查文件大小（限制为1MB以内）
+    const maxSize = 1024 * 1024; // 1MB
+    if (file.size > maxSize) {
+      showToast('固件文件大小不能超过 1MB', 'error');
+      target.value = ''; // 清空输入
+      return;
+    }
+
     selectedFirmwareFile.value = file;
     showToast(`已选择固件文件: ${file.name}`, 'info');
   }
@@ -495,14 +516,17 @@ async function startFirmwareUpgrade() {
 
     // 4. 发送升级开始命令
     upgradeProgress.value.message = '正在启动升级流程...';
-    upgradeProgress.value.progress = 20;
+    upgradeProgress.value.progress = 15;
 
     const startSuccess = await bootloader_start_upgrade(device, firmwareData.length, firmwareCrc);
     if (!startSuccess) {
       throw new Error('启动升级流程失败');
+    } else {
+      console.log('启动升级流程成功');
     }
 
     // 5. 分包发送固件数据
+    upgradeProgress.value.status = FirmwareUpgradeStatus.PROGRAMMING;
     const PACKET_SIZE = 1024;
     const totalPackets = Math.ceil(firmwareData.length / PACKET_SIZE);
 
@@ -512,17 +536,18 @@ async function startFirmwareUpgrade() {
       const packetData = firmwareData.slice(startOffset, endOffset);
 
       upgradeProgress.value.message = `正在传输固件数据... (${packetNum + 1}/${totalPackets})`;
-      upgradeProgress.value.progress = 20 + Math.floor((packetNum / totalPackets) * 70);
+      upgradeProgress.value.progress = 15 + Math.floor((packetNum / totalPackets) * 75);
 
       const dataSuccess = await bootloader_upgrade_data(device, packetNum, packetData);
       if (!dataSuccess) {
-        throw new Error(`传输数据包 ${packetNum} 失败`);
+        throw new Error(`传输数据包 ${packetNum + 1} 失败`);
       }
 
       console.log(`已传输包 ${packetNum + 1}/${totalPackets}, 字节: ${startOffset}-${endOffset - 1}`);
     }
 
     // 6. 发送升级完成命令
+    upgradeProgress.value.status = FirmwareUpgradeStatus.FINISHING;
     upgradeProgress.value.message = '正在完成升级...';
     upgradeProgress.value.progress = 95;
 
@@ -535,10 +560,16 @@ async function startFirmwareUpgrade() {
     upgradeProgress.value = {
       status: FirmwareUpgradeStatus.SUCCESS,
       progress: 100,
-      message: '固件升级完成！',
+      message: '固件升级完成！设备将自动重启到应用程序模式。',
     };
 
     showToast('固件升级成功！', 'success');
+
+    // 清空选择的文件
+    selectedFirmwareFile.value = undefined;
+    if (firmwareFileInput.value) {
+      firmwareFileInput.value.value = '';
+    }
 
   } catch (error) {
     console.error('固件升级失败:', error);
@@ -772,6 +803,19 @@ function formatFileSize(bytes: number): string {
 
 .file-select-btn:hover {
   background: #5a6268;
+}
+
+.file-format-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+  border-radius: 6px;
+  font-size: 0.85rem;
 }
 
 .selected-file {

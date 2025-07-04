@@ -1,12 +1,7 @@
-#include "iap.h"
-// #include "main.h"
 #include <string.h>
+#include "iap.h"
 #include "error_handler.h"
 #include "usb_device.h"
-#include "usbd_core.h"
-
-/* 外部变量声明 */
-extern USBD_HandleTypeDef hUsbDeviceFS;
 
 /* 全局变量 */
 static iap_upgrade_info_t upgrade_info;
@@ -90,9 +85,6 @@ __RAM_FUNC iap_status_t iap_flash_erase(uint32_t start_addr, uint32_t size)
         return IAP_ERROR_INVALID_ADDR;
     }
 
-    /* 解锁 Flash */
-    HAL_FLASH_Unlock();
-
     /* 配置擦除参数 */
     erase_init.TypeErase = FLASH_TYPEERASE_PAGES;
     erase_init.PageAddress = start_addr;
@@ -100,9 +92,6 @@ __RAM_FUNC iap_status_t iap_flash_erase(uint32_t start_addr, uint32_t size)
 
     /* 执行擦除 */
     status = HAL_FLASHEx_Erase(&erase_init, &page_error);
-
-    /* 锁定 Flash */
-    HAL_FLASH_Lock();
 
     return (status == HAL_OK) ? IAP_OK : IAP_ERROR_FLASH_ERASE;
 }
@@ -125,27 +114,35 @@ __RAM_FUNC iap_status_t iap_flash_write(uint32_t addr, uint8_t *data, uint32_t s
         return IAP_ERROR_INVALID_ADDR;
     }
 
-    /* 解锁 Flash */
-    HAL_FLASH_Unlock();
+    /* 检查地址是否为半字对齐 */
+    if (addr % 2 != 0) {
+        return IAP_ERROR_INVALID_ADDR;
+    }
 
-    /* 按半字(16bit)写入数据 */
-    for (i = 0; i < size; i += 2) {
-        uint16_t half_word;
+    /* 按字(32bit)写入数据 */
+    for (i = 0; i < size; i += 4) {
+        uint32_t word;
 
-        if (i + 1 < size) {
-            half_word = (data[i + 1] << 8) | data[i];
+        if (i + 3 < size) {
+            /* 完整的4字节 */
+            word = (data[i + 3] << 24) | (data[i + 2] << 16) | (data[i + 1] << 8) | data[i];
         } else {
-            half_word = 0xFF00 | data[i];  /* 奇数字节时，高字节填充0xFF */
+            /* 不足4字节的情况，填充0xFF */
+            word = 0;
+            for (uint32_t j = 0; j < 4; j++) {
+                if (i + j < size) {
+                    word |= (data[i + j] << (j * 8));
+                } else {
+                    word |= (0xFF << (j * 8));
+                }
+            }
         }
 
-        status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, addr + i, half_word);
+        status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, addr + i, word);
         if (status != HAL_OK) {
             break;
         }
     }
-
-    /* 锁定 Flash */
-    HAL_FLASH_Lock();
 
     return (status == HAL_OK) ? IAP_OK : IAP_ERROR_FLASH_WRITE;
 }
@@ -519,20 +516,29 @@ uint8_t iap_check_bootloader_valid(void)
  * @param app_size 应用程序大小
  * @param app_crc 应用程序 CRC32 值
  */
-void iap_upgrade_start(uint32_t app_size, uint32_t app_crc)
+iap_status_t iap_upgrade_start(uint32_t app_size, uint32_t app_crc)
 {
     /* 初始化升级信息 */
     upgrade_info.app_size = app_size;
     upgrade_info.app_crc = app_crc;
-    upgrade_info.packet_size = 512;  /* 默认包大小 */
-    upgrade_info.total_packets = (app_size + upgrade_info.packet_size - 1) / upgrade_info.packet_size;
+    upgrade_info.packet_size = 1024;  /* 默认包大小 */
+    upgrade_info.total_packets =  (app_size + upgrade_info.packet_size - 1) / upgrade_info.packet_size;
     upgrade_info.current_packet = 0;
 
     /* 设置写入地址 */
     write_addr = IAP_APPLICATION_BASE_ADDR;
 
+    /* 解锁 Flash */
+    int attpemt_count = 10;
+    while (HAL_FLASH_Unlock() !=HAL_OK && attpemt_count > 0)
+    {
+        /* 等待解锁成功 */
+        HAL_Delay(10);
+        --attpemt_count;
+    }
+
     /* 擦除应用程序区域 */
-    iap_flash_erase(IAP_APPLICATION_BASE_ADDR, app_size);
+    return iap_flash_erase(IAP_APPLICATION_BASE_ADDR, app_size);
 }
 
 /**
@@ -583,6 +589,15 @@ iap_status_t iap_upgrade_finish(void)
 
     /* 计算 CRC32 */
     calculated_crc = iap_crc32(app_data, upgrade_info.app_size);
+
+    /* 锁定 Flash */
+    int attpemt_count = 10;
+    while (HAL_FLASH_Lock() !=HAL_OK && attpemt_count > 0)
+    {
+        /* 等待解锁成功 */
+        HAL_Delay(10);
+        --attpemt_count;
+    }
 
     /* 验证 CRC */
     if (calculated_crc != upgrade_info.app_crc) {

@@ -26,12 +26,15 @@ static uint8_t morse_led_state = 0;
 static const char morse_message[] = "BOOTLOADER ";
 
 typedef enum {
-    UART_SUCCESS = 0,
+    UART_SUCCESS = 0xaa,
     UART_ERROR_INVALID_PARAM = 1,
-    UART_ERROR_BUFFER_FULL = 2,
-    UART_ERROR_CRC_MISMATCH = 3,
-    UART_ERROR_UNKNOWN_CMD = 4,
-    UART_ERROR_SIZE_MISMATCH = 5
+    UART_ERROR_CRC_MISMATCH = 2,
+    UART_ERROR_UNKNOWN_CMD = 3,
+    UART_ERROR_SIZE_MISMATCH = 4,
+    UART_ERROR_FLASH_ERASE = 5,
+    UART_ERROR_FLASH_WRITE = 6,
+    UART_ERROR_FLASH_VERIFY = 7,
+    UART_ERROR_CRC_FAIL = 8,
 } uart_result_t;
 
 // 命令头
@@ -103,28 +106,15 @@ void uart_responData(uint8_t *dat, uint16_t len)
     }
 }
 
-void uart_responAck(bool success)
+void uart_responAck(uint8_t status_code)
 {
     USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)hUsbDeviceFS.pClassData;
 
     while (hcdc->TxState != 0)
         ;
 
-    // 无数据的状态返回，不需要CRC，只发送状态字节
-    uint8_t status = success ? 0xaa : 0xFF;
+    uint8_t status = status_code;
     CDC_Transmit_FS(&status, 1);
-}
-
-void uart_sendError(uint8_t errorCode)
-{
-    USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)hUsbDeviceFS.pClassData;
-
-    while (hcdc->TxState != 0)
-        ;
-
-    // 错误响应，不需要CRC，只发送错误标志和错误码
-    uint8_t errorData[2] = {0xFF, errorCode}; // 0xFF为错误标志
-    CDC_Transmit_FS(errorData, 2);
 }
 
 /* UART Callback */
@@ -204,17 +194,17 @@ void uart_cmdHandler()
                             iapJumpToApp();
                             break;
                         default:
-                            uart_sendError(UART_ERROR_UNKNOWN_CMD);
+                            uart_responAck(UART_ERROR_UNKNOWN_CMD);
                             break;
                     }
                     break;
                 }
             default:
-                uart_sendError(UART_ERROR_UNKNOWN_CMD);
+                uart_responAck(UART_ERROR_UNKNOWN_CMD);
                 break;
             }
 
-            HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1);
+            HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, GPIO_PIN_SET);
             // 统一清除busy和缓冲区
             cmdBuf_p = 0;
             memset(cmdBuf, 0, sizeof(cmdBuf));
@@ -272,7 +262,7 @@ void iapEraseFlash()
     // 从命令中获取地址和大小
     if (uart_cmd->cmdSize < 3 + 4 + 4 + 2) // cmdSize + cmdCode + subCmd + address + size + CRC
     {
-        uart_sendError(0x04); // 参数不足
+        uart_responAck(UART_ERROR_INVALID_PARAM); // 参数不足
         return;
     }
 
@@ -283,7 +273,7 @@ void iapEraseFlash()
     // 执行擦除
     iap_status_t result = iap_flash_erase(address, size);
 
-    uart_responAck(result == IAP_OK);
+    uart_responAck(result == IAP_OK ? UART_SUCCESS : UART_ERROR_FLASH_ERASE);
 }
 
 void iapProgramFlash()
@@ -291,7 +281,7 @@ void iapProgramFlash()
     // 从命令中获取地址和数据
     if (uart_cmd->cmdSize < 3 + 4 + 1 + 2) // cmdSize + cmdCode + subCmd + address + data(至少1字节) + CRC
     {
-        uart_sendError(0x04); // 参数不足
+        uart_responAck(UART_ERROR_INVALID_PARAM); // 参数不足
         return;
     }
 
@@ -303,7 +293,7 @@ void iapProgramFlash()
     // 执行编程
     iap_status_t result = iap_flash_write(address, data, data_len);
 
-    uart_responAck(result == IAP_OK);
+    uart_responAck(result == IAP_OK ? UART_SUCCESS : UART_ERROR_FLASH_WRITE);
 }
 
 // IAP 跳转到app模式
@@ -312,7 +302,7 @@ void iapProgramFlash()
 void iapJumpToApp()
 {
     uart_clearRecvBuf();
-    uart_responAck(true);
+    uart_responAck(UART_SUCCESS);
 
     // 等待数据发送完成
     HAL_Delay(100);
@@ -330,7 +320,7 @@ void iapUpgradeStart()
 {
     // 检查参数长度
     if (uart_cmd->cmdSize < 3 + 4 + 4 + 2) { // cmdSize + cmdCode + subCmd + app_size + app_crc + CRC
-        uart_sendError(0x04); // 参数不足
+        uart_responAck(UART_ERROR_INVALID_PARAM); // 参数不足
         return;
     }
 
@@ -339,14 +329,14 @@ void iapUpgradeStart()
 
     // 检查应用程序大小是否合理
     if (app_size == 0 || app_size > IAP_APPLICATION_SIZE) {
-        uart_sendError(0x05); // 大小无效
+        uart_responAck(UART_ERROR_SIZE_MISMATCH); // 大小无效
         return;
     }
 
     // 开始升级流程
-    iap_upgrade_start(app_size, app_crc);
+    iap_status_t status = iap_upgrade_start(app_size, app_crc);
 
-    uart_responAck(true);
+    uart_responAck(status == IAP_OK ? UART_SUCCESS : UART_ERROR_FLASH_ERASE);
 }
 
 // 升级数据传输
@@ -356,7 +346,7 @@ void iapUpgradeData()
 {
     // 检查参数长度
     if (uart_cmd->cmdSize < 3 + 4 + 2) { // cmdSize + cmdCode + subCmd + packet_num + CRC (至少)
-        uart_sendError(0x04); // 参数不足
+        uart_responAck(UART_ERROR_INVALID_PARAM); // 参数不足
         return;
     }
 
@@ -367,18 +357,19 @@ void iapUpgradeData()
     // 传输数据
     iap_status_t result = iap_upgrade_data(packet_num, data, data_len);
 
-    uart_responAck(result == IAP_OK);
+    uart_responAck(result == IAP_OK ? UART_SUCCESS : UART_ERROR_FLASH_WRITE);
 }
 
 // 完成升级流程
 // i 2B.包大小 0xff 0x12 2B.CRC
-// o 2B.CRC 1B.status
+// o 1B.status 
 void iapUpgradeFinish()
 {
     // 完成升级并验证
     iap_status_t result = iap_upgrade_finish();
 
-    uart_responAck(result == IAP_OK);
+    uart_responAck(result == IAP_ERROR_CRC_FAIL ? UART_ERROR_CRC_FAIL :
+                      result == IAP_OK ? UART_SUCCESS : UART_ERROR_FLASH_VERIFY);
 }
 
 /* 摩尔斯电码相关函数 */

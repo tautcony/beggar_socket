@@ -231,9 +231,9 @@ A lightweight gba cartridge burner, with limited functionality
 
 - 返回
 
-| 字节数 | 1                        |
-| ------ | ------------------------ |
-| 定义   | 0xaa(成功)<br>0xFF(失败) |
+| 字节数 | 1                                      |
+| ------ | -------------------------------------- |
+| 定义   | 0xaa(成功)<br>其它值(失败，参见错误码表) |
 
 ## Bootloader命令
 
@@ -269,9 +269,9 @@ A lightweight gba cartridge burner, with limited functionality
 
 - 返回
 
-| 字节数 | 1                        |
-| ------ | ------------------------ |
-| 定义   | 0xaa(成功)<br>0xFF(失败) |
+| 字节数 | 1                                      |
+| ------ | -------------------------------------- |
+| 定义   | 0xaa(成功)<br>其它值(失败，参见错误码表) |
 
 ### 编程Flash
 
@@ -283,9 +283,9 @@ A lightweight gba cartridge burner, with limited functionality
 
 - 返回
 
-| 字节数 | 1                        |
-| ------ | ------------------------ |
-| 定义   | 0xaa(成功)<br>0xFF(失败) |
+| 字节数 | 1                                      |
+| ------ | -------------------------------------- |
+| 定义   | 0xaa(成功)<br>其它值(失败，参见错误码表) |
 
 ### 跳转到应用程序
 
@@ -297,9 +297,9 @@ A lightweight gba cartridge burner, with limited functionality
 
 - 返回
 
-| 字节数 | 1                        |
-| ------ | ------------------------ |
-| 定义   | 0xaa(成功)<br>0xFF(失败) |
+| 字节数 | 1                                      |
+| ------ | -------------------------------------- |
+| 定义   | 0xaa(成功)<br>其它值(失败，参见错误码表) |
 
 ### 开始升级流程
 
@@ -311,9 +311,9 @@ A lightweight gba cartridge burner, with limited functionality
 
 - 返回
 
-| 字节数 | 1                        |
-| ------ | ------------------------ |
-| 定义   | 0xaa(成功)<br>0xFF(失败) |
+| 字节数 | 1                                      |
+| ------ | -------------------------------------- |
+| 定义   | 0xaa(成功)<br>其它值(失败，参见错误码表) |
 
 ### 升级数据传输
 
@@ -325,9 +325,9 @@ A lightweight gba cartridge burner, with limited functionality
 
 - 返回
 
-| 字节数 | 1                        |
-| ------ | ------------------------ |
-| 定义   | 0xaa(成功)<br>0xFF(失败) |
+| 字节数 | 1                                      |
+| ------ | -------------------------------------- |
+| 定义   | 0xaa(成功)<br>其它值(失败，参见错误码表) |
 
 ### 完成升级流程
 
@@ -339,16 +339,20 @@ A lightweight gba cartridge burner, with limited functionality
 
 - 返回
 
-| 字节数 | 1                        |
-| ------ | ------------------------ |
-| 定义   | 0xaa(成功)<br>0xFF(失败) |
+| 字节数 | 1                                      |
+| ------ | -------------------------------------- |
+| 定义   | 0xaa(成功)<br>其它值(失败，参见错误码表) |
 
 ### Bootloader错误码
 
-| 错误码 | 含义                 |
-| ------ | -------------------- |
-| 0x01   | 无效参数             |
-| 0x02   | 缓冲区满             |
-| 0x03   | CRC校验错误          |
-| 0x04   | 不支持的命令         |
-| 0x05   | 大小不匹配           |
+| 错误码 | 枚举值 | 含义                 |
+| ------ | ------ | -------------------- |
+| 0xAA   | UART_SUCCESS | 成功 |
+| 0x01   | UART_ERROR_INVALID_PARAM | 无效参数 |
+| 0x02   | UART_ERROR_CRC_MISMATCH | CRC校验错误 |
+| 0x03   | UART_ERROR_UNKNOWN_CMD | 未知命令 |
+| 0x04   | UART_ERROR_SIZE_MISMATCH | 大小不匹配 |
+| 0x05   | UART_ERROR_FLASH_ERASE | Flash擦除失败 |
+| 0x06   | UART_ERROR_FLASH_WRITE | Flash写入失败 |
+| 0x07   | UART_ERROR_FLASH_VERIFY | Flash验证失败 |
+| 0x08   | UART_ERROR_CRC_FAIL | CRC校验失败 |

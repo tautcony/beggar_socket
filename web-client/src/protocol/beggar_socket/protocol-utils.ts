@@ -73,7 +73,38 @@ export async function getResult(reader: ReadableStreamBYOBReader | null, timeout
   const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
 
   const result = await getPackage(reader, 1, timeout);
-  return result.data?.byteLength > 0 && result.data[0] === 0xaa;
+  if (result.data?.byteLength > 0) {
+    const statusCode = result.data[0];
+    if (statusCode === 0xaa) {
+      return true;
+    } else {
+      // 抛出包含错误码信息的异常
+      const errorMessage = getErrorMessage(statusCode);
+      throw new Error(`操作失败: ${errorMessage} (错误码: 0x${statusCode.toString(16).toUpperCase()})`);
+    }
+  }
+  throw new Error('接收到空响应');
+}
+
+/**
+ * 获取错误码对应的错误信息
+ * @param errorCode 错误码
+ * @returns 错误信息
+ */
+export function getErrorMessage(errorCode: number): string {
+  const errorMessages = new Map<number, string>([
+    [0xAA, '成功'],
+    [0x01, '无效参数'],
+    [0x02, 'CRC校验错误'],
+    [0x03, '未知命令'],
+    [0x04, '大小不匹配'],
+    [0x05, 'Flash擦除失败'],
+    [0x06, 'Flash写入失败'],
+    [0x07, 'Flash验证失败'],
+    [0x08, 'CRC校验失败'],
+  ]);
+
+  return errorMessages.get(errorCode) ?? '未知错误';
 }
 
 export function getFlashId(id: number[]) : string | null {
