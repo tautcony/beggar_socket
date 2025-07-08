@@ -39,19 +39,6 @@
 
         <button
           class="menu-item"
-          disabled
-          @click="openRomExtractor"
-        >
-          <IonIcon :icon="archiveOutline" />
-          <div class="menu-item-content">
-            <span class="menu-item-title">{{ $t('ui.menu.romExtractor') }}</span>
-            <span class="menu-item-desc">{{ $t('ui.menu.romExtractorDesc') }}</span>
-          </div>
-        </button>
-
-        <button
-          class="menu-item"
-          disabled
           @click="openRomAnalyzer"
         >
           <IonIcon :icon="analyticsOutline" />
@@ -96,6 +83,12 @@
       @assembled="onRomAssembled"
     />
 
+    <!-- ROM分析器弹框 -->
+    <RomAnalyzerModal
+      :is-visible="isRomAnalyzerVisible"
+      @close="closeRomAnalyzer"
+    />
+
     <!-- 高级设置面板 -->
     <AdvancedSettingsPanel
       v-if="isSettingsVisible"
@@ -109,7 +102,6 @@
 import { IonIcon } from '@ionic/vue';
 import {
   analyticsOutline,
-  archiveOutline,
   constructOutline,
   informationCircleOutline,
   menuOutline,
@@ -118,6 +110,7 @@ import {
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import RomAnalyzerModal from '@/components/common/RomAnalyzerModal.vue';
 import RomAssemblyModal from '@/components/common/RomAssemblyModal.vue';
 import AdvancedSettingsPanel from '@/components/settings/AdvancedSettingsPanel.vue';
 import { useToast } from '@/composables/useToast';
@@ -138,6 +131,7 @@ const emit = defineEmits<{
 
 const isMenuOpen = ref(false);
 const isRomAssemblyVisible = ref(false);
+const isRomAnalyzerVisible = ref(false);
 const isSettingsVisible = ref(false);
 
 function toggleMenu() {
@@ -162,12 +156,16 @@ function onRomAssembled(rom: AssembledRom, romType: 'MBC5' | 'GBA') {
   showToast(t('messages.romAssembly.applied'), 'success');
 }
 
-function openRomExtractor() {
+function openRomAnalyzer() {
   closeMenu();
-  showToast(t('messages.common.featureComingSoon'), 'success');
+  isRomAnalyzerVisible.value = true;
 }
 
-function openRomAnalyzer() {
+function closeRomAnalyzer() {
+  isRomAnalyzerVisible.value = false;
+}
+
+function openRomExtractor() {
   closeMenu();
   showToast(t('messages.common.featureComingSoon'), 'success');
 }
