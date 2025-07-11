@@ -18,6 +18,11 @@ MCU="STM32F103C8Tx"
 BUILD_DIR="build"
 TARGET_ARCH="arm-none-eabi"
 
+# Flash configuration
+FLASH_SIZE="64K"  # STM32F103C8T6 has 64KB flash
+OPENOCD_INTERFACE="interface/stlink.cfg"
+OPENOCD_TARGET="target/stm32f1x.cfg"
+
 # Build configuration
 BUILD_MODE="debug"  # Default to debug mode
 DEBUG_FLAG="1"
@@ -203,6 +208,99 @@ clean_project() {
     cd ..
 }
 
+# Flash function
+flash_target() {
+    local hex_file=""
+    
+    # Check if build directory and hex file exist
+    if [ ! -d "$PROJECT_NAME/$BUILD_DIR" ]; then
+        log_error "Build directory not found. Please build the project first."
+        return 1
+    fi
+    
+    # Look for hex file
+    hex_file="$PROJECT_NAME/$BUILD_DIR/${PROJECT_NAME}.hex"
+    
+    if [ ! -f "$hex_file" ]; then
+        log_error "Hex file not found: $hex_file"
+        log_info "Please build the project first: $0 build"
+        return 1
+    fi
+
+    # Check if OpenOCD is available
+    if ! command_exists openocd; then
+        log_error "OpenOCD is not installed or not in PATH"
+        log_info "Please install OpenOCD:"
+        log_info "  Ubuntu/Debian: sudo apt-get install openocd"
+        log_info "  macOS:         brew install openocd"
+        log_info "  Arch Linux:    sudo pacman -S openocd"
+        return 1
+    fi
+
+    log_info "Flashing $PROJECT_NAME to STM32F103..."
+    log_info "Using hex file: $hex_file"
+
+    # Flash using OpenOCD with ST-Link interface
+    if openocd -f interface/stlink.cfg -f target/stm32f1x.cfg \
+        -c "program $hex_file verify reset exit"; then
+        log_success "Firmware flashed successfully!"
+        log_info "Device should now be running the new firmware"
+    else
+        log_error "Failed to flash firmware"
+        log_warning "Make sure:"
+        log_warning "  - ST-Link is connected properly"
+        log_warning "  - Target device is powered"
+        log_warning "  - OpenOCD configuration files are available"
+        return 1
+    fi
+}
+
+# Erase entire flash function
+erase_flash() {
+    # Check if OpenOCD is available
+    if ! command_exists openocd; then
+        log_error "OpenOCD is not installed or not in PATH"
+        log_info "Please install OpenOCD:"
+        log_info "  Ubuntu/Debian: sudo apt-get install openocd"
+        log_info "  macOS:         brew install openocd"
+        log_info "  Arch Linux:    sudo pacman -S openocd"
+        return 1
+    fi
+
+    log_warning "⚠️  WARNING: This will COMPLETELY ERASE the entire STM32F103 Flash memory!"
+    log_warning "⚠️  All firmware including bootloader will be removed."
+    echo ""
+    echo -n "Are you sure you want to continue? Type 'yes' to confirm: "
+    read -r confirmation
+
+    if [ "$confirmation" != "yes" ]; then
+        log_info "Operation cancelled by user"
+        return 0
+    fi
+
+    log_info "Erasing entire Flash memory on STM32F103..."
+
+    # Use OpenOCD to erase the entire flash
+    # STM32F103C8T6 has 64KB flash = 64 pages of 1KB each (pages 0-63)
+    if openocd -f interface/stlink.cfg -f target/stm32f1x.cfg \
+        -c "init" \
+        -c "reset halt" \
+        -c "flash info 0" \
+        -c "flash erase_sector 0 0 63" \
+        -c "reset run" \
+        -c "exit"; then
+        log_success "Flash memory erased successfully!"
+        log_info "Device is now blank - you need to flash new firmware"
+    else
+        log_error "Failed to erase flash memory"
+        log_warning "Make sure:"
+        log_warning "  - ST-Link is connected properly"
+        log_warning "  - Target device is powered"
+        log_warning "  - Device is not write-protected"
+        return 1
+    fi
+}
+
 # Function to show project status
 show_status() {
     echo -e "${BLUE}=== STM32F103 Project Status ===${NC}"
@@ -227,6 +325,13 @@ show_status() {
         echo -e "${GREEN}✅ Make: $(make --version | head -n1)${NC}"
     else
         echo -e "${RED}❌ Make not found${NC}"
+    fi
+
+    # Check OpenOCD for flashing
+    if command_exists openocd; then
+        echo -e "${GREEN}✅ OpenOCD: $(openocd --version 2>&1 | head -n1 | cut -d' ' -f1-4)${NC}"
+    else
+        echo -e "${YELLOW}⚠️  OpenOCD not found (needed for flashing)${NC}"
     fi
 
     # Check Makefile
@@ -275,6 +380,8 @@ show_status() {
     echo "  ./build.sh build debug - Build in debug mode"
     echo "  ./build.sh build release - Build in release mode"
     echo "  ./build.sh clean       - Clean build"
+    echo "  ./build.sh flash       - Flash firmware to device"
+    echo "  ./build.sh erase       - Erase entire flash memory"
     echo "  ./build.sh status      - Show this status"
 }
 
@@ -286,6 +393,8 @@ show_help() {
     echo "Options:"
     echo "  build     Build the project (default)"
     echo "  clean     Clean build artifacts"
+    echo "  flash     Flash firmware to target device"
+    echo "  erase     Erase entire flash memory"
     echo "  setup     Setup environment only"
     echo "  status    Show project status and build information"
     echo "  help      Show this help message"
@@ -297,7 +406,14 @@ show_help() {
     echo "  r         Short for release"
     echo ""
     echo "Environment variables:"
-    echo "  GCC_PATH  Path to ARM GCC toolchain (optional)"
+    echo "  GCC_PATH       Path to ARM GCC toolchain (optional)"
+    echo "  OPENOCD_PATH   Path to OpenOCD (optional)"
+    echo ""
+    echo "Dependencies:"
+    echo "  - ARM GCC toolchain (gcc-arm-none-eabi)"
+    echo "  - Make"
+    echo "  - OpenOCD (for flashing)"
+    echo "  - ST-Link programmer/debugger"
     echo ""
     echo "Examples:"
     echo "  $0                    # Build project in debug mode"
@@ -305,6 +421,8 @@ show_help() {
     echo "  $0 build release      # Build project in release mode"
     echo "  $0 build r            # Build project in release mode (short)"
     echo "  $0 clean              # Clean project"
+    echo "  $0 flash              # Flash firmware to device"
+    echo "  $0 erase              # Erase entire flash memory"
     echo "  $0 setup              # Setup environment only"
     echo "  $0 status             # Show project status"
     echo "  GCC_PATH=/opt/gcc $0  # Use custom toolchain path"
@@ -329,6 +447,12 @@ main() {
             ;;
         "clean")
             clean_project
+            ;;
+        "flash")
+            flash_target
+            ;;
+        "erase")
+            erase_flash
             ;;
         "setup")
             check_toolchain
