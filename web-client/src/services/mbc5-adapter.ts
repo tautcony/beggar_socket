@@ -321,7 +321,7 @@ export class MBC5Adapter extends CartridgeAdapter {
 
           const blank = await this.isBlank(baseAddress, 0x100);
           if (!blank) {
-            const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, total);
+            const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, total, baseAddress);
             for (const { startAddress, endAddress, sectorSize } of sectorInfo) {
               await this.eraseSectors(startAddress, endAddress, sectorSize, signal);
             }
