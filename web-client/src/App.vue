@@ -40,7 +40,7 @@
     />
     <DebugLink
       v-if="showDebugPanel"
-      v-model="showDebugPanelModal"
+      v-model:display="showDebugPanelModal"
     />
     <GitHubLink />
     <GlobalToast />

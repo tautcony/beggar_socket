@@ -22,12 +22,9 @@ import { bugOutline } from 'ionicons/icons';
 
 import FloatingLink from '@/components/common/FloatingLink.vue';
 
-const props = defineProps<{ modelValue: boolean }>();
-const emit = defineEmits<{
-  'update-model-value': [value: boolean];
-}>();
+const showDebugPanelModal = defineModel<boolean>('display', { default: false });
 
 function togglePanel() {
-  emit('update-model-value', !props.modelValue);
+  showDebugPanelModal.value = !showDebugPanelModal.value;
 }
 </script>
