@@ -103,10 +103,13 @@
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import { saveOutline } from 'ionicons/icons';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import FileDropZone from '@/components/common/FileDropZone.vue';
 import { FileInfo } from '@/types/file-info.ts';
+
+const { t } = useI18n();
 
 const props = withDefaults(defineProps<{
   mode: string;
@@ -132,24 +135,16 @@ const RAM_SIZE_RANGE = [
   { value: '0x20000', size: 0x20000, text: '128KB' }, // 128KB
 ];
 
-const RAM_BASE_ADDRESS_OPTIONS = [
-  { value: '0x00000', text: '游戏01' },
-  { value: '0x08000', text: '游戏02' },
-  { value: '0x10000', text: '游戏03' },
-  { value: '0x18000', text: '游戏04' },
-  { value: '0x20000', text: '游戏05' },
-  { value: '0x28000', text: '游戏06' },
-  { value: '0x30000', text: '游戏07' },
-  { value: '0x38000', text: '游戏08' },
-  { value: '0x40000', text: '游戏09' },
-  { value: '0x48000', text: '游戏10' },
-  { value: '0x50000', text: '游戏11' },
-  { value: '0x58000', text: '游戏12' },
-  { value: '0x60000', text: '游戏13' },
-  { value: '0x68000', text: '游戏14' },
-  { value: '0x70000', text: '游戏15' },
-  { value: '0x78000', text: '游戏16' },
-];
+const RAM_BASE_ADDRESS_OPTIONS = computed(() => {
+  const options: { value: string, text: string }[] = [];
+  for (let i = 0; i < 16; ++i) {
+    options.push({
+      value: `0x${(i * 0x8000).toString(16).padStart(5, '0')}`,
+      text: t('ui.ram.baseAddressOptions.game', { index: i + 1 }),
+    });
+  }
+  return options;
+});
 
 const emit = defineEmits(['file-selected', 'file-cleared', 'write-ram', 'read-ram', 'verify-ram', 'ram-size-change', 'ram-type-change', 'base-address-change']);
 

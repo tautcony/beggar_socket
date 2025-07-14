@@ -219,7 +219,13 @@
       "typeLabel": "Type:",
       "baseAddressLabel": "Base Address:",
       "typeSRAM": "SRAM",
-      "typeFLASH": "FLASH"
+      "typeFLASH": "FLASH",
+      "baseAddressOptions": {
+        "fullCart": "Full Cart",
+        "menu": "Menu",
+        "game": "Game{index}",
+        "bank": "Bank{index}"
+      }
     },
     "file": {
       "dropArea": "or drop files here",

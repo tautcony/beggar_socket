@@ -149,12 +149,10 @@
 import { IonIcon } from '@ionic/vue';
 import { constructOutline } from 'ionicons/icons';
 import { onMounted, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { DebugSettings } from '@/settings/debug-settings';
 import { GBA_NINTENDO_LOGO } from '@/utils/rom-parser';
 
-const { t } = useI18n();
 const emit = defineEmits(['connect-mock-device', 'generate-test-file', 'clear-mock-data']);
 
 // 面板状态

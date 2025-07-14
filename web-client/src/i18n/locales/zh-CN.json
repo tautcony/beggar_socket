@@ -218,6 +218,12 @@
       "sizeLabel": "大小:",
       "typeLabel": "类型:",
       "baseAddressLabel": "基址:",
+      "baseAddressOptions": {
+        "fullCart": "整卡",
+        "menu": "菜单",
+        "game": "游戏{index}",
+        "bank": "Bank{index}"
+      },
       "typeSRAM": "SRAM",
       "typeFLASH": "FLASH"
     },
