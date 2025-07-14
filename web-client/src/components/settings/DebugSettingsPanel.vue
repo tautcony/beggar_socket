@@ -153,7 +153,11 @@ import { onMounted, ref } from 'vue';
 import { DebugSettings } from '@/settings/debug-settings';
 import { GBA_NINTENDO_LOGO } from '@/utils/rom-parser';
 
-const emit = defineEmits(['connect-mock-device', 'generate-test-file', 'clear-mock-data']);
+const emit = defineEmits<{
+  'connect-mock-device': [];
+  'generate-test-file': [];
+  'clear-mock-data': [];
+}>();
 
 // 面板状态
 const showDebugPanel = ref(false);

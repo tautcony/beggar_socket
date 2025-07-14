@@ -99,7 +99,9 @@ const props = defineProps<{
   romName: string;
 }>();
 
-const emit = defineEmits(['close']);
+const emit = defineEmits<{
+  close: [];
+}>();
 
 const gameCanvas = ref<HTMLCanvasElement | null>(null);
 const gba = ref<Wrapper | null>(null);

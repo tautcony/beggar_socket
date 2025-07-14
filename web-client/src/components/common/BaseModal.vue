@@ -65,7 +65,9 @@ const props = withDefaults(defineProps<{
   maskClosable: true,
 });
 
-const emit = defineEmits(['close']);
+const emit = defineEmits<{
+  close: [];
+}>();
 
 const containerStyle = computed(() => ({
   width: typeof props.width === 'number' ? `${props.width}px` : props.width,

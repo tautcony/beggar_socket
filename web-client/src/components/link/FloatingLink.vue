@@ -54,7 +54,9 @@ const props = withDefaults(defineProps<Props>(), {
   styleOverrides: () => ({}),
 });
 
-const emits = defineEmits(['click']);
+const emits = defineEmits<{
+  click: [event: MouseEvent];
+}>();
 
 const containerStyle = computed((): CSSProperties => ({
   position: 'fixed' as const,

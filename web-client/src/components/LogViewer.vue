@@ -42,7 +42,9 @@ const props = withDefaults(defineProps<{
   autoScroll: true,
 });
 
-const emit = defineEmits(['clear-logs']);
+const emit = defineEmits<{
+  'clear-logs': [];
+}>();
 
 const logBox = ref<HTMLDivElement | null>(null);
 const scrollAnchor = ref<HTMLDivElement | null>(null);

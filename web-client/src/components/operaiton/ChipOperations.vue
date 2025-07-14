@@ -112,7 +112,11 @@ const chipInfoValid = computed(() => {
   );
 });
 
-defineEmits(['read-id', 'erase-chip', 'read-rom-info']);
+const emits = defineEmits<{
+  'read-id': [];
+  'erase-chip': [];
+  'read-rom-info': [];
+}>();
 </script>
 
 <style scoped>

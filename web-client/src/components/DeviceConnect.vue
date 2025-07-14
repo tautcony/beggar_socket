@@ -47,7 +47,10 @@ import { DeviceInfo } from '@/types/device-info';
 
 const { showToast } = useToast();
 const { t } = useI18n();
-const emit = defineEmits(['device-ready', 'device-disconnected']);
+const emit = defineEmits<{
+  'device-ready': [device: DeviceInfo]
+  'device-disconnected': []
+}>();
 
 const connected = ref(false);
 const isConnecting = ref(false);

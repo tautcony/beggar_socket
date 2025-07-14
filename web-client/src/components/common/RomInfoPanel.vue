@@ -135,7 +135,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  'update:isCollapsed': [value: boolean];
+  'update-is-collapsed': [value: boolean];
 }>();
 
 const isCollapsed = ref(props.isCollapsed ?? true);
@@ -154,7 +154,7 @@ const logoCanvasSize = computed(() => {
 
 function toggleCollapsed() {
   isCollapsed.value = !isCollapsed.value;
-  emit('update:isCollapsed', isCollapsed.value);
+  emit('update-is-collapsed', isCollapsed.value);
 }
 
 function renderLogo() {

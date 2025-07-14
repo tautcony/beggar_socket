@@ -146,7 +146,16 @@ const RAM_BASE_ADDRESS_OPTIONS = computed(() => {
   return options;
 });
 
-const emit = defineEmits(['file-selected', 'file-cleared', 'write-ram', 'read-ram', 'verify-ram', 'ram-size-change', 'ram-type-change', 'base-address-change']);
+const emit = defineEmits<{
+  'file-selected': [file: FileInfo | FileInfo[]];
+  'file-cleared': [];
+  'write-ram': [];
+  'read-ram': [];
+  'verify-ram': [];
+  'ram-size-change': [size: string];
+  'ram-type-change': [type: string];
+  'base-address-change': [address: string];
+}>();
 
 const selectedRamSize = ref(props.selectedRamSize);
 const selectedRamType = ref(props.selectedRamType);
@@ -166,7 +175,7 @@ watch(() => props.ramFileData, (newData) => {
   }
 }, { immediate: true });
 
-function onFileSelected(fileInfo: FileInfo) {
+function onFileSelected(fileInfo: FileInfo | FileInfo[]) {
   emit('file-selected', fileInfo);
 }
 

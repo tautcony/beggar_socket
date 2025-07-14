@@ -92,7 +92,10 @@ const props = withDefaults(defineProps<{
   multiple: false,
 });
 
-const emit = defineEmits(['file-selected', 'file-cleared']);
+const emit = defineEmits<{
+  'file-selected': [file: FileInfo | FileInfo[]];
+  'file-cleared': [];
+}>();
 
 const dragOver = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);

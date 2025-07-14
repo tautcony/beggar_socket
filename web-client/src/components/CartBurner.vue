@@ -360,7 +360,10 @@ function clearLog() {
 }
 
 // 文件处理函数
-function onRomFileSelected(fileInfo: FileInfo) {
+function onRomFileSelected(fileInfo: FileInfo | FileInfo[]) {
+  if (Array.isArray(fileInfo)) {
+    fileInfo = fileInfo[0];
+  }
   romFileName.value = fileInfo.name;
   romFileData.value = fileInfo.data;
   log(t('messages.file.selectRom', { name: fileInfo.name, size: formatBytes(fileInfo.size) }));
@@ -372,7 +375,10 @@ function onRomFileCleared() {
   log(t('messages.file.clearRom'));
 }
 
-function onRamFileSelected(fileInfo: FileInfo) {
+function onRamFileSelected(fileInfo: FileInfo | FileInfo[]) {
+  if (Array.isArray(fileInfo)) {
+    fileInfo = fileInfo[0];
+  }
   ramFileName.value = fileInfo.name;
   ramFileData.value = fileInfo.data;
   log(t('messages.file.selectRam', { name: fileInfo.name, size: formatBytes(fileInfo.size) }));

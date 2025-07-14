@@ -211,7 +211,16 @@ const getBaseAddressOptions = (romType: 'GBA' | 'MBC5') => {
   return options[romType] ?? [];
 };
 
-const emit = defineEmits(['file-selected', 'file-cleared', 'write-rom', 'read-rom', 'verify-rom', 'rom-size-change', 'base-address-change', 'mode-switch-required']);
+const emit = defineEmits<{
+  'file-selected': [file: FileInfo | FileInfo[]];
+  'file-cleared': [];
+  'mode-switch-required': [newMode: 'MBC5' | 'GBA', romType: string];
+  'rom-size-change': [size: string];
+  'base-address-change': [address: string];
+  'write-rom': [];
+  'read-rom': [];
+  'verify-rom': [];
+}>();
 
 // 模拟器相关状态
 const currentEmulator = ref<'GB' | 'GBC' | 'GBA' | null>(null); // 当前显示的模拟器类型
@@ -265,7 +274,7 @@ watch(() => props.romFileData, (newData) => {
   }
 }, { immediate: true });
 
-function onFileSelected(fileInfo: FileInfo) {
+function onFileSelected(fileInfo: FileInfo | FileInfo[]) {
   emit('file-selected', fileInfo);
 }
 
