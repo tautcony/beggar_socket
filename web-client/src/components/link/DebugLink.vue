@@ -3,7 +3,7 @@
     :text="$t('ui.debug.panel')"
     :title="$t('ui.debug.panel')"
     :color="'#e67e22'"
-    :bottom="140"
+    :bottom="80"
     :right="20"
     @click="togglePanel"
   >
