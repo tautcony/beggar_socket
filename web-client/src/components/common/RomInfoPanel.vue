@@ -120,7 +120,7 @@
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import { checkmarkCircle, chevronDown, chevronUp, closeCircle, imageOutline, informationCircleOutline } from 'ionicons/icons';
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { processGBALogoData } from '@/utils/compression-utils';
@@ -139,7 +139,7 @@ const emit = defineEmits<{
 }>();
 
 const isCollapsed = ref(props.isCollapsed ?? true);
-const logoCanvas = ref<HTMLCanvasElement>();
+const logoCanvas = useTemplateRef<HTMLCanvasElement>('logoCanvas');
 
 // 根据ROM类型计算Logo画布大小
 const logoCanvasSize = computed(() => {

@@ -49,7 +49,7 @@
 
 <script setup lang="ts">
 // DeviceConnect 组件引用
-import { computed, provide, type Ref, ref } from 'vue';
+import { computed, provide, ref, useTemplateRef } from 'vue';
 
 import CartBurner from '@/components/CartBurner.vue';
 import AppMenu from '@/components/common/AppMenu.vue';
@@ -74,8 +74,8 @@ const showSettings = ref(false);
 const showDebugPanelModal = ref(false);
 const currentMode = ref<'MBC5' | 'GBA'>('GBA');
 
-const deviceConnectRef = ref<InstanceType<typeof DeviceConnect>>();
-const cartBurnerRef = ref<InstanceType<typeof CartBurner>>();
+const deviceConnectRef = useTemplateRef<InstanceType<typeof DeviceConnect>>('deviceConnectRef');
+const cartBurnerRef = useTemplateRef<InstanceType<typeof CartBurner>>('cartBurnerRef');
 
 provide('showDebugPanelModal', showDebugPanelModal);
 provide('setShowDebugPanelModal', (val: boolean) => { showDebugPanelModal.value = val; });

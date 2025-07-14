@@ -71,7 +71,7 @@
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import { closeOutline } from 'ionicons/icons';
-import { ref } from 'vue';
+import { ref, useTemplateRef } from 'vue';
 
 import { FileInfo } from '@/types/file-info';
 import { formatBytes } from '@/utils/formatter-utils';
@@ -98,7 +98,7 @@ const emit = defineEmits<{
 }>();
 
 const dragOver = ref(false);
-const fileInput = ref<HTMLInputElement | null>(null);
+const fileInput = useTemplateRef<HTMLInputElement>('fileInput');
 
 function onFileChange(e: Event) {
   if (e.target && (e.target as HTMLInputElement).files?.length) {

@@ -67,7 +67,7 @@
 import { IonIcon } from '@ionic/vue';
 import { Gameboy } from 'gameboy-emulator';
 import { close, gameControllerOutline, pause, play, refresh } from 'ionicons/icons';
-import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useToast } from '@/composables/useToast';
@@ -85,7 +85,7 @@ const emit = defineEmits<{
   close: [];
 }>();
 
-const gameCanvas = ref<HTMLCanvasElement>();
+const gameCanvas = useTemplateRef<HTMLCanvasElement>('gameCanvas');
 const isPaused = ref(false);
 let gameboyInstance: Gameboy | null = null;
 

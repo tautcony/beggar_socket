@@ -176,7 +176,7 @@ import {
   downloadOutline,
   hourglass,
 } from 'ionicons/icons';
-import { ref, watch } from 'vue';
+import { ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useToast } from '@/composables/useToast';
@@ -202,7 +202,7 @@ const emit = defineEmits<{
   'close': [];
 }>();
 
-const fileInput = ref<HTMLInputElement>();
+const fileInput = useTemplateRef<HTMLInputElement>('fileInput');
 const selectedFile = ref<File | null>(null);
 const isDragOver = ref(false);
 const isAnalyzing = ref(false);

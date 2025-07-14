@@ -85,7 +85,7 @@
 import { IonIcon } from '@ionic/vue';
 import { Wrapper } from 'gbats';
 import { close, pause, play, refresh, warning } from 'ionicons/icons';
-import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useToast } from '@/composables/useToast';
@@ -103,7 +103,7 @@ const emit = defineEmits<{
   close: [];
 }>();
 
-const gameCanvas = ref<HTMLCanvasElement | null>(null);
+const gameCanvas = useTemplateRef<HTMLCanvasElement>('gameCanvas');
 const gba = ref<Wrapper | null>(null);
 const isPaused = ref(false);
 const hasError = ref(false);

@@ -29,7 +29,7 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onUnmounted, ref, watch } from 'vue';
+import { nextTick, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 
 const props = withDefaults(defineProps<{
   title?: string;
@@ -46,8 +46,8 @@ const emit = defineEmits<{
   'clear-logs': [];
 }>();
 
-const logBox = ref<HTMLDivElement | null>(null);
-const scrollAnchor = ref<HTMLDivElement | null>(null);
+const logBox = useTemplateRef<HTMLDivElement>('logBox');
+const scrollAnchor = useTemplateRef<HTMLDivElement>('scrollAnchor');
 const isUserScrolling = ref(false);
 const scrollTimeout = ref<ReturnType<typeof setTimeout>>();
 

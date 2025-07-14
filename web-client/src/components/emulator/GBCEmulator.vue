@@ -66,7 +66,7 @@
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import { close, gameControllerOutline, pause, play, refresh } from 'ionicons/icons';
-import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { WasmBoy, type WasmBoyStatic } from 'wasmboy';
 
@@ -85,7 +85,7 @@ const emit = defineEmits<{
   close: [];
 }>();
 
-const gameCanvas = ref<HTMLCanvasElement>();
+const gameCanvas = useTemplateRef<HTMLCanvasElement>('gameCanvas');
 const isPaused = ref(false);
 let wasmBoyInstance: WasmBoyStatic | null = null;
 
