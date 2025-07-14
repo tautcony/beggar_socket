@@ -129,6 +129,8 @@ const props = withDefaults(defineProps<{
 });
 
 const RAM_SIZE_RANGE = [
+  { value: '0x00800', size: 0x00800, text: '2KB' }, // 2KB
+  { value: '0x01000', size: 0x01000, text: '4KB' }, // 4KB
   { value: '0x02000', size: 0x02000, text: '8KB' }, // 8KB
   { value: '0x08000', size: 0x08000, text: '32KB' }, // 32KB
   { value: '0x10000', size: 0x10000, text: '64KB' }, // 64KB
