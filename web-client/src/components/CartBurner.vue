@@ -433,6 +433,8 @@ function getAdapter() {
 }
 
 async function readCart() {
+  // 先清空芯片信息，防止显示旧数据
+  clearChipInfo();
   busy.value = true;
 
   try {
@@ -879,6 +881,11 @@ function printGameDetectionResults(gameResults: GameDetectionResult[]) {
 defineExpose({
   resetState,
 });
+
+function clearChipInfo() {
+  idStr.value = '';
+  cfiInfo.value = null;
+}
 </script>
 
 <style scoped>
