@@ -20,6 +20,26 @@
               </option>
             </select>
           </div>
+          <div
+            v-if="mode === 'MBC5'"
+            class="base-address-selector"
+          >
+            <label class="base-address-label">{{ $t('ui.ram.baseAddressLabel') }}</label>
+            <select
+              v-model="selectedBaseAddress"
+              :disabled="!deviceReady || busy"
+              class="base-address-dropdown"
+              @change="onBaseAddressChange"
+            >
+              <option
+                v-for="option in RAM_BASE_ADDRESS_OPTIONS"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.text }}
+              </option>
+            </select>
+          </div>
           <div class="size-selector">
             <label class="size-label">{{ $t('ui.ram.sizeLabel') }}</label>
             <select
@@ -96,11 +116,13 @@ const props = withDefaults(defineProps<{
   ramFileName?: string;
   selectedRamSize?: string;
   selectedRamType?: string;
+  selectedBaseAddress?: string;
 }>(), {
   ramFileData: null,
   ramFileName: '',
   selectedRamSize: '0x08000',
   selectedRamType: 'SRAM',
+  selectedBaseAddress: '0x00000',
 });
 
 const RAM_SIZE_RANGE = [
@@ -110,10 +132,30 @@ const RAM_SIZE_RANGE = [
   { value: '0x20000', size: 0x20000, text: '128KB' }, // 128KB
 ];
 
-const emit = defineEmits(['file-selected', 'file-cleared', 'write-ram', 'read-ram', 'verify-ram', 'ram-size-change', 'ram-type-change']);
+const RAM_BASE_ADDRESS_OPTIONS = [
+  { value: '0x00000', text: '游戏01' },
+  { value: '0x08000', text: '游戏02' },
+  { value: '0x10000', text: '游戏03' },
+  { value: '0x18000', text: '游戏04' },
+  { value: '0x20000', text: '游戏05' },
+  { value: '0x28000', text: '游戏06' },
+  { value: '0x30000', text: '游戏07' },
+  { value: '0x38000', text: '游戏08' },
+  { value: '0x40000', text: '游戏09' },
+  { value: '0x48000', text: '游戏10' },
+  { value: '0x50000', text: '游戏11' },
+  { value: '0x58000', text: '游戏12' },
+  { value: '0x60000', text: '游戏13' },
+  { value: '0x68000', text: '游戏14' },
+  { value: '0x70000', text: '游戏15' },
+  { value: '0x78000', text: '游戏16' },
+];
+
+const emit = defineEmits(['file-selected', 'file-cleared', 'write-ram', 'read-ram', 'verify-ram', 'ram-size-change', 'ram-type-change', 'base-address-change']);
 
 const selectedRamSize = ref(props.selectedRamSize);
 const selectedRamType = ref(props.selectedRamType);
+const selectedBaseAddress = ref(props.selectedBaseAddress);
 
 // 当RAM文件数据变化时，根据文件大小自动更新选择的RAM大小
 watch(() => props.ramFileData, (newData) => {
@@ -144,6 +186,10 @@ function onRamSizeChange() {
 function onRamTypeChange() {
   emit('ram-type-change', selectedRamType.value);
 }
+
+function onBaseAddressChange() {
+  emit('base-address-change', selectedBaseAddress.value);
+}
 </script>
 
 <style scoped>
@@ -158,6 +204,10 @@ function onRamTypeChange() {
   margin-bottom: 16px;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.selector-container {
+  margin-left: auto;
 }
 
 .section h2 {
@@ -176,7 +226,8 @@ function onRamTypeChange() {
 }
 
 .type-selector,
-.size-selector {
+.size-selector,
+.base-address-selector {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -185,7 +236,8 @@ function onRamTypeChange() {
 }
 
 .type-label,
-.size-label {
+.size-label,
+.base-address-label {
   font-size: 0.9rem;
   color: #666;
   margin: 0;
@@ -193,7 +245,8 @@ function onRamTypeChange() {
 }
 
 .type-dropdown,
-.size-dropdown {
+.size-dropdown,
+.base-address-dropdown {
   padding: 4px 8px;
   border: 1px solid #ddd;
   border-radius: 4px;
@@ -203,16 +256,19 @@ function onRamTypeChange() {
   cursor: pointer;
   transition: border-color 0.2s;
   min-width: 80px;
+  max-width: 180px;
   white-space: nowrap;
 }
 
 .type-dropdown:hover:not(:disabled),
-.size-dropdown:hover:not(:disabled) {
+.size-dropdown:hover:not(:disabled),
+.base-address-dropdown:hover:not(:disabled) {
   border-color: #1976d2;
 }
 
 .type-dropdown:disabled,
-.size-dropdown:disabled {
+.size-dropdown:disabled,
+.base-address-dropdown:disabled {
   background: #f5f5f5;
   color: #aaa;
   cursor: not-allowed;

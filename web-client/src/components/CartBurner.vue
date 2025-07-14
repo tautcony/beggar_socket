@@ -74,7 +74,7 @@
             @read-rom="readRom"
             @verify-rom="verifyRom"
             @rom-size-change="onRomSizeChange"
-            @base-address-change="onBaseAddressChange"
+            @base-address-change="onRomBaseAddressChange"
             @mode-switch-required="onModeSwitchRequired"
           />
 
@@ -87,6 +87,7 @@
             :ram-file-name="ramFileName"
             :selected-ram-size="selectedRamSize"
             :selected-ram-type="selectedRamType"
+            :selected-base-address="selectedRamBaseAddress"
             @file-selected="onRamFileSelected"
             @file-cleared="onRamFileCleared"
             @write-ram="writeRam"
@@ -94,6 +95,7 @@
             @verify-ram="verifyRam"
             @ram-size-change="onRamSizeChange"
             @ram-type-change="onRamTypeChange"
+            @base-address-change="onRamBaseAddressChange"
           />
         </TransitionGroup>
       </div>
@@ -215,13 +217,14 @@ if (import.meta.hot) {
 const romFileData = ref<Uint8Array | null>(null);
 const romFileName = ref('');
 const selectedRomSize = ref('0x00800000'); // 默认8MB
-const selectedBaseAddress = ref('0x00000000'); // 默认基址0x00
+const selectedBaseAddress = ref('0x00000000'); // 默认ROM基址0x00
 
 // RAM
 const ramFileData = ref<Uint8Array | null>(null);
 const ramFileName = ref('');
 const selectedRamSize = ref('0x08000'); // 默认32KB
 const selectedRamType = ref('SRAM'); // 默认SRAM
+const selectedRamBaseAddress = ref('0x00000'); // 默认RAM基址0x00000
 
 // 设备连接状态改变时，初始化适配器
 function initializeAdapters() {
@@ -387,9 +390,14 @@ function onRomSizeChange(hexSize: string) {
   log(t('messages.rom.sizeChanged', { size: formatBytes(parseInt(hexSize, 16)) }));
 }
 
-function onBaseAddressChange(hexAddress: string) {
+function onRomBaseAddressChange(hexAddress: string) {
   selectedBaseAddress.value = hexAddress;
   log(t('messages.rom.baseAddressChanged', { address: hexAddress }));
+}
+
+function onRamBaseAddressChange(hexAddress: string) {
+  selectedRamBaseAddress.value = hexAddress;
+  log(t('messages.ram.baseAddressChanged', { address: hexAddress }));
 }
 
 function onRamSizeChange(hexSize: string) {
@@ -620,7 +628,11 @@ async function writeRam() {
       return;
     }
 
-    const response = await adapter.writeRAM(ramFileData.value, { ramType: selectedRamType.value as 'SRAM' | 'FLASH', cfiInfo: cfiInfo.value });
+    const response = await adapter.writeRAM(ramFileData.value, {
+      ramType: selectedRamType.value as 'SRAM' | 'FLASH',
+      baseAddress: parseInt(selectedRamBaseAddress.value, 16),
+      cfiInfo: cfiInfo.value,
+    });
     showToast(response.message, response.success ? 'success' : 'error');
   } catch (e) {
     showToast(t('messages.ram.writeFailed'), 'error');
@@ -646,7 +658,11 @@ async function readRam() {
     }
 
     const defaultSize = ramFileData.value ? ramFileData.value.length : parseInt(selectedRamSize.value, 16);
-    const response = await adapter.readRAM(defaultSize, { ramType: selectedRamType.value as 'SRAM' | 'FLASH', cfiInfo: cfiInfo.value });
+    const response = await adapter.readRAM(defaultSize, {
+      ramType: selectedRamType.value as 'SRAM' | 'FLASH',
+      baseAddress: parseInt(selectedRamBaseAddress.value, 16),
+      cfiInfo: cfiInfo.value,
+    });
     if (response.success) {
       showToast(response.message, 'success');
       if (response.data) {
@@ -680,7 +696,11 @@ async function verifyRam() {
       return;
     }
 
-    const response = await adapter.verifyRAM(ramFileData.value, { ramType: selectedRamType.value as 'SRAM' | 'FLASH', cfiInfo: cfiInfo.value });
+    const response = await adapter.verifyRAM(ramFileData.value, {
+      ramType: selectedRamType.value as 'SRAM' | 'FLASH',
+      baseAddress: parseInt(selectedRamBaseAddress.value, 16),
+      cfiInfo: cfiInfo.value,
+    });
     showToast(response.message, response.success ? 'success' : 'error');
   } catch (e) {
     showToast(t('messages.ram.verifyFailed'), 'error');
@@ -720,9 +740,10 @@ function resetState() {
 
   // 重置选择的大小为默认值
   selectedRomSize.value = '0x800000'; // 默认8MB
-  selectedBaseAddress.value = '0x00'; // 默认基址0x00
+  selectedBaseAddress.value = '0x00'; // 默认ROM基址0x00
   selectedRamSize.value = '0x8000'; // 默认32KB
   selectedRamType.value = 'SRAM'; // 默认SRAM
+  selectedRamBaseAddress.value = '0x00000'; // 默认RAM基址0x00000
 
   // 重置模式为默认值
   mode.value = 'GBA';

@@ -217,6 +217,7 @@
       "testVerify": "Verify Test Data",
       "sizeLabel": "Size:",
       "typeLabel": "Type:",
+      "baseAddressLabel": "Base Address:",
       "typeSRAM": "SRAM",
       "typeFLASH": "FLASH"
     },
@@ -414,6 +415,7 @@
       "verifyFailed": "RAM verification failed",
       "sizeChanged": "RAM size changed to {size}",
       "typeChanged": "RAM type changed to {type}",
+      "baseAddressChanged": "RAM base address changed to {address}",
       "verifyFailedAt": "Verification failed at address {address}, expected {expected}, got {actual}",
       "bankSwitch": "Switched to RAM Bank {bank}",
       "writeSummary": "RAM write complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} KB",
