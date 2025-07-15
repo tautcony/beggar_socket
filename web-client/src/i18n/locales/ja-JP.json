@@ -21,6 +21,17 @@
       "mbc5": "MBC5",
       "title": "動作モード"
     },
+    "menu": {
+      "tools": "ツール",
+      "romAssembly": "ROM組み立て",
+      "romAssemblyDesc": "複数のROMファイルを1つのマルチカートに組み立てます",
+      "romAnalyzer": "ROM分析・抽出",
+      "romAnalyzerDesc": "ROMファイル構造を分析し、個別ゲームを抽出します",
+      "settings": "設定",
+      "settingsDesc": "アプリケーションオプションを設定します",
+      "about": "アバウト",
+      "aboutDesc": "アプリケーション情報とバージョンを表示します"
+    },
     "operation": {
       "title": "チップ操作",
       "busy": "操作中...",
@@ -104,6 +115,50 @@
       "ramSize": "RAMサイズ",
       "valid": "有効性",
       "logo": "ロゴ"
+    },
+    "romAnalyzer": {
+      "uploadPrompt": "ROMファイルを選択するかここにドラッグしてください",
+      "uploadHint": ".rom, .gba, .gb, .gbc 形式をサポート",
+      "fileInfo": "ファイル情報",
+      "fileName": "ファイル名",
+      "fileSize": "ファイルサイズ",
+      "detectedGames": "検出されたゲーム",
+      "startAddress": "開始アドレス",
+      "romSize": "ROMサイズ",
+      "description": "説明",
+      "extract": "抽出",
+      "analyzing": "分析中...",
+      "extracting": "抽出中...",
+      "analyze": "ROM分析",
+      "noFileSelected": "ファイルが選択されていません",
+      "invalidRom": "無効なROMファイル",
+      "noValidGameFound": "有効なゲームが見つかりません",
+      "analysisComplete": "分析完了、{count}個のゲームが見つかりました",
+      "analysisFailed": "分析失敗",
+      "extractSuccess": "抽出成功",
+      "extractFailed": "抽出失敗",
+      "singleRom": "単一ROM"
+    },
+    "romAssembly": {
+      "title": "ROM組み立て",
+      "romType": "ROMタイプ",
+      "totalSize": "総容量",
+      "alignment": "アライメント要件",
+      "uploadFiles": "ファイルアップロード",
+      "selectFiles": "ROMファイルを選択するかここにドラッグしてください",
+      "pendingFiles": "配置待ちファイル",
+      "requiredSlots": "{count}スロット必要",
+      "romLayout": "ROMレイアウト",
+      "usageStats": "使用量: {used} / {total} ({percentage}%)",
+      "emptySlot": "空きスロット",
+      "clearAll": "すべてクリア",
+      "assemble": "ROM組み立て",
+      "assembleAndApply": "組み立て・適用",
+      "assembleAndDownload": "組み立て・ダウンロード",
+      "noPendingFiles": "配置待ちファイルなし",
+      "uploadFilesFirst": "まずファイルをアップロードしてください",
+      "occupiesSlots": "スロット{start}～{end}を占有",
+      "fileContinuation": "{name} (続き)"
     },
     "emulator": {
       "title": "ゲームプレビュー",
@@ -395,8 +450,20 @@
       "verifying": "検証開始",
       "verifyComplete": "検証完了"
     },
+    "romAssembly": {
+      "fileTooLarge": "ファイル {name} が大きすぎて、どのスロットにも配置できません",
+      "cannotPlaceFile": "このスロットにファイルを配置できません",
+      "filePlaced": "ファイル {name} が配置されました",
+      "fileRemoved": "ファイル {name} が削除されました",
+      "allCleared": "すべてのスロットがクリアされました",
+      "assembled": "ROM組み立て完了、総サイズ: {size}、使用スロット: {usedSlots}",
+      "downloaded": "ROMダウンロード完了、ファイル名: {fileName}、サイズ: {size}",
+      "assembledForMainInterface": "{romType} ROMを組み立てました、サイズ: {size}MB、ROM操作画面で利用可能です",
+      "applied": "ROM組み立てがメイン画面に適用されました"
+    },
     "debug": {
-      "mockModeEnabled": "デバッグモードが有効 - モックデバイスを使用"
+      "mockModeEnabled": "デバッグモードが有効 - モックデバイスを使用",
+      "mockDataCleared": "モックデータがクリアされました"
     }
   }
 }

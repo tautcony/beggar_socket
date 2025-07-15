@@ -14,7 +14,7 @@
       "connectFailed": "Connection Failed",
       "disconnectFailed": "Disconnect Failed",
       "usePolyfill": "Use SoW",
-      "usePolyfillTooltip": "Use Serial API Polyfill implementation, suitable for browsers that don't support native Web Serial API"
+      "usePolyfillTooltip": "Use Web Serial Polyfill implementation, suitable for browsers that don't support native Web Serial API"
     },
     "mode": {
       "gba": "GBA",
@@ -154,7 +154,12 @@
       "emptySlot": "Empty Slot",
       "clearAll": "Clear All",
       "assemble": "Assemble ROM",
-      "assembleAndApply": "Assemble & Apply"
+      "assembleAndApply": "Assemble & Apply",
+      "assembleAndDownload": "Assemble & Download",
+      "noPendingFiles": "No pending files",
+      "uploadFilesFirst": "Please upload files first",
+      "occupiesSlots": "Occupies slots {start}~{end}",
+      "fileContinuation": "{name} (cont.)"
     },
     "emulator": {
       "title": "Game Preview",
@@ -400,6 +405,8 @@
       "fileRemoved": "File {name} has been removed",
       "allCleared": "All slots have been cleared",
       "assembled": "ROM assembly completed, total size: {size}, used slots: {usedSlots}",
+      "downloaded": "ROM download completed, file: {fileName}, size: {size}",
+      "assembledForMainInterface": "Assembled {romType} ROM, size: {size}MB, available in ROM operations interface",
       "applied": "ROM assembly has been applied to main interface"
     },
     "common": {
@@ -463,7 +470,8 @@
       "verifyComplete": "Verify complete"
     },
     "debug": {
-      "mockModeEnabled": "Debug mode enabled - Using mock device"
+      "mockModeEnabled": "Debug mode enabled - using mock device",
+      "mockDataCleared": "Mock data cleared"
     }
   }
 }

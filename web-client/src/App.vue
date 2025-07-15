@@ -50,6 +50,7 @@
 <script setup lang="ts">
 // DeviceConnect 组件引用
 import { computed, provide, ref, useTemplateRef } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import CartBurner from '@/components/CartBurner.vue';
 import AppMenu from '@/components/common/AppMenu.vue';
@@ -67,6 +68,7 @@ import { DeviceInfo } from '@/types/device-info';
 import type { AssembledRom } from '@/types/rom-assembly';
 
 const { showToast } = useToast();
+const { t } = useI18n();
 
 const device = ref<DeviceInfo | null>(null);
 const deviceReady = ref(false);
@@ -145,7 +147,7 @@ function onClearMockData() {
 
   console.log('[DEBUG] 模拟数据清除完成');
 
-  showToast('模拟数据已清除', 'success', 2000);
+  showToast(t('messages.debug.mockDataCleared'), 'success', 2000);
 }
 
 /**
@@ -160,7 +162,10 @@ function onRomAssembled(rom: AssembledRom, romType: 'MBC5' | 'GBA') {
   // 将组装的ROM数据保存到全局状态
   setAssembledRom(rom, romType);
 
-  showToast(`已组装${romType} ROM，大小: ${(rom.totalSize / 1024 / 1024).toFixed(2)}MB，可在ROM操作界面使用`, 'success', 4000);
+  showToast(t('messages.romAssembly.assembledForMainInterface', {
+    romType,
+    size: (rom.totalSize / 1024 / 1024).toFixed(2),
+  }), 'success', 4000);
 }
 </script>
 

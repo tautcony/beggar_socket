@@ -105,17 +105,17 @@
                 class="empty-pending-message"
               >
                 <p>
-                  暂无待放置文件
+                  {{ $t('ui.romAssembly.noPendingFiles') }}
                 </p>
                 <p class="hint">
-                  请先上传文件
+                  {{ $t('ui.romAssembly.uploadFilesFirst') }}
                 </p>
               </div>
             </div>
 
             <!-- 右侧：槽位网格 -->
             <div class="right-panel">
-              <h4>ROM槽位布局</h4>
+              <h4>{{ $t('ui.romAssembly.romLayout') }}</h4>
               <div class="slots-grid">
                 <div
                   v-for="(slot, index) in slots"
@@ -157,7 +157,7 @@
                           v-if="slot.totalSlots && slot.totalSlots > 1"
                           class="slot-range"
                         >
-                          占用槽位 {{ index }}~{{ index + slot.totalSlots - 1 }}
+                          {{ $t('ui.romAssembly.occupiesSlots', { start: index, end: index + slot.totalSlots - 1 }) }}
                         </span>
                       </div>
                     </div>
@@ -165,7 +165,7 @@
                       v-else
                       class="continuation-info"
                     >
-                      <span class="continuation-text">{{ slot.file.name }} (续)</span>
+                      <span class="continuation-text">{{ $t('ui.romAssembly.fileContinuation', { name: slot.file.name }) }}</span>
                       <span class="slot-position">{{ slot.slotIndex! + 1 }}/{{ slot.totalSlots }}</span>
                     </div>
                     <button
@@ -203,6 +203,13 @@
             @click="clearAllSlots"
           >
             {{ $t('ui.romAssembly.clearAll') }}
+          </button>
+          <button
+            :disabled="!hasAnyFiles"
+            class="download-btn"
+            @click="assembleAndDownload"
+          >
+            {{ $t('ui.romAssembly.assembleAndDownload') }}
           </button>
           <button
             :disabled="!hasAnyFiles"
@@ -440,6 +447,28 @@ function assembleAndApply() {
     usedSlots: assembled.slots.filter(s => s.file && s.isFirstSlot).length.toString(),
   }), 'success');
   closeModal();
+}
+
+function assembleAndDownload() {
+  const assembled = assembleRom(slots.value, config.value);
+
+  // 创建文件名
+  const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '_');
+  const fileName = `assembled_${selectedRomType.value.toLowerCase()}_${timestamp}.rom`;
+
+  // 下载文件
+  const blob = new Blob([assembled.data], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  showToast(t('messages.romAssembly.downloaded', {
+    size: formatBytes(assembled.totalSize),
+    fileName,
+  }), 'success');
 }
 
 function closeModal() {
@@ -874,6 +903,7 @@ function getUsageBarColor(percentage: number): string {
 
 .cancel-btn,
 .clear-all-btn,
+.download-btn,
 .assemble-btn {
   padding: 10px 20px;
   border: none;
@@ -902,6 +932,15 @@ function getUsageBarColor(percentage: number): string {
   background: #e0a800;
 }
 
+.download-btn {
+  background: #17a2b8;
+  color: white;
+}
+
+.download-btn:hover:not(:disabled) {
+  background: #138496;
+}
+
 .assemble-btn {
   background: #28a745;
   color: white;
@@ -912,6 +951,7 @@ function getUsageBarColor(percentage: number): string {
 }
 
 .clear-all-btn:disabled,
+.download-btn:disabled,
 .assemble-btn:disabled {
   background: #e9ecef;
   color: #adb5bd;

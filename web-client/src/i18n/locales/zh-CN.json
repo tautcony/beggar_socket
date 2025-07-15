@@ -154,7 +154,12 @@
       "emptySlot": "空槽位",
       "clearAll": "清空全部",
       "assemble": "组装ROM",
-      "assembleAndApply": "组装并应用"
+      "assembleAndApply": "组装并应用",
+      "assembleAndDownload": "组装并下载",
+      "noPendingFiles": "暂无待放置文件",
+      "uploadFilesFirst": "请先上传文件",
+      "occupiesSlots": "占用槽位 {start}~{end}",
+      "fileContinuation": "{name} (续)"
     },
     "emulator": {
       "title": "游戏预览",
@@ -401,6 +406,8 @@
       "fileRemoved": "文件 {name} 已移除",
       "allCleared": "所有槽位已清空",
       "assembled": "ROM组装完成，总大小: {size}，使用槽位: {usedSlots}",
+      "downloaded": "ROM下载完成，文件名: {fileName}，大小: {size}",
+      "assembledForMainInterface": "已组装{romType} ROM，大小: {size}MB，可在ROM操作界面使用",
       "applied": "ROM组装已应用到主界面"
     },
     "common": {
@@ -465,7 +472,8 @@
       "verifyComplete": "校验完成"
     },
     "debug": {
-      "mockModeEnabled": "调试模式已启用 - 使用模拟设备"
+      "mockModeEnabled": "调试模式已启用 - 使用模拟设备",
+      "mockDataCleared": "模拟数据已清除"
     }
   }
 }
