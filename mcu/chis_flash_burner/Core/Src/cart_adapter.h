@@ -1,6 +1,16 @@
 #ifndef __CART_ADAPTER_H_
 #define __CART_ADAPTER_H_
 
+// Memory barrier macro to prevent compiler optimization issues
+#define MEMORY_BARRIER() __asm volatile("" ::: "memory")
+
+// Short delay macro for timing critical operations
+#define TIMING_DELAY() do { \
+    __asm volatile("nop"); \
+    __asm volatile("nop"); \
+    __asm volatile("nop"); \
+} while(0)
+
 void cart_setDirection_ad(uint8_t dir);
 void cart_setDirection_a(uint8_t dir);
 

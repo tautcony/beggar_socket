@@ -103,6 +103,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
     uart_cmdHandler();
+    __WFI(); // Wait for interrupt
     // HAL_Delay(1000);
     // HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1);
     // HAL_Delay(1000);

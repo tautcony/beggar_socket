@@ -254,14 +254,16 @@ void uart_cmdHandler()
 
 void romWaitForDone(uint32_t addr, uint16_t expectedValue)
 {
-    uint16_t value;
+    volatile uint16_t value;
     while (1)
     {
-        cart_romRead(addr, &value, 1);
+        cart_romRead(addr, (uint16_t*)&value, 1);
+        MEMORY_BARRIER();
+        
         if ((value & 0x0080) == (expectedValue & 0x0080))
         {
-            cart_romRead(addr, &value, 1);
-            cart_romRead(addr, &value, 1);
+            cart_romRead(addr, (uint16_t*)&value, 1);
+            cart_romRead(addr, (uint16_t*)&value, 1);
             break;
         }
         if (cmdBuf_p == 0)
@@ -605,10 +607,11 @@ void ramProgramFlash()
         cart_ramWrite((uint16_t)(baseAddress + i), dataBuf + i, 1);
 
         // wait for done
-        uint8_t temp;
+        volatile uint8_t temp;
         do
         {
-            cart_ramRead((uint16_t)(baseAddress + i), &temp, 1);
+            cart_ramRead((uint16_t)(baseAddress + i), (uint8_t*)&temp, 1);
+            MEMORY_BARRIER();
             if (cmdBuf_p == 0)
             {
                 uart_clearRecvBuf();
@@ -695,10 +698,11 @@ void gbcRomProgram()
             cart_gbcWrite((uint16_t)(startingAddress), dataBuf + writtenCount, 1);
 
             // wait for done
-            uint8_t temp;
+            volatile uint8_t temp;
             do
             {
-                cart_gbcRead((uint16_t)(startingAddress), &temp, 1);
+                cart_gbcRead((uint16_t)(startingAddress), (uint8_t*)&temp, 1);
+                MEMORY_BARRIER();
                 if (cmdBuf_p == 0)
                 {
                     uart_clearRecvBuf();
@@ -734,10 +738,11 @@ void gbcRomProgram()
             cart_gbcWrite(startingAddress, &cmd, 1);
 
             // wait for done
-            uint8_t temp;
+            volatile uint8_t temp;
             do
             {
-                cart_gbcRead((uint16_t)(startingAddress + writeLen - 1), &temp, 1);
+                cart_gbcRead((uint16_t)(startingAddress + writeLen - 1), (uint8_t*)&temp, 1);
+                MEMORY_BARRIER();
                 if (cmdBuf_p == 0)
                 {
                     uart_clearRecvBuf();

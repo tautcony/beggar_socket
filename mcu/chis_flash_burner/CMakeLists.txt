@@ -132,7 +132,9 @@ set(COMMON_FLAGS
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(OPTIMIZATION_FLAGS -Og -g -gdwarf-2)
 else()
-    set(OPTIMIZATION_FLAGS -O2)
+    # Use -O1 instead of -O2 to avoid aggressive optimizations that break timing
+    # Add flags to prevent problematic optimizations
+    set(OPTIMIZATION_FLAGS -O1 -fno-schedule-insns -fno-schedule-insns2)
 endif()
 
 # Defines
