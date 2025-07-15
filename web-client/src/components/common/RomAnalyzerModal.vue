@@ -309,7 +309,7 @@ async function analyzeRom() {
     showToast(t('ui.romAnalyzer.analysisComplete', { count: games.length }), 'success');
 
   } catch (error) {
-    console.error('ROM分析失败:', error);
+    console.error(t('ui.romAnalyzer.analysisFailed'), error);
     showToast(t('ui.romAnalyzer.analysisFailed'), 'error');
   } finally {
     isAnalyzing.value = false;
@@ -324,8 +324,8 @@ function detectMultiRoms(fileData: Uint8Array, romType: 'GBA' | 'GB' | 'GBC' | '
     const bankSize = 0x400000; // 4MB
     const bankCount = Math.floor(fileData.length / bankSize);
 
-    console.log(`文件大小: ${fileData.length} bytes (${(fileData.length / 1024 / 1024).toFixed(1)} MB)`);
-    console.log(`Bank数量: ${bankCount}`);
+    console.log(`File Size: ${fileData.length} bytes (${(fileData.length / 1024 / 1024).toFixed(1)} MB)`);
+    console.log(`Bank Count: ${bankCount}`);
 
     // 首先收集所有有效的游戏
     const validGames: { startAddress: number; romInfo: RomInfo; desc: string }[] = [];
@@ -341,7 +341,7 @@ function detectMultiRoms(fileData: Uint8Array, romType: 'GBA' | 'GB' | 'GBC' | '
       const headerData = fileData.slice(startAddress, headerEndAddress);
       const parsedRomInfo = parseRom(headerData);
 
-      console.log(`检测Bank ${i}: 地址 ${formatHex(startAddress, 4)}, 有效: ${parsedRomInfo.isValid}, 标题: "${parsedRomInfo.title}"`);
+      console.log(`Bank ${i}: Address ${formatHex(startAddress, 4)}, isValid: ${parsedRomInfo.isValid}, Title: "${parsedRomInfo.title}"`);
 
       if (parsedRomInfo.isValid) {
         validGames.push({
@@ -367,10 +367,10 @@ function detectMultiRoms(fileData: Uint8Array, romType: 'GBA' | 'GB' | 'GBC' | '
 
       const actualRomSize = endAddress - game.startAddress + 1;
 
-      console.log(`游戏 ${game.desc}:`);
-      console.log(`  - 起始地址: 0x${game.startAddress.toString(16)}`);
-      console.log(`  - 结束地址: 0x${endAddress.toString(16)}`);
-      console.log(`  - 实际ROM大小: ${actualRomSize} bytes`);
+      console.log(`Game ${game.desc}:`);
+      console.log(`  - Start Address: 0x${game.startAddress.toString(16)}`);
+      console.log(`  - End   Address: 0x${endAddress.toString(16)}`);
+      console.log(`  - Rom   Size   : ${actualRomSize} bytes`);
 
       results.push({
         startAddress: game.startAddress,
@@ -390,7 +390,7 @@ function detectMultiRoms(fileData: Uint8Array, romType: 'GBA' | 'GB' | 'GBC' | '
     ];
     multiCardRanges.push(...MBC5_ROM_BASE_ADDRESS);
 
-    console.log(`文件大小: ${fileData.length} bytes (${(fileData.length / 1024 / 1024).toFixed(1)} MB)`);
+    console.log(`File Size: ${fileData.length} bytes (${(fileData.length / 1024 / 1024).toFixed(1)} MB)`);
 
     for (let i = 0; i < multiCardRanges.length; ++i) {
       const baseAddress = multiCardRanges[i];
@@ -404,14 +404,14 @@ function detectMultiRoms(fileData: Uint8Array, romType: 'GBA' | 'GB' | 'GBC' | '
       const parsedRomInfo = parseRom(gameData);
 
       // 调试信息：记录检测过程
-      console.log(`检测地址 0x${formatHex(baseAddress, 4)}, 有效: ${parsedRomInfo.isValid}, 标题: "${parsedRomInfo.title}"`);
+      console.log(`Address 0x${formatHex(baseAddress, 4)}, isValid: ${parsedRomInfo.isValid}, Title: "${parsedRomInfo.title}"`);
 
       // 检查该位置是否有非零数据（可能是游戏数据）
       const hasNonZeroData = gameData.some(byte => byte !== 0x00 && byte !== 0xFF);
-      console.log(`  - 有非零数据: ${hasNonZeroData}`);
+      console.log(`  - None Zero Data: ${hasNonZeroData}`);
 
       if (hasNonZeroData) {
-        console.log(`  - 前16字节: ${Array.from(gameData.slice(0, 16)).map(b => formatHex(b, 1)).join(' ')}`);
+        console.log(`  - First 16 bytes: ${Array.from(gameData.slice(0, 16)).map(b => formatHex(b, 1)).join(' ')}`);
       }
 
       if (parsedRomInfo.isValid) {
@@ -438,7 +438,7 @@ function detectMultiRoms(fileData: Uint8Array, romType: 'GBA' | 'GB' | 'GBC' | '
     // 检查是否只识别到了menu（地址0x00000000）
     const onlyMenuDetected = results.length === 1 && results[0].startAddress === 0;
     if (onlyMenuDetected) {
-      console.log('只检测到menu，不识别为多合一ROM');
+      console.log('Only menu detected, not a multi-ROM.');
       return []; // 返回空数组，表示不是多合一ROM
     }
     // 如果检测到多个游戏，或者单个游戏不在地址0，则认为是多合一ROM
@@ -500,7 +500,7 @@ async function extractGame(game: GameDetectionResult) {
     showToast(t('ui.romAnalyzer.extractSuccess'), 'success');
 
   } catch (error) {
-    console.error('ROM提取失败:', error);
+    console.error(t('ui.romAnalyzer.extractFailed'), error);
     showToast(t('ui.romAnalyzer.extractFailed'), 'error');
   } finally {
     isExtracting.value = false;
