@@ -994,15 +994,11 @@ export class MBC5Adapter extends CartridgeAdapter {
           while (read < total) {
             const currAddress = baseAddress + read;
             // 计算bank和地址
-            const bank = currAddress >> 13;
-            const b = bank < 0 ? 0 : bank;
-            if (b !== currentBank) {
-              currentBank = b;
-              await this.switchRAMBank(b);
+            const { bank, cartAddress } = this.ramBankRelevantAddress(currAddress);
+            if (bank !== currentBank) {
+              currentBank = bank;
+              await this.switchRAMBank(bank);
             }
-
-            const cartAddress = 0xa000 + (currAddress & 0x1fff);
-
             // 分包
             const remainingSize = total - currAddress;
             const chunkSize = Math.min(pageSize, remainingSize);
