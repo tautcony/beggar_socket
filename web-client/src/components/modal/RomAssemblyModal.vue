@@ -681,6 +681,12 @@ function getUsageBarColor(percentage: number): string {
 
 /* 角标样式移除按钮 */
 .corner-btn {
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  min-width: 0;
+  overflow: hidden;
   position: absolute;
   top: -8px;
   right: -8px;
