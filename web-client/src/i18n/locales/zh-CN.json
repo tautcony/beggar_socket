@@ -405,7 +405,8 @@
       "readSummary": "ROM读取完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} KB",
       "assembledRomApplied": "组装ROM已应用",
       "assembledRomTypeMismatch": "组装ROM类型({assembled})与当前模式({current})不匹配",
-      "noAssembledRom": "没有可用的组装ROM"
+      "noAssembledRom": "没有可用的组装ROM",
+      "writeNoData": "没有数据可写入，写入已中止"
     },
     "emulator": {
       "launched": "已启动模拟器预览: {name}",

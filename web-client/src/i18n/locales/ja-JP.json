@@ -400,7 +400,11 @@
       "areaIsBlank": "領域は空白です",
       "areaNotBlank": "領域は空白ではありません",
       "writeSummary": "ROM書き込み完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} KB",
-      "readSummary": "ROM読み取り完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} KB"
+      "readSummary": "ROM読み取り完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} KB",
+      "assembledRomApplied": "組み立てROMが適用されました",
+      "assembledRomTypeMismatch": "組み立てROMタイプ({assembled})が現在のモード({current})と一致しません",
+      "noAssembledRom": "利用可能な組み立てROMがありません",
+      "writeNoData": "書き込むデータがありません、書き込みを中止しました"
     },
     "emulator": {
       "launched": "エミュレータープレビューを開始: {name}",

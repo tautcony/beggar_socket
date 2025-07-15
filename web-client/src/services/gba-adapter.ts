@@ -357,6 +357,10 @@ export class GBAAdapter extends CartridgeAdapter {
 
             const chunkSize = Math.min(pageSize, total - written);
             const chunk = fileData.slice(written, written + chunkSize);
+            if (chunk.byteLength === 0) {
+              this.log(this.t('messages.rom.writeNoData'));
+              break;
+            }
             const currentAddress = baseAddress + written;
 
             const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress);

@@ -404,7 +404,8 @@
       "readSummary": "ROM read complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} KB",
       "assembledRomApplied": "Assembled ROM has been applied",
       "assembledRomTypeMismatch": "Assembled ROM type ({assembled}) does not match current mode ({current})",
-      "noAssembledRom": "No assembled ROM available"
+      "noAssembledRom": "No assembled ROM available",
+      "writeNoData": "No data to write, write aborted"
     },
     "emulator": {
       "launched": "Emulator preview launched: {name}",
