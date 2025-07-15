@@ -32,6 +32,19 @@
       "about": "アバウト",
       "aboutDesc": "アプリケーション情報とバージョンを表示します"
     },
+    "about": {
+      "version": "バージョン",
+      "description": "ChisFlash ゲームカートリッジフラッシュツール。GBAおよびMBC5カートリッジの読み書きと管理をサポートします。",
+      "techStack": "技術スタック",
+      "projectInfo": "プロジェクト情報",
+      "sourceCode": "ソースコード",
+      "reportIssue": "問題を報告",
+      "license": "オープンソースライセンス",
+      "licenseText": "このプロジェクトはGPL 3.0ライセンスの下で公開されています。コントリビューションとフィードバックを歓迎します。",
+      "viewLicense": "ライセンスを表示",
+      "acknowledgments": "謝辞",
+      "acknowledgmentsText": "Chisユニバースに貢献するすべての開発者に感謝します。"
+    },
     "operation": {
       "title": "チップ操作",
       "busy": "操作中...",

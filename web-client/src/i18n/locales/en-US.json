@@ -32,6 +32,19 @@
       "about": "About",
       "aboutDesc": "View application information and version"
     },
+    "about": {
+      "version": "Version",
+      "description": "ChisFlash game cartridge flashing tool that supports reading, writing, and managing GBA and MBC5 cartridges.",
+      "techStack": "Tech Stack",
+      "projectInfo": "Project Information",
+      "sourceCode": "Source Code",
+      "reportIssue": "Report Issue",
+      "license": "Open Source License",
+      "licenseText": "This project is released under the GPL 3.0 license. Contributions and feedback are welcome.",
+      "viewLicense": "View License",
+      "acknowledgments": "Acknowledgments",
+      "acknowledgmentsText": "Thanks to all developers who contribute to the Chis Universe."
+    },
     "operation": {
       "title": "Chip Operations",
       "busy": "Operating...",

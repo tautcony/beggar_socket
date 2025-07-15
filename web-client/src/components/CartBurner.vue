@@ -1,6 +1,6 @@
 <template>
   <div class="flashburner-container">
-    <ProgressDisplay
+    <ProgressDisplayModal
       v-if="operateProgress !== null && operateProgress !== undefined"
       key="progress"
       :progress="operateProgress"
@@ -117,8 +117,8 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import LogViewer from '@/components/LogViewer.vue';
+import ProgressDisplayModal from '@/components/modal/ProgressDisplayModal.vue';
 import { ChipOperations, RamOperations, RomOperations } from '@/components/operaiton';
-import ProgressDisplay from '@/components/ProgressDisplay.vue';
 import { useToast } from '@/composables/useToast';
 import { CartridgeAdapter, GBAAdapter, MBC5Adapter, MockAdapter } from '@/services';
 import { DebugSettings } from '@/settings/debug-settings';

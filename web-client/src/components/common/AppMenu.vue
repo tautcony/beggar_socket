@@ -63,7 +63,6 @@
 
         <button
           class="menu-item"
-          disabled
           @click="openAbout"
         >
           <IonIcon :icon="informationCircleOutline" />
@@ -89,8 +88,14 @@
       @close="closeRomAnalyzer"
     />
 
+    <!-- 关于弹框 -->
+    <AboutModal
+      :is-visible="isAboutVisible"
+      @close="closeAbout"
+    />
+
     <!-- 高级设置面板 -->
-    <AdvancedSettingsPanel
+    <AdvancedSettingsModal
       v-if="isSettingsVisible"
       @close="closeSettings"
       @applied="onSettingsApplied"
@@ -110,9 +115,10 @@ import {
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import RomAnalyzerModal from '@/components/common/RomAnalyzerModal.vue';
-import RomAssemblyModal from '@/components/common/RomAssemblyModal.vue';
-import AdvancedSettingsPanel from '@/components/settings/AdvancedSettingsPanel.vue';
+import AboutModal from '@/components/modal/AboutModal.vue';
+import AdvancedSettingsModal from '@/components/modal/AdvancedSettingsModal.vue';
+import RomAnalyzerModal from '@/components/modal/RomAnalyzerModal.vue';
+import RomAssemblyModal from '@/components/modal/RomAssemblyModal.vue';
 import { useToast } from '@/composables/useToast';
 import type { AssembledRom } from '@/types/rom-assembly';
 
@@ -133,6 +139,7 @@ const isMenuOpen = ref(false);
 const isRomAssemblyVisible = ref(false);
 const isRomAnalyzerVisible = ref(false);
 const isSettingsVisible = ref(false);
+const isAboutVisible = ref(false);
 
 function toggleMenu() {
   isMenuOpen.value = !isMenuOpen.value;
@@ -185,7 +192,11 @@ function onSettingsApplied() {
 
 function openAbout() {
   closeMenu();
-  showToast(t('messages.common.featureComingSoon'), 'success');
+  isAboutVisible.value = true;
+}
+
+function closeAbout() {
+  isAboutVisible.value = false;
 }
 </script>
 

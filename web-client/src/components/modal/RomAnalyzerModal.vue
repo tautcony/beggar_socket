@@ -538,9 +538,10 @@ async function extractGame(game: GameDetectionResult) {
 .modal-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  padding: 20px;
-  border-bottom: 1px solid #e1e8ed;
+  align-items: center;
+  padding: 24px 32px 16px;
+  border-bottom: 1px solid #f1f3f4;
+  background: #f8f9fa;
 }
 
 .header-content {
@@ -548,25 +549,32 @@ async function extractGame(game: GameDetectionResult) {
 }
 
 .modal-header h3 {
-  margin: 0 0 8px 0;
+  margin: 0;
   color: #2c3e50;
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   font-weight: 600;
 }
 
 .close-button {
-  background: none;
+  background: rgba(108, 117, 125, 0.1);
   border: none;
+  border-radius: 8px;
+  padding: 8px;
   cursor: pointer;
   color: #6c757d;
-  font-size: 1.5rem;
-  padding: 4px;
-  border-radius: 4px;
-  transition: color 0.2s ease;
+  transition: background 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .close-button:hover {
-  color: #dc3545;
+  background: rgba(108, 117, 125, 0.2);
+  color: #495057;
+}
+
+.close-button ion-icon {
+  font-size: 1.2rem;
 }
 
 .modal-body {

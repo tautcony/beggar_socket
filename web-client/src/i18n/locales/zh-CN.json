@@ -32,6 +32,19 @@
       "about": "关于",
       "aboutDesc": "查看应用程序信息和版本"
     },
+    "about": {
+      "version": "版本",
+      "description": "ChisFlash 游戏卡带烧录工具，支持 GBA 和 MBC5 卡带的读取、写入和管理。",
+      "techStack": "技术栈",
+      "projectInfo": "项目信息",
+      "sourceCode": "源代码",
+      "reportIssue": "报告问题",
+      "license": "开源许可",
+      "licenseText": "本项目采用 GPL 3.0 许可证发布，欢迎贡献代码和反馈问题。",
+      "viewLicense": "查看许可证",
+      "acknowledgments": "致谢",
+      "acknowledgmentsText": "感谢所有为Chis宇宙做出贡献的开发者们。"
+    },
     "operation": {
       "title": "芯片操作",
       "busy": "操作中...",

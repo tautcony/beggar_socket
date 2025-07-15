@@ -524,34 +524,39 @@ function getUsageBarColor(percentage: number): string {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid #e1e8ed;
+  padding: 24px 32px 16px;
+  border-bottom: 1px solid #f1f3f4;
   background: #f8f9fa;
+  color: #2c3e50;
 }
 
 .modal-header h3 {
   margin: 0;
   color: #2c3e50;
-  font-size: 1.3rem;
+  font-size: 1.5rem;
   font-weight: 600;
 }
 
 .close-button {
-  padding: 8px;
-  background: none;
+  background: rgba(108, 117, 125, 0.1);
   border: none;
+  border-radius: 8px;
+  padding: 8px;
   cursor: pointer;
-  color: #666;
-  border-radius: 6px;
-  transition: all 0.2s;
+  color: #6c757d;
+  transition: background 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .close-button:hover {
-  background: #e9ecef;
-  color: #333;
+  background: rgba(108, 117, 125, 0.2);
+  color: #495057;
+}
+
+.close-button ion-icon {
+  font-size: 1.2rem;
 }
 
 .modal-content {
@@ -565,8 +570,9 @@ function getUsageBarColor(percentage: number): string {
   gap: 20px;
   flex-wrap: wrap;
   align-items: center;
-  background: #f8f9fa;
+  background: rgba(255, 255, 255, 0.7);
   border-radius: 8px;
+  padding: 12px 16px;
 }
 
 .rom-type-info,
@@ -583,7 +589,7 @@ function getUsageBarColor(percentage: number): string {
 .alignment-label,
 .actual-size-label {
   font-size: 0.9rem;
-  color: #666;
+  color: #6c757d;
   font-weight: 500;
 }
 

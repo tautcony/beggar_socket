@@ -28,10 +28,6 @@
       :device-ready="deviceReady"
       :device="device"
     />
-    <AdvancedSettingsPanel
-      v-if="showSettings"
-      @close="showSettings = false"
-    />
     <DebugSettingsPanel
       v-if="showDebugPanelModal"
       @close="showDebugPanelModal = false"
@@ -42,7 +38,6 @@
       v-if="showDebugPanel"
       v-model:display="showDebugPanelModal"
     />
-    <GitHubLink />
     <GlobalToast />
   </div>
 </template>
@@ -58,8 +53,6 @@ import GlobalToast from '@/components/common/GlobalToast.vue';
 import DeviceConnect from '@/components/DeviceConnect.vue';
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
 import DebugLink from '@/components/link/DebugLink.vue';
-import GitHubLink from '@/components/link/GitHubLink.vue';
-import AdvancedSettingsPanel from '@/components/settings/AdvancedSettingsPanel.vue';
 import DebugSettingsPanel from '@/components/settings/DebugSettingsPanel.vue';
 import { useToast } from '@/composables/useToast';
 import { DebugSettings } from '@/settings/debug-settings';
