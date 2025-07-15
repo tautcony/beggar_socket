@@ -79,7 +79,7 @@ export function formatTime(value: number, unit: 's' | 'ms' = 's', showMillisecon
   return baseTime;
 }
 
-export function formatHex(value: number, byteLength: 1 | 2 | 4 | 6) {
+export function formatHex(value: number, byteLength: 1 | 2 | 3 | 4 | 6) {
   if (typeof value !== 'number' || byteLength <= 0) {
     throw new Error('Invalid input for formatHex');
   }

@@ -152,6 +152,7 @@ import { useToast } from '@/composables/useToast';
 import { assembledRomState, clearAssembledRom } from '@/stores/assembled-rom-store';
 import { FileInfo } from '@/types/file-info.ts';
 import type { AssembledRom } from '@/types/rom-assembly';
+import { GBA_ROM_BASE_ADDRESS, MBC5_ROM_BASE_ADDRESS } from '@/utils/address-utils';
 import { formatHex } from '@/utils/formatter-utils';
 import { parseRom, type RomInfo } from '@/utils/rom-parser.ts';
 
@@ -201,11 +202,11 @@ const getBaseAddressOptions = (romType: 'GBA' | 'MBC5') => {
     ],
   };
 
-  for (let i = 1; i <= 16; ++i) {
-    options.MBC5.push({ value: formatHex(0x100000 * i, 4), text: t('ui.rom.baseAddressOptions.game', { index: i }) });
+  for (let i = 0; i < MBC5_ROM_BASE_ADDRESS.length; ++i) {
+    options.MBC5.push({ value: formatHex(MBC5_ROM_BASE_ADDRESS[i], 4), text: t('ui.rom.baseAddressOptions.game', { index: i + 1 }) });
   }
-  for (let i = 0; i < 32; ++i) {
-    options.GBA.push({ value: formatHex(0x400000 * i, 4), text: t('ui.rom.baseAddressOptions.bank', { index: i }) });
+  for (let i = 0; i < GBA_ROM_BASE_ADDRESS.length; ++i) {
+    options.GBA.push({ value: formatHex(GBA_ROM_BASE_ADDRESS[i], 4), text: t('ui.rom.baseAddressOptions.bank', { index: i }) });
   }
 
   return options[romType] ?? [];

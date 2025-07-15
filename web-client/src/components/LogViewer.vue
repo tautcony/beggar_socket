@@ -183,10 +183,13 @@ onUnmounted(() => {
   padding: 8px 8px 8px 12px;
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   font-family: monospace;
   font-size: 0.97rem;
   line-height: 1.6;
   height: calc(820px - 44px);
+  word-break: break-all;
+  white-space: pre-wrap;
 }
 
 .log-area-scroll::-webkit-scrollbar {

@@ -217,14 +217,14 @@ if (import.meta.hot) {
 const romFileData = ref<Uint8Array | null>(null);
 const romFileName = ref('');
 const selectedRomSize = ref('0x00800000'); // 默认8MB
-const selectedBaseAddress = ref('0x00000000'); // 默认ROM基址0x00
+const selectedBaseAddress = ref('0x00000000'); // 默认ROM基址0x00000000
 
 // RAM
 const ramFileData = ref<Uint8Array | null>(null);
 const ramFileName = ref('');
 const selectedRamSize = ref('0x08000'); // 默认32KB
 const selectedRamType = ref('SRAM'); // 默认SRAM
-const selectedRamBaseAddress = ref('0x00000'); // 默认RAM基址0x00000
+const selectedRamBaseAddress = ref('0x000000'); // 默认RAM基址0x000000
 
 // 设备连接状态改变时，初始化适配器
 function initializeAdapters() {

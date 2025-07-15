@@ -180,6 +180,7 @@ import { ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useToast } from '@/composables/useToast';
+import { MBC5_ROM_BASE_ADDRESS } from '@/utils/address-utils';
 import { formatBytes, formatHex } from '@/utils/formatter-utils';
 import { parseRom, type RomInfo } from '@/utils/rom-parser';
 
@@ -315,15 +316,15 @@ async function analyzeRom() {
   }
 }
 
-function detectMultiRoms(romData: Uint8Array, romType: string): GameDetectionResult[] {
+function detectMultiRoms(fileData: Uint8Array, romType: 'GBA' | 'GB' | 'GBC' | 'Unknown'): GameDetectionResult[] {
   const results: GameDetectionResult[] = [];
 
   if (romType === 'GBA') {
     // GBA ROM检测逻辑
     const bankSize = 0x400000; // 4MB
-    const bankCount = Math.floor(romData.length / bankSize);
+    const bankCount = Math.floor(fileData.length / bankSize);
 
-    console.log(`文件大小: ${romData.length} bytes (${(romData.length / 1024 / 1024).toFixed(1)} MB)`);
+    console.log(`文件大小: ${fileData.length} bytes (${(fileData.length / 1024 / 1024).toFixed(1)} MB)`);
     console.log(`Bank数量: ${bankCount}`);
 
     // 首先收集所有有效的游戏
@@ -332,15 +333,15 @@ function detectMultiRoms(romData: Uint8Array, romType: string): GameDetectionRes
     for (let i = 0; i < bankCount; i++) {
       const startAddress = i * bankSize;
 
-      if (startAddress + 0x150 > romData.length) continue; // 数据不够读取ROM头
+      if (startAddress + 0x150 > fileData.length) continue; // 数据不够读取ROM头
 
       // 只读取ROM头部进行解析，而不是整个bank
       const headerSize = 0x200; // 读取512字节的头部，足够解析ROM信息
-      const headerEndAddress = Math.min(startAddress + headerSize, romData.length);
-      const headerData = romData.slice(startAddress, headerEndAddress);
+      const headerEndAddress = Math.min(startAddress + headerSize, fileData.length);
+      const headerData = fileData.slice(startAddress, headerEndAddress);
       const parsedRomInfo = parseRom(headerData);
 
-      console.log(`检测Bank ${i}: 地址 0x${startAddress.toString(16).padStart(8, '0')}, 有效: ${parsedRomInfo.isValid}, 标题: "${parsedRomInfo.title}"`);
+      console.log(`检测Bank ${i}: 地址 ${formatHex(startAddress, 4)}, 有效: ${parsedRomInfo.isValid}, 标题: "${parsedRomInfo.title}"`);
 
       if (parsedRomInfo.isValid) {
         validGames.push({
@@ -361,7 +362,7 @@ function detectMultiRoms(romData: Uint8Array, romType: string): GameDetectionRes
         endAddress = validGames[i + 1].startAddress - 1;
       } else {
         // 是最后一个游戏，结束地址是文件结尾
-        endAddress = romData.length - 1;
+        endAddress = fileData.length - 1;
       }
 
       const actualRomSize = endAddress - game.startAddress + 1;
@@ -382,87 +383,49 @@ function detectMultiRoms(romData: Uint8Array, romType: string): GameDetectionRes
         },
       });
     }
-  } else if (romType === 'GB') {
+  } else if (romType === 'GB' || romType === 'GBC') {
     // MBC5 ROM检测逻辑 - 使用正确的地址范围
     const multiCardRanges = [
-      { from: 0x00000000, to: 0x000FFFFF, name: 'Menu   ' }, // 菜单 1MB
-      { from: 0x00100000, to: 0x001FFFFF, name: 'Game 01' }, // 游戏1 1MB
-      { from: 0x00200000, to: 0x003FFFFF, name: 'Game 02' }, // 游戏2 2MB
-      { from: 0x00400000, to: 0x005FFFFF, name: 'Game 03' }, // 游戏3 2MB
-      { from: 0x00600000, to: 0x007FFFFF, name: 'Game 04' }, // 游戏4 2MB
-      { from: 0x00800000, to: 0x009FFFFF, name: 'Game 05' }, // 游戏5 2MB
-      { from: 0x00A00000, to: 0x00BFFFFF, name: 'Game 06' }, // 游戏6 2MB
-      { from: 0x00C00000, to: 0x00DFFFFF, name: 'Game 07' }, // 游戏7 2MB
-      { from: 0x00E00000, to: 0x00FFFFFF, name: 'Game 08' }, // 游戏8 2MB
-      { from: 0x01000000, to: 0x011FFFFF, name: 'Game 09' }, // 游戏9 2MB
-      { from: 0x01200000, to: 0x013FFFFF, name: 'Game 10' }, // 游戏10 2MB
-      { from: 0x01400000, to: 0x015FFFFF, name: 'Game 11' }, // 游戏11 2MB
-      { from: 0x01600000, to: 0x017FFFFF, name: 'Game 12' }, // 游戏12 2MB
-      { from: 0x01800000, to: 0x019FFFFF, name: 'Game 13' }, // 游戏13 2MB
-      { from: 0x01A00000, to: 0x01BFFFFF, name: 'Game 14' }, // 游戏14 2MB
-      { from: 0x01C00000, to: 0x01DFFFFF, name: 'Game 15' }, // 游戏15 2MB
-      { from: 0x01E00000, to: 0x01FFFFFF, name: 'Game 16' }, // 游戏16 2MB
+      0x000000, // MENU
     ];
+    multiCardRanges.push(...MBC5_ROM_BASE_ADDRESS);
 
-    console.log(`文件大小: ${romData.length} bytes (${(romData.length / 1024 / 1024).toFixed(1)} MB)`);
+    console.log(`文件大小: ${fileData.length} bytes (${(fileData.length / 1024 / 1024).toFixed(1)} MB)`);
 
-    for (const range of multiCardRanges) {
-      if (range.from >= romData.length) break;
+    for (let i = 0; i < multiCardRanges.length; ++i) {
+      const baseAddress = multiCardRanges[i];
 
-      const headerEndAddress = Math.min(range.from + 0x150, romData.length);
-      if (headerEndAddress - range.from < 0x150) continue;
+      if (baseAddress >= fileData.length) break;
 
-      const gameData = romData.slice(range.from, headerEndAddress);
+      const headerEndAddress = Math.min(baseAddress + 0x150, fileData.length);
+      if (headerEndAddress - baseAddress < 0x150) continue;
+
+      const gameData = fileData.slice(baseAddress, headerEndAddress);
       const parsedRomInfo = parseRom(gameData);
 
       // 调试信息：记录检测过程
-      console.log(`检测地址 0x${range.from.toString(16).padStart(8, '0')}: ${range.name}, 有效: ${parsedRomInfo.isValid}, 标题: "${parsedRomInfo.title}"`);
+      console.log(`检测地址 0x${formatHex(baseAddress, 4)}, 有效: ${parsedRomInfo.isValid}, 标题: "${parsedRomInfo.title}"`);
 
       // 检查该位置是否有非零数据（可能是游戏数据）
       const hasNonZeroData = gameData.some(byte => byte !== 0x00 && byte !== 0xFF);
       console.log(`  - 有非零数据: ${hasNonZeroData}`);
 
       if (hasNonZeroData) {
-        console.log(`  - 前16字节: ${Array.from(gameData.slice(0, 16)).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+        console.log(`  - 前16字节: ${Array.from(gameData.slice(0, 16)).map(b => formatHex(b, 1)).join(' ')}`);
       }
 
       if (parsedRomInfo.isValid) {
-        // 计算实际的ROM大小：to地址 - from地址 + 1
-        const calculatedSize = range.to - range.from + 1;
-        // 但不能超过文件实际大小
-        const endAddress = Math.min(range.from + calculatedSize, romData.length);
-        const actualSize = endAddress - range.from;
+        const endAddress = i === multiCardRanges.length - 1 ? fileData.length : multiCardRanges[i + 1];;
+        const calculatedSize = endAddress - baseAddress;
 
         results.push({
-          startAddress: range.from,
+          startAddress: baseAddress,
           endAddress,
-          calculatedSize: actualSize,
-          desc: range.name,
+          calculatedSize,
+          desc: i === 0 ? 'Menu' : `Game ${i.toString().padStart(2, '0')}`,
           romInfo: {
             ...parsedRomInfo,
-            romSize: actualSize, // 使用计算出的实际大小
-          },
-        });
-      } else if (hasNonZeroData && range.from > 0) {
-        // 如果该位置有数据但ROM头无效，可能是压缩或加密的游戏数据
-        // 为了演示目的，我们创建一个占位符条目
-        console.log('  - 检测到可能的游戏数据但ROM头无效');
-
-        const calculatedSize = range.to - range.from + 1;
-        const endAddress = Math.min(range.from + calculatedSize, romData.length);
-        const actualSize = endAddress - range.from;
-
-        results.push({
-          startAddress: range.from,
-          endAddress,
-          calculatedSize: actualSize,
-          desc: `${range.name} (无效头)`,
-          romInfo: {
-            title: '未知游戏',
-            type: 'GB',
-            romSize: actualSize,
-            isValid: false,
-            logoData: new Uint8Array(0),
+            romSize: calculatedSize,
           },
         });
       }
@@ -471,7 +434,7 @@ function detectMultiRoms(romData: Uint8Array, romType: string): GameDetectionRes
 
   // 对于GB/GBC ROM，如果只检测到一个游戏且它在地址0，可能是合卡的菜单
   // 我们不应该将其识别为多合一ROM
-  if (romType === 'GB' && results.length > 0) {
+  if ((romType === 'GB' || romType === 'GBC') && results.length > 0) {
     // 检查是否只识别到了menu（地址0x00000000）
     const onlyMenuDetected = results.length === 1 && results[0].startAddress === 0;
     if (onlyMenuDetected) {
@@ -484,16 +447,16 @@ function detectMultiRoms(romData: Uint8Array, romType: string): GameDetectionRes
 
   // 如果没有检测到多ROM，检查是否为单ROM
   if (results.length === 0) {
-    const singleRomInfo = parseRom(romData);
+    const singleRomInfo = parseRom(fileData);
     if (singleRomInfo.isValid) {
       results.push({
         startAddress: 0,
-        endAddress: romData.length,
-        calculatedSize: romData.length,
+        endAddress: fileData.length,
+        calculatedSize: fileData.length,
         desc: t('ui.romAnalyzer.singleRom'),
         romInfo: {
           ...singleRomInfo,
-          romSize: romData.length, // 使用文件总大小
+          romSize: fileData.length, // 使用文件总大小
         },
       });
     }

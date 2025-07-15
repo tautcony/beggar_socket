@@ -108,6 +108,8 @@ import { useI18n } from 'vue-i18n';
 
 import FileDropZone from '@/components/common/FileDropZone.vue';
 import { FileInfo } from '@/types/file-info.ts';
+import { MBC5_RAM_BASE_ADDRESS } from '@/utils/address-utils';
+import { formatHex } from '@/utils/formatter-utils';
 
 const { t } = useI18n();
 
@@ -125,7 +127,7 @@ const props = withDefaults(defineProps<{
   ramFileName: '',
   selectedRamSize: '0x08000',
   selectedRamType: 'SRAM',
-  selectedBaseAddress: '0x00000',
+  selectedBaseAddress: '0x000000',
 });
 
 const RAM_SIZE_RANGE = [
@@ -141,10 +143,11 @@ const RAM_BASE_ADDRESS_OPTIONS = computed(() => {
   const options: { value: string, text: string }[] = [];
   for (let i = 0; i < 16; ++i) {
     options.push({
-      value: `0x${(i * 0x8000).toString(16).padStart(5, '0')}`,
+      value: formatHex(MBC5_RAM_BASE_ADDRESS[i], 3),
       text: t('ui.ram.baseAddressOptions.game', { index: i + 1 }),
     });
   }
+
   return options;
 });
 
