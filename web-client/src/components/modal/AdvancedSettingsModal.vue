@@ -1,206 +1,197 @@
 <template>
-  <div class="advanced-settings-overlay">
-    <div class="advanced-settings">
-      <div class="settings-header">
-        <h3>{{ $t('ui.settings.title') }}</h3>
-        <button
-          class="close-btn"
-          :title="$t('ui.settings.actions.close')"
-          @click="$emit('close')"
-        >
-          <IonIcon :icon="closeOutline" />
-        </button>
-      </div>
+  <BaseModal
+    :visible="true"
+    :title="$t('ui.settings.title')"
+    width="90%"
+    max-width="600px"
+    max-height="80vh"
+    @close="$emit('close')"
+  >
+    <!-- 页面大小设置 -->
+    <div class="setting-group">
+      <h4>{{ $t('ui.settings.size.title') }}</h4>
 
-      <div class="settings-content">
-        <!-- 页面大小设置 -->
-        <div class="setting-group">
-          <h4>{{ $t('ui.settings.size.title') }}</h4>
-
-          <div class="setting-row">
-            <div class="setting-item">
-              <label for="rom-page-size">{{ $t('ui.settings.size.romPageSize') }}</label>
-              <div class="input-group">
-                <input
-                  id="rom-page-size"
-                  v-model.number="localSettings.size.romPageSize"
-                  type="number"
-                  :min="limits.pageSize.min"
-                  :max="limits.pageSize.max"
-                  :step="64"
-                  @input="validateAndUpdate"
-                >
-                <span class="unit">{{ $t('ui.settings.size.bytes') }}</span>
-              </div>
-              <div
-                v-if="validationErrors.romPageSize"
-                class="validation-error"
-              >
-                {{ validationErrors.romPageSize }}
-              </div>
-              <small class="hint">{{ formatBytes(localSettings.size.romPageSize) }}</small>
-            </div>
-
-            <div class="setting-item">
-              <label for="ram-page-size">{{ $t('ui.settings.size.ramPageSize') }}</label>
-              <div class="input-group">
-                <input
-                  id="ram-page-size"
-                  v-model.number="localSettings.size.ramPageSize"
-                  type="number"
-                  :min="limits.pageSize.min"
-                  :max="limits.pageSize.max"
-                  :step="64"
-                  @input="validateAndUpdate"
-                >
-                <span class="unit">{{ $t('ui.settings.size.bytes') }}</span>
-              </div>
-              <div
-                v-if="validationErrors.ramPageSize"
-                class="validation-error"
-              >
-                {{ validationErrors.ramPageSize }}
-              </div>
-              <small class="hint">{{ formatBytes(localSettings.size.ramPageSize) }}</small>
-            </div>
+      <div class="setting-row">
+        <div class="setting-item">
+          <label for="rom-page-size">{{ $t('ui.settings.size.romPageSize') }}</label>
+          <div class="input-group">
+            <input
+              id="rom-page-size"
+              v-model.number="localSettings.size.romPageSize"
+              type="number"
+              :min="limits.pageSize.min"
+              :max="limits.pageSize.max"
+              :step="64"
+              @input="validateAndUpdate"
+            >
+            <span class="unit">{{ $t('ui.settings.size.bytes') }}</span>
           </div>
+          <div
+            v-if="validationErrors.romPageSize"
+            class="validation-error"
+          >
+            {{ validationErrors.romPageSize }}
+          </div>
+          <small class="hint">{{ formatBytes(localSettings.size.romPageSize) }}</small>
         </div>
 
-        <!-- 超时设置 -->
-        <div class="setting-group">
-          <h4>{{ $t('ui.settings.timeout.title') }}</h4>
-
-          <div class="setting-row">
-            <div class="setting-item">
-              <label for="default-timeout">{{ $t('ui.settings.timeout.defaultTimeout') }}</label>
-              <div class="input-group">
-                <input
-                  id="default-timeout"
-                  v-model.number="localSettings.timeout.default"
-                  type="number"
-                  :min="limits.timeout.min"
-                  :max="limits.timeout.max"
-                  :step="100"
-                  @input="validateAndUpdate"
-                >
-                <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
-              </div>
-              <div
-                v-if="validationErrors.defaultTimeout"
-                class="validation-error"
-              >
-                {{ validationErrors.defaultTimeout }}
-              </div>
-              <small class="hint">{{ formatTime(localSettings.timeout.default, 'ms') }}</small>
-            </div>
-
-            <div class="setting-item">
-              <label for="package-send-timeout">{{ $t('ui.settings.timeout.packageSendTimeout') }}</label>
-              <div class="input-group">
-                <input
-                  id="package-send-timeout"
-                  v-model.number="localSettings.timeout.packageSend"
-                  type="number"
-                  :min="limits.timeout.min"
-                  :max="limits.timeout.max"
-                  :step="100"
-                  @input="validateAndUpdate"
-                >
-                <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
-              </div>
-              <div
-                v-if="validationErrors.packageSendTimeout"
-                class="validation-error"
-              >
-                {{ validationErrors.packageSendTimeout }}
-              </div>
-              <small class="hint">{{ formatTime(localSettings.timeout.packageSend, 'ms') }}</small>
-            </div>
+        <div class="setting-item">
+          <label for="ram-page-size">{{ $t('ui.settings.size.ramPageSize') }}</label>
+          <div class="input-group">
+            <input
+              id="ram-page-size"
+              v-model.number="localSettings.size.ramPageSize"
+              type="number"
+              :min="limits.pageSize.min"
+              :max="limits.pageSize.max"
+              :step="64"
+              @input="validateAndUpdate"
+            >
+            <span class="unit">{{ $t('ui.settings.size.bytes') }}</span>
           </div>
-
-          <div class="setting-row">
-            <div class="setting-item">
-              <label for="package-receive-timeout">{{ $t('ui.settings.timeout.packageReceiveTimeout') }}</label>
-              <div class="input-group">
-                <input
-                  id="package-receive-timeout"
-                  v-model.number="localSettings.timeout.packageReceive"
-                  type="number"
-                  :min="limits.timeout.min"
-                  :max="limits.timeout.max"
-                  :step="100"
-                  @input="validateAndUpdate"
-                >
-                <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
-              </div>
-              <div
-                v-if="validationErrors.packageReceiveTimeout"
-                class="validation-error"
-              >
-                {{ validationErrors.packageReceiveTimeout }}
-              </div>
-              <small class="hint">{{ formatTime(localSettings.timeout.packageReceive, 'ms') }}</small>
-            </div>
-
-            <div class="setting-item">
-              <label for="operation-timeout">{{ $t('ui.settings.timeout.operationTimeout') }}</label>
-              <div class="input-group">
-                <input
-                  id="operation-timeout"
-                  v-model.number="localSettings.timeout.operation"
-                  type="number"
-                  :min="limits.timeout.min"
-                  :max="limits.timeout.max"
-                  :step="1000"
-                  @input="validateAndUpdate"
-                >
-                <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
-              </div>
-              <div
-                v-if="validationErrors.operationTimeout"
-                class="validation-error"
-              >
-                {{ validationErrors.operationTimeout }}
-              </div>
-              <small class="hint">{{ formatTime(localSettings.timeout.operation, 'ms') }}</small>
-            </div>
+          <div
+            v-if="validationErrors.ramPageSize"
+            class="validation-error"
+          >
+            {{ validationErrors.ramPageSize }}
           </div>
-        </div>
-      </div>
-
-      <div class="settings-footer">
-        <button
-          class="btn-secondary"
-          @click="resetToDefaults"
-        >
-          {{ $t('ui.settings.actions.reset') }}
-        </button>
-        <div class="footer-right">
-          <button
-            class="btn-secondary"
-            @click="$emit('close')"
-          >
-            {{ $t('ui.settings.actions.close') }}
-          </button>
-          <button
-            class="btn-primary"
-            :disabled="!isValid"
-            @click="applySettings"
-          >
-            {{ $t('ui.settings.actions.apply') }}
-          </button>
+          <small class="hint">{{ formatBytes(localSettings.size.ramPageSize) }}</small>
         </div>
       </div>
     </div>
-  </div>
+
+    <!-- 超时设置 -->
+    <div class="setting-group">
+      <h4>{{ $t('ui.settings.timeout.title') }}</h4>
+
+      <div class="setting-row">
+        <div class="setting-item">
+          <label for="default-timeout">{{ $t('ui.settings.timeout.defaultTimeout') }}</label>
+          <div class="input-group">
+            <input
+              id="default-timeout"
+              v-model.number="localSettings.timeout.default"
+              type="number"
+              :min="limits.timeout.min"
+              :max="limits.timeout.max"
+              :step="100"
+              @input="validateAndUpdate"
+            >
+            <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+          </div>
+          <div
+            v-if="validationErrors.defaultTimeout"
+            class="validation-error"
+          >
+            {{ validationErrors.defaultTimeout }}
+          </div>
+          <small class="hint">{{ formatTime(localSettings.timeout.default, 'ms') }}</small>
+        </div>
+
+        <div class="setting-item">
+          <label for="package-send-timeout">{{ $t('ui.settings.timeout.packageSendTimeout') }}</label>
+          <div class="input-group">
+            <input
+              id="package-send-timeout"
+              v-model.number="localSettings.timeout.packageSend"
+              type="number"
+              :min="limits.timeout.min"
+              :max="limits.timeout.max"
+              :step="100"
+              @input="validateAndUpdate"
+            >
+            <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+          </div>
+          <div
+            v-if="validationErrors.packageSendTimeout"
+            class="validation-error"
+          >
+            {{ validationErrors.packageSendTimeout }}
+          </div>
+          <small class="hint">{{ formatTime(localSettings.timeout.packageSend, 'ms') }}</small>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-item">
+          <label for="package-receive-timeout">{{ $t('ui.settings.timeout.packageReceiveTimeout') }}</label>
+          <div class="input-group">
+            <input
+              id="package-receive-timeout"
+              v-model.number="localSettings.timeout.packageReceive"
+              type="number"
+              :min="limits.timeout.min"
+              :max="limits.timeout.max"
+              :step="100"
+              @input="validateAndUpdate"
+            >
+            <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+          </div>
+          <div
+            v-if="validationErrors.packageReceiveTimeout"
+            class="validation-error"
+          >
+            {{ validationErrors.packageReceiveTimeout }}
+          </div>
+          <small class="hint">{{ formatTime(localSettings.timeout.packageReceive, 'ms') }}</small>
+        </div>
+
+        <div class="setting-item">
+          <label for="operation-timeout">{{ $t('ui.settings.timeout.operationTimeout') }}</label>
+          <div class="input-group">
+            <input
+              id="operation-timeout"
+              v-model.number="localSettings.timeout.operation"
+              type="number"
+              :min="limits.timeout.min"
+              :max="limits.timeout.max"
+              :step="1000"
+              @input="validateAndUpdate"
+            >
+            <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+          </div>
+          <div
+            v-if="validationErrors.operationTimeout"
+            class="validation-error"
+          >
+            {{ validationErrors.operationTimeout }}
+          </div>
+          <small class="hint">{{ formatTime(localSettings.timeout.operation, 'ms') }}</small>
+        </div>
+      </div>
+    </div>
+
+    <template #footer>
+      <button
+        class="btn-secondary"
+        @click="resetToDefaults"
+      >
+        {{ $t('ui.settings.actions.reset') }}
+      </button>
+      <div class="footer-right">
+        <button
+          class="btn-secondary"
+          @click="$emit('close')"
+        >
+          {{ $t('ui.settings.actions.close') }}
+        </button>
+        <button
+          class="btn-primary"
+          :disabled="!isValid"
+          @click="applySettings"
+        >
+          {{ $t('ui.settings.actions.apply') }}
+        </button>
+      </div>
+    </template>
+  </BaseModal>
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import { closeOutline } from 'ionicons/icons';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import BaseModal from '@/components/common/BaseModal.vue';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { formatBytes, formatTime } from '@/utils/formatter-utils';
 
@@ -336,72 +327,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.advanced-settings-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.advanced-settings {
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 600px;
-  /* max-height: 80vh; */
-  overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-}
-
-.settings-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid #e0e0e0;
-  background: #f8f9fa;
-}
-
-.settings-header h3 {
-  margin: 0;
-  color: #333;
-  font-size: 1.2em;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  color: #666;
-  transition: all 0.2s;
-}
-
-.close-btn:hover {
-  background: #e0e0e0;
-  color: #333;
-}
-
-.settings-content {
-  padding: 20px;
-  max-height: 60vh;
-  overflow-y: auto;
-}
-
 .setting-group {
   margin-bottom: 24px;
 }
@@ -485,21 +410,13 @@ onMounted(() => {
   margin-top: 4px;
   color: #666;
   font-size: 12px;
+  text-align: center;
 }
 
 .validation-error {
   margin-top: 4px;
   color: #dc3545;
   font-size: 0.85em;
-}
-
-.settings-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  border-top: 1px solid #e0e0e0;
-  background: #f8f9fa;
 }
 
 .footer-right {
@@ -545,25 +462,9 @@ onMounted(() => {
 
 /* Responsive design */
 @media (max-width: 768px) {
-  .advanced-settings {
-    width: 95%;
-    max-height: 90vh;
-  }
-
   .setting-row {
     grid-template-columns: 1fr;
     gap: 16px;
-  }
-
-  .settings-header,
-  .settings-content,
-  .settings-footer {
-    padding: 12px 16px;
-  }
-
-  .settings-footer {
-    flex-direction: column;
-    gap: 12px;
   }
 
   .footer-right {

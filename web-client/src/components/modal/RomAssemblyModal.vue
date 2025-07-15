@@ -1,227 +1,221 @@
 <template>
-  <Teleport to="body">
-    <div
-      v-if="isVisible"
-      class="rom-assembly-modal-overlay"
-      @click="onOverlayClick"
-    >
-      <div
-        class="rom-assembly-modal"
-        @click.stop
-      >
-        <div class="modal-header">
-          <h3>{{ $t('ui.romAssembly.title') }}</h3>
-          <div class="assembly-controls">
-            <div class="rom-type-info">
-              <span class="rom-type-label">{{ $t('ui.romAssembly.romType') }}:</span>
-              <select
-                v-model="selectedRomType"
-                class="rom-type-select"
-                @change="onRomTypeChange"
-              >
-                <option value="MBC5">
-                  MBC5
-                </option>
-                <option value="GBA">
-                  GBA
-                </option>
-              </select>
-            </div>
-            <div class="size-info">
-              <span class="size-label">{{ $t('ui.romAssembly.totalSize') }}:</span>
-              <span class="size-value">{{ formatBytes(actualRomSize) }}</span>
-            </div>
-            <div
-              class="usage-text"
-              :style="{ color: getUsageBarColor(usagePercentage) }"
-            >
-              {{ $t('ui.romAssembly.usageStats', {
-                used: formatBytes(usedSpace),
-                total: formatBytes(config.totalSize),
-                percentage: usagePercentage.toFixed(1)
-              }) }}
-            </div>
-          </div>
-          <button
-            class="close-button"
-            @click="closeModal"
+  <BaseModal
+    :visible="isVisible"
+    :title="$t('ui.romAssembly.title')"
+    width="90vw"
+    max-width="1200px"
+    max-height="90vh"
+    @close="closeModal"
+  >
+    <template #header>
+      <h3 class="modal-title">
+        {{ $t('ui.romAssembly.title') }}
+      </h3>
+      <div class="assembly-controls">
+        <div class="rom-type-info">
+          <span class="rom-type-label">{{ $t('ui.romAssembly.romType') }}:</span>
+          <select
+            v-model="selectedRomType"
+            class="rom-type-select"
+            @change="onRomTypeChange"
           >
-            <IonIcon :icon="closeOutline" />
-          </button>
+            <option value="MBC5">
+              MBC5
+            </option>
+            <option value="GBA">
+              GBA
+            </option>
+          </select>
         </div>
+        <div class="size-info">
+          <span class="size-label">{{ $t('ui.romAssembly.totalSize') }}:</span>
+          <span class="size-value">{{ formatBytes(actualRomSize) }}</span>
+        </div>
+        <div
+          class="usage-text"
+          :style="{ color: getUsageBarColor(usagePercentage) }"
+        >
+          {{ $t('ui.romAssembly.usageStats', {
+            used: formatBytes(usedSpace),
+            total: formatBytes(config.totalSize),
+            percentage: usagePercentage.toFixed(1)
+          }) }}
+        </div>
+      </div>      <button
+        class="close-btn"
+        @click="closeModal"
+      >
+        <IonIcon :icon="closeOutline" />
+      </button>
+    </template>
 
-        <div class="modal-content">
-          <!-- 文件上传区域 -->
-          <div class="file-upload-section">
-            <FileDropZone
-              accept-types=".rom,.gba,.gb,.gbc,.bin"
-              accept-hint=".rom,.gba,.gb,.gbc,.bin"
-              :main-text="$t('ui.romAssembly.selectFiles')"
-              file-title=""
-              multiple
-              @file-selected="onFileSelected"
+    <!-- 文件上传区域 -->
+    <div class="file-upload-section">
+      <FileDropZone
+        accept-types=".rom,.gba,.gb,.gbc,.bin"
+        accept-hint=".rom,.gba,.gb,.gbc,.bin"
+        :main-text="$t('ui.romAssembly.selectFiles')"
+        file-title=""
+        multiple
+        @file-selected="onFileSelected"
+      >
+        <template #icon>
+          <IonIcon :icon="documentsOutline" />
+        </template>
+      </FileDropZone>
+    </div>
+
+    <!-- 左右布局：待放置文件与槽位网格 -->
+    <div class="main-layout">
+      <!-- 左侧：待放置文件列表 -->
+      <div class="left-panel">
+        <div
+          v-if="pendingFiles.length > 0"
+          class="pending-files-section"
+        >
+          <h4>{{ $t('ui.romAssembly.pendingFiles') }}</h4>
+          <div class="pending-files-list">
+            <div
+              v-for="file in pendingFiles"
+              :key="file.name"
+              class="pending-file-item"
+              draggable="true"
+              @dragstart="onDragStart($event, file)"
             >
-              <template #icon>
-                <IonIcon :icon="documentsOutline" />
-              </template>
-            </FileDropZone>
-          </div>
-
-          <!-- 左右布局：待放置文件与槽位网格 -->
-          <div class="main-layout">
-            <!-- 左侧：待放置文件列表 -->
-            <div class="left-panel">
-              <div
-                v-if="pendingFiles.length > 0"
-                class="pending-files-section"
+              <div class="file-info">
+                <span class="file-name">{{ file.name }}</span>
+                <span class="file-size">{{ formatBytes(file.size) }}</span>
+                <span class="required-slots">
+                  {{ $t('ui.romAssembly.requiredSlots', { count: getRequiredSlots(file.size, config, 0) }) }}
+                </span>
+              </div>
+              <button
+                class="remove-file-btn corner-btn"
+                @click="removePendingFile(file.name)"
               >
-                <h4>{{ $t('ui.romAssembly.pendingFiles') }}</h4>
-                <div class="pending-files-list">
-                  <div
-                    v-for="file in pendingFiles"
-                    :key="file.name"
-                    class="pending-file-item"
-                    draggable="true"
-                    @dragstart="onDragStart($event, file)"
+                <IonIcon :icon="closeOutline" />
+              </button>
+            </div>
+          </div>
+        </div>
+        <div
+          v-else
+          class="empty-pending-message"
+        >
+          <p>
+            {{ $t('ui.romAssembly.noPendingFiles') }}
+          </p>
+          <p class="hint">
+            {{ $t('ui.romAssembly.uploadFilesFirst') }}
+          </p>
+        </div>
+      </div>
+
+      <!-- 右侧：槽位网格 -->
+      <div class="right-panel">
+        <h4>{{ $t('ui.romAssembly.romLayout') }}</h4>
+        <div class="slots-grid">
+          <div
+            v-for="(slot, index) in slots"
+            :key="slot.id"
+            class="slot-item"
+            :class="{
+              'has-file': slot.file,
+              'drag-over': dragOverSlot === slot.id,
+              'can-drop': canDropInSlot(slot, index),
+            }"
+            :style="{ backgroundColor: slot.file ? slot.color : undefined }"
+            @dragover.prevent="onDragOver($event, slot)"
+            @dragleave="onDragLeave"
+            @drop="onDrop($event, slot, index)"
+            @click="onSlotClick(slot, index)"
+          >
+            <div class="slot-header">
+              <span class="slot-index">{{ index }}</span>
+              <span class="slot-offset">{{ formatHex(slot.offset, 4) }}</span>
+            </div>
+
+            <div
+              v-if="slot.file"
+              class="slot-content"
+              :class="{
+                'multi-slot-file': slot.totalSlots && slot.totalSlots > 1,
+                'first-slot': slot.isFirstSlot,
+                'continuation-slot': !slot.isFirstSlot
+              }"
+            >
+              <div
+                v-if="slot.isFirstSlot"
+                class="file-info"
+              >
+                <span class="file-name">{{ slot.file.name }}</span>
+                <div class="size-range-info">
+                  <span class="file-size">{{ formatBytes(slot.file.size) }}</span>
+                  <span
+                    v-if="slot.totalSlots && slot.totalSlots > 1"
+                    class="slot-range"
                   >
-                    <div class="file-info">
-                      <span class="file-name">{{ file.name }}</span>
-                      <span class="file-size">{{ formatBytes(file.size) }}</span>
-                      <span class="required-slots">
-                        {{ $t('ui.romAssembly.requiredSlots', { count: getRequiredSlots(file.size, config, 0) }) }}
-                      </span>
-                    </div>
-                    <button
-                      class="remove-file-btn corner-btn"
-                      @click="removePendingFile(file.name)"
-                    >
-                      <IonIcon :icon="closeOutline" />
-                    </button>
-                  </div>
+                    {{ $t('ui.romAssembly.occupiesSlots', { start: index, end: index + slot.totalSlots - 1 }) }}
+                  </span>
                 </div>
               </div>
               <div
                 v-else
-                class="empty-pending-message"
+                class="continuation-info"
               >
-                <p>
-                  {{ $t('ui.romAssembly.noPendingFiles') }}
-                </p>
-                <p class="hint">
-                  {{ $t('ui.romAssembly.uploadFilesFirst') }}
-                </p>
+                <span class="continuation-text">{{ $t('ui.romAssembly.fileContinuation', { name: slot.file.name }) }}</span>
+                <span class="slot-position">{{ slot.slotIndex! + 1 }}/{{ slot.totalSlots }}</span>
               </div>
+              <button
+                v-if="slot.isFirstSlot"
+                class="remove-slot-btn corner-btn"
+                @click.stop="removeFileFromSlot(slot.id)"
+              >
+                <IonIcon :icon="closeOutline" />
+              </button>
             </div>
 
-            <!-- 右侧：槽位网格 -->
-            <div class="right-panel">
-              <h4>{{ $t('ui.romAssembly.romLayout') }}</h4>
-              <div class="slots-grid">
-                <div
-                  v-for="(slot, index) in slots"
-                  :key="slot.id"
-                  class="slot-item"
-                  :class="{
-                    'has-file': slot.file,
-                    'drag-over': dragOverSlot === slot.id,
-                    'can-drop': canDropInSlot(slot, index),
-                  }"
-                  :style="{ backgroundColor: slot.file ? slot.color : undefined }"
-                  @dragover.prevent="onDragOver($event, slot)"
-                  @dragleave="onDragLeave"
-                  @drop="onDrop($event, slot, index)"
-                  @click="onSlotClick(slot, index)"
-                >
-                  <div class="slot-header">
-                    <span class="slot-index">{{ index }}</span>
-                    <span class="slot-offset">{{ formatHex(slot.offset, 4) }}</span>
-                  </div>
-
-                  <div
-                    v-if="slot.file"
-                    class="slot-content"
-                    :class="{
-                      'multi-slot-file': slot.totalSlots && slot.totalSlots > 1,
-                      'first-slot': slot.isFirstSlot,
-                      'continuation-slot': !slot.isFirstSlot
-                    }"
-                  >
-                    <div
-                      v-if="slot.isFirstSlot"
-                      class="file-info"
-                    >
-                      <span class="file-name">{{ slot.file.name }}</span>
-                      <div class="size-range-info">
-                        <span class="file-size">{{ formatBytes(slot.file.size) }}</span>
-                        <span
-                          v-if="slot.totalSlots && slot.totalSlots > 1"
-                          class="slot-range"
-                        >
-                          {{ $t('ui.romAssembly.occupiesSlots', { start: index, end: index + slot.totalSlots - 1 }) }}
-                        </span>
-                      </div>
-                    </div>
-                    <div
-                      v-else
-                      class="continuation-info"
-                    >
-                      <span class="continuation-text">{{ $t('ui.romAssembly.fileContinuation', { name: slot.file.name }) }}</span>
-                      <span class="slot-position">{{ slot.slotIndex! + 1 }}/{{ slot.totalSlots }}</span>
-                    </div>
-                    <button
-                      v-if="slot.isFirstSlot"
-                      class="remove-slot-btn corner-btn"
-                      @click.stop="removeFileFromSlot(slot.id)"
-                    >
-                      <IonIcon :icon="closeOutline" />
-                    </button>
-                  </div>
-
-                  <div
-                    v-else
-                    class="slot-empty"
-                  >
-                    <span class="empty-text">{{ $t('ui.romAssembly.emptySlot') }}</span>
-                  </div>
-                </div>
-              </div>
+            <div
+              v-else
+              class="slot-empty"
+            >
+              <span class="empty-text">{{ $t('ui.romAssembly.emptySlot') }}</span>
             </div>
           </div>
         </div>
-
-        <!-- 弹框底部操作按钮 -->
-        <div class="modal-footer">
-          <button
-            class="cancel-btn"
-            @click="closeModal"
-          >
-            {{ $t('ui.common.cancel') }}
-          </button>
-          <button
-            :disabled="!hasAnyFiles"
-            class="clear-all-btn"
-            @click="clearAllSlots"
-          >
-            {{ $t('ui.romAssembly.clearAll') }}
-          </button>
-          <button
-            :disabled="!hasAnyFiles"
-            class="download-btn"
-            @click="assembleAndDownload"
-          >
-            {{ $t('ui.romAssembly.assembleAndDownload') }}
-          </button>
-          <button
-            :disabled="!hasAnyFiles"
-            class="assemble-btn"
-            @click="assembleAndApply"
-          >
-            {{ $t('ui.romAssembly.assembleAndApply') }}
-          </button>
-        </div>
       </div>
     </div>
-  </Teleport>
+
+    <template #footer>
+      <button
+        class="cancel-btn"
+        @click="closeModal"
+      >
+        {{ $t('ui.common.cancel') }}
+      </button>
+      <button
+        :disabled="!hasAnyFiles"
+        class="clear-all-btn"
+        @click="clearAllSlots"
+      >
+        {{ $t('ui.romAssembly.clearAll') }}
+      </button>
+      <button
+        :disabled="!hasAnyFiles"
+        class="download-btn"
+        @click="assembleAndDownload"
+      >
+        {{ $t('ui.romAssembly.assembleAndDownload') }}
+      </button>
+      <button
+        :disabled="!hasAnyFiles"
+        class="assemble-btn"
+        @click="assembleAndApply"
+      >
+        {{ $t('ui.romAssembly.assembleAndApply') }}
+      </button>
+    </template>
+  </BaseModal>
 </template>
 
 <script setup lang="ts">
@@ -230,6 +224,7 @@ import { closeOutline, documentsOutline } from 'ionicons/icons';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import BaseModal from '@/components/common/BaseModal.vue';
 import FileDropZone from '@/components/common/FileDropZone.vue';
 import { useToast } from '@/composables/useToast';
 import type { FileInfo } from '@/types/file-info';
@@ -475,10 +470,6 @@ function closeModal() {
   emit('close');
 }
 
-function onOverlayClick() {
-  closeModal();
-}
-
 // 工具函数
 function getUsageBarColor(percentage: number): string {
   if (percentage < 25) {
@@ -494,50 +485,15 @@ function getUsageBarColor(percentage: number): string {
 </script>
 
 <style scoped>
-.rom-assembly-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
-.rom-assembly-modal {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-  max-width: 95vw;
-  max-height: 90vh;
-  width: 1200px; /* 增加宽度以适应左右布局 */
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px 32px 16px;
-  border-bottom: 1px solid #f1f3f4;
-  background: #f8f9fa;
-  color: #2c3e50;
-}
-
-.modal-header h3 {
+/* 头部样式 */
+.modal-title {
   margin: 0;
   color: #2c3e50;
   font-size: 1.5rem;
   font-weight: 600;
 }
 
-.close-button {
+.close-btn {
   background: rgba(108, 117, 125, 0.1);
   border: none;
   border-radius: 8px;
@@ -550,19 +506,13 @@ function getUsageBarColor(percentage: number): string {
   justify-content: center;
 }
 
-.close-button:hover {
+.close-btn:hover {
   background: rgba(108, 117, 125, 0.2);
   color: #495057;
 }
 
-.close-button ion-icon {
+.close-btn ion-icon {
   font-size: 1.2rem;
-}
-
-.modal-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
 }
 
 .assembly-controls {
@@ -572,22 +522,17 @@ function getUsageBarColor(percentage: number): string {
   align-items: center;
   background: rgba(255, 255, 255, 0.7);
   border-radius: 8px;
-  padding: 12px 16px;
 }
 
 .rom-type-info,
-.size-info,
-.alignment-info,
-.actual-size-info {
+.size-info {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
 .rom-type-label,
-.size-label,
-.alignment-label,
-.actual-size-label {
+.size-label {
   font-size: 0.9rem;
   color: #6c757d;
   font-weight: 500;
@@ -603,23 +548,60 @@ function getUsageBarColor(percentage: number): string {
   cursor: pointer;
 }
 
-.size-value,
-.alignment-value,
-.actual-size-value {
+.size-value {
   font-size: 0.9rem;
   color: #2c3e50;
   font-weight: 600;
 }
 
+.usage-text {
+  font-size: 0.85rem;
+  color: #666;
+  text-align: center;
+}
+
+/* 主体内容样式 */
 .file-upload-section {
   margin-bottom: 24px;
 }
 
-.file-upload-section h4 {
+/* 左右布局样式 */
+.main-layout {
+  display: flex;
+  gap: 20px;
+  height: 400px;
+  margin-top: 20px;
+}
+
+.left-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #e1e8ed;
+}
+
+.right-panel {
+  flex: 3;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #e1e8ed;
+}
+
+.left-panel .pending-files-section h4,
+.right-panel h4 {
   margin: 0 0 12px 0;
   color: #34495e;
   font-size: 1rem;
   font-weight: 600;
+  flex-shrink: 0;
 }
 
 .pending-files-section {
@@ -633,11 +615,11 @@ function getUsageBarColor(percentage: number): string {
 .pending-files-list {
   display: flex;
   flex-direction: column;
-  gap: 12px; /* 增加间距 */
+  gap: 12px;
   flex: 1;
   overflow-y: auto;
-  overflow-x: visible; /* 确保角标可见 */
-  padding: 16px; /* 增加内边距为角标留空间 */
+  overflow-x: visible;
+  padding: 16px;
   background: #ffffff;
   border-radius: 6px;
   border: 1px solid #e1e8ed;
@@ -649,15 +631,15 @@ function getUsageBarColor(percentage: number): string {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 20px 12px 12px; /* 增加右边距为角标留空间 */
+  padding: 12px 20px 12px 12px;
   background: #ffffff;
   border: 2px solid #e1e8ed;
   border-radius: 6px;
   cursor: grab;
   transition: all 0.2s ease;
-  flex-shrink: 0; /* 防止项目被压缩 */
-  margin: 0; /* 移除默认外边距 */
-  overflow: visible; /* 确保角标可见 */
+  flex-shrink: 0;
+  margin: 0;
+  overflow: visible;
 }
 
 .pending-file-item:hover {
@@ -686,8 +668,8 @@ function getUsageBarColor(percentage: number): string {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: calc(100% - 20px); /* 为角标留空间 */
-  line-height: 1.3; /* 提高行高 */
+  max-width: calc(100% - 20px);
+  line-height: 1.3;
 }
 
 .file-size {
@@ -716,96 +698,57 @@ function getUsageBarColor(percentage: number): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000; /* 大幅提高 z-index */
+  z-index: 1000;
   transition: all 0.2s ease;
   font-size: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); /* 增强阴影 */
-  pointer-events: auto; /* 确保可点击 */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  pointer-events: auto;
 }
 
 .corner-btn:hover {
   background: #c82333;
   transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); /* 增强悬停阴影 */
-  z-index: 1001; /* 悬停时进一步提升 */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 1001;
 }
 
 .corner-btn:active {
   transform: scale(0.95);
 }
 
-/* 确保角标按钮在各种情况下都可见 */
-.slot-item .corner-btn,
-.pending-file-item .corner-btn {
-  pointer-events: auto !important;
-  z-index: 1000 !important;
-}
-
-/* 为角标按钮创建安全区域 */
-.slot-item::before,
-.pending-file-item::before {
-  content: '';
-  position: absolute;
-  top: -12px;
-  right: -12px;
-  width: 24px;
-  height: 24px;
-  z-index: 999;
-  pointer-events: none;
-}
-
-.remove-file-btn,
-.remove-slot-btn {
-  padding: 4px;
-  background: #dc3545;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.2s;
+.empty-pending-message {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-}
-
-.remove-file-btn:hover,
-.remove-slot-btn:hover {
-  background: #c82333;
-}
-
-.usage-stats {
-  margin-bottom: 20px;
-}
-
-.usage-bar {
-  width: 100%;
-  height: 16px;
-  background: #e9ecef;
-  border-radius: 8px;
-  overflow: hidden;
-  margin-bottom: 6px;
-}
-
-.used-space {
   height: 100%;
-  transition: all 0.3s ease;
-  border-radius: inherit;
-}
-
-.usage-text {
-  font-size: 0.85rem;
   color: #666;
   text-align: center;
+  background: #ffffff;
+  border-radius: 6px;
+  border: 2px dashed #e1e8ed;
+  padding: 20px;
+}
+
+.empty-pending-message p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.empty-pending-message .hint {
+  font-size: 0.8rem;
+  color: #999;
+  margin-top: 8px;
 }
 
 .slots-grid {
   display: grid;
-  grid-template-columns: 1;
+  grid-template-columns: 1fr;
   gap: 8px;
   flex: 1;
   overflow-y: auto;
-  overflow-x: visible; /* 确保角标在水平方向可见 */
-  padding: 16px; /* 增加内边距 */
+  overflow-x: visible;
+  padding: 16px;
   background: #ffffff;
   border-radius: 6px;
   border: 1px solid #e1e8ed;
@@ -823,7 +766,7 @@ function getUsageBarColor(percentage: number): string {
   min-height: 80px;
   display: flex;
   flex-direction: column;
-  overflow: visible; /* 改为visible确保角标可见 */
+  overflow: visible;
 }
 
 .slot-item:hover {
@@ -865,14 +808,14 @@ function getUsageBarColor(percentage: number): string {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  overflow: visible; /* 改为visible避免裁剪内容 */
-  min-width: 0; /* 允许flex子元素缩小 */
-  padding-right: 4px; /* 为角标留空间 */
+  overflow: visible;
+  min-width: 0;
+  padding-right: 4px;
 }
 
 .slot-content .file-info {
   margin-bottom: 6px;
-  min-width: 0; /* 允许flex子元素缩小 */
+  min-width: 0;
 }
 
 .slot-content .file-info .file-name {
@@ -880,9 +823,9 @@ function getUsageBarColor(percentage: number): string {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: calc(100% - 20px); /* 为角标留空间 */
+  max-width: calc(100% - 20px);
   display: block;
-  line-height: 1.3; /* 提高行高改善可读性 */
+  line-height: 1.3;
 }
 
 .slot-empty {
@@ -898,15 +841,75 @@ function getUsageBarColor(percentage: number): string {
   font-style: italic;
 }
 
-.modal-footer {
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  padding: 20px 24px;
-  border-top: 1px solid #e1e8ed;
-  background: #f8f9fa;
+.slot-content.multi-slot-file.first-slot {
+  border-left: 3px solid #1976d2;
 }
 
+.slot-content.multi-slot-file.continuation-slot {
+  background: rgba(25, 118, 210, 0.1);
+  border-left: 3px solid #1976d2;
+}
+
+.continuation-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.8rem;
+  padding-left: 5px;
+  overflow: visible;
+  min-width: 0;
+  padding-right: 4px;
+}
+
+.continuation-text {
+  color: #1976d2;
+  font-size: 0.8rem;
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 20px);
+  line-height: 1.3;
+}
+
+.slot-position {
+  color: #666;
+  font-size: 0.7rem;
+}
+
+.slot-range {
+  font-size: 0.75rem;
+  color: #1976d2;
+  font-weight: 500;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.size-range-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.size-range-info .file-size {
+  color: #666;
+  font-size: 0.8rem;
+}
+
+.size-range-info .slot-range {
+  color: #1976d2;
+  font-weight: 500;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+/* 底部按钮样式 */
 .cancel-btn,
 .clear-all-btn,
 .download-btn,
@@ -962,146 +965,5 @@ function getUsageBarColor(percentage: number): string {
   background: #e9ecef;
   color: #adb5bd;
   cursor: not-allowed;
-}
-
-.slot-content.multi-slot-file.first-slot {
-  border-left: 3px solid #1976d2;
-}
-
-.slot-content.multi-slot-file.continuation-slot {
-  background: rgba(25, 118, 210, 0.1);
-  border-left: 3px solid #1976d2;
-}
-
-.continuation-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 0.8rem;
-  padding-left: 5px;
-  overflow: visible; /* 改为visible避免裁剪 */
-  min-width: 0; /* 允许flex子元素缩小 */
-  padding-right: 4px;
-}
-
-.continuation-text {
-  color: #1976d2;
-  font-size: 0.8rem;
-  font-style: italic;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: calc(100% - 20px);
-  line-height: 1.3;
-}
-
-.slot-position {
-  color: #666;
-  font-size: 0.7rem;
-}
-
-.slot-range {
-  font-size: 0.75rem;
-  color: #1976d2;
-  font-weight: 500;
-  margin-top: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* 文件大小和槽位范围同行显示 */
-.size-range-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.size-range-info .file-size {
-  color: #666;
-  font-size: 0.8rem;
-}
-
-.size-range-info .slot-range {
-  color: #1976d2;
-  font-weight: 500;
-  font-size: 0.75rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex-shrink: 0;
-}
-
-.actual-size-info {
-  font-size: 0.85rem;
-  color: #1976d2;
-  text-align: center;
-  margin-top: 4px;
-  font-weight: 500;
-}
-
-/* 左右布局样式 */
-.main-layout {
-  display: flex;
-  gap: 20px;
-  height: 100vh;
-  margin-top: 20px;
-}
-
-.left-panel {
-  flex: 1; /* 占用1份空间 */
-  display: flex;
-  flex-direction: column;
-  min-width: 220px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 16px;
-  border: 1px solid #e1e8ed;
-}
-
-.right-panel {
-  flex: 3; /* 占用3份空间 */
-  display: flex;
-  flex-direction: column;
-  min-width: 0; /* 允许缩小 */
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 16px;
-  border: 1px solid #e1e8ed;
-}
-
-.left-panel .pending-files-section h4,
-.right-panel h4 {
-  margin: 0 0 12px 0;
-  color: #34495e;
-  font-size: 1rem;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.empty-pending-message {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: #666;
-  text-align: center;
-  background: #ffffff;
-  border-radius: 6px;
-  border: 2px dashed #e1e8ed;
-  padding: 20px;
-}
-
-.empty-pending-message p {
-  margin: 0;
-  font-size: 0.9rem;
-}
-
-.empty-pending-message .hint {
-  font-size: 0.8rem;
-  color: #999;
-  margin-top: 8px;
 }
 </style>

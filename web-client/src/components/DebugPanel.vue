@@ -515,37 +515,4 @@ function clearMockData() {
 .status-value.inactive {
   color: #6c757d;
 }
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .debug-panel {
-    position: fixed;
-    top: 10px;
-    left: 10px;
-    right: 10px;
-    width: auto;
-    max-width: none;
-  }
-
-  .debug-buttons {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 480px) {
-  .debug-panel {
-    top: 5px;
-    left: 5px;
-    right: 5px;
-    font-size: 13px;
-  }
-
-  .debug-header h3 {
-    font-size: 14px;
-  }
-
-  .debug-content {
-    padding: 12px;
-  }
-}
 </style>

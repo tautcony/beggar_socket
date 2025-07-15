@@ -1,170 +1,157 @@
 <template>
-  <div
-    v-if="isVisible"
-    class="modal-overlay"
-    @click="handleOverlayClick"
+  <BaseModal
+    :visible="isVisible"
+    :title="$t('ui.menu.romAnalyzer')"
+    width="90vw"
+    max-width="1000px"
+    max-height="90vh"
+    @close="closeModal"
   >
-    <div class="modal-content">
-      <div class="modal-header">
-        <div class="header-content">
-          <h3>{{ $t('ui.menu.romAnalyzer') }}</h3>
-        </div>
-        <button
-          class="close-button"
-          @click="closeModal"
+    <!-- 文件上传区域 -->
+    <div class="upload-section">
+      <div class="upload-area">
+        <input
+          ref="fileInput"
+          type="file"
+          accept=".rom,.gba,.gb,.gbc"
+          class="file-input"
+          @change="handleFileSelect"
         >
-          <IonIcon :icon="closeOutline" />
-        </button>
-      </div>
-
-      <div class="modal-body">
-        <!-- 文件上传区域 -->
-        <div class="upload-section">
-          <div class="upload-area">
-            <input
-              ref="fileInput"
-              type="file"
-              accept=".rom,.gba,.gb,.gbc"
-              class="file-input"
-              @change="handleFileSelect"
-            >
-            <div
-              class="upload-drop-zone"
-              :class="{ 'dragover': isDragOver, 'has-file': selectedFile }"
-              @drop="handleDrop"
-              @dragover.prevent="handleDragOver"
-              @dragleave="handleDragLeave"
-              @click="triggerFileInput"
-            >
-              <template v-if="!selectedFile">
-                <div class="upload-content">
-                  <IonIcon
-                    :icon="cloudUploadOutline"
-                    class="upload-icon"
-                  />
-                  <p>{{ $t('ui.romAnalyzer.uploadPrompt') }}</p>
-                  <p class="upload-hint">
-                    {{ $t('ui.romAnalyzer.uploadHint') }}
-                  </p>
-                </div>
-              </template>
-              <template v-else>
-                <div class="file-preview">
-                  <div class="file-icon">
-                    <IonIcon :icon="documentOutline" />
-                  </div>
-                  <div class="file-details">
-                    <div class="file-name">
-                      {{ selectedFile.name }}
-                    </div>
-                    <div class="file-size">
-                      {{ formatBytes(selectedFile.size) }}
-                    </div>
-                  </div>
-                  <button
-                    class="remove-file-btn"
-                    @click.stop="clearFile"
-                  >
-                    <IonIcon :icon="closeOutline" />
-                  </button>
-                </div>
-              </template>
-            </div>
-          </div>
-        </div>
-
-        <!-- 分析结果区域 -->
         <div
-          v-if="detectedGames.length > 0"
-          class="analysis-results"
+          class="upload-drop-zone"
+          :class="{ 'dragover': isDragOver, 'has-file': selectedFile }"
+          @drop="handleDrop"
+          @dragover.prevent="handleDragOver"
+          @dragleave="handleDragLeave"
+          @click="triggerFileInput"
         >
-          <h4>{{ $t('ui.romAnalyzer.detectedGames') }}</h4>
-          <div class="games-list">
-            <div
-              v-for="(game, index) in detectedGames"
-              :key="index"
-              class="game-item"
-            >
-              <div class="game-info">
-                <div class="game-header">
-                  <span class="game-title">{{ game.romInfo.title }}</span>
-                  <span class="game-type">{{ game.romInfo.type }}</span>
+          <template v-if="!selectedFile">
+            <div class="upload-content">
+              <IonIcon
+                :icon="cloudUploadOutline"
+                class="upload-icon"
+              />
+              <p>{{ $t('ui.romAnalyzer.uploadPrompt') }}</p>
+              <p class="upload-hint">
+                {{ $t('ui.romAnalyzer.uploadHint') }}
+              </p>
+            </div>
+          </template>
+          <template v-else>
+            <div class="file-preview">
+              <div class="file-icon">
+                <IonIcon :icon="documentOutline" />
+              </div>
+              <div class="file-details">
+                <div class="file-name">
+                  {{ selectedFile.name }}
                 </div>
-                <div class="game-details">
-                  <div class="detail-item">
-                    <span class="detail-label">{{ $t('ui.romAnalyzer.startAddress') }}:</span>
-                    <span class="detail-value">{{ formatHex(game.startAddress, 4) }}</span>
-                  </div>
-                  <div class="detail-item">
-                    <span class="detail-label">{{ $t('ui.romAnalyzer.romSize') }}:</span>
-                    <span class="detail-value">{{ formatBytes(game.romInfo.romSize) }}</span>
-                  </div>
-                  <div class="detail-item">
-                    <span class="detail-label">{{ $t('ui.romAnalyzer.description') }}:</span>
-                    <span class="detail-value">{{ game.desc }}</span>
-                  </div>
+                <div class="file-size">
+                  {{ formatBytes(selectedFile.size) }}
                 </div>
               </div>
-              <div class="game-actions">
-                <button
-                  class="extract-button"
-                  :disabled="isExtracting"
-                  @click="extractGame(game)"
-                >
-                  <IonIcon :icon="downloadOutline" />
-                  {{ $t('ui.romAnalyzer.extract') }}
-                </button>
-              </div>
+              <button
+                class="remove-file-btn"
+                @click.stop="clearFile"
+              >
+                <IonIcon :icon="closeOutline" />
+              </button>
             </div>
-          </div>
+          </template>
         </div>
-
-        <!-- 分析进度 -->
-        <div
-          v-if="isAnalyzing"
-          class="analysis-progress"
-        >
-          <div class="progress-info">
-            <IonIcon
-              :icon="hourglass"
-              class="loading-icon"
-            />
-            <span>{{ $t('ui.romAnalyzer.analyzing') }}</span>
-          </div>
-        </div>
-
-        <!-- 提取进度 -->
-        <div
-          v-if="isExtracting"
-          class="extract-progress"
-        >
-          <div class="progress-info">
-            <IonIcon
-              :icon="downloadOutline"
-              class="loading-icon"
-            />
-            <span>{{ $t('ui.romAnalyzer.extracting') }}</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button
-          class="cancel-button"
-          @click="closeModal"
-        >
-          {{ $t('ui.common.cancel') }}
-        </button>
-        <button
-          v-if="selectedFile && !isAnalyzing"
-          class="analyze-button"
-          @click="analyzeRom"
-        >
-          {{ $t('ui.romAnalyzer.analyze') }}
-        </button>
       </div>
     </div>
-  </div>
+
+    <!-- 分析结果区域 -->
+    <div
+      v-if="detectedGames.length > 0"
+      class="analysis-results"
+    >
+      <h4>{{ $t('ui.romAnalyzer.detectedGames') }}</h4>
+      <div class="games-list">
+        <div
+          v-for="(game, index) in detectedGames"
+          :key="index"
+          class="game-item"
+        >
+          <div class="game-info">
+            <div class="game-header">
+              <span class="game-title">{{ game.romInfo.title }}</span>
+              <span class="game-type">{{ game.romInfo.type }}</span>
+            </div>
+            <div class="game-details">
+              <div class="detail-item">
+                <span class="detail-label">{{ $t('ui.romAnalyzer.startAddress') }}:</span>
+                <span class="detail-value">{{ formatHex(game.startAddress, 4) }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">{{ $t('ui.romAnalyzer.romSize') }}:</span>
+                <span class="detail-value">{{ formatBytes(game.romInfo.romSize) }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">{{ $t('ui.romAnalyzer.description') }}:</span>
+                <span class="detail-value">{{ game.desc }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="game-actions">
+            <button
+              class="extract-button"
+              :disabled="isExtracting"
+              @click="extractGame(game)"
+            >
+              <IonIcon :icon="downloadOutline" />
+              {{ $t('ui.romAnalyzer.extract') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 分析进度 -->
+    <div
+      v-if="isAnalyzing"
+      class="analysis-progress"
+    >
+      <div class="progress-info">
+        <IonIcon
+          :icon="hourglass"
+          class="loading-icon"
+        />
+        <span>{{ $t('ui.romAnalyzer.analyzing') }}</span>
+      </div>
+    </div>
+
+    <!-- 提取进度 -->
+    <div
+      v-if="isExtracting"
+      class="extract-progress"
+    >
+      <div class="progress-info">
+        <IonIcon
+          :icon="downloadOutline"
+          class="loading-icon"
+        />
+        <span>{{ $t('ui.romAnalyzer.extracting') }}</span>
+      </div>
+    </div>
+
+    <template #footer>
+      <button
+        class="cancel-button"
+        @click="closeModal"
+      >
+        {{ $t('ui.common.cancel') }}
+      </button>
+      <button
+        v-if="selectedFile && !isAnalyzing"
+        class="analyze-button"
+        @click="analyzeRom"
+      >
+        {{ $t('ui.romAnalyzer.analyze') }}
+      </button>
+    </template>
+  </BaseModal>
 </template>
 
 <script setup lang="ts">
@@ -179,6 +166,7 @@ import {
 import { ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import BaseModal from '@/components/common/BaseModal.vue';
 import { useToast } from '@/composables/useToast';
 import { MBC5_ROM_BASE_ADDRESS } from '@/utils/address-utils';
 import { formatBytes, formatHex } from '@/utils/formatter-utils';
@@ -223,12 +211,6 @@ function resetState() {
   isExtracting.value = false;
   detectedGames.value = [];
   isDragOver.value = false;
-}
-
-function handleOverlayClick(event: MouseEvent) {
-  if (event.target === event.currentTarget) {
-    closeModal();
-  }
 }
 
 function closeModal() {

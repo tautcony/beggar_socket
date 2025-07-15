@@ -28,7 +28,7 @@
       :device-ready="deviceReady"
       :device="device"
     />
-    <DebugSettingsPanel
+    <DebugPanel
       v-if="showDebugPanelModal"
       @close="showDebugPanelModal = false"
       @connect-mock-device="onConnectMockDevice"
@@ -50,10 +50,10 @@ import { useI18n } from 'vue-i18n';
 import CartBurner from '@/components/CartBurner.vue';
 import AppMenu from '@/components/common/AppMenu.vue';
 import GlobalToast from '@/components/common/GlobalToast.vue';
+import DebugPanel from '@/components/DebugPanel.vue';
 import DeviceConnect from '@/components/DeviceConnect.vue';
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
 import DebugLink from '@/components/link/DebugLink.vue';
-import DebugSettingsPanel from '@/components/settings/DebugSettingsPanel.vue';
 import { useToast } from '@/composables/useToast';
 import { DebugSettings } from '@/settings/debug-settings';
 import { setAssembledRom } from '@/stores/assembled-rom-store';
