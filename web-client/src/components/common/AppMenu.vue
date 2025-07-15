@@ -48,6 +48,17 @@
           </div>
         </button>
 
+        <button
+          class="menu-item"
+          @click="openDebugTool"
+        >
+          <IonIcon :icon="terminalOutline" />
+          <div class="menu-item-content">
+            <span class="menu-item-title">{{ $t('ui.menu.debugTool') }}</span>
+            <span class="menu-item-desc">{{ $t('ui.menu.debugToolDesc') }}</span>
+          </div>
+        </button>
+
         <div class="menu-divider" />
 
         <button
@@ -88,6 +99,13 @@
       @close="closeRomAnalyzer"
     />
 
+    <!-- 调试工具弹框 -->
+    <DebugToolModal
+      :is-visible="isDebugToolVisible"
+      :device="device"
+      @close="closeDebugTool"
+    />
+
     <!-- 关于弹框 -->
     <AboutModal
       :is-visible="isAboutVisible"
@@ -111,15 +129,18 @@ import {
   informationCircleOutline,
   menuOutline,
   settingsOutline,
+  terminalOutline,
 } from 'ionicons/icons';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import AboutModal from '@/components/modal/AboutModal.vue';
 import AdvancedSettingsModal from '@/components/modal/AdvancedSettingsModal.vue';
+import DebugToolModal from '@/components/modal/DebugToolModal.vue';
 import RomAnalyzerModal from '@/components/modal/RomAnalyzerModal.vue';
 import RomAssemblyModal from '@/components/modal/RomAssemblyModal.vue';
 import { useToast } from '@/composables/useToast';
+import type { DeviceInfo } from '@/types/device-info';
 import type { AssembledRom } from '@/types/rom-assembly';
 
 const { t } = useI18n();
@@ -127,8 +148,10 @@ const { showToast } = useToast();
 
 const props = withDefaults(defineProps<{
   currentMode?: 'MBC5' | 'GBA';
+  device?: DeviceInfo | null;
 }>(), {
   currentMode: 'GBA',
+  device: null,
 });
 
 const emit = defineEmits<{
@@ -138,6 +161,7 @@ const emit = defineEmits<{
 const isMenuOpen = ref(false);
 const isRomAssemblyVisible = ref(false);
 const isRomAnalyzerVisible = ref(false);
+const isDebugToolVisible = ref(false);
 const isSettingsVisible = ref(false);
 const isAboutVisible = ref(false);
 
@@ -172,9 +196,13 @@ function closeRomAnalyzer() {
   isRomAnalyzerVisible.value = false;
 }
 
-function openRomExtractor() {
+function openDebugTool() {
   closeMenu();
-  showToast(t('messages.common.featureComingSoon'), 'success');
+  isDebugToolVisible.value = true;
+}
+
+function closeDebugTool() {
+  isDebugToolVisible.value = false;
 }
 
 function openSettings() {

@@ -27,6 +27,8 @@
       "romAssemblyDesc": "将多个ROM文件组装成一个合卡",
       "romAnalyzer": "ROM分析与提取",
       "romAnalyzerDesc": "分析ROM文件结构并提取单个游戏",
+      "debugTool": "调试工具",
+      "debugToolDesc": "手动发送和接收协议报文",
       "settings": "设置",
       "settingsDesc": "配置应用程序选项",
       "about": "关于",
@@ -88,7 +90,41 @@
       "disabled": "禁用",
       "simulatedDelay": "模拟延迟",
       "errorSimulation": "错误模拟",
-      "off": "关闭"
+      "off": "关闭",
+      "tool": {
+        "title": "调试工具",
+        "commandType": "命令类型",
+        "selectCommandType": "选择命令类型",
+        "command": "命令",
+        "selectCommand": "选择命令",
+        "address": "地址",
+        "optional": "可选",
+        "addressPlaceholder": "0x0000 或 16进制地址",
+        "length": "长度",
+        "lengthPlaceholder": "数据长度（字节）",
+        "data": "数据",
+        "dataPlaceholder": "16进制数据，如：01 02 03 或 010203",
+        "dataHint": "输入16进制数据，可以用空格或不用空格分隔",
+        "send": "发送",
+        "sending": "发送中...",
+        "clear": "清除",
+        "request": "请求数据",
+        "response": "响应数据",
+        "analysis": "分析结果",
+        "noRequestData": "暂无请求数据",
+        "noResponseData": "暂无响应数据",
+        "responseLength": "响应长度",
+        "bytes": "字节",
+        "executionTime": "执行时间",
+        "commandSent": "命令发送成功",
+        "errors": {
+          "noDevice": "未连接设备",
+          "invalidHexLength": "16进制数据长度必须是偶数",
+          "invalidHexData": "无效的16进制数据格式",
+          "noResponse": "未收到设备响应",
+          "commandFailed": "命令执行失败"
+        }
+      }
     },
     "chip": {
       "deviceSize": "设备大小",
@@ -236,14 +272,14 @@
       "sizeLabel": "大小:",
       "typeLabel": "类型:",
       "baseAddressLabel": "基址:",
+      "typeSRAM": "SRAM",
+      "typeFLASH": "FLASH",
       "baseAddressOptions": {
         "fullCart": "整卡",
         "menu": "菜单",
         "game": "游戏{index}",
         "bank": "Bank{index}"
-      },
-      "typeSRAM": "SRAM",
-      "typeFLASH": "FLASH"
+      }
     },
     "file": {
       "dropArea": "或拖拽文件到此处",
@@ -423,9 +459,6 @@
       "downloaded": "ROM下载完成，文件名: {fileName}，大小: {size}",
       "assembledForMainInterface": "已组装{romType} ROM，大小: {size}MB，可在ROM操作界面使用",
       "applied": "ROM组装已应用到主界面"
-    },
-    "common": {
-      "featureComingSoon": "功能即将推出"
     },
     "ram": {
       "writing": "正在写入RAM，大小 {size} 字节",

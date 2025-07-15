@@ -27,6 +27,8 @@
       "romAssemblyDesc": "Assemble multiple ROM files into a multi-cart",
       "romAnalyzer": "ROM Analyzer & Extractor",
       "romAnalyzerDesc": "Analyze ROM file structure and extract individual games",
+      "debugTool": "Debug Tool",
+      "debugToolDesc": "Manually send and receive protocol packets",
       "settings": "Settings",
       "settingsDesc": "Configure application options",
       "about": "About",
@@ -54,7 +56,7 @@
       "startReadingMultiCart": "Starting multi-cart ROM block reading...",
       "readMultiCartSuccess": "Multi-cart reading completed",
       "readMultiCartFailed": "Multi-cart reading failed",
-      "MultiCartDetected": "multi-cart detected",
+      "multiCartDetected": "multi-cart detected",
       "singleGameDetected": "Single game detected",
       "noValidGameFound": "No valid game found",
       "chipInfo": "Chip Information",
@@ -88,7 +90,41 @@
       "disabled": "Disabled",
       "simulatedDelay": "Simulated Delay",
       "errorSimulation": "Error Simulation",
-      "off": "Off"
+      "off": "Off",
+      "tool": {
+        "title": "Debug Tool",
+        "commandType": "Command Type",
+        "selectCommandType": "Select command type",
+        "command": "Command",
+        "selectCommand": "Select command",
+        "address": "Address",
+        "optional": "optional",
+        "addressPlaceholder": "0x0000 or hex address",
+        "length": "Length",
+        "lengthPlaceholder": "Data length (bytes)",
+        "data": "Data",
+        "dataPlaceholder": "Hex data, e.g.: 01 02 03 or 010203",
+        "dataHint": "Enter hex data, spaces are optional",
+        "send": "Send",
+        "sending": "Sending...",
+        "clear": "Clear",
+        "request": "Request Data",
+        "response": "Response Data",
+        "analysis": "Analysis",
+        "noRequestData": "No request data",
+        "noResponseData": "No response data",
+        "responseLength": "Response Length",
+        "bytes": "bytes",
+        "executionTime": "Execution Time",
+        "commandSent": "Command sent successfully",
+        "errors": {
+          "noDevice": "No device connected",
+          "invalidHexLength": "Hex data length must be even",
+          "invalidHexData": "Invalid hex data format",
+          "noResponse": "No response from device",
+          "commandFailed": "Command execution failed"
+        }
+      }
     },
     "chip": {
       "deviceSize": "Device Size",
@@ -393,6 +429,7 @@
       "verifyFailedAt": "Verification failed at address {address}, expected {expected}, got {actual}",
       "verifySummary": "Verification completed - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Max speed: {maxSpeed} KB/s, Total size: {totalSize} KB",
       "sizeChanged": "ROM size changed to {size}",
+      "baseAddressChanged": "ROM base address changed to {address}",
       "bankSwitch": "Switched to ROM Bank {bank}",
       "eraseBeforeWrite": "Flash is not empty, starting erase...",
       "capacityInfo": "Capacity: {deviceSize} Sector count: {sectorCount} Sector size: {sectorSize} BuffWr: {bufferWriteBytes}",
@@ -422,9 +459,6 @@
       "downloaded": "ROM download completed, file: {fileName}, size: {size}",
       "assembledForMainInterface": "Assembled {romType} ROM, size: {size}MB, available in ROM operations interface",
       "applied": "ROM assembly has been applied to main interface"
-    },
-    "common": {
-      "featureComingSoon": "Feature coming soon"
     },
     "ram": {
       "writing": "Writing RAM, size {size} bytes",
@@ -462,7 +496,8 @@
     "mode": {
       "autoSwitched": "Detected {romType} ROM file, automatically switched from {from} mode to {to} mode"
     },
-    "mbc5": {},
+    "mbc5": {
+    },
     "gba": {
       "bankSwitchSram": "Switched to SRAM Bank {bank}",
       "bankSwitchFlash": "Switched to Flash Bank {bank}",

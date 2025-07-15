@@ -3,6 +3,7 @@
     <div class="top-bar">
       <AppMenu
         :current-mode="currentMode"
+        :device="device"
         @rom-assembled="onRomAssembled"
       />
       <LanguageSwitcher />
