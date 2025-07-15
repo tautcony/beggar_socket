@@ -5,6 +5,9 @@ name: Build web client & Deploy
 on:
   push:
     branches: [ "main" ]
+    paths:
+      - 'web-client/**'
+      - '.github/workflows/build-webclient.yml'
 
 permissions:
   contents: read
