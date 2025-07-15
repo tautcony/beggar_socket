@@ -229,7 +229,15 @@ const emulatorRomData = ref<Uint8Array | null>(null);
 const emulatorRomName = ref('');
 
 const selectedRomSize = ref(props.selectedRomSize);
+// 同步父组件设置的 selectedRomSize
+watch(() => props.selectedRomSize, newVal => {
+  selectedRomSize.value = newVal;
+});
 const selectedBaseAddress = ref(props.selectedBaseAddress);
+// 同步父组件设置的 selectedBaseAddress
+watch(() => props.selectedBaseAddress, newVal => {
+  selectedBaseAddress.value = newVal;
+});
 const romInfo = ref<RomInfo | null>(null);
 const isRomInfoCollapsed = ref(true); // 默认折叠
 

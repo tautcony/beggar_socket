@@ -458,6 +458,7 @@ async function readCart() {
     const info = await adapter.getCartInfo();
     if (info) {
       cfiInfo.value = info;
+      onRomSizeChange(formatHex(info.deviceSize, 4));
     }
     if (idStr.value && cfiInfo.value) {
       showToast(t('messages.operation.readCartSuccess'), 'success');
