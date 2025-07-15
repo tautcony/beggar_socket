@@ -388,8 +388,7 @@ onMounted(() => {
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
-.input-group input:invalid,
-.input-group input.error {
+.input-group input:invalid {
   border-color: #dc3545;
 }
 

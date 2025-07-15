@@ -262,7 +262,7 @@ onUnmounted(() => {
   font-size: 0.875rem;
   color: #111827;
   font-weight: 600;
-  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Menlo', 'Consolas', monospace;
 }
 .operation-detail {
   background: #f3f4f6;

@@ -491,80 +491,6 @@ async function extractGame(game: GameDetectionResult) {
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  max-width: 800px;
-  width: 100%;
-  max-height: 80vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px 32px 16px;
-  border-bottom: 1px solid #f1f3f4;
-  background: #f8f9fa;
-}
-
-.header-content {
-  flex: 1;
-}
-
-.modal-header h3 {
-  margin: 0;
-  color: #2c3e50;
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.close-button {
-  background: rgba(108, 117, 125, 0.1);
-  border: none;
-  border-radius: 8px;
-  padding: 8px;
-  cursor: pointer;
-  color: #6c757d;
-  transition: background 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.close-button:hover {
-  background: rgba(108, 117, 125, 0.2);
-  color: #495057;
-}
-
-.close-button ion-icon {
-  font-size: 1.2rem;
-}
-
-.modal-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
-}
-
 .upload-section {
   margin-bottom: 20px;
 }
@@ -800,25 +726,6 @@ async function extractGame(game: GameDetectionResult) {
   to { transform: rotate(360deg); }
 }
 
-.empty-state {
-  text-align: center;
-  padding: 40px 20px;
-  color: #6c757d;
-}
-
-.empty-icon {
-  font-size: 3rem;
-  margin-bottom: 10px;
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 20px;
-  border-top: 1px solid #e1e8ed;
-}
-
 .cancel-button,
 .analyze-button {
   padding: 10px 20px;
@@ -848,12 +755,6 @@ async function extractGame(game: GameDetectionResult) {
 }
 
 @media (max-width: 768px) {
-  .modal-content {
-    max-width: 100%;
-    margin: 10px;
-    max-height: 90vh;
-  }
-
   .game-item {
     flex-direction: column;
     align-items: stretch;

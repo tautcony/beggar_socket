@@ -322,7 +322,6 @@ function clearMockData() {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
   z-index: 1000;
   color: #333;
-  font-family: 'Segoe UI', 'PingFang SC', Arial, sans-serif;
   overflow: hidden;
   transition: all 0.3s ease;
 }
@@ -435,16 +434,6 @@ function clearMockData() {
   font-size: 12px;
   color: #ff9800;
   font-weight: 600;
-}
-
-.debug-hint {
-  font-size: 12px;
-  color: #6c757d;
-  margin: 8px 0 0 0;
-  background: rgba(108, 117, 125, 0.1);
-  padding: 6px 8px;
-  border-radius: 4px;
-  border-left: 3px solid #ff9800;
 }
 
 .debug-buttons {

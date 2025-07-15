@@ -511,10 +511,6 @@ function getUsageBarColor(percentage: number): string {
   color: #495057;
 }
 
-.close-btn ion-icon {
-  font-size: 1.2rem;
-}
-
 .assembly-controls {
   display: flex;
   gap: 20px;
@@ -800,7 +796,7 @@ function getUsageBarColor(percentage: number): string {
 }
 
 .slot-offset {
-  font-family: monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Menlo', 'Consolas', monospace;
 }
 
 .slot-content {

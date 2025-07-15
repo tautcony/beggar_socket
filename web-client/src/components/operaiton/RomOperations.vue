@@ -525,29 +525,4 @@ button:not(:disabled):hover {
   background: #e3f2fd;
   color: #1976d2;
 }
-
-.preview-button {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-  color: white !important;
-  border: none !important;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.2s ease;
-}
-
-.preview-button:hover:not(:disabled) {
-  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%) !important;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.preview-button:disabled {
-  background: #e9ecef !important;
-  color: #6c757d !important;
-}
-
-.button-icon {
-  font-size: 1rem;
-}
 </style>

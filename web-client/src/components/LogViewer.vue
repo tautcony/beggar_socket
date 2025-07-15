@@ -184,7 +184,7 @@ onUnmounted(() => {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  font-family: monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Menlo', 'Consolas', monospace;
   font-size: 0.97rem;
   line-height: 1.6;
   height: calc(820px - 44px);

@@ -416,11 +416,6 @@ function cleanup() {
   gap: 8px;
 }
 
-.emulator-icon {
-  font-size: 1.3rem;
-  color: #68d391;
-}
-
 .emulator-controls {
   display: flex;
   gap: 8px;

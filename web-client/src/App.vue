@@ -176,7 +176,6 @@ h1 {
   color: #2c3e50;
   margin: 16px 0;
   font-weight: 600;
-  font-family: 'Segoe UI', 'PingFang SC', Arial, sans-serif;
 }
 
 .title-container {
@@ -237,35 +236,5 @@ h1 {
     font-size: 0.55rem;
     padding: 2px 5px;
   }
-}
-
-div {
-  font-family: 'Segoe UI', 'PingFang SC', Arial, sans-serif;
-}
-
-.debug-link {
-  position: fixed;
-  right: 32px;
-  bottom: 100px;
-  z-index: 1200;
-  background: #fff;
-  color: #764ba2;
-  border: 2px solid #764ba2;
-  border-radius: 50%;
-  width: 48px;
-  height: 48px;
-  font-size: 1.6rem;
-  font-weight: bold;
-  box-shadow: 0 2px 8px #764ba233;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
-}
-.debug-link:hover {
-  background: #764ba2;
-  color: #fff;
-  box-shadow: 0 4px 16px #764ba255;
 }
 </style>

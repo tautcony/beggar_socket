@@ -187,7 +187,7 @@ const emits = defineEmits<{
 }
 
 .chip-info-value {
-  font-family: monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Menlo', 'Consolas', monospace;
   color: #333;
   font-size: 0.8em;
   margin-right: 10px;

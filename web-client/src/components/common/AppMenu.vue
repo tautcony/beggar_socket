@@ -296,16 +296,6 @@ function closeAbout() {
   cursor: not-allowed;
 }
 
-.menu-item ion-icon {
-  font-size: 1.2rem;
-  color: #6c757d;
-  flex-shrink: 0;
-}
-
-.menu-item:not(:disabled):hover ion-icon {
-  color: #007bff;
-}
-
 .menu-item-content {
   display: flex;
   flex-direction: column;

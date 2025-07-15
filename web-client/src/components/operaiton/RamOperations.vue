@@ -291,22 +291,6 @@ function onBaseAddressChange() {
   min-width: 0;
 }
 
-.mode-info {
-  padding: 12px 16px;
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
-  color: #6c757d;
-  font-size: 0.95rem;
-}
-
-.mode-info p {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 button {
   padding: 6px 16px;
   border-radius: 5px;

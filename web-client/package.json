@@ -1,7 +1,7 @@
 {
-  "name": "web-client",
-  "private": true,
-  "version": "0.0.0",
+  "name": "chisflash-web-client",
+  "private": false,
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite --force",
@@ -44,6 +44,7 @@
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "eslint-plugin-vue": "^10.3.0",
+    "eslint-plugin-vue-scoped-css": "^2.11.0",
     "jsdom": "^26.1.0",
     "terser": "^5.43.1",
     "typescript": "^5.8.3",

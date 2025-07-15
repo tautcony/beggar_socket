@@ -407,7 +407,7 @@ onMounted(async () => {
 }
 
 .logo-info-value {
-  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Menlo', 'Consolas', monospace;
   color: #212529;
   font-size: 0.9rem;
   text-align: right;
@@ -452,7 +452,7 @@ onMounted(async () => {
 }
 
 .rom-info-value {
-  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Menlo', 'Consolas', monospace;
   color: #212529;
   text-align: right;
   word-break: break-all;

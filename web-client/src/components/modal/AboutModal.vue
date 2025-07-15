@@ -235,11 +235,6 @@ function closeModal() {
   transform: translateY(-2px);
 }
 
-.tech-item ion-icon {
-  font-size: 1.2rem;
-  color: #667eea;
-}
-
 .tech-item span {
   font-weight: 500;
   color: #495057;
@@ -268,11 +263,6 @@ function closeModal() {
   background: #e9ecef;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.project-link ion-icon {
-  font-size: 1.2rem;
-  color: #667eea;
 }
 
 .external-icon {

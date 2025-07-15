@@ -185,10 +185,6 @@ if (typeof window !== 'undefined') {
   justify-content: center;
 }
 
-.toast-icon ion-icon {
-  font-size: 20px;
-}
-
 .toast-message {
   flex: 1;
   line-height: 1.4;

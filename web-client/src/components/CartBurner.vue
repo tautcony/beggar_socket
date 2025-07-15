@@ -902,7 +902,6 @@ function clearChipInfo() {
   background: #fafbfc;
   border-radius: 14px;
   box-shadow: 0 2px 16px #0002;
-  font-family: 'Segoe UI', 'PingFang SC', Arial, sans-serif;
 }
 
 /* 响应式主布局 */
@@ -916,7 +915,7 @@ function clearChipInfo() {
 /* 内容区域 */
 .content-area {
   flex: 1;
-  min-width: 400px;
+  min-width: 450px;
   max-width: 450px;
   display: flex;
   flex-direction: column;

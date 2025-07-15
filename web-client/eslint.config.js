@@ -4,6 +4,8 @@ import stylistic from '@stylistic/eslint-plugin'
 import simpleImportSort from 'eslint-plugin-simple-import-sort'
 import importPlugin from 'eslint-plugin-import';
 import globals from 'globals'
+import eslintPluginVueScopedCSS from 'eslint-plugin-vue-scoped-css';
+
 
 const commonRules = {
   '@stylistic/array-bracket-spacing': ['error', 'never'],
@@ -90,6 +92,7 @@ export default tseslint.config(
     },
   },
   // Vue files configuration
+  ...eslintPluginVueScopedCSS.configs['flat/recommended'],
   ...pluginVue.configs['flat/recommended'],
   {
     files: ['**/*.vue'],
