@@ -344,8 +344,8 @@ show_help() {
     echo "  help                    - Show this help message"
     echo
     echo "Build Types:"
-    echo "  Debug     - Debug build with optimization disabled and debug symbols (default)"
-    echo "  Release   - Release build with optimization enabled and debug symbols removed"
+    echo "  Debug     - Debug build with symbols and debug information (default)"
+    echo "  Release   - Release build with optimizations"
     echo
     echo "Examples:"
     echo "  $0 build                        # Build in Debug mode (default)"
@@ -358,14 +358,6 @@ show_help() {
     echo "  $0 erase-flash                  # Completely erase flash memory"
     echo "  $0 mass-erase                   # Mass erase (resets option bytes too)"
     echo "  $0 status                       # Show current build status"
-    echo
-    echo "Build Types Explained:"
-    echo "  Debug       - Debug build with symbols, no optimization"
-    echo "              - Larger size, easier debugging, slower execution"
-    echo "              - Optimization level: -Og (optimize for debugging)"
-    echo "  Release     - Release build with optimization, no debug symbols"
-    echo "              - Smaller size, harder debugging, faster execution"
-    echo "              - Optimization level: -O2 (optimize for speed)"
     echo
     echo "Requirements:"
     echo "  - CMake 3.16 or higher"
