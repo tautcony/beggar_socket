@@ -109,7 +109,7 @@
           <span class="rom-info-label">{{ $t('ui.rom.version') }}:</span>
           <div class="rom-info-value-container">
             <input
-              v-if="isEditing && romInfo.type === 'GBA'"
+              v-if="isEditing"
               v-model.number="editData.version"
               type="number"
               class="rom-edit-input"
@@ -153,6 +153,18 @@
               </option>
               <option value="Spain">
                 Spain
+              </option>
+            </select>
+            <select
+              v-else-if="isEditing && (romInfo.type === 'GB' || romInfo.type === 'GBC')"
+              v-model="editData.region"
+              class="rom-edit-select"
+            >
+              <option value="Japan">
+                Japan
+              </option>
+              <option value="Non-Japan">
+                Non-Japan
               </option>
             </select>
             <span

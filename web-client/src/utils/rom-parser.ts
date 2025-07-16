@@ -148,11 +148,7 @@ function parseGBARom(data: Uint8Array): RomInfo {
   const hasValidLogo = validateGBALogo(data);
 
   // 验证头部校验和 (0xA0-0xBC的补码校验和)
-  let headerSum = 0;
-  for (let i = 0xA0; i <= 0xBC; i++) {
-    headerSum += data[i];
-  }
-  const calculatedChecksum = (-(headerSum + 0x19)) & 0xFF;
+  const calculatedChecksum = calculateGBAChecksum(data);
   const hasValidChecksum = calculatedChecksum === checksumHeader;
 
   const isValid = hasValidSignature && hasValidLogo && hasValidChecksum;
@@ -272,11 +268,8 @@ function parseGBRom(data: Uint8Array): RomInfo {
   const hasValidLogo = validateGBLogo(data);
 
   // 验证头部校验和
-  let headerSum = 0;
-  for (let i = 0x134; i <= 0x14C; i++) {
-    headerSum = (headerSum - data[i] - 1) & 0xFF;
-  }
-  const hasValidChecksum = headerSum === checksumHeader;
+  const calculatedHeaderChecksum = calculateGBChecksum(data);
+  const hasValidChecksum = calculatedHeaderChecksum === checksumHeader;
 
   const isValid = hasValidLogo && hasValidChecksum;
 
@@ -333,6 +326,82 @@ function detectRomType(data: Uint8Array): 'GBA' | 'GB' | 'Unknown' {
   }
 
   return 'Unknown';
+}
+
+/**
+ * 计算GBA头部校验和
+ * @param data ROM数据
+ * @returns 校验和
+ */
+export function calculateGBAChecksum(data: Uint8Array): number {
+  let headerSum = 0;
+  for (let i = 0xA0; i <= 0xBC; i++) {
+    headerSum += data[i];
+  }
+  return (-(headerSum + 0x19)) & 0xFF;
+}
+
+/**
+ * 计算GB/GBC头部校验和
+ * @param data ROM数据
+ * @returns 校验和
+ */
+export function calculateGBChecksum(data: Uint8Array): number {
+  let headerSum = 0;
+  for (let i = 0x134; i <= 0x14C; i++) {
+    headerSum += data[i];
+  }
+  return (-headerSum - 1) & 0xFF;
+}
+
+/**
+ * 计算GB/GBC全局校验和
+ * @param data ROM数据
+ * @returns 全局校验和
+ */
+export function calculateGBGlobalChecksum(data: Uint8Array): number {
+  let sum = 0;
+  for (let i = 0; i < data.length; i++) {
+    // 跳过校验和字节
+    if (i !== 0x14E && i !== 0x14F) {
+      sum += data[i];
+    }
+  }
+  return sum & 0xFFFF;
+}
+
+/**
+ * 编码字符串到指定长度的字节数组，自动补齐或截取
+ * @param str 字符串
+ * @param length 目标长度
+ * @param padding 填充字符，默认为空格
+ * @returns 字节数组
+ */
+export function encodeStringToBytes(str: string, length: number, padding = ' '): Uint8Array {
+  const bytes = new Uint8Array(length);
+  // 确保字符串长度正确：不足则补齐，超出则截取
+  const normalizedStr = str.length < length ? str.padEnd(length, padding) : str.substring(0, length);
+  const encoded = new TextEncoder().encode(normalizedStr);
+  bytes.set(encoded);
+  return bytes;
+}
+
+/**
+ * 解析区域代码到单字符
+ * @param region 区域名称
+ * @returns 区域代码字符
+ */
+export function regionToCode(region: string): string {
+  const regionMap: Record<string, string> = {
+    'Japan': 'J',
+    'USA': 'E',
+    'Europe': 'P',
+    'Germany': 'D',
+    'France': 'F',
+    'Italy': 'I',
+    'Spain': 'S',
+  };
+  return regionMap[region] || 'E'; // 默认USA
 }
 
 /**

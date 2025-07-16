@@ -3,88 +3,20 @@
  * 用于修改ROM信息并更新校验和
  */
 
+import {
+  calculateGBAChecksum,
+  calculateGBChecksum,
+  calculateGBGlobalChecksum,
+  encodeStringToBytes,
+  regionToCode,
+} from './rom-parser';
+
 export interface RomEditData {
   title: string;
   gameCode: string;
   makerCode: string;
   version: number;
   region: string;
-}
-
-/**
- * 计算GBA头部校验和
- * @param data ROM数据
- * @returns 校验和
- */
-function calculateGBAChecksum(data: Uint8Array): number {
-  let headerSum = 0;
-  for (let i = 0xA0; i <= 0xBC; i++) {
-    headerSum += data[i];
-  }
-  return (-(headerSum + 0x19)) & 0xFF;
-}
-
-/**
- * 计算GB/GBC头部校验和
- * @param data ROM数据
- * @returns 校验和
- */
-function calculateGBChecksum(data: Uint8Array): number {
-  let headerSum = 0;
-  for (let i = 0x134; i <= 0x14C; i++) {
-    headerSum += data[i];
-  }
-  return (-headerSum - 1) & 0xFF;
-}
-
-/**
- * 计算GB/GBC全局校验和
- * @param data ROM数据
- * @returns 全局校验和
- */
-function calculateGBGlobalChecksum(data: Uint8Array): number {
-  let sum = 0;
-  for (let i = 0; i < data.length; i++) {
-    // 跳过校验和字节
-    if (i !== 0x14E && i !== 0x14F) {
-      sum += data[i];
-    }
-  }
-  return sum & 0xFFFF;
-}
-
-/**
- * 编码字符串到指定长度的字节数组，自动补齐或截取
- * @param str 字符串
- * @param length 目标长度
- * @param padding 填充字符，默认为空格
- * @returns 字节数组
- */
-function encodeStringToBytes(str: string, length: number, padding = ' '): Uint8Array {
-  const bytes = new Uint8Array(length);
-  // 确保字符串长度正确：不足则补齐，超出则截取
-  const normalizedStr = str.length < length ? str.padEnd(length, padding) : str.substring(0, length);
-  const encoded = new TextEncoder().encode(normalizedStr);
-  bytes.set(encoded);
-  return bytes;
-}
-
-/**
- * 解析区域代码到单字符
- * @param region 区域名称
- * @returns 区域代码字符
- */
-function regionToCode(region: string): string {
-  const regionMap: Record<string, string> = {
-    'Japan': 'J',
-    'USA': 'E',
-    'Europe': 'P',
-    'Germany': 'D',
-    'France': 'F',
-    'Italy': 'I',
-    'Spain': 'S',
-  };
-  return regionMap[region] || 'E'; // 默认USA
 }
 
 /**
@@ -150,8 +82,14 @@ export function updateGBRom(data: Uint8Array, editData: RomEditData): Uint8Array
   for (let i = 0x13F; i < 0x143; i++) newData[i] = 0;
   newData.set(encodeStringToBytes(editData.makerCode, 4, '\0'), 0x13F);
 
-  // GB/GBC没有直接的版本字段，可以考虑在标题中包含版本信息
-  // 或者使用ROM版本号字段（如果存在的话）
+  // 更新版本号 (0x14C)
+  newData[0x14C] = editData.version & 0xFF;
+
+  // 更新区域代码 (0x14A)
+  if (editData.region) {
+    const regionCode = editData.region === 'Japan' ? 0x00 : 0x01; // Japan=0x00, Non-Japan=0x01
+    newData[0x14A] = regionCode;
+  }
 
   // 重新计算并更新头部校验和 (0x14D)
   const headerChecksum = calculateGBChecksum(newData);
