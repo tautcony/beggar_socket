@@ -44,6 +44,7 @@ import {
 import { useToast } from '@/composables/useToast';
 import { DebugSettings } from '@/settings/debug-settings';
 import { DeviceInfo } from '@/types/device-info';
+import { sleep } from '@/utils/async-utils';
 
 const { showToast } = useToast();
 const { t } = useI18n();
@@ -194,6 +195,7 @@ async function connect() {
     ];
     if (usePolyfill.value) {
       if (!polyfill) throw new Error('Web Serial Polyfill is not available');
+      if (!navigator.usb) throw new Error('WebUSB API is not supported in this browser');
       port = await polyfill.requestPort({ filters }) as unknown as SerialPort;
     } else {
       if (!navigator.serial) throw new Error('Web Serial API is not supported in this browser');
@@ -204,7 +206,7 @@ async function connect() {
 
     // send dtr & rts signals to ensure device is ready
     await port.setSignals({ dataTerminalReady: true, requestToSend: true });
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await sleep(100);
     await port.setSignals({ dataTerminalReady: false, requestToSend: false });
 
     reader = port.readable?.getReader({ mode: 'byob' }) ?? null;
