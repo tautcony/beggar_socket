@@ -448,12 +448,12 @@ async function sendCommand() {
     requestData.value = payload;
 
     // 发送命令
-    await sendPackage(device.writer, payload);
+    await sendPackage(device, payload);
 
     // 接收响应 - 使用用户设置的接收长度
     const maxResponseLength = receiveLength.value ? Number(receiveLength.value) : 4096;
     const timeoutMs = timeout.value ? Number(timeout.value) : undefined;
-    const result = await getPackage(device.reader, maxResponseLength, timeoutMs);
+    const result = await getPackage(device, maxResponseLength, timeoutMs);
 
     if (result.data) {
       responseData.value = result.data;

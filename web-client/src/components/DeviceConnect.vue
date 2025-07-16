@@ -37,9 +37,7 @@ import { IonIcon } from '@ionic/vue';
 import { checkmarkDoneOutline, flashOutline, reloadOutline } from 'ionicons/icons';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import {
-  serial as polyfill, SerialPolyfillProtocol, SerialPort as SerialPortPolyfill,
-} from 'web-serial-polyfill';
+import { serial as polyfill } from 'web-serial-polyfill';
 
 import { useToast } from '@/composables/useToast';
 import { DebugSettings } from '@/settings/debug-settings';
@@ -57,111 +55,77 @@ const connected = ref(false);
 const isConnecting = ref(false);
 const usePolyfill = ref(false);
 
-let port: SerialPort | null = null;
-let reader: ReadableStreamBYOBReader | null = null;
-let writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
+let deviceInfo: DeviceInfo | null = null;
 
 // 热重载状态恢复 - 在开发模式下处理 HMR
 if (import.meta.hot) {
-  const data = import.meta.hot.data as { deviceConnection?: {
-    connected: boolean;
-    port: SerialPort | null;
-    reader: ReadableStreamBYOBReader | null;
-    writer: WritableStreamDefaultWriter<Uint8Array> | null;
-  } };
+  const data = import.meta.hot.data as {
+    connected: boolean,
+    device: DeviceInfo | null,
+  };
 
   // 保存当前状态到 HMR 数据
-  data.deviceConnection = data?.deviceConnection ?? {
-    connected: false,
+  data.device = data?.device ?? {
     port: null,
     reader: null,
     writer: null,
   };
 
   // 从 HMR 数据恢复状态
-  if (data.deviceConnection.connected) {
+  if (data.connected) {
     // 验证恢复的状态是否完整
-    if (data.deviceConnection.port && data.deviceConnection.reader && data.deviceConnection.writer) {
-      connected.value = data.deviceConnection.connected;
-      port = data.deviceConnection.port;
-      reader = data.deviceConnection.reader;
-      writer = data.deviceConnection.writer;
+    if (data.device.port) {
+      connected.value = data.connected;
+      deviceInfo = data.device;
       console.log('[DeviceConnect] HMR: 成功恢复设备连接状态');
     } else {
       // 状态信息不完整，重置为断开状态
       console.warn('[DeviceConnect] HMR: 检测到状态信息丢失，重置为断开状态');
-      connected.value = false;
-      port = null;
-      reader = null;
-      writer = null;
-      // 在下一个tick中发出断开事件
-      setTimeout(() => { emit('device-disconnected'); }, 0);
+      resetConnectionState().catch(console.error);
     }
   }
 
   // 监听热重载事件，保存当前状态
   import.meta.hot.dispose(() => {
     if (import.meta.hot?.data) {
-      data.deviceConnection = {
-        connected: connected.value,
-        port,
-        reader,
-        writer,
-      };
+      data.device = deviceInfo;
+      data.connected = connected.value;
     }
   });
 
   // 热重载后验证连接状态
   import.meta.hot.accept(() => {
-    console.log('[DeviceConnect] HMR: 验证连接状态', { connected: connected.value, hasPort: !!port });
-
-    // 检查串口连接是否仍然有效
+    console.log('[DeviceConnect] HMR: 验证连接状态', { connected: connected.value, hasPort: !!deviceInfo?.port });
     if (connected.value) {
-      if (!port || !reader || !writer) {
-        // 连接对象丢失，重置状态
-        console.warn('[DeviceConnect] HMR: 连接对象丢失，重置状态');
-        connected.value = false;
-        port = null;
-        reader = null;
-        writer = null;
-        emit('device-disconnected');
+      if (!deviceInfo?.port || !deviceInfo.reader || !deviceInfo.writer) {
+        console.warn('[DeviceConnect] HMR: 连接对象丢失，重置连接状态');
+        resetConnectionState().catch(console.error);
         return;
-      }
-
-      try {
-        // 检查端口是否仍然连接
-        if (!port.readable || !port.writable) {
-          // 连接已丢失，重置状态
-          console.warn('[DeviceConnect] HMR: 端口流已失效，重置状态');
-          connected.value = false;
-          port = null;
-          reader = null;
-          writer = null;
-          emit('device-disconnected');
-        }
-      } catch (e) {
-        // 连接检查失败，重置状态
-        console.error('[DeviceConnect] HMR: 连接验证失败，重置状态', e);
-        connected.value = false;
-        port = null;
-        reader = null;
-        writer = null;
-        emit('device-disconnected');
       }
     }
   });
 }
 
 // 组件挂载时验证连接状态
-onMounted(() => {
+onMounted(async () => {
   // 如果显示已连接但实际连接对象为空，重置状态
-  if (connected.value && (!port || !reader || !writer)) {
-    console.warn('[DeviceConnect] 检测到状态不一致，重置连接状态');
-    connected.value = false;
-    port = null;
-    reader = null;
-    writer = null;
-    emit('device-disconnected');
+  if (connected.value) {
+    if (!deviceInfo?.port || !deviceInfo.reader || !deviceInfo.writer) {
+      console.warn('[DeviceConnect] 检测到状态不一致，重置连接状态');
+      await resetConnectionState();
+    } else {
+      // 额外检查端口是否真正可用
+      try {
+        const portInfo = deviceInfo.port.getInfo?.();
+        if (!portInfo) {
+          console.warn('[DeviceConnect] 端口信息不可用，重置连接状态');
+          await resetConnectionState();
+        }
+      } catch (error) {
+        console.warn('[DeviceConnect] 端口状态检查失败，重置连接状态:', error);
+        await resetConnectionState();
+      }
+    }
   }
 });
 
@@ -181,18 +145,21 @@ async function connect() {
         close: async () => { },
         getInfo: () => ({ usbVendorId: 0x0483, usbProductId: 0x0721 }),
       };
-      port = mockPort as unknown as SerialPort;
-      reader = mockPort.readable.getReader();
-      writer = mockPort.writable.getWriter();
+      deviceInfo = {
+        port: mockPort as unknown as SerialPort,
+        reader: mockPort.readable.getReader(),
+        writer: mockPort.writable.getWriter(),
+      };
       connected.value = true;
       isConnecting.value = false;
       showToast(t('messages.device.connectionSuccess') + ' (Debug Mode)', 'success');
-      emit('device-ready', { port, reader, writer } as DeviceInfo);
+      emit('device-ready', deviceInfo);
       return;
     }
     const filters = [
       { usbVendorId: 0x0483, usbProductId: 0x0721 },
     ];
+    let port: SerialPort | null = null;
     if (usePolyfill.value) {
       if (!polyfill) throw new Error('Web Serial Polyfill is not available');
       if (!navigator.usb) throw new Error('WebUSB API is not supported in this browser');
@@ -209,43 +176,74 @@ async function connect() {
     await sleep(100);
     await port.setSignals({ dataTerminalReady: false, requestToSend: false });
 
-    reader = port.readable?.getReader({ mode: 'byob' }) ?? null;
-    writer = port.writable?.getWriter() ?? null;
+    const reader = port.readable?.getReader({ mode: 'byob' }) ?? null;
+    const writer = port.writable?.getWriter() ?? null;
     if (!reader || !writer) throw new Error('Failed to get serial port reader/writer');
     connected.value = true;
     isConnecting.value = false;
     showToast(t('messages.device.connectionSuccess'), 'success');
-    emit('device-ready', { port, reader, writer } as DeviceInfo);
+    deviceInfo = { port, reader, writer };
+    emit('device-ready', deviceInfo as DeviceInfo<'byob'>);
   } catch (e) {
-    connected.value = false;
-    isConnecting.value = false;
     showToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
-    if (reader) { try { reader.releaseLock(); } catch { } reader = null; }
-    if (writer) { try { writer.releaseLock(); } catch { } writer = null; }
-    if (port) { try { await port.close(); } catch { } port = null; }
-    emit('device-disconnected');
+    await resetConnectionState();
   }
 }
 
 async function disconnect() {
-  if (!port) return;
+  if (!deviceInfo) return;
   isConnecting.value = true;
   try {
-    if (reader) { await reader.cancel(); reader.releaseLock(); reader = null; }
-    if (writer) { await writer.close(); writer = null; }
-    await port.close();
+    await deviceInfo.reader?.cancel();
+    deviceInfo.reader?.releaseLock();
+    await deviceInfo.writer?.close();
+    await deviceInfo.port?.close();
+    deviceInfo.port = null;
+    deviceInfo.reader = null;
+    deviceInfo.writer = null;
     showToast(t('messages.device.disconnectionSuccess'), 'success');
   } catch (e) {
     console.error(t('messages.device.disconnectionFailed'), e);
     showToast(t('messages.device.disconnectionFailed'), 'error');
   } finally {
-    port = null;
-    reader = null;
-    writer = null;
-    connected.value = false;
     isConnecting.value = false;
+    connected.value = false;
     emit('device-disconnected');
   }
+}
+
+async function resetConnectionState() {
+  connected.value = false;
+  isConnecting.value = false;
+
+  if (deviceInfo !== null) {
+    // 安全地清理资源
+    try {
+      if (deviceInfo.reader) {
+        await deviceInfo.reader.cancel().catch(() => {});
+        deviceInfo.reader.releaseLock();
+      }
+    } catch {}
+
+    try {
+      if (deviceInfo.writer) {
+        await deviceInfo.writer.close().catch(() => {});
+      }
+    } catch {}
+
+    try {
+      if (deviceInfo.port) {
+        await deviceInfo.port.close().catch(() => {});
+      }
+    } catch {}
+
+    deviceInfo.port = null;
+    deviceInfo.reader = null;
+    deviceInfo.writer = null;
+    deviceInfo = null;
+  }
+
+  emit('device-disconnected');
 }
 
 async function handleConnectDisconnect() {

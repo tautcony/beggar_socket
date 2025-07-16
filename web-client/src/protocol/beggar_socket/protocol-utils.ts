@@ -1,5 +1,6 @@
 
 import { AdvancedSettings } from '@/settings/advanced-settings';
+import { DeviceInfo } from '@/types';
 import { sleep, withTimeout } from '@/utils/async-utils';
 
 const INIT_ERROR_MESSAGE = 'Serial port not properly initialized';
@@ -22,7 +23,9 @@ export function fromLittleEndian(bytes: Uint8Array): number {
   return value;
 }
 
-export async function sendPackage(writer: WritableStreamDefaultWriter<Uint8Array> | null, payload: Uint8Array, timeoutMs?: number): Promise<boolean> {
+export async function sendPackage(device: DeviceInfo, payload: Uint8Array, timeoutMs?: number): Promise<boolean> {
+  const { writer } = device;
+
   if (!writer) {
     throw new Error(INIT_ERROR_MESSAGE);
   }
@@ -36,10 +39,40 @@ export async function sendPackage(writer: WritableStreamDefaultWriter<Uint8Array
   return true;
 }
 
-export async function getPackage(reader: ReadableStreamBYOBReader | null, length: number, timeoutMs?: number): Promise<{ data: Uint8Array }> {
-  if (!reader) {
-    throw new Error(INIT_ERROR_MESSAGE);
+export async function getPackageWithDefaultReader(reader: ReadableStreamDefaultReader<Uint8Array>, length: number, timeoutMs?: number): Promise<{ data: Uint8Array }> {
+  const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
+  let offset = 0;
+  const accumulatedData = new Uint8Array(length);
+
+  const TIMEOUT = Symbol('timeout');
+  const readTimeout = sleep(timeout).then(() => TIMEOUT);
+
+  const readOperation = (async () => {
+    while (offset < length) {
+      const { value, done } = await reader.read();
+      if (done || !value) {
+        break;
+      }
+      // 将新读取的数据复制到累积缓冲区中
+      const bytesToCopy = Math.min(value.byteLength, length - offset);
+      accumulatedData.set(value.subarray(0, bytesToCopy), offset);
+      offset += bytesToCopy;
+    }
+  })();
+
+  const resolved = await Promise.race([readTimeout, readOperation]);
+  if (resolved === TIMEOUT) {
+    if (offset === 0) {
+      throw new Error(`Read package timeout in ${timeout}ms`);
+    }
+    // 超时但有部分数据，返回累积的数据
+    return { data: accumulatedData.slice(0, offset) };
   }
+
+  return { data: accumulatedData.slice(0, offset) };
+}
+
+export async function getPackageWithBYOBReader(reader: ReadableStreamBYOBReader, length: number, timeoutMs?: number): Promise<{ data: Uint8Array }> {
   const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
   let buffer = new Uint8Array(length);
 
@@ -76,12 +109,24 @@ export async function getPackage(reader: ReadableStreamBYOBReader | null, length
   return { data: new Uint8Array(buffer) };
 }
 
-export async function getResult(reader: ReadableStreamBYOBReader | null, timeoutMs?: number): Promise<boolean> {
+export async function getPackage(device: DeviceInfo, length: number, timeoutMs?: number): Promise<{ data: Uint8Array }> {
+  const { reader } = device;
+
   if (!reader) {
     throw new Error(INIT_ERROR_MESSAGE);
   }
+
+  // 运行时类型检查
+  if ('byobRequest' in reader || reader.constructor.name === 'ReadableStreamBYOBReader') {
+    return getPackageWithBYOBReader(reader as ReadableStreamBYOBReader, length, timeoutMs);
+  } else {
+    return getPackageWithDefaultReader(reader as ReadableStreamDefaultReader<Uint8Array>, length, timeoutMs);
+  }
+}
+
+export async function getResult(device: DeviceInfo, timeoutMs?: number): Promise<boolean> {
   const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
-  const result = await getPackage(reader, 1, timeout);
+  const result = await getPackage(device, 1, timeout);
   return result.data?.byteLength > 0 && result.data[0] === 0xaa;
 }
 
