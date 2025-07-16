@@ -1,6 +1,6 @@
 <template>
   <BaseModal
-    :visible="isVisible"
+    v-model="localVisible"
     :title="$t('ui.romAssembly.title')"
     width="90vw"
     max-width="1200px"
@@ -248,16 +248,25 @@ const { t } = useI18n();
 const { showToast } = useToast();
 
 const props = withDefaults(defineProps<{
-  isVisible: boolean;
+  modelValue: boolean;
   initialRomType?: 'MBC5' | 'GBA';
 }>(), {
   initialRomType: 'GBA',
 });
 
 const emit = defineEmits<{
+  'update:modelValue': [value: boolean];
   close: [];
   assembled: [rom: AssembledRom, romType: 'MBC5' | 'GBA'];
 }>();
+
+// 创建一个计算属性来处理 v-model
+const localVisible = computed({
+  get: () => props.modelValue,
+  set: (value: boolean) => {
+    emit('update:modelValue', value);
+  },
+});
 
 // 响应式数据
 const selectedRomType = ref<'MBC5' | 'GBA'>(props.initialRomType);
@@ -279,7 +288,7 @@ watch(selectedRomType, () => {
 }, { immediate: true });
 
 // 监听弹框显示状态，重置数据
-watch(() => props.isVisible, (visible) => {
+watch(() => props.modelValue, (visible) => {
   if (visible) {
     selectedRomType.value = props.initialRomType;
     initializeSlots();

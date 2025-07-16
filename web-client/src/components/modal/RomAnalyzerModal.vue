@@ -1,6 +1,6 @@
 <template>
   <BaseModal
-    :visible="isVisible"
+    v-model="localVisible"
     :title="$t('ui.menu.romAnalyzer')"
     width="90vw"
     max-width="1000px"
@@ -163,7 +163,7 @@ import {
   downloadOutline,
   hourglass,
 } from 'ionicons/icons';
-import { ref, useTemplateRef, watch } from 'vue';
+import { computed, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import BaseModal from '@/components/common/BaseModal.vue';
@@ -184,12 +184,21 @@ const { t } = useI18n();
 const { showToast } = useToast();
 
 const props = defineProps<{
-  isVisible: boolean;
+  modelValue: boolean;
 }>();
 
 const emit = defineEmits<{
+  'update:modelValue': [value: boolean];
   'close': [];
 }>();
+
+// 创建一个计算属性来处理 v-model
+const localVisible = computed({
+  get: () => props.modelValue,
+  set: (value: boolean) => {
+    emit('update:modelValue', value);
+  },
+});
 
 const fileInput = useTemplateRef<HTMLInputElement>('fileInput');
 const selectedFile = ref<File | null>(null);
@@ -199,7 +208,7 @@ const isExtracting = ref(false);
 const detectedGames = ref<GameDetectionResult[]>([]);
 
 // 监听可见性变化，重置状态
-watch(() => props.isVisible, (visible) => {
+watch(() => props.modelValue, (visible) => {
   if (!visible) {
     resetState();
   }

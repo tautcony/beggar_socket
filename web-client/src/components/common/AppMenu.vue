@@ -87,7 +87,7 @@
 
     <!-- ROM组装弹框 -->
     <RomAssemblyModal
-      :is-visible="isRomAssemblyVisible"
+      v-model="isRomAssemblyVisible"
       :initial-rom-type="currentMode"
       @close="closeRomAssembly"
       @assembled="onRomAssembled"
@@ -95,26 +95,26 @@
 
     <!-- ROM分析器弹框 -->
     <RomAnalyzerModal
-      :is-visible="isRomAnalyzerVisible"
+      v-model="isRomAnalyzerVisible"
       @close="closeRomAnalyzer"
     />
 
     <!-- 调试工具弹框 -->
     <DebugToolModal
-      :is-visible="isDebugToolVisible"
+      v-model="isDebugToolVisible"
       :device="device"
       @close="closeDebugTool"
     />
 
     <!-- 关于弹框 -->
     <AboutModal
-      :is-visible="isAboutVisible"
+      v-model="isAboutVisible"
       @close="closeAbout"
     />
 
     <!-- 高级设置面板 -->
     <AdvancedSettingsModal
-      v-if="isSettingsVisible"
+      v-model="isSettingsVisible"
       @close="closeSettings"
       @applied="onSettingsApplied"
     />

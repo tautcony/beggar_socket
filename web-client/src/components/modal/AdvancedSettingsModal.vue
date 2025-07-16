@@ -1,6 +1,6 @@
 <template>
   <BaseModal
-    :visible="true"
+    v-model="localVisible"
     :title="$t('ui.settings.title')"
     width="90%"
     max-width="600px"
@@ -197,11 +197,25 @@ import { formatBytes, formatTime } from '@/utils/formatter-utils';
 
 const { t } = useI18n();
 
+// 定义 props
+const props = defineProps<{
+  modelValue: boolean;
+}>();
+
 // 定义事件
 const emit = defineEmits<{
+  'update:modelValue': [value: boolean];
   close: []
   applied: []
 }>();
+
+// 创建一个计算属性来处理 v-model
+const localVisible = computed({
+  get: () => props.modelValue,
+  set: (value: boolean) => {
+    emit('update:modelValue', value);
+  },
+});
 
 // 获取限制值
 const limits = AdvancedSettings.getLimits();

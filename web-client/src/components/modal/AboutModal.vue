@@ -1,6 +1,6 @@
 <template>
   <BaseModal
-    :visible="isVisible"
+    v-model="localVisible"
     :title="$t('ui.menu.about')"
     width="600px"
     max-height="90vh"
@@ -137,17 +137,26 @@ import {
   logoVue,
   openOutline,
 } from 'ionicons/icons';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 import BaseModal from '@/components/common/BaseModal.vue';
 
 const props = defineProps<{
-  isVisible: boolean;
+  modelValue: boolean;
 }>();
 
 const emit = defineEmits<{
+  'update:modelValue': [value: boolean];
   close: [];
 }>();
+
+// 创建一个计算属性来处理 v-model
+const localVisible = computed({
+  get: () => props.modelValue,
+  set: (value: boolean) => {
+    emit('update:modelValue', value);
+  },
+});
 
 const appVersion = ref(import.meta.env.VITE_APP_VERSION ?? '1.0.0');
 

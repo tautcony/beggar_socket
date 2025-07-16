@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div
-      v-if="visible"
+      v-if="modelValue"
       class="modal-overlay"
       @click.self="onOverlayClick"
     >
@@ -20,7 +20,7 @@
             <button
               class="close-btn"
               :disabled="closeDisabled"
-              @click="$emit('close')"
+              @click="hide"
             >
               <IonIcon :icon="closeOutline" />
             </button>
@@ -46,7 +46,7 @@ import { closeOutline } from 'ionicons/icons';
 import { computed, onMounted, onUnmounted } from 'vue';
 
 const props = withDefaults(defineProps<{
-  visible?: boolean;
+  modelValue?: boolean;
   title?: string;
   closeDisabled?: boolean;
   width?: string | number;
@@ -55,7 +55,7 @@ const props = withDefaults(defineProps<{
   escClosable?: boolean;
   maskClosable?: boolean;
 }>(), {
-  visible: false,
+  modelValue: false,
   title: '',
   closeDisabled: false,
   width: '500px',
@@ -66,6 +66,7 @@ const props = withDefaults(defineProps<{
 });
 
 const emit = defineEmits<{
+  'update:modelValue': [value: boolean];
   close: [];
 }>();
 
@@ -76,14 +77,41 @@ const containerStyle = computed(() => ({
 }));
 
 function onOverlayClick() {
-  if (props.maskClosable && !props.closeDisabled) emit('close');
+  if (props.maskClosable && !props.closeDisabled) {
+    hide();
+  }
 }
 
 function handleKeydown(e: KeyboardEvent) {
-  if (props.visible && props.escClosable && !props.closeDisabled && e.key === 'Escape') {
-    emit('close');
+  if (props.modelValue && props.escClosable && !props.closeDisabled && e.key === 'Escape') {
+    hide();
   }
 }
+
+// 暴露的方法
+function show() {
+  emit('update:modelValue', true);
+}
+
+function hide() {
+  emit('update:modelValue', false);
+  emit('close');
+}
+
+function toggle() {
+  if (props.modelValue) {
+    hide();
+  } else {
+    show();
+  }
+}
+
+// 暴露方法给模板引用
+defineExpose({
+  show,
+  hide,
+  toggle,
+});
 
 onMounted(() => {
   document.addEventListener('keydown', handleKeydown);

@@ -1,16 +1,9 @@
 <template>
   <div class="flashburner-container">
     <ProgressDisplayModal
-      v-if="operateProgress !== null && operateProgress !== undefined"
       key="progress"
-      :progress="operateProgress"
-      :detail="operateProgressDetail"
-      :total-bytes="operateTotalBytes"
-      :transferred-bytes="operateTransferredBytes"
-      :start-time="operateStartTime"
-      :current-speed="operateCurrentSpeed"
-      :allow-cancel="operateAllowCancel"
-      :state="operateState"
+      v-model="showProgressModal"
+      v-bind="progressInfo"
       @stop="handleProgressStop"
       @close="resetProgress"
     />
@@ -146,15 +139,22 @@ const mode = ref<'GBA' | 'MBC5'>('GBA');
 const busy = ref(false);
 const logs = ref<string[]>([]);
 
-// progress props
-const operateProgress = ref<number | null | undefined>(null);
-const operateProgressDetail = ref<string | undefined>('');
-const operateTotalBytes = ref<number | undefined>(undefined);
-const operateTransferredBytes = ref<number | undefined>(undefined);
-const operateStartTime = ref<number | undefined>(undefined);
-const operateCurrentSpeed = ref<number | undefined>(undefined);
-const operateAllowCancel = ref<boolean>(true);
-const operateState = ref<'idle' | 'running' | 'paused' | 'completed' | 'error'>('idle');
+// progress info object
+const progressInfo = ref<ProgressInfo>({
+  progress: null,
+  detail: '',
+  totalBytes: undefined,
+  transferredBytes: undefined,
+  startTime: undefined,
+  currentSpeed: undefined,
+  allowCancel: true,
+  state: 'idle',
+});
+
+// progress modal visibility
+const showProgressModal = computed(() => {
+  return progressInfo.value.progress !== null && progressInfo.value.progress !== undefined;
+});
 
 // chip props
 const idStr = ref<string | null>(null);
@@ -278,31 +278,9 @@ onMounted(() => {
   initializeAdapters();
 });
 
-function updateProgress(progressInfo: ProgressInfo) {
-  if (progressInfo.progress !== undefined) {
-    operateProgress.value = progressInfo.progress;
-  }
-  if (progressInfo.detail !== undefined) {
-    operateProgressDetail.value = progressInfo.detail;
-  }
-  if (progressInfo.totalBytes !== undefined) {
-    operateTotalBytes.value = progressInfo.totalBytes;
-  }
-  if (progressInfo.transferredBytes !== undefined) {
-    operateTransferredBytes.value = progressInfo.transferredBytes;
-  }
-  if (progressInfo.startTime !== undefined) {
-    operateStartTime.value = progressInfo.startTime;
-  }
-  if (progressInfo.currentSpeed !== undefined) {
-    operateCurrentSpeed.value = progressInfo.currentSpeed;
-  }
-  if (progressInfo.allowCancel !== undefined) {
-    operateAllowCancel.value = progressInfo.allowCancel ?? true;
-  }
-  if (progressInfo.state !== undefined) {
-    operateState.value = progressInfo.state;
-  }
+function updateProgress(info: ProgressInfo) {
+  // 直接更新 progressInfo 对象
+  Object.assign(progressInfo.value, info);
 }
 
 function handleProgressStop() {
@@ -314,13 +292,17 @@ function handleProgressStop() {
 }
 
 function resetProgress() {
-  operateProgress.value = null;
-  operateProgressDetail.value = undefined;
-  operateTotalBytes.value = undefined;
-  operateTransferredBytes.value = undefined;
-  operateStartTime.value = undefined;
-  operateCurrentSpeed.value = undefined;
-  operateAllowCancel.value = true;
+  // 重置进度信息到初始状态
+  progressInfo.value = {
+    progress: null,
+    detail: '',
+    totalBytes: undefined,
+    transferredBytes: undefined,
+    startTime: undefined,
+    currentSpeed: undefined,
+    allowCancel: true,
+    state: 'idle',
+  };
 
   // 清理取消控制器
   if (currentAbortController.value) {
@@ -489,7 +471,7 @@ async function eraseChip() {
 
     if (!cfiInfo.value) {
       showToast(t('messages.operation.readCartInfoFirst'), 'error');
-      operateProgress.value = null;
+      progressInfo.value.progress = null;
       return;
     }
 
@@ -513,21 +495,21 @@ async function eraseChip() {
 
 async function writeRom() {
   busy.value = true;
-  operateProgress.value = 0;
-  operateProgressDetail.value = '';
+  progressInfo.value.progress = 0;
+  progressInfo.value.detail = '';
   const abortSignal = startCancellableOperation();
 
   try {
     const adapter = getAdapter();
     if (!adapter || !romFileData.value) {
       showToast(t('messages.operation.unsupportedMode'), 'error');
-      operateProgress.value = null;
+      progressInfo.value.progress = null;
       return;
     }
 
     if (!cfiInfo.value) {
       showToast(t('messages.operation.readCartInfoFirst'), 'error');
-      operateProgress.value = null;
+      progressInfo.value.progress = null;
       return;
     }
     const romSize = parseInt(selectedRomSize.value, 16);
@@ -544,20 +526,20 @@ async function writeRom() {
 
 async function readRom() {
   busy.value = true;
-  operateProgress.value = 0;
+  progressInfo.value.progress = 0;
   const abortSignal = startCancellableOperation();
 
   try {
     const adapter = getAdapter();
     if (!adapter) {
       showToast(t('messages.operation.unsupportedMode'), 'error');
-      operateProgress.value = null;
+      progressInfo.value.progress = null;
       return;
     }
 
     if (!cfiInfo.value) {
       showToast(t('messages.operation.readCartInfoFirst'), 'error');
-      operateProgress.value = null;
+      progressInfo.value.progress = null;
       return;
     }
 
@@ -593,20 +575,20 @@ async function readRom() {
 
 async function verifyRom() {
   busy.value = true;
-  operateProgress.value = 0;
+  progressInfo.value.progress = 0;
   const abortSignal = startCancellableOperation();
 
   try {
     const adapter = getAdapter();
     if (!adapter || !romFileData.value) {
       showToast(t('messages.operation.unsupportedMode'), 'error');
-      operateProgress.value = null;
+      progressInfo.value.progress = null;
       return;
     }
 
     if (!cfiInfo.value) {
       showToast(t('messages.operation.readCartInfoFirst'), 'error');
-      operateProgress.value = null;
+      progressInfo.value.progress = null;
       return;
     }
 

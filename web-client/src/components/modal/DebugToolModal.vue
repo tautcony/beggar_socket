@@ -1,6 +1,6 @@
 <template>
   <BaseModal
-    :visible="isVisible"
+    v-model="localVisible"
     :title="$t('ui.debug.tool.title')"
     width="1200px"
     max-width="95vw"
@@ -197,16 +197,25 @@ import type { DeviceInfo } from '@/types/device-info';
 import { formatHex } from '@/utils/formatter-utils';
 
 const props = defineProps<{
-  isVisible: boolean;
+  modelValue: boolean;
   device?: DeviceInfo | null;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
+  'update:modelValue': [value: boolean];
   close: [];
 }>();
 
 const { t } = useI18n();
 const { showToast } = useToast();
+
+// 创建一个计算属性来处理 v-model
+const localVisible = computed({
+  get: () => props.modelValue,
+  set: (value: boolean) => {
+    emit('update:modelValue', value);
+  },
+});
 
 const selectedCommandType = ref<'GBA' | 'GBC' | ''>('');
 const selectedCommand = ref<number | ''>('');

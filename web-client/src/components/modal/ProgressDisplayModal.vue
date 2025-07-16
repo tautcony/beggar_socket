@@ -1,6 +1,6 @@
 <template>
   <BaseModal
-    :visible="visible"
+    v-model="localVisible"
     :title="$t('ui.progress.title')"
     :close-disabled="true"
     :width="500"
@@ -96,12 +96,23 @@ import { formatBytes, formatSpeed, formatTime } from '@/utils/formatter-utils';
 
 const { t } = useI18n();
 
-const props = defineProps<ProgressInfo>();
+const props = defineProps<ProgressInfo & {
+  modelValue: boolean;
+}>();
 
 const emit = defineEmits<{
+  'update:modelValue': [value: boolean];
   stop: []
   close: []
 }>();
+
+// 创建一个计算属性来处理 v-model
+const localVisible = computed({
+  get: () => props.modelValue,
+  set: (value: boolean) => {
+    emit('update:modelValue', value);
+  },
+});
 
 const visible = ref(false);
 const isCancelled = ref(false);
