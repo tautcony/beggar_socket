@@ -1,0 +1,82 @@
+# clang-format configuration for STM32 embedded C project
+
+BasedOnStyle: LLVM
+
+# Language settings
+Language: Cpp
+Standard: c++11
+
+# Indentation - match existing style
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+IndentCaseLabels: true
+IndentGotoLabels: true
+IndentPPDirectives: None
+
+# Line length - more lenient for embedded code
+ColumnLimit: 120
+
+# Brace style - match existing K&R style
+BreakBeforeBraces: Linux
+AlwaysBreakAfterDefinitionReturnType: None
+AlwaysBreakAfterReturnType: None
+AlwaysBreakBeforeMultilineStrings: false
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: true
+BreakStringLiterals: true
+
+# Function formatting - allow more compact style
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+BinPackArguments: true
+BinPackParameters: true
+
+# Spacing - preserve existing style
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyParentheses: false
+SpacesBeforeTrailingComments: 1
+SpacesInCStyleCastParentheses: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+# Alignment - minimal alignment for existing code
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignEscapedNewlines: Right
+AlignOperands: true
+AlignTrailingComments: false
+
+# Pointers - match existing style
+PointerAlignment: Right
+DerivePointerAlignment: false
+
+# Include sorting - preserve existing order
+SortIncludes: false
+
+# Empty lines
+KeepEmptyLinesAtTheStartOfBlocks: true
+MaxEmptyLinesToKeep: 2
+
+# Comments - preserve existing comment style
+ReflowComments: false
+
+# Lower penalties to be less aggressive
+PenaltyBreakAssignment: 10
+PenaltyBreakBeforeFirstCallParameter: 50
+PenaltyBreakComment: 1000
+PenaltyBreakString: 1000
+PenaltyExcessCharacter: 10
+PenaltyReturnTypeOnItsOwnLine: 200
+
+# Disable some aggressive formatting
+DisableFormat: false

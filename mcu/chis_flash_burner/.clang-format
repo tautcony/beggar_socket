@@ -1,0 +1,80 @@
+# Moderate clang-format configuration for STM32 codebase
+# Balances code consistency with minimal disruption to existing code
+
+BasedOnStyle: LLVM
+
+# Language
+Language: Cpp
+Standard: c++11
+
+# Basic formatting
+IndentWidth: 4
+UseTab: Never
+ColumnLimit: 100  # Reasonable line length for embedded code
+
+# Braces - K&R style (common in embedded C)
+BreakBeforeBraces: Linux
+AlwaysBreakAfterDefinitionReturnType: None
+AlwaysBreakAfterReturnType: None
+
+# Function and control structure formatting
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortBlocksOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+
+# Spacing - clean and readable
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyParentheses: false
+SpacesInParentheses: false
+SpacesInCStyleCastParentheses: false
+SpacesInSquareBrackets: false
+SpaceBeforeAssignmentOperators: true
+SpacesBeforeTrailingComments: 2
+
+# Alignment - moderate alignment for readability
+AlignTrailingComments: true
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignAfterOpenBracket: Align
+AlignOperands: true
+
+# Pointers and references
+PointerAlignment: Right
+DerivePointerAlignment: false
+
+# Include sorting - organize but preserve groups
+SortIncludes: true
+IncludeBlocks: Preserve
+
+# Breaking and wrapping
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: true
+BreakStringLiterals: true
+BinPackArguments: true
+BinPackParameters: true
+
+# Comments
+ReflowComments: false  # Preserve embedded comments as-is
+CommentPragmas: '^ (NOTE|TODO|FIXME|XXX):'
+
+# Empty lines
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 2
+
+# Penalties - moderate enforcement
+PenaltyBreakAssignment: 10
+PenaltyBreakBeforeFirstCallParameter: 30
+PenaltyBreakComment: 300
+PenaltyBreakString: 100
+PenaltyExcessCharacter: 50
+PenaltyReturnTypeOnItsOwnLine: 100
+
+# Indentation specifics
+IndentCaseLabels: true
+IndentGotoLabels: true
+IndentPPDirectives: BeforeHash
