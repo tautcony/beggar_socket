@@ -42,7 +42,7 @@ jobs:
           binutils-arm-none-eabi \
           libnewlib-arm-none-eabi \
           libstdc++-arm-none-eabi-newlib \
-          make \
+          ninja-build \
           cmake \
           build-essential
 
@@ -50,7 +50,8 @@ jobs:
       run: |
         arm-none-eabi-gcc --version
         arm-none-eabi-objcopy --version
-        make --version
+        ninja --version
+        cmake --version
         # Test compilation of a simple program
         echo 'int main() { return 0; }' > test.c
         arm-none-eabi-gcc -mcpu=cortex-m3 -mthumb -c test.c -o test.o
@@ -58,35 +59,23 @@ jobs:
 
     - name: Set Build Environment
       run: |
-        echo "DEBUG=${{ matrix.config.debug }}" >> $GITHUB_ENV
-        if [ "${{ matrix.config.build_type }}" = "Release" ]; then
-          echo "OPT=-O2" >> $GITHUB_ENV
-        else
-          echo "OPT=-Og" >> $GITHUB_ENV
-        fi
-
-    - name: Setup Build Environment
-      working-directory: mcu
-      run: |
-        ./build.sh setup
+        echo "BUILD_TYPE=${{ matrix.config.build_type }}" >> $GITHUB_ENV
 
     - name: Build Firmware
       working-directory: mcu
       run: |
-        if [ "${{ matrix.config.build_type }}" = "Release" ]; then
-          ./build.sh build release
-        else
-          ./build.sh build release
-        fi
+        ./cmake-build.sh build ${{ matrix.config.build_type }}
 
     - name: Check Build Artifacts
       working-directory: mcu/chis_flash_burner
       run: |
-        echo "Build artifacts:"
-        ls -la build/ || echo "No build directory found"
-        if [ -f "build/chis_flash_burner.elf" ]; then
-          arm-none-eabi-size build/chis_flash_burner.elf
-          arm-none-eabi-objdump -h build/chis_flash_burner.elf
+        echo "Build artifacts for ${{ matrix.config.build_type }}:"
+        ls -la build/${{ matrix.config.build_type }}/ || echo "No build directory found"
+        if [ -f "build/${{ matrix.config.build_type }}/chis_flash_burner.elf" ]; then
+          echo "=== Size Information ==="
+          arm-none-eabi-size build/${{ matrix.config.build_type }}/chis_flash_burner.elf
+          echo "=== Section Headers ==="
+          arm-none-eabi-objdump -h build/${{ matrix.config.build_type }}/chis_flash_burner.elf
         fi
 
     - name: Upload Firmware Artifacts
@@ -94,10 +83,10 @@ jobs:
       with:
         name: stm32-firmware-${{ matrix.config.build_type }}-${{ github.sha }}
         path: |
-          mcu/chis_flash_burner/build/*.elf
-          mcu/chis_flash_burner/build/*.hex
-          mcu/chis_flash_burner/build/*.bin
-          mcu/chis_flash_burner/build/*.map
+          mcu/chis_flash_burner/build/${{ matrix.config.build_type }}/*.elf
+          mcu/chis_flash_burner/build/${{ matrix.config.build_type }}/*.hex
+          mcu/chis_flash_burner/build/${{ matrix.config.build_type }}/*.bin
+          mcu/chis_flash_burner/build/${{ matrix.config.build_type }}/*.map
         retention-days: 30
 
     - name: Archive Build Logs
@@ -106,7 +95,7 @@ jobs:
       with:
         name: build-logs-${{ matrix.config.build_type }}-${{ github.sha }}
         path: |
-          mcu/chis_flash_burner/build/*.lst
+          mcu/chis_flash_burner/build/${{ matrix.config.build_type }}/*.lst
         retention-days: 7
 
   # Static analysis job
@@ -168,26 +157,3 @@ jobs:
           p/security-audit
           p/secrets
           p/c
-
-  # Notification job
-  notify:
-    name: Notify Build Status
-    runs-on: ubuntu-latest
-    needs: [build-stm32]
-    if: always() && github.ref == 'refs/heads/main'
-    
-    steps:
-    - name: Notify Success
-      if: needs.build-stm32.result == 'success'
-      run: |
-        echo "✅ STM32 firmware build successful!"
-        echo "Commit: ${{ github.sha }}"
-        echo "Branch: ${{ github.ref_name }}"
-
-    - name: Notify Failure
-      if: needs.build-stm32.result == 'failure'
-      run: |
-        echo "❌ STM32 firmware build failed!"
-        echo "Commit: ${{ github.sha }}"
-        echo "Branch: ${{ github.ref_name }}"
-        exit 1
