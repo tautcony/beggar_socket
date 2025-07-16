@@ -32,7 +32,10 @@
             class="form-group"
           >
             <label>{{ $t('ui.debug.tool.command') }}</label>
-            <select v-model="selectedCommand">
+            <select
+              v-model="selectedCommand"
+              @change="onCommandChange"
+            >
               <option value="">
                 {{ $t('ui.debug.tool.selectCommand') }}
               </option>
@@ -68,6 +71,34 @@
               min="1"
               :placeholder="$t('ui.debug.tool.lengthPlaceholder')"
             >
+          </div>
+        </div>
+
+        <div
+          v-if="selectedCommand"
+          class="form-row"
+        >
+          <div class="form-group">
+            <label>{{ $t('ui.debug.tool.receiveLength') }}</label>
+            <input
+              v-model="receiveLength"
+              type="number"
+              min="1"
+              max="8192"
+              :placeholder="$t('ui.debug.tool.receiveLengthPlaceholder')"
+            >
+            <small class="form-hint">{{ $t('ui.debug.tool.receiveLengthHint') }}</small>
+          </div>
+
+          <div class="form-group">
+            <label>{{ $t('ui.debug.tool.timeout') }} ({{ $t('ui.debug.tool.optional') }})</label>
+            <input
+              v-model="timeout"
+              type="number"
+              min="100"
+              :placeholder="$t('ui.debug.tool.timeoutPlaceholder')"
+            >
+            <small class="form-hint">{{ $t('ui.debug.tool.timeoutHint') }}</small>
           </div>
         </div>
 
@@ -222,6 +253,8 @@ const selectedCommand = ref<number | ''>('');
 const address = ref('');
 const length = ref<number | ''>('');
 const data = ref('');
+const receiveLength = ref<number | ''>('');
+const timeout = ref<number | ''>('');
 
 const requestData = ref<Uint8Array | null>(null);
 const responseData = ref<Uint8Array | null>(null);
@@ -252,12 +285,62 @@ const availableCommands = computed(() => {
 });
 
 const canSend = computed(() => {
-  return selectedCommandType.value && selectedCommand.value !== '';
+  return selectedCommandType.value && selectedCommand.value !== '' && receiveLength.value !== '';
 });
+
+// 根据命令设置默认接收长度
+function setDefaultReceiveLength(command: number, commandType: 'GBA' | 'GBC') {
+  if (commandType === 'GBA') {
+    switch (command) {
+      case 0xf0: // READ_ID
+        receiveLength.value = 10; // 2 bytes CRC + 8 bytes ID
+        break;
+      case 0xf1: // ERASE_CHIP
+      case 0xf2: // BLOCK_ERASE
+      case 0xf3: // SECTOR_ERASE
+      case 0xf4: // PROGRAM
+      case 0xf5: // DIRECT_WRITE
+      case 0xf7: // RAM_WRITE
+      case 0xf9: // RAM_WRITE_TO_FLASH
+        receiveLength.value = 1; // 1 byte result (0xaa or other)
+        break;
+      case 0xf6: // READ
+      case 0xf8: // RAM_READ
+        // 对于读取命令，默认长度取决于用户输入的length + 2 bytes CRC
+        // 如果没有输入length，则设置一个合理的默认值
+        const defaultReadLength = length.value ? Number(length.value) + 2 : 258; // 256 bytes + 2 CRC
+        receiveLength.value = defaultReadLength;
+        break;
+      default:
+        receiveLength.value = 64; // 默认64字节
+    }
+  } else if (commandType === 'GBC') {
+    switch (command) {
+      case 0xfa: // DIRECT_WRITE
+      case 0xfc: // ROM_PROGRAM
+        receiveLength.value = 1; // 1 byte result (0xaa or other)
+        break;
+      case 0xfb: // READ
+        // 对于读取命令，默认长度取决于用户输入的length + 2 bytes CRC
+        const defaultReadLength = length.value ? Number(length.value) + 2 : 258; // 256 bytes + 2 CRC
+        receiveLength.value = defaultReadLength;
+        break;
+      default:
+        receiveLength.value = 64; // 默认64字节
+    }
+  }
+}
 
 function onCommandTypeChange() {
   selectedCommand.value = '';
+  receiveLength.value = '';
   clearOutput();
+}
+
+function onCommandChange() {
+  if (typeof selectedCommand.value === 'number' && selectedCommandType.value) {
+    setDefaultReceiveLength(selectedCommand.value, selectedCommandType.value);
+  }
 }
 
 function clearForm() {
@@ -266,6 +349,8 @@ function clearForm() {
   address.value = '';
   length.value = '';
   data.value = '';
+  receiveLength.value = '';
+  timeout.value = '';
   clearOutput();
 }
 
@@ -365,9 +450,10 @@ async function sendCommand() {
     // 发送命令
     await sendPackage(device.writer, payload);
 
-    // 接收响应
-    const expectedLength = length.value !== '' ? Number(length.value) + 2 : 1024; // 默认1KB
-    const result = await getPackage(device.reader, expectedLength);
+    // 接收响应 - 使用用户设置的接收长度
+    const maxResponseLength = receiveLength.value ? Number(receiveLength.value) : 4096;
+    const timeoutMs = timeout.value ? Number(timeout.value) : undefined;
+    const result = await getPackage(device.reader, maxResponseLength, timeoutMs);
 
     if (result.data) {
       responseData.value = result.data;

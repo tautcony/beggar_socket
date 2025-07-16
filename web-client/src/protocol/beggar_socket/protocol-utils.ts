@@ -1,6 +1,6 @@
 
 import { AdvancedSettings } from '@/settings/advanced-settings';
-import { withTimeout } from '@/utils/async-utils';
+import { sleep, withTimeout } from '@/utils/async-utils';
 
 const INIT_ERROR_MESSAGE = 'Serial port not properly initialized';
 
@@ -31,7 +31,7 @@ export async function sendPackage(writer: WritableStreamDefaultWriter<Uint8Array
   await withTimeout(
     writer.write(payload),
     timeout,
-    `发送数据包超时 (${timeout}ms)`,
+    `Send package tiemout in ${timeout}ms`,
   );
   return true;
 }
@@ -44,24 +44,34 @@ export async function getPackage(reader: ReadableStreamBYOBReader | null, length
   let buffer = new Uint8Array(length);
 
   let offset = 0;
-  const readTimeout = withTimeout(
-    (async () => {
-      while (offset < length) {
-        const { value, done } = await reader.read(
-          new Uint8Array(buffer, offset),
-        );
-        if (done) {
-          break;
-        }
-        buffer = value.buffer;
-        offset += value.byteLength;
-      }
-    })(),
-    timeout,
-    `接收数据包超时 (${timeout}ms)`,
-  );
+  const accumulatedData = new Uint8Array(length);
 
-  await readTimeout;
+  const TIMEOUT = Symbol('timeout');
+  const readTimeout = sleep(timeout).then(() => TIMEOUT);
+
+  const readOperation = (async () => {
+    while (offset < length) {
+      const { value, done } = await reader.read(
+        new Uint8Array(buffer, offset),
+      );
+      if (done) {
+        break;
+      }
+      // 将新读取的数据复制到累积缓冲区中
+      accumulatedData.set(value, offset);
+      buffer = value.buffer;
+      offset += value.byteLength;
+    }
+  })();
+
+  const resolved = await Promise.race([readTimeout, readOperation]);
+  if (resolved === TIMEOUT) {
+    if (offset === 0) {
+      throw new Error(`Read package timeout in ${timeout}ms`);
+    }
+    // 超时但有部分数据，返回累积的数据
+    return { data: accumulatedData.slice(0, offset) };
+  }
 
   return { data: new Uint8Array(buffer) };
 }
