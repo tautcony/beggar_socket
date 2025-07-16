@@ -243,6 +243,8 @@ void uart_cmdHandler()
                 break;
 
             default:
+                // 未知命令，清除缓冲区避免busy死锁
+                uart_clearRecvBuf();
                 break;
             }
 

@@ -23,7 +23,7 @@
 
 /* USER CODE BEGIN INCLUDE */
 #include <string.h>
-#include "../../Core/Src/uart.h"
+#include "uart.h"
 
 /* USER CODE END INCLUDE */
 
