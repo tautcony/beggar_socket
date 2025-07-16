@@ -170,7 +170,8 @@
       "cartType": "卡带类型",
       "ramSize": "RAM大小",
       "valid": "有效性",
-      "logo": "Logo"
+      "logo": "Logo",
+      "edit": "编辑ROM信息"
     },
     "romAnalyzer": {
       "uploadPrompt": "选择ROM文件或拖拽到此处",
@@ -363,7 +364,8 @@
     "common": {
       "yes": "是",
       "no": "否",
-      "cancel": "取消"
+      "cancel": "取消",
+      "save": "保存"
     }
   },
   "messages": {
@@ -448,7 +450,11 @@
       "assembledRomApplied": "组装ROM已应用",
       "assembledRomTypeMismatch": "组装ROM类型({assembled})与当前模式({current})不匹配",
       "noAssembledRom": "没有可用的组装ROM",
-      "writeNoData": "没有数据可写入，写入已中止"
+      "writeNoData": "没有数据可写入，写入已中止",
+      "noRomDataForEdit": "没有可编辑的ROM数据",
+      "unsupportedRomType": "不支持编辑的ROM类型",
+      "romInfoUpdated": "ROM信息更新成功",
+      "romInfoUpdateFailed": "ROM信息更新失败"
     },
     "emulator": {
       "launched": "已启动模拟器预览: {name}",

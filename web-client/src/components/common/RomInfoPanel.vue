@@ -44,7 +44,19 @@
       <div class="rom-info-grid">
         <div class="rom-info-item">
           <span class="rom-info-label">{{ $t('ui.rom.romTitle') }}:</span>
-          <span class="rom-info-value">{{ romInfo.title }}</span>
+          <div class="rom-info-value-container">
+            <input
+              v-if="isEditing"
+              v-model="editData.title"
+              type="text"
+              class="rom-edit-input"
+              :maxlength="romInfo.type === 'GBA' ? 12 : 15"
+            >
+            <span
+              v-else
+              class="rom-info-value"
+            >{{ romInfo.title || 'Untitled' }}</span>
+          </div>
         </div>
         <div class="rom-info-item">
           <span class="rom-info-label">{{ $t('ui.rom.type') }}:</span>
@@ -54,32 +66,100 @@
           >{{ romInfo.type }}</span>
         </div>
         <div
-          v-if="romInfo.gameCode"
           class="rom-info-item"
         >
           <span class="rom-info-label">{{ $t('ui.rom.gameCode') }}:</span>
-          <span class="rom-info-value">{{ romInfo.gameCode }}</span>
+          <div class="rom-info-value-container">
+            <input
+              v-if="isEditing && romInfo.type === 'GBA'"
+              v-model="editData.gameCode"
+              type="text"
+              class="rom-edit-input"
+              maxlength="4"
+            >
+            <span
+              v-else
+              class="rom-info-value"
+            >{{ romInfo.gameCode }}</span>
+          </div>
         </div>
         <div
           v-if="romInfo.makerCode"
           class="rom-info-item"
         >
           <span class="rom-info-label">{{ $t('ui.rom.maker') }}:</span>
-          <span class="rom-info-value">{{ romInfo.makerCode }}</span>
+          <div class="rom-info-value-container">
+            <input
+              v-if="isEditing"
+              v-model="editData.makerCode"
+              type="text"
+              class="rom-edit-input"
+              :maxlength="romInfo.type === 'GBA' ? 2 : 4"
+            >
+            <span
+              v-else
+              class="rom-info-value"
+            >{{ romInfo.makerCode }}</span>
+          </div>
         </div>
         <div
           v-if="romInfo.version !== undefined"
           class="rom-info-item"
         >
           <span class="rom-info-label">{{ $t('ui.rom.version') }}:</span>
-          <span class="rom-info-value">v{{ romInfo.version }}</span>
+          <div class="rom-info-value-container">
+            <input
+              v-if="isEditing && romInfo.type === 'GBA'"
+              v-model.number="editData.version"
+              type="number"
+              class="rom-edit-input"
+              min="0"
+              max="255"
+            >
+            <span
+              v-else
+              class="rom-info-value"
+            >v{{ romInfo.version }}</span>
+          </div>
         </div>
         <div
           v-if="romInfo.region"
           class="rom-info-item"
         >
           <span class="rom-info-label">{{ $t('ui.rom.region') }}:</span>
-          <span class="rom-info-value">{{ romInfo.region }}</span>
+          <div class="rom-info-value-container">
+            <select
+              v-if="isEditing && romInfo.type === 'GBA'"
+              v-model="editData.region"
+              class="rom-edit-select"
+            >
+              <option value="Japan">
+                Japan
+              </option>
+              <option value="USA">
+                USA
+              </option>
+              <option value="Europe">
+                Europe
+              </option>
+              <option value="Germany">
+                Germany
+              </option>
+              <option value="France">
+                France
+              </option>
+              <option value="Italy">
+                Italy
+              </option>
+              <option value="Spain">
+                Spain
+              </option>
+            </select>
+            <span
+              v-else
+              class="rom-info-value"
+            >{{ romInfo.region }}</span>
+          </div>
         </div>
         <div class="rom-info-item">
           <span class="rom-info-label">{{ $t('ui.rom.romSize') }}:</span>
@@ -113,33 +193,135 @@
           </span>
         </div>
       </div>
+
+      <!-- 编辑操作按钮 -->
+      <div
+        v-if="romData && (romInfo.type === 'GBA' || romInfo.type === 'GB' || romInfo.type === 'GBC')"
+        class="rom-edit-actions"
+      >
+        <button
+          v-if="!isEditing"
+          class="rom-edit-button"
+          @click="startEdit"
+        >
+          <IonIcon :icon="createOutline" />
+          {{ $t('ui.rom.edit') }}
+        </button>
+        <div
+          v-else
+          class="rom-edit-buttons"
+        >
+          <button
+            class="rom-save-button"
+            @click="saveEdit"
+          >
+            <IonIcon :icon="saveOutline" />
+            {{ $t('ui.common.save') }}
+          </button>
+          <button
+            class="rom-cancel-button"
+            @click="cancelEdit"
+          >
+            <IonIcon :icon="closeOutline" />
+            {{ $t('ui.common.cancel') }}
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
-import { checkmarkCircle, chevronDown, chevronUp, closeCircle, imageOutline, informationCircleOutline } from 'ionicons/icons';
+import { checkmarkCircle, chevronDown, chevronUp, closeCircle, closeOutline, createOutline, imageOutline, informationCircleOutline, saveOutline } from 'ionicons/icons';
 import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { useToast } from '@/composables/useToast';
 import { processGBALogoData } from '@/utils/compression-utils';
 import { formatBytes } from '@/utils/formatter-utils';
+import { type RomEditData, updateRomInfo } from '@/utils/rom-editor';
 import { CartridgeTypeMapper, type RomInfo } from '@/utils/rom-parser.ts';
 
 const { t } = useI18n();
+const { showToast } = useToast();
 
 const props = defineProps<{
   romInfo: RomInfo;
   isCollapsed?: boolean;
+  romData?: Uint8Array;
 }>();
 
 const emit = defineEmits<{
   'update-is-collapsed': [value: boolean];
+  'rom-updated': [newRomData: Uint8Array];
 }>();
 
 const isCollapsed = ref(props.isCollapsed ?? true);
+const isEditing = ref(false);
 const logoCanvas = useTemplateRef<HTMLCanvasElement>('logoCanvas');
+
+// 编辑数据
+const editData = ref<RomEditData>({
+  title: '',
+  gameCode: '',
+  makerCode: '',
+  version: 0,
+  region: '',
+});
+
+// 初始化编辑数据
+const initEditData = () => {
+  editData.value = {
+    title: props.romInfo.title ?? '',
+    gameCode: props.romInfo.gameCode ?? '',
+    makerCode: props.romInfo.makerCode ?? '',
+    version: props.romInfo.version ?? 0,
+    region: props.romInfo.region ?? 'USA',
+  };
+};
+
+// 监听romInfo变化，重新初始化编辑数据
+watch(() => props.romInfo, initEditData, { immediate: true });
+
+// 开始编辑
+const startEdit = () => {
+  if (!props.romData) {
+    showToast(t('messages.rom.noRomDataForEdit'), 'error');
+    return;
+  }
+  initEditData();
+  isEditing.value = true;
+};
+
+// 保存编辑
+const saveEdit = () => {
+  if (!props.romData) {
+    showToast(t('messages.rom.noRomDataForEdit'), 'error');
+    return;
+  }
+
+  if (props.romInfo.type === 'Unknown') {
+    showToast(t('messages.rom.unsupportedRomType'), 'error');
+    return;
+  }
+
+  try {
+    const updatedRomData = updateRomInfo(props.romData, props.romInfo.type, editData.value);
+    emit('rom-updated', updatedRomData);
+    isEditing.value = false;
+    showToast(t('messages.rom.romInfoUpdated'), 'success');
+  } catch (error) {
+    console.error('Failed to update ROM info:', error);
+    showToast(t('messages.rom.romInfoUpdateFailed'), 'error');
+  }
+};
+
+// 取消编辑
+const cancelEdit = () => {
+  initEditData();
+  isEditing.value = false;
+};
 
 // 根据ROM类型计算Logo画布大小
 const logoCanvasSize = computed(() => {
@@ -504,61 +686,96 @@ onMounted(async () => {
   color: #dc3545;
 }
 
-/* 响应式布局 */
-@media (max-width: 768px) {
-  .logo-container {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .logo-canvas {
-    align-self: center;
-  }
-
-  .logo-info {
-    min-width: auto;
-    width: 100%;
-  }
-
-  .rom-info-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .rom-info-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-
-  .rom-info-value {
-    text-align: left;
-  }
-
-  .logo-info-item {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .logo-info-label {
-    margin-right: 8px;
-  }
+/* 编辑功能样式 */
+.rom-info-value-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  max-width: 150px;
+  max-height: 24px;
 }
 
-@media (max-width: 480px) {
-  .logo-info-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
+.rom-edit-input,
+.rom-edit-select {
+  width: 100%;
+  max-width: 100%;
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background: #fff;
+  color: #333;
+  text-align: right;
+  box-sizing: border-box;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Menlo', 'Consolas', monospace;
+}
 
-  .logo-info-label {
-    margin-right: 0;
-  }
+.rom-edit-input:focus,
+.rom-edit-select:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+}
 
-  .logo-info-value {
-    text-align: left;
-    width: 100%;
-  }
+.rom-edit-actions {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+.rom-edit-button,
+.rom-save-button,
+.rom-cancel-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rom-edit-button {
+  background: #1976d2;
+  color: white;
+}
+
+.rom-edit-button:hover {
+  background: #1565c0;
+}
+
+.rom-edit-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.rom-save-button {
+  background: #4caf50;
+  color: white;
+}
+
+.rom-save-button:hover {
+  background: #45a049;
+}
+
+.rom-cancel-button {
+  background: #f44336;
+  color: white;
+}
+
+.rom-cancel-button:hover {
+  background: #d32f2f;
+}
+
+.rom-edit-button:disabled,
+.rom-save-button:disabled,
+.rom-cancel-button:disabled {
+  background: #e0e0e0;
+  color: #9e9e9e;
+  cursor: not-allowed;
 }
 </style>

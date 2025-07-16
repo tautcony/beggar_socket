@@ -170,7 +170,8 @@
       "cartType": "Cart Type",
       "ramSize": "RAM Size",
       "valid": "Valid",
-      "logo": "Logo"
+      "logo": "Logo",
+      "edit": "Edit ROM Info"
     },
     "romAnalyzer": {
       "uploadPrompt": "Select ROM file or drag it here",
@@ -363,7 +364,8 @@
     "common": {
       "yes": "Yes",
       "no": "No",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "save": "Save"
     }
   },
   "messages": {
@@ -448,7 +450,11 @@
       "assembledRomApplied": "Assembled ROM has been applied",
       "assembledRomTypeMismatch": "Assembled ROM type ({assembled}) does not match current mode ({current})",
       "noAssembledRom": "No assembled ROM available",
-      "writeNoData": "No data to write, write aborted"
+      "writeNoData": "No data to write, write aborted",
+      "noRomDataForEdit": "No ROM data available for editing",
+      "unsupportedRomType": "Unsupported ROM type for editing",
+      "romInfoUpdated": "ROM information updated successfully",
+      "romInfoUpdateFailed": "Failed to update ROM information"
     },
     "emulator": {
       "launched": "Emulator preview launched: {name}",

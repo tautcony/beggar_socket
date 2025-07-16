@@ -170,7 +170,8 @@
       "cartType": "カートタイプ",
       "ramSize": "RAMサイズ",
       "valid": "有効性",
-      "logo": "ロゴ"
+      "logo": "ロゴ",
+      "edit": "ROM情報を編集"
     },
     "romAnalyzer": {
       "uploadPrompt": "ROMファイルを選択するかここにドラッグしてください",
@@ -363,7 +364,8 @@
     "common": {
       "yes": "はい",
       "no": "いいえ",
-      "cancel": "キャンセル"
+      "cancel": "キャンセル",
+      "save": "保存"
     }
   },
   "messages": {
@@ -448,7 +450,11 @@
       "assembledRomApplied": "組み立てROMが適用されました",
       "assembledRomTypeMismatch": "組み立てROMタイプ({assembled})が現在のモード({current})と一致しません",
       "noAssembledRom": "利用可能な組み立てROMがありません",
-      "writeNoData": "書き込むデータがありません、書き込みを中止しました"
+      "writeNoData": "書き込むデータがありません、書き込みを中止しました",
+      "noRomDataForEdit": "編集可能なROMデータがありません",
+      "unsupportedRomType": "サポートされていない編集用ROMタイプ",
+      "romInfoUpdated": "ROM情報の更新が成功しました",
+      "romInfoUpdateFailed": "ROM情報の更新に失敗しました"
     },
     "emulator": {
       "launched": "エミュレータープレビューを開始: {name}",

@@ -74,6 +74,8 @@
         v-if="romFileData && romInfo"
         v-model:is-collapsed="isRomInfoCollapsed"
         :rom-info="romInfo"
+        :rom-data="romFileData"
+        @rom-updated="onRomUpdated"
       />
 
       <div class="button-row">
@@ -364,6 +366,22 @@ function useAssembledRom() {
   } else {
     showToast(t('messages.rom.noAssembledRom'), 'error');
   }
+}
+
+// 处理ROM信息更新
+function onRomUpdated(newRomData: Uint8Array) {
+  // 使用更新后的ROM数据重新解析信息
+  const updatedRomInfo = parseRom(newRomData);
+
+  // 将更新后的ROM数据作为新文件传递给父组件
+  const updatedFileInfo: FileInfo = {
+    name: props.romFileName ?? 'updated_rom.bin',
+    data: newRomData,
+    size: newRomData.length,
+  };
+
+  emit('file-selected', updatedFileInfo);
+  showToast(t('messages.rom.romInfoUpdated'), 'success');
 }
 
 // 计算是否存在已组装的ROM

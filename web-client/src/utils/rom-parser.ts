@@ -177,7 +177,7 @@ function parseGBARom(data: Uint8Array): RomInfo {
   const logoData = data.slice(0x04, 0x04 + GBA_NINTENDO_LOGO.length);
 
   return {
-    title: title || 'Untitled',
+    title: title,
     gameCode,
     makerCode,
     version,
@@ -290,7 +290,7 @@ function parseGBRom(data: Uint8Array): RomInfo {
   const logoData = data.slice(0x104, 0x104 + GB_NINTENDO_LOGO.length);
 
   return {
-    title: title || 'Untitled',
+    title: title,
     makerCode,
     version,
     type,
