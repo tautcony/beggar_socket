@@ -437,7 +437,7 @@ async function readCart() {
     } else {
       cfiInfo.value = null;
     }
-    const info = await adapter.getCartInfo();
+    const info = response.success ? await adapter.getCartInfo() : null;
     if (info) {
       cfiInfo.value = info;
       onRomSizeChange(formatHex(info.deviceSize, 4));
