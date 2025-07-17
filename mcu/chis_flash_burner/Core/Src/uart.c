@@ -97,6 +97,15 @@ void uart_setControlLine(uint8_t rts, uint8_t dtr)
     if (((currentRts == 0) && (rts != 0)) || ((currentDtr == 0) && (dtr != 0))) {
         cmdBuf_p = 0;
         memset(cmdBuf, 0, sizeof(cmdBuf));
+        memset(responBuf, 0, sizeof(responBuf));
+        busy = 0;
+        // 提示重置
+        for(int i = 0; i < 3; i++) {
+            HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);  // LED on
+            for(volatile int j = 0; j < 80000; j++);
+            HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1);  // LED off
+            for(volatile int j = 0; j < 80000; j++);
+        }
     }
 
     currentRts = rts;
@@ -161,83 +170,82 @@ static void uart_clearRecvBuf()
 
 void uart_cmdHandler()
 {
-    // 判断命令结束
-    if (cmdBuf_p > 2) {
-        if (uart_cmd->cmdSize == cmdBuf_p) {
-            // check crc
-            // uint16_t cmdCrc = *((uint16_t *)(uart_cmd->payload + uart_cmd->cmdSize - 3 - 2));
-            // uint16_t localCrc = modbusCRC16(cmdBuf, uart_cmd->cmdSize - 2);
-
-            // if (cmdCrc != localCrc)
-            //     uart_clearRecvBuf();
-
-            busy = 1;
-            HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);
-
-            // execute cmd
-            switch (uart_cmd->cmdCode) {
-                case 0xf0:  // rom id获取
-                    romGetID();
-                    break;
-
-                case 0xf1:  // rom chip擦除
-                    romEraseChip();
-                    break;
-
-                case 0xf2:  // rom blcok擦除
-                    romEraseBlock();
-                    break;
-
-                case 0xf3:  // rom sector擦除
-                    romEraseSector();
-                    break;
-
-                case 0xf4:  // rom program
-                    romProgram();
-                    break;
-
-                case 0xf5:  // rom 写入透传
-                    romWrite();
-                    break;
-
-                case 0xf6:  // rom 读取透传
-                    romRead();
-                    break;
-
-                case 0xf7:  // ram 写入透传
-                    ramWrite();
-                    break;
-
-                case 0xf8:  // ram 读取透传
-                    ramRead();
-                    break;
-
-                case 0xf9:  // 编程flash存档
-                    ramProgramFlash();
-                    break;
-
-                case 0xfa:  // gbc 写入透传
-                    gbcWrite();
-                    break;
-
-                case 0xfb:  // gbc 读取透传
-                    gbcRead();
-                    break;
-
-                case 0xfc:
-                    gbcRomProgram();  // gbc rom编程
-                    break;
-
-                default:
-                    // 未知命令，清除缓冲区避免busy死锁
-                    uart_clearRecvBuf();
-                    break;
-            }
-
-            HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1);
-            return;
-        }
+    if (cmdBuf_p <= 2 || cmdBuf_p < uart_cmd->cmdSize) {
+        return; // 命令不完整，等待继续接收
     }
+
+    // check crc
+    // uint16_t cmdCrc = *((uint16_t *)(uart_cmd->payload + uart_cmd->cmdSize - 3 - 2));
+    // uint16_t localCrc = modbusCRC16(cmdBuf, uart_cmd->cmdSize - 2);
+
+    // if (cmdCrc != localCrc)
+    //     uart_clearRecvBuf();
+
+    busy = 1;
+    HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);
+
+    // execute cmd
+    switch (uart_cmd->cmdCode) {
+        case 0xf0:  // rom id获取
+            romGetID();
+            break;
+
+        case 0xf1:  // rom chip擦除
+            romEraseChip();
+            break;
+
+        case 0xf2:  // rom blcok擦除
+            romEraseBlock();
+            break;
+
+        case 0xf3:  // rom sector擦除
+            romEraseSector();
+            break;
+
+        case 0xf4:  // rom program
+            romProgram();
+            break;
+
+        case 0xf5:  // rom 写入透传
+            romWrite();
+            break;
+
+        case 0xf6:  // rom 读取透传
+            romRead();
+            break;
+
+        case 0xf7:  // ram 写入透传
+            ramWrite();
+            break;
+
+        case 0xf8:  // ram 读取透传
+            ramRead();
+            break;
+
+        case 0xf9:  // 编程flash存档
+            ramProgramFlash();
+            break;
+
+        case 0xfa:  // gbc 写入透传
+            gbcWrite();
+            break;
+
+        case 0xfb:  // gbc 读取透传
+            gbcRead();
+            break;
+
+        case 0xfc:
+            gbcRomProgram();  // gbc rom编程
+            break;
+
+        default:
+            // 未知命令，清除缓冲区避免busy死锁
+            uart_clearRecvBuf();
+            break;
+    }
+
+    HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1);
+    return;
 }
 
 static void romWaitForDone(uint32_t addr, uint16_t expectedValue)
