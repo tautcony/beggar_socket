@@ -3,8 +3,6 @@
 
 #include "main.h"
 #include "usbd_cdc_if.h"
-// #include "usbd_def.h"
-// #include "usbd_cdc.h"
 
 #include "cart_adapter.h"
 #include "uart.h"
@@ -17,6 +15,8 @@
 #define SIZE_BASE_ADDRESS 4
 #define SIZE_CRC 2
 #define SIZE_BUFF_SIZE 2
+
+#define OPERATION_TIMEOUT 10000
 
 // 命令头
 typedef struct __attribute__((packed)) {
@@ -118,7 +118,10 @@ static void uart_responData(const uint8_t *dat, uint16_t len)
         uint16_t transLen = packSize - transCount;
         if (transLen > BATCH_SIZE_RESPON) transLen = BATCH_SIZE_RESPON;
 
-        while (hcdc->TxState != 0);
+        while (hcdc->TxState != 0) {
+            __WFI();  // Wait for interrupt
+        }
+
         CDC_Transmit_FS(responBuf + transCount, transLen);
 
         transCount += transLen;
@@ -129,7 +132,9 @@ static void uart_responAck()
 {
     const USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)hUsbDeviceFS.pClassData;
 
-    while (hcdc->TxState != 0);
+    while (hcdc->TxState != 0) {
+        __WFI();  // Wait for interrupt
+    }
 
     uint8_t ack = 0xaa;
     CDC_Transmit_FS(&ack, 1);
@@ -238,6 +243,7 @@ void uart_cmdHandler()
 static void romWaitForDone(uint32_t addr, uint16_t expectedValue)
 {
     volatile uint16_t value;
+    uint32_t startTick = HAL_GetTick();
     while (1) {
         cart_romRead(addr, (uint16_t *)&value, 1);
         MEMORY_BARRIER();
@@ -247,9 +253,24 @@ static void romWaitForDone(uint32_t addr, uint16_t expectedValue)
             cart_romRead(addr, (uint16_t *)&value, 1);
             break;
         }
-        if (cmdBuf_p == 0) {
-            break;
-        }
+        if (cmdBuf_p == 0) break;
+        if ((HAL_GetTick() - startTick) > OPERATION_TIMEOUT) break;
+        __WFI();
+    }
+}
+
+static void ramWaitForDone(uint32_t addr, uint8_t expectedValue)
+{
+    volatile uint8_t value;
+    uint32_t startTick = HAL_GetTick();
+
+    while (1) {
+        cart_ramRead((uint16_t)(addr), (uint8_t *)&value, 1);
+        MEMORY_BARRIER();
+        if (value == expectedValue) break;
+        if (cmdBuf_p == 0) break;
+        if ((HAL_GetTick() - startTick) > OPERATION_TIMEOUT) break;
+        __WFI();
     }
 }
 
@@ -399,9 +420,7 @@ static void romProgram()
             }
 
             writtenCount++;
-        }
-        // 可以多字节编程
-        else {
+        } else {  // 可以多字节编程
             // 5.4.1.2
             // Write Buffer Programming allows up to 512 bytes to be programmed in one operation.
             uint16_t writeLen = wordCount - writtenCount;
@@ -456,7 +475,7 @@ static void romWrite()
     uint16_t byteCount = uart_cmd->cmdSize - SIZE_CMD_HEADER - SIZE_BASE_ADDRESS - SIZE_CRC;
     uint16_t wordCount = byteCount / 2;
     // 数据
-    uint16_t *dataBuf = (uint16_t *)desc_write->payload;
+    const uint16_t *dataBuf = (const uint16_t *)desc_write->payload;
 
     cart_romWrite(baseAddress, dataBuf, wordCount);
 
@@ -492,14 +511,14 @@ static void romRead()
 // o 0xaa
 static void ramWrite()
 {
-    Desc_cmdBody_write_t *desc_write = (Desc_cmdBody_write_t *)(uart_cmd->payload);
+    const Desc_cmdBody_write_t *desc_write = (Desc_cmdBody_write_t *)(uart_cmd->payload);
 
     // 基地址
     uint32_t baseAddress = desc_write->baseAddress & 0xffff;
     // 写入总数量
     uint16_t byteCount = uart_cmd->cmdSize - SIZE_CMD_HEADER - SIZE_BASE_ADDRESS - SIZE_CRC;
     // 数据
-    uint8_t *dataBuf = desc_write->payload;
+    const uint8_t *dataBuf = desc_write->payload;
 
     // 切bank操作移至上位机完成
     // // 切bank
@@ -549,14 +568,14 @@ static void ramRead()
 
 static void ramProgramFlash()
 {
-    Desc_cmdBody_write_t *desc_write = (Desc_cmdBody_write_t *)(uart_cmd->payload);
+    const Desc_cmdBody_write_t *desc_write = (Desc_cmdBody_write_t *)(uart_cmd->payload);
 
     // 基地址
     uint32_t baseAddress = desc_write->baseAddress & 0xffff;
     // 写入总数量
     uint16_t byteCount = uart_cmd->cmdSize - SIZE_CMD_HEADER - SIZE_BASE_ADDRESS - SIZE_CRC;
     // 数据
-    uint8_t *dataBuf = desc_write->payload;
+    const uint8_t *dataBuf = desc_write->payload;
 
     // 切bank在上位机完成
 
@@ -571,16 +590,7 @@ static void ramProgramFlash()
         cart_ramWrite(0x5555, &cmd, 1);  // FLASH_COMMAND_PROGRAM
         cart_ramWrite((uint16_t)(baseAddress + i), dataBuf + i, 1);
 
-        // wait for done
-        volatile uint8_t temp;
-        do {
-            cart_ramRead((uint16_t)(baseAddress + i), (uint8_t *)&temp, 1);
-            MEMORY_BARRIER();
-            if (cmdBuf_p == 0) {
-                uart_clearRecvBuf();
-                return;
-            }
-        } while (temp != dataBuf[i]);
+        ramWaitForDone((uint16_t)(baseAddress + i), dataBuf[i]);
     }
 
     // 回复ack
@@ -594,14 +604,14 @@ static void ramProgramFlash()
 
 static void gbcWrite()
 {
-    Desc_cmdBody_write_t *desc_write = (Desc_cmdBody_write_t *)(uart_cmd->payload);
+    const Desc_cmdBody_write_t *desc_write = (Desc_cmdBody_write_t *)(uart_cmd->payload);
 
     // 基地址
     uint32_t baseAddress = desc_write->baseAddress & 0xffff;
     // 写入总数量
     uint16_t byteCount = uart_cmd->cmdSize - SIZE_CMD_HEADER - SIZE_BASE_ADDRESS - SIZE_CRC;
     // 数据
-    uint8_t *dataBuf = desc_write->payload;
+    const uint8_t *dataBuf = desc_write->payload;
 
     cart_gbcWrite((uint16_t)baseAddress, dataBuf, byteCount);
 
@@ -628,6 +638,23 @@ static void gbcRead()
     uart_responData(NULL, byteCount);
 }
 
+
+static void gbcRomWaitForDone(uint16_t addr, uint8_t expectedValue)
+{
+    volatile uint8_t value;
+    uint32_t startTick = HAL_GetTick();
+    while (1) {
+        cart_gbcRead((uint16_t)(addr), (uint8_t *)&value, 1);
+        MEMORY_BARRIER();
+
+        if (value == expectedValue) break;
+        if (cmdBuf_p == 0) break;
+        if ((HAL_GetTick() - startTick) > OPERATION_TIMEOUT) break;
+        __WFI();
+    }
+}
+
+
 static void gbcRomProgram()
 {
     Desc_cmdBody_write_t *desc_write = (Desc_cmdBody_write_t *)(uart_cmd->payload);
@@ -640,7 +667,7 @@ static void gbcRomProgram()
     // 编程buff大小
     uint16_t bufferWriteBytes = *((uint16_t *)(desc_write->payload));
     // 数据
-    uint8_t *dataBuf = desc_write->payload + SIZE_BUFF_SIZE;
+    const uint8_t *dataBuf = desc_write->payload + SIZE_BUFF_SIZE;
 
     uint32_t writtenCount = 0;
 
@@ -658,17 +685,11 @@ static void gbcRomProgram()
             cart_gbcWrite(0xaaa, &cmd, 1);  // FLASH_COMMAND_PROGRAM
             cart_gbcWrite((uint16_t)(startingAddress), dataBuf + writtenCount, 1);
 
-            // wait for done
-            volatile uint8_t temp;
-            do {
-                cart_gbcRead((uint16_t)(startingAddress), (uint8_t *)&temp, 1);
-                MEMORY_BARRIER();
-                if (cmdBuf_p == 0) {
-                    uart_clearRecvBuf();
-                    return;
-                }
-            } while (temp != dataBuf[writtenCount]);
-
+            gbcRomWaitForDone((uint16_t)(startingAddress), dataBuf[writtenCount]);
+            if (cmdBuf_p == 0) {
+                uart_clearRecvBuf();
+                return;
+            }
             writtenCount++;
         }
         // 可以多字节编程
@@ -693,16 +714,11 @@ static void gbcRomProgram()
             cart_gbcWrite(startingAddress, &cmd, 1);
 
             // wait for done
-            volatile uint8_t temp;
-            do {
-                cart_gbcRead((uint16_t)(startingAddress + writeLen - 1), (uint8_t *)&temp, 1);
-                MEMORY_BARRIER();
-                if (cmdBuf_p == 0) {
-                    uart_clearRecvBuf();
-                    return;
-                }
-            } while (temp != *(dataBuf + writtenCount + writeLen - 1));
-
+            gbcRomWaitForDone((uint16_t)(startingAddress), dataBuf[writtenCount + writeLen - 1]);
+            if (cmdBuf_p == 0) {
+                uart_clearRecvBuf();
+                return;
+            }
             writtenCount += writeLen;
         }
     }
