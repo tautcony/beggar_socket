@@ -13,6 +13,15 @@
         />
         {{ buttonText }}
       </button>
+      <!-- 重置连接状态按钮，仅在已连接时显示 -->
+      <button
+        v-if="connected"
+        class="reset-btn"
+        :disabled="isConnecting"
+        @click="resetSerialState"
+      >
+        重置
+      </button>
       <div class="polyfill-toggle">
         <label
           class="toggle-container"
@@ -57,6 +66,19 @@ const usePolyfill = ref(false);
 
 let deviceInfo: DeviceInfo | null = null;
 
+// Serial port disconnect event type
+interface SerialPortDisconnectEvent extends Event {
+  port: SerialPort;
+}
+
+// 物理拔线事件处理函数，确保在注册前定义
+function handlePhysicalDisconnect(e: SerialPortDisconnectEvent) {
+  if (e.port === deviceInfo?.port) {
+    console.warn('[DeviceConnect] 设备物理拔出检测');
+    disposeConnection().catch(console.error);
+  }
+}
+
 // 热重载状态恢复 - 在开发模式下处理 HMR
 if (import.meta.hot) {
   const data = import.meta.hot.data as {
@@ -81,7 +103,7 @@ if (import.meta.hot) {
     } else {
       // 状态信息不完整，重置为断开状态
       console.warn('[DeviceConnect] HMR: 检测到状态信息丢失，重置为断开状态');
-      resetConnectionState().catch(console.error);
+      disposeConnection().catch(console.error);
     }
   }
 
@@ -99,7 +121,7 @@ if (import.meta.hot) {
     if (connected.value) {
       if (!deviceInfo?.port || !deviceInfo.reader || !deviceInfo.writer) {
         console.warn('[DeviceConnect] HMR: 连接对象丢失，重置连接状态');
-        resetConnectionState().catch(console.error);
+        disposeConnection().catch(console.error);
         return;
       }
     }
@@ -112,18 +134,18 @@ onMounted(async () => {
   if (connected.value) {
     if (!deviceInfo?.port || !deviceInfo.reader || !deviceInfo.writer) {
       console.warn('[DeviceConnect] 检测到状态不一致，重置连接状态');
-      await resetConnectionState();
+      await disposeConnection();
     } else {
       // 额外检查端口是否真正可用
       try {
         const portInfo = deviceInfo.port.getInfo?.();
         if (!portInfo) {
           console.warn('[DeviceConnect] 端口信息不可用，重置连接状态');
-          await resetConnectionState();
+          await disposeConnection();
         }
       } catch (error) {
         console.warn('[DeviceConnect] 端口状态检查失败，重置连接状态:', error);
-        await resetConnectionState();
+        await disposeConnection();
       }
     }
   }
@@ -170,11 +192,9 @@ async function connect() {
     }
     if (!port) throw new Error('No serial port selected');
     await port.open({ baudRate: 9600, dataBits: 8, parity: 'none', stopBits: 1, flowControl: 'none' });
+    port.addEventListener('disconnect', handlePhysicalDisconnect as EventListener);
 
-    // send dtr & rts signals to ensure device is ready
-    await port.setSignals({ dataTerminalReady: true, requestToSend: true });
-    await sleep(100);
-    await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+    await resetSerialState();
 
     const reader = port.readable?.getReader({ mode: 'byob' }) ?? null;
     const writer = port.writable?.getWriter() ?? null;
@@ -186,7 +206,7 @@ async function connect() {
     emit('device-ready', deviceInfo as DeviceInfo<'byob'>);
   } catch (e) {
     showToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
-    await resetConnectionState();
+    await disposeConnection();
   }
 }
 
@@ -203,7 +223,7 @@ async function disconnect() {
     deviceInfo.writer = null;
     showToast(t('messages.device.disconnectionSuccess'), 'success');
   } catch (e) {
-    console.error(t('messages.device.disconnectionFailed'), e);
+    console.error(t('messages.device.disconnectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), e);
     showToast(t('messages.device.disconnectionFailed'), 'error');
   } finally {
     isConnecting.value = false;
@@ -212,7 +232,15 @@ async function disconnect() {
   }
 }
 
-async function resetConnectionState() {
+async function resetSerialState() {
+  // send dtr & rts signals to ensure device is ready
+  await deviceInfo?.port?.setSignals({ dataTerminalReady: true, requestToSend: true });
+  await sleep(100);
+  await deviceInfo?.port?.setSignals({ dataTerminalReady: false, requestToSend: false });
+  showToast(t('messages.device.resetSuccess'), 'success');
+}
+
+async function disposeConnection() {
   connected.value = false;
   isConnecting.value = false;
 
@@ -270,6 +298,7 @@ const buttonIcon = computed(() => {
 defineExpose({
   connect,
   disconnect,
+  reset: disposeConnection,
   connected: computed(() => connected.value),
 });
 </script>
@@ -412,5 +441,30 @@ button:disabled {
 
 .icon {
   font-size: 1.2em;
+}
+
+.reset-btn {
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: none;
+  background: #ffc107;
+  /* 警告黄 */
+  color: #212529;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+.reset-btn:hover:not(:disabled) {
+  background: #e0a800;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+.reset-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.reset-btn:disabled {
+  background-color: #cccccc;
+  color: #666666;
+  cursor: not-allowed;
 }
 </style>

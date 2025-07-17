@@ -375,7 +375,8 @@
       "connectionSuccess": "Device connected successfully",
       "connectionFailed": "Device connection failed: {error}",
       "disconnectionSuccess": "Device disconnected successfully",
-      "disconnectionFailed": "Device disconnection failed: {error}"
+      "disconnectionFailed": "Device disconnection failed: {error}",
+      "resetSuccess": "Device reset successfully"
     },
     "operation": {
       "readId": "Reading ID...",

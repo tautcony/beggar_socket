@@ -375,7 +375,8 @@
       "connectionSuccess": "设备连接成功",
       "connectionFailed": "设备连接失败: {error}",
       "disconnectionSuccess": "设备断开连接成功",
-      "disconnectionFailed": "设备断开连接失败: {error}"
+      "disconnectionFailed": "设备断开连接失败: {error}",
+      "resetSuccess": "设备重置成功"
     },
     "operation": {
       "readId": "正在读取ID...",
