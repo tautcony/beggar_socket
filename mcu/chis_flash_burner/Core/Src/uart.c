@@ -100,11 +100,11 @@ void uart_setControlLine(uint8_t rts, uint8_t dtr)
         memset(responBuf, 0, sizeof(responBuf));
         busy = 0;
         // 提示重置
-        for(int i = 0; i < 3; i++) {
+        for (int i = 0; i < 3; i++) {
             HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);  // LED on
-            for(volatile int j = 0; j < 80000; j++);
+            for (volatile int j = 0; j < 80000; j++);
             HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1);  // LED off
-            for(volatile int j = 0; j < 80000; j++);
+            for (volatile int j = 0; j < 80000; j++);
         }
     }
 
@@ -171,7 +171,7 @@ static void uart_clearRecvBuf()
 void uart_cmdHandler()
 {
     if (cmdBuf_p <= 2 || cmdBuf_p < uart_cmd->cmdSize) {
-        return; // 命令不完整，等待继续接收
+        return;  // 命令不完整，等待继续接收
     }
 
     // check crc
