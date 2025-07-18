@@ -18,7 +18,7 @@
         v-if="connected"
         class="reset-btn"
         :disabled="isConnecting"
-        @click="resetSerialState"
+        @click="() => resetSerialState(true)"
       >
         重置
       </button>
@@ -232,12 +232,14 @@ async function disconnect() {
   }
 }
 
-async function resetSerialState() {
+async function resetSerialState(toast = false) {
   // send dtr & rts signals to ensure device is ready
   await deviceInfo?.port?.setSignals({ dataTerminalReady: true, requestToSend: true });
   await sleep(100);
   await deviceInfo?.port?.setSignals({ dataTerminalReady: false, requestToSend: false });
-  showToast(t('messages.device.resetSuccess'), 'success');
+  if (toast) {
+    showToast(t('messages.device.resetSuccess'), 'success');
+  }
 }
 
 async function disposeConnection() {

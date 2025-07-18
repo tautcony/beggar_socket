@@ -5,6 +5,7 @@
     width="90vw"
     max-width="1000px"
     max-height="90vh"
+    :mask-closable="false"
     @close="closeModal"
   >
     <!-- 文件上传区域 -->

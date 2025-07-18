@@ -4,6 +4,7 @@
     :title="$t('ui.debug.tool.title')"
     width="1200px"
     max-width="95vw"
+    :mask-closable="false"
     @close="$emit('close')"
   >
     <div class="debug-tool">

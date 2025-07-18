@@ -5,6 +5,7 @@
     width="90%"
     max-width="600px"
     max-height="80vh"
+    :mask-closable="false"
     @close="$emit('close')"
   >
     <!-- 页面大小设置 -->

@@ -5,6 +5,7 @@
     width="90vw"
     max-width="1200px"
     max-height="90vh"
+    :mask-closable="false"
     @close="closeModal"
   >
     <template #header>
