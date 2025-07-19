@@ -224,7 +224,7 @@ async function disconnect() {
     showToast(t('messages.device.disconnectionSuccess'), 'success');
   } catch (e) {
     console.error(t('messages.device.disconnectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), e);
-    showToast(t('messages.device.disconnectionFailed'), 'error');
+    showToast(t('messages.device.disconnectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
   } finally {
     isConnecting.value = false;
     connected.value = false;

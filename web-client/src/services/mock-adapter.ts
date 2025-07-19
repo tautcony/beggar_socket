@@ -216,12 +216,12 @@ export class MockAdapter extends CartridgeAdapter {
       }
 
       const totalTime = (Date.now() - startTime) / 1000;
-      const avgSpeed = SpeedCalculator.calculateAverageSpeed(totalBytes, totalTime);
+      const avgSpeed = speedCalculator.getAverageSpeed();
       const maxSpeed = speedCalculator.getMaxSpeed();
 
       this.log(this.t('messages.operation.eraseSuccess'));
       this.log(this.t('messages.operation.eraseSummary', {
-        totalTime: totalTime.toFixed(1),
+        totalTime: totalTime.toFixed(2),
         avgSpeed: avgSpeed.toFixed(1),
         maxSpeed: maxSpeed.toFixed(1),
         totalSectors: totalSectors,
@@ -341,12 +341,12 @@ export class MockAdapter extends CartridgeAdapter {
       this.mockRomData = new Uint8Array(fileData);
 
       const totalTime = (Date.now() - startTime) / 1000;
-      const avgSpeed = SpeedCalculator.calculateAverageSpeed(total, totalTime);
+      const avgSpeed = speedCalculator.getAverageSpeed();
       const maxSpeed = speedCalculator.getMaxSpeed();
 
       this.log(this.t('messages.rom.writeComplete'));
       this.log(this.t('messages.rom.writeSummary', {
-        totalTime: totalTime.toFixed(1),
+        totalTime: totalTime.toFixed(2),
         avgSpeed: avgSpeed.toFixed(1),
         maxSpeed: maxSpeed.toFixed(1),
         totalSize: (total / 1024).toFixed(1),
@@ -498,12 +498,12 @@ export class MockAdapter extends CartridgeAdapter {
       const data = this.mockRomData?.slice(baseAddress, baseAddress + size) ?? DebugSettings.generateRandomData(size);
 
       const totalTime = (Date.now() - startTime) / 1000;
-      const avgSpeed = SpeedCalculator.calculateAverageSpeed(size, totalTime);
+      const avgSpeed = speedCalculator.getAverageSpeed();
       const maxSpeed = speedCalculator.getMaxSpeed();
 
       this.log(this.t('messages.rom.readSuccess', { size: data.length }));
       this.log(this.t('messages.rom.readSummary', {
-        totalTime: totalTime.toFixed(1),
+        totalTime: totalTime.toFixed(2),
         avgSpeed: avgSpeed.toFixed(1),
         maxSpeed: maxSpeed.toFixed(1),
         totalSize: (size / 1024).toFixed(1),
@@ -603,13 +603,13 @@ export class MockAdapter extends CartridgeAdapter {
       const isMatch = this.mockRomData && this.compareData(fileData, this.mockRomData.slice(baseAddress, baseAddress + fileData.length));
 
       const totalTime = (Date.now() - startTime) / 1000;
-      const avgSpeed = SpeedCalculator.calculateAverageSpeed(fileData.length, totalTime);
+      const avgSpeed = speedCalculator.getAverageSpeed();
       const maxSpeed = speedCalculator.getMaxSpeed();
 
       if (isMatch !== false) {
         this.log(this.t('messages.rom.verifySuccess'));
         this.log(this.t('messages.rom.verifySummary', {
-          totalTime: totalTime.toFixed(1),
+          totalTime: totalTime.toFixed(2),
           avgSpeed: avgSpeed.toFixed(1),
           maxSpeed: maxSpeed.toFixed(1),
           totalSize: (fileData.length / 1024).toFixed(1),
@@ -687,12 +687,12 @@ export class MockAdapter extends CartridgeAdapter {
       this.mockRamData = new Uint8Array(fileData);
 
       const totalTime = (Date.now() - startTime) / 1000;
-      const avgSpeed = SpeedCalculator.calculateAverageSpeed(total, totalTime);
+      const avgSpeed = speedCalculator.getAverageSpeed();
       const maxSpeed = speedCalculator.getMaxSpeed();
 
       this.log(this.t('messages.ram.writeComplete'));
       this.log(this.t('messages.ram.writeSummary', {
-        totalTime: totalTime.toFixed(1),
+        totalTime: totalTime.toFixed(2),
         avgSpeed: avgSpeed.toFixed(1),
         maxSpeed: maxSpeed.toFixed(1),
         totalSize: (total / 1024).toFixed(1),
@@ -746,12 +746,12 @@ export class MockAdapter extends CartridgeAdapter {
       const data = this.mockRamData?.slice(0, size) ?? DebugSettings.generateRandomData(size);
 
       const totalTime = (Date.now() - startTime) / 1000;
-      const avgSpeed = SpeedCalculator.calculateAverageSpeed(size, totalTime);
+      const avgSpeed = speedCalculator.getAverageSpeed();
       const maxSpeed = speedCalculator.getMaxSpeed();
 
       this.log(this.t('messages.ram.readSuccess', { size: data.length }));
       this.log(this.t('messages.ram.readSummary', {
-        totalTime: totalTime.toFixed(1),
+        totalTime: totalTime.toFixed(2),
         avgSpeed: avgSpeed.toFixed(1),
         maxSpeed: maxSpeed.toFixed(1),
         totalSize: (size / 1024).toFixed(1),

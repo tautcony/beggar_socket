@@ -234,12 +234,12 @@ export class MBC5Adapter extends CartridgeAdapter {
           }
 
           const totalTime = (Date.now() - startTime) / 1000;
-          const avgSpeed = SpeedCalculator.calculateAverageSpeed(totalBytes, totalTime);
-          const maxSpeed = speedCalculator.getMaxSpeed();
+          const avgSpeed = speedCalculator.getAverageSpeed();
+          const maxSpeed = speedCalculator.getMaxSpeed() || speedCalculator.getPeakSpeed();
 
           this.log(this.t('messages.operation.eraseSuccess'));
           this.log(this.t('messages.operation.eraseSummary', {
-            totalTime: totalTime.toFixed(1),
+            totalTime: totalTime.toFixed(2),
             avgSpeed: avgSpeed.toFixed(1),
             maxSpeed: maxSpeed.toFixed(1),
             totalSectors: totalSectors,
@@ -393,12 +393,12 @@ export class MBC5Adapter extends CartridgeAdapter {
           }
 
           const totalTime = (Date.now() - startTime) / 1000;
-          const avgSpeed = SpeedCalculator.calculateAverageSpeed(total, totalTime);
-          const maxSpeed = speedCalculator.getMaxSpeed();
+          const avgSpeed = speedCalculator.getAverageSpeed();
+          const maxSpeed = speedCalculator.getMaxSpeed() || speedCalculator.getPeakSpeed();
 
           this.log(this.t('messages.rom.writeComplete'));
           this.log(this.t('messages.rom.writeSummary', {
-            totalTime: totalTime.toFixed(1),
+            totalTime: totalTime.toFixed(2),
             avgSpeed: avgSpeed.toFixed(1),
             maxSpeed: maxSpeed.toFixed(1),
             totalSize: (total / 1024).toFixed(1),
@@ -543,12 +543,12 @@ export class MBC5Adapter extends CartridgeAdapter {
           }
 
           const totalTime = (Date.now() - startTime) / 1000;
-          const avgSpeed = SpeedCalculator.calculateAverageSpeed(size, totalTime);
-          const maxSpeed = speedCalculator.getMaxSpeed();
+          const avgSpeed = speedCalculator.getAverageSpeed();
+          const maxSpeed = speedCalculator.getMaxSpeed() || speedCalculator.getPeakSpeed();
 
           this.log(this.t('messages.rom.readSuccess', { size: data.length }));
           this.log(this.t('messages.rom.readSummary', {
-            totalTime: totalTime.toFixed(1),
+            totalTime: totalTime.toFixed(2),
             avgSpeed: avgSpeed.toFixed(1),
             maxSpeed: maxSpeed.toFixed(1),
             totalSize: (size / 1024).toFixed(1),
@@ -708,13 +708,13 @@ export class MBC5Adapter extends CartridgeAdapter {
           }
 
           const totalTime = (Date.now() - startTime) / 1000;
-          const avgSpeed = SpeedCalculator.calculateAverageSpeed(total, totalTime);
-          const maxSpeed = speedCalculator.getMaxSpeed();
+          const avgSpeed = speedCalculator.getAverageSpeed();
+          const maxSpeed = speedCalculator.getMaxSpeed() || speedCalculator.getPeakSpeed();
 
           if (success) {
             this.log(this.t('messages.rom.verifySuccess'));
             this.log(this.t('messages.rom.verifySummary', {
-              totalTime: totalTime.toFixed(1),
+              totalTime: totalTime.toFixed(2),
               avgSpeed: avgSpeed.toFixed(1),
               maxSpeed: maxSpeed.toFixed(1),
               totalSize: (total / 1024).toFixed(1),
@@ -832,12 +832,12 @@ export class MBC5Adapter extends CartridgeAdapter {
           }
 
           const totalTime = (Date.now() - startTime) / 1000;
-          const avgSpeed = SpeedCalculator.calculateAverageSpeed(total, totalTime);
-          const maxSpeed = speedCalculator.getMaxSpeed();
+          const avgSpeed = speedCalculator.getAverageSpeed();
+          const maxSpeed = speedCalculator.getMaxSpeed() || speedCalculator.getPeakSpeed();
 
           this.log(this.t('messages.ram.writeComplete'));
           this.log(this.t('messages.ram.writeSummary', {
-            totalTime: totalTime.toFixed(1),
+            totalTime: totalTime.toFixed(2),
             avgSpeed: avgSpeed.toFixed(1),
             maxSpeed: maxSpeed.toFixed(1),
             totalSize: (total / 1024).toFixed(1),
@@ -927,12 +927,12 @@ export class MBC5Adapter extends CartridgeAdapter {
           }
 
           const totalTime = (Date.now() - startTime) / 1000;
-          const avgSpeed = SpeedCalculator.calculateAverageSpeed(size, totalTime);
-          const maxSpeed = speedCalculator.getMaxSpeed();
+          const avgSpeed = speedCalculator.getAverageSpeed();
+          const maxSpeed = speedCalculator.getMaxSpeed() || speedCalculator.getPeakSpeed();
 
           this.log(this.t('messages.ram.readSuccess', { size: result.length }));
           this.log(this.t('messages.ram.readSummary', {
-            totalTime: totalTime.toFixed(1),
+            totalTime: totalTime.toFixed(2),
             avgSpeed: avgSpeed.toFixed(1),
             maxSpeed: maxSpeed.toFixed(1),
             totalSize: (size / 1024).toFixed(1),

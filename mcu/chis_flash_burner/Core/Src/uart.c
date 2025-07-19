@@ -128,7 +128,8 @@ static void uart_responData(const uint8_t *dat, uint16_t len)
         if (transLen > BATCH_SIZE_RESPON) transLen = BATCH_SIZE_RESPON;
 
         while (hcdc->TxState != 0) {
-            __WFI();  // Wait for interrupt
+            __WFI();
+            __NOP();
         }
 
         CDC_Transmit_FS(responBuf + transCount, transLen);
