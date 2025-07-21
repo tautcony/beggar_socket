@@ -8,7 +8,11 @@ import {
   calculateGBChecksum,
   calculateGBGlobalChecksum,
   encodeStringToBytes,
+  GB_NINTENDO_LOGO,
+  GBA_NINTENDO_LOGO,
   regionToCode,
+  validateGBALogo,
+  validateGBLogo,
 } from './rom-parser';
 
 export interface RomEditData {
@@ -27,6 +31,11 @@ export interface RomEditData {
  */
 export function updateGBARom(data: Uint8Array, editData: RomEditData): Uint8Array {
   const newData = new Uint8Array(data);
+
+  // 如果 logo 不符合要求，也更新 logo 数据
+  if (!validateGBALogo(newData)) {
+    newData.set(GBA_NINTENDO_LOGO, 0x04);
+  }
 
   // 更新标题 (0xA0-0xAB, 12字节)
   const titleBytes = encodeStringToBytes(editData.title, 12);
@@ -65,6 +74,11 @@ export function updateGBARom(data: Uint8Array, editData: RomEditData): Uint8Arra
  */
 export function updateGBRom(data: Uint8Array, editData: RomEditData): Uint8Array {
   const newData = new Uint8Array(data);
+
+  // 如果 logo 不符合要求，也更新 logo 数据
+  if (!validateGBLogo(newData)) {
+    newData.set(GB_NINTENDO_LOGO, 0x104);
+  }
 
   // 检查是否为CGB
   const cgbFlag = data[0x143];

@@ -78,7 +78,7 @@ export const CartridgeTypeMapper: Record<number, string> = {
  * @param data ROM数据
  * @returns 是否匹配
  */
-function validateGBALogo(data: Uint8Array): boolean {
+export function validateGBALogo(data: Uint8Array): boolean {
   if (data.length < 0x04 + GBA_NINTENDO_LOGO.length) {
     return false;
   }
@@ -96,7 +96,7 @@ function validateGBALogo(data: Uint8Array): boolean {
  * @param data ROM数据
  * @returns 是否匹配
  */
-function validateGBLogo(data: Uint8Array): boolean {
+export function validateGBLogo(data: Uint8Array): boolean {
   if (data.length < 0x104 + GB_NINTENDO_LOGO.length) {
     return false;
   }
@@ -378,11 +378,23 @@ export function calculateGBGlobalChecksum(data: Uint8Array): number {
  * @returns 字节数组
  */
 export function encodeStringToBytes(str: string, length: number, padding = ' '): Uint8Array {
+  const encoder = new TextEncoder();
+  const encoded = encoder.encode(str);
+  // 如果字节长度超出，截取前 length 个字节
+  if (encoded.length >= length) {
+    return encoded.slice(0, length);
+  }
+  // 否则创建指定长度数组并填充编码字节
   const bytes = new Uint8Array(length);
-  // 确保字符串长度正确：不足则补齐，超出则截取
-  const normalizedStr = str.length < length ? str.padEnd(length, padding) : str.substring(0, length);
-  const encoded = new TextEncoder().encode(normalizedStr);
   bytes.set(encoded);
+  // 使用 UTF-8 编码的填充字符补齐
+  const padBytes = encoder.encode(padding);
+  let offset = encoded.length;
+  while (offset < length) {
+    for (let i = 0; i < padBytes.length && offset < length; i++) {
+      bytes[offset++] = padBytes[i];
+    }
+  }
   return bytes;
 }
 

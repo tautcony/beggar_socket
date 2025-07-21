@@ -55,13 +55,22 @@
               {{ fileTitle }}
             </div>
           </div>
-          <button
-            class="remove-file-btn"
-            :disabled="disabled"
-            @click.stop="clearFile"
-          >
-            <IonIcon :icon="closeOutline" />
-          </button>
+          <div class="file-actions">
+            <button
+              class="remove-file-btn"
+              :disabled="disabled"
+              @click.stop="clearFile"
+            >
+              <IonIcon :icon="closeOutline" />
+            </button>
+            <button
+              class="download-file-btn"
+              :disabled="disabled || !fileData"
+              @click.stop="downloadFile"
+            >
+              <IonIcon :icon="downloadOutline" />
+            </button>
+          </div>
         </div>
       </template>
     </div>
@@ -70,8 +79,8 @@
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
-import { closeOutline } from 'ionicons/icons';
-import { ref, useTemplateRef } from 'vue';
+import { closeOutline, downloadOutline } from 'ionicons/icons';
+import { ref, useTemplateRef, toRefs } from 'vue';
 
 import { FileInfo } from '@/types/file-info';
 import { formatBytes } from '@/utils/formatter-utils';
@@ -91,6 +100,8 @@ const props = withDefaults(defineProps<{
   fileName: '',
   multiple: false,
 });
+// 解构 props 为 ref，方便在函数中使用
+const { fileData, fileName, disabled, multiple } = toRefs(props);
 
 const emit = defineEmits<{
   'file-selected': [file: FileInfo | FileInfo[]];
@@ -107,7 +118,7 @@ function onFileChange(e: Event) {
       return;
     }
 
-    if (props.multiple) {
+    if (multiple.value) {
       processFiles(Array.from(files));
     } else {
       processFile(files[0]);
@@ -152,9 +163,9 @@ function processFile(file: File) {
 }
 
 function onZoneClick(e: Event) {
-  if (props.disabled) return;
+  if (disabled.value) return;
   // 只允许点击空白区域或文件预览区域外部时触发文件选择
-  if (!props.fileData) {
+  if (!fileData.value) {
     fileInput.value?.click();
   }
 }
@@ -164,8 +175,22 @@ function clearFile() {
   emit('file-cleared');
 }
 
+/** 下载当前文件 */
+function downloadFile() {
+  if (!fileData.value || !fileName.value) return;
+  const blob = new Blob([fileData.value], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName.value;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function handleDragOver(e: Event) {
-  if (props.disabled) return;
+  if (disabled.value) return;
   dragOver.value = true;
 }
 
@@ -175,11 +200,11 @@ function handleDragLeave() {
 
 function handleDrop(e: DragEvent) {
   dragOver.value = false;
-  if (props.disabled) return;
+  if (disabled.value) return;
 
   const files = e.dataTransfer?.files;
   if (files && files.length > 0) {
-    if (props.multiple) {
+    if (multiple.value) {
       processFiles(Array.from(files));
     } else {
       processFile(files[0]);
@@ -380,5 +405,41 @@ function handleDrop(e: DragEvent) {
 .remove-file-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.download-file-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid #007bff;
+  background: #fff;
+  color: #007bff;
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 0;
+  margin-right: 8px; /* 右侧留出间距 */
+}
+
+.download-file-btn:hover:not(:disabled) {
+  background: #007bff;
+  color: white;
+  transform: scale(1.1);
+}
+
+.download-file-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 按钮容器，垂直布局 */
+.file-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 </style>
