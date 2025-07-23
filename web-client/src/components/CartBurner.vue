@@ -513,7 +513,16 @@ async function writeRom() {
       return;
     }
     const romSize = parseInt(selectedRomSize.value, 16);
-    const response = await adapter.writeROM(romFileData.value, { baseAddress: parseInt(selectedBaseAddress.value, 16), size: romSize, cfiInfo: cfiInfo.value }, abortSignal);
+
+    let alignedRomData = romFileData.value;
+    if (romFileData.value.length < romSize) {
+      const padded = new Uint8Array(romSize);
+      padded.set(romFileData.value);
+      padded.fill(0xff, romFileData.value.length);
+      alignedRomData = padded;
+    }
+
+    const response = await adapter.writeROM(alignedRomData, { baseAddress: parseInt(selectedBaseAddress.value, 16), size: romSize, cfiInfo: cfiInfo.value }, abortSignal);
     showToast(response.message, response.success ? 'success' : 'error');
   } catch (e) {
     showToast(t('messages.rom.writeFailed'), 'error');
