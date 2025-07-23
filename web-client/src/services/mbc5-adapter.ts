@@ -1140,9 +1140,12 @@ export class MBC5Adapter extends CartridgeAdapter {
     const bank = address >> 14;
     const b = bank < 0 ? 0 : bank;
 
+    /*
     const cartAddress = b === 0 ?
       0x0000 + (address & 0x3fff) :
       0x4000 + (address & 0x3fff);
+    */
+    const cartAddress = 0x4000 + (address & 0x3fff);
 
     return {
       bank: b,
