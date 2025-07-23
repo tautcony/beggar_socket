@@ -42,7 +42,7 @@ describe('async-utils', () => {
 
     it('应该在超时时抛出错误', async () => {
       const slowPromise = new Promise(resolve => {
-        setTimeout(() => resolve('慢结果'), 2000);
+        setTimeout(() => { resolve('慢结果'); }, 2000);
       });
 
       const timeoutPromise = withTimeout(slowPromise, 1000);
@@ -55,7 +55,7 @@ describe('async-utils', () => {
 
     it('应该使用自定义超时消息', async () => {
       const slowPromise = new Promise(resolve => {
-        setTimeout(() => resolve('慢结果'), 2000);
+        setTimeout(() => { resolve('慢结果'); }, 2000);
       });
 
       const customMessage = '自定义超时消息';
@@ -68,7 +68,7 @@ describe('async-utils', () => {
 
     it('应该在promise比超时先完成时返回promise结果', async () => {
       const fastPromise = new Promise(resolve => {
-        setTimeout(() => resolve('快结果'), 500);
+        setTimeout(() => { resolve('快结果'); }, 500);
       });
 
       const timeoutPromise = withTimeout(fastPromise, 1000);

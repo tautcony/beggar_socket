@@ -4,6 +4,7 @@ import { vi } from 'vitest';
 // Mock Web Serial API
 Object.defineProperty(window, 'navigator', {
   value: {
+    // eslint-disable-next-line @typescript-eslint/no-misused-spread
     ...window.navigator,
     serial: {
       requestPort: vi.fn(),
@@ -16,8 +17,8 @@ Object.defineProperty(window, 'navigator', {
 // Mock IntersectionObserver
 class MockIntersectionObserver {
   root: Element | null = null;
-  rootMargin: string = '';
-  thresholds: ReadonlyArray<number> = [];
+  rootMargin = '';
+  thresholds: readonly number[] = [];
   disconnect = vi.fn();
   observe = vi.fn();
   unobserve = vi.fn();

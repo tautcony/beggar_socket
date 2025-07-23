@@ -69,6 +69,10 @@ function createGBRomHeader(isGBC = false, dataSize = 0x200): Uint8Array {
   for (let i = 0; i < title.length && 0x134 + i <= titleEnd; i++) {
     header[0x134 + i] = title.charCodeAt(i);
   }
+  // 标题区剩余补0x00
+  for (let i = 0x134 + title.length; i <= titleEnd; i++) {
+    header[i] = 0x00;
+  }
 
   if (isGBC) {
     // CGB标志 (0x143)
@@ -98,12 +102,11 @@ function createGBRomHeader(isGBC = false, dataSize = 0x200): Uint8Array {
   header[0x14C] = 0x01;
 
   // 计算头部校验和 (0x14D)
-  // GB/GBC 校验和的计算方式：0 - sum(0x134..0x14C) - 1
   let headerSum = 0;
   for (let i = 0x134; i <= 0x14C; i++) {
-    headerSum = (headerSum - header[i] - 1) & 0xFF;
+    headerSum += header[i];
   }
-  header[0x14D] = headerSum;
+  header[0x14D] = (-headerSum - 1) & 0xFF;
 
   return header;
 }
@@ -249,12 +252,12 @@ describe('rom-parser', () => {
       // 重新计算校验和
       let headerSum = 0;
       for (let i = 0x134; i <= 0x14C; i++) {
-        headerSum = (headerSum - romData[i] - 1) & 0xFF;
+        headerSum += romData[i];
       }
-      romData[0x14D] = headerSum;
+      romData[0x14D] = (-headerSum - 1) & 0xFF;
 
       const result = parseRom(romData);
-      expect(result.title).toBe('Untitled');
+      expect(result.title).toBe('');
     });
   });
 

@@ -80,7 +80,7 @@
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import { closeOutline, downloadOutline } from 'ionicons/icons';
-import { ref, useTemplateRef, toRefs } from 'vue';
+import { ref, toRefs, useTemplateRef } from 'vue';
 
 import { FileInfo } from '@/types/file-info';
 import { formatBytes } from '@/utils/formatter-utils';

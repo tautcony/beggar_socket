@@ -52,7 +52,7 @@ describe('i18n', () => {
 
   describe('getLanguage function', () => {
     it('应该优先使用localStorage中保存的语言', async () => {
-      localStorageMock['locale'] = 'en-US';
+      localStorageMock.locale = 'en-US';
       navigatorLanguageMock = 'ja-JP';
 
       const { getLanguage } = await import('../src/i18n/index');
@@ -81,7 +81,7 @@ describe('i18n', () => {
     });
 
     it('应该处理localStorage中的无效语言', async () => {
-      localStorageMock['locale'] = 'invalid-locale';
+      localStorageMock.locale = 'invalid-locale';
       navigatorLanguageMock = 'en-US';
 
       const { getLanguage } = await import('../src/i18n/index');

@@ -10,7 +10,7 @@ const generateTestData = (size: number): Uint8Array => {
 };
 
 // 测量函数执行时间的辅助函数
-const measureTime = (func: () => void, iterations: number = 1): number => {
+const measureTime = (func: () => void, iterations = 1): number => {
   const start = performance.now();
   for (let i = 0; i < iterations; i++) {
     func();
@@ -31,13 +31,13 @@ const testSizes = [1024, 4096, 16384, 65536, 262144]; // 1KB, 4KB, 16KB, 64KB, 2
 const iterations = 1000;
 
 // 性能测试结果
-const performanceResults: Array<{
+const performanceResults: {
   size: number
   originalTime: number
   lutTime: number
   speedup: number
   improvement: number
-}> = [];
+}[] = [];
 
 // 运行性能测试
 const runPerformanceTest = () => {

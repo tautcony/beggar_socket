@@ -153,7 +153,7 @@ describe('TypeScript Types', () => {
     });
 
     it('DeviceInfo应该强制包含所有必需字段', () => {
-      // @ts-expect-error - 缺少必需字段
+      // @ts-expect-error - 缺少必需字段 mock使用
       const invalidDeviceInfo: DeviceInfo = {
         port: null as unknown as SerialPort,
       };

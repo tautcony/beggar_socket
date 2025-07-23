@@ -10,7 +10,7 @@ describe('GBA Logo数据处理校验', () => {
   const diff = '00003c7c7cfcfcbc0000f0f0f0f0f1f100003c3c3c003c3c000000000000efff000000c0c0f0f1c700000003030f8fc30000000000001f39000000000000defe000000000000030f0000c0c0c0c0deff000003030303c3e30000008080808f1c001e214e524e5221bc3c3c3c3c3c3c3cf3f7f6fefcf8f8f03c3c3c3c3c3c3c3c1f0f0f0f0f0f0f0fcfcfcfcfcfcfcfcfe3f3f3f3f3e3c38370f0ff00f0f0791f3e1e1e1e1e1e1e1e9edededede9e1e1ec7c3c3c3c3c3e7fe737b7b7b7b73e3c33878787878381c0f1e000000';
 
   function hexStrToUint8Array(str: string) {
-    const arr = str.match(/.{2}/g) || [];
+    const arr = str.match(/.{2}/g) ?? [];
     return Uint8Array.from(arr.map(byte => parseInt(byte, 16)));
   }
 

@@ -16,6 +16,7 @@ describe('DebugSettings', () => {
           localStorageMock[key] = value;
         }),
         removeItem: vi.fn((key: string) => {
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
           delete localStorageMock[key];
         }),
         clear: vi.fn(() => {
@@ -126,8 +127,8 @@ describe('DebugSettings', () => {
 
     it('loadSettings应该从localStorage加载设置', () => {
       // 设置localStorage值
-      localStorageMock['debug_mode'] = 'true';
-      localStorageMock['show_debug_panel'] = 'true';
+      localStorageMock.debug_mode = 'true';
+      localStorageMock.show_debug_panel = 'true';
 
       DebugSettings.init();
 
@@ -168,10 +169,10 @@ describe('DebugSettings', () => {
     });
 
     it('应该处理localStorage中的无效值', () => {
-      localStorageMock['debug_mode'] = 'invalid';
+      localStorageMock.debug_mode = 'invalid';
 
       // 应该不会抛出错误，而是使用默认值
-      expect(() => DebugSettings.init()).not.toThrow();
+      expect(() => { DebugSettings.init(); }).not.toThrow();
     });
   });
 });
