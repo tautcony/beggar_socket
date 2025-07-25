@@ -1,9 +1,7 @@
-export interface DeviceInfo<TReaderMode extends 'byob' | undefined = 'byob' | undefined> {
+export interface DeviceInfo {
   port: SerialPort | null;
-  reader: TReaderMode extends 'byob'
-    ? ReadableStreamBYOBReader | null
-    : TReaderMode extends undefined
-      ? ReadableStreamDefaultReader<Uint8Array> | null
-      : ReadableStreamBYOBReader | ReadableStreamDefaultReader<Uint8Array> | null;
-  writer: WritableStreamDefaultWriter<Uint8Array> | null;
 }
+
+// Reader types for utility functions
+export type BYOBReader = ReadableStreamBYOBReader;
+export type DefaultReader = ReadableStreamDefaultReader<Uint8Array>;

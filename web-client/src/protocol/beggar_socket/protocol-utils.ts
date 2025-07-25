@@ -1,7 +1,5 @@
-
 import { AdvancedSettings } from '@/settings/advanced-settings';
-import { DeviceInfo } from '@/types';
-import { sleep, withTimeout } from '@/utils/async-utils';
+import { type BYOBReader, type DefaultReader, type DeviceInfo } from '@/types';
 
 const INIT_ERROR_MESSAGE = 'Serial port not properly initialized';
 
@@ -24,103 +22,122 @@ export function fromLittleEndian(bytes: Uint8Array): number {
 }
 
 export async function sendPackage(device: DeviceInfo, payload: Uint8Array, timeoutMs?: number): Promise<boolean> {
-  const { writer } = device;
-
-  if (!writer) {
-    throw new Error(INIT_ERROR_MESSAGE);
-  }
+  const writer = device.port?.writable?.getWriter();
+  if (!writer) throw new Error(INIT_ERROR_MESSAGE);
   const timeout = timeoutMs ?? AdvancedSettings.packageSendTimeout;
-
-  await withTimeout(
-    writer.write(payload),
-    timeout,
-    `Send package tiemout in ${timeout}ms`,
-  );
-  return true;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const writePromise = writer.write(payload);
+    const timeoutPromise = new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        writer.releaseLock();
+        reject(new Error(`Send package timeout in ${timeout}ms`));
+      }, timeout);
+    });
+    await Promise.race([writePromise, timeoutPromise]);
+    return true;
+  } finally {
+    if (timer) clearTimeout(timer);
+    try { writer.releaseLock(); } catch {}
+  }
 }
 
-export async function getPackageWithDefaultReader(reader: ReadableStreamDefaultReader<Uint8Array>, length: number, timeoutMs?: number): Promise<{ data: Uint8Array }> {
+export async function getPackageWithDefaultReader(reader: DefaultReader, length: number, timeoutMs?: number): Promise<{ data: Uint8Array }> {
   const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
   let offset = 0;
   const accumulatedData = new Uint8Array(length);
 
-  const TIMEOUT = Symbol('timeout');
-  const readTimeout = sleep(timeout).then(() => TIMEOUT);
-
-  const readOperation = (async () => {
-    while (offset < length) {
-      const { value, done } = await reader.read();
-      if (done || !value) {
-        break;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const readOperation = (async () => {
+      while (offset < length) {
+        const { value, done } = await reader.read();
+        if (done || !value) {
+          break;
+        }
+        // 将新读取的数据复制到累积缓冲区中
+        const bytesToCopy = Math.min(value.byteLength, length - offset);
+        accumulatedData.set(value.subarray(0, bytesToCopy), offset);
+        offset += bytesToCopy;
       }
-      // 将新读取的数据复制到累积缓冲区中
-      const bytesToCopy = Math.min(value.byteLength, length - offset);
-      accumulatedData.set(value.subarray(0, bytesToCopy), offset);
-      offset += bytesToCopy;
-    }
-  })();
+    })();
 
-  const resolved = await Promise.race([readTimeout, readOperation]);
-  if (resolved === TIMEOUT) {
+    const timeoutPromise = new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        reader.releaseLock();
+        reject(new Error(`Read package timeout in ${timeout}ms`));
+      }, timeout);
+    });
+
+    await Promise.race([readOperation, timeoutPromise]);
+    return { data: accumulatedData.slice(0, offset) };
+  } catch (e) {
     if (offset === 0) {
-      throw new Error(`Read package timeout in ${timeout}ms`);
+      throw e;
     }
     // 超时但有部分数据，返回累积的数据
     return { data: accumulatedData.slice(0, offset) };
+  } finally {
+    if (timer) clearTimeout(timer);
+    try { reader.releaseLock(); } catch {}
   }
-
-  return { data: accumulatedData.slice(0, offset) };
 }
 
-export async function getPackageWithBYOBReader(reader: ReadableStreamBYOBReader, length: number, timeoutMs?: number): Promise<{ data: Uint8Array }> {
+export async function getPackageWithBYOBReader(reader: BYOBReader, length: number, timeoutMs?: number): Promise<{ data: Uint8Array }> {
   const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
   let buffer = new Uint8Array(length);
-
   let offset = 0;
   const accumulatedData = new Uint8Array(length);
 
-  const TIMEOUT = Symbol('timeout');
-  const readTimeout = sleep(timeout).then(() => TIMEOUT);
-
-  const readOperation = (async () => {
-    while (offset < length) {
-      const { value, done } = await reader.read(
-        new Uint8Array(buffer, offset),
-      );
-      if (done) {
-        break;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const readOperation = (async () => {
+      while (offset < length) {
+        const { value, done } = await reader.read(
+          new Uint8Array(buffer, offset),
+        );
+        if (done) {
+          break;
+        }
+        // 将新读取的数据复制到累积缓冲区中
+        accumulatedData.set(value, offset);
+        buffer = value.buffer;
+        offset += value.byteLength;
       }
-      // 将新读取的数据复制到累积缓冲区中
-      accumulatedData.set(value, offset);
-      buffer = value.buffer;
-      offset += value.byteLength;
-    }
-  })();
+    })();
 
-  const resolved = await Promise.race([readTimeout, readOperation]);
-  if (resolved === TIMEOUT) {
+    const timeoutPromise = new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        reader.releaseLock();
+        reject(new Error(`Read package timeout in ${timeout}ms`));
+      }, timeout);
+    });
+
+    await Promise.race([readOperation, timeoutPromise]);
+    return { data: new Uint8Array(buffer) };
+  } catch (e) {
     if (offset === 0) {
-      throw new Error(`Read package timeout in ${timeout}ms`);
+      throw e;
     }
     // 超时但有部分数据，返回累积的数据
     return { data: accumulatedData.slice(0, offset) };
+  } finally {
+    if (timer) clearTimeout(timer);
+    try { reader.releaseLock(); } catch {}
   }
-
-  return { data: new Uint8Array(buffer) };
 }
 
-export async function getPackage(device: DeviceInfo, length: number, timeoutMs?: number): Promise<{ data: Uint8Array }> {
-  const { reader } = device;
-
-  if (!reader) {
+export async function getPackage(device: DeviceInfo, length: number, timeoutMs?: number, mode: 'byob' | 'default' = 'byob'): Promise<{ data: Uint8Array }> {
+  if (!device.port?.readable) {
     throw new Error(INIT_ERROR_MESSAGE);
   }
 
-  // 运行时类型检查
-  if ('byobRequest' in reader || reader.constructor.name === 'ReadableStreamBYOBReader') {
-    return getPackageWithBYOBReader(reader as ReadableStreamBYOBReader, length, timeoutMs);
+  if (mode === 'byob') {
+    const reader = device.port.readable.getReader({ mode: 'byob' });
+    return getPackageWithBYOBReader(reader, length, timeoutMs);
   } else {
-    return getPackageWithDefaultReader(reader as ReadableStreamDefaultReader<Uint8Array>, length, timeoutMs);
+    const reader = device.port.readable.getReader();
+    return getPackageWithDefaultReader(reader, length, timeoutMs);
   }
 }
 

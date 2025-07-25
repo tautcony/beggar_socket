@@ -18,7 +18,7 @@
         v-if="connected"
         class="reset-btn"
         :disabled="isConnecting"
-        @click="() => resetSerialState(true)"
+        @click="() => initializeSerialState(deviceInfo?.port, true)"
       >
         重置
       </button>
@@ -71,14 +71,6 @@ interface SerialPortDisconnectEvent extends Event {
   port: SerialPort;
 }
 
-// 物理拔线事件处理函数，确保在注册前定义
-function handlePhysicalDisconnect(e: SerialPortDisconnectEvent) {
-  if (e.port === deviceInfo?.port) {
-    console.warn('[DeviceConnect] 设备物理拔出检测');
-    disposeConnection().catch(console.error);
-  }
-}
-
 // 热重载状态恢复 - 在开发模式下处理 HMR
 if (import.meta.hot) {
   const data = import.meta.hot.data as {
@@ -89,8 +81,6 @@ if (import.meta.hot) {
   // 保存当前状态到 HMR 数据
   data.device = data?.device ?? {
     port: null,
-    reader: null,
-    writer: null,
   };
 
   // 从 HMR 数据恢复状态
@@ -119,7 +109,19 @@ if (import.meta.hot) {
   import.meta.hot.accept(() => {
     console.log('[DeviceConnect] HMR: 验证连接状态', { connected: connected.value, hasPort: !!deviceInfo?.port });
     if (connected.value) {
-      if (!deviceInfo?.port || !deviceInfo.reader || !deviceInfo.writer) {
+      if (!deviceInfo?.port) {
+        console.warn('[DeviceConnect] HMR: 连接对象丢失，重置连接状态');
+        disposeConnection().catch(console.error);
+        return;
+      }
+    }
+  });
+
+  // 热重载后验证连接状态
+  import.meta.hot.accept(() => {
+    console.log('[DeviceConnect] HMR: 验证连接状态', { connected: connected.value, hasPort: !!deviceInfo?.port });
+    if (connected.value) {
+      if (!deviceInfo?.port) {
         console.warn('[DeviceConnect] HMR: 连接对象丢失，重置连接状态');
         disposeConnection().catch(console.error);
         return;
@@ -132,7 +134,7 @@ if (import.meta.hot) {
 onMounted(async () => {
   // 如果显示已连接但实际连接对象为空，重置状态
   if (connected.value) {
-    if (!deviceInfo?.port || !deviceInfo.reader || !deviceInfo.writer) {
+    if (!deviceInfo?.port) {
       console.warn('[DeviceConnect] 检测到状态不一致，重置连接状态');
       await disposeConnection();
     } else {
@@ -169,8 +171,6 @@ async function connect() {
       };
       deviceInfo = {
         port: mockPort as unknown as SerialPort,
-        reader: mockPort.readable.getReader(),
-        writer: mockPort.writable.getWriter(),
       };
       connected.value = true;
       isConnecting.value = false;
@@ -192,18 +192,14 @@ async function connect() {
     }
     if (!port) throw new Error('No serial port selected');
     await port.open({ baudRate: 9600, dataBits: 8, parity: 'none', stopBits: 1, flowControl: 'none' });
-    port.addEventListener('disconnect', handlePhysicalDisconnect as EventListener);
 
-    await resetSerialState();
+    await initializeSerialState(port, false);
 
-    const reader = port.readable?.getReader({ mode: 'byob' }) ?? null;
-    const writer = port.writable?.getWriter() ?? null;
-    if (!reader || !writer) throw new Error('Failed to get serial port reader/writer');
     connected.value = true;
     isConnecting.value = false;
     showToast(t('messages.device.connectionSuccess'), 'success');
-    deviceInfo = { port, reader, writer };
-    emit('device-ready', deviceInfo as DeviceInfo<'byob'>);
+    deviceInfo = { port };
+    emit('device-ready', deviceInfo);
   } catch (e) {
     showToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
     await disposeConnection();
@@ -214,13 +210,8 @@ async function disconnect() {
   if (!deviceInfo) return;
   isConnecting.value = true;
   try {
-    await deviceInfo.reader?.cancel();
-    deviceInfo.reader?.releaseLock();
-    await deviceInfo.writer?.close();
     await deviceInfo.port?.close();
     deviceInfo.port = null;
-    deviceInfo.reader = null;
-    deviceInfo.writer = null;
     showToast(t('messages.device.disconnectionSuccess'), 'success');
   } catch (e) {
     console.error(t('messages.device.disconnectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), e);
@@ -232,13 +223,19 @@ async function disconnect() {
   }
 }
 
-async function resetSerialState(toast = false) {
+async function initializeSerialState(port?: SerialPort | null, toast = false) {
+  if (!port) {
+    console.warn('[DeviceConnect] 初始化失败：端口未定义');
+    return;
+  }
+
   // send dtr & rts signals to ensure device is ready
-  await deviceInfo?.port?.setSignals({ dataTerminalReady: true, requestToSend: true });
-  await sleep(100);
-  await deviceInfo?.port?.setSignals({ dataTerminalReady: false, requestToSend: false });
+  await port?.setSignals({ dataTerminalReady: false, requestToSend: false });
+  await sleep(200);
+  await port?.setSignals({ dataTerminalReady: true, requestToSend: true });
+
   if (toast) {
-    showToast(t('messages.device.resetSuccess'), 'success');
+    showToast(t('messages.device.initializationSuccess'), 'success');
   }
 }
 
@@ -249,27 +246,12 @@ async function disposeConnection() {
   if (deviceInfo !== null) {
     // 安全地清理资源
     try {
-      if (deviceInfo.reader) {
-        await deviceInfo.reader.cancel().catch(() => {});
-        deviceInfo.reader.releaseLock();
-      }
-    } catch {}
-
-    try {
-      if (deviceInfo.writer) {
-        await deviceInfo.writer.close().catch(() => {});
-      }
-    } catch {}
-
-    try {
       if (deviceInfo.port) {
         await deviceInfo.port.close().catch(() => {});
       }
     } catch {}
 
     deviceInfo.port = null;
-    deviceInfo.reader = null;
-    deviceInfo.writer = null;
     deviceInfo = null;
   }
 

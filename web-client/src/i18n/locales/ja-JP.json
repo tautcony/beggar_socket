@@ -376,7 +376,7 @@
       "connectionFailed": "デバイス接続失敗: {error}",
       "disconnectionSuccess": "デバイス切断成功",
       "disconnectionFailed": "デバイス切断失敗: {error}",
-      "resetSuccess": "デバイスリセット成功"
+      "initializationSuccess": "デバイス初期化成功"
     },
     "operation": {
       "readId": "ID読み取り中...",
