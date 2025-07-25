@@ -42,11 +42,11 @@
             key="chip-operations"
             :device-ready="deviceReady"
             :busy="busy"
-            :id-str="idStr ?? undefined"
-            :device-size="cfiInfo?.deviceSize ?? undefined"
-            :sector-count="sectorCountInfo ?? undefined"
-            :sector-size="sectorSizeInfo ?? undefined"
-            :buffer-write-bytes="cfiInfo?.bufferSize ?? undefined"
+            :id-str="idStr"
+            :device-size="cfiInfo?.deviceSize"
+            :sector-counts="sectorCounts"
+            :sector-sizes="sectorSizes"
+            :buffer-write-bytes="cfiInfo?.bufferSize"
             @read-id="readCart"
             @erase-chip="eraseChip"
             @read-rom-info="readRomInfo"
@@ -137,7 +137,7 @@ const props = defineProps<{
 
 const mode = ref<'GBA' | 'MBC5'>('GBA');
 const busy = ref(false);
-const logs = ref<string[]>([]);
+const logs = ref<{ time: string; message: string; level: 'info' | 'success' | 'warn' | 'error' }[]>([]);
 
 // progress info object
 const progressInfo = ref<ProgressInfo>({
@@ -157,21 +157,21 @@ const showProgressModal = computed(() => {
 });
 
 // chip props
-const idStr = ref<string | null>(null);
+const idStr = ref<string | undefined>(undefined);
 const cfiInfo = ref<CFIInfo | null>(null);
 
-const sectorSizeInfo = computed(() => {
+const sectorSizes = computed(() => {
   if (!cfiInfo.value) {
-    return null;
+    return undefined;
   }
-  return cfiInfo.value.eraseSectorBlocks.map((block) => block[0]).join(', ');
+  return cfiInfo.value.eraseSectorBlocks.map((block) => block[0]);
 });
 
-const sectorCountInfo = computed(() => {
+const sectorCounts = computed(() => {
   if (!cfiInfo.value) {
-    return null;
+    return undefined;
   }
-  return cfiInfo.value.eraseSectorBlocks.map((block) => block[1]).join(', ');
+  return cfiInfo.value.eraseSectorBlocks.map((block) => block[1]);
 });
 
 const currentAbortController = ref<AbortController | null>(null);
@@ -184,7 +184,7 @@ const mbc5Adapter = ref<CartridgeAdapter | null>();
 if (import.meta.hot) {
   const data = import.meta.hot.data as {
     cartBurnerState?: {
-      logs: string[];
+      logs: { time: string ; message: string; level: 'info' | 'success' | 'warn' | 'error' }[];
     }
   };
 
@@ -238,7 +238,7 @@ function initializeAdapters() {
       // 调试模式下使用 MockAdapter
       const adapter = new MockAdapter(
         undefined,
-        (msg) => { log(msg); },
+        (msg, level) => { log(msg, level); },
         updateProgress,
         t,
       );
@@ -248,13 +248,13 @@ function initializeAdapters() {
       // 正常模式下使用真实适配器
       gbaAdapter.value = new GBAAdapter(
         props.device,
-        (msg) => { log(msg); },
+        (msg, level) => { log(msg, level); },
         updateProgress,
         t,
       );
       mbc5Adapter.value = new MBC5Adapter(
         props.device,
-        (msg) => { log(msg); },
+        (msg, level) => { log(msg, level); },
         updateProgress,
         t,
       );
@@ -287,7 +287,7 @@ function handleProgressStop() {
   // 中止当前操作
   if (currentAbortController.value) {
     currentAbortController.value.abort();
-    log(t('messages.operation.cancelled'));
+    log(t('messages.operation.cancelled'), 'warn');
   }
 }
 
@@ -329,11 +329,11 @@ function finishOperation() {
   }
 }
 
-function log(msg: string) {
+function log(msg: string, level: 'info' | 'success' | 'warn' | 'error' = 'info') {
   const time = new Date().toLocaleTimeString();
-  const message = `[${time}] ${msg}`;
-  logs.value.push(message);
-  console.log(message);
+  const message = msg;
+  logs.value.push({ time, message, level });
+  console.log(`[${time}] [${level}] ${message}`);
   if (logs.value.length > 500) logs.value.shift();
 }
 
@@ -444,14 +444,14 @@ async function readCart() {
     }
     if (idStr.value && cfiInfo.value) {
       showToast(t('messages.operation.readCartSuccess'), 'success');
-      log(t('messages.operation.readCartSuccess'));
+      log(t('messages.operation.readCartSuccess'), 'success');
     } else {
       showToast(t('messages.operation.readCartFailed'), 'error');
-      log(t('messages.operation.readCartFailed'));
+      log(t('messages.operation.readCartFailed'), 'error');
     }
   } catch (e) {
     showToast(t('messages.operation.readCartFailed'), 'error');
-    log(`${t('messages.operation.readCartFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+    log(`${t('messages.operation.readCartFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
     cfiInfo.value = null;
   } finally {
     busy.value = false;
@@ -486,7 +486,7 @@ async function eraseChip() {
       return;
     }
     showToast(t('messages.operation.eraseFailed'), 'error');
-    log(`${t('messages.operation.eraseFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+    log(`${t('messages.operation.eraseFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
   } finally {
     busy.value = false;
     finishOperation();
@@ -526,7 +526,7 @@ async function writeRom() {
     showToast(response.message, response.success ? 'success' : 'error');
   } catch (e) {
     showToast(t('messages.rom.writeFailed'), 'error');
-    log(`${t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+    log(`${t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
   } finally {
     busy.value = false;
     finishOperation();
@@ -575,7 +575,7 @@ async function readRom() {
       return;
     }
     showToast(t('messages.rom.readFailed'), 'error');
-    log(`${t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+    log(`${t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
   } finally {
     busy.value = false;
     finishOperation();
@@ -606,7 +606,7 @@ async function verifyRom() {
 
   } catch (e) {
     showToast(t('messages.rom.verifyFailed'), 'error');
-    log(`${t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+    log(`${t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
   } finally {
     busy.value = false;
     finishOperation();
@@ -636,7 +636,7 @@ async function writeRam() {
     showToast(response.message, response.success ? 'success' : 'error');
   } catch (e) {
     showToast(t('messages.ram.writeFailed'), 'error');
-    log(`${t('messages.ram.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+    log(`${t('messages.ram.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
   } finally {
     busy.value = false;
   }
@@ -675,7 +675,7 @@ async function readRam() {
     }
   } catch (e) {
     showToast(t('messages.ram.readFailed'), 'error');
-    log(`${t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+    log(`${t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
   } finally {
     busy.value = false;
   }
@@ -704,7 +704,7 @@ async function verifyRam() {
     showToast(response.message, response.success ? 'success' : 'error');
   } catch (e) {
     showToast(t('messages.ram.verifyFailed'), 'error');
-    log(`${t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+    log(`${t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
   } finally {
     busy.value = false;
   }
@@ -791,7 +791,7 @@ async function readRomInfo() {
     showToast(t('ui.operation.readMultiCartSuccess'), 'success');
   } catch (e) {
     showToast(t('ui.operation.readMultiCartFailed'), 'error');
-    log(`${t('ui.operation.readMultiCartFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+    log(`${t('ui.operation.readMultiCartFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
   } finally {
     busy.value = false;
     resetProgress();

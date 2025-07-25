@@ -18,7 +18,11 @@
         :key="idx"
         class="log-line"
       >
-        {{ line }}
+        <span class="log-time">{{ line.time }}</span>
+        <span
+          class="log-message"
+          :class="'log-' + line.level"
+        >{{ line.message }}</span>
       </div>
       <div
         ref="scrollAnchor"
@@ -33,7 +37,7 @@ import { nextTick, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 
 const props = withDefaults(defineProps<{
   title?: string;
-  logs: string[];
+  logs: { time: string; message: string; level: 'info' | 'success' | 'warn' | 'error' }[];
   maxHeight?: string;
   autoScroll?: boolean;
 }>(), {
@@ -211,10 +215,43 @@ onUnmounted(() => {
 }
 
 .log-line {
-  white-space: pre-wrap;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  white-space: normal;
   word-break: break-all;
   text-align: left;
   font-size: small;
+  gap: 8px;
+}
+
+.log-time {
+  color: #1976d2;
+  font-weight: bold;
+  min-width: 70px;
+  flex-shrink: 0;
+  text-align: right;
+  line-height: 1.6;
+}
+
+.log-message {
+  color: #333;
+  flex: 1 1 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.6;
+}
+
+.log-message.log-success {
+  color: #388e3c;
+}
+
+.log-message.log-warn {
+  color: #fbc02d;
+}
+
+.log-message.log-error {
+  color: #d32f2f;
 }
 
 .scroll-anchor {

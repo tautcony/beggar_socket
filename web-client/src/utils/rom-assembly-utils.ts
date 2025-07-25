@@ -238,20 +238,6 @@ export function calculateUsedSpace(slots: RomSlot[]): number {
 }
 
 /**
- * 格式化字节大小
- */
-export function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-  // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-/**
  * 生成槽位颜色（更好的区分度和视觉效果）
  */
 export function generateSlotColor(index: number, total: number): string {

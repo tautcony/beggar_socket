@@ -182,14 +182,14 @@ const props = withDefaults(defineProps<{
 });
 
 const ROM_SIZE_RANGE = [
-  { value: '0x00040000', size: 0x00040000, text: '256KB' },
-  { value: '0x00080000', size: 0x00080000, text: '512KB' },
-  { value: '0x00100000', size: 0x00100000, text: '1MB' },
-  { value: '0x00200000', size: 0x00200000, text: '2MB' },
+  { value: '0x00040000', size: 0x00040000, text: '256KiB' },
+  { value: '0x00080000', size: 0x00080000, text: '512KiB' },
+  { value: '0x00100000', size: 0x00100000, text: '1MiB' },
+  { value: '0x00200000', size: 0x00200000, text: '2MiB' },
 ];
 
 for (let i = 1; i <= 32; ++i) {
-  ROM_SIZE_RANGE.push({ value: formatHex(0x00400000 * i, 4), size: 0x00400000 * i, text: `${i * 4}MB` });
+  ROM_SIZE_RANGE.push({ value: formatHex(0x00400000 * i, 4), size: 0x00400000 * i, text: `${i * 4}MiB` });
 }
 
 // 不同cartType的baseAddress选项

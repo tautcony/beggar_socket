@@ -13,7 +13,7 @@ import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { CFIInfo, parseCFI } from '@/utils/cfi-parser';
-import { formatHex } from '@/utils/formatter-utils';
+import { formatBytes, formatHex, formatSpeed } from '@/utils/formatter-utils';
 import { calcSectorUsage } from '@/utils/sector-utils';
 import { PerformanceTracker } from '@/utils/sentry-tracker';
 import { SpeedCalculator } from '@/utils/speed-calculator';
@@ -46,16 +46,16 @@ export class MBC5Adapter extends CartridgeAdapter {
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.readID',
       async () => {
-        this.log(this.t('messages.operation.readId'));
+        this.log(this.t('messages.operation.readId'), 'info');
         try {
           const id = [... await gbc_rom_get_id(this.device)];
 
           const idStr = id.map(x => x.toString(16).padStart(2, '0')).join(' ');
           const flashId = getFlashId(id);
           if (flashId === null) {
-            this.log(this.t('messages.operation.unknownFlashId'));
+            this.log(this.t('messages.operation.unknownFlashId'), 'warn');
           } else {
-            this.log(`${this.t('messages.operation.readIdSuccess')}: ${idStr} (${flashId})`);
+            this.log(`${this.t('messages.operation.readIdSuccess')}: ${idStr} (${flashId})`, 'success');
           }
 
           return {
@@ -64,7 +64,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             message: this.t('messages.operation.readIdSuccess'),
           };
         } catch (e) {
-          this.log(`${this.t('messages.operation.readIdFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          this.log(`${this.t('messages.operation.readIdFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
             message: this.t('messages.operation.readIdFailed'),
@@ -90,7 +90,7 @@ export class MBC5Adapter extends CartridgeAdapter {
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.eraseChip',
       async () => {
-        this.log(this.t('messages.operation.eraseChip'));
+        this.log(this.t('messages.operation.eraseChip'), 'info');
 
         try {
           // 检查是否已被取消
@@ -110,7 +110,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           while (true) {
             // 检查是否已被取消
             if (signal?.aborted) {
-              this.log(this.t('messages.operation.cancelled'));
+              this.log(this.t('messages.operation.cancelled'), 'warn');
               return {
                 success: false,
                 message: this.t('messages.operation.cancelled'),
@@ -120,10 +120,10 @@ export class MBC5Adapter extends CartridgeAdapter {
             const eraseComplete = await this.isBlank(0x00, 0x100);
             elapsedSeconds = Date.now() - startTime;
             if (eraseComplete) {
-              this.log(`${this.t('messages.operation.eraseComplete')} (${(elapsedSeconds / 1000).toFixed(1)}s)`);
+              this.log(`${this.t('messages.operation.eraseComplete')} (${(elapsedSeconds / 1000).toFixed(1)}s)`, 'success');
               break;
             } else {
-              this.log(`${this.t('messages.operation.eraseInProgress')} (${(elapsedSeconds / 1000).toFixed(1)}s)`);
+              this.log(`${this.t('messages.operation.eraseInProgress')} (${(elapsedSeconds / 1000).toFixed(1)}s)`, 'info');
               await new Promise(resolve => setTimeout(resolve, 1000));
             }
           }
@@ -134,14 +134,14 @@ export class MBC5Adapter extends CartridgeAdapter {
           };
         } catch (e) {
           if (signal?.aborted) {
-            this.log(this.t('messages.operation.cancelled'));
+            this.log(this.t('messages.operation.cancelled'), 'warn');
             return {
               success: false,
               message: this.t('messages.operation.cancelled'),
             };
           }
 
-          this.log(`${this.t('messages.operation.eraseFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          this.log(`${this.t('messages.operation.eraseFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
             message: this.t('messages.operation.eraseFailed'),
@@ -171,7 +171,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           startAddress: formatHex(startAddress, 4),
           endAddress: formatHex(endAddress, 4),
           sectorSize,
-        }));
+        }), 'info');
 
         try {
           // 确保扇区对齐
@@ -202,7 +202,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             this.log(this.t('messages.operation.eraseSector', {
               from: formatHex(currentAddress, 4),
               to: formatHex(currentAddress + sectorSize - 1, 4),
-            }));
+            }), 'info');
 
             const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress);
             if (bank !== currentBank) {
@@ -224,7 +224,7 @@ export class MBC5Adapter extends CartridgeAdapter {
 
             this.updateProgress(this.createProgressInfo(
               (eraseCount / totalSectors) * 100,
-              this.t('messages.progress.eraseSpeed', { speed: currentSpeed.toFixed(1) }),
+              this.t('messages.progress.eraseSpeed', { speed: formatSpeed(currentSpeed) }),
               totalBytes,
               erasedBytes,
               startTime,
@@ -233,17 +233,17 @@ export class MBC5Adapter extends CartridgeAdapter {
             ));
           }
 
-          const totalTime = (Date.now() - startTime) / 1000;
+          const totalTime = speedCalculator.getTotalTime();
           const avgSpeed = speedCalculator.getAverageSpeed();
-          const maxSpeed = speedCalculator.getMaxSpeed() || speedCalculator.getPeakSpeed();
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
-          this.log(this.t('messages.operation.eraseSuccess'));
+          this.log(this.t('messages.operation.eraseSuccess'), 'success');
           this.log(this.t('messages.operation.eraseSummary', {
-            totalTime: totalTime.toFixed(2),
-            avgSpeed: avgSpeed.toFixed(1),
-            maxSpeed: maxSpeed.toFixed(1),
+            totalTime: SpeedCalculator.formatTime(totalTime),
+            avgSpeed: formatSpeed(avgSpeed),
+            maxSpeed: formatSpeed(maxSpeed),
             totalSectors: totalSectors,
-          }));
+          }), 'info');
 
           // 报告完成状态
           this.updateProgress(this.createProgressInfo(
@@ -263,7 +263,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           };
         } catch (e) {
           if (signal?.aborted) {
-            this.log(this.t('messages.operation.cancelled'));
+            this.log(this.t('messages.operation.cancelled'), 'warn');
             return {
               success: false,
               message: this.t('messages.operation.cancelled'),
@@ -271,7 +271,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           }
 
           this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.eraseSectorFailed')));
-          this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
             message: this.t('messages.operation.eraseSectorFailed'),
@@ -307,14 +307,14 @@ export class MBC5Adapter extends CartridgeAdapter {
       baseAddress: formatHex(baseAddress, 4),
       pageSize,
       bufferSize,
-    }));
+    }), 'info');
 
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.writeROM',
       async () => {
         const startTime = Date.now();
         try {
-          this.log(this.t('messages.rom.writing', { size: fileData.length }));
+          this.log(this.t('messages.rom.writing', { size: fileData.length }), 'info');
 
           const total = fileData.length;
           let written = 0;
@@ -375,7 +375,7 @@ export class MBC5Adapter extends CartridgeAdapter {
 
               this.updateProgress(this.createProgressInfo(
                 progress,
-                this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }),
+                this.t('messages.progress.writeSpeed', { speed: formatSpeed(currentSpeed) }),
                 total,
                 written,
                 startTime,
@@ -387,22 +387,22 @@ export class MBC5Adapter extends CartridgeAdapter {
             // 每5个百分比记录一次日志
             const progress = Math.floor((written / total) * 100);
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
-              this.log(this.t('messages.rom.writingAt', { address: formatHex(currentAddress, 4), progress }));
+              this.log(this.t('messages.rom.writingAt', { address: formatHex(currentAddress, 4), progress }), 'info');
               lastLoggedProgress = progress;
             }
           }
 
-          const totalTime = (Date.now() - startTime) / 1000;
+          const totalTime = speedCalculator.getTotalTime();
           const avgSpeed = speedCalculator.getAverageSpeed();
-          const maxSpeed = speedCalculator.getMaxSpeed() || speedCalculator.getPeakSpeed();
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
-          this.log(this.t('messages.rom.writeComplete'));
+          this.log(this.t('messages.rom.writeComplete'), 'success');
           this.log(this.t('messages.rom.writeSummary', {
-            totalTime: totalTime.toFixed(2),
-            avgSpeed: avgSpeed.toFixed(1),
-            maxSpeed: maxSpeed.toFixed(1),
-            totalSize: (total / 1024).toFixed(1),
-          }));
+            totalTime: SpeedCalculator.formatTime(totalTime),
+            avgSpeed: formatSpeed(avgSpeed),
+            maxSpeed: formatSpeed(maxSpeed),
+            totalSize: formatBytes(total),
+          }), 'info');
 
           // 报告完成状态
           this.updateProgress(this.createProgressInfo(
@@ -422,7 +422,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           };
         } catch (e) {
           this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.writeFailed')));
-          this.log(`${this.t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          this.log(`${this.t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
             message: this.t('messages.rom.writeFailed'),
@@ -455,7 +455,7 @@ export class MBC5Adapter extends CartridgeAdapter {
     this.log(this.t('messages.operation.startReadROM', {
       size,
       baseAddress: formatHex(baseAddress, 4),
-    }));
+    }), 'info');
 
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.readROM',
@@ -471,7 +471,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             };
           }
 
-          this.log(this.t('messages.rom.reading'));
+          this.log(this.t('messages.rom.reading'), 'info');
           const pageSize = AdvancedSettings.romPageSize;
           let totalRead = 0;
 
@@ -525,7 +525,7 @@ export class MBC5Adapter extends CartridgeAdapter {
 
               this.updateProgress(this.createProgressInfo(
                 progress,
-                this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }),
+                this.t('messages.progress.readSpeed', { speed: formatSpeed(currentSpeed) }),
                 size,
                 totalRead,
                 startTime,
@@ -537,22 +537,22 @@ export class MBC5Adapter extends CartridgeAdapter {
             // 每5个百分比记录一次日志
             const progress = Math.floor((totalRead / size) * 100);
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
-              this.log(this.t('messages.rom.readingAt', { address: formatHex(currentAddress, 4), progress }));
+              this.log(this.t('messages.rom.readingAt', { address: formatHex(currentAddress, 4), progress }), 'info');
               lastLoggedProgress = progress;
             }
           }
 
-          const totalTime = (Date.now() - startTime) / 1000;
+          const totalTime = speedCalculator.getTotalTime();
           const avgSpeed = speedCalculator.getAverageSpeed();
-          const maxSpeed = speedCalculator.getMaxSpeed() || speedCalculator.getPeakSpeed();
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
-          this.log(this.t('messages.rom.readSuccess', { size: data.length }));
+          this.log(this.t('messages.rom.readSuccess', { size: data.length }), 'success');
           this.log(this.t('messages.rom.readSummary', {
-            totalTime: totalTime.toFixed(2),
-            avgSpeed: avgSpeed.toFixed(1),
-            maxSpeed: maxSpeed.toFixed(1),
-            totalSize: (size / 1024).toFixed(1),
-          }));
+            totalTime: SpeedCalculator.formatTime(totalTime),
+            avgSpeed: formatSpeed(avgSpeed),
+            maxSpeed: formatSpeed(maxSpeed),
+            totalSize: formatBytes(size),
+          }), 'info');
 
           this.updateProgress(this.createProgressInfo(
             100,
@@ -572,7 +572,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           };
         } catch (e) {
           this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.readFailed')));
-          this.log(`${this.t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          this.log(`${this.t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
             message: this.t('messages.rom.readFailed'),
@@ -602,7 +602,7 @@ export class MBC5Adapter extends CartridgeAdapter {
     this.log(this.t('messages.operation.startVerifyROM', {
       fileSize: fileData.length,
       baseAddress: formatHex(baseAddress, 4),
-    }));
+    }), 'info');
 
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.verifyROM',
@@ -617,7 +617,7 @@ export class MBC5Adapter extends CartridgeAdapter {
         }
         const startTime = Date.now(); // 移到 try 块外面以便在 catch 块中使用
         try {
-          this.log(this.t('messages.rom.verifying'));
+          this.log(this.t('messages.rom.verifying'), 'info');
 
           let currentBank = -1;
           const total = fileData.length;
@@ -665,7 +665,7 @@ export class MBC5Adapter extends CartridgeAdapter {
                   address:  formatHex(failedAddress, 4),
                   expected: formatHex(expectedChunk[i], 1),
                   actual: formatHex(actualChunk[i], 1),
-                }));
+                }), 'error');
                 break;
               }
             }
@@ -687,7 +687,7 @@ export class MBC5Adapter extends CartridgeAdapter {
 
               this.updateProgress(this.createProgressInfo(
                 progress,
-                this.t('messages.progress.verifySpeed', { speed: currentSpeed.toFixed(1) }),
+                this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeed) }),
                 total,
                 verified,
                 startTime,
@@ -702,23 +702,23 @@ export class MBC5Adapter extends CartridgeAdapter {
               this.log(this.t('messages.rom.verifyingAt', {
                 address: formatHex(baseAddress + verified, 4),
                 progress,
-              }));
+              }), 'info');
               lastLoggedProgress = progress;
             }
           }
 
-          const totalTime = (Date.now() - startTime) / 1000;
+          const totalTime = speedCalculator.getTotalTime();
           const avgSpeed = speedCalculator.getAverageSpeed();
-          const maxSpeed = speedCalculator.getMaxSpeed() || speedCalculator.getPeakSpeed();
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
           if (success) {
-            this.log(this.t('messages.rom.verifySuccess'));
+            this.log(this.t('messages.rom.verifySuccess'), 'success');
             this.log(this.t('messages.rom.verifySummary', {
-              totalTime: totalTime.toFixed(2),
-              avgSpeed: avgSpeed.toFixed(1),
-              maxSpeed: maxSpeed.toFixed(1),
-              totalSize: (total / 1024).toFixed(1),
-            }));
+              totalTime: SpeedCalculator.formatTime(totalTime),
+              avgSpeed: formatSpeed(avgSpeed),
+              maxSpeed: formatSpeed(maxSpeed),
+              totalSize: formatBytes(total),
+            }), 'info');
             this.updateProgress(this.createProgressInfo(
               100,
               this.t('messages.rom.verifySuccess'),
@@ -730,7 +730,7 @@ export class MBC5Adapter extends CartridgeAdapter {
               'completed',
             ));
           } else {
-            this.log(this.t('messages.rom.verifyFailed'));
+            this.log(this.t('messages.rom.verifyFailed'), 'error');
             this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.verifyFailed')));
           }
 
@@ -741,7 +741,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           };
         } catch (e) {
           this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.verifyFailed')));
-          this.log(`${this.t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          this.log(`${this.t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
             message: this.t('messages.rom.verifyFailed'),
@@ -771,13 +771,13 @@ export class MBC5Adapter extends CartridgeAdapter {
     this.log(this.t('messages.operation.startWriteRAM', {
       fileSize: fileData.length,
       baseAddress: formatHex(baseAddress, 4),
-    }));
+    }), 'info');
 
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.writeRAM',
       async () => {
         try {
-          this.log(this.t('messages.ram.writing', { size: fileData.length }));
+          this.log(this.t('messages.ram.writing', { size: fileData.length }), 'info');
 
           const total = fileData.length;
           let written = 0;
@@ -826,29 +826,29 @@ export class MBC5Adapter extends CartridgeAdapter {
 
             // 每5个百分比记录一次日志
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
-              this.log(this.t('messages.ram.writingAt', { address: formatHex(ramAddress, 4), progress }));
+              this.log(this.t('messages.ram.writingAt', { address: formatHex(ramAddress, 4), progress }), 'info');
               lastLoggedProgress = progress;
             }
           }
 
-          const totalTime = (Date.now() - startTime) / 1000;
+          const totalTime = speedCalculator.getTotalTime();
           const avgSpeed = speedCalculator.getAverageSpeed();
-          const maxSpeed = speedCalculator.getMaxSpeed() || speedCalculator.getPeakSpeed();
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
-          this.log(this.t('messages.ram.writeComplete'));
+          this.log(this.t('messages.ram.writeComplete'), 'success');
           this.log(this.t('messages.ram.writeSummary', {
-            totalTime: totalTime.toFixed(2),
-            avgSpeed: avgSpeed.toFixed(1),
-            maxSpeed: maxSpeed.toFixed(1),
-            totalSize: (total / 1024).toFixed(1),
-          }));
+            totalTime: SpeedCalculator.formatTime(totalTime),
+            avgSpeed: formatSpeed(avgSpeed),
+            maxSpeed: formatSpeed(maxSpeed),
+            totalSize: formatBytes(total),
+          }), 'info');
 
           return {
             success: true,
             message: this.t('messages.ram.writeSuccess'),
           };
         } catch (e) {
-          this.log(`${this.t('messages.ram.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          this.log(`${this.t('messages.ram.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
             message: this.t('messages.ram.writeFailed'),
@@ -878,13 +878,13 @@ export class MBC5Adapter extends CartridgeAdapter {
     this.log(this.t('messages.operation.startReadRAM', {
       size,
       baseAddress: formatHex(baseAddress, 4),
-    }));
+    }), 'info');
 
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.readRAM',
       async () => {
         try {
-          this.log(this.t('messages.ram.reading'));
+          this.log(this.t('messages.ram.reading'), 'info');
 
           // 开启RAM访问权限
           await gbc_write(this.device, new Uint8Array([0x0a]), 0x0000);
@@ -926,17 +926,17 @@ export class MBC5Adapter extends CartridgeAdapter {
             speedCalculator.addDataPoint(chunkSize, chunkEndTime);
           }
 
-          const totalTime = (Date.now() - startTime) / 1000;
+          const totalTime = speedCalculator.getTotalTime();
           const avgSpeed = speedCalculator.getAverageSpeed();
-          const maxSpeed = speedCalculator.getMaxSpeed() || speedCalculator.getPeakSpeed();
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
-          this.log(this.t('messages.ram.readSuccess', { size: result.length }));
+          this.log(this.t('messages.ram.readSuccess', { size: result.length }), 'success');
           this.log(this.t('messages.ram.readSummary', {
-            totalTime: totalTime.toFixed(2),
-            avgSpeed: avgSpeed.toFixed(1),
-            maxSpeed: maxSpeed.toFixed(1),
-            totalSize: (size / 1024).toFixed(1),
-          }));
+            totalTime: SpeedCalculator.formatTime(totalTime),
+            avgSpeed: formatSpeed(avgSpeed),
+            maxSpeed: formatSpeed(maxSpeed),
+            totalSize: formatBytes(size),
+          }), 'info');
 
           return {
             success: true,
@@ -944,7 +944,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             message: this.t('messages.ram.readSuccess', { size: result.length }),
           };
         } catch (e) {
-          this.log(`${this.t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          this.log(`${this.t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
             message: this.t('messages.ram.readFailed'),
@@ -974,13 +974,13 @@ export class MBC5Adapter extends CartridgeAdapter {
     this.log(this.t('messages.operation.startVerifyRAM', {
       fileSize: fileData.length,
       baseAddress: formatHex(baseAddress, 4),
-    }));
+    }), 'info');
 
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.verifyRAM',
       async () => {
         try {
-          this.log(this.t('messages.ram.verifying'));
+          this.log(this.t('messages.ram.verifying'), 'info');
 
           // 开启RAM访问权限
           await gbc_write(this.device, new Uint8Array([0x0a]), 0x0000);
@@ -1013,7 +1013,7 @@ export class MBC5Adapter extends CartridgeAdapter {
                   address: formatHex(currAddress + i, 4),
                   expected: formatHex(fileData[currAddress + i], 1),
                   actual: formatHex(chunk[i], 1),
-                }));
+                }), 'error');
                 success = false;
                 break;
               }
@@ -1025,14 +1025,14 @@ export class MBC5Adapter extends CartridgeAdapter {
           }
 
           const message = success ? this.t('messages.ram.verifySuccess') : this.t('messages.ram.verifyFailed');
-          this.log(`${this.t('messages.ram.verify')}: ${message}`);
+          this.log(`${this.t('messages.ram.verify')}: ${message}`, success ? 'success' : 'error');
 
           return {
             success: success,
             message: message,
           };
         } catch (e) {
-          this.log(`${this.t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          this.log(`${this.t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
             message: this.t('messages.ram.verifyFailed'),
@@ -1051,7 +1051,7 @@ export class MBC5Adapter extends CartridgeAdapter {
 
   // 获取卡带信息 - 通过CFI查询
   override async getCartInfo(): Promise<CFIInfo | false> {
-    this.log(this.t('messages.operation.startGetCartInfo'));
+    this.log(this.t('messages.operation.startGetCartInfo'), 'info');
 
     return PerformanceTracker.trackAsyncOperation(
       'gba.getCartInfo',
@@ -1066,17 +1066,17 @@ export class MBC5Adapter extends CartridgeAdapter {
           const cfiInfo = parseCFI(cfiData);
 
           if (!cfiInfo) {
-            this.log(this.t('messages.operation.cfiParseFailed'));
+            this.log(this.t('messages.operation.cfiParseFailed'), 'error');
             return false;
           }
 
           // 记录CFI解析结果
-          this.log(this.t('messages.operation.cfiParseSuccess'));
-          this.log(cfiInfo.info);
+          this.log(this.t('messages.operation.cfiParseSuccess'), 'info');
+          this.log(cfiInfo.info, 'info');
 
           return cfiInfo;
         } catch (e) {
-          this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return false;
         }
       },
@@ -1101,7 +1101,7 @@ export class MBC5Adapter extends CartridgeAdapter {
     // ROM addr [22]
     await gbc_write(this.device, new Uint8Array([b1]), 0x3000);
 
-    this.log(this.t('messages.rom.bankSwitch', { bank }));
+    this.log(this.t('messages.rom.bankSwitch', { bank }), 'info');
   }
 
   /**
@@ -1114,12 +1114,12 @@ export class MBC5Adapter extends CartridgeAdapter {
     // RAM addr [16:13]
     await gbc_write(this.device, new Uint8Array([b]), 0x4000);
 
-    this.log(this.t('messages.ram.bankSwitch', { bank }));
+    this.log(this.t('messages.ram.bankSwitch', { bank }), 'info');
   }
 
   // 检查区域是否为空
   async isBlank(address: number, size = 0x100) : Promise<boolean> {
-    this.log(this.t('messages.rom.checkingIfBlank'));
+    this.log(this.t('messages.rom.checkingIfBlank'), 'info');
 
     const { bank, cartAddress } = this.romBankRelevantAddress(address);
     await this.switchROMBank(bank);
@@ -1128,9 +1128,9 @@ export class MBC5Adapter extends CartridgeAdapter {
     const blank = data.every(byte => byte === 0xff);
 
     if (blank) {
-      this.log(this.t('messages.rom.areaIsBlank'));
+      this.log(this.t('messages.rom.areaIsBlank'), 'success');
     } else {
-      this.log(this.t('messages.rom.areaNotBlank'));
+      this.log(this.t('messages.rom.areaNotBlank'), 'info');
     }
 
     return blank;

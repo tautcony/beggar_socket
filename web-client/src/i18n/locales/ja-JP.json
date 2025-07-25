@@ -416,7 +416,7 @@
       "cfiParseSuccess": "CFI解析成功",
       "cfiParseFailed": "CFI解析失敗",
       "eraseSectorFailed": "セクター消去失敗",
-      "eraseSummary": "消去完了 - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総セクター数: {totalSectors}"
+      "eraseSummary": "消去完了 - 総時間: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 総セクター数: {totalSectors}"
     },
     "rom": {
       "writing": "ROMを書き込み中、サイズ {size} バイト",
@@ -436,7 +436,7 @@
       "verifySuccess": "ROM検証成功",
       "verifyFailed": "ROM検証失敗",
       "verifyFailedAt": "アドレス{address}で検証失敗、期待値{expected}、実際値{actual}",
-      "verifySummary": "検証完了 - 総時間: {totalTime}秒、平均速度: {avgSpeed} KB/s、最大速度: {maxSpeed} KB/s、総サイズ: {totalSize} KB",
+      "verifySummary": "検証完了 - 総時間: {totalTime}、平均速度: {avgSpeed}、最大速度: {maxSpeed}、総サイズ: {totalSize}",
       "sizeChanged": "ROMサイズが {size} に変更されました",
       "baseAddressChanged": "ROMベースアドレスが {address} に変更されました",
       "bankSwitch": "ROMバンク {bank} に切り替え",
@@ -446,8 +446,8 @@
       "checkingIfBlank": "領域が空白か確認中",
       "areaIsBlank": "領域は空白です",
       "areaNotBlank": "領域は空白ではありません",
-      "writeSummary": "ROM書き込み完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} KB",
-      "readSummary": "ROM読み取り完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} KB",
+      "writeSummary": "ROM書き込み完了サマリー - 総時間: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 総サイズ: {totalSize}",
+      "readSummary": "ROM読み取り完了サマリー - 総時間: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 総サイズ: {totalSize}",
       "assembledRomApplied": "組み立てROMが適用されました",
       "assembledRomTypeMismatch": "組み立てROMタイプ({assembled})が現在のモード({current})と一致しません",
       "noAssembledRom": "利用可能な組み立てROMがありません",
@@ -492,18 +492,18 @@
       "baseAddressChanged": "RAMベースアドレスが {address} に変更されました",
       "verifyFailedAt": "アドレス{address}で検証失敗、期待値 {expected}、実際の値 {actual}",
       "bankSwitch": "RAMバンク {bank} に切り替え",
-      "writeSummary": "RAM書き込み完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} KB",
-      "readSummary": "RAM読み取り完了サマリー - 総時間: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 総サイズ: {totalSize} KB"
+      "writeSummary": "RAM書き込み完了サマリー - 総時間: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 総サイズ: {totalSize}",
+      "readSummary": "RAM読み取り完了サマリー - 総時間: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 総サイズ: {totalSize}"
     },
     "progress": {
       "writing": "処理済み: {written}/{total} バイト",
       "reading": "処理済み: {read}/{total} バイト",
       "verifying": "検証済み: {verified}/{total} バイト",
       "erasing": "消去済み: {erased}/{total} セクター",
-      "eraseSpeed": "消去速度: {speed} KB/秒",
-      "writeSpeed": "処理速度: {speed} KB/s",
-      "readSpeed": "処理速度: {speed} KB/s",
-      "verifySpeed": "検証速度: {speed} KB/s",
+      "eraseSpeed": "消去速度: {speed}",
+      "writeSpeed": "書き込み速度: {speed}",
+      "readSpeed": "読み取り速度: {speed}",
+      "verifySpeed": "検証速度: {speed}",
       "eraseCompleteReady": "消去完了、処理準備完了"
     },
     "mode": {

@@ -4,7 +4,7 @@ import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { CFIInfo } from '@/utils/cfi-parser';
-import { formatHex } from '@/utils/formatter-utils';
+import { formatBytes, formatHex, formatSpeed } from '@/utils/formatter-utils';
 import { SpeedCalculator } from '@/utils/speed-calculator';
 
 /**
@@ -32,19 +32,19 @@ export class MockAdapter extends CartridgeAdapter {
     const mockDeviceInfo = device ?? DebugSettings.createMockDeviceInfo();
     super(mockDeviceInfo, logCallback, progressCallback, translateFunc);
 
-    this.log(this.t('messages.debug.mockModeEnabled'));
+    this.log(this.t('messages.debug.mockModeEnabled'), 'info');
   }
 
   /**
    * 模拟读取芯片ID
    */
   override async readID(): Promise<CommandResult & { idStr?: string }> {
-    this.log(this.t('messages.operation.readId'));
+    this.log(this.t('messages.operation.readId'), 'info');
 
     await DebugSettings.delay();
 
     if (DebugSettings.shouldSimulateError()) {
-      this.log(`${this.t('messages.operation.readIdFailed')}: 模拟错误`);
+      this.log(`${this.t('messages.operation.readIdFailed')}: 模拟错误`, 'error');
       return {
         success: false,
         message: this.t('messages.operation.readIdFailed'),
@@ -52,7 +52,7 @@ export class MockAdapter extends CartridgeAdapter {
     }
 
     const mockId = '01 00 7e 22 22 22 01 22';
-    this.log(`${this.t('messages.operation.readIdSuccess')}: ${mockId}`);
+    this.log(`${this.t('messages.operation.readIdSuccess')}: ${mockId}`, 'success');
 
     return {
       success: true,
@@ -66,7 +66,7 @@ export class MockAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    */
   override async eraseChip(signal?: AbortSignal): Promise<CommandResult> {
-    this.log(this.t('messages.operation.eraseChip'));
+    this.log(this.t('messages.operation.eraseChip'), 'info');
 
     const startTime = Date.now();
     let cancelled = false;
@@ -100,7 +100,7 @@ export class MockAdapter extends CartridgeAdapter {
 
       // 检查是否已被取消
       if (signal?.aborted || cancelled) {
-        this.log(this.t('messages.operation.cancelled'));
+        this.log(this.t('messages.operation.cancelled'), 'warn');
         return {
           success: false,
           message: this.t('messages.operation.cancelled'),
@@ -109,7 +109,7 @@ export class MockAdapter extends CartridgeAdapter {
 
       if (DebugSettings.shouldSimulateError()) {
         this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.eraseFailed')));
-        this.log(`${this.t('messages.operation.eraseFailed')}: 模拟错误`);
+        this.log(`${this.t('messages.operation.eraseFailed')}: 模拟错误`, 'error');
         return {
           success: false,
           message: this.t('messages.operation.eraseFailed'),
@@ -121,7 +121,7 @@ export class MockAdapter extends CartridgeAdapter {
       this.mockRamData = null;
 
       const elapsedSeconds = Date.now() - startTime;
-      this.log(`${this.t('messages.operation.eraseComplete')} (${(elapsedSeconds / 1000).toFixed(1)}s)`);
+      this.log(`${this.t('messages.operation.eraseComplete')} (${(elapsedSeconds / 1000).toFixed(1)}s)`, 'success');
       this.updateProgress(this.createProgressInfo(
         100,
         this.t('messages.operation.eraseComplete'),
@@ -139,7 +139,7 @@ export class MockAdapter extends CartridgeAdapter {
       };
     } catch (error) {
       if (signal?.aborted) {
-        this.log(this.t('messages.operation.cancelled'));
+        this.log(this.t('messages.operation.cancelled'), 'warn');
         return {
           success: false,
           message: this.t('messages.operation.cancelled'),
@@ -158,7 +158,7 @@ export class MockAdapter extends CartridgeAdapter {
    * @returns - 操作结果
    */
   override async eraseSectors(startAddress = 0, endAddress: number, sectorSize = 0x10000, signal?: AbortSignal): Promise<CommandResult> {
-    this.log(`擦除扇区 ${formatHex(startAddress, 4)} - ${formatHex(endAddress, 4)}`);
+    this.log(`擦除扇区 ${formatHex(startAddress, 4)} - ${formatHex(endAddress, 4)}`, 'info');
 
     const totalSectors = Math.floor((endAddress - startAddress) / sectorSize) + 1;
     const totalBytes = endAddress - startAddress;
@@ -187,7 +187,7 @@ export class MockAdapter extends CartridgeAdapter {
 
           this.updateProgress(this.createProgressInfo(
             progress,
-            this.t('messages.progress.eraseSpeed', { speed: currentSpeed.toFixed(1) }),
+            this.t('messages.progress.eraseSpeed', { speed: formatSpeed(currentSpeed) }),
             totalBytes,
             erasedBytes,
             startTime,
@@ -208,24 +208,24 @@ export class MockAdapter extends CartridgeAdapter {
 
       if (DebugSettings.shouldSimulateError()) {
         this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.eraseSectorFailed')));
-        this.log(`${this.t('messages.operation.eraseSectorFailed')}: 模拟错误`);
+        this.log(`${this.t('messages.operation.eraseSectorFailed')}: 模拟错误`, 'error');
         return {
           success: false,
           message: this.t('messages.operation.eraseSectorFailed'),
         };
       }
 
-      const totalTime = (Date.now() - startTime) / 1000;
+      const totalTime = speedCalculator.getTotalTime();
       const avgSpeed = speedCalculator.getAverageSpeed();
       const maxSpeed = speedCalculator.getMaxSpeed();
 
-      this.log(this.t('messages.operation.eraseSuccess'));
+      this.log(this.t('messages.operation.eraseSuccess'), 'success');
       this.log(this.t('messages.operation.eraseSummary', {
-        totalTime: totalTime.toFixed(2),
-        avgSpeed: avgSpeed.toFixed(1),
-        maxSpeed: maxSpeed.toFixed(1),
+        totalTime: SpeedCalculator.formatTime(totalTime),
+        avgSpeed: formatSpeed(avgSpeed),
+        maxSpeed: formatSpeed(maxSpeed),
         totalSectors: totalSectors,
-      }));
+      }), 'info');
 
       // 报告完成状态
       this.updateProgress(this.createProgressInfo(
@@ -245,14 +245,14 @@ export class MockAdapter extends CartridgeAdapter {
       };
     } catch (e) {
       if (signal?.aborted) {
-        this.log(this.t('messages.operation.cancelled'));
+        this.log(this.t('messages.operation.cancelled'), 'warn');
         return {
           success: false,
           message: this.t('messages.operation.cancelled'),
         };
       }
       this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.eraseSectorFailed')));
-      this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+      this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
       return {
         success: false,
         message: this.t('messages.operation.eraseSectorFailed'),
@@ -268,7 +268,7 @@ export class MockAdapter extends CartridgeAdapter {
    * @returns - 操作结果
    */
   override async writeROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
-    this.log(this.t('messages.rom.writing', { size: fileData.length }));
+    this.log(this.t('messages.rom.writing', { size: fileData.length }), 'info');
 
     const startTime = Date.now();
     const total = fileData.length;
@@ -280,11 +280,11 @@ export class MockAdapter extends CartridgeAdapter {
     try {
       // 模拟检查空白区域和擦除
       if (!this.mockRomData || this.mockRomData.length === 0) {
-        this.log(this.t('messages.rom.checkingIfBlank'));
+        this.log(this.t('messages.rom.checkingIfBlank'), 'info');
         await new Promise(resolve => setTimeout(resolve, 100));
 
         // 模拟擦除
-        this.log(this.t('messages.operation.eraseChip'));
+        this.log(this.t('messages.operation.eraseChip'), 'info');
         const eraseResult = await this.eraseChip(signal);
         if (!eraseResult.success) {
           return eraseResult;
@@ -309,7 +309,7 @@ export class MockAdapter extends CartridgeAdapter {
 
           this.updateProgress(this.createProgressInfo(
             progress,
-            this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }),
+            this.t('messages.progress.writeSpeed', { speed: formatSpeed(currentSpeed) }),
             total,
             written,
             startTime,
@@ -330,7 +330,7 @@ export class MockAdapter extends CartridgeAdapter {
 
       if (DebugSettings.shouldSimulateError()) {
         this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.writeFailed')));
-        this.log(`${this.t('messages.rom.writeFailed')}: 模拟错误`);
+        this.log(`${this.t('messages.rom.writeFailed')}: 模拟错误`, 'error');
         return {
           success: false,
           message: this.t('messages.rom.writeFailed'),
@@ -340,17 +340,17 @@ export class MockAdapter extends CartridgeAdapter {
       // 保存模拟数据
       this.mockRomData = new Uint8Array(fileData);
 
-      const totalTime = (Date.now() - startTime) / 1000;
+      const totalTime = speedCalculator.getTotalTime();
       const avgSpeed = speedCalculator.getAverageSpeed();
       const maxSpeed = speedCalculator.getMaxSpeed();
 
-      this.log(this.t('messages.rom.writeComplete'));
+      this.log(this.t('messages.rom.writeComplete'), 'success');
       this.log(this.t('messages.rom.writeSummary', {
-        totalTime: totalTime.toFixed(2),
-        avgSpeed: avgSpeed.toFixed(1),
-        maxSpeed: maxSpeed.toFixed(1),
-        totalSize: (total / 1024).toFixed(1),
-      }));
+        totalTime: SpeedCalculator.formatTime(totalTime),
+        avgSpeed: formatSpeed(avgSpeed),
+        maxSpeed: formatSpeed(maxSpeed),
+        totalSize: formatBytes(total),
+      }), 'info');
 
       // 报告完成状态
       this.updateProgress(this.createProgressInfo(
@@ -370,7 +370,7 @@ export class MockAdapter extends CartridgeAdapter {
       };
     } catch (e) {
       this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.writeFailed')));
-      this.log(`${this.t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+      this.log(`${this.t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
       return {
         success: false,
         message: this.t('messages.rom.writeFailed'),
@@ -383,12 +383,12 @@ export class MockAdapter extends CartridgeAdapter {
    * @returns 卡带容量相关信息
    */
   override async getCartInfo(): Promise<CFIInfo | false> {
-    this.log(this.t('messages.operation.queryingRomSize'));
+    this.log(this.t('messages.operation.queryingRomSize'), 'info');
 
     await DebugSettings.delay();
 
     if (DebugSettings.shouldSimulateError()) {
-      this.log(this.t('messages.operation.cfiParseFailed'));
+      this.log(this.t('messages.operation.cfiParseFailed'), 'error');
       return false;
     }
 
@@ -425,8 +425,8 @@ export class MockAdapter extends CartridgeAdapter {
       info: `模拟CFI信息: 设备大小=${deviceSize}字节, 扇区大小=${sectorSize}字节, 扇区数量=${sectorCount}`,
     };
 
-    this.log(this.t('messages.operation.cfiParseSuccess'));
-    this.log(mockCfiInfo.info);
+    this.log(this.t('messages.operation.cfiParseSuccess'), 'success');
+    this.log(mockCfiInfo.info, 'info');
 
     return mockCfiInfo;
   }
@@ -439,7 +439,7 @@ export class MockAdapter extends CartridgeAdapter {
    */
   override async readROM(size = 0x200000, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
-    this.log(this.t('messages.rom.reading'));
+    this.log(this.t('messages.rom.reading'), 'info');
 
     const startTime = Date.now();
     let cancelled = false;
@@ -466,7 +466,7 @@ export class MockAdapter extends CartridgeAdapter {
 
           this.updateProgress(this.createProgressInfo(
             progress,
-            this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }),
+            this.t('messages.progress.readSpeed', { speed: formatSpeed(currentSpeed) }),
             size,
             readBytes,
             startTime,
@@ -487,7 +487,7 @@ export class MockAdapter extends CartridgeAdapter {
 
       if (DebugSettings.shouldSimulateError()) {
         this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.readFailed')));
-        this.log(`${this.t('messages.rom.readFailed')}: 模拟错误`);
+        this.log(`${this.t('messages.rom.readFailed')}: 模拟错误`, 'error');
         return {
           success: false,
           message: this.t('messages.rom.readFailed'),
@@ -497,17 +497,17 @@ export class MockAdapter extends CartridgeAdapter {
       // 返回之前写入的数据或生成随机数据
       const data = this.mockRomData?.slice(baseAddress, baseAddress + size) ?? DebugSettings.generateRandomData(size);
 
-      const totalTime = (Date.now() - startTime) / 1000;
+      const totalTime = speedCalculator.getTotalTime();
       const avgSpeed = speedCalculator.getAverageSpeed();
       const maxSpeed = speedCalculator.getMaxSpeed();
 
-      this.log(this.t('messages.rom.readSuccess', { size: data.length }));
+      this.log(this.t('messages.rom.readSuccess', { size: data.length }), 'success');
       this.log(this.t('messages.rom.readSummary', {
         totalTime: totalTime.toFixed(2),
         avgSpeed: avgSpeed.toFixed(1),
         maxSpeed: maxSpeed.toFixed(1),
-        totalSize: (size / 1024).toFixed(1),
-      }));
+        totalSize: formatBytes(size),
+      }), 'info');
 
       this.updateProgress(this.createProgressInfo(
         100,
@@ -527,7 +527,7 @@ export class MockAdapter extends CartridgeAdapter {
       };
     } catch (e) {
       this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.readFailed')));
-      this.log(`${this.t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+      this.log(`${this.t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
       return {
         success: false,
         message: this.t('messages.rom.readFailed'),
@@ -544,7 +544,7 @@ export class MockAdapter extends CartridgeAdapter {
    */
   override async verifyROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
-    this.log(this.t('messages.rom.verifying'));
+    this.log(this.t('messages.rom.verifying'), 'info');
 
     const startTime = Date.now();
     let cancelled = false;
@@ -571,7 +571,7 @@ export class MockAdapter extends CartridgeAdapter {
 
           this.updateProgress(this.createProgressInfo(
             progress,
-            this.t('messages.progress.verifySpeed', { speed: currentSpeed.toFixed(1) }),
+            this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeed) }),
             fileData.length,
             verifiedBytes,
             startTime,
@@ -591,7 +591,7 @@ export class MockAdapter extends CartridgeAdapter {
       }
 
       if (DebugSettings.shouldSimulateError()) {
-        this.log(`${this.t('messages.rom.verifyFailed')}: 模拟错误`);
+        this.log(`${this.t('messages.rom.verifyFailed')}: 模拟错误`, 'error');
         this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.verifyFailed')));
         return {
           success: false,
@@ -602,18 +602,18 @@ export class MockAdapter extends CartridgeAdapter {
       // 模拟校验结果
       const isMatch = this.mockRomData && this.compareData(fileData, this.mockRomData.slice(baseAddress, baseAddress + fileData.length));
 
-      const totalTime = (Date.now() - startTime) / 1000;
+      const totalTime = speedCalculator.getTotalTime();
       const avgSpeed = speedCalculator.getAverageSpeed();
       const maxSpeed = speedCalculator.getMaxSpeed();
 
       if (isMatch !== false) {
-        this.log(this.t('messages.rom.verifySuccess'));
+        this.log(this.t('messages.rom.verifySuccess'), 'success');
         this.log(this.t('messages.rom.verifySummary', {
           totalTime: totalTime.toFixed(2),
           avgSpeed: avgSpeed.toFixed(1),
           maxSpeed: maxSpeed.toFixed(1),
-          totalSize: (fileData.length / 1024).toFixed(1),
-        }));
+          totalSize: formatBytes(fileData.length),
+        }), 'info');
         this.updateProgress(this.createProgressInfo(
           100,
           this.t('messages.rom.verifySuccess'),
@@ -625,7 +625,7 @@ export class MockAdapter extends CartridgeAdapter {
           'completed',
         ));
       } else {
-        this.log(this.t('messages.rom.verifyFailed'));
+        this.log(this.t('messages.rom.verifyFailed'), 'error');
         this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.verifyFailed')));
       }
 
@@ -636,7 +636,7 @@ export class MockAdapter extends CartridgeAdapter {
       };
     } catch (e) {
       this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.verifyFailed')));
-      this.log(`${this.t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+      this.log(`${this.t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
       return {
         success: false,
         message: this.t('messages.rom.verifyFailed'),
@@ -651,7 +651,7 @@ export class MockAdapter extends CartridgeAdapter {
    * @returns - 操作结果
    */
   override async writeRAM(fileData: Uint8Array, options: CommandOptions): Promise<CommandResult> {
-    this.log(this.t('messages.ram.writing', { size: fileData.length }));
+    this.log(this.t('messages.ram.writing', { size: fileData.length }), 'info');
 
     const startTime = Date.now();
     const total = fileData.length;
@@ -662,9 +662,9 @@ export class MockAdapter extends CartridgeAdapter {
     try {
       // 如果是FLASH类型，模拟擦除过程
       if (options.ramType === 'FLASH') {
-        this.log(this.t('messages.gba.erasingFlash'));
+        this.log(this.t('messages.gba.erasingFlash'), 'info');
         await DebugSettings.delay(1000);
-        this.log(this.t('messages.gba.eraseComplete'));
+        this.log(this.t('messages.gba.eraseComplete'), 'success');
       }
 
       // 模拟进度
@@ -677,7 +677,7 @@ export class MockAdapter extends CartridgeAdapter {
       );
 
       if (DebugSettings.shouldSimulateError()) {
-        this.log(`${this.t('messages.ram.writeFailed')}: 模拟错误`);
+        this.log(`${this.t('messages.ram.writeFailed')}: 模拟错误`, 'error');
         return {
           success: false,
           message: this.t('messages.ram.writeFailed'),
@@ -686,24 +686,24 @@ export class MockAdapter extends CartridgeAdapter {
 
       this.mockRamData = new Uint8Array(fileData);
 
-      const totalTime = (Date.now() - startTime) / 1000;
+      const totalTime = speedCalculator.getTotalTime();
       const avgSpeed = speedCalculator.getAverageSpeed();
       const maxSpeed = speedCalculator.getMaxSpeed();
 
-      this.log(this.t('messages.ram.writeComplete'));
+      this.log(this.t('messages.ram.writeComplete'), 'success');
       this.log(this.t('messages.ram.writeSummary', {
-        totalTime: totalTime.toFixed(2),
-        avgSpeed: avgSpeed.toFixed(1),
-        maxSpeed: maxSpeed.toFixed(1),
-        totalSize: (total / 1024).toFixed(1),
-      }));
+        totalTime: SpeedCalculator.formatTime(totalTime),
+        avgSpeed: formatSpeed(avgSpeed),
+        maxSpeed: formatSpeed(maxSpeed),
+        totalSize: formatBytes(total),
+      }), 'info');
 
       return {
         success: true,
         message: this.t('messages.ram.writeSuccess'),
       };
     } catch (e) {
-      this.log(`${this.t('messages.ram.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+      this.log(`${this.t('messages.ram.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
       return {
         success: false,
         message: this.t('messages.ram.writeFailed'),
@@ -718,7 +718,7 @@ export class MockAdapter extends CartridgeAdapter {
    * @returns - 操作结果，包含读取的数据
    */
   override async readRAM(size = 0x8000, options: CommandOptions) {
-    this.log(this.t('messages.ram.reading'));
+    this.log(this.t('messages.ram.reading'), 'info');
 
     const startTime = Date.now();
 
@@ -736,7 +736,7 @@ export class MockAdapter extends CartridgeAdapter {
       );
 
       if (DebugSettings.shouldSimulateError()) {
-        this.log(`${this.t('messages.ram.readFailed')}: 模拟错误`);
+        this.log(`${this.t('messages.ram.readFailed')}: 模拟错误`, 'error');
         return {
           success: false,
           message: this.t('messages.ram.readFailed'),
@@ -745,17 +745,17 @@ export class MockAdapter extends CartridgeAdapter {
 
       const data = this.mockRamData?.slice(0, size) ?? DebugSettings.generateRandomData(size);
 
-      const totalTime = (Date.now() - startTime) / 1000;
+      const totalTime = speedCalculator.getTotalTime();
       const avgSpeed = speedCalculator.getAverageSpeed();
       const maxSpeed = speedCalculator.getMaxSpeed();
 
-      this.log(this.t('messages.ram.readSuccess', { size: data.length }));
+      this.log(this.t('messages.ram.readSuccess', { size: data.length }), 'success');
       this.log(this.t('messages.ram.readSummary', {
         totalTime: totalTime.toFixed(2),
         avgSpeed: avgSpeed.toFixed(1),
         maxSpeed: maxSpeed.toFixed(1),
-        totalSize: (size / 1024).toFixed(1),
-      }));
+        totalSize: formatBytes(size),
+      }), 'info');
 
       return {
         success: true,
@@ -763,7 +763,7 @@ export class MockAdapter extends CartridgeAdapter {
         message: this.t('messages.ram.readSuccess', { size: data.length }),
       };
     } catch (e) {
-      this.log(`${this.t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+      this.log(`${this.t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
       return {
         success: false,
         message: this.t('messages.ram.readFailed'),
@@ -778,7 +778,7 @@ export class MockAdapter extends CartridgeAdapter {
    * @returns - 操作结果
    */
   override async verifyRAM(fileData: Uint8Array, options: CommandOptions) {
-    this.log(this.t('messages.ram.verifying'));
+    this.log(this.t('messages.ram.verifying'), 'info');
 
     const startTime = Date.now();
 
@@ -790,7 +790,7 @@ export class MockAdapter extends CartridgeAdapter {
       );
 
       if (DebugSettings.shouldSimulateError()) {
-        this.log(`${this.t('messages.ram.verifyFailed')}: 模拟错误`);
+        this.log(`${this.t('messages.ram.verifyFailed')}: 模拟错误`, 'error');
         return {
           success: false,
           message: this.t('messages.ram.verifyFailed'),
@@ -801,13 +801,13 @@ export class MockAdapter extends CartridgeAdapter {
       const isMatch = this.mockRamData && this.compareData(fileData, this.mockRamData);
       const message = isMatch !== false ? this.t('messages.ram.verifySuccess') : this.t('messages.ram.verifyFailed');
 
-      this.log(`${this.t('messages.ram.verify')}: ${message}`);
+      this.log(`${this.t('messages.ram.verify')}: ${message}`, isMatch !== false ? 'success' : 'error');
       return {
         success: isMatch !== false,
         message: message,
       };
     } catch (e) {
-      this.log(`${this.t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+      this.log(`${this.t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
       return {
         success: false,
         message: this.t('messages.ram.verifyFailed'),
@@ -823,7 +823,7 @@ export class MockAdapter extends CartridgeAdapter {
     if (bank < 0) return;
 
     await DebugSettings.delay(50); // 短暂延迟模拟操作
-    this.log(`模拟ROM Bank切换到 ${bank}`);
+    this.log(`模拟ROM Bank切换到 ${bank}`, 'info');
   }
 
   /**
@@ -833,7 +833,7 @@ export class MockAdapter extends CartridgeAdapter {
   async switchSRAMBank(bank: number): Promise<void> {
     bank = bank === 0 ? 0 : 1;
     await DebugSettings.delay(50);
-    this.log(this.t('messages.gba.bankSwitchSram', { bank }) || `切换SRAM Bank到 ${bank}`);
+    this.log(this.t('messages.gba.bankSwitchSram', { bank }) || `切换SRAM Bank到 ${bank}`, 'info');
   }
 
   /**
@@ -843,7 +843,7 @@ export class MockAdapter extends CartridgeAdapter {
   async switchFlashBank(bank: number): Promise<void> {
     bank = bank === 0 ? 0 : 1;
     await DebugSettings.delay(50);
-    this.log(this.t('messages.gba.bankSwitchFlash', { bank }));
+    this.log(this.t('messages.gba.bankSwitchFlash', { bank }), 'info');
   }
 
   /**
@@ -853,16 +853,16 @@ export class MockAdapter extends CartridgeAdapter {
    * @returns 是否为空白区域
    */
   async isBlank(address: number, size = 0x100): Promise<boolean> {
-    this.log(this.t('messages.rom.checkingIfBlank'));
+    this.log(this.t('messages.rom.checkingIfBlank'), 'info');
     await DebugSettings.delay(100);
 
     // 如果没有写入过数据，认为是空白的
     const blank = !this.mockRomData || this.mockRomData.length === 0;
 
     if (blank) {
-      this.log(this.t('messages.rom.areaIsBlank'));
+      this.log(this.t('messages.rom.areaIsBlank'), 'info');
     } else {
-      this.log(this.t('messages.rom.areaNotBlank'));
+      this.log(this.t('messages.rom.areaNotBlank'), 'info');
     }
 
     return blank;

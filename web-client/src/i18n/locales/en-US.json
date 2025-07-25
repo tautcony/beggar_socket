@@ -416,7 +416,7 @@
       "cfiParseSuccess": "CFI parsing successful",
       "cfiParseFailed": "CFI parsing failed",
       "eraseSectorFailed": "Sector erase failed",
-      "eraseSummary": "Erase completed - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Max speed: {maxSpeed} KB/s, Total sectors: {totalSectors}"
+      "eraseSummary": "Erase completed - Total time: {totalTime}, Average speed: {avgSpeed}, Max speed: {maxSpeed}, Total sectors: {totalSectors}"
     },
     "rom": {
       "writing": "Writing ROM, size {size} bytes",
@@ -436,7 +436,7 @@
       "verifySuccess": "ROM verification successful",
       "verifyFailed": "ROM verification failed",
       "verifyFailedAt": "Verification failed at address {address}, expected {expected}, got {actual}",
-      "verifySummary": "Verification completed - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Max speed: {maxSpeed} KB/s, Total size: {totalSize} KB",
+      "verifySummary": "Verification completed - Total time: {totalTime}, Average speed: {avgSpeed}, Max speed: {maxSpeed}, Total size: {totalSize}",
       "sizeChanged": "ROM size changed to {size}",
       "baseAddressChanged": "ROM base address changed to {address}",
       "bankSwitch": "Switched to ROM Bank {bank}",
@@ -446,8 +446,8 @@
       "checkingIfBlank": "Checking if area is blank",
       "areaIsBlank": "Area is blank",
       "areaNotBlank": "Area is not blank",
-      "writeSummary": "ROM write complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} KB",
-      "readSummary": "ROM read complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} KB",
+      "writeSummary": "ROM write complete summary - Total time: {totalTime}, Average speed: {avgSpeed}, Maximum speed: {maxSpeed}, Total size: {totalSize}",
+      "readSummary": "ROM read complete summary - Total time: {totalTime}, Average speed: {avgSpeed}, Maximum speed: {maxSpeed}, Total size: {totalSize}",
       "assembledRomApplied": "Assembled ROM has been applied",
       "assembledRomTypeMismatch": "Assembled ROM type ({assembled}) does not match current mode ({current})",
       "noAssembledRom": "No assembled ROM available",
@@ -492,18 +492,18 @@
       "baseAddressChanged": "RAM base address changed to {address}",
       "verifyFailedAt": "Verification failed at address {address}, expected {expected}, got {actual}",
       "bankSwitch": "Switched to RAM Bank {bank}",
-      "writeSummary": "RAM write complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} KB",
-      "readSummary": "RAM read complete summary - Total time: {totalTime}s, Average speed: {avgSpeed} KB/s, Maximum speed: {maxSpeed} KB/s, Total size: {totalSize} KB"
+      "writeSummary": "RAM write complete summary - Total time: {totalTime}, Average speed: {avgSpeed}, Maximum speed: {maxSpeed}, Total size: {totalSize}",
+      "readSummary": "RAM read complete summary - Total time: {totalTime}, Average speed: {avgSpeed}, Maximum speed: {maxSpeed}, Total size: {totalSize}"
     },
     "progress": {
       "writing": "Processed: {written}/{total} bytes",
       "reading": "Processed: {read}/{total} bytes",
       "verifying": "Verified: {verified}/{total} bytes",
       "erasing": "Erased: {erased}/{total} sectors",
-      "eraseSpeed": "Erase speed: {speed} KB/sec",
-      "writeSpeed": "Processing speed: {speed} KB/s",
-      "readSpeed": "Processing speed: {speed} KB/s",
-      "verifySpeed": "Verify speed: {speed} KB/s",
+      "eraseSpeed": "Erase speed: {speed}",
+      "writeSpeed": "Write speed: {speed}",
+      "readSpeed": "Read speed: {speed}",
+      "verifySpeed": "Verify speed: {speed}",
       "eraseCompleteReady": "Erase complete, ready to continue"
     },
     "mode": {

@@ -7,7 +7,7 @@ import { CFIInfo } from '@/utils/cfi-parser';
 import NotImplementedError from '@/utils/errors/NotImplementedError';
 
 // 定义日志和进度回调函数类型
-export type LogCallback = (message: string, type?: 'info' | 'error' | 'success' | 'warning') => void;
+export type LogCallback = (message: string, type: 'info' | 'success' | 'warn' | 'error' ) => void;
 
 export type ProgressCallback = (progressInfo: ProgressInfo) => void;
 
@@ -149,7 +149,7 @@ export class CartridgeAdapter {
    * @param totalBytes - 总字节数
    * @param transferredBytes - 已传输字节数
    * @param startTime - 开始时间
-   * @param currentSpeed - 当前速度 (KB/s)
+   * @param currentSpeed - 当前速度 (KiB/s)
    * @param allowCancel - 是否允许取消
    * @returns 进度信息对象
    */

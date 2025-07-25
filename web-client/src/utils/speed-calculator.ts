@@ -28,6 +28,7 @@ export class SpeedCalculator {
    */
   constructor(timeWindowMs = 3000) {
     this.timeWindow = timeWindowMs;
+    this.startTime = Date.now();
   }
 
   /**
@@ -60,12 +61,7 @@ export class SpeedCalculator {
    * @returns 当前速度，单位为 KB/s
    */
   calculateCurrentSpeed(): number {
-    if (this.speedWindow.length < 2) {
-      this.currentSpeed = 0;
-      return 0;
-    }
-
-    const start = this.speedWindow[0].time;
+    const start = this.speedWindow.length === 1 && this.startTime ? this.startTime : this.speedWindow[0].time;
     const end = this.speedWindow[this.speedWindow.length - 1].time;
     const elapsedMs = end - start;
 
@@ -98,7 +94,7 @@ export class SpeedCalculator {
    * @returns 历史最大速度，单位为 KB/s
    */
   getMaxSpeed(): number {
-    return this.maxSpeed;
+    return this.maxSpeed === 0 ? this.getPeakSpeed() : this.maxSpeed;
   }
 
   getPeakSpeed(): number {
@@ -111,13 +107,34 @@ export class SpeedCalculator {
    */
   getAverageSpeed(): number {
     // 如果没有累计数据或起始时间未设置，返回0
-    if (this.startTime === null || this.lastTimestamp === this.startTime || this.totalBytes === 0) {
+    if (this.startTime === null || this.totalBytes === 0 || this.lastTimestamp <= this.startTime) {
       return 0;
     }
     // 计算从起始到最新数据点的总时间（秒）
-    const totalTimeSeconds = (this.lastTimestamp - this.startTime) / 1000;
+    const totalTimeSeconds = Math.max((this.lastTimestamp - this.startTime) / 1000, 0.001);
     // 计算整体平均速度，单位 KB/s
     return (this.totalBytes / 1024) / totalTimeSeconds;
+  }
+
+  getTotalTime(): number {
+    // 如果没有累计数据或起始时间未设置，返回0
+    if (this.startTime === null || this.lastTimestamp <= this.startTime) {
+      return 0;
+    }
+    // 计算从起始到最新数据点的总时间（秒）
+    return (this.lastTimestamp - this.startTime) / 1000;
+  }
+
+  static formatTime(seconds: number): string {
+    if (seconds < 1) {
+      return `${(seconds * 1000).toFixed(0)}ms`;
+    } else if (seconds < 60) {
+      return `${seconds.toFixed(0)}s`;
+    } else {
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+      return `${minutes}m ${remainingSeconds.toFixed(0)}s`;
+    }
   }
 
   /**

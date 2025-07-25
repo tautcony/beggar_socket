@@ -416,7 +416,7 @@
       "cfiParseSuccess": "CFI解析成功",
       "cfiParseFailed": "CFI解析失败",
       "eraseSectorFailed": "扇区擦除失败",
-      "eraseSummary": "擦除完成 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总扇区数: {totalSectors}"
+      "eraseSummary": "擦除完成 - 总耗时: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 总扇区数: {totalSectors}"
     },
     "rom": {
       "writing": "正在写入ROM，大小 {size} 字节",
@@ -436,7 +436,7 @@
       "verifySuccess": "ROM校验成功",
       "verifyFailed": "ROM校验失败",
       "verifyFailedAt": "地址{address}校验失败，期望值{expected}，实际值{actual}",
-      "verifySummary": "校验完成 - 总时间: {totalTime}秒，平均速度: {avgSpeed} KB/s，最大速度: {maxSpeed} KB/s，总大小: {totalSize} KB",
+      "verifySummary": "校验完成 - 总时间: {totalTime}，平均速度: {avgSpeed}，最大速度: {maxSpeed}，总大小: {totalSize}",
       "sizeChanged": "ROM大小已更改为 {size}",
       "baseAddressChanged": "ROM基址已更改为 {address}",
       "bankSwitch": "切换到ROM Bank {bank}",
@@ -446,8 +446,8 @@
       "checkingIfBlank": "检查区域是否为空白",
       "areaIsBlank": "区域为空白",
       "areaNotBlank": "区域不为空白",
-      "writeSummary": "ROM写入完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} KB",
-      "readSummary": "ROM读取完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} KB",
+      "writeSummary": "ROM写入完成摘要 - 总耗时: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 总大小: {totalSize}",
+      "readSummary": "ROM读取完成摘要 - 总耗时: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 总大小: {totalSize}",
       "assembledRomApplied": "组装ROM已应用",
       "assembledRomTypeMismatch": "组装ROM类型({assembled})与当前模式({current})不匹配",
       "noAssembledRom": "没有可用的组装ROM",
@@ -492,18 +492,18 @@
       "baseAddressChanged": "RAM基址已更改为 {address}",
       "verifyFailedAt": "地址{address}校验失败，期望值 {expected}，实际值 {actual}",
       "bankSwitch": "切换到RAM Bank {bank}",
-      "writeSummary": "RAM写入完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} KB",
-      "readSummary": "RAM读取完成摘要 - 总耗时: {totalTime}s, 平均速度: {avgSpeed} KB/s, 最高速度: {maxSpeed} KB/s, 总大小: {totalSize} KB"
+      "writeSummary": "RAM写入完成摘要 - 总耗时: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 总大小: {totalSize}",
+      "readSummary": "RAM读取完成摘要 - 总耗时: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 总大小: {totalSize}"
     },
     "progress": {
       "writing": "已处理: {written}/{total} 字节",
       "reading": "已处理: {read}/{total} 字节",
       "verifying": "已校验: {verified}/{total} 字节",
       "erasing": "已擦除: {erased}/{total} 扇区",
-      "eraseSpeed": "擦除速度: {speed} KB/秒",
-      "writeSpeed": "处理速度: {speed} KB/s",
-      "readSpeed": "处理速度: {speed} KB/s",
-      "verifySpeed": "校验速度: {speed} KB/s",
+      "eraseSpeed": "擦除速度: {speed}",
+      "writeSpeed": "写入速度: {speed}",
+      "readSpeed": "读取速度: {speed}",
+      "verifySpeed": "校验速度: {speed}",
       "eraseCompleteReady": "擦除完成，准备继续"
     },
     "mode": {

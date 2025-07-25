@@ -230,7 +230,7 @@ import FileDropZone from '@/components/common/FileDropZone.vue';
 import { useToast } from '@/composables/useToast';
 import type { FileInfo } from '@/types/file-info';
 import type { AssembledRom, RomSlot } from '@/types/rom-assembly';
-import { formatHex } from '@/utils/formatter-utils';
+import { formatBytes, formatHex } from '@/utils/formatter-utils';
 import {
   assembleRom,
   calculateActualRomSize,
@@ -238,7 +238,6 @@ import {
   canPlaceFile,
   checkConsecutiveSlots,
   createEmptySlots,
-  formatBytes,
   getRequiredSlots,
   getRomAssemblyConfig,
   placeFileInSlots,

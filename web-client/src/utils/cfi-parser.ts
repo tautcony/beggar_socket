@@ -1,4 +1,4 @@
-import { formatHex } from '@/utils/formatter-utils';
+import { formatBytes, formatHex } from '@/utils/formatter-utils';
 
 /**
  * CFI解析结果接口
@@ -259,7 +259,7 @@ export class CFIParser {
     }
 
     // 设备信息
-    s += `Device size: ${formatHex(info.deviceSize, 4)} (${(info.deviceSize / 1024 / 1024).toFixed(2)} MB)\n`;
+    s += `Device size: ${formatHex(info.deviceSize, 4)} (${(formatBytes(info.deviceSize))}\n`;
     s += `Voltage: ${info.vddMin.toFixed(1)}–${info.vddMax.toFixed(1)} V\n`;
     s += `Single write: ${info.singleWrite}\n`;
 

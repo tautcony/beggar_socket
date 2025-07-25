@@ -11,27 +11,31 @@
 export function formatBytes(bytes: number): string {
   if (bytes === 0 || typeof bytes !== 'number') return '0 B';
   const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const sizes = ['B', 'KiB', 'MiB', 'GiB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i];
+  const value = bytes / Math.pow(k, i);
+  const valueStr = Number.isInteger(value) ? value.toString() : value.toFixed(1);
+  return `${valueStr} ${sizes[i]}`;
 }
 
 /**
  * 格式化速度为易读的字符串
- * @param speed - 速度 (KB/s)
- * @description 将速度格式化为 KB/s 或 MB/s
+ * @param speed - 速度 (KiB/s)
+ * @description 将速度格式化为 KiB/s 或 MiB/s
  * @example
- * formatSpeed(1024) // "1.0 MB/s"
- * formatSpeed(512) // "512.0 KB/s"
- * formatSpeed(0) // "0 KB/s"
+ * formatSpeed(1024) // "1.0 MiB/s"
+ * formatSpeed(512) // "512.0 KiB/s"
+ * formatSpeed(0) // "0 B/s"
  * @returns - 格式化后的字符串
  */
 export function formatSpeed(speed: number): string {
-  if (speed === 0 || typeof speed !== 'number') return '0 KB/s';
-  if (speed >= 1024) {
-    return (speed / 1024).toFixed(1) + ' MB/s';
+  if (speed === 0 || typeof speed !== 'number') return '0 B/s';
+  if (speed < 1) {
+    return ` ${(speed * 1024).toFixed(1)} B/s`;
+  } else if (speed < 1024) {
+    return `${speed.toFixed(1)} KiB/s`;
   }
-  return speed.toFixed(1) + ' KB/s';
+  return `${(speed / 1024).toFixed(1)} MiB/s`;
 }
 
 /**

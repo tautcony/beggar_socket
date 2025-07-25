@@ -283,6 +283,7 @@ onUnmounted(() => {
   color: #4b5563;
   border-left: 4px solid #3b82f6;
   word-break: break-word;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Menlo', 'Consolas', monospace;
 }
 .stop-button {
   background: #ef4444;

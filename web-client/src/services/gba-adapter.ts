@@ -17,7 +17,7 @@ import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { CFIInfo, parseCFI } from '@/utils/cfi-parser';
-import { formatHex } from '@/utils/formatter-utils';
+import { formatBytes, formatHex, formatSpeed } from '@/utils/formatter-utils';
 import { calcSectorUsage } from '@/utils/sector-utils';
 import { PerformanceTracker } from '@/utils/sentry-tracker';
 import { SpeedCalculator } from '@/utils/speed-calculator';
@@ -50,16 +50,16 @@ export class GBAAdapter extends CartridgeAdapter {
     return PerformanceTracker.trackAsyncOperation(
       'gba.readID',
       async () => {
-        this.log(this.t('messages.operation.readId'));
+        this.log(this.t('messages.operation.readId'), 'info');
         try {
           const id = [...await rom_get_id(this.device)];
 
           const idStr = id.map(x => x.toString(16).padStart(2, '0')).join(' ');
           const flashId = getFlashId(id);
           if (flashId === null) {
-            this.log(this.t('messages.operation.unknownFlashId'));
+            this.log(this.t('messages.operation.unknownFlashId'), 'warn');
           } else {
-            this.log(`${this.t('messages.operation.readIdSuccess')}: ${idStr} (${flashId})`);
+            this.log(`${this.t('messages.operation.readIdSuccess')}: ${idStr} (${flashId})`, 'success');
           }
 
           return {
@@ -68,7 +68,7 @@ export class GBAAdapter extends CartridgeAdapter {
             message: this.t('messages.operation.readIdSuccess'),
           };
         } catch (e) {
-          this.log(`${this.t('messages.operation.readIdFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          this.log(`${this.t('messages.operation.readIdFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
             message: this.t('messages.operation.readIdFailed'),
@@ -94,7 +94,7 @@ export class GBAAdapter extends CartridgeAdapter {
     return PerformanceTracker.trackAsyncOperation(
       'gba.eraseChip',
       async () => {
-        this.log(this.t('messages.operation.eraseChip'));
+        this.log(this.t('messages.operation.eraseChip'), 'info');
 
         try {
           // 检查是否已被取消
@@ -114,7 +114,7 @@ export class GBAAdapter extends CartridgeAdapter {
           while (true) {
             // 检查是否已被取消
             if (signal?.aborted) {
-              this.log(this.t('messages.operation.cancelled'));
+              this.log(this.t('messages.operation.cancelled'), 'error');
               return {
                 success: false,
                 message: this.t('messages.operation.cancelled'),
@@ -124,10 +124,10 @@ export class GBAAdapter extends CartridgeAdapter {
             const eraseComplete = await this.isBlank(0x00, 0x100);
             elapsedSeconds = Date.now() - startTime;
             if (eraseComplete) {
-              this.log(`${this.t('messages.operation.eraseComplete')} (${(elapsedSeconds / 1000).toFixed(1)}s)`);
+              this.log(`${this.t('messages.operation.eraseComplete')} (${(elapsedSeconds / 1000).toFixed(1)}s)`, 'success');
               break;
             } else {
-              this.log(`${this.t('messages.operation.eraseInProgress')} (${(elapsedSeconds / 1000).toFixed(1)}s)`);
+              this.log(`${this.t('messages.operation.eraseInProgress')} (${(elapsedSeconds / 1000).toFixed(1)}s)`, 'info');
               await new Promise(resolve => setTimeout(resolve, 1000));
             }
           }
@@ -138,14 +138,14 @@ export class GBAAdapter extends CartridgeAdapter {
           };
         } catch (e) {
           if (signal?.aborted) {
-            this.log(this.t('messages.operation.cancelled'));
+            this.log(this.t('messages.operation.cancelled'), 'error');
             return {
               success: false,
               message: this.t('messages.operation.cancelled'),
             };
           }
 
-          this.log(`${this.t('messages.operation.eraseFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          this.log(`${this.t('messages.operation.eraseFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
             message: this.t('messages.operation.eraseFailed'),
@@ -175,7 +175,7 @@ export class GBAAdapter extends CartridgeAdapter {
           startAddress: formatHex(startAddress, 4),
           endAddress: formatHex(endAddress, 4),
           sectorSize,
-        }));
+        }), 'info');
 
         try {
           // 确保扇区对齐
@@ -213,7 +213,7 @@ export class GBAAdapter extends CartridgeAdapter {
             this.log(this.t('messages.operation.eraseSector', {
               from: formatHex(currentAddress, 4),
               to: formatHex(currentAddress + sectorSize - 1, 4),
-            }));
+            }), 'info');
 
             await rom_erase_sector(this.device, currentAddress);
             const sectorEndTime = Date.now();
@@ -229,7 +229,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
             this.updateProgress(this.createProgressInfo(
               (eraseCount / totalSectors) * 100,
-              this.t('messages.progress.eraseSpeed', { speed: currentSpeed.toFixed(1) }),
+              this.t('messages.progress.eraseSpeed', { speed: formatSpeed(currentSpeed) }),
               totalBytes,
               erasedBytes,
               startTime,
@@ -238,17 +238,17 @@ export class GBAAdapter extends CartridgeAdapter {
             ));
           }
 
-          const totalTime = (Date.now() - startTime) / 1000;
+          const totalTime = speedCalculator.getTotalTime();
           const avgSpeed = speedCalculator.getAverageSpeed();
-          const maxSpeed = speedCalculator.getMaxSpeed() || speedCalculator.getPeakSpeed();
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
-          this.log(this.t('messages.operation.eraseSuccess'));
+          this.log(this.t('messages.operation.eraseSuccess'), 'success');
           this.log(this.t('messages.operation.eraseSummary', {
-            totalTime: totalTime.toFixed(2),
-            avgSpeed: avgSpeed.toFixed(1),
-            maxSpeed: maxSpeed.toFixed(1),
+            totalTime: SpeedCalculator.formatTime(totalTime),
+            avgSpeed: formatSpeed(avgSpeed),
+            maxSpeed: formatSpeed(maxSpeed),
             totalSectors: totalSectors,
-          }));
+          }), 'info');
 
           // 报告完成状态
           this.updateProgress(this.createProgressInfo(
@@ -268,7 +268,7 @@ export class GBAAdapter extends CartridgeAdapter {
           };
         } catch (e) {
           if (signal?.aborted) {
-            this.log(this.t('messages.operation.cancelled'));
+            this.log(this.t('messages.operation.cancelled'), 'error');
             return {
               success: false,
               message: this.t('messages.operation.cancelled'),
@@ -276,7 +276,7 @@ export class GBAAdapter extends CartridgeAdapter {
           }
 
           this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.eraseSectorFailed')));
-          this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
             message: this.t('messages.operation.eraseSectorFailed'),
@@ -312,7 +312,7 @@ export class GBAAdapter extends CartridgeAdapter {
       baseAddress: formatHex(baseAddress, 4),
       pageSize,
       bufferSize,
-    }));
+    }), 'info');
 
     return PerformanceTracker.trackAsyncOperation(
       'gba.writeROM',
@@ -321,7 +321,7 @@ export class GBAAdapter extends CartridgeAdapter {
         try {
           const total = options.size ?? fileData.byteLength;
           let written = 0;
-          this.log(this.t('messages.rom.writing', { size: total }));
+          this.log(this.t('messages.rom.writing', { size: total }), 'info');
 
           {
             const { bank } = this.romBankRelevantAddress(baseAddress);
@@ -358,7 +358,7 @@ export class GBAAdapter extends CartridgeAdapter {
             const chunkSize = Math.min(pageSize, total - written);
             const chunk = fileData.slice(written, written + chunkSize);
             if (chunk.byteLength === 0) {
-              this.log(this.t('messages.rom.writeNoData'));
+              this.log(this.t('messages.rom.writeNoData'), 'warn');
               break;
             }
             const currentAddress = baseAddress + written;
@@ -389,7 +389,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
               this.updateProgress(this.createProgressInfo(
                 progress,
-                this.t('messages.progress.writeSpeed', { speed: currentSpeed.toFixed(1) }),
+                this.t('messages.progress.writeSpeed', { speed: formatSpeed(currentSpeed) }),
                 total,
                 written,
                 startTime,
@@ -401,22 +401,22 @@ export class GBAAdapter extends CartridgeAdapter {
             // 每5个百分比记录一次日志
             const progress = Math.floor((written / total) * 100);
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
-              this.log(this.t('messages.rom.writingAt', { address: formatHex(baseAddress + written, 4), progress }));
+              this.log(this.t('messages.rom.writingAt', { address: formatHex(baseAddress + written, 4), progress }), 'info');
               lastLoggedProgress = progress;
             }
           }
 
-          const totalTime = (Date.now() - startTime) / 1000;
+          const totalTime = speedCalculator.getTotalTime();
           const avgSpeed = speedCalculator.getAverageSpeed();
-          const maxSpeed = speedCalculator.getMaxSpeed() || speedCalculator.getPeakSpeed();
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
-          this.log(this.t('messages.rom.writeComplete'));
+          this.log(this.t('messages.rom.writeComplete'), 'success');
           this.log(this.t('messages.rom.writeSummary', {
-            totalTime: totalTime.toFixed(2),
-            avgSpeed: avgSpeed.toFixed(1),
-            maxSpeed: maxSpeed.toFixed(1),
-            totalSize: (total / 1024).toFixed(1),
-          }));
+            totalTime: SpeedCalculator.formatTime(totalTime),
+            avgSpeed: formatSpeed(avgSpeed),
+            maxSpeed: formatSpeed(maxSpeed),
+            totalSize: formatBytes(total),
+          }), 'info');
 
           // 报告完成状态
           this.updateProgress(this.createProgressInfo(
@@ -436,7 +436,7 @@ export class GBAAdapter extends CartridgeAdapter {
           };
         } catch (e) {
           this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.writeFailed')));
-          this.log(`${this.t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          this.log(`${this.t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
             message: this.t('messages.rom.writeFailed'),
@@ -470,7 +470,7 @@ export class GBAAdapter extends CartridgeAdapter {
     this.log(this.t('messages.operation.startReadROM', {
       size,
       baseAddress: formatHex(baseAddress, 4),
-    }));
+    }), 'info');
 
     return PerformanceTracker.trackAsyncOperation(
       'gba.readROM',
@@ -486,7 +486,7 @@ export class GBAAdapter extends CartridgeAdapter {
             };
           }
 
-          this.log(this.t('messages.rom.reading'));
+          this.log(this.t('messages.rom.reading'), 'info');
           let totalRead = 0;
 
           const data = new Uint8Array(size);
@@ -538,7 +538,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
               this.updateProgress(this.createProgressInfo(
                 progress,
-                this.t('messages.progress.readSpeed', { speed: currentSpeed.toFixed(1) }),
+                this.t('messages.progress.readSpeed', { speed: formatSpeed(currentSpeed) }),
                 size,
                 totalRead,
                 startTime,
@@ -550,22 +550,22 @@ export class GBAAdapter extends CartridgeAdapter {
             // 每5个百分比记录一次日志
             const progress = Math.floor((totalRead / size) * 100);
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
-              this.log(this.t('messages.rom.readingAt', { address: formatHex(baseAddress + totalRead, 4), progress }));
+              this.log(this.t('messages.rom.readingAt', { address: formatHex(baseAddress + totalRead, 4), progress }), 'info');
               lastLoggedProgress = progress;
             }
           }
 
-          const totalTime = (Date.now() - startTime) / 1000;
+          const totalTime = speedCalculator.getTotalTime();
           const avgSpeed = speedCalculator.getAverageSpeed();
-          const maxSpeed = speedCalculator.getMaxSpeed() || speedCalculator.getPeakSpeed();
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
-          this.log(this.t('messages.rom.readSuccess', { size: data.length }));
+          this.log(this.t('messages.rom.readSuccess', { size: data.length }), 'success');
           this.log(this.t('messages.rom.readSummary', {
-            totalTime: totalTime.toFixed(2),
-            avgSpeed: avgSpeed.toFixed(1),
-            maxSpeed: maxSpeed.toFixed(1),
-            totalSize: (size / 1024).toFixed(1),
-          }));
+            totalTime: SpeedCalculator.formatTime(totalTime),
+            avgSpeed: formatSpeed(avgSpeed),
+            maxSpeed: formatSpeed(maxSpeed),
+            totalSize: formatBytes(size),
+          }), 'info');
 
           this.updateProgress(this.createProgressInfo(
             100,
@@ -585,7 +585,7 @@ export class GBAAdapter extends CartridgeAdapter {
           };
         } catch (e) {
           this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.readFailed')));
-          this.log(`${this.t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          this.log(`${this.t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
             message: this.t('messages.rom.readFailed'),
@@ -616,7 +616,7 @@ export class GBAAdapter extends CartridgeAdapter {
     this.log(this.t('messages.operation.startVerifyROM', {
       fileSize: fileData.byteLength,
       baseAddress: formatHex(baseAddress, 4),
-    }));
+    }), 'info');
 
     return PerformanceTracker.trackAsyncOperation(
       'gba.verifyROM',
@@ -631,7 +631,7 @@ export class GBAAdapter extends CartridgeAdapter {
         }
         const startTime = Date.now(); // 移到 try 块外面以便在 catch 块中使用
         try {
-          this.log(this.t('messages.rom.verifying'));
+          this.log(this.t('messages.rom.verifying'), 'info');
 
           const total = fileData.byteLength;
           let verified = 0;
@@ -680,7 +680,7 @@ export class GBAAdapter extends CartridgeAdapter {
                   address: formatHex(failedAddress, 4),
                   expected: formatHex(expectedChunk[i], 1),
                   actual: formatHex(actualChunk[i], 1),
-                }));
+                }), 'error');
                 break;
               }
             }
@@ -702,7 +702,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
               this.updateProgress(this.createProgressInfo(
                 progress,
-                this.t('messages.progress.verifySpeed', { speed: currentSpeed.toFixed(1) }),
+                this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeed) }),
                 total,
                 verified,
                 startTime,
@@ -717,23 +717,23 @@ export class GBAAdapter extends CartridgeAdapter {
               this.log(this.t('messages.rom.verifyingAt', {
                 address: formatHex(verified, 4),
                 progress,
-              }));
+              }), 'info');
               lastLoggedProgress = progress;
             }
           }
 
-          const totalTime = (Date.now() - startTime) / 1000;
+          const totalTime = speedCalculator.getTotalTime();
           const avgSpeed = speedCalculator.getAverageSpeed();
-          const maxSpeed = speedCalculator.getMaxSpeed() || speedCalculator.getPeakSpeed();
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
           if (success) {
-            this.log(this.t('messages.rom.verifySuccess'));
+            this.log(this.t('messages.rom.verifySuccess'), 'success');
             this.log(this.t('messages.rom.verifySummary', {
-              totalTime: totalTime.toFixed(2),
-              avgSpeed: avgSpeed.toFixed(1),
-              maxSpeed: maxSpeed.toFixed(1),
-              totalSize: (total / 1024).toFixed(1),
-            }));
+              totalTime: SpeedCalculator.formatTime(totalTime),
+              avgSpeed: formatSpeed(avgSpeed),
+              maxSpeed: formatSpeed(maxSpeed),
+              totalSize: formatBytes(total),
+            }), 'info');
             this.updateProgress(this.createProgressInfo(
               100,
               this.t('messages.rom.verifySuccess'),
@@ -745,7 +745,7 @@ export class GBAAdapter extends CartridgeAdapter {
               'completed',
             ));
           } else {
-            this.log(this.t('messages.rom.verifyFailed'));
+            this.log(this.t('messages.rom.verifyFailed'), 'error');
             this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.verifyFailed')));
           }
 
@@ -756,7 +756,7 @@ export class GBAAdapter extends CartridgeAdapter {
           };
         } catch (e) {
           this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.verifyFailed')));
-          this.log(`${this.t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          this.log(`${this.t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
             message: this.t('messages.rom.verifyFailed'),
@@ -788,27 +788,27 @@ export class GBAAdapter extends CartridgeAdapter {
     this.log(this.t('messages.operation.startWriteRAM', {
       fileSize: fileData.byteLength,
       baseAddress: formatHex(baseAddress, 4),
-    }));
+    }), 'info');
 
     return PerformanceTracker.trackAsyncOperation(
       'gba.writeRAM',
       async () => {
         try {
-          this.log(this.t('messages.ram.writing', { size: fileData.byteLength }));
+          this.log(this.t('messages.ram.writing', { size: fileData.byteLength }), 'info');
 
           const total = options.size ?? fileData.byteLength;
           let written = 0;
           if (ramType === 'FLASH') {
-            this.log(this.t('messages.gba.erasingFlash'));
+            this.log(this.t('messages.gba.erasingFlash'), 'info');
             await ram_erase_flash(this.device);
 
             // 等待擦除完成
             let erased = false;
             while (!erased) {
               const result = await ram_read(this.device, 1);
-              this.log(this.t('messages.gba.eraseStatus', { status: formatHex(result[0], 1) }));
+              this.log(this.t('messages.gba.eraseStatus', { status: formatHex(result[0], 1) }), 'info');
               if (result[0] === 0xff) {
-                this.log(this.t('messages.gba.eraseComplete'));
+                this.log(this.t('messages.gba.eraseComplete'), 'success');
                 erased = true;
               } else {
                 await new Promise(resolve => setTimeout(resolve, 1000));
@@ -864,29 +864,29 @@ export class GBAAdapter extends CartridgeAdapter {
 
             // 每5个百分比记录一次日志
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
-              this.log(this.t('messages.ram.writingAt', { address: formatHex(written, 4), progress }));
+              this.log(this.t('messages.ram.writingAt', { address: formatHex(written, 4), progress }), 'info');
               lastLoggedProgress = progress;
             }
           }
 
-          const totalTime = (Date.now() - startTime) / 1000;
+          const totalTime = speedCalculator.getTotalTime();
           const avgSpeed = speedCalculator.getAverageSpeed();
-          const maxSpeed = speedCalculator.getMaxSpeed() || speedCalculator.getPeakSpeed();
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
-          this.log(this.t('messages.ram.writeComplete'));
+          this.log(this.t('messages.ram.writeComplete'), 'success');
           this.log(this.t('messages.ram.writeSummary', {
-            totalTime: totalTime.toFixed(2),
-            avgSpeed: avgSpeed.toFixed(1),
-            maxSpeed: maxSpeed.toFixed(1),
-            totalSize: (total / 1024).toFixed(1),
-          }));
+            totalTime: SpeedCalculator.formatTime(totalTime),
+            avgSpeed: formatSpeed(avgSpeed),
+            maxSpeed: formatSpeed(maxSpeed),
+            totalSize: formatBytes(total),
+          }), 'info');
 
           return {
             success: true,
             message: this.t('messages.ram.writeSuccess'),
           };
         } catch (e) {
-          this.log(`${this.t('messages.ram.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          this.log(`${this.t('messages.ram.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
             message: this.t('messages.ram.writeFailed'),
@@ -918,13 +918,13 @@ export class GBAAdapter extends CartridgeAdapter {
     this.log(this.t('messages.operation.startReadRAM', {
       size,
       baseAddress: formatHex(baseAddress, 4),
-    }));
+    }), 'info');
 
     return PerformanceTracker.trackAsyncOperation(
       'gba.readRAM',
       async () => {
         try {
-          this.log(this.t('messages.ram.reading'));
+          this.log(this.t('messages.ram.reading'), 'info');
 
           const result = new Uint8Array(size);
           let read = 0;
@@ -966,17 +966,17 @@ export class GBAAdapter extends CartridgeAdapter {
             speedCalculator.addDataPoint(chunkSize, chunkEndTime);
           }
 
-          const totalTime = (Date.now() - startTime) / 1000;
+          const totalTime = speedCalculator.getTotalTime();
           const avgSpeed = speedCalculator.getAverageSpeed();
-          const maxSpeed = speedCalculator.getMaxSpeed() || speedCalculator.getPeakSpeed();
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
-          this.log(this.t('messages.ram.readSuccess', { size: result.length }));
+          this.log(this.t('messages.ram.readSuccess', { size: result.length }), 'success');
           this.log(this.t('messages.ram.readSummary', {
-            totalTime: totalTime.toFixed(2),
-            avgSpeed: avgSpeed.toFixed(1),
-            maxSpeed: maxSpeed.toFixed(1),
-            totalSize: (size / 1024).toFixed(1),
-          }));
+            totalTime: SpeedCalculator.formatTime(totalTime),
+            avgSpeed: formatSpeed(avgSpeed),
+            maxSpeed: formatSpeed(maxSpeed),
+            totalSize: formatBytes(size),
+          }), 'info');
 
           return {
             success: true,
@@ -984,7 +984,7 @@ export class GBAAdapter extends CartridgeAdapter {
             message: this.t('messages.ram.readSuccess', { size: result.length }),
           };
         } catch (e) {
-          this.log(`${this.t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          this.log(`${this.t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
             message: this.t('messages.ram.readFailed'),
@@ -1016,13 +1016,13 @@ export class GBAAdapter extends CartridgeAdapter {
     this.log(this.t('messages.operation.startVerifyRAM', {
       fileSize: fileData.byteLength,
       baseAddress: formatHex(baseAddress, 4),
-    }));
+    }), 'info');
 
     return PerformanceTracker.trackAsyncOperation(
       'gba.verifyRAM',
       async () => {
         try {
-          this.log(this.t('messages.ram.verifying'));
+          this.log(this.t('messages.ram.verifying'), 'info');
           let success = true;
 
           const readResult = await this.readRAM(size, options);
@@ -1034,7 +1034,7 @@ export class GBAAdapter extends CartridgeAdapter {
                   address: formatHex(i, 4),
                   expected: formatHex(fileData[i], 1),
                   actual: formatHex(ramData[i], 1),
-                }));
+                }), 'error');
                 success = false;
                 break;
               }
@@ -1042,14 +1042,14 @@ export class GBAAdapter extends CartridgeAdapter {
           }
 
           const message = success ? this.t('messages.ram.verifySuccess') : this.t('messages.ram.verifyFailed');
-          this.log(`${this.t('messages.ram.verify')}: ${message}`);
+          this.log(`${this.t('messages.ram.verify')}: ${message}`, success ? 'success' : 'error');
 
           return {
             success: success,
             message,
           };
         } catch (e) {
-          this.log(`${this.t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          this.log(`${this.t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
             message: this.t('messages.ram.verifyFailed'),
@@ -1072,7 +1072,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @returns 卡带容量相关信息
    */
   override async getCartInfo(): Promise<CFIInfo | false> {
-    this.log(this.t('messages.operation.startGetCartInfo'));
+    this.log(this.t('messages.operation.startGetCartInfo'), 'info');
 
     return PerformanceTracker.trackAsyncOperation(
       'gba.getCartInfo',
@@ -1087,17 +1087,17 @@ export class GBAAdapter extends CartridgeAdapter {
           const cfiInfo = parseCFI(cfiData);
 
           if (!cfiInfo) {
-            this.log(this.t('messages.operation.cfiParseFailed'));
+            this.log(this.t('messages.operation.cfiParseFailed'), 'error');
             return false;
           }
 
           // 记录CFI解析结果
-          this.log(this.t('messages.operation.cfiParseSuccess'));
-          this.log(cfiInfo.info);
+          this.log(this.t('messages.operation.cfiParseSuccess'), 'success');
+          this.log(cfiInfo.info, 'info');
 
           return cfiInfo;
         } catch (e) {
-          this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${e instanceof Error ? e.message : String(e)}`);
+          this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return false;
         }
       },
@@ -1118,7 +1118,7 @@ export class GBAAdapter extends CartridgeAdapter {
     await ram_write(this.device, new Uint8Array([h]), 0x02);
     await ram_write(this.device, new Uint8Array([0x40]), 0x03);
 
-    this.log(this.t('messages.rom.bankSwitch', { bank }));
+    this.log(this.t('messages.rom.bankSwitch', { bank }), 'info');
   }
 
   romBankRelevantAddress(address: number) {
@@ -1138,7 +1138,7 @@ export class GBAAdapter extends CartridgeAdapter {
   async switchSRAMBank(bank: number) : Promise<void> {
     bank = bank === 0 ? 0 : 1;
     await rom_write(this.device, toLittleEndian(bank, 2), 0x800000);
-    this.log(this.t('messages.gba.bankSwitchSram', { bank }));
+    this.log(this.t('messages.gba.bankSwitchSram', { bank }), 'info');
   }
 
   /**
@@ -1153,20 +1153,20 @@ export class GBAAdapter extends CartridgeAdapter {
     await ram_write(this.device, new Uint8Array([0xb0]), 0x5555); // FLASH_COMMAND_SWITCH_BANK
     await ram_write(this.device, new Uint8Array([bank]), 0x0000);
 
-    this.log(this.t('messages.gba.bankSwitchFlash', { bank }));
+    this.log(this.t('messages.gba.bankSwitchFlash', { bank }), 'info');
   }
 
   // 检查区域是否为空
   async isBlank(address: number, size = 0x100) : Promise<boolean> {
-    this.log(this.t('messages.rom.checkingIfBlank'));
+    this.log(this.t('messages.rom.checkingIfBlank'), 'info');
 
     const data = await rom_read(this.device, size, address);
     const blank = data.every(byte => byte === 0xff);
 
     if (blank) {
-      this.log(this.t('messages.rom.areaIsBlank'));
+      this.log(this.t('messages.rom.areaIsBlank'), 'success');
     } else {
-      this.log(this.t('messages.rom.areaNotBlank'));
+      this.log(this.t('messages.rom.areaNotBlank'), 'warn');
     }
 
     return blank;
