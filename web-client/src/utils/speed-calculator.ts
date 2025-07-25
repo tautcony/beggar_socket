@@ -125,18 +125,6 @@ export class SpeedCalculator {
     return (this.lastTimestamp - this.startTime) / 1000;
   }
 
-  static formatTime(seconds: number): string {
-    if (seconds < 1) {
-      return `${(seconds * 1000).toFixed(0)}ms`;
-    } else if (seconds < 60) {
-      return `${seconds.toFixed(0)}s`;
-    } else {
-      const minutes = Math.floor(seconds / 60);
-      const remainingSeconds = seconds % 60;
-      return `${minutes}m ${remainingSeconds.toFixed(0)}s`;
-    }
-  }
-
   /**
    * 重置速度计算器
    */

@@ -4,7 +4,7 @@ import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { CFIInfo } from '@/utils/cfi-parser';
-import { formatBytes, formatHex, formatSpeed } from '@/utils/formatter-utils';
+import { formatBytes, formatHex, formatSpeed, formatTimeDuration } from '@/utils/formatter-utils';
 import { SpeedCalculator } from '@/utils/speed-calculator';
 
 /**
@@ -221,7 +221,7 @@ export class MockAdapter extends CartridgeAdapter {
 
       this.log(this.t('messages.operation.eraseSuccess'), 'success');
       this.log(this.t('messages.operation.eraseSummary', {
-        totalTime: SpeedCalculator.formatTime(totalTime),
+        totalTime: formatTimeDuration(totalTime),
         avgSpeed: formatSpeed(avgSpeed),
         maxSpeed: formatSpeed(maxSpeed),
         totalSectors: totalSectors,
@@ -346,7 +346,7 @@ export class MockAdapter extends CartridgeAdapter {
 
       this.log(this.t('messages.rom.writeComplete'), 'success');
       this.log(this.t('messages.rom.writeSummary', {
-        totalTime: SpeedCalculator.formatTime(totalTime),
+        totalTime: formatTimeDuration(totalTime),
         avgSpeed: formatSpeed(avgSpeed),
         maxSpeed: formatSpeed(maxSpeed),
         totalSize: formatBytes(total),
@@ -692,7 +692,7 @@ export class MockAdapter extends CartridgeAdapter {
 
       this.log(this.t('messages.ram.writeComplete'), 'success');
       this.log(this.t('messages.ram.writeSummary', {
-        totalTime: SpeedCalculator.formatTime(totalTime),
+        totalTime: formatTimeDuration(totalTime),
         avgSpeed: formatSpeed(avgSpeed),
         maxSpeed: formatSpeed(maxSpeed),
         totalSize: formatBytes(total),

@@ -45,15 +45,15 @@ export function formatSpeed(speed: number): string {
  * @param showMilliseconds - 是否显示毫秒（以100ms为最小单位，显示为0.1秒），默认为 false
  * @description 将时间格式化为 MM:SS 格式或 MM:SS.D 格式（包含十分之一秒）
  * @example
- * formatTime(90) // "01:30"
- * formatTime(90.15, 's', true) // "01:30.1"
- * formatTime(1500, 'ms') // "00:01"
- * formatTime(1550, 'ms', true) // "00:01.5"
- * formatTime(0) // "00:00"
- * formatTime(0, 's', true) // "00:00.0"
+ * formatTimeClock(90) // "01:30"
+ * formatTimeClock(90.15, 's', true) // "01:30.1"
+ * formatTimeClock(1500, 'ms') // "00:01"
+ * formatTimeClock(1550, 'ms', true) // "00:01.5"
+ * formatTimeClock(0) // "00:00"
+ * formatTimeClock(0, 's', true) // "00:00.0"
  * @returns - 格式化后的字符串
  */
-export function formatTime(value: number, unit: 's' | 'ms' = 's', showMilliseconds = false): string {
+export function formatTimeClock(value: number, unit: 's' | 'ms' = 's', showMilliseconds = false): string {
   let totalMs: number;
 
   // 转换为毫秒
@@ -81,6 +81,28 @@ export function formatTime(value: number, unit: 's' | 'ms' = 's', showMillisecon
   }
 
   return baseTime;
+}
+
+/**
+ * 格式化时间为人类可读的字符串
+ * @param seconds - 秒数
+ * @description 格式化时间为易读的格式：ms、s、m s
+ * @example
+ * formatTimeDuration(0.5) // "500ms"
+ * formatTimeDuration(30) // "30s"
+ * formatTimeDuration(135) // "2m 15s"
+ * @returns - 格式化后的字符串
+ */
+export function formatTimeDuration(seconds: number): string {
+  if (seconds < 1) {
+    return `${(seconds * 1000).toFixed(0)}ms`;
+  } else if (seconds < 60) {
+    return `${seconds.toFixed(0)}s`;
+  } else {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds.toFixed(0)}s`;
+  }
 }
 
 export function formatHex(value: number, byteLength: 1 | 2 | 3 | 4 | 6) {

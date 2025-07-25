@@ -250,58 +250,61 @@ export class CFIParser {
    * @returns 格式化的信息字符串
    */
   private generateInfoString(info: CFIInfo): string {
-    let s = '';
+    const lines: string[] = [];
 
     // 显示数据交换信息
     if (info.dataSwap && info.dataSwap.length > 0 &&
         !(info.dataSwap.length === 1 && info.dataSwap[0][0] === 0 && info.dataSwap[0][1] === 0)) {
-      s += `Swapped pins: ${JSON.stringify(info.dataSwap)}\n`;
+      lines.push(`Swapped pins: ${JSON.stringify(info.dataSwap)}`);
     }
 
     // 设备信息
-    s += `Device size: ${formatHex(info.deviceSize, 4)} (${(formatBytes(info.deviceSize))}\n`;
-    s += `Voltage: ${info.vddMin.toFixed(1)}–${info.vddMax.toFixed(1)} V\n`;
-    s += `Single write: ${info.singleWrite}\n`;
+    lines.push(`Device size: ${formatHex(info.deviceSize, 4)} (${formatBytes(info.deviceSize)})`);
+    lines.push(`Voltage: ${info.vddMin.toFixed(1)}–${info.vddMax.toFixed(1)} V`);
+    lines.push(`Single write: ${info.singleWrite}`);
 
     // 缓冲写入信息
-    if (info.bufferSize !== undefined) {
-      s += `Buffered write: ${info.bufferWrite} (${info.bufferSize} Bytes)\n`;
-    } else {
-      s += `Buffered write: ${info.bufferWrite}\n`;
-    }
+    const bufferWriteInfo = info.bufferSize !== undefined
+      ? `Buffered write: ${info.bufferWrite} (${info.bufferSize} Bytes)`
+      : `Buffered write: ${info.bufferWrite}`;
+    lines.push(bufferWriteInfo);
 
     // 时间信息
     if (info.chipErase && info.chipEraseTimeAvg && info.chipEraseTimeMax) {
-      s += `Chip erase: ${info.chipEraseTimeAvg}–${info.chipEraseTimeMax} ms\n`;
+      lines.push(`Chip erase: ${info.chipEraseTimeAvg}–${info.chipEraseTimeMax} ms`);
     }
     if (info.sectorErase && info.sectorEraseTimeAvg && info.sectorEraseTimeMax) {
-      s += `Sector erase: ${info.sectorEraseTimeAvg}–${info.sectorEraseTimeMax} ms\n`;
+      lines.push(`Sector erase: ${info.sectorEraseTimeAvg}–${info.sectorEraseTimeMax} ms`);
     }
 
     // 引导扇区信息
     if (info.tbBootSector !== false) {
-      s += `Sector flags: ${info.tbBootSector}\n`;
+      lines.push(`Sector flags: ${info.tbBootSector}`);
     }
 
     // 扇区区域信息
-    let pos = 0;
+    let currentPos = 0;
     let oversize = false;
-    s = s.slice(0, -1); // 移除最后的换行符
 
     for (let i = 0; i < info.eraseSectorRegions; i++) {
       const esb = info.eraseSectorBlocks[i];
-      s += `\nRegion ${i + 1}: ${formatHex(pos, 4)}–${formatHex(pos + esb[2] - 1, 4)} @ ${formatHex(esb[0], 2)} Bytes × ${esb[1]}`;
-      if (oversize) {
-        s += ' (alt)';
-      }
-      pos += esb[2];
-      if (pos >= info.deviceSize) {
-        pos = 0;
+      const sectorSize = formatHex(esb[0], 2);
+      const sectorCount = esb[1];
+      const regionSizeBytes = esb[2];
+
+      const addressRange = formatHex(currentPos, 3) + '-' +
+                            formatHex(currentPos + regionSizeBytes - 1, 3);
+      const regionInfo = `Region ${i + 1}: ${addressRange} @ ${sectorSize} Bytes × ${sectorCount}${oversize ? ' (alt)' : ''}`;
+      lines.push(regionInfo);
+
+      currentPos += regionSizeBytes;
+      if (currentPos >= info.deviceSize) {
+        currentPos = 0;
         oversize = true;
       }
     }
 
-    return s;
+    return lines.join('\n');
   }
 }
 

@@ -42,11 +42,11 @@
         </div>
         <div class="stat-item">
           <span class="stat-label">{{ $t('ui.progress.elapsed') }}</span>
-          <span class="stat-value">{{ formatTime(elapsedTime, 'ms', true) }}</span>
+          <span class="stat-value">{{ formatTimeClock(elapsedTime, 'ms', true) }}</span>
         </div>
         <div class="stat-item">
           <span class="stat-label">{{ $t('ui.progress.remaining_time') }}</span>
-          <span class="stat-value">{{ formatTime(remainingTime, 'ms', true) }}</span>
+          <span class="stat-value">{{ formatTimeClock(remainingTime, 'ms', true) }}</span>
         </div>
         <div class="stat-item">
           <span class="stat-label">{{ $t('ui.progress.speed') }}</span>
@@ -92,7 +92,7 @@ import { useI18n } from 'vue-i18n';
 
 import BaseModal from '@/components/common/BaseModal.vue';
 import { ProgressInfo } from '@/types/progress-info';
-import { formatBytes, formatSpeed, formatTime } from '@/utils/formatter-utils';
+import { formatBytes, formatSpeed, formatTimeClock } from '@/utils/formatter-utils';
 
 const { t } = useI18n();
 

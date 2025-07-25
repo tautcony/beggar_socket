@@ -86,7 +86,7 @@
           >
             {{ validationErrors.defaultTimeout }}
           </div>
-          <small class="hint">{{ formatTime(localSettings.timeout.default, 'ms') }}</small>
+          <small class="hint">{{ formatTimeClock(localSettings.timeout.default, 'ms') }}</small>
         </div>
 
         <div class="setting-item">
@@ -109,7 +109,7 @@
           >
             {{ validationErrors.packageSendTimeout }}
           </div>
-          <small class="hint">{{ formatTime(localSettings.timeout.packageSend, 'ms') }}</small>
+          <small class="hint">{{ formatTimeClock(localSettings.timeout.packageSend, 'ms') }}</small>
         </div>
       </div>
 
@@ -134,7 +134,7 @@
           >
             {{ validationErrors.packageReceiveTimeout }}
           </div>
-          <small class="hint">{{ formatTime(localSettings.timeout.packageReceive, 'ms') }}</small>
+          <small class="hint">{{ formatTimeClock(localSettings.timeout.packageReceive, 'ms') }}</small>
         </div>
 
         <div class="setting-item">
@@ -157,7 +157,7 @@
           >
             {{ validationErrors.operationTimeout }}
           </div>
-          <small class="hint">{{ formatTime(localSettings.timeout.operation, 'ms') }}</small>
+          <small class="hint">{{ formatTimeClock(localSettings.timeout.operation, 'ms') }}</small>
         </div>
       </div>
     </div>
@@ -194,7 +194,7 @@ import { useI18n } from 'vue-i18n';
 
 import BaseModal from '@/components/common/BaseModal.vue';
 import { AdvancedSettings } from '@/settings/advanced-settings';
-import { formatBytes, formatTime } from '@/utils/formatter-utils';
+import { formatBytes, formatTimeClock } from '@/utils/formatter-utils';
 
 const { t } = useI18n();
 
