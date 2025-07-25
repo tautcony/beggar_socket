@@ -66,11 +66,6 @@ const usePolyfill = ref(false);
 
 let deviceInfo: DeviceInfo | null = null;
 
-// Serial port disconnect event type
-interface SerialPortDisconnectEvent extends Event {
-  port: SerialPort;
-}
-
 // 热重载状态恢复 - 在开发模式下处理 HMR
 if (import.meta.hot) {
   const data = import.meta.hot.data as {

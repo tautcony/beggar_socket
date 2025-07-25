@@ -46,9 +46,9 @@ export class CartridgeAdapter {
 
   /**
    * 读取ROM芯片ID
-   * @returns {Promise<CommandResult & { idStr?: string }>} - 包含成功状态、ID字符串和消息的对象
+   * @returns {Promise<CommandResult & { id?: number[] }>} - 包含成功状态、ID字符串和消息的对象
    */
-  async readID(): Promise<CommandResult & { idStr?: string }> {
+  async readID(): Promise<CommandResult & { id?: number[] }> {
     throw new NotImplementedError();
   }
 

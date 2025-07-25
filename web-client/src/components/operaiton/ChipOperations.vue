@@ -68,13 +68,13 @@ import { formatBytes } from '@/utils/formatter-utils';
 const props = withDefaults(defineProps<{
   deviceReady: boolean;
   busy: boolean;
-  idStr?: string;
+  chipId?: number[];
   deviceSize?: number;
   sectorCounts?: number[];
   sectorSizes?: number[];
   bufferWriteBytes?: number;
 }>(), {
-  idStr: '',
+  chipId: undefined,
   deviceSize: undefined,
   sectorCounts: undefined,
   sectorSizes: undefined,
@@ -82,7 +82,7 @@ const props = withDefaults(defineProps<{
 });
 
 const idStr = computed(() => {
-  return props.idStr ?? '--';
+  return props.chipId?.map(x => x.toString(16).padStart(2, '0')).join(' ') ?? '--';
 });
 
 const deviceSizeStr = computed(() => {

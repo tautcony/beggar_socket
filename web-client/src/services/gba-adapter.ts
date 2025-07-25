@@ -46,7 +46,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * 读取ROM芯片ID
    * @returns - ID字符串
    */
-  override async readID(): Promise<CommandResult & { idStr?: string }> {
+  override async readID(): Promise<CommandResult & { id?: number[] }> {
     return PerformanceTracker.trackAsyncOperation(
       'gba.readID',
       async () => {
@@ -64,7 +64,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
           return {
             success: true,
-            idStr,
+            id,
             message: this.t('messages.operation.readIdSuccess'),
           };
         } catch (e) {
@@ -78,9 +78,6 @@ export class GBAAdapter extends CartridgeAdapter {
       {
         adapter_type: 'gba',
         operation_type: 'read_id',
-      },
-      {
-        devicePortLabel: this.device.port?.getInfo?.()?.usbProductId ?? 'unknown',
       },
     );
   }

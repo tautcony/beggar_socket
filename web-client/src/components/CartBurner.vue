@@ -40,9 +40,9 @@
         >
           <ChipOperations
             key="chip-operations"
+            :chip-id="chipId"
             :device-ready="deviceReady"
             :busy="busy"
-            :id-str="idStr"
             :device-size="cfiInfo?.deviceSize"
             :sector-counts="sectorCounts"
             :sector-sizes="sectorSizes"
@@ -157,7 +157,7 @@ const showProgressModal = computed(() => {
 });
 
 // chip props
-const idStr = ref<string | undefined>(undefined);
+const chipId = ref<number[] | undefined>(undefined);
 const cfiInfo = ref<CFIInfo | null>(null);
 
 const sectorSizes = computed(() => {
@@ -433,7 +433,7 @@ async function readCart() {
 
     const response = await adapter.readID();
     if (response.success) {
-      idStr.value = response.idStr ?? '';
+      chipId.value = response.id;
     } else {
       cfiInfo.value = null;
     }
@@ -442,7 +442,7 @@ async function readCart() {
       cfiInfo.value = info;
       onRomSizeChange(formatHex(info.deviceSize, 4));
     }
-    if (idStr.value && cfiInfo.value) {
+    if (chipId.value && cfiInfo.value) {
       showToast(t('messages.operation.readCartSuccess'), 'success');
       log(t('messages.operation.readCartSuccess'), 'success');
     } else {
@@ -724,7 +724,7 @@ function saveAsFile(data: Uint8Array, filename: string) {
 function resetState() {
   // 重置基本状态
   busy.value = false;
-  idStr.value = '';
+  chipId.value = undefined;
 
   // 重置进度状态
   resetProgress();
@@ -881,7 +881,7 @@ defineExpose({
 });
 
 function clearChipInfo() {
-  idStr.value = '';
+  chipId.value = undefined;
   cfiInfo.value = null;
 }
 </script>
