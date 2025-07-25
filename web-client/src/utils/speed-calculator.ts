@@ -58,7 +58,7 @@ export class SpeedCalculator {
 
   /**
    * 计算当前速度（基于滑动窗口）
-   * @returns 当前速度，单位为 KB/s
+   * @returns 当前速度，单位为 K/s
    */
   calculateCurrentSpeed(): number {
     const start = this.speedWindow.length === 1 && this.startTime ? this.startTime : this.speedWindow[0].time;
@@ -66,7 +66,7 @@ export class SpeedCalculator {
     const elapsedMs = end - start;
 
     const windowBytes = this.speedWindow.reduce((sum, item) => sum + item.bytes, 0);
-    const rawSpeed = elapsedMs > 0 ? (windowBytes / 1024) / (elapsedMs / 1000) : 0;
+    const rawSpeed = elapsedMs > 0 ? windowBytes / (elapsedMs / 1000) : 0;
 
     // 平滑：当前速度使用指数移动平均（EMA）
     this.currentSpeed = this.smoothingFactor * rawSpeed + (1 - this.smoothingFactor) * this.currentSpeed;
@@ -83,7 +83,7 @@ export class SpeedCalculator {
   }
 
   /**
-   * 获取当前速度，单位 KB/s
+   * 获取当前速度，单位 B/s
    */
   getCurrentSpeed(): number {
     return this.currentSpeed;
@@ -91,7 +91,7 @@ export class SpeedCalculator {
 
   /**
    * 获取历史最大速度
-   * @returns 历史最大速度，单位为 KB/s
+   * @returns 历史最大速度，单位为 B/s
    */
   getMaxSpeed(): number {
     return this.maxSpeed === 0 ? this.getPeakSpeed() : this.maxSpeed;
@@ -103,7 +103,7 @@ export class SpeedCalculator {
 
   /**
    * 计算平均速度
-   * @returns 平均速度，单位为 KB/s
+   * @returns 平均速度，单位为 B/s
    */
   getAverageSpeed(): number {
     // 如果没有累计数据或起始时间未设置，返回0
@@ -112,8 +112,8 @@ export class SpeedCalculator {
     }
     // 计算从起始到最新数据点的总时间（秒）
     const totalTimeSeconds = Math.max((this.lastTimestamp - this.startTime) / 1000, 0.001);
-    // 计算整体平均速度，单位 KB/s
-    return (this.totalBytes / 1024) / totalTimeSeconds;
+    // 计算整体平均速度，单位 B/s
+    return this.totalBytes / totalTimeSeconds;
   }
 
   getTotalTime(): number {

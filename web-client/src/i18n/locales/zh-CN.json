@@ -470,7 +470,7 @@
       "allCleared": "所有槽位已清空",
       "assembled": "ROM组装完成，总大小: {size}，使用槽位: {usedSlots}",
       "downloaded": "ROM下载完成，文件名: {fileName}，大小: {size}",
-      "assembledForMainInterface": "已组装{romType} ROM，大小: {size}MB，可在ROM操作界面使用",
+      "assembledForMainInterface": "已组装{romType} ROM，大小: {size}，可在ROM操作界面使用",
       "applied": "ROM组装已应用到主界面"
     },
     "ram": {

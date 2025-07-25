@@ -78,7 +78,7 @@ export class MockAdapter extends CartridgeAdapter {
           // 检查是否已被取消
           if (signal?.aborted) {
             cancelled = true;
-            this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
+            this.updateProgress(this.createErrorProgressInfo('erase', this.t('messages.operation.cancelled')));
             return;
           }
 
@@ -86,6 +86,7 @@ export class MockAdapter extends CartridgeAdapter {
           const erasedSectors = Math.floor(128 * progress / 100); // 假设128个扇区
           const speed = elapsedSeconds > 0 ? (erasedSectors * 1000 / elapsedSeconds) : 0;
           this.updateProgress(this.createProgressInfo(
+            'erase',
             progress,
             this.t('messages.progress.eraseSpeed', { speed: speed.toFixed(1) }),
             128,
@@ -108,7 +109,7 @@ export class MockAdapter extends CartridgeAdapter {
       }
 
       if (DebugSettings.shouldSimulateError()) {
-        this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.eraseFailed')));
+        this.updateProgress(this.createErrorProgressInfo('erase', this.t('messages.operation.eraseFailed')));
         this.log(`${this.t('messages.operation.eraseFailed')}: 模拟错误`, 'error');
         return {
           success: false,
@@ -123,6 +124,7 @@ export class MockAdapter extends CartridgeAdapter {
       const elapsedSeconds = Date.now() - startTime;
       this.log(`${this.t('messages.operation.eraseComplete')} (${(elapsedSeconds / 1000).toFixed(1)}s)`, 'success');
       this.updateProgress(this.createProgressInfo(
+        'erase',
         100,
         this.t('messages.operation.eraseComplete'),
         128,
@@ -174,7 +176,7 @@ export class MockAdapter extends CartridgeAdapter {
           // 检查是否已被取消
           if (signal?.aborted) {
             cancelled = true;
-            this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
+            this.updateProgress(this.createErrorProgressInfo('erase', this.t('messages.operation.cancelled')));
             return;
           }
 
@@ -186,6 +188,7 @@ export class MockAdapter extends CartridgeAdapter {
           speedCalculator.addDataPoint(sectorSize, Date.now());
 
           this.updateProgress(this.createProgressInfo(
+            'erase',
             progress,
             this.t('messages.progress.eraseSpeed', { speed: formatSpeed(currentSpeed) }),
             totalBytes,
@@ -199,7 +202,7 @@ export class MockAdapter extends CartridgeAdapter {
       );
 
       if (signal?.aborted || cancelled) {
-        this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
+        this.updateProgress(this.createErrorProgressInfo('erase', this.t('messages.operation.cancelled')));
         return {
           success: false,
           message: this.t('messages.operation.cancelled'),
@@ -207,7 +210,7 @@ export class MockAdapter extends CartridgeAdapter {
       }
 
       if (DebugSettings.shouldSimulateError()) {
-        this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.eraseSectorFailed')));
+        this.updateProgress(this.createErrorProgressInfo('erase', this.t('messages.operation.eraseSectorFailed')));
         this.log(`${this.t('messages.operation.eraseSectorFailed')}: 模拟错误`, 'error');
         return {
           success: false,
@@ -229,6 +232,7 @@ export class MockAdapter extends CartridgeAdapter {
 
       // 报告完成状态
       this.updateProgress(this.createProgressInfo(
+        'erase',
         100,
         this.t('messages.operation.eraseSuccess'),
         totalBytes,
@@ -251,7 +255,7 @@ export class MockAdapter extends CartridgeAdapter {
           message: this.t('messages.operation.cancelled'),
         };
       }
-      this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.eraseSectorFailed')));
+      this.updateProgress(this.createErrorProgressInfo('erase', this.t('messages.operation.eraseSectorFailed')));
       this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
       return {
         success: false,
@@ -297,7 +301,7 @@ export class MockAdapter extends CartridgeAdapter {
           // 检查是否已被取消
           if (signal?.aborted) {
             cancelled = true;
-            this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
+            this.updateProgress(this.createErrorProgressInfo('erase', this.t('messages.operation.cancelled')));
             return;
           }
 
@@ -308,6 +312,7 @@ export class MockAdapter extends CartridgeAdapter {
           speedCalculator.addDataPoint(1024, Date.now());
 
           this.updateProgress(this.createProgressInfo(
+            'write',
             progress,
             this.t('messages.progress.writeSpeed', { speed: formatSpeed(currentSpeed) }),
             total,
@@ -321,7 +326,7 @@ export class MockAdapter extends CartridgeAdapter {
       );
 
       if (signal?.aborted || cancelled) {
-        this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
+        this.updateProgress(this.createErrorProgressInfo('write', this.t('messages.operation.cancelled')));
         return {
           success: false,
           message: this.t('messages.operation.cancelled'),
@@ -329,7 +334,7 @@ export class MockAdapter extends CartridgeAdapter {
       }
 
       if (DebugSettings.shouldSimulateError()) {
-        this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.writeFailed')));
+        this.updateProgress(this.createErrorProgressInfo('write', this.t('messages.rom.writeFailed')));
         this.log(`${this.t('messages.rom.writeFailed')}: 模拟错误`, 'error');
         return {
           success: false,
@@ -354,6 +359,7 @@ export class MockAdapter extends CartridgeAdapter {
 
       // 报告完成状态
       this.updateProgress(this.createProgressInfo(
+        'write',
         100,
         this.t('messages.rom.writeComplete'),
         total,
@@ -369,7 +375,7 @@ export class MockAdapter extends CartridgeAdapter {
         message: this.t('messages.rom.writeSuccess'),
       };
     } catch (e) {
-      this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.writeFailed')));
+      this.updateProgress(this.createErrorProgressInfo('write', this.t('messages.rom.writeFailed')));
       this.log(`${this.t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
       return {
         success: false,
@@ -454,7 +460,7 @@ export class MockAdapter extends CartridgeAdapter {
           // 检查是否已被取消
           if (signal?.aborted) {
             cancelled = true;
-            this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
+            this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.operation.cancelled')));
             return;
           }
 
@@ -465,6 +471,7 @@ export class MockAdapter extends CartridgeAdapter {
           speedCalculator.addDataPoint(1024, Date.now());
 
           this.updateProgress(this.createProgressInfo(
+            'read',
             progress,
             this.t('messages.progress.readSpeed', { speed: formatSpeed(currentSpeed) }),
             size,
@@ -478,7 +485,7 @@ export class MockAdapter extends CartridgeAdapter {
       );
 
       if (signal?.aborted || cancelled) {
-        this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
+        this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.operation.cancelled')));
         return {
           success: false,
           message: this.t('messages.operation.cancelled'),
@@ -486,7 +493,7 @@ export class MockAdapter extends CartridgeAdapter {
       }
 
       if (DebugSettings.shouldSimulateError()) {
-        this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.readFailed')));
+        this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.rom.readFailed')));
         this.log(`${this.t('messages.rom.readFailed')}: 模拟错误`, 'error');
         return {
           success: false,
@@ -510,6 +517,7 @@ export class MockAdapter extends CartridgeAdapter {
       }), 'info');
 
       this.updateProgress(this.createProgressInfo(
+        'read',
         100,
         this.t('messages.rom.readSuccess', { size: data.length }),
         size,
@@ -526,7 +534,7 @@ export class MockAdapter extends CartridgeAdapter {
         message: this.t('messages.rom.readSuccess', { size: data.length }),
       };
     } catch (e) {
-      this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.readFailed')));
+      this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.rom.readFailed')));
       this.log(`${this.t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
       return {
         success: false,
@@ -559,7 +567,7 @@ export class MockAdapter extends CartridgeAdapter {
           // 检查是否已被取消
           if (signal?.aborted) {
             cancelled = true;
-            this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
+            this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.operation.cancelled')));
             return;
           }
 
@@ -570,6 +578,7 @@ export class MockAdapter extends CartridgeAdapter {
           speedCalculator.addDataPoint(1024, Date.now());
 
           this.updateProgress(this.createProgressInfo(
+            'read',
             progress,
             this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeed) }),
             fileData.length,
@@ -583,7 +592,7 @@ export class MockAdapter extends CartridgeAdapter {
       );
 
       if (signal?.aborted || cancelled) {
-        this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
+        this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.operation.cancelled')));
         return {
           success: false,
           message: this.t('messages.operation.cancelled'),
@@ -592,7 +601,7 @@ export class MockAdapter extends CartridgeAdapter {
 
       if (DebugSettings.shouldSimulateError()) {
         this.log(`${this.t('messages.rom.verifyFailed')}: 模拟错误`, 'error');
-        this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.verifyFailed')));
+        this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.rom.verifyFailed')));
         return {
           success: false,
           message: this.t('messages.rom.verifyFailed'),
@@ -615,6 +624,7 @@ export class MockAdapter extends CartridgeAdapter {
           totalSize: formatBytes(fileData.length),
         }), 'info');
         this.updateProgress(this.createProgressInfo(
+          'read',
           100,
           this.t('messages.rom.verifySuccess'),
           fileData.length,
@@ -626,7 +636,7 @@ export class MockAdapter extends CartridgeAdapter {
         ));
       } else {
         this.log(this.t('messages.rom.verifyFailed'), 'error');
-        this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.verifyFailed')));
+        this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.rom.verifyFailed')));
       }
 
       const message = isMatch !== false ? this.t('messages.rom.verifySuccess') : this.t('messages.rom.verifyFailed');
@@ -635,7 +645,7 @@ export class MockAdapter extends CartridgeAdapter {
         message,
       };
     } catch (e) {
-      this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.verifyFailed')));
+      this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.rom.verifyFailed')));
       this.log(`${this.t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
       return {
         success: false,

@@ -154,6 +154,7 @@ export class CartridgeAdapter {
    * @returns 进度信息对象
    */
   protected createProgressInfo(
+    type: 'erase' | 'write' | 'read' | 'other',
     progress?: number,
     detail?: string,
     totalBytes?: number,
@@ -164,6 +165,7 @@ export class CartridgeAdapter {
     state: 'idle' | 'running' | 'paused' | 'completed' | 'error' = 'running',
   ): ProgressInfo {
     return {
+      type,
       progress,
       detail,
       totalBytes,
@@ -175,8 +177,9 @@ export class CartridgeAdapter {
     };
   }
 
-  protected createErrorProgressInfo(detail: string) : ProgressInfo {
+  protected createErrorProgressInfo(type: 'erase' | 'write' | 'read' | 'other', detail: string): ProgressInfo {
     return this.createProgressInfo(
+      type,
       undefined,
       detail,
       undefined,

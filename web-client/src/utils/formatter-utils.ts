@@ -1,4 +1,20 @@
 /**
+ * 通用的数值格式化函数
+ * @param value - 要格式化的数值
+ * @param sizes - 单位数组
+ * @param baseUnit - 基础单位（用于零值显示）
+ * @returns - 格式化后的字符串
+ */
+function formatWithUnits(value: number, sizes: string[], baseUnit: string): string {
+  if (value === 0 || typeof value !== 'number') return `0 ${baseUnit}`;
+  const k = 1024;
+  const i = Math.min(Math.floor(Math.log(value) / Math.log(k)), sizes.length - 1);
+  const scaledValue = value / Math.pow(k, i);
+  const valueStr = Number.isInteger(scaledValue) ? scaledValue.toString() : scaledValue.toFixed(1);
+  return `${valueStr} ${sizes[i]}`;
+}
+
+/**
  * 格式化字节数为易读的字符串
  * @param bytes - 字节数
  * @description 格式化字节数为易读的字符串
@@ -9,33 +25,21 @@
  * @returns - 格式化后的字符串
  */
 export function formatBytes(bytes: number): string {
-  if (bytes === 0 || typeof bytes !== 'number') return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KiB', 'MiB', 'GiB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  const value = bytes / Math.pow(k, i);
-  const valueStr = Number.isInteger(value) ? value.toString() : value.toFixed(1);
-  return `${valueStr} ${sizes[i]}`;
+  return formatWithUnits(bytes, ['B', 'KiB', 'MiB', 'GiB'], 'B');
 }
 
 /**
  * 格式化速度为易读的字符串
- * @param speed - 速度 (KiB/s)
- * @description 将速度格式化为 KiB/s 或 MiB/s
+ * @param speed - 速度 (B/s)
+ * @description 将速度格式化为 B/s 或 KiB/s 或 MiB/s
  * @example
- * formatSpeed(1024) // "1.0 MiB/s"
- * formatSpeed(512) // "512.0 KiB/s"
+ * formatSpeed(1024 * 1024) // "1.0 MiB/s"
+ * formatSpeed(512) // "512 B/s"
  * formatSpeed(0) // "0 B/s"
  * @returns - 格式化后的字符串
  */
 export function formatSpeed(speed: number): string {
-  if (speed === 0 || typeof speed !== 'number') return '0 B/s';
-  if (speed < 1) {
-    return ` ${(speed * 1024).toFixed(1)} B/s`;
-  } else if (speed < 1024) {
-    return `${speed.toFixed(1)} KiB/s`;
-  }
-  return `${(speed / 1024).toFixed(1)} MiB/s`;
+  return formatWithUnits(speed, ['B/s', 'KiB/s', 'MiB/s', 'GiB/s'], 'B/s');
 }
 
 /**

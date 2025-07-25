@@ -316,7 +316,7 @@ function detectMultiRoms(fileData: Uint8Array, romType: 'GBA' | 'GB' | 'GBC' | '
     const bankSize = 0x400000; // 4MB
     const bankCount = Math.floor(fileData.length / bankSize);
 
-    console.log(`File Size: ${fileData.length} bytes (${(fileData.length / 1024 / 1024).toFixed(1)} MB)`);
+    console.log(`File Size: ${fileData.length} bytes (${formatBytes(fileData.length)} MB)`);
     console.log(`Bank Count: ${bankCount}`);
 
     // 首先收集所有有效的游戏
@@ -382,7 +382,7 @@ function detectMultiRoms(fileData: Uint8Array, romType: 'GBA' | 'GB' | 'GBC' | '
     ];
     multiCardRanges.push(...MBC5_ROM_BASE_ADDRESS);
 
-    console.log(`File Size: ${fileData.length} bytes (${(fileData.length / 1024 / 1024).toFixed(1)} MB)`);
+    console.log(`File Size: ${fileData.length} bytes (${formatBytes(fileData.length)} MB)`);
 
     for (let i = 0; i < multiCardRanges.length; ++i) {
       const baseAddress = multiCardRanges[i];

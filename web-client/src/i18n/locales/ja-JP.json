@@ -470,7 +470,7 @@
       "allCleared": "すべてのスロットがクリアされました",
       "assembled": "ROM組み立て完了、総サイズ: {size}、使用スロット: {usedSlots}",
       "downloaded": "ROMダウンロード完了、ファイル名: {fileName}、サイズ: {size}",
-      "assembledForMainInterface": "{romType} ROMを組み立てました、サイズ: {size}MB、ROM操作画面で利用可能です",
+      "assembledForMainInterface": "{romType} ROMを組み立てました、サイズ: {size}、ROM操作画面で利用可能です",
       "applied": "ROM組み立てがメイン画面に適用されました"
     },
     "ram": {

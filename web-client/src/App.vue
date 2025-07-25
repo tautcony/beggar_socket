@@ -61,6 +61,8 @@ import { setAssembledRom } from '@/stores/assembled-rom-store';
 import { DeviceInfo } from '@/types/device-info';
 import type { AssembledRom } from '@/types/rom-assembly';
 
+import { formatBytes } from './utils/formatter-utils';
+
 const { showToast } = useToast();
 const { t } = useI18n();
 
@@ -158,7 +160,7 @@ function onRomAssembled(rom: AssembledRom, romType: 'MBC5' | 'GBA') {
 
   showToast(t('messages.romAssembly.assembledForMainInterface', {
     romType,
-    size: (rom.totalSize / 1024 / 1024).toFixed(2),
+    size: formatBytes(rom.totalSize),
   }), 'success', 4000);
 }
 </script>

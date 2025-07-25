@@ -192,7 +192,7 @@ export class GBAAdapter extends CartridgeAdapter {
           for (let currentAddress = alignedEndAddress; currentAddress >= startAddress; currentAddress -= sectorSize) {
             // 检查是否已被取消
             if (signal?.aborted) {
-              this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
+              this.updateProgress(this.createErrorProgressInfo('erase', this.t('messages.operation.cancelled')));
               return {
                 success: false,
                 message: this.t('messages.operation.cancelled'),
@@ -225,6 +225,7 @@ export class GBAAdapter extends CartridgeAdapter {
             const currentSpeed = speedCalculator.getCurrentSpeed();
 
             this.updateProgress(this.createProgressInfo(
+              'erase',
               (eraseCount / totalSectors) * 100,
               this.t('messages.progress.eraseSpeed', { speed: formatSpeed(currentSpeed) }),
               totalBytes,
@@ -249,6 +250,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
           // 报告完成状态
           this.updateProgress(this.createProgressInfo(
+            'erase',
             100,
             this.t('messages.operation.eraseSuccess'),
             totalBytes,
@@ -272,7 +274,7 @@ export class GBAAdapter extends CartridgeAdapter {
             };
           }
 
-          this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.eraseSectorFailed')));
+          this.updateProgress(this.createErrorProgressInfo('erase', this.t('messages.operation.eraseSectorFailed')));
           this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
@@ -345,7 +347,7 @@ export class GBAAdapter extends CartridgeAdapter {
           while (written < total) {
             // 检查是否已被取消
             if (signal?.aborted) {
-              this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
+              this.updateProgress(this.createErrorProgressInfo('erase', this.t('messages.operation.cancelled')));
               return {
                 success: false,
                 message: this.t('messages.operation.cancelled'),
@@ -385,6 +387,7 @@ export class GBAAdapter extends CartridgeAdapter {
               const currentSpeed = speedCalculator.getCurrentSpeed();
 
               this.updateProgress(this.createProgressInfo(
+                'write',
                 progress,
                 this.t('messages.progress.writeSpeed', { speed: formatSpeed(currentSpeed) }),
                 total,
@@ -417,6 +420,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
           // 报告完成状态
           this.updateProgress(this.createProgressInfo(
+            'write',
             100,
             this.t('messages.rom.writeComplete'),
             total,
@@ -432,7 +436,7 @@ export class GBAAdapter extends CartridgeAdapter {
             message: this.t('messages.rom.writeSuccess'),
           };
         } catch (e) {
-          this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.writeFailed')));
+          this.updateProgress(this.createErrorProgressInfo('write', this.t('messages.rom.writeFailed')));
           this.log(`${this.t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
@@ -476,7 +480,7 @@ export class GBAAdapter extends CartridgeAdapter {
         try {
           // 检查是否已被取消
           if (signal?.aborted) {
-            this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
+            this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.operation.cancelled')));
             return {
               success: false,
               message: this.t('messages.operation.cancelled'),
@@ -498,7 +502,7 @@ export class GBAAdapter extends CartridgeAdapter {
           while (totalRead < size) {
             // 检查是否已被取消
             if (signal?.aborted) {
-              this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
+              this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.operation.cancelled')));
               return {
                 success: false,
                 message: this.t('messages.operation.cancelled'),
@@ -534,6 +538,7 @@ export class GBAAdapter extends CartridgeAdapter {
               const currentSpeed = speedCalculator.getCurrentSpeed();
 
               this.updateProgress(this.createProgressInfo(
+                'read',
                 progress,
                 this.t('messages.progress.readSpeed', { speed: formatSpeed(currentSpeed) }),
                 size,
@@ -565,6 +570,7 @@ export class GBAAdapter extends CartridgeAdapter {
           }), 'info');
 
           this.updateProgress(this.createProgressInfo(
+            'read',
             100,
             this.t('messages.rom.readSuccess', { size: data.length }),
             size,
@@ -581,7 +587,7 @@ export class GBAAdapter extends CartridgeAdapter {
             message: this.t('messages.rom.readSuccess', { size: data.length }),
           };
         } catch (e) {
-          this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.readFailed')));
+          this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.rom.readFailed')));
           this.log(`${this.t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
@@ -620,7 +626,7 @@ export class GBAAdapter extends CartridgeAdapter {
       async () => {
         // 检查是否已被取消
         if (signal?.aborted) {
-          this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
+          this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.operation.cancelled')));
           return {
             success: false,
             message: this.t('messages.operation.cancelled'),
@@ -645,7 +651,7 @@ export class GBAAdapter extends CartridgeAdapter {
           while (verified < total && success) {
             // 检查是否已被取消
             if (signal?.aborted) {
-              this.updateProgress(this.createErrorProgressInfo(this.t('messages.operation.cancelled')));
+              this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.operation.cancelled')));
               return {
                 success: false,
                 message: this.t('messages.operation.cancelled'),
@@ -698,6 +704,7 @@ export class GBAAdapter extends CartridgeAdapter {
               const currentSpeed = speedCalculator.getCurrentSpeed();
 
               this.updateProgress(this.createProgressInfo(
+                'read',
                 progress,
                 this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeed) }),
                 total,
@@ -732,6 +739,7 @@ export class GBAAdapter extends CartridgeAdapter {
               totalSize: formatBytes(total),
             }), 'info');
             this.updateProgress(this.createProgressInfo(
+              'read',
               100,
               this.t('messages.rom.verifySuccess'),
               total,
@@ -743,7 +751,7 @@ export class GBAAdapter extends CartridgeAdapter {
             ));
           } else {
             this.log(this.t('messages.rom.verifyFailed'), 'error');
-            this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.verifyFailed')));
+            this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.rom.verifyFailed')));
           }
 
           const message = success ? this.t('messages.rom.verifySuccess') : this.t('messages.rom.verifyFailed');
@@ -752,7 +760,7 @@ export class GBAAdapter extends CartridgeAdapter {
             message: message,
           };
         } catch (e) {
-          this.updateProgress(this.createErrorProgressInfo(this.t('messages.rom.verifyFailed')));
+          this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.rom.verifyFailed')));
           this.log(`${this.t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,

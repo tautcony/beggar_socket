@@ -1,4 +1,5 @@
 export interface ProgressInfo {
+  type?: 'erase' | 'write' | 'read' | 'other'
   progress?: number | null
   detail?: string
   totalBytes?: number

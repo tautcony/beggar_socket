@@ -81,7 +81,7 @@ export async function rom_read(device: DeviceInfo, size: number, baseAddress = 0
   if (res.data && res.data.byteLength >= 2 + size) {
     return res.data.slice(2);
   } else {
-    const message = `GBA ROM read failed (Address: ${formatHex(baseAddress, 4)}, Excepted size: ${size}, Actual size: ${res.data?.byteLength})`;
+    const message = `GBA ROM read failed (Address: ${formatHex(baseAddress, 4)}, Excepted size: ${size + 2}, Actual size: ${res.data?.byteLength})`;
     console.error(message, res.data);
     throw new Error(message);
   }
@@ -115,7 +115,7 @@ export async function ram_read(device: DeviceInfo, size: number, baseAddress = 0
   if (res.data && res.data.byteLength >= 2 + size) {
     return res.data.slice(2);
   } else {
-    const message = `GBA RAM read failed (Address: ${formatHex(baseAddress, 4)}, Excepted size: ${size}, Actual size: ${res.data?.byteLength})`;
+    const message = `GBA RAM read failed (Address: ${formatHex(baseAddress, 4)}, Excepted size: ${size + 2}, Actual size: ${res.data?.byteLength})`;
     console.error(message, res.data);
     throw new Error(message);
   }
@@ -174,7 +174,7 @@ export async function gbc_read(device: DeviceInfo, size: number, baseAddress = 0
   if (res.data && res.data.byteLength >= 2 + size) {
     return res.data.slice(2);
   } else {
-    const message = `GBC read failed (Address: ${formatHex(baseAddress, 4)}, Excepted size: ${size}, Actual size: ${res.data?.byteLength})`;
+    const message = `GBC read failed (Address: ${formatHex(baseAddress, 4)}, Excepted size: ${size + 2}, Actual size: ${res.data?.byteLength})`;
     console.error(message, res.data);
     throw new Error(message);
   }

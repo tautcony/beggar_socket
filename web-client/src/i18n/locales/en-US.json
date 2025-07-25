@@ -470,7 +470,7 @@
       "allCleared": "All slots have been cleared",
       "assembled": "ROM assembly completed, total size: {size}, used slots: {usedSlots}",
       "downloaded": "ROM download completed, file: {fileName}, size: {size}",
-      "assembledForMainInterface": "Assembled {romType} ROM, size: {size}MB, available in ROM operations interface",
+      "assembledForMainInterface": "Assembled {romType} ROM, size: {size}, available in ROM operations interface",
       "applied": "ROM assembly has been applied to main interface"
     },
     "ram": {

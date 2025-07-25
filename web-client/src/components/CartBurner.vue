@@ -4,6 +4,7 @@
       key="progress"
       v-model="showProgressModal"
       v-bind="progressInfo"
+      :timeout="operationTimeout"
       @stop="handleProgressStop"
       @close="resetProgress"
     />
@@ -114,6 +115,7 @@ import ProgressDisplayModal from '@/components/modal/ProgressDisplayModal.vue';
 import { ChipOperations, RamOperations, RomOperations } from '@/components/operaiton';
 import { useToast } from '@/composables/useToast';
 import { CartridgeAdapter, GBAAdapter, MBC5Adapter, MockAdapter } from '@/services';
+import { AdvancedSettings } from '@/settings/advanced-settings';
 import { DebugSettings } from '@/settings/debug-settings';
 import { DeviceInfo, FileInfo, ProgressInfo } from '@/types';
 import { CFIInfo } from '@/utils/cfi-parser';
@@ -141,6 +143,7 @@ const logs = ref<{ time: string; message: string; level: 'info' | 'success' | 'w
 
 // progress info object
 const progressInfo = ref<ProgressInfo>({
+  type: 'other',
   progress: null,
   detail: '',
   totalBytes: undefined,
@@ -149,6 +152,17 @@ const progressInfo = ref<ProgressInfo>({
   currentSpeed: undefined,
   allowCancel: true,
   state: 'idle',
+});
+
+const operationTimeout = computed(() => {
+  if (progressInfo.value.type === 'erase') {
+    return AdvancedSettings.packageReceiveTimeout;
+  } else if (progressInfo.value.type === 'write') {
+    return AdvancedSettings.packageSendTimeout;
+  } else if (progressInfo.value.type === 'read') {
+    return AdvancedSettings.packageReceiveTimeout;
+  }
+  return AdvancedSettings.defaultTimeout;
 });
 
 // progress modal visibility
