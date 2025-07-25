@@ -1,7 +1,7 @@
 {
   "name": "chisflash-web-client",
   "private": false,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite --force",
@@ -20,12 +20,12 @@
   "dependencies": {
     "@ionic/vue": "^8.6.5",
     "@sentry/tracing": "^7.120.3",
-    "@sentry/vue": "^9.40.0",
+    "@sentry/vue": "^9.41.0",
     "gameboy-emulator": "^1.1.2",
     "gbats": "^1.0.9",
     "luxon": "^3.7.1",
     "vue": "^3.5.18",
-    "vue-i18n": "^11.1.10",
+    "vue-i18n": "^11.1.11",
     "vue-router": "^4.5.1",
     "wasmboy": "^0.7.1",
     "web-serial-polyfill": "^1.0.15"
@@ -49,9 +49,9 @@
     "terser": "^5.43.1",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
-    "vite": "^7.0.5",
+    "vite": "^7.0.6",
     "vite-bundle-analyzer": "^1.1.0",
     "vitest": "^3.2.4",
-    "vue-tsc": "^3.0.3"
+    "vue-tsc": "^3.0.4"
   }
 }
