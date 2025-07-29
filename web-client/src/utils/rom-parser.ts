@@ -347,11 +347,11 @@ export function calculateGBAChecksum(data: Uint8Array): number {
  * @returns 校验和
  */
 export function calculateGBChecksum(data: Uint8Array): number {
-  let headerSum = 0;
+  let checksum = 0;
   for (let i = 0x134; i <= 0x14C; i++) {
-    headerSum += data[i];
+    checksum = checksum - data[i] - 1;
   }
-  return (-headerSum - 1) & 0xFF;
+  return checksum & 0xFF;
 }
 
 /**
