@@ -147,45 +147,58 @@ export async function getResult(device: DeviceInfo, timeoutMs?: number): Promise
   return result.data?.byteLength > 0 && result.data[0] === 0xaa;
 }
 
-// Flash类型定义
-export interface FlashType {
-  readonly id: readonly number[];
-  readonly name: string;
+type ArrayElement<T extends readonly unknown[]> = T extends readonly (infer U)[] ? U : never;
+
+export interface FlashType<
+  TName extends string = string,
+  TId extends readonly number[] = readonly number[],
+> {
+  readonly id: TId;
+  readonly name: TName;
 }
 
-export const SUPPORTED_FLASH_TYPES: readonly FlashType[] = [
-  { id: [0x01, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22], name: 'S29GL256' },
-  { id: [0x89, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22], name: 'JS28F256' },
-  { id: [0x01, 0x00, 0x7e, 0x22, 0x28, 0x22, 0x01, 0x22], name: 'S29GL01' },
-  { id: [0x01, 0x00, 0x7e, 0x22, 0x48, 0x22, 0x01, 0x22], name: 'S70GL02' },
-  { id: [0xc2, 0xc2, 0xcb, 0xcb], name: 'MX29LV640EB' },
-  { id: [0xc2, 0xc2, 0xc9, 0xc9], name: 'MX29LV640ET' },
-  { id: [0xc2, 0xc2, 0x7e, 0x7e], name: 'MX29LV640EB_ALT' },
-  { id: [0x01, 0x01, 0x7e, 0x7e], name: 'S29GL256N' },
+export const SUPPORTED_FLASH_TYPES = [
+  { id: [0x01, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22] as const, name: 'S29GL256' as const },
+  { id: [0x89, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22] as const, name: 'JS28F256' as const },
+  { id: [0x01, 0x00, 0x7e, 0x22, 0x28, 0x22, 0x01, 0x22] as const, name: 'S29GL01' as const },
+  { id: [0x01, 0x00, 0x7e, 0x22, 0x48, 0x22, 0x01, 0x22] as const, name: 'S70GL02' as const },
+  { id: [0xc2, 0xc2, 0xcb, 0xcb] as const, name: 'MX29LV640EB' as const },
+  { id: [0xc2, 0xc2, 0xc9, 0xc9] as const, name: 'MX29LV640ET' as const },
+  { id: [0xc2, 0xc2, 0x7e, 0x7e] as const, name: 'MX29LV640EB_ALT' as const },
+  { id: [0x01, 0x01, 0x7e, 0x7e] as const, name: 'S29GL256N' as const },
 ] as const;
 
-const flashIdToNameMap = new Map<string, string>();
-const flashNameToIdMap = new Map<string, readonly number[]>();
+type SupportedFlashConfig = typeof SUPPORTED_FLASH_TYPES;
+type FlashEntry = ArrayElement<SupportedFlashConfig>;
+
+type SupportedFlashNames = FlashEntry['name'];
+type SupportedFlashIds = FlashEntry['id'];
+
+const flashIdToNameMap = new Map<string, SupportedFlashNames>();
+const flashNameToIdMap = new Map<SupportedFlashNames, SupportedFlashIds>();
+
 for (const flashType of SUPPORTED_FLASH_TYPES) {
   const idKey = flashType.id.join(',');
   flashIdToNameMap.set(idKey, flashType.name);
   flashNameToIdMap.set(flashType.name, flashType.id);
 }
 
-export function getFlashName(id: readonly number[]): string | undefined {
+export function getFlashName(id: readonly number[]): SupportedFlashNames | undefined {
   if (!id || id.length === 0) return undefined;
   const idKey = id.join(',');
-  return flashIdToNameMap.get(idKey) ?? undefined;
+  return flashIdToNameMap.get(idKey);
 }
 
-export function getFlashId(name: string): readonly number[] | undefined {
+export function getFlashId(name: SupportedFlashNames): SupportedFlashIds | undefined {
   if (!name) return undefined;
-  return flashNameToIdMap.get(name) ?? undefined;
+  return flashNameToIdMap.get(name);
 }
 
-export function arraysEqual(a: readonly number[] | undefined, b: readonly number[] | undefined): boolean {
+export function arraysEqual(
+  a: readonly unknown[] | undefined | null,
+  b: readonly unknown[] | undefined | null,
+): boolean {
   if (!a || !b) return false;
   if (a.length !== b.length) return false;
-
   return a.every((value, index) => value === b[index]);
 }

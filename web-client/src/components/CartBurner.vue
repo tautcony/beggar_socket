@@ -539,7 +539,7 @@ async function writeRom() {
 
     const option: CommandOptions = { baseAddress: parseInt(selectedBaseAddress.value, 16), cfiInfo: cfiInfo.value };
     if (arraysEqual(chipId.value, getFlashId('S29GL256N'))) {
-      option.pageSize = 512;
+      option.romPageSize = 512;
     }
 
     const response = await adapter.writeROM(alignedRomData, option, abortSignal);
@@ -574,7 +574,7 @@ async function readRom() {
 
     const option: CommandOptions = { baseAddress: parseInt(selectedBaseAddress.value, 16), cfiInfo: cfiInfo.value };
     if (arraysEqual(chipId.value, getFlashId('S29GL256N'))) {
-      option.pageSize = 512;
+      option.romPageSize = 512;
     }
 
     const romSize = parseInt(selectedRomSize.value, 16);

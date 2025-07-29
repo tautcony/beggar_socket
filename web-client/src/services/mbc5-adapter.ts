@@ -301,7 +301,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    */
   override async writeROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
-    const pageSize = options.pageSize ?? AdvancedSettings.romPageSize;
+    const pageSize = options.romPageSize ?? AdvancedSettings.romPageSize;
     const bufferSize = options.cfiInfo.bufferSize ?? 0;
 
     this.log(this.t('messages.operation.startWriteROM', {
@@ -455,7 +455,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    */
   override async readROM(size: number, options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0;
-    const pageSize = options.pageSize ?? AdvancedSettings.romPageSize;
+    const pageSize = options.romPageSize ?? AdvancedSettings.romPageSize;
 
     this.log(this.t('messages.operation.startReadROM', {
       size,
@@ -604,6 +604,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    */
   override async verifyROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0;
+    const pageSize = options.romPageSize ?? AdvancedSettings.romPageSize;
 
     this.log(this.t('messages.operation.startVerifyROM', {
       fileSize: fileData.length,
@@ -628,7 +629,6 @@ export class MBC5Adapter extends CartridgeAdapter {
           let currentBank = -1;
           const total = fileData.length;
           let verified = 0;
-          const pageSize = AdvancedSettings.romPageSize;
           let success = true;
           let failedAddress = -1;
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
@@ -775,6 +775,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    */
   override async writeRAM(fileData: Uint8Array, options: CommandOptions) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
+    const pageSize = options.ramPageSize ?? AdvancedSettings.ramPageSize;
 
     this.log(this.t('messages.operation.startWriteRAM', {
       fileSize: fileData.length,
@@ -789,7 +790,6 @@ export class MBC5Adapter extends CartridgeAdapter {
 
           const total = fileData.length;
           let written = 0;
-          const pageSize = AdvancedSettings.ramPageSize;
 
           // 开启RAM访问权限
           await gbc_write(this.device, new Uint8Array([0x0a]), 0x0000);
@@ -882,6 +882,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    */
   override async readRAM(size: number, options: CommandOptions) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
+    const pageSize = options.ramPageSize ?? AdvancedSettings.ramPageSize;
 
     this.log(this.t('messages.operation.startReadRAM', {
       size,
@@ -900,8 +901,6 @@ export class MBC5Adapter extends CartridgeAdapter {
           const result = new Uint8Array(size);
           let currentBank = -1;
           let read = 0;
-          const pageSize = AdvancedSettings.ramPageSize;
-          const startTime = Date.now();
 
           // 使用速度计算器
           const speedCalculator = new SpeedCalculator();
@@ -978,6 +977,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    */
   override async verifyRAM(fileData: Uint8Array, options: CommandOptions) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
+    const pageSize = options.ramPageSize ?? AdvancedSettings.ramPageSize;
 
     this.log(this.t('messages.operation.startVerifyRAM', {
       fileSize: fileData.length,
@@ -996,7 +996,6 @@ export class MBC5Adapter extends CartridgeAdapter {
           let currentBank = -1;
           const total = fileData.length;
           let read = 0;
-          const pageSize = AdvancedSettings.ramPageSize;
           let success = true;
 
           while (read < total) {
