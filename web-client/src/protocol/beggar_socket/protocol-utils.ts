@@ -147,33 +147,45 @@ export async function getResult(device: DeviceInfo, timeoutMs?: number): Promise
   return result.data?.byteLength > 0 && result.data[0] === 0xaa;
 }
 
-export function getFlashId(id: number[]) : string | null {
-  const flashTypes = [
-    { pattern: [0x01, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22], name: 'S29GL256' },
-    { pattern: [0x89, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22], name: 'JS28F256' },
-    { pattern: [0x01, 0x00, 0x7e, 0x22, 0x28, 0x22, 0x01, 0x22], name: 'S29GL01' },
-    { pattern: [0x01, 0x00, 0x7e, 0x22, 0x48, 0x22, 0x01, 0x22], name: 'S70GL02' },
-    { pattern: [0xc2, 0xc2, 0xcb, 0xcb], name: 'MX29LV640EB' },
-    { pattern: [0xc2, 0xc2, 0xc9, 0xc9], name: 'MX29LV640ET' },
-    { pattern: [0xc2, 0xc2, 0x7e, 0x7e], name: 'MX29LV640EB' },
-    { pattern: [0x01, 0x01, 0x7e, 0x7e], name: 'S29GL256N' },
-  ];
-
-  for (const flashType of flashTypes) {
-    if (arraysEqual(id, flashType.pattern)) {
-      return flashType.name;
-    }
-  }
-
-  return null;
+// Flash类型定义
+export interface FlashType {
+  readonly id: readonly number[];
+  readonly name: string;
 }
 
-export function arraysEqual(a: number[], b: number[]) : boolean {
+export const SUPPORTED_FLASH_TYPES: readonly FlashType[] = [
+  { id: [0x01, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22], name: 'S29GL256' },
+  { id: [0x89, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22], name: 'JS28F256' },
+  { id: [0x01, 0x00, 0x7e, 0x22, 0x28, 0x22, 0x01, 0x22], name: 'S29GL01' },
+  { id: [0x01, 0x00, 0x7e, 0x22, 0x48, 0x22, 0x01, 0x22], name: 'S70GL02' },
+  { id: [0xc2, 0xc2, 0xcb, 0xcb], name: 'MX29LV640EB' },
+  { id: [0xc2, 0xc2, 0xc9, 0xc9], name: 'MX29LV640ET' },
+  { id: [0xc2, 0xc2, 0x7e, 0x7e], name: 'MX29LV640EB_ALT' },
+  { id: [0x01, 0x01, 0x7e, 0x7e], name: 'S29GL256N' },
+] as const;
+
+const flashIdToNameMap = new Map<string, string>();
+const flashNameToIdMap = new Map<string, readonly number[]>();
+for (const flashType of SUPPORTED_FLASH_TYPES) {
+  const idKey = flashType.id.join(',');
+  flashIdToNameMap.set(idKey, flashType.name);
+  flashNameToIdMap.set(flashType.name, flashType.id);
+}
+
+export function getFlashName(id: readonly number[]): string | undefined {
+  if (!id || id.length === 0) return undefined;
+  const idKey = id.join(',');
+  return flashIdToNameMap.get(idKey) ?? undefined;
+}
+
+export function getFlashId(name: string): readonly number[] | undefined {
+  if (!name) return undefined;
+  return flashNameToIdMap.get(name) ?? undefined;
+}
+
+export function arraysEqual(a: readonly number[] | undefined, b: readonly number[] | undefined): boolean {
+  if (!a || !b) return false;
   if (a.length !== b.length) return false;
 
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
-  }
-
-  return true;
+  return a.every((value, index) => value === b[index]);
 }

@@ -114,10 +114,11 @@ import LogViewer from '@/components/LogViewer.vue';
 import ProgressDisplayModal from '@/components/modal/ProgressDisplayModal.vue';
 import { ChipOperations, RamOperations, RomOperations } from '@/components/operaiton';
 import { useToast } from '@/composables/useToast';
+import { arraysEqual, getFlashId } from '@/protocol/beggar_socket/protocol-utils';
 import { CartridgeAdapter, GBAAdapter, MBC5Adapter, MockAdapter } from '@/services';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { DebugSettings } from '@/settings/debug-settings';
-import { DeviceInfo, FileInfo, ProgressInfo } from '@/types';
+import { CommandOptions, DeviceInfo, FileInfo, ProgressInfo } from '@/types';
 import { CFIInfo } from '@/utils/cfi-parser';
 import { formatBytes, formatHex } from '@/utils/formatter-utils';
 import { parseRom, RomInfo } from '@/utils/rom-parser.ts';
@@ -536,7 +537,12 @@ async function writeRom() {
       alignedRomData = padded;
     }
 
-    const response = await adapter.writeROM(alignedRomData, { baseAddress: parseInt(selectedBaseAddress.value, 16), size: romSize, cfiInfo: cfiInfo.value }, abortSignal);
+    const option: CommandOptions = { baseAddress: parseInt(selectedBaseAddress.value, 16), cfiInfo: cfiInfo.value };
+    if (arraysEqual(chipId.value, getFlashId('S29GL256N'))) {
+      option.pageSize = 512;
+    }
+
+    const response = await adapter.writeROM(alignedRomData, option, abortSignal);
     showToast(response.message, response.success ? 'success' : 'error');
   } catch (e) {
     showToast(t('messages.rom.writeFailed'), 'error');
@@ -566,8 +572,13 @@ async function readRom() {
       return;
     }
 
+    const option: CommandOptions = { baseAddress: parseInt(selectedBaseAddress.value, 16), cfiInfo: cfiInfo.value };
+    if (arraysEqual(chipId.value, getFlashId('S29GL256N'))) {
+      option.pageSize = 512;
+    }
+
     const romSize = parseInt(selectedRomSize.value, 16);
-    const response = await adapter.readROM(romSize, { baseAddress: parseInt(selectedBaseAddress.value, 16), cfiInfo: cfiInfo.value }, abortSignal);
+    const response = await adapter.readROM(romSize, option, abortSignal);
     if (response.success) {
       showToast(response.message, 'success');
       if (response.data) {

@@ -8,4 +8,5 @@ export interface CommandOptions {
   baseAddress?: number,
   endAddress?: number,
   cfiInfo: CFIInfo,
+  pageSize?: number;
 }

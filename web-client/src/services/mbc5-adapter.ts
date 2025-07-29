@@ -6,7 +6,7 @@ import {
   gbc_rom_program,
   gbc_write,
 } from '@/protocol/beggar_socket/protocol';
-import { getFlashId } from '@/protocol/beggar_socket/protocol-utils';
+import { getFlashName } from '@/protocol/beggar_socket/protocol-utils';
 import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions } from '@/types/command-options';
@@ -51,7 +51,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           const id = [... await gbc_rom_get_id(this.device)];
 
           const idStr = id.map(x => x.toString(16).padStart(2, '0')).join(' ');
-          const flashId = getFlashId(id);
+          const flashId = getFlashName(id);
           if (flashId === null) {
             this.log(this.t('messages.operation.unknownFlashId'), 'warn');
           } else {
@@ -301,7 +301,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    */
   override async writeROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
-    const pageSize = AdvancedSettings.romPageSize;
+    const pageSize = options.pageSize ?? AdvancedSettings.romPageSize;
     const bufferSize = options.cfiInfo.bufferSize ?? 0;
 
     this.log(this.t('messages.operation.startWriteROM', {
@@ -455,6 +455,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    */
   override async readROM(size: number, options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0;
+    const pageSize = options.pageSize ?? AdvancedSettings.romPageSize;
 
     this.log(this.t('messages.operation.startReadROM', {
       size,
@@ -476,7 +477,6 @@ export class MBC5Adapter extends CartridgeAdapter {
           }
 
           this.log(this.t('messages.rom.reading'), 'info');
-          const pageSize = AdvancedSettings.romPageSize;
           let totalRead = 0;
 
           const data = new Uint8Array(size);

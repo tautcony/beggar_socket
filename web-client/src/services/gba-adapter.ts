@@ -10,7 +10,7 @@ import {
   rom_read,
   rom_write,
 } from '@/protocol/beggar_socket/protocol';
-import { getFlashId, toLittleEndian } from '@/protocol/beggar_socket/protocol-utils';
+import { getFlashName, toLittleEndian } from '@/protocol/beggar_socket/protocol-utils';
 import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions } from '@/types/command-options';
@@ -55,7 +55,7 @@ export class GBAAdapter extends CartridgeAdapter {
           const id = [...await rom_get_id(this.device)];
 
           const idStr = id.map(x => x.toString(16).padStart(2, '0')).join(' ');
-          const flashId = getFlashId(id);
+          const flashId = getFlashName(id);
           if (flashId === null) {
             this.log(this.t('messages.operation.unknownFlashId'), 'warn');
           } else {
@@ -303,7 +303,7 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   override async writeROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
-    const pageSize = AdvancedSettings.romPageSize;
+    const pageSize = options.pageSize ?? AdvancedSettings.romPageSize;
     const bufferSize = options.cfiInfo.bufferSize ?? 0;
 
     this.log(this.t('messages.operation.startWriteROM', {
@@ -466,7 +466,7 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   override async readROM(size = 0x200000, options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
-    const pageSize = AdvancedSettings.romPageSize;
+    const pageSize = options.pageSize ?? AdvancedSettings.romPageSize;
 
     this.log(this.t('messages.operation.startReadROM', {
       size,
