@@ -129,6 +129,9 @@ interface GameDetectionResult {
   desc: string;
   romInfo: RomInfo;
 }
+type LogLevelType = 'info' | 'success' | 'warn' | 'error';
+type ModeType = 'GBA' | 'MBC5';
+type RamType = 'SRAM' | 'FLASH';
 
 const { showToast } = useToast();
 const { t } = useI18n();
@@ -138,9 +141,9 @@ const props = defineProps<{
   deviceReady: boolean
 }>();
 
-const mode = ref<'GBA' | 'MBC5'>('GBA');
+const mode = ref<ModeType>('GBA');
 const busy = ref(false);
-const logs = ref<{ time: string; message: string; level: 'info' | 'success' | 'warn' | 'error' }[]>([]);
+const logs = ref<{ time: string; message: string; level: LogLevelType }[]>([]);
 
 // progress info object
 const progressInfo = ref<ProgressInfo>({
@@ -199,7 +202,7 @@ const mbc5Adapter = ref<CartridgeAdapter | null>();
 if (import.meta.hot) {
   const data = import.meta.hot.data as {
     cartBurnerState?: {
-      logs: { time: string ; message: string; level: 'info' | 'success' | 'warn' | 'error' }[];
+      logs: { time: string ; message: string; level: LogLevelType }[];
     }
   };
 
@@ -344,7 +347,7 @@ function finishOperation() {
   }
 }
 
-function log(msg: string, level: 'info' | 'success' | 'warn' | 'error' = 'info') {
+function log(msg: string, level: LogLevelType = 'info') {
   const time = new Date().toLocaleTimeString();
   const message = msg;
   logs.value.push({ time, message, level });
@@ -417,7 +420,7 @@ function onRamTypeChange(type: string) {
 function onModeSwitchRequired(targetMode: string, romType: string) {
   const currentMode = mode.value;
   if (targetMode !== currentMode) {
-    mode.value = targetMode as 'GBA' | 'MBC5';
+    mode.value = targetMode as ModeType;
     log(t('messages.mode.autoSwitched', { from: currentMode, to: targetMode, romType }));
   }
 }
@@ -654,7 +657,7 @@ async function writeRam() {
     }
 
     const response = await adapter.writeRAM(ramFileData.value, {
-      ramType: selectedRamType.value as 'SRAM' | 'FLASH',
+      ramType: selectedRamType.value as RamType,
       baseAddress: parseInt(selectedRamBaseAddress.value, 16),
       cfiInfo: cfiInfo.value,
     });
@@ -684,7 +687,7 @@ async function readRam() {
 
     const defaultSize = ramFileData.value ? ramFileData.value.length : parseInt(selectedRamSize.value, 16);
     const response = await adapter.readRAM(defaultSize, {
-      ramType: selectedRamType.value as 'SRAM' | 'FLASH',
+      ramType: selectedRamType.value as RamType,
       baseAddress: parseInt(selectedRamBaseAddress.value, 16),
       cfiInfo: cfiInfo.value,
     });
@@ -722,7 +725,7 @@ async function verifyRam() {
     }
 
     const response = await adapter.verifyRAM(ramFileData.value, {
-      ramType: selectedRamType.value as 'SRAM' | 'FLASH',
+      ramType: selectedRamType.value as RamType,
       baseAddress: parseInt(selectedRamBaseAddress.value, 16),
       cfiInfo: cfiInfo.value,
     });
@@ -853,7 +856,7 @@ async function readMBC5MultiCartRoms(adapter: CartridgeAdapter, deviceSize: numb
 
   // MBC5 N合1卡带的地址范围定义
   const multiCardRanges = [
-    { from: 0x000000, name: 'Menu   ' }, // 菜单
+    { from: 0x000000, name: 'Menu/GM' }, // 菜单
     { from: 0x100000, name: 'Game 01' }, // 游戏1
   ];
   for (let i = 1; i < 16; ++i) {

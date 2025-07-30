@@ -2,6 +2,7 @@ import { GBACommand, GBCCommand } from '@/protocol/beggar_socket/command';
 import { createCommandPayload } from '@/protocol/beggar_socket/payload-builder';
 import { getPackage, getResult, sendPackage } from '@/protocol/beggar_socket/protocol-utils';
 import { DeviceInfo } from '@/types/device-info';
+import { timeout } from '@/utils/async-utils';
 import { formatHex } from '@/utils/formatter-utils';
 
 // --- GBA Commands ---
@@ -236,7 +237,7 @@ export async function gbc_rom_erase_sector(device: DeviceInfo, sectorAddress: nu
     // Wait for completion by polling the target address
     let temp: Uint8Array;
     do {
-      await new Promise(resolve => setTimeout(resolve, 20)); // 20ms delay
+      await timeout(20); // 20ms delay
       temp = await gbc_read(device, 1, sectorAddress);
     } while (temp[0] !== 0xff); // Wait until the byte reads as 0xff (erased)
 

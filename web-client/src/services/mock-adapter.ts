@@ -3,6 +3,7 @@ import { DebugSettings } from '@/settings/debug-settings';
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
+import { timeout } from '@/utils/async-utils';
 import { CFIInfo } from '@/utils/cfi-parser';
 import { formatBytes, formatHex, formatSpeed, formatTimeDuration } from '@/utils/formatter-utils';
 import { SpeedCalculator } from '@/utils/speed-calculator';
@@ -285,7 +286,7 @@ export class MockAdapter extends CartridgeAdapter {
       // 模拟检查空白区域和擦除
       if (!this.mockRomData || this.mockRomData.length === 0) {
         this.log(this.t('messages.rom.checkingIfBlank'), 'info');
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await timeout(100);
 
         // 模拟擦除
         this.log(this.t('messages.operation.eraseChip'), 'info');

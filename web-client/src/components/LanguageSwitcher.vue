@@ -20,13 +20,17 @@
         :icon="globeOutline"
         class="lang-icon"
       />
+      <IonIcon
+        :icon="chevronDown"
+        class="dropdown-icon"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
-import { globeOutline } from 'ionicons/icons';
+import { chevronDown, globeOutline } from 'ionicons/icons';
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -73,8 +77,24 @@ function changeLanguage() {
   color: #1565c0;
 }
 
+.dropdown-icon {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1em;
+  color: #666;
+  transition: color 0.2s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.select-container:hover .dropdown-icon {
+  color: #333;
+}
+
 .language-select {
-  padding: 8px 12px 8px 40px;
+  padding: 8px 30px 8px 40px;
   border: 1px solid #ddd;
   border-radius: 6px;
   background: white;
@@ -83,11 +103,6 @@ function changeLanguage() {
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-  background-size: 1em;
-  padding-right: 30px;
   transition: all 0.2s ease;
   min-width: 120px;
 }

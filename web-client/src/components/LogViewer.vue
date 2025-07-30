@@ -35,9 +35,11 @@
 <script setup lang="ts">
 import { nextTick, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 
+type LogLevelType = 'info' | 'success' | 'warn' | 'error';
+
 const props = withDefaults(defineProps<{
   title?: string;
-  logs: { time: string; message: string; level: 'info' | 'success' | 'warn' | 'error' }[];
+  logs: { time: string; message: string; level: LogLevelType }[];
   maxHeight?: string;
   autoScroll?: boolean;
 }>(), {

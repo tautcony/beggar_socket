@@ -1,3 +1,5 @@
+import { timeout } from '@/utils/async-utils';
+
 /**
  * 调试配置类
  * 用于在开发模式下模拟设备行为
@@ -102,7 +104,7 @@ export class DebugSettings {
   static async delay(customDelay?: number): Promise<void> {
     if (!this.debugMode) return;
     const delay = customDelay ?? this._simulatedDelay;
-    return new Promise(resolve => setTimeout(resolve, delay));
+    return timeout(delay);
   }
 
   /**
@@ -127,7 +129,7 @@ export class DebugSettings {
       const progress = Math.min(100, (i / steps) * 100);
       callback(progress, detail);
       if (i < steps) {
-        await new Promise(resolve => setTimeout(resolve, this._progressUpdateInterval));
+        await timeout(this._progressUpdateInterval);
       }
     }
   }

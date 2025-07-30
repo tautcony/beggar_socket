@@ -44,14 +44,14 @@
           <span class="stat-label">{{ $t('ui.progress.elapsed') }}</span>
           <span
             class="stat-value"
-            :class="elapsedTimeColorClass"
+            :class="timeColorClass"
           >{{ formatTimeClock(elapsedTime, 'ms', true) }}</span>
         </div>
         <div class="stat-item">
           <span class="stat-label">{{ $t('ui.progress.remaining_time') }}</span>
           <span
             class="stat-value"
-            :class="remainingTimeColorClass"
+            :class="timeColorClass"
           >{{ formatTimeClock(remainingTime, 'ms', true) }}</span>
         </div>
         <div class="stat-item">
@@ -204,28 +204,19 @@ const updateTimeoutStatus = computed(() => {
   if (elapsed >= timeout) {
     return 'timeout'; // 超时
   } else if (elapsed >= timeout * 2 / 3) {
-    return 'warning'; // 剩余1/3时间，黄色
+    return 'danger'; // 剩余1/3时间，黄色
   } else if (elapsed >= timeout * 1 / 3) {
-    return 'caution'; // 剩余2/3时间，轻微警告
+    return 'warning'; // 剩余2/3时间，轻微警告
   }
   return 'normal';
 });
 
 // 时间显示颜色类
-const elapsedTimeColorClass = computed(() => {
+const timeColorClass = computed(() => {
   const status = updateTimeoutStatus.value;
   return {
-    'time-warning': status === 'caution',
-    'time-danger': status === 'warning',
-    'time-timeout': status === 'timeout',
-  };
-});
-
-const remainingTimeColorClass = computed(() => {
-  const status = updateTimeoutStatus.value;
-  return {
-    'time-warning': status === 'caution',
-    'time-danger': status === 'warning',
+    'time-warning': status === 'warning',
+    'time-danger': status === 'danger',
     'time-timeout': status === 'timeout',
   };
 });

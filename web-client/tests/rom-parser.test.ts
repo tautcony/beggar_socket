@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { GB_NINTENDO_LOGO, GBA_NINTENDO_LOGO, parseRom } from '../src/utils/rom-parser';
+import { calculateGBChecksum, GB_NINTENDO_LOGO, GBA_NINTENDO_LOGO, parseRom } from '../src/utils/rom-parser';
 
 function createGBARomHeader(dataSize = 0x200): Uint8Array {
   const header = new Uint8Array(dataSize); // 512字节足够测试
@@ -102,11 +102,8 @@ function createGBRomHeader(isGBC = false, dataSize = 0x200): Uint8Array {
   header[0x14C] = 0x01;
 
   // 计算头部校验和 (0x14D)
-  let headerSum = 0;
-  for (let i = 0x134; i <= 0x14C; i++) {
-    headerSum += header[i];
-  }
-  header[0x14D] = (-headerSum - 1) & 0xFF;
+  const headerSum = calculateGBChecksum(header);
+  header[0x14D] = headerSum;
 
   return header;
 }

@@ -35,10 +35,12 @@ import { IonIcon } from '@ionic/vue';
 import { checkmarkCircle, closeCircle, informationCircle } from 'ionicons/icons';
 import { onMounted, onUnmounted, ref } from 'vue';
 
+type ToastType = 'info' | 'success' | 'error' | 'idle';
+
 interface Toast {
   id: number;
   message: string;
-  type: 'info' | 'success' | 'error' | 'idle';
+  type: ToastType;
   timer: ReturnType<typeof setTimeout> | null;
   duration: number;
   isPaused: boolean;
@@ -49,7 +51,7 @@ interface Toast {
 const toasts = ref<Toast[]>([]);
 let toastIdCounter = 0;
 
-function showToast(msg: string, toastType: 'info' | 'success' | 'error' | 'idle' = 'success', duration = 3000) {
+function showToast(msg: string, toastType: ToastType = 'success', duration = 3000) {
   const id = ++toastIdCounter;
 
   const toast: Toast = {
@@ -71,7 +73,7 @@ function showToast(msg: string, toastType: 'info' | 'success' | 'error' | 'idle'
 }
 
 // 监听全局Toast事件
-function handleGlobalToast(event: CustomEvent<{ message: string, type: 'info' | 'success' | 'error' | 'idle', duration: number }>) {
+function handleGlobalToast(event: CustomEvent<{ message: string, type: ToastType, duration: number }>) {
   const { message, type, duration } = event.detail;
   showToast(message, type, duration);
 }

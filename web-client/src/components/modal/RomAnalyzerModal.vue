@@ -77,8 +77,8 @@
         >
           <div class="game-info">
             <div class="game-header">
-              <span class="game-title">{{ game.romInfo.title }}</span>
               <span class="game-type">{{ game.romInfo.type }}</span>
+              <span class="game-title">{{ game.romInfo.title }}</span>
             </div>
             <div class="game-details">
               <div class="detail-item">
@@ -622,6 +622,7 @@ async function extractGame(game: GameDetectionResult) {
   display: flex;
   flex-direction: column;
   gap: 15px;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Menlo', 'Consolas', monospace;
 }
 
 .game-item {

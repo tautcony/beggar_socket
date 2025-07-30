@@ -51,7 +51,7 @@ import { serial as polyfill } from 'web-serial-polyfill';
 import { useToast } from '@/composables/useToast';
 import { DebugSettings } from '@/settings/debug-settings';
 import { DeviceInfo } from '@/types/device-info';
-import { sleep } from '@/utils/async-utils';
+import { timeout } from '@/utils/async-utils';
 
 const { showToast } = useToast();
 const { t } = useI18n();
@@ -156,7 +156,7 @@ async function connect() {
 
   try {
     if (DebugSettings.debugMode) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await timeout(1000);
       const mockPort = {
         readable: new ReadableStream({ start(controller) { } }),
         writable: new WritableStream({ write(chunk) { } }),
@@ -226,7 +226,7 @@ async function initializeSerialState(port?: SerialPort | null, toast = false) {
 
   // send dtr & rts signals to ensure device is ready
   await port?.setSignals({ dataTerminalReady: false, requestToSend: false });
-  await sleep(200);
+  await timeout(200);
   await port?.setSignals({ dataTerminalReady: true, requestToSend: true });
 
   if (toast) {

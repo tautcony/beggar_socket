@@ -16,6 +16,7 @@ import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
+import { timeout } from '@/utils/async-utils';
 import { CFIInfo, parseCFI } from '@/utils/cfi-parser';
 import { formatBytes, formatHex, formatSpeed, formatTimeDuration } from '@/utils/formatter-utils';
 import { calcSectorUsage } from '@/utils/sector-utils';
@@ -125,7 +126,7 @@ export class GBAAdapter extends CartridgeAdapter {
               break;
             } else {
               this.log(`${this.t('messages.operation.eraseInProgress')} (${(elapsedSeconds / 1000).toFixed(1)}s)`, 'info');
-              await new Promise(resolve => setTimeout(resolve, 1000));
+              await timeout(1000);
             }
           }
 
@@ -816,7 +817,7 @@ export class GBAAdapter extends CartridgeAdapter {
                 this.log(this.t('messages.gba.eraseComplete'), 'success');
                 erased = true;
               } else {
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                await timeout(1000);
               }
             }
           }

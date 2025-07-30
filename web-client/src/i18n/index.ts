@@ -10,7 +10,6 @@ export const messages = {
   'ja-JP': jaJP,
 };
 
-// 获取浏览器语言，如果不支持则默认为中文
 export function getLanguage() {
   // 首先检查本地存储
   const savedLocale = localStorage.getItem('locale');
@@ -29,7 +28,7 @@ export function getLanguage() {
 
   // 部分匹配 (比如 ja 匹配 ja-JP)
   for (const locale of locales) {
-    if (navigator.language && language.includes(locale.split('-')[0])) {
+    if (language?.startsWith(locale.split('-')[0])) {
       return locale;
     }
   }
