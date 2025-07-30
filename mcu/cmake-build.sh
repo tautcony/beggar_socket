@@ -84,7 +84,7 @@ build_project() {
     print_info "Building chis_flash_burner in $build_type mode..."
 
     # Configure
-    if ! cmake -B "$build_dir" -DCMAKE_BUILD_TYPE=$build_type; then
+    if ! cmake -B "$build_dir" -DCMAKE_BUILD_TYPE="$build_type"; then
         print_error "Failed to configure project"
         return 1
     fi
