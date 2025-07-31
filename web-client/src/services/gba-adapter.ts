@@ -348,7 +348,7 @@ export class GBAAdapter extends CartridgeAdapter {
           while (written < total) {
             // 检查是否已被取消
             if (signal?.aborted) {
-              this.updateProgress(this.createErrorProgressInfo('erase', this.t('messages.operation.cancelled')));
+              this.updateProgress(this.createErrorProgressInfo('write', this.t('messages.operation.cancelled')));
               return {
                 success: false,
                 message: this.t('messages.operation.cancelled'),
@@ -374,11 +374,11 @@ export class GBAAdapter extends CartridgeAdapter {
             await rom_program(this.device, chunk, cartAddress, bufferSize);
             const chunkEndTime = Date.now();
 
-            written += chunk.length;
+            written += chunkSize;
             chunkCount++;
 
             // 添加数据点到速度计算器
-            speedCalculator.addDataPoint(chunk.length, chunkEndTime);
+            speedCalculator.addDataPoint(chunkSize, chunkEndTime);
 
             // 每10次操作或最后一次更新进度
             if (chunkCount % 10 === 0 || written >= total) {

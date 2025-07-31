@@ -540,7 +540,11 @@ async function writeRom() {
       alignedRomData = padded;
     }
 
-    const option: CommandOptions = { baseAddress: parseInt(selectedBaseAddress.value, 16), cfiInfo: cfiInfo.value };
+    const option: CommandOptions = {
+      baseAddress: parseInt(selectedBaseAddress.value, 16),
+      cfiInfo: cfiInfo.value,
+      size: romSize,
+    };
     if (arraysEqual(chipId.value, getFlashId('S29GL256N'))) {
       option.romPageSize = 512;
     }

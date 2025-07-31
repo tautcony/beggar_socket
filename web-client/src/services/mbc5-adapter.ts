@@ -306,7 +306,7 @@ export class MBC5Adapter extends CartridgeAdapter {
     const bufferSize = options.cfiInfo.bufferSize ?? 0;
 
     this.log(this.t('messages.operation.startWriteROM', {
-      fileSize: fileData.length,
+      fileSize: fileData.byteLength,
       baseAddress: formatHex(baseAddress, 4),
       pageSize,
       bufferSize,
@@ -317,10 +317,9 @@ export class MBC5Adapter extends CartridgeAdapter {
       async () => {
         const startTime = Date.now();
         try {
-          this.log(this.t('messages.rom.writing', { size: fileData.length }), 'info');
-
-          const total = fileData.length;
+          const total = options.size ?? fileData.byteLength;
           let written = 0;
+          this.log(this.t('messages.rom.writing', { size: total }), 'info');
 
           const blank = await this.isBlank(baseAddress, 0x100);
           if (!blank) {
@@ -336,8 +335,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           // 分块写入并更新进度
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
           let chunkCount = 0; // 记录已处理的块数
-          let currentBank = -1; // 当前ROM Bank
-
+          let currentBank = -1;
           while (written < total) {
             // 检查是否已被取消
             if (signal?.aborted) {
@@ -350,16 +348,18 @@ export class MBC5Adapter extends CartridgeAdapter {
 
             const chunkSize = Math.min(pageSize, total - written);
             const chunk = fileData.slice(written, written + chunkSize);
+            if (chunk.byteLength === 0) {
+              this.log(this.t('messages.rom.writeNoData'), 'warn');
+              break;
+            }
             const currentAddress = baseAddress + written;
 
-            // 计算bank和地址
             const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress);
             if (bank !== currentBank) {
               currentBank = bank;
               await this.switchROMBank(bank);
             }
 
-            // 写入数据，传递bufferSize参数
             await gbc_rom_program(this.device, chunk, cartAddress, bufferSize);
             const chunkEndTime = Date.now();
 
@@ -367,7 +367,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             chunkCount++;
 
             // 添加数据点到速度计算器
-            speedCalculator.addDataPoint(chunk.length, chunkEndTime);
+            speedCalculator.addDataPoint(chunkSize, chunkEndTime);
 
             // 每10次操作或最后一次更新进度
             if (chunkCount % 10 === 0 || written >= total) {
@@ -439,10 +439,10 @@ export class MBC5Adapter extends CartridgeAdapter {
         operation_type: 'write_rom',
       },
       {
-        fileSize: fileData.length,
+        fileSize: fileData.byteLength,
         baseAddress,
-        pageSize,
         bufferSize,
+        pageSize,
       },
     );
   }
