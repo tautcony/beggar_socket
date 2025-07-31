@@ -304,7 +304,7 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   override async writeROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
-    const pageSize = options.romPageSize ?? AdvancedSettings.romPageSize;
+    const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
     const bufferSize = options.cfiInfo.bufferSize ?? 0;
 
     this.log(this.t('messages.operation.startWriteROM', {
@@ -467,7 +467,7 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   override async readROM(size = 0x200000, options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
-    const pageSize = options.romPageSize ?? AdvancedSettings.romPageSize;
+    const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
 
     this.log(this.t('messages.operation.startReadROM', {
       size,
@@ -615,7 +615,7 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   override async verifyROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
-    const pageSize = options.romPageSize ?? AdvancedSettings.romPageSize;
+    const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
 
     this.log(this.t('messages.operation.startVerifyROM', {
       fileSize: fileData.byteLength,
@@ -788,7 +788,7 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   override async writeRAM(fileData: Uint8Array, options: CommandOptions): Promise<CommandResult> {
     const ramType = options.ramType ?? 'SRAM';
-    const pageSize = options.ramPageSize ?? AdvancedSettings.ramPageSize;
+    const pageSize = Math.min(options.ramPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
     const baseAddress = options.baseAddress ?? 0x00;
 
     this.log(this.t('messages.operation.startWriteRAM', {
@@ -918,7 +918,7 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   override async readRAM(size = 0x8000, options: CommandOptions) {
     const ramType = options.ramType ?? 'SRAM';
-    const pageSize = options.ramPageSize ?? AdvancedSettings.ramPageSize;
+    const pageSize = Math.min(options.ramPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
     const baseAddress = options.baseAddress ?? 0x00;
 
     this.log(this.t('messages.operation.startReadRAM', {
