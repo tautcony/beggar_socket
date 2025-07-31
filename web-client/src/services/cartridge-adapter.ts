@@ -3,6 +3,7 @@ import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { ProgressInfo } from '@/types/progress-info';
+import { timeout } from '@/utils/async-utils';
 import { CFIInfo } from '@/utils/cfi-parser';
 import NotImplementedError from '@/utils/errors/NotImplementedError';
 
@@ -189,6 +190,12 @@ export class CartridgeAdapter {
       false,
       'error',
     );
+  }
+
+  async resetCommandBuffer(): Promise<void> {
+    await this.device.port?.setSignals({ dataTerminalReady: false, requestToSend: false });
+    await timeout(200);
+    await this.device.port?.setSignals({ dataTerminalReady: true, requestToSend: true });
   }
 }
 

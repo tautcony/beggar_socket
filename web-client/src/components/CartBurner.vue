@@ -467,6 +467,7 @@ async function readCart() {
       showToast(t('messages.operation.readCartFailed'), 'error');
       log(t('messages.operation.readCartFailed'), 'error');
     }
+    await adapter.resetCommandBuffer();
   } catch (e) {
     showToast(t('messages.operation.readCartFailed'), 'error');
     log(`${t('messages.operation.readCartFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
@@ -498,6 +499,7 @@ async function eraseChip() {
       const response = await adapter.eraseSectors(startAddress, endAddress, sectorSize, abortSignal);
       showToast(response.message, response.success ? 'success' : 'error');
     }
+    await adapter.resetCommandBuffer();
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') {
       // 操作被取消，不显示错误消息，因为这是用户主动取消的
@@ -551,6 +553,7 @@ async function writeRom() {
 
     const response = await adapter.writeROM(alignedRomData, option, abortSignal);
     showToast(response.message, response.success ? 'success' : 'error');
+    await adapter.resetCommandBuffer();
   } catch (e) {
     showToast(t('messages.rom.writeFailed'), 'error');
     log(`${t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
@@ -601,6 +604,7 @@ async function readRom() {
     } else {
       showToast(response.message, 'error');
     }
+    await adapter.resetCommandBuffer();
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') {
       // 操作被取消，不显示错误消息，因为这是用户主动取消的
@@ -635,7 +639,7 @@ async function verifyRom() {
 
     const response = await adapter.verifyROM(romFileData.value, { baseAddress: parseInt(selectedBaseAddress.value, 16), cfiInfo: cfiInfo.value }, abortSignal);
     showToast(response.message, response.success ? 'success' : 'error');
-
+    await adapter.resetCommandBuffer();
   } catch (e) {
     showToast(t('messages.rom.verifyFailed'), 'error');
     log(`${t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
@@ -666,6 +670,12 @@ async function writeRam() {
       cfiInfo: cfiInfo.value,
     });
     showToast(response.message, response.success ? 'success' : 'error');
+    if (response.success) {
+      log(t('messages.ram.writeSuccess'), 'success');
+    } else {
+      log(t('messages.ram.writeFailed'), 'error');
+    }
+    await adapter.resetCommandBuffer();
   } catch (e) {
     showToast(t('messages.ram.writeFailed'), 'error');
     log(`${t('messages.ram.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
@@ -705,6 +715,7 @@ async function readRam() {
     } else {
       showToast(response.message, 'error');
     }
+    await adapter.resetCommandBuffer();
   } catch (e) {
     showToast(t('messages.ram.readFailed'), 'error');
     log(`${t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
@@ -734,6 +745,12 @@ async function verifyRam() {
       cfiInfo: cfiInfo.value,
     });
     showToast(response.message, response.success ? 'success' : 'error');
+    if (response.success) {
+      log(t('messages.ram.verifySuccess'), 'success');
+    } else {
+      log(t('messages.ram.verifyFailed'), 'error');
+    }
+    await adapter.resetCommandBuffer();
   } catch (e) {
     showToast(t('messages.ram.verifyFailed'), 'error');
     log(`${t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
@@ -821,6 +838,8 @@ async function readRomInfo() {
     printGameDetectionResults(gameResults);
 
     showToast(t('ui.operation.readMultiCartSuccess'), 'success');
+    log(t('ui.operation.readMultiCartSuccess'), 'success');
+    await adapter.resetCommandBuffer();
   } catch (e) {
     showToast(t('ui.operation.readMultiCartFailed'), 'error');
     log(`${t('ui.operation.readMultiCartFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
