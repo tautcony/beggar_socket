@@ -653,7 +653,7 @@ static void gbcRomWaitForDone(uint16_t addr, uint8_t expectedValue)
     volatile uint8_t value;
     uint32_t startTick = HAL_GetTick();
     while (1) {
-        cart_gbcRead((uint16_t)(addr), (uint8_t *)&value, 1);
+        cart_gbcRead(addr, (uint8_t *)&value, 1);
         MEMORY_BARRIER();
 
         if (value == expectedValue) break;
@@ -694,15 +694,14 @@ static void gbcRomProgram()
             cart_gbcWrite(0xaaa, &cmd, 1);  // FLASH_COMMAND_PROGRAM
             cart_gbcWrite((uint16_t)(startingAddress), dataBuf + writtenCount, 1);
 
+            // wait for done
             gbcRomWaitForDone((uint16_t)(startingAddress), dataBuf[writtenCount]);
             if (cmdBuf_p == 0) {
                 uart_clearRecvBuf();
                 return;
             }
             writtenCount++;
-        }
-        // 可以多字节编程
-        else {
+        } else {  // 可以多字节编程
             uint16_t writeLen = byteCount - writtenCount;
             if (writeLen > bufferWriteBytes) writeLen = bufferWriteBytes;
             // uint32_t sectorAddress = startingAddress & 0xffff0000;
@@ -723,7 +722,8 @@ static void gbcRomProgram()
             cart_gbcWrite(startingAddress, &cmd, 1);
 
             // wait for done
-            gbcRomWaitForDone((uint16_t)(startingAddress), dataBuf[writtenCount + writeLen - 1]);
+            gbcRomWaitForDone((uint16_t)(startingAddress + writeLen - 1),
+                              dataBuf[writtenCount + writeLen - 1]);
             if (cmdBuf_p == 0) {
                 uart_clearRecvBuf();
                 return;
