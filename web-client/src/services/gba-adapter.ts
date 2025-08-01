@@ -170,7 +170,20 @@ export class GBAAdapter extends CartridgeAdapter {
     return PerformanceTracker.trackAsyncOperation(
       'gba.eraseSectors',
       async () => {
-        this.log(this.t('messages.operation.startEraseSectors'), 'info');
+        // 计算擦除范围信息
+        const minStartAddress = Math.min(...sectorInfo.map(info => info.startAddress));
+        const maxEndAddress = Math.max(...sectorInfo.map(info => info.endAddress));
+        const totalSectors = sectorInfo.reduce((sum, info) => sum + info.sectorCount, 0);
+        const sectorSizes = [...new Set(sectorInfo.map(info => info.sectorSize))];
+        const sectorSizeStr = sectorSizes.length === 1
+          ? `${sectorSizes[0]}`
+          : sectorSizes.join('/');
+
+        this.log(this.t('messages.operation.startEraseSectors', {
+          startAddress: formatHex(minStartAddress, 4),
+          endAddress: formatHex(maxEndAddress - 1, 4),
+          sectorSize: sectorSizeStr,
+        }), 'info');
 
         try {
           let currentBank = -1;
@@ -182,7 +195,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
           // 创建扇区进度信息
           const sectors = this.createSectorProgressInfo(sectorInfo);
-          const totalSectors = sectors.length;
+          const sectorsCount = sectors.length;
 
           // 计算总字节数
           const totalBytes = sectorInfo.reduce((sum, info) => sum + (info.endAddress - info.startAddress), 0);
@@ -200,7 +213,7 @@ export class GBAAdapter extends CartridgeAdapter {
             'running',
             {
               sectors: this.currentSectorProgress,
-              totalSectors,
+              totalSectors: sectorsCount,
               completedSectors: 0,
               currentSectorIndex: 0,
             },
@@ -234,7 +247,7 @@ export class GBAAdapter extends CartridgeAdapter {
             // 更新进度显示当前正在擦除的扇区
             this.updateProgress(this.createProgressInfo(
               'erase',
-              (eraseCount / totalSectors) * 100,
+              (eraseCount / sectorsCount) * 100,
               this.t('messages.operation.eraseSector', {
                 from: formatHex(sector.address, 4),
                 to: formatHex(sector.address + sector.size - 1, 4),
@@ -247,7 +260,7 @@ export class GBAAdapter extends CartridgeAdapter {
               'running',
               {
                 sectors: this.currentSectorProgress,
-                totalSectors,
+                totalSectors: sectorsCount,
                 completedSectors: eraseCount,
                 currentSectorIndex: sectorIndex,
               },
@@ -271,7 +284,7 @@ export class GBAAdapter extends CartridgeAdapter {
             // 更新进度
             this.updateProgress(this.createProgressInfo(
               'erase',
-              (eraseCount / totalSectors) * 100,
+              (eraseCount / sectorsCount) * 100,
               this.t('messages.progress.eraseSpeed', { speed: formatSpeed(currentSpeed) }),
               totalBytes,
               erasedBytes,
@@ -281,7 +294,7 @@ export class GBAAdapter extends CartridgeAdapter {
               'running',
               {
                 sectors: this.currentSectorProgress,
-                totalSectors,
+                totalSectors: sectorsCount,
                 completedSectors: eraseCount,
                 currentSectorIndex: sectorIndex,
               },
@@ -297,7 +310,7 @@ export class GBAAdapter extends CartridgeAdapter {
             totalTime: formatTimeDuration(totalTime),
             avgSpeed: formatSpeed(avgSpeed),
             maxSpeed: formatSpeed(maxSpeed),
-            totalSectors: totalSectors,
+            totalSectors: sectorsCount,
           }), 'info');
 
           // 报告完成状态
@@ -313,9 +326,9 @@ export class GBAAdapter extends CartridgeAdapter {
             'completed',
             {
               sectors: this.currentSectorProgress,
-              totalSectors,
-              completedSectors: totalSectors,
-              currentSectorIndex: totalSectors,
+              totalSectors: sectorsCount,
+              completedSectors: sectorsCount,
+              currentSectorIndex: sectorsCount,
             },
           ));
 
