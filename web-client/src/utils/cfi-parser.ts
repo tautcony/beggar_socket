@@ -230,7 +230,7 @@ export class CFIParser {
         totalBlocks += b;
         const size = b * t;
         pos += size;
-        info.eraseSectorBlocks.push([t, b, size]);
+        info.eraseSectorBlocks.unshift([t, b, size]);
       }
 
       // 生成信息摘要

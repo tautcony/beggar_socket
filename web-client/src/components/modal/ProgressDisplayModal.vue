@@ -63,6 +63,105 @@
           <span class="stat-value">{{ formatBytes(totalBytes) }}</span>
         </div>
       </div>
+
+      <!-- Sector Visualization (only for erase operations) -->
+      <div
+        v-if="sectorProgress && type === 'erase'"
+        class="sector-visualization"
+      >
+        <div class="sector-title">
+          {{ $t('ui.progress.sectorMap') }}
+          <span class="sector-counter">
+            {{ sectorProgress.completedSectors }} / {{ sectorProgress.totalSectors }}
+          </span>
+        </div>
+        <div class="sector-grid">
+          <div
+            v-for="sector in sortedSectors"
+            :key="`sector-${sector.address}`"
+            class="sector-block"
+            :class="{
+              'sector-pending': sector.state === 'pending',
+              'sector-erasing': sector.state === 'erasing',
+              'sector-completed': sector.state === 'completed',
+              'sector-error': sector.state === 'error',
+              'sector-current': sector.state === 'erasing',
+              [`sector-size-${getSectorSizeClass(sector.size)}`]: true
+            }"
+            :title="$t('ui.progress.sectorTooltip', {
+              address: formatHex(sector.address, 4),
+              size: formatBytes(sector.size),
+              state: $t(`ui.progress.sectorState.${sector.state}`)
+            })"
+          >
+            <div class="sector-inner">
+              <div
+                v-if="sector.state === 'erasing'"
+                class="sector-spinner"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="sector-legend">
+          <!-- 第一排：扇区大小组 -->
+          <div class="legend-row">
+            <!-- Small 扇区组 -->
+            <div
+              v-if="existingSectorSizes.has('small')"
+              class="legend-group"
+            >
+              <span class="legend-size-label">{{ formatBytes(sectorSizeLabels.small) }}:</span>
+              <div class="legend-item">
+                <div class="legend-color sector-pending sector-size-small" />
+                <span>{{ $t('ui.progress.sectorState.pending') }}</span>
+              </div>
+              <div class="legend-item">
+                <div class="legend-color sector-completed sector-size-small" />
+                <span>{{ $t('ui.progress.sectorState.completed') }}</span>
+              </div>
+            </div>
+
+            <!-- Medium 扇区组 -->
+            <div
+              v-if="existingSectorSizes.has('medium')"
+              class="legend-group"
+            >
+              <span class="legend-size-label">{{ formatBytes(sectorSizeLabels.medium) }}:</span>
+              <div class="legend-item">
+                <div class="legend-color sector-pending sector-size-medium" />
+                <span>{{ $t('ui.progress.sectorState.pending') }}</span>
+              </div>
+              <div class="legend-item">
+                <div class="legend-color sector-completed sector-size-medium" />
+                <span>{{ $t('ui.progress.sectorState.completed') }}</span>
+              </div>
+            </div>
+
+            <!-- Large 扇区组 -->
+            <div
+              v-if="existingSectorSizes.has('large')"
+              class="legend-group"
+            >
+              <span class="legend-size-label">{{ formatBytes(sectorSizeLabels.large) }}:</span>
+              <div class="legend-item">
+                <div class="legend-color sector-pending sector-size-large" />
+                <span>{{ $t('ui.progress.sectorState.pending') }}</span>
+              </div>
+              <div class="legend-item">
+                <div class="legend-color sector-completed sector-size-large" />
+                <span>{{ $t('ui.progress.sectorState.completed') }}</span>
+              </div>
+            </div>
+            <div class="legend-group">
+              <div class="legend-item">
+                <div class="legend-color sector-erasing" />
+                <span>{{ $t('ui.progress.sectorState.erasing') }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Operation Detail -->
       <div
         v-if="detail"
@@ -97,7 +196,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import BaseModal from '@/components/common/BaseModal.vue';
 import { ProgressInfo } from '@/types/progress-info';
-import { formatBytes, formatSpeed, formatTimeClock } from '@/utils/formatter-utils';
+import { formatBytes, formatHex, formatSpeed, formatTimeClock } from '@/utils/formatter-utils';
 
 const props = defineProps<ProgressInfo & {
   modelValue: boolean;
@@ -232,6 +331,48 @@ function handleClose() {
   visible.value = false;
   emit('close');
 }
+
+// 根据扇区大小返回样式类名
+function getSectorSizeClass(sectorSize: number): string {
+  if (sectorSize <= 0x1000) { // 4KB or smaller
+    return 'small';
+  } else if (sectorSize <= 0x8000) { // 32KB or smaller
+    return 'medium';
+  } else {
+    return 'large'; // 64KB or larger
+  }
+}
+
+// 按地址排序的扇区列表
+const sortedSectors = computed(() => {
+  if (!props.sectorProgress?.sectors) return [];
+  return [...props.sectorProgress.sectors].sort((a, b) => a.address - b.address);
+});
+
+// 获取实际存在的扇区大小类型
+const existingSectorSizes = computed(() => {
+  if (!props.sectorProgress?.sectors) return new Set();
+
+  const sizes = new Set<string>();
+  props.sectorProgress.sectors.forEach(sector => {
+    sizes.add(getSectorSizeClass(sector.size));
+  });
+  return sizes;
+});
+
+// 获取每种大小的扇区实际字节数
+const sectorSizeLabels = computed(() => {
+  if (!props.sectorProgress?.sectors) return {};
+
+  const sizeMap: Record<string, number> = {};
+  props.sectorProgress.sectors.forEach(sector => {
+    const sizeClass = getSectorSizeClass(sector.size);
+    if (!sizeMap[sizeClass] || sector.size < sizeMap[sizeClass]) {
+      sizeMap[sizeClass] = sector.size;
+    }
+  });
+  return sizeMap;
+});
 
 // Keyboard handling
 function handleKeydown(event: KeyboardEvent) {
@@ -401,5 +542,252 @@ onUnmounted(() => {
 .time-timeout {
   color: #dc2626 !important; /* 深红色 - 超时 */
   font-weight: bold !important;
+}
+
+/* 扇区可视化样式 */
+.sector-visualization {
+  margin: 20px 0;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.sector-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.sector-counter {
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Menlo', 'Consolas', monospace;
+  background: #e5e7eb;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #4b5563;
+}
+
+.sector-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-bottom: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  justify-content: flex-start;
+  align-content: flex-start;
+}
+
+.sector-block {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.sector-block:hover {
+  transform: scale(1.1);
+  z-index: 10;
+}
+
+.sector-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 扇区状态颜色 */
+.sector-pending {
+  border: 1px solid #d1d5db;
+}
+
+.sector-pending.sector-size-small {
+  background: #ddd6fe; /* 浅紫色 - 4KB */
+}
+
+.sector-pending.sector-size-medium {
+  background: #bfdbfe; /* 浅蓝色 - 32KB */
+}
+
+.sector-pending.sector-size-large {
+  background: #e5e7eb; /* 浅灰色 - 64KB+ */
+}
+
+.sector-erasing {
+  background: #fbbf24;
+  border: 1px solid #f59e0b;
+  animation: sectorPulse 1s infinite;
+}
+
+.sector-completed {
+  border: 1px solid #15803d;
+}
+
+.sector-completed.sector-size-small {
+  background: #a855f7; /* 紫色 - 4KB 完成 */
+}
+
+.sector-completed.sector-size-medium {
+  background: #3b82f6; /* 蓝色 - 32KB 完成 */
+}
+
+.sector-completed.sector-size-large {
+  background: #16a34a; /* 绿色 - 64KB+ 完成 */
+}
+
+.sector-error {
+  background: #ef4444;
+  border: 1px solid #dc2626;
+}
+
+.sector-current {
+  box-shadow: 0 0 0 2px #3b82f6;
+  z-index: 5;
+}
+
+/* 擦除动画 */
+@keyframes sectorPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.sector-spinner {
+  width: 8px;
+  height: 8px;
+  border: 1px solid #ffffff;
+  border-top: 1px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 图例 */
+.sector-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+}
+
+.legend-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.legend-size-label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.7rem;
+  margin-right: 4px;
+  white-space: nowrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.legend-item span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* 响应式调整 */
+@media (max-width: 600px) {
+  .legend-row {
+    gap: 8px;
+  }
+
+  .legend-group {
+    gap: 4px;
+    padding: 3px 6px;
+  }
+
+  .legend-size-label {
+    font-size: 0.65rem;
+    margin-right: 3px;
+  }
+
+  .legend-item {
+    font-size: 0.65rem;
+    gap: 3px;
+  }
+
+  .legend-color {
+    width: 10px;
+    height: 10px;
+  }
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1px solid;
+}
+
+.legend-color.sector-pending {
+  border-color: #d1d5db;
+}
+
+.legend-color.sector-pending.sector-size-small {
+  background: #ddd6fe;
+}
+
+.legend-color.sector-pending.sector-size-medium {
+  background: #bfdbfe;
+}
+
+.legend-color.sector-pending.sector-size-large {
+  background: #e5e7eb;
+}
+
+.legend-color.sector-erasing {
+  background: #fbbf24;
+  border-color: #f59e0b;
+}
+
+.legend-color.sector-completed.sector-size-small {
+  background: #a855f7;
+  border-color: #15803d;
 }
 </style>

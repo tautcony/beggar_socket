@@ -359,7 +359,15 @@
       "completed": "Completed, click outside to close",
       "writing": "{written} / {total} bytes",
       "complete": "Complete",
-      "percent": "{percent}%"
+      "percent": "{percent}%",
+      "sectorMap": "Sector Map",
+      "sectorTooltip": "Address: {address}, Size: {size}, State: {state}",
+      "sectorState": {
+        "pending": "Pending",
+        "erasing": "Erasing",
+        "completed": "Completed",
+        "error": "Error"
+      }
     },
     "common": {
       "yes": "Yes",

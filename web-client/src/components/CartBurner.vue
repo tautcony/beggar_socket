@@ -495,10 +495,8 @@ async function eraseChip() {
     }
 
     const sectorInfo = calcSectorUsage(cfiInfo.value.eraseSectorBlocks, cfiInfo.value.deviceSize, 0x00);
-    for (const { startAddress, endAddress, sectorSize } of sectorInfo) {
-      const response = await adapter.eraseSectors(startAddress, endAddress, sectorSize, abortSignal);
-      showToast(response.message, response.success ? 'success' : 'error');
-    }
+    const response = await adapter.eraseSectors(sectorInfo, abortSignal);
+    showToast(response.message, response.success ? 'success' : 'error');
     await adapter.resetCommandBuffer();
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') {

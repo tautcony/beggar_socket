@@ -154,17 +154,19 @@ export class MockAdapter extends CartridgeAdapter {
 
   /**
    * 模拟擦除ROM扇区
-   * @param startAddress - 起始地址
-   * @param endAddress - 结束地址
-   * @param sectorSize - 扇区大小（默认64KB）
+   * @param sectorInfo - 扇区信息数组
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果
    */
-  override async eraseSectors(startAddress = 0, endAddress: number, sectorSize = 0x10000, signal?: AbortSignal): Promise<CommandResult> {
-    this.log(`擦除扇区 ${formatHex(startAddress, 4)} - ${formatHex(endAddress, 4)}`, 'info');
+  override async eraseSectors(
+    sectorInfo: { startAddress: number; endAddress: number; sectorSize: number; sectorCount: number }[],
+    signal?: AbortSignal,
+  ): Promise<CommandResult> {
+    this.log('模拟擦除扇区', 'info');
 
-    const totalSectors = Math.floor((endAddress - startAddress) / sectorSize) + 1;
-    const totalBytes = endAddress - startAddress;
+    // 计算总字节数和扇区数
+    const totalBytes = sectorInfo.reduce((sum, info) => sum + (info.endAddress - info.startAddress), 0);
+    const totalSectors = sectorInfo.reduce((sum, info) => sum + info.sectorCount, 0);
     const startTime = Date.now();
     let cancelled = false;
 
@@ -182,11 +184,11 @@ export class MockAdapter extends CartridgeAdapter {
           }
 
           const erasedSectors = Math.floor(totalSectors * progress / 100);
-          const erasedBytes = erasedSectors * sectorSize;
+          const erasedBytes = Math.floor(totalBytes * progress / 100);
 
           // 模拟速度
           const currentSpeed = 5000 + Math.random() * 3000; // 5-8 KB/s
-          speedCalculator.addDataPoint(sectorSize, Date.now());
+          speedCalculator.addDataPoint(1024, Date.now());
 
           this.updateProgress(this.createProgressInfo(
             'erase',

@@ -2,7 +2,7 @@
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
-import { ProgressInfo } from '@/types/progress-info';
+import { ProgressInfo, SectorInfo } from '@/types/progress-info';
 import { timeout } from '@/utils/async-utils';
 import { CFIInfo } from '@/utils/cfi-parser';
 import NotImplementedError from '@/utils/errors/NotImplementedError';
@@ -24,6 +24,7 @@ export class CartridgeAdapter {
   protected log: LogCallback;
   protected updateProgress: ProgressCallback;
   protected t: TranslateFunction;
+  protected currentSectorProgress: SectorInfo[] = [];
 
   /**
    * 构造函数
@@ -64,12 +65,14 @@ export class CartridgeAdapter {
 
   /**
    * 擦除ROM扇区
-   * @param startAddress - 起始地址
-   * @param endAddress - 结束地址
-   * @param sectorSize - 扇区大小
-   * @returns - 包含成功状态和消息的对象
+   * @param sectorInfo - 扇区信息数组
+   * @param signal - 取消信号，用于中止操作
+   * @returns - 操作结果
    */
-  async eraseSectors(startAddress: number, endAddress: number, sectorSize: number, signal?: AbortSignal): Promise<CommandResult> {
+  async eraseSectors(
+    sectorInfo: { startAddress: number; endAddress: number; sectorSize: number; sectorCount: number }[],
+    signal?: AbortSignal,
+  ): Promise<CommandResult> {
     throw new NotImplementedError();
   }
 
@@ -152,6 +155,7 @@ export class CartridgeAdapter {
    * @param startTime - 开始时间
    * @param currentSpeed - 当前速度 (KiB/s)
    * @param allowCancel - 是否允许取消
+   * @param sectorProgress - 扇区级别的进度信息（可选）
    * @returns 进度信息对象
    */
   protected createProgressInfo(
@@ -164,6 +168,12 @@ export class CartridgeAdapter {
     currentSpeed?: number,
     allowCancel = true,
     state: 'idle' | 'running' | 'paused' | 'completed' | 'error' = 'running',
+    sectorProgress?: {
+      sectors: SectorInfo[]
+      totalSectors: number
+      completedSectors: number
+      currentSectorIndex: number
+    },
   ): ProgressInfo {
     return {
       type,
@@ -175,6 +185,7 @@ export class CartridgeAdapter {
       currentSpeed,
       allowCancel,
       state,
+      sectorProgress,
     };
   }
 
@@ -190,6 +201,52 @@ export class CartridgeAdapter {
       false,
       'error',
     );
+  }
+
+  /**
+   * 创建扇区级别的进度信息对象（用于擦除操作的可视化）
+   * @param sectorInfo - 扇区信息数组
+   * @returns 初始的扇区进度信息
+   */
+  protected createSectorProgressInfo(sectorInfo: { startAddress: number; endAddress: number; sectorSize: number; sectorCount: number }[]): SectorInfo[] {
+    const sectors: SectorInfo[] = [];
+
+    // 按照从高地址到低地址的顺序创建扇区信息（与擦除顺序一致）
+    for (const { startAddress, endAddress, sectorSize } of sectorInfo.reverse()) {
+      const sectorMask = sectorSize - 1;
+      const alignedEndAddress = endAddress & ~sectorMask;
+
+      // 从高地址向低地址创建当前段的扇区信息
+      for (let address = alignedEndAddress; address >= startAddress; address -= sectorSize) {
+        sectors.push({
+          address,
+          size: sectorSize,
+          state: 'pending',
+        });
+      }
+    }
+
+    // 存储到当前实例中
+    this.currentSectorProgress = sectors;
+    return sectors;
+  }
+
+  /**
+   * 更新扇区进度信息
+   * @param currentAddress - 当前处理的地址
+   * @param state - 扇区状态
+   * @returns 当前扇区索引
+   */
+  protected updateSectorProgress(currentAddress: number, state: SectorInfo['state']): number {
+    let currentIndex = -1;
+    this.currentSectorProgress = this.currentSectorProgress.map((sector, index) => {
+      if (sector.address === currentAddress) {
+        currentIndex = index;
+        return { ...sector, state };
+      }
+      return sector;
+    });
+    return currentIndex;
   }
 
   async resetCommandBuffer(): Promise<void> {

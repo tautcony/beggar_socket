@@ -359,7 +359,15 @@
       "completed": "完了しました。外側をクリックして閉じる",
       "writing": "{written} / {total} バイト",
       "complete": "完了",
-      "percent": "{percent}%"
+      "percent": "{percent}%",
+      "sectorMap": "セクタマップ",
+      "sectorTooltip": "アドレス: {address}, サイズ: {size}, 状態: {state}",
+      "sectorState": {
+        "pending": "待機中",
+        "erasing": "消去中",
+        "completed": "完了",
+        "error": "エラー"
+      }
     },
     "common": {
       "yes": "はい",

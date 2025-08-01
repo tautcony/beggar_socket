@@ -159,38 +159,55 @@ export class GBAAdapter extends CartridgeAdapter {
 
   /**
    * 擦除ROM扇区
-   * @param startAddress - 起始地址
-   * @param endAddress - 结束地址
-   * @param sectorSize - 扇区大小（默认64KB）
+   * @param sectorInfo - 扇区信息数组
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果
    */
-  override async eraseSectors(startAddress: number, endAddress: number, sectorSize = 0x10000, signal?: AbortSignal) : Promise<CommandResult> {
+  override async eraseSectors(
+    sectorInfo: { startAddress: number; endAddress: number; sectorSize: number; sectorCount: number }[],
+    signal?: AbortSignal,
+  ): Promise<CommandResult> {
     return PerformanceTracker.trackAsyncOperation(
       'gba.eraseSectors',
       async () => {
-        this.log(this.t('messages.operation.startEraseSectors', {
-          startAddress: formatHex(startAddress, 4),
-          endAddress: formatHex(endAddress, 4),
-          sectorSize,
-        }), 'info');
+        this.log(this.t('messages.operation.startEraseSectors'), 'info');
 
         try {
-          // 确保扇区对齐
-          const sectorMask = sectorSize - 1;
-          const alignedEndAddress = endAddress & ~sectorMask;
-
           let currentBank = -1;
           let eraseCount = 0;
-          const totalSectors = Math.floor((alignedEndAddress - startAddress) / sectorSize) + 1;
-          const totalBytes = endAddress - startAddress;
           const startTime = Date.now();
 
           // 使用速度计算器
           const speedCalculator = new SpeedCalculator();
 
-          // 从高地址向低地址擦除
-          for (let currentAddress = alignedEndAddress; currentAddress >= startAddress; currentAddress -= sectorSize) {
+          // 创建扇区进度信息
+          const sectors = this.createSectorProgressInfo(sectorInfo);
+          const totalSectors = sectors.length;
+
+          // 计算总字节数
+          const totalBytes = sectorInfo.reduce((sum, info) => sum + (info.endAddress - info.startAddress), 0);
+
+          // 初始化扇区可视化进度
+          this.updateProgress(this.createProgressInfo(
+            'erase',
+            0,
+            this.t('messages.operation.startEraseSectors'),
+            totalBytes,
+            0,
+            startTime,
+            0,
+            true,
+            'running',
+            {
+              sectors: this.currentSectorProgress,
+              totalSectors,
+              completedSectors: 0,
+              currentSectorIndex: 0,
+            },
+          ));
+
+          // 按照创建的扇区顺序进行擦除（从高地址到低地址）
+          for (const sector of sectors) {
             // 检查是否已被取消
             if (signal?.aborted) {
               this.updateProgress(this.createErrorProgressInfo('erase', this.t('messages.operation.cancelled')));
@@ -200,31 +217,58 @@ export class GBAAdapter extends CartridgeAdapter {
               };
             }
 
-            const { bank } = this.romBankRelevantAddress(currentAddress);
-            if (endAddress > (1 << 25)) {
-              if (bank !== currentBank) {
-                currentBank = bank;
-                await this.switchROMBank(bank);
-              }
+            const { bank } = this.romBankRelevantAddress(sector.address);
+            if (bank !== currentBank) {
+              currentBank = bank;
+              await this.switchROMBank(bank);
             }
 
+            // 更新当前扇区状态为"正在擦除"
+            const sectorIndex = this.updateSectorProgress(sector.address, 'erasing');
+
             this.log(this.t('messages.operation.eraseSector', {
-              from: formatHex(currentAddress, 4),
-              to: formatHex(currentAddress + sectorSize - 1, 4),
+              from: formatHex(sector.address, 4),
+              to: formatHex(sector.address + sector.size - 1, 4),
             }), 'info');
 
-            await rom_erase_sector(this.device, currentAddress);
+            // 更新进度显示当前正在擦除的扇区
+            this.updateProgress(this.createProgressInfo(
+              'erase',
+              (eraseCount / totalSectors) * 100,
+              this.t('messages.operation.eraseSector', {
+                from: formatHex(sector.address, 4),
+                to: formatHex(sector.address + sector.size - 1, 4),
+              }),
+              totalBytes,
+              eraseCount * sector.size,
+              startTime,
+              speedCalculator.getCurrentSpeed(),
+              true,
+              'running',
+              {
+                sectors: this.currentSectorProgress,
+                totalSectors,
+                completedSectors: eraseCount,
+                currentSectorIndex: sectorIndex,
+              },
+            ));
+
+            await rom_erase_sector(this.device, sector.address);
             const sectorEndTime = Date.now();
 
+            // 更新当前扇区状态为"已完成"
+            this.updateSectorProgress(sector.address, 'completed');
+
             eraseCount++;
-            const erasedBytes = eraseCount * sectorSize;
+            const erasedBytes = eraseCount * sector.size;
 
             // 添加数据点到速度计算器
-            speedCalculator.addDataPoint(sectorSize, sectorEndTime);
+            speedCalculator.addDataPoint(sector.size, sectorEndTime);
 
             // 计算当前速度
             const currentSpeed = speedCalculator.getCurrentSpeed();
 
+            // 更新进度
             this.updateProgress(this.createProgressInfo(
               'erase',
               (eraseCount / totalSectors) * 100,
@@ -234,6 +278,13 @@ export class GBAAdapter extends CartridgeAdapter {
               startTime,
               currentSpeed,
               true, // 允许取消
+              'running',
+              {
+                sectors: this.currentSectorProgress,
+                totalSectors,
+                completedSectors: eraseCount,
+                currentSectorIndex: sectorIndex,
+              },
             ));
           }
 
@@ -260,6 +311,12 @@ export class GBAAdapter extends CartridgeAdapter {
             avgSpeed,
             false, // 完成后禁用取消
             'completed',
+            {
+              sectors: this.currentSectorProgress,
+              totalSectors,
+              completedSectors: totalSectors,
+              currentSectorIndex: totalSectors,
+            },
           ));
 
           return {
@@ -286,11 +343,6 @@ export class GBAAdapter extends CartridgeAdapter {
       {
         adapter_type: 'gba',
         operation_type: 'erase_sectors',
-      },
-      {
-        startAddress,
-        endAddress,
-        sectorSize,
       },
     );
   }
@@ -333,9 +385,7 @@ export class GBAAdapter extends CartridgeAdapter {
           const blank = await this.isBlank(baseAddress, 0x100);
           if (!blank) {
             const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, total, baseAddress);
-            for (const { startAddress, endAddress, sectorSize } of sectorInfo) {
-              await this.eraseSectors(startAddress, endAddress, sectorSize, signal);
-            }
+            await this.eraseSectors(sectorInfo, signal);
           }
 
           // 使用速度计算器
