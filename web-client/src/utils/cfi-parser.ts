@@ -1,6 +1,34 @@
 import { formatBytes, formatHex } from '@/utils/formatter-utils';
 
 /**
+ * 擦除扇区块信息接口
+ */
+export interface SectorBlock {
+  /** 扇区大小 (字节) */
+  sectorSize: number;
+  /** 扇区数量 */
+  sectorCount: number;
+  /** 区域总大小 (字节) */
+  totalSize: number;
+  /** 起始地址 */
+  startAddress: number;
+  /** 结束地址 */
+  endAddress: number;
+}
+
+/**
+ * Flash检测特性信息接口
+ */
+export interface FlashDetectionInfo {
+  /** 是否交换D0和D1数据线 */
+  isSwapD0D1: boolean;
+  /** 是否为Intel Flash */
+  isIntel: boolean;
+  /** CFI检测是否成功 */
+  cfiDetected: boolean;
+}
+
+/**
  * CFI解析结果接口
  */
 export interface CFIInfo {
@@ -10,6 +38,8 @@ export interface CFIInfo {
   magic: string;
   /** 数据交换信息 */
   dataSwap: [number, number][] | null;
+  /** Flash检测特性信息 */
+  detection: FlashDetectionInfo;
   /** VDD最小电压 */
   vddMin: number;
   /** VDD最大电压 */
@@ -48,8 +78,10 @@ export interface CFIInfo {
   deviceSize: number;
   /** 擦除扇区区域数量 */
   eraseSectorRegions: number;
-  /** 擦除扇区块信息 [扇区大小, 扇区数量, 总大小][] */
-  eraseSectorBlocks: [number, number, number][];
+  /** 擦除扇区块信息 */
+  eraseSectorBlocks: SectorBlock[];
+  /** 是否需要反转扇区区域 */
+  reverseSectorRegion: boolean;
   /** 格式化的信息字符串 */
   info: string;
 }
@@ -83,6 +115,58 @@ function bitswap(byte: number, swaps: [number, number][]): number {
  */
 export class CFIParser {
   /**
+   * 检测Flash特性（基于C++逻辑）
+   * @param buffer - CFI查询返回的数据缓冲区
+   * @returns Flash检测特性信息
+   */
+  private detectFlashCharacteristics(buffer: Uint8Array): FlashDetectionInfo {
+    const detection: FlashDetectionInfo = {
+      isSwapD0D1: false,
+      isIntel: false,
+      cfiDetected: false,
+    };
+
+    // 检查CFI魔数以确定数据交换模式（基于C++ _check_cfi逻辑）
+    const q = buffer[0x20]; // 'Q' = 0x51
+    const r = buffer[0x22]; // 'R' = 0x52
+    const y = buffer[0x24]; // 'Y' = 0x59
+
+    // 正常CFI响应
+    if (q === 0x51 && r === 0x52 && y === 0x59) {
+      detection.isSwapD0D1 = false;
+      detection.cfiDetected = true;
+    } else if (this.swapD0D1(q) === 0x51 && this.swapD0D1(r) === 0x52 && this.swapD0D1(y) === 0x59) {
+      // D0D1交换后的CFI响应（SWAP_D0D1宏逻辑：交换bit0和bit1）
+      detection.isSwapD0D1 = true;
+      detection.cfiDetected = true;
+    } else {
+      detection.cfiDetected = false;
+    }
+
+    // TODO: Intel Flash检测逻辑可以在这里扩展
+    // 基于C++中的get_flashid_auto逻辑，需要额外的Flash ID检测
+    detection.isIntel = false;
+
+    return detection;
+  }
+
+  /**
+   * D0D1位交换函数（对应C++ SWAP_D0D1宏）
+   * @param value - 要交换的值
+   * @returns 交换D0D1位后的值
+   */
+  private swapD0D1(value: number): number {
+    const bit0 = (value & 0x01) !== 0;
+    const bit1 = (value & 0x02) !== 0;
+
+    let result = value;
+    if (bit0 !== bit1) {
+      result ^= 0x03; // 交换bit0和bit1
+    }
+
+    return result;
+  }
+  /**
    * 解析CFI数据
    * @param buffer - CFI查询返回的数据缓冲区
    * @returns CFI信息对象，如果解析失败返回false
@@ -96,22 +180,18 @@ export class CFIParser {
     const workBuffer = new Uint8Array(buffer);
     const info: Partial<CFIInfo> = {};
 
-    // 检查魔数以确定数据交换模式
-    const magic = String.fromCharCode(workBuffer[0x20]) +
-                  String.fromCharCode(workBuffer[0x22]) +
-                  String.fromCharCode(workBuffer[0x24]);
+    // 检测Flash特性
+    info.detection = this.detectFlashCharacteristics(workBuffer);
 
-    if (magic === 'QRY') {
-      // 正常模式，无交换
-      info.dataSwap = [[0, 0]];
-    } else if (magic === 'RQZ') {
-      // D0D1 交换
-      info.dataSwap = [[0, 1]];
-    } else if (magic === '\x92\x91\x9A') {
-      // D0D1+D6D7 交换
-      info.dataSwap = [[0, 1], [6, 7]];
-    } else {
+    if (!info.detection.cfiDetected) {
       return false;
+    }
+
+    // 根据检测结果设置数据交换模式
+    if (info.detection.isSwapD0D1) {
+      info.dataSwap = [[0, 1]];
+    } else {
+      info.dataSwap = [[0, 0]];
     }
 
     // 应用位交换
@@ -187,6 +267,7 @@ export class CFIParser {
       // 解析引导扇区信息
       info.tbBootSector = false;
       info.tbBootSectorRaw = 0;
+      info.reverseSectorRegion = false;
 
       if (String.fromCharCode(workBuffer[priAddress]) +
           String.fromCharCode(workBuffer[priAddress + 2]) +
@@ -202,6 +283,8 @@ export class CFIParser {
           if (bootSectorTypes[workBuffer[priAddress + 0x1E]]) {
             info.tbBootSector += ` (${formatHex(workBuffer[priAddress + 0x1E], 1)})`;
           }
+          // 判断是否需要反转扇区区域
+          info.reverseSectorRegion = workBuffer[priAddress + 0x1E] === 0x03;
         }
       }
 
@@ -221,16 +304,56 @@ export class CFIParser {
       info.eraseSectorRegions = workBuffer[0x58];
       info.eraseSectorBlocks = [];
 
-      let totalBlocks = 0;
-      let pos = 0;
+      const regionInfo: { sectorCount: number; sectorSize: number; totalSize: number }[] = [];
+      let totalSize = 0;
 
+      // 首先收集所有区域信息
       for (let i = 0; i < Math.min(4, info.eraseSectorRegions); i++) {
-        const b = ((workBuffer[0x5C + (i * 8)] << 8) | workBuffer[0x5A + (i * 8)]) + 1;
-        const t = ((workBuffer[0x60 + (i * 8)] << 8) | workBuffer[0x5E + (i * 8)]) * 256;
-        totalBlocks += b;
-        const size = b * t;
-        pos += size;
-        info.eraseSectorBlocks.unshift([t, b, size]);
+        const sectorCount = ((workBuffer[0x5C + (i * 8)] << 8) | workBuffer[0x5A + (i * 8)]) + 1; // 扇区数量
+        const sectorSize = ((workBuffer[0x60 + (i * 8)] << 8) | workBuffer[0x5E + (i * 8)]) * 256; // 扇区大小
+        const regionTotalSize = sectorCount * sectorSize; // 区域总大小
+
+        regionInfo.push({
+          sectorCount,
+          sectorSize,
+          totalSize: regionTotalSize,
+        });
+        totalSize += regionTotalSize;
+      }
+
+      // 根据reverseSectorRegion标志分配扇区区域地址并创建EraseSectorBlock对象
+      if (info.reverseSectorRegion) {
+        // 从高地址向低地址分配扇区区域（反转模式）
+        let currentAddr = totalSize;
+        for (let i = 0; i < regionInfo.length; i++) {
+          const region = regionInfo[i];
+          currentAddr -= region.totalSize;
+
+          // 反转时，区域按倒序分配地址
+          const reverseIndex = regionInfo.length - 1 - i;
+          info.eraseSectorBlocks[reverseIndex] = {
+            sectorSize: region.sectorSize,
+            sectorCount: region.sectorCount,
+            totalSize: region.totalSize,
+            startAddress: currentAddr,
+            endAddress: currentAddr + region.totalSize - 1,
+          };
+        }
+      } else {
+        // 从低地址向高地址分配扇区区域（正常模式）
+        let currentAddr = 0;
+        for (let i = 0; i < regionInfo.length; i++) {
+          const region = regionInfo[i];
+
+          info.eraseSectorBlocks[i] = {
+            sectorSize: region.sectorSize,
+            sectorCount: region.sectorCount,
+            totalSize: region.totalSize,
+            startAddress: currentAddr,
+            endAddress: currentAddr + region.totalSize - 1,
+          };
+          currentAddr += region.totalSize;
+        }
       }
 
       // 生成信息摘要
@@ -251,6 +374,14 @@ export class CFIParser {
    */
   private generateInfoString(info: CFIInfo): string {
     const lines: string[] = [];
+
+    // 显示Flash检测信息
+    if (info.detection.isSwapD0D1) {
+      lines.push('Flash detection: D0D1 swapped');
+    }
+    if (info.detection.isIntel) {
+      lines.push('Flash type: Intel Flash detected');
+    }
 
     // 显示数据交换信息
     if (info.dataSwap && info.dataSwap.length > 0 &&
@@ -282,26 +413,14 @@ export class CFIParser {
       lines.push(`Sector flags: ${info.tbBootSector}`);
     }
 
-    // 扇区区域信息
-    let currentPos = 0;
-    let oversize = false;
-
+    // 扇区区域信息 - 使用新的eraseSectorBlocks数据
     for (let i = 0; i < info.eraseSectorRegions; i++) {
-      const esb = info.eraseSectorBlocks[i];
-      const sectorSize = formatHex(esb[0], 2);
-      const sectorCount = esb[1];
-      const regionSizeBytes = esb[2];
+      const block = info.eraseSectorBlocks[i];
 
-      const addressRange = formatHex(currentPos, 3) + '-' +
-                            formatHex(currentPos + regionSizeBytes - 1, 3);
-      const regionInfo = `Region ${i + 1}: ${addressRange} @ ${sectorSize} Bytes × ${sectorCount}${oversize ? ' (alt)' : ''}`;
+      const addressRange = formatHex(block.startAddress, 3) + '-' + formatHex(block.endAddress - 1, 3);
+      const sectorSizeHex = formatHex(block.sectorSize, 2);
+      const regionInfo = `Region ${i + 1}: ${addressRange} @ ${sectorSizeHex} Bytes × ${block.sectorCount}${info.reverseSectorRegion ? ' (reversed)' : ''}`;
       lines.push(regionInfo);
-
-      currentPos += regionSizeBytes;
-      if (currentPos >= info.deviceSize) {
-        currentPos = 0;
-        oversize = true;
-      }
     }
 
     return lines.join('\n');

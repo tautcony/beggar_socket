@@ -1,4 +1,4 @@
-export interface SectorInfo {
+export interface SectorProgressInfo {
   address: number
   size: number
   state: 'pending' | 'erasing' | 'completed' | 'error'
@@ -16,7 +16,7 @@ export interface ProgressInfo {
   state?: 'idle' | 'running' | 'paused' | 'completed' | 'error'
   // 扇区级别的可视化进度 (仅用于擦除操作)
   sectorProgress?: {
-    sectors: SectorInfo[]
+    sectors: SectorProgressInfo[]
     totalSectors: number
     completedSectors: number
     currentSectorIndex: number

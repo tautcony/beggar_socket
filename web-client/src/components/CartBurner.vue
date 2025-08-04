@@ -182,14 +182,14 @@ const sectorSizes = computed(() => {
   if (!cfiInfo.value) {
     return undefined;
   }
-  return cfiInfo.value.eraseSectorBlocks.map((block) => block[0]);
+  return cfiInfo.value.eraseSectorBlocks.map((block) => block.sectorSize);
 });
 
 const sectorCounts = computed(() => {
   if (!cfiInfo.value) {
     return undefined;
   }
-  return cfiInfo.value.eraseSectorBlocks.map((block) => block[1]);
+  return cfiInfo.value.eraseSectorBlocks.map((block) => block.sectorCount);
 });
 
 const currentAbortController = ref<AbortController | null>(null);

@@ -13,7 +13,7 @@ import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { timeout } from '@/utils/async-utils';
-import { CFIInfo, parseCFI } from '@/utils/cfi-parser';
+import { CFIInfo, parseCFI, SectorBlock } from '@/utils/cfi-parser';
 import { formatBytes, formatHex, formatSpeed, formatTimeDuration } from '@/utils/formatter-utils';
 import { calcSectorUsage } from '@/utils/sector-utils';
 import { PerformanceTracker } from '@/utils/sentry-tracker';
@@ -163,7 +163,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @returns - 操作结果
    */
   override async eraseSectors(
-    sectorInfo: { startAddress: number; endAddress: number; sectorSize: number; sectorCount: number }[],
+    sectorInfo: SectorBlock[],
     signal?: AbortSignal,
   ): Promise<CommandResult> {
     return PerformanceTracker.trackAsyncOperation(
@@ -193,7 +193,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           const speedCalculator = new SpeedCalculator();
 
           // 创建扇区进度信息
-          const sectors = this.createSectorProgressInfo(sectorInfo);
+          const sectors = this.initializeSectorProgress(sectorInfo);
           const sectorsCount = sectors.length;
 
           // 计算总字节数

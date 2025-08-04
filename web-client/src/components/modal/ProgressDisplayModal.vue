@@ -66,7 +66,7 @@
 
       <!-- Sector Visualization (only for erase operations) -->
       <div
-        v-if="sectorProgress && type === 'erase'"
+        v-if="sectorProgress && (type === 'erase' || type === 'write')"
         class="sector-visualization"
       >
         <div class="sector-title">

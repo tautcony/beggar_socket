@@ -2,10 +2,11 @@
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
-import { ProgressInfo, SectorInfo } from '@/types/progress-info';
+import { ProgressInfo, SectorProgressInfo } from '@/types/progress-info';
 import { timeout } from '@/utils/async-utils';
-import { CFIInfo } from '@/utils/cfi-parser';
+import { CFIInfo, SectorBlock } from '@/utils/cfi-parser';
 import NotImplementedError from '@/utils/errors/NotImplementedError';
+import { createSectorProgressInfo } from '@/utils/sector-utils';
 
 // 定义日志和进度回调函数类型
 export type LogCallback = (message: string, type: 'info' | 'success' | 'warn' | 'error' ) => void;
@@ -24,7 +25,7 @@ export class CartridgeAdapter {
   protected log: LogCallback;
   protected updateProgress: ProgressCallback;
   protected t: TranslateFunction;
-  protected currentSectorProgress: SectorInfo[] = [];
+  protected currentSectorProgress: SectorProgressInfo[] = [];
 
   /**
    * 构造函数
@@ -70,7 +71,7 @@ export class CartridgeAdapter {
    * @returns - 操作结果
    */
   async eraseSectors(
-    sectorInfo: { startAddress: number; endAddress: number; sectorSize: number; sectorCount: number }[],
+    sectorInfo: SectorBlock[],
     signal?: AbortSignal,
   ): Promise<CommandResult> {
     throw new NotImplementedError();
@@ -169,7 +170,7 @@ export class CartridgeAdapter {
     allowCancel = true,
     state: 'idle' | 'running' | 'paused' | 'completed' | 'error' = 'running',
     sectorProgress?: {
-      sectors: SectorInfo[]
+      sectors: SectorProgressInfo[]
       totalSectors: number
       completedSectors: number
       currentSectorIndex: number
@@ -204,31 +205,14 @@ export class CartridgeAdapter {
   }
 
   /**
-   * 创建扇区级别的进度信息对象（用于擦除操作的可视化）
+   * 初始化扇区进度信息（用于擦除操作的可视化）
    * @param sectorInfo - 扇区信息数组
    * @returns 初始的扇区进度信息
    */
-  protected createSectorProgressInfo(sectorInfo: { startAddress: number; endAddress: number; sectorSize: number; sectorCount: number }[]): SectorInfo[] {
-    const sectors: SectorInfo[] = [];
-
-    // 按照从高地址到低地址的顺序创建扇区信息（与擦除顺序一致）
-    for (const { startAddress, endAddress, sectorSize } of sectorInfo.reverse()) {
-      const sectorMask = sectorSize - 1;
-      const alignedEndAddress = endAddress & ~sectorMask;
-
-      // 从高地址向低地址创建当前段的扇区信息
-      for (let address = alignedEndAddress; address >= startAddress; address -= sectorSize) {
-        sectors.push({
-          address,
-          size: sectorSize,
-          state: 'pending',
-        });
-      }
-    }
-
-    // 存储到当前实例中
-    this.currentSectorProgress = sectors;
-    return sectors;
+  protected initializeSectorProgress(sectorInfo: SectorBlock[]): SectorProgressInfo[] {
+    // 使用 utils 函数创建扇区进度信息
+    this.currentSectorProgress = createSectorProgressInfo(sectorInfo);
+    return this.currentSectorProgress;
   }
 
   /**
@@ -237,7 +221,7 @@ export class CartridgeAdapter {
    * @param state - 扇区状态
    * @returns 当前扇区索引
    */
-  protected updateSectorProgress(currentAddress: number, state: SectorInfo['state']): number {
+  protected updateSectorProgress(currentAddress: number, state: SectorProgressInfo['state']): number {
     let currentIndex = -1;
     this.currentSectorProgress = this.currentSectorProgress.map((sector, index) => {
       if (sector.address === currentAddress) {

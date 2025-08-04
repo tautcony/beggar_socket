@@ -5,7 +5,7 @@ import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { timeout } from '@/utils/async-utils';
 import { CFIInfo } from '@/utils/cfi-parser';
-import { formatBytes, formatHex, formatSpeed, formatTimeDuration } from '@/utils/formatter-utils';
+import { formatBytes, formatSpeed, formatTimeDuration } from '@/utils/formatter-utils';
 import { SpeedCalculator } from '@/utils/speed-calculator';
 
 /**
@@ -39,7 +39,7 @@ export class MockAdapter extends CartridgeAdapter {
   /**
    * 模拟读取芯片ID
    */
-  override async readID(): Promise<CommandResult & { idStr?: string }> {
+  override async readID(): Promise<CommandResult & { id?: number[] }> {
     this.log(this.t('messages.operation.readId'), 'info');
 
     await DebugSettings.delay();
@@ -52,13 +52,15 @@ export class MockAdapter extends CartridgeAdapter {
       };
     }
 
-    const mockId = '01 00 7e 22 22 22 01 22';
-    this.log(`${this.t('messages.operation.readIdSuccess')}: ${mockId}`, 'success');
+    const mockId = [0x01, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22];
+    const mockIdStr = mockId?.map(x => x.toString(16).padStart(2, '0')).join(' ') ?? '--';
+
+    this.log(`${this.t('messages.operation.readIdSuccess')}: ${mockIdStr}`, 'success');
 
     return {
       success: true,
       message: this.t('messages.operation.readIdSuccess'),
-      idStr: mockId,
+      id: mockId,
     };
   }
 
@@ -72,7 +74,11 @@ export class MockAdapter extends CartridgeAdapter {
     const startTime = Date.now();
     let cancelled = false;
 
+    const deviceSize = 134217728; // 128MB
+    const sectorSize = 0x10000; // 64KB
+
     try {
+
       // 模拟进度，并检查取消信号
       await DebugSettings.simulateProgress(
         (progress) => {
@@ -83,18 +89,19 @@ export class MockAdapter extends CartridgeAdapter {
             return;
           }
 
-          const elapsedSeconds = Date.now() - startTime;
-          const erasedSectors = Math.floor(128 * progress / 100); // 假设128个扇区
-          const speed = elapsedSeconds > 0 ? (erasedSectors * 1000 / elapsedSeconds) : 0;
+          const erasedBytes = Math.floor(deviceSize * progress / 100);
+
+          const speed = 5000 + Math.random() * 3000; // 5-8 KB/s
           this.updateProgress(this.createProgressInfo(
             'erase',
             progress,
-            this.t('messages.progress.eraseSpeed', { speed: speed.toFixed(1) }),
-            128,
-            erasedSectors,
+            this.t('messages.progress.eraseSpeed', { speed: formatSpeed(speed) }),
+            deviceSize,
+            erasedBytes,
             startTime,
             speed,
             true, // 允许取消
+            'running',
           ));
         },
         2000,
@@ -128,8 +135,8 @@ export class MockAdapter extends CartridgeAdapter {
         'erase',
         100,
         this.t('messages.operation.eraseComplete'),
-        128,
-        128,
+        deviceSize,
+        deviceSize,
         startTime,
         0,
         false, // 完成后禁用取消
@@ -199,6 +206,7 @@ export class MockAdapter extends CartridgeAdapter {
             startTime,
             currentSpeed,
             true, // 允许取消
+            'running',
           ));
         },
         2500,
@@ -298,13 +306,26 @@ export class MockAdapter extends CartridgeAdapter {
         }
       }
 
+      // 更新重置后的进度
+      this.updateProgress(this.createProgressInfo(
+        'write',
+        0,
+        this.t('messages.operation.startWriteROM'),
+        total,
+        0,
+        startTime,
+        0,
+        true,
+        'running',
+      ));
+
       // 模拟进度
       await DebugSettings.simulateProgress(
         (progress) => {
           // 检查是否已被取消
           if (signal?.aborted) {
             cancelled = true;
-            this.updateProgress(this.createErrorProgressInfo('erase', this.t('messages.operation.cancelled')));
+            this.updateProgress(this.createErrorProgressInfo('write', this.t('messages.operation.cancelled')));
             return;
           }
 
@@ -323,6 +344,7 @@ export class MockAdapter extends CartridgeAdapter {
             startTime,
             currentSpeed,
             true, // 允许取消
+            'running',
           ));
         },
         3000,
@@ -432,6 +454,8 @@ export class MockAdapter extends CartridgeAdapter {
       eraseSectorRegions: 1,
       eraseSectorBlocks: [[sectorSize, sectorCount, deviceSize]], // [扇区大小, 扇区数量, 总大小]
       info: `模拟CFI信息: 设备大小=${deviceSize}字节, 扇区大小=${sectorSize}字节, 扇区数量=${sectorCount}`,
+      sectorRegions: [],
+      reverseSectorRegion: false,
     };
 
     this.log(this.t('messages.operation.cfiParseSuccess'), 'success');
