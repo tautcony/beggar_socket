@@ -433,6 +433,11 @@ export class MockAdapter extends CartridgeAdapter {
       flashId: new Uint8Array([0x01, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22]),
       magic: 'QRY',
       dataSwap: null,
+      detection: {
+        isSwapD0D1: false,
+        isIntel: false,
+        cfiDetected: true,
+      },
       vddMin: 2.7,
       vddMax: 3.6,
       singleWrite: true,
@@ -452,9 +457,14 @@ export class MockAdapter extends CartridgeAdapter {
       tbBootSectorRaw: 0,
       deviceSize,
       eraseSectorRegions: 1,
-      eraseSectorBlocks: [[sectorSize, sectorCount, deviceSize]], // [扇区大小, 扇区数量, 总大小]
+      eraseSectorBlocks: [{
+        sectorSize,
+        sectorCount,
+        totalSize: deviceSize,
+        startAddress: 0,
+        endAddress: deviceSize,
+      }],
       info: `模拟CFI信息: 设备大小=${deviceSize}字节, 扇区大小=${sectorSize}字节, 扇区数量=${sectorCount}`,
-      sectorRegions: [],
       reverseSectorRegion: false,
     };
 
