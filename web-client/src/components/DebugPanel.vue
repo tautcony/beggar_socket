@@ -291,7 +291,7 @@ function generateTestRom() {
 function generateTestRam() {
   // 生成32KB的测试RAM数据
   const testData = DebugSettings.generateRandomData(0x8000);
-  const blob = new Blob([testData], { type: 'application/octet-stream' });
+  const blob = new Blob([testData as BlobPart], { type: 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

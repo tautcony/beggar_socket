@@ -57,17 +57,24 @@ const commonRules = {
 
 export default tseslint.config(
   // TypeScript files with type checking
-  tseslint.configs.strictTypeChecked,
-  tseslint.configs.stylisticTypeChecked,
   {
     files: [
-      'src/**/*.{ts,tsx}',
-      'tests/**/*.{ts,tsx}'
+      'src/**/*.{ts,vue,tsx}',
+      'tests/**/*.{ts,vue,tsx}'
+    ],
+    extends: [
+      ...tseslint.configs.strictTypeChecked,
+      ...tseslint.configs.stylisticTypeChecked,
+      ...pluginVue.configs['flat/recommended'],
     ],
     languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
       parserOptions: {
-        project: './tsconfig.json',
+        project: true,
+        extraFileExtensions: ['.vue'],
         tsconfigRootDir: import.meta.dirname,
+        parser: tseslint.parser,
       },
       globals: {
         ...globals.browser,
@@ -93,39 +100,6 @@ export default tseslint.config(
   },
   // Vue files configuration
   // ...eslintPluginVueScopedCSS.configs['flat/recommended'],
-  ...pluginVue.configs['flat/recommended'],
-  {
-    files: ['**/*.vue'],
-    languageOptions: {
-      parserOptions: {
-        parser: tseslint.parser,
-        ecmaVersion: 'latest',
-        sourceType: 'module',
-        extraFileExtensions: ['.vue'],
-        project: './tsconfig.json',
-        tsconfigRootDir: import.meta.dirname,
-      },
-      globals: {
-        ...globals.browser
-      }
-    },
-    plugins: {
-      '@stylistic': stylistic,
-      'simple-import-sort': simpleImportSort,
-      'import': importPlugin,
-    },
-    rules: {
-      // Vue specific rules
-      'vue/multi-word-component-names': 'off',
-      'vue/no-unused-vars': 'error',
-      'vue/component-definition-name-casing': ['error', 'PascalCase'],
-      'vue/component-name-in-template-casing': ['error', 'PascalCase'],
-      'vue/no-multiple-template-root': 'off', // Vue 3 allows multiple root elements
-      
-      // TypeScript rules for Vue files
-      ...commonRules,
-    }
-  },
   // JavaScript files configuration
   {
     files: ['**/*.{js,mjs,cjs}'],

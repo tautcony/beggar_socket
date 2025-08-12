@@ -114,6 +114,8 @@ export function formatHex(value: number, byteLength: 1 | 2 | 3 | 4 | 6) {
     throw new Error('Invalid input for formatHex');
   }
 
-  const hexString = value.toString(16).toUpperCase().padStart(byteLength * 2, '0');
+  // 处理负数：使用无符号右移操作或Math.abs
+  const unsignedValue = value < 0 ? (value >>> 0) : value;
+  const hexString = unsignedValue.toString(16).toUpperCase().padStart(byteLength * 2, '0');
   return `0x${hexString}`;
 };

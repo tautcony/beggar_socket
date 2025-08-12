@@ -48,9 +48,9 @@ describe('Flash检测功能测试', () => {
 
     expect(result).toBeTruthy();
     if (result) {
-      expect(result.detection.cfiDetected).toBe(true);
-      expect(result.detection.isSwapD0D1).toBe(false);
-      expect(result.detection.isIntel).toBe(false);
+      expect(result.cfiDetected).toBe(true);
+      expect(result.isSwapD0D1).toBe(false);
+      expect(result.isIntel).toBe(false);
       expect(result.magic).toBe('QRY');
       expect(result.dataSwap).toEqual([[0, 0]]);
     }
@@ -71,9 +71,9 @@ describe('Flash检测功能测试', () => {
 
     expect(result).toBeTruthy();
     if (result) {
-      expect(result.detection.cfiDetected).toBe(true);
-      expect(result.detection.isSwapD0D1).toBe(true);
-      expect(result.detection.isIntel).toBe(false);
+      expect(result.cfiDetected).toBe(true);
+      expect(result.isSwapD0D1).toBe(true);
+      expect(result.isIntel).toBe(false);
       expect(result.magic).toBe('QRY'); // 应该在解析后显示正确的魔数
       expect(result.dataSwap).toEqual([[0, 1]]);
     }

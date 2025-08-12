@@ -226,7 +226,6 @@ import { GBACommand, GBCCommand } from '@/protocol/beggar_socket/command';
 import { createCommandPayload } from '@/protocol/beggar_socket/payload-builder';
 import { getPackage, sendPackage } from '@/protocol/beggar_socket/protocol-utils';
 import type { DeviceInfo } from '@/types/device-info';
-import { formatHex } from '@/utils/formatter-utils';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -309,7 +308,7 @@ function setDefaultReceiveLength(command: number, commandType: 'GBA' | 'GBC') {
       case 0xf8: // RAM_READ
         // 对于读取命令，默认长度取决于用户输入的length + 2 bytes CRC
         // 如果没有输入length，则设置一个合理的默认值
-        const defaultReadLength = length.value ? Number(length.value) + 2 : 258; // 256 bytes + 2 CRC
+        const defaultReadLength = length.value !== '' ? length.value + 2 : 258; // 256 bytes + 2 CRC
         receiveLength.value = defaultReadLength;
         break;
       default:
@@ -323,7 +322,7 @@ function setDefaultReceiveLength(command: number, commandType: 'GBA' | 'GBC') {
         break;
       case 0xfb: // READ
         // 对于读取命令，默认长度取决于用户输入的length + 2 bytes CRC
-        const defaultReadLength = length.value ? Number(length.value) + 2 : 258; // 256 bytes + 2 CRC
+        const defaultReadLength = length.value !== '' ? length.value + 2 : 258; // 256 bytes + 2 CRC
         receiveLength.value = defaultReadLength;
         break;
       default:
@@ -432,7 +431,7 @@ async function sendCommand() {
 
     // 添加长度（如果有）
     if (length.value !== '') {
-      payloadBuilder.addLittleEndian(Number(length.value), 4);
+      payloadBuilder.addLittleEndian(length.value, 4);
     }
 
     // 添加数据（如果有）
@@ -452,8 +451,8 @@ async function sendCommand() {
     await sendPackage(device, payload);
 
     // 接收响应 - 使用用户设置的接收长度
-    const maxResponseLength = receiveLength.value ? Number(receiveLength.value) : 4096;
-    const timeoutMs = timeout.value ? Number(timeout.value) : undefined;
+    const maxResponseLength = receiveLength.value !== '' ? receiveLength.value : 4096;
+    const timeoutMs = timeout.value !== '' ? timeout.value : undefined;
     const result = await getPackage(device, maxResponseLength, timeoutMs);
 
     if (result.data) {

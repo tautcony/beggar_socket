@@ -80,7 +80,7 @@ provide('setShowDebugPanelModal', (val: boolean) => { showDebugPanelModal.value 
 
 // 显示调试面板的条件：调试模式启用或者开发环境
 const showDebugPanel = computed((): boolean => {
-  return !!(DebugSettings.showDebugPanel || import.meta.env.DEV);
+  return (DebugSettings.showDebugPanel || import.meta.env.DEV);
 });
 
 /**

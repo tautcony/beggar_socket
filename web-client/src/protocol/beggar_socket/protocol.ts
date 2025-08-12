@@ -1,6 +1,6 @@
 import { GBACommand, GBCCommand } from '@/protocol/beggar_socket/command';
 import { createCommandPayload } from '@/protocol/beggar_socket/payload-builder';
-import { getPackage, getResult, sendPackage } from '@/protocol/beggar_socket/protocol-utils';
+import { getPackage, getResult, sendPackage, toLittleEndian } from '@/protocol/beggar_socket/protocol-utils';
 import { DeviceInfo } from '@/types/device-info';
 import { timeout } from '@/utils/async-utils';
 import { formatHex } from '@/utils/formatter-utils';
@@ -11,13 +11,25 @@ import { formatHex } from '@/utils/formatter-utils';
  * GBA: Read ID (0xf0)
  */
 export async function rom_get_id(device: DeviceInfo): Promise<Uint8Array> {
-  await sendPackage(device, createCommandPayload(GBACommand.READ_ID).build());
-  const result = await getPackage(device, 2 + 8);
-  if (result.data?.byteLength && result.data.byteLength >= 10) {
-    return result.data.slice(2);
-  } else {
-    throw new Error('GBA Failed to read ID');
-  }
+  // Flash ID读取序列：写入解锁命令
+  await rom_write(device, toLittleEndian(0xaa, 2), 0x555);
+  await rom_write(device, toLittleEndian(0x55, 2), 0x2aa);
+  await rom_write(device, toLittleEndian(0x90, 2), 0x555);
+
+  // 读取地址0x00-0x01的制造商ID和设备ID (4字节)
+  const idPart1 = await rom_read(device, 4, 0x00);
+  // 读取地址0x0e-0x0f的设备ID (4字节)
+  const idPart2 = await rom_read(device, 4, 0x1c);
+
+  // 组装完整的8字节ID数据
+  const id = new Uint8Array(8);
+  id.set(idPart1, 0); // 前4字节：制造商ID + 设备ID
+  id.set(idPart2, 4); // 后4字节：设备ID
+
+  // 退出ID读取模式
+  await rom_write(device, toLittleEndian(0xf0, 2), 0x00);
+
+  return id;
 }
 
 /**

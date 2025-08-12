@@ -48,14 +48,6 @@ export class CartridgeAdapter {
   }
 
   /**
-   * 读取ROM芯片ID
-   * @returns {Promise<CommandResult & { id?: number[] }>} - 包含成功状态、ID字符串和消息的对象
-   */
-  async readID(): Promise<CommandResult & { id?: number[] }> {
-    throw new NotImplementedError();
-  }
-
-  /**
    * 擦除整个芯片
    * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态和消息的对象

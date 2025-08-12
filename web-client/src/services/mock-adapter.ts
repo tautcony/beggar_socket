@@ -37,34 +37,6 @@ export class MockAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 模拟读取芯片ID
-   */
-  override async readID(): Promise<CommandResult & { id?: number[] }> {
-    this.log(this.t('messages.operation.readId'), 'info');
-
-    await DebugSettings.delay();
-
-    if (DebugSettings.shouldSimulateError()) {
-      this.log(`${this.t('messages.operation.readIdFailed')}: 模拟错误`, 'error');
-      return {
-        success: false,
-        message: this.t('messages.operation.readIdFailed'),
-      };
-    }
-
-    const mockId = [0x01, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22];
-    const mockIdStr = mockId?.map(x => x.toString(16).padStart(2, '0')).join(' ') ?? '--';
-
-    this.log(`${this.t('messages.operation.readIdSuccess')}: ${mockIdStr}`, 'success');
-
-    return {
-      success: true,
-      message: this.t('messages.operation.readIdSuccess'),
-      id: mockId,
-    };
-  }
-
-  /**
    * 模拟擦除芯片
    * @param signal - 取消信号，用于中止操作
    */
@@ -433,11 +405,9 @@ export class MockAdapter extends CartridgeAdapter {
       flashId: new Uint8Array([0x01, 0x00, 0x7e, 0x22, 0x22, 0x22, 0x01, 0x22]),
       magic: 'QRY',
       dataSwap: null,
-      detection: {
-        isSwapD0D1: false,
-        isIntel: false,
-        cfiDetected: true,
-      },
+      cfiDetected: true,
+      isSwapD0D1: false,
+      isIntel: false,
       vddMin: 2.7,
       vddMax: 3.6,
       singleWrite: true,

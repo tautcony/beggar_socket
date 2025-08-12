@@ -449,18 +449,14 @@ async function readCart() {
       return;
     }
 
-    const response = await adapter.readID();
-    if (response.success) {
-      chipId.value = response.id;
-    } else {
-      cfiInfo.value = null;
-    }
-    const info = response.success ? await adapter.getCartInfo() : null;
+    const info = await adapter.getCartInfo();
     if (info) {
       cfiInfo.value = info;
+      // 从CFI信息中获取Flash ID
+      if (info.flashId) {
+        chipId.value = Array.from(info.flashId);
+      }
       onRomSizeChange(formatHex(info.deviceSize, 4));
-    }
-    if (chipId.value && cfiInfo.value) {
       showToast(t('messages.operation.readCartSuccess'), 'success');
       log(t('messages.operation.readCartSuccess'), 'success');
     } else {
@@ -758,7 +754,7 @@ async function verifyRam() {
 }
 
 function saveAsFile(data: Uint8Array, filename: string) {
-  const blob = new Blob([data], { type: 'application/octet-stream' });
+  const blob = new Blob([data as BlobPart], { type: 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

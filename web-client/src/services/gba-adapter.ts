@@ -44,46 +44,6 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 读取ROM芯片ID
-   * @returns - ID字符串
-   */
-  override async readID(): Promise<CommandResult & { id?: number[] }> {
-    return PerformanceTracker.trackAsyncOperation(
-      'gba.readID',
-      async () => {
-        this.log(this.t('messages.operation.readId'), 'info');
-        try {
-          const id = [...await rom_get_id(this.device)];
-
-          const idStr = id.map(x => x.toString(16).padStart(2, '0')).join(' ');
-          const flashId = getFlashName(id);
-          if (flashId === null) {
-            this.log(this.t('messages.operation.unknownFlashId'), 'warn');
-          } else {
-            this.log(`${this.t('messages.operation.readIdSuccess')}: ${idStr} (${flashId})`, 'success');
-          }
-
-          return {
-            success: true,
-            id,
-            message: this.t('messages.operation.readIdSuccess'),
-          };
-        } catch (e) {
-          this.log(`${this.t('messages.operation.readIdFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
-          return {
-            success: false,
-            message: this.t('messages.operation.readIdFailed'),
-          };
-        }
-      },
-      {
-        adapter_type: 'gba',
-        operation_type: 'read_id',
-      },
-    );
-  }
-
-  /**
    * 全片擦除
    * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态和消息的对象
@@ -1137,7 +1097,7 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 获取卡带信息 - 通过CFI查询
+   * 获取卡带信息
    * @returns 卡带容量相关信息
    */
   override async getCartInfo(): Promise<CFIInfo | false> {
@@ -1149,7 +1109,7 @@ export class GBAAdapter extends CartridgeAdapter {
         try {
           // CFI Query
           await rom_write(this.device, toLittleEndian(0x98, 2), 0x55);
-          const cfiData = await rom_read(this.device, 0x400, 0x00);
+          const cfiData = await rom_read(this.device, 0x100, 0x00);
           // Reset
           await rom_write(this.device, toLittleEndian(0xf0, 2), 0x00);
 
@@ -1158,6 +1118,18 @@ export class GBAAdapter extends CartridgeAdapter {
           if (!cfiInfo) {
             this.log(this.t('messages.operation.cfiParseFailed'), 'error');
             return false;
+          }
+
+          // 读取Flash ID并添加到CFI信息中
+          try {
+            const flashId = await rom_get_id(this.device);
+            cfiInfo.flashId = flashId;
+            const idStr = Array.from(flashId).map(x => x.toString(16).padStart(2, '0')).join(' ');
+            const flashName = getFlashName([...flashId]);
+            this.log(`Flash ID: ${idStr} (${flashName})`, 'info');
+          } catch (e) {
+            this.log(`${this.t('messages.operation.readIdFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'warn');
+            // 即使Flash ID读取失败，也继续返回CFI信息
           }
 
           // 记录CFI解析结果
@@ -1172,7 +1144,7 @@ export class GBAAdapter extends CartridgeAdapter {
       },
       {
         adapter_type: 'gba',
-        operation_type: 'get_rom_size',
+        operation_type: 'get_cart_info',
       },
     );
   }

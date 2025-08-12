@@ -17,29 +17,29 @@ export interface SectorBlock {
 }
 
 /**
- * Flash检测特性信息接口
- */
-export interface FlashDetectionInfo {
-  /** 是否交换D0和D1数据线 */
-  isSwapD0D1: boolean;
-  /** 是否为Intel Flash */
-  isIntel: boolean;
-  /** CFI检测是否成功 */
-  cfiDetected: boolean;
-}
-
-/**
  * CFI解析结果接口
  */
 export interface CFIInfo {
-  /** Flash ID (前8字节) */
+  /** Flash ID */
   flashId: Uint8Array;
   /** CFI魔数标识 "QRY" */
   magic: string;
   /** 数据交换信息 */
   dataSwap: [number, number][] | null;
-  /** Flash检测特性信息 */
-  detection: FlashDetectionInfo;
+  /** CFI检测是否成功 */
+  cfiDetected: boolean;
+  /** 是否交换D0和D1数据线 */
+  isSwapD0D1: boolean;
+  /** 是否为Intel Flash */
+  isIntel: boolean;
+  /** 检测到的魔数值 */
+  magicValues?: {
+    q: number;
+    r: number;
+    y: number;
+  };
+  /** 检测错误消息（如果有） */
+  detectionError?: string;
   /** VDD最小电压 */
   vddMin: number;
   /** VDD最大电压 */
@@ -87,6 +87,53 @@ export interface CFIInfo {
 }
 
 /**
+ * 将buffer内容以ASCII格式打印到控制台
+ * @param buffer - 要打印的数据缓冲区
+ * @param title - 打印标题（可选）
+ */
+function printBufferAsASCII(buffer: Uint8Array, title?: string): void {
+  if (title) {
+    console.log(`=== ${title} ===`);
+  }
+
+  let asciiString = '';
+  let hexString = '';
+
+  for (let i = 0; i < buffer.length; i++) {
+    const byte = buffer[i];
+
+    // 构建ASCII字符串（可打印字符显示为字符）
+    if (byte === 0x00) {
+      asciiString += '∅'; // 空字符使用特殊符号
+    } else if (byte === 0xFF) {
+      asciiString += '█'; // 0xFF使用实心块
+    } else if (byte >= 32 && byte <= 126) {
+      asciiString += String.fromCharCode(byte);
+    } else {
+      asciiString += '.';
+    }
+
+    // 构建十六进制字符串
+    hexString += byte.toString(16).padStart(2, '0').toUpperCase() + ' ';
+
+    // 每16字节换行
+    if ((i + 1) % 16 === 0) {
+      console.log(`${(i - 15).toString(16).padStart(4, '0').toUpperCase()}: ${hexString}| ${asciiString}`);
+      asciiString = '';
+      hexString = '';
+    }
+  }
+
+  // 打印剩余的字节（如果不满16字节）
+  if (asciiString.length > 0) {
+    const padding = ' '.repeat((16 - asciiString.length) * 3);
+    console.log(`${(Math.floor(buffer.length / 16) * 16).toString(16).padStart(4, '0').toUpperCase()}: ${hexString}${padding}| ${asciiString}`);
+  }
+
+  console.log(`总长度: ${buffer.length} 字节`);
+}
+
+/**
  * 位交换辅助函数
  * @param byte - 要交换的字节
  * @param swaps - 交换位对 [bit1, bit2][]
@@ -117,41 +164,35 @@ export class CFIParser {
   /**
    * 检测Flash特性（基于C++逻辑）
    * @param buffer - CFI查询返回的数据缓冲区
-   * @returns Flash检测特性信息
+   * @param info - 要填充检测信息的CFI信息对象
    */
-  private detectFlashCharacteristics(buffer: Uint8Array): FlashDetectionInfo {
-    const detection: FlashDetectionInfo = {
-      isSwapD0D1: false,
-      isIntel: false,
-      cfiDetected: false,
-    };
+  private detectFlashCharacteristics(buffer: Uint8Array, info: Partial<CFIInfo>): void {
 
-    // 检查CFI魔数以确定数据交换模式（基于C++ _check_cfi逻辑）
-    const q = buffer[0x20]; // 'Q' = 0x51
-    const r = buffer[0x22]; // 'R' = 0x52
-    const y = buffer[0x24]; // 'Y' = 0x59
+    const qryQ = buffer[0x20]; // 'Q' = 0x51
+    const qryR = buffer[0x22]; // 'R' = 0x52
+    const qryY = buffer[0x24]; // 'Y' = 0x59
+
+    // 存储原始魔数值
+    info.magicValues = { q: qryQ, r: qryR, y: qryY };
 
     // 正常CFI响应
-    if (q === 0x51 && r === 0x52 && y === 0x59) {
-      detection.isSwapD0D1 = false;
-      detection.cfiDetected = true;
-    } else if (this.swapD0D1(q) === 0x51 && this.swapD0D1(r) === 0x52 && this.swapD0D1(y) === 0x59) {
-      // D0D1交换后的CFI响应（SWAP_D0D1宏逻辑：交换bit0和bit1）
-      detection.isSwapD0D1 = true;
-      detection.cfiDetected = true;
+    if (qryQ === 0x51 && qryR === 0x52 && qryY === 0x59) {
+      info.isSwapD0D1 = false;
+      info.cfiDetected = true;
+    } else if (this.swapD0D1(qryQ) === 0x51 && this.swapD0D1(qryR) === 0x52 && this.swapD0D1(qryY) === 0x59) {
+      info.isSwapD0D1 = true;
+      info.cfiDetected = true;
     } else {
-      detection.cfiDetected = false;
+      info.cfiDetected = false;
+      info.isSwapD0D1 = false;
     }
 
     // TODO: Intel Flash检测逻辑可以在这里扩展
-    // 基于C++中的get_flashid_auto逻辑，需要额外的Flash ID检测
-    detection.isIntel = false;
-
-    return detection;
+    info.isIntel = false;
   }
 
   /**
-   * D0D1位交换函数（对应C++ SWAP_D0D1宏）
+   * D0D1位交换函数
    * @param value - 要交换的值
    * @returns 交换D0D1位后的值
    */
@@ -181,14 +222,15 @@ export class CFIParser {
     const info: Partial<CFIInfo> = {};
 
     // 检测Flash特性
-    info.detection = this.detectFlashCharacteristics(workBuffer);
+    this.detectFlashCharacteristics(workBuffer, info);
 
-    if (!info.detection.cfiDetected) {
+    if (!info.cfiDetected) {
+      printBufferAsASCII(buffer, 'CFI Buffer内容');
       return false;
     }
 
     // 根据检测结果设置数据交换模式
-    if (info.detection.isSwapD0D1) {
+    if (info.isSwapD0D1) {
       info.dataSwap = [[0, 1]];
     } else {
       info.dataSwap = [[0, 0]];
@@ -205,7 +247,7 @@ export class CFIParser {
 
     try {
       // 提取Flash ID
-      info.flashId = workBuffer.slice(0, 8);
+      // info.flashId = workBuffer.slice(0, 8);
 
       // 重新读取魔数
       info.magic = String.fromCharCode(workBuffer[0x20]) +
@@ -269,9 +311,18 @@ export class CFIParser {
       info.tbBootSectorRaw = 0;
       info.reverseSectorRegion = false;
 
-      if (String.fromCharCode(workBuffer[priAddress]) +
-          String.fromCharCode(workBuffer[priAddress + 2]) +
-          String.fromCharCode(workBuffer[priAddress + 4]) === 'PRI') {
+      // 读取PRI字符串
+      function pickAscii(a: number, b: number): number {
+        if (a !== 0x00) return a;
+        if (b !== 0x00) return b;
+        return a; // 都为0x00则返回a
+      }
+
+      const priP = pickAscii(workBuffer[priAddress], workBuffer[priAddress + 1]);
+      const priR = pickAscii(workBuffer[priAddress + 2], workBuffer[priAddress + 3]);
+      const priI = pickAscii(workBuffer[priAddress + 4], workBuffer[priAddress + 5]);
+
+      if (String.fromCharCode(priP) + String.fromCharCode(priR) + String.fromCharCode(priI) === 'PRI') {
         if (workBuffer[priAddress + 0x1E] !== 0 && workBuffer[priAddress + 0x1E] !== 0xFF) {
           const bootSectorTypes: Record<number, string> = {
             0x02: 'As shown',
@@ -322,36 +373,29 @@ export class CFIParser {
       }
 
       // 根据reverseSectorRegion标志分配扇区区域地址并创建EraseSectorBlock对象
+      const createSectorBlock = (region: typeof regionInfo[0], startAddr: number): SectorBlock => ({
+        sectorSize: region.sectorSize,
+        sectorCount: region.sectorCount,
+        totalSize: region.totalSize,
+        startAddress: startAddr,
+        endAddress: startAddr + region.totalSize - 1,
+      });
+
       if (info.reverseSectorRegion) {
         // 从高地址向低地址分配扇区区域（反转模式）
         let currentAddr = totalSize;
         for (let i = 0; i < regionInfo.length; i++) {
           const region = regionInfo[i];
           currentAddr -= region.totalSize;
-
-          // 反转时，区域按倒序分配地址
           const reverseIndex = regionInfo.length - 1 - i;
-          info.eraseSectorBlocks[reverseIndex] = {
-            sectorSize: region.sectorSize,
-            sectorCount: region.sectorCount,
-            totalSize: region.totalSize,
-            startAddress: currentAddr,
-            endAddress: currentAddr + region.totalSize - 1,
-          };
+          info.eraseSectorBlocks[reverseIndex] = createSectorBlock(region, currentAddr);
         }
       } else {
         // 从低地址向高地址分配扇区区域（正常模式）
         let currentAddr = 0;
         for (let i = 0; i < regionInfo.length; i++) {
           const region = regionInfo[i];
-
-          info.eraseSectorBlocks[i] = {
-            sectorSize: region.sectorSize,
-            sectorCount: region.sectorCount,
-            totalSize: region.totalSize,
-            startAddress: currentAddr,
-            endAddress: currentAddr + region.totalSize - 1,
-          };
+          info.eraseSectorBlocks[i] = createSectorBlock(region, currentAddr);
           currentAddr += region.totalSize;
         }
       }
@@ -376,10 +420,10 @@ export class CFIParser {
     const lines: string[] = [];
 
     // 显示Flash检测信息
-    if (info.detection.isSwapD0D1) {
+    if (info.isSwapD0D1) {
       lines.push('Flash detection: D0D1 swapped');
     }
-    if (info.detection.isIntel) {
+    if (info.isIntel) {
       lines.push('Flash type: Intel Flash detected');
     }
 
@@ -425,6 +469,17 @@ export class CFIParser {
 
     return lines.join('\n');
   }
+}
+
+/**
+ * D0D1位交换函数（对应C++的SWAP_D0D1宏）
+ * @param value - 要交换的值
+ * @returns 交换D0D1位后的值
+ */
+export function swapD0D1(value: number): number {
+  const bit0 = (value & 0x01) << 1; // D0 -> D1
+  const bit1 = (value & 0x02) >> 1; // D1 -> D0
+  return (value & 0xFC) | bit0 | bit1; // 保持其他位不变
 }
 
 /**
