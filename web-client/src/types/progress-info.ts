@@ -1,11 +1,11 @@
 export interface SectorProgressInfo {
   address: number
   size: number
-  state: 'pending' | 'erasing' | 'completed' | 'error'
+  state: 'pending' | 'processing' | 'completed' | 'error'
 }
 
 export interface ProgressInfo {
-  type?: 'erase' | 'write' | 'read' | 'other'
+  type?: 'erase' | 'write' | 'read' | 'verify' | 'other'
   progress?: number | null
   detail?: string
   totalBytes?: number

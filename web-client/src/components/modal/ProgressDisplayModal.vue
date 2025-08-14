@@ -64,9 +64,9 @@
         </div>
       </div>
 
-      <!-- Sector Visualization (only for erase operations) -->
+      <!-- Sector Visualization (for erase, write, and verify operations) -->
       <div
-        v-if="sectorProgress && (type === 'erase' || type === 'write')"
+        v-if="sectorProgress && (type === 'erase' || type === 'write' || type === 'verify')"
         class="sector-visualization"
       >
         <div class="sector-title">
@@ -82,10 +82,10 @@
             class="sector-block"
             :class="{
               'sector-pending': sector.state === 'pending',
-              'sector-erasing': sector.state === 'erasing',
+              'sector-processing': sector.state === 'processing',
               'sector-completed': sector.state === 'completed',
               'sector-error': sector.state === 'error',
-              'sector-current': sector.state === 'erasing',
+              'sector-current': sector.state === 'processing',
               [`sector-size-${getSectorSizeClass(sector.size)}`]: true
             }"
             :title="$t('ui.progress.sectorTooltip', {
@@ -96,7 +96,7 @@
           >
             <div class="sector-inner">
               <div
-                v-if="sector.state === 'erasing'"
+                v-if="sector.state === 'processing'"
                 class="sector-spinner"
               />
             </div>
@@ -154,8 +154,8 @@
             </div>
             <div class="legend-group">
               <div class="legend-item">
-                <div class="legend-color sector-erasing" />
-                <span>{{ $t('ui.progress.sectorState.erasing') }}</span>
+                <div class="legend-color sector-processing" />
+                <span>{{ $t('ui.progress.sectorState.processing') }}</span>
               </div>
             </div>
           </div>
@@ -625,7 +625,7 @@ onUnmounted(() => {
   background: #e5e7eb; /* 浅灰色 - 64KB+ */
 }
 
-.sector-erasing {
+.sector-processing {
   background: #fbbf24;
   border: 1px solid #f59e0b;
   animation: sectorPulse 1s infinite;
@@ -781,7 +781,7 @@ onUnmounted(() => {
   background: #e5e7eb;
 }
 
-.legend-color.sector-erasing {
+.legend-color.sector-processing {
   background: #fbbf24;
   border-color: #f59e0b;
 }

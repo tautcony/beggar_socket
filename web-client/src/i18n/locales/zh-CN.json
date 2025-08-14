@@ -364,7 +364,7 @@
       "sectorTooltip": "地址: {address}, 大小: {size}, 状态: {state}",
       "sectorState": {
         "pending": "等待中",
-        "erasing": "擦除中",
+        "processing": "处理中",
         "completed": "已完成",
         "error": "错误"
       }

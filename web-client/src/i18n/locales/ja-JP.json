@@ -364,7 +364,7 @@
       "sectorTooltip": "アドレス: {address}, サイズ: {size}, 状態: {state}",
       "sectorState": {
         "pending": "待機中",
-        "erasing": "消去中",
+        "processing": "処理中",
         "completed": "完了",
         "error": "エラー"
       }

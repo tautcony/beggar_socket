@@ -364,7 +364,7 @@
       "sectorTooltip": "Address: {address}, Size: {size}, State: {state}",
       "sectorState": {
         "pending": "Pending",
-        "erasing": "Erasing",
+        "processing": "Processing",
         "completed": "Completed",
         "error": "Error"
       }

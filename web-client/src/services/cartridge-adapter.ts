@@ -152,7 +152,7 @@ export class CartridgeAdapter {
    * @returns 进度信息对象
    */
   protected createProgressInfo(
-    type: 'erase' | 'write' | 'read' | 'other',
+    type: 'erase' | 'write' | 'read' | 'verify' | 'other',
     progress?: number,
     detail?: string,
     totalBytes?: number,
@@ -182,7 +182,7 @@ export class CartridgeAdapter {
     };
   }
 
-  protected createErrorProgressInfo(type: 'erase' | 'write' | 'read' | 'other', detail: string): ProgressInfo {
+  protected createErrorProgressInfo(type: 'erase' | 'write' | 'read' | 'verify' | 'other', detail: string): ProgressInfo {
     return this.createProgressInfo(
       type,
       undefined,
@@ -208,7 +208,49 @@ export class CartridgeAdapter {
   }
 
   /**
-   * 更新扇区进度信息
+   * 根据地址找到对应的扇区并更新状态
+   * @param currentAddress - 当前处理的地址
+   * @param state - 扇区状态
+   * @returns 当前扇区索引
+   */
+  protected updateSectorProgressByAddress(currentAddress: number, state: SectorProgressInfo['state']): number {
+    let currentIndex = -1;
+    this.currentSectorProgress = this.currentSectorProgress.map((sector, index) => {
+      // 检查地址是否在扇区范围内
+      if (currentAddress >= sector.address && currentAddress < sector.address + sector.size) {
+        currentIndex = index;
+        // 只有状态真正改变时才更新
+        if (sector.state !== state) {
+          return { ...sector, state };
+        }
+      }
+      return sector;
+    });
+    return currentIndex;
+  }
+
+  /**
+   * 检查并更新扇区是否完全处理完成
+   * @param startAddress - 开始地址
+   * @param endAddress - 结束地址
+   * @param state - 目标状态
+   */
+  protected updateSectorRangeProgress(startAddress: number, endAddress: number, state: SectorProgressInfo['state']): void {
+    this.currentSectorProgress = this.currentSectorProgress.map((sector) => {
+      // 如果扇区完全在处理范围内，则更新状态
+      if (startAddress <= sector.address && endAddress >= sector.address + sector.size - 1) {
+        return { ...sector, state };
+      } else if ((startAddress < sector.address + sector.size && endAddress >= sector.address) &&
+               sector.state === 'pending') {
+        // 如果扇区部分在处理范围内，则设置为processing（如果还不是completed）
+        return { ...sector, state: 'processing' };
+      }
+      return sector;
+    });
+  }
+
+  /**
+   * 更新扇区进度信息（精确地址匹配）
    * @param currentAddress - 当前处理的地址
    * @param state - 扇区状态
    * @returns 当前扇区索引
