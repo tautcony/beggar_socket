@@ -183,7 +183,7 @@ function initializeEmulator() {
 
     // 根据官方例子初始化 gbats Wrapper
     gba.value = new Wrapper({
-      rom: props.romData.buffer,
+      rom: props.romData.buffer as ArrayBuffer,
       canvas: gameCanvas.value,
     });
 

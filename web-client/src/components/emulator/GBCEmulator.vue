@@ -173,7 +173,7 @@ async function initEmulator() {
 
     // 加载 ROM
     try {
-      await WasmBoy.loadROM(props.romData);
+      await WasmBoy.loadROM(props.romData.buffer as ArrayBuffer);
     } catch (romError: unknown) {
       console.error('ROM loading failed:', romError);
       // 尝试清理 WasmBoy 状态

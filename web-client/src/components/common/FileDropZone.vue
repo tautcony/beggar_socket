@@ -178,7 +178,7 @@ function clearFile() {
 /** 下载当前文件 */
 function downloadFile() {
   if (!fileData.value || !fileName.value) return;
-  const blob = new Blob([fileData.value], { type: 'application/octet-stream' });
+  const blob = new Blob([fileData.value as BlobPart], { type: 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

@@ -152,7 +152,7 @@ function initEmulator() {
         romArrayBuffer = props.romData.buffer.slice(
           props.romData.byteOffset,
           props.romData.byteOffset + props.romData.byteLength,
-        );
+        ) as unknown as ArrayBuffer;
       }
       gameboyInstance.loadGame(romArrayBuffer);
     } catch (romError: unknown) {
@@ -264,7 +264,7 @@ function resetGame() {
       romArrayBuffer = props.romData.buffer.slice(
         props.romData.byteOffset,
         props.romData.byteOffset + props.romData.byteLength,
-      );
+      ) as unknown as ArrayBuffer;
     }
 
     // 重新加载游戏来实现重置
