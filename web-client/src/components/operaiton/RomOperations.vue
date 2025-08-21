@@ -145,7 +145,7 @@
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import { folderOpenOutline, playOutline } from 'ionicons/icons';
-import { computed, defineAsyncComponent, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, onErrorCaptured, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import FileDropZone from '@/components/common/FileDropZone.vue';
@@ -229,6 +229,20 @@ const emit = defineEmits<{
 const currentEmulator = ref<'GB' | 'GBC' | 'GBA' | null>(null); // 当前显示的模拟器类型
 const emulatorRomData = ref<Uint8Array | null>(null);
 const emulatorRomName = ref('');
+
+onErrorCaptured((err, instance, info) => {
+  console.error('error captured:', err, info);
+
+  if (info.includes('async component') || err.message?.includes('dynamically imported module')) {
+    showToast(t('ui.emulator.errors.error'), 'error');
+
+    currentEmulator.value = null;
+    emulatorRomData.value = null;
+    emulatorRomName.value = '';
+  }
+
+  return false;
+});
 
 const selectedRomSize = ref(props.selectedRomSize);
 // 同步父组件设置的 selectedRomSize
