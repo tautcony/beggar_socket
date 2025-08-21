@@ -6,6 +6,8 @@ import { DeviceInfo } from '@/types/device-info';
 import { timeout } from '@/utils/async-utils';
 import { CFIInfo } from '@/utils/cfi-parser';
 import { formatBytes, formatSpeed, formatTimeDuration } from '@/utils/formatter-utils';
+import { ProgressInfoBuilder } from '@/utils/progress-builder';
+import { ProgressReporter } from '@/utils/progress-reporter';
 import { SpeedCalculator } from '@/utils/speed-calculator';
 
 /**
@@ -46,7 +48,7 @@ export class MockAdapter extends CartridgeAdapter {
     const startTime = Date.now();
     let cancelled = false;
 
-    const deviceSize = 134217728; // 128MB
+    const deviceSize = 33554432; // 32MB
     const sectorSize = 0x10000; // 64KB
 
     try {
@@ -57,24 +59,20 @@ export class MockAdapter extends CartridgeAdapter {
           // 检查是否已被取消
           if (signal?.aborted) {
             cancelled = true;
-            this.updateProgress(this.createErrorProgressInfo('erase', this.t('messages.operation.cancelled')));
+            this.updateProgress(ProgressInfoBuilder.error('erase', this.t('messages.operation.cancelled')).build());
             return;
           }
 
           const erasedBytes = Math.floor(deviceSize * progress / 100);
 
           const speed = 5000 + Math.random() * 3000; // 5-8 KB/s
-          this.updateProgress(this.createProgressInfo(
-            'erase',
-            progress,
-            this.t('messages.progress.eraseSpeed', { speed: formatSpeed(speed) }),
-            deviceSize,
-            erasedBytes,
-            startTime,
-            speed,
-            true, // 允许取消
-            'running',
-          ));
+          this.updateProgress(ProgressInfoBuilder.running('erase')
+            .progress(progress)
+            .detail(this.t('messages.progress.eraseSpeed', { speed: formatSpeed(speed) }))
+            .bytes(erasedBytes, deviceSize)
+            .startTime(startTime)
+            .speed(speed)
+            .build());
         },
         2000,
       );
@@ -89,7 +87,7 @@ export class MockAdapter extends CartridgeAdapter {
       }
 
       if (DebugSettings.shouldSimulateError()) {
-        this.updateProgress(this.createErrorProgressInfo('erase', this.t('messages.operation.eraseFailed')));
+        this.updateProgress(ProgressInfoBuilder.error('erase', this.t('messages.operation.eraseFailed')).build());
         this.log(`${this.t('messages.operation.eraseFailed')}: 模拟错误`, 'error');
         return {
           success: false,
@@ -103,17 +101,11 @@ export class MockAdapter extends CartridgeAdapter {
 
       const elapsedSeconds = Date.now() - startTime;
       this.log(`${this.t('messages.operation.eraseComplete')} (${(elapsedSeconds / 1000).toFixed(1)}s)`, 'success');
-      this.updateProgress(this.createProgressInfo(
-        'erase',
-        100,
-        this.t('messages.operation.eraseComplete'),
-        deviceSize,
-        deviceSize,
-        startTime,
-        0,
-        false, // 完成后禁用取消
-        'completed',
-      ));
+      this.updateProgress(ProgressInfoBuilder.completed('erase')
+        .detail(this.t('messages.operation.eraseComplete'))
+        .bytes(deviceSize, deviceSize)
+        .startTime(startTime)
+        .build());
 
       return {
         success: true,
@@ -143,57 +135,74 @@ export class MockAdapter extends CartridgeAdapter {
   ): Promise<CommandResult> {
     this.log('模拟擦除扇区', 'info');
 
-    // 计算总字节数和扇区数
+    // 计算总字节数
     const totalBytes = sectorInfo.reduce((sum, info) => sum + (info.endAddress - info.startAddress), 0);
     const totalSectors = sectorInfo.reduce((sum, info) => sum + info.sectorCount, 0);
-    const startTime = Date.now();
-    let cancelled = false;
 
     // 使用速度计算器模拟
     const speedCalculator = new SpeedCalculator();
 
+    // 初始化扇区进度信息
+    const sectorInfoWithTotalSize = sectorInfo.map(info => ({
+      ...info,
+      totalSize: info.endAddress - info.startAddress,
+    }));
+    const sectors = this.initializeSectorProgress(sectorInfoWithTotalSize);
+
+    // 创建进度报告器
+    const progressReporter = new ProgressReporter(
+      'erase',
+      totalBytes,
+      (progressInfo) => { this.updateProgress(progressInfo); },
+      (key, params) => this.t(key, params),
+    );
+    progressReporter.setSectors(this.currentSectorProgress);
+
     try {
-      await DebugSettings.simulateProgress(
-        (progress) => {
-          // 检查是否已被取消
-          if (signal?.aborted) {
-            cancelled = true;
-            this.updateProgress(this.createErrorProgressInfo('erase', this.t('messages.operation.cancelled')));
-            return;
-          }
+      // 报告开始状态
+      progressReporter.reportStart(this.t('messages.operation.startEraseSectors'));
 
-          const erasedSectors = Math.floor(totalSectors * progress / 100);
-          const erasedBytes = Math.floor(totalBytes * progress / 100);
+      let eraseCount = 0;
 
-          // 模拟速度
-          const currentSpeed = 5000 + Math.random() * 3000; // 5-8 KB/s
-          speedCalculator.addDataPoint(1024, Date.now());
+      // 模拟逐个扇区擦除进度
+      for (const [i, sector] of sectors.entries()) {
+        // 检查是否已被取消
+        if (signal?.aborted) {
+          progressReporter.reportError(this.t('messages.operation.cancelled'));
+          return {
+            success: false,
+            message: this.t('messages.operation.cancelled'),
+          };
+        }
 
-          this.updateProgress(this.createProgressInfo(
-            'erase',
-            progress,
-            this.t('messages.progress.eraseSpeed', { speed: formatSpeed(currentSpeed) }),
-            totalBytes,
-            erasedBytes,
-            startTime,
-            currentSpeed,
-            true, // 允许取消
-            'running',
-          ));
-        },
-        2500,
-      );
+        // 更新当前扇区状态为"正在处理"
+        const sectorIndex = progressReporter.updateSectorProgress(sector.address, 'processing');
 
-      if (signal?.aborted || cancelled) {
-        this.updateProgress(this.createErrorProgressInfo('erase', this.t('messages.operation.cancelled')));
-        return {
-          success: false,
-          message: this.t('messages.operation.cancelled'),
-        };
+        // 模拟扇区擦除延迟
+        await DebugSettings.delay(100 + Math.random() * 200); // 100-300ms 每个扇区
+
+        // 模拟速度
+        const currentSpeed = 5000 + Math.random() * 3000; // 5-8 KB/s
+        speedCalculator.addDataPoint(sector.size, Date.now());
+
+        // 更新当前扇区状态为"已完成"
+        progressReporter.updateSectorProgress(sector.address, 'completed');
+        eraseCount++;
+
+        const erasedBytes = (eraseCount * totalBytes) / sectors.length;
+
+        // 报告进度
+        progressReporter.reportProgress(
+          erasedBytes,
+          currentSpeed,
+          this.t('messages.progress.eraseSpeed', { speed: formatSpeed(currentSpeed) }),
+          eraseCount,
+          sectorIndex,
+        );
       }
 
       if (DebugSettings.shouldSimulateError()) {
-        this.updateProgress(this.createErrorProgressInfo('erase', this.t('messages.operation.eraseSectorFailed')));
+        progressReporter.reportError(this.t('messages.operation.eraseSectorFailed'));
         this.log(`${this.t('messages.operation.eraseSectorFailed')}: 模拟错误`, 'error');
         return {
           success: false,
@@ -201,9 +210,9 @@ export class MockAdapter extends CartridgeAdapter {
         };
       }
 
-      const totalTime = speedCalculator.getTotalTime();
       const avgSpeed = speedCalculator.getAverageSpeed();
       const maxSpeed = speedCalculator.getMaxSpeed();
+      const totalTime = speedCalculator.getTotalTime();
 
       this.log(this.t('messages.operation.eraseSuccess'), 'success');
       this.log(this.t('messages.operation.eraseSummary', {
@@ -214,17 +223,7 @@ export class MockAdapter extends CartridgeAdapter {
       }), 'info');
 
       // 报告完成状态
-      this.updateProgress(this.createProgressInfo(
-        'erase',
-        100,
-        this.t('messages.operation.eraseSuccess'),
-        totalBytes,
-        totalBytes,
-        startTime,
-        avgSpeed,
-        false, // 完成后禁用取消
-        'completed',
-      ));
+      progressReporter.reportCompleted(this.t('messages.operation.eraseSuccess'), avgSpeed);
 
       return {
         success: true,
@@ -238,7 +237,7 @@ export class MockAdapter extends CartridgeAdapter {
           message: this.t('messages.operation.cancelled'),
         };
       }
-      this.updateProgress(this.createErrorProgressInfo('erase', this.t('messages.operation.eraseSectorFailed')));
+      progressReporter.reportError(this.t('messages.operation.eraseSectorFailed'));
       this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
       return {
         success: false,
@@ -257,11 +256,7 @@ export class MockAdapter extends CartridgeAdapter {
   override async writeROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     this.log(this.t('messages.rom.writing', { size: fileData.length }), 'info');
 
-    const startTime = Date.now();
     const total = fileData.length;
-    let cancelled = false;
-
-    // 使用速度计算器模拟
     const speedCalculator = new SpeedCalculator();
 
     try {
@@ -278,60 +273,73 @@ export class MockAdapter extends CartridgeAdapter {
         }
       }
 
-      // 更新重置后的进度
-      this.updateProgress(this.createProgressInfo(
+      // 模拟扇区进度 (基于文件大小创建虚拟扇区)
+      const sectorSize = 0x10000; // 64KB 扇区
+      const sectorCount = Math.ceil(total / sectorSize);
+      const mockSectorInfo = [{
+        startAddress: 0,
+        endAddress: total - 1,
+        sectorSize,
+        sectorCount,
+        totalSize: total,
+      }];
+
+      // 初始化扇区进度信息
+      const sectors = this.initializeSectorProgress(mockSectorInfo);
+
+      // 创建进度报告器
+      const progressReporter = new ProgressReporter(
         'write',
-        0,
-        this.t('messages.operation.startWriteROM'),
         total,
-        0,
-        startTime,
-        0,
-        true,
-        'running',
-      ));
-
-      // 模拟进度
-      await DebugSettings.simulateProgress(
-        (progress) => {
-          // 检查是否已被取消
-          if (signal?.aborted) {
-            cancelled = true;
-            this.updateProgress(this.createErrorProgressInfo('write', this.t('messages.operation.cancelled')));
-            return;
-          }
-
-          const written = Math.floor(total * progress / 100);
-
-          // 模拟速度
-          const currentSpeed = 15000 + Math.random() * 10000; // 15-25 KB/s
-          speedCalculator.addDataPoint(1024, Date.now());
-
-          this.updateProgress(this.createProgressInfo(
-            'write',
-            progress,
-            this.t('messages.progress.writeSpeed', { speed: formatSpeed(currentSpeed) }),
-            total,
-            written,
-            startTime,
-            currentSpeed,
-            true, // 允许取消
-            'running',
-          ));
-        },
-        3000,
+        (progressInfo) => { this.updateProgress(progressInfo); },
+        (key, params) => this.t(key, params),
       );
+      progressReporter.setSectors(this.currentSectorProgress);
 
-      if (signal?.aborted || cancelled) {
-        this.updateProgress(this.createErrorProgressInfo('write', this.t('messages.operation.cancelled')));
-        return {
-          success: false,
-          message: this.t('messages.operation.cancelled'),
-        };
+      // 报告开始状态
+      progressReporter.reportStart(this.t('messages.operation.startWriteROM'));
+
+      let writeCount = 0;
+
+      // 模拟逐个扇区写入进度
+      for (const [, sector] of sectors.entries()) {
+        // 检查是否已被取消
+        if (signal?.aborted) {
+          progressReporter.reportError(this.t('messages.operation.cancelled'));
+          return {
+            success: false,
+            message: this.t('messages.operation.cancelled'),
+          };
+        }
+
+        // 更新当前扇区状态为"正在处理"
+        const sectorIndex = progressReporter.updateSectorProgress(sector.address, 'processing');
+
+        // 模拟扇区写入延迟
+        await DebugSettings.delay(200 + Math.random() * 300); // 200-500ms 每个扇区
+
+        // 模拟速度
+        const currentSpeed = 15000 + Math.random() * 10000; // 15-25 KB/s
+        speedCalculator.addDataPoint(sector.size, Date.now());
+
+        // 更新当前扇区状态为"已完成"
+        progressReporter.updateSectorProgress(sector.address, 'completed');
+        writeCount++;
+
+        const writtenBytes = (writeCount * total) / sectors.length;
+
+        // 报告进度
+        progressReporter.reportProgress(
+          writtenBytes,
+          currentSpeed,
+          this.t('messages.progress.writeSpeed', { speed: formatSpeed(currentSpeed) }),
+          writeCount,
+          sectorIndex,
+        );
       }
 
       if (DebugSettings.shouldSimulateError()) {
-        this.updateProgress(this.createErrorProgressInfo('write', this.t('messages.rom.writeFailed')));
+        progressReporter.reportError(this.t('messages.rom.writeFailed'));
         this.log(`${this.t('messages.rom.writeFailed')}: 模拟错误`, 'error');
         return {
           success: false,
@@ -355,24 +363,13 @@ export class MockAdapter extends CartridgeAdapter {
       }), 'info');
 
       // 报告完成状态
-      this.updateProgress(this.createProgressInfo(
-        'write',
-        100,
-        this.t('messages.rom.writeComplete'),
-        total,
-        total,
-        startTime,
-        avgSpeed,
-        false, // 完成后禁用取消
-        'completed',
-      ));
+      progressReporter.reportCompleted(this.t('messages.rom.writeComplete'), avgSpeed);
 
       return {
         success: true,
         message: this.t('messages.rom.writeSuccess'),
       };
     } catch (e) {
-      this.updateProgress(this.createErrorProgressInfo('write', this.t('messages.rom.writeFailed')));
       this.log(`${this.t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
       return {
         success: false,
@@ -461,35 +458,85 @@ export class MockAdapter extends CartridgeAdapter {
     const speedCalculator = new SpeedCalculator();
 
     try {
-      // 模拟进度
-      await DebugSettings.simulateProgress(
-        (progress) => {
-          // 检查是否已被取消
-          if (signal?.aborted) {
-            cancelled = true;
-            this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.operation.cancelled')));
-            return;
-          }
+      // 模拟扇区进度 (基于读取大小创建虚拟扇区)
+      const sectorSize = 0x10000; // 64KB 扇区
+      const sectorCount = Math.ceil(size / sectorSize);
+      const mockSectorInfo = [{
+        startAddress: baseAddress,
+        endAddress: baseAddress + size - 1,
+        sectorSize,
+        sectorCount,
+        totalSize: size,
+      }];
 
-          const readBytes = Math.floor(size * progress / 100);
+      // 初始化扇区进度信息
+      const sectors = this.initializeSectorProgress(mockSectorInfo);
+      const sectorsCount = sectors.length;
+      let readCount = 0;
 
-          // 模拟速度
-          const currentSpeed = 20000 + Math.random() * 15000; // 20-35 KB/s
-          speedCalculator.addDataPoint(1024, Date.now());
-
-          this.updateProgress(this.createProgressInfo(
-            'read',
-            progress,
-            this.t('messages.progress.readSpeed', { speed: formatSpeed(currentSpeed) }),
-            size,
-            readBytes,
-            startTime,
-            currentSpeed,
-            true, // 允许取消
-          ));
-        },
-        2500,
+      // 初始化扇区可视化进度
+      this.updateProgress(
+        ProgressInfoBuilder.running('read')
+          .bytes(0, size)
+          .detail(this.t('messages.rom.reading'))
+          .startTime(startTime)
+          .speed(0)
+          .sectors(this.currentSectorProgress, 0, 0)
+          .build(),
       );
+
+      // 模拟逐个扇区读取进度
+      for (let i = 0; i < sectorsCount; i++) {
+        // 检查是否已被取消
+        if (signal?.aborted) {
+          cancelled = true;
+          this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.operation.cancelled')));
+          return {
+            success: false,
+            message: this.t('messages.operation.cancelled'),
+          };
+        }
+
+        const sector = sectors[i];
+
+        // 更新当前扇区状态为"正在处理"
+        const sectorIndex = this.updateSectorProgress(sector.address, 'processing');
+
+        // 模拟扇区读取延迟
+        await DebugSettings.delay(120 + Math.random() * 180); // 120-300ms 每个扇区
+
+        // 模拟速度
+        const currentSpeed = 20000 + Math.random() * 15000; // 20-35 KB/s
+        speedCalculator.addDataPoint(sector.size, Date.now());
+
+        // 更新进度显示当前正在读取的扇区
+        this.updateProgress(
+          ProgressInfoBuilder.running('read')
+            .progress((i / sectorsCount) * 100)
+            .detail(this.t('messages.progress.readSpeed', { speed: formatSpeed(currentSpeed) }))
+            .bytes(readCount * (size / sectorsCount), size)
+            .startTime(startTime)
+            .speed(currentSpeed)
+            .sectors(this.currentSectorProgress, readCount, sectorIndex)
+            .build(),
+        );
+
+        // 更新当前扇区状态为"已完成"
+        this.updateSectorProgress(sector.address, 'completed');
+        readCount++;
+
+        // 最终进度更新
+        this.updateProgress(
+          ProgressInfoBuilder.running('read')
+            .progress(((i + 1) / sectorsCount) * 100)
+            .detail(this.t('messages.progress.readSpeed', { speed: formatSpeed(currentSpeed) }))
+            .bytes((readCount * size) / sectorsCount, size)
+            .startTime(startTime)
+            .speed(currentSpeed)
+            .sectors(this.currentSectorProgress, readCount, sectorIndex)
+            .build(),
+        );
+      }
 
       if (signal?.aborted || cancelled) {
         this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.operation.cancelled')));
@@ -523,17 +570,12 @@ export class MockAdapter extends CartridgeAdapter {
         totalSize: formatBytes(size),
       }), 'info');
 
-      this.updateProgress(this.createProgressInfo(
-        'read',
-        100,
-        this.t('messages.rom.readSuccess', { size: data.length }),
-        size,
-        size,
-        startTime,
-        avgSpeed,
-        false,
-        'completed',
-      ));
+      this.updateProgress(ProgressInfoBuilder.completed('read')
+        .detail(this.t('messages.rom.readSuccess', { size: data.length }))
+        .bytes(size, size)
+        .startTime(startTime)
+        .speed(avgSpeed)
+        .build());
 
       return {
         success: true,
@@ -568,38 +610,88 @@ export class MockAdapter extends CartridgeAdapter {
     const speedCalculator = new SpeedCalculator();
 
     try {
-      // 模拟进度
-      await DebugSettings.simulateProgress(
-        (progress) => {
-          // 检查是否已被取消
-          if (signal?.aborted) {
-            cancelled = true;
-            this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.operation.cancelled')));
-            return;
-          }
+      // 模拟扇区进度 (基于文件大小创建虚拟扇区)
+      const sectorSize = 0x10000; // 64KB 扇区
+      const sectorCount = Math.ceil(fileData.length / sectorSize);
+      const mockSectorInfo = [{
+        startAddress: baseAddress,
+        endAddress: baseAddress + fileData.length - 1,
+        sectorSize,
+        sectorCount,
+        totalSize: fileData.length,
+      }];
 
-          const verifiedBytes = Math.floor(fileData.length * progress / 100);
+      // 初始化扇区进度信息
+      const sectors = this.initializeSectorProgress(mockSectorInfo);
+      const sectorsCount = sectors.length;
+      let verifyCount = 0;
 
-          // 模拟速度
-          const currentSpeed = 18000 + Math.random() * 12000; // 18-30 KB/s
-          speedCalculator.addDataPoint(1024, Date.now());
-
-          this.updateProgress(this.createProgressInfo(
-            'read',
-            progress,
-            this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeed) }),
-            fileData.length,
-            verifiedBytes,
-            startTime,
-            currentSpeed,
-            true, // 允许取消
-          ));
-        },
-        2000,
+      // 初始化扇区可视化进度
+      this.updateProgress(
+        ProgressInfoBuilder.running('verify')
+          .bytes(0, fileData.length)
+          .detail(this.t('messages.rom.verifying'))
+          .startTime(startTime)
+          .speed(0)
+          .sectors(this.currentSectorProgress, 0, 0)
+          .build(),
       );
 
+      // 模拟逐个扇区校验进度
+      for (let i = 0; i < sectorsCount; i++) {
+        // 检查是否已被取消
+        if (signal?.aborted) {
+          cancelled = true;
+          this.updateProgress(this.createErrorProgressInfo('verify', this.t('messages.operation.cancelled')));
+          return {
+            success: false,
+            message: this.t('messages.operation.cancelled'),
+          };
+        }
+
+        const sector = sectors[i];
+
+        // 更新当前扇区状态为"正在处理"
+        const sectorIndex = this.updateSectorProgress(sector.address, 'processing');
+
+        // 模拟扇区校验延迟
+        await DebugSettings.delay(150 + Math.random() * 250); // 150-400ms 每个扇区
+
+        // 模拟速度
+        const currentSpeed = 18000 + Math.random() * 12000; // 18-30 KB/s
+        speedCalculator.addDataPoint(sector.size, Date.now());
+
+        // 更新进度显示当前正在校验的扇区
+        this.updateProgress(
+          ProgressInfoBuilder.running('verify')
+            .progress((i / sectorsCount) * 100)
+            .detail(this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeed) }))
+            .bytes(verifyCount * (fileData.length / sectorsCount), fileData.length)
+            .startTime(startTime)
+            .speed(currentSpeed)
+            .sectors(this.currentSectorProgress, verifyCount, sectorIndex)
+            .build(),
+        );
+
+        // 更新当前扇区状态为"已完成"
+        this.updateSectorProgress(sector.address, 'completed');
+        verifyCount++;
+
+        // 最终进度更新
+        this.updateProgress(
+          ProgressInfoBuilder.running('verify')
+            .progress(((i + 1) / sectorsCount) * 100)
+            .detail(this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeed) }))
+            .bytes((verifyCount * fileData.length) / sectorsCount, fileData.length)
+            .startTime(startTime)
+            .speed(currentSpeed)
+            .sectors(this.currentSectorProgress, verifyCount, sectorIndex)
+            .build(),
+        );
+      }
+
       if (signal?.aborted || cancelled) {
-        this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.operation.cancelled')));
+        this.updateProgress(this.createErrorProgressInfo('verify', this.t('messages.operation.cancelled')));
         return {
           success: false,
           message: this.t('messages.operation.cancelled'),
@@ -608,7 +700,7 @@ export class MockAdapter extends CartridgeAdapter {
 
       if (DebugSettings.shouldSimulateError()) {
         this.log(`${this.t('messages.rom.verifyFailed')}: 模拟错误`, 'error');
-        this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.rom.verifyFailed')));
+        this.updateProgress(this.createErrorProgressInfo('verify', this.t('messages.rom.verifyFailed')));
         return {
           success: false,
           message: this.t('messages.rom.verifyFailed'),
@@ -630,20 +722,15 @@ export class MockAdapter extends CartridgeAdapter {
           maxSpeed: maxSpeed.toFixed(1),
           totalSize: formatBytes(fileData.length),
         }), 'info');
-        this.updateProgress(this.createProgressInfo(
-          'read',
-          100,
-          this.t('messages.rom.verifySuccess'),
-          fileData.length,
-          fileData.length,
-          startTime,
-          avgSpeed,
-          false,
-          'completed',
-        ));
+        this.updateProgress(ProgressInfoBuilder.completed('verify')
+          .detail(this.t('messages.rom.verifySuccess'))
+          .bytes(fileData.length, fileData.length)
+          .startTime(startTime)
+          .speed(avgSpeed)
+          .build());
       } else {
         this.log(this.t('messages.rom.verifyFailed'), 'error');
-        this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.rom.verifyFailed')));
+        this.updateProgress(this.createErrorProgressInfo('verify', this.t('messages.rom.verifyFailed')));
       }
 
       const message = isMatch !== false ? this.t('messages.rom.verifySuccess') : this.t('messages.rom.verifyFailed');
@@ -652,7 +739,7 @@ export class MockAdapter extends CartridgeAdapter {
         message,
       };
     } catch (e) {
-      this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.rom.verifyFailed')));
+      this.updateProgress(this.createErrorProgressInfo('verify', this.t('messages.rom.verifyFailed')));
       this.log(`${this.t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
       return {
         success: false,

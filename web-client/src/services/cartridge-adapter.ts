@@ -6,6 +6,7 @@ import { ProgressInfo, SectorProgressInfo } from '@/types/progress-info';
 import { timeout } from '@/utils/async-utils';
 import { CFIInfo, SectorBlock } from '@/utils/cfi-parser';
 import NotImplementedError from '@/utils/errors/NotImplementedError';
+import { ProgressInfoBuilder } from '@/utils/progress-builder';
 import { createSectorProgressInfo } from '@/utils/sector-utils';
 
 // 定义日志和进度回调函数类型
@@ -153,47 +154,44 @@ export class CartridgeAdapter {
    */
   protected createProgressInfo(
     type: 'erase' | 'write' | 'read' | 'verify' | 'other',
-    progress?: number,
-    detail?: string,
-    totalBytes?: number,
-    transferredBytes?: number,
-    startTime?: number,
-    currentSpeed?: number,
-    allowCancel = true,
+    progress: number,
+    detail: string,
+    totalBytes: number,
+    transferredBytes: number,
+    startTime: number,
+    currentSpeed: number,
+    allowCancel: boolean,
     state: 'idle' | 'running' | 'paused' | 'completed' | 'error' = 'running',
     sectorProgress?: {
-      sectors: SectorProgressInfo[]
-      totalSectors: number
-      completedSectors: number
-      currentSectorIndex: number
+      sectors: SectorProgressInfo[];
+      totalSectors: number;
+      completedSectors: number;
+      currentSectorIndex: number;
     },
-  ): ProgressInfo {
-    return {
-      type,
-      progress,
-      detail,
-      totalBytes,
-      transferredBytes,
-      startTime,
-      currentSpeed,
-      allowCancel,
-      state,
-      sectorProgress,
-    };
+  ) {
+    const builder = ProgressInfoBuilder.create()
+      .type(type)
+      .progress(progress)
+      .detail(detail)
+      .bytes(transferredBytes, totalBytes)
+      .startTime(startTime)
+      .speed(currentSpeed)
+      .cancellable(allowCancel)
+      .state(state);
+
+    if (sectorProgress) {
+      builder.sectors(
+        sectorProgress.sectors,
+        sectorProgress.completedSectors,
+        sectorProgress.currentSectorIndex,
+      );
+    }
+
+    return builder.build();
   }
 
   protected createErrorProgressInfo(type: 'erase' | 'write' | 'read' | 'verify' | 'other', detail: string): ProgressInfo {
-    return this.createProgressInfo(
-      type,
-      undefined,
-      detail,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      false,
-      'error',
-    );
+    return ProgressInfoBuilder.error(type, detail).build();
   }
 
   /**
