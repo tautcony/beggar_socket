@@ -15,7 +15,7 @@ import { DeviceInfo } from '@/types/device-info';
 import { timeout } from '@/utils/async-utils';
 import { CFIInfo, parseCFI, SectorBlock } from '@/utils/cfi-parser';
 import { formatBytes, formatHex, formatSpeed, formatTimeDuration } from '@/utils/formatter-utils';
-import { ProgressInfoBuilder } from '@/utils/progress-builder';
+import { ProgressReporter } from '@/utils/progress-reporter';
 import { calcSectorUsage } from '@/utils/sector-utils';
 import { PerformanceTracker } from '@/utils/sentry-tracker';
 import { SpeedCalculator } from '@/utils/speed-calculator';
@@ -145,7 +145,6 @@ export class MBC5Adapter extends CartridgeAdapter {
         try {
           let currentBank = -1;
           let eraseCount = 0;
-          const startTime = Date.now();
 
           // 使用速度计算器
           const speedCalculator = new SpeedCalculator();
@@ -157,24 +156,23 @@ export class MBC5Adapter extends CartridgeAdapter {
           // 计算总字节数
           const totalBytes = sectorInfo.reduce((sum, info) => sum + (info.endAddress - info.startAddress), 0);
 
-          // 初始化扇区可视化进度
-          this.updateProgress(
-            ProgressInfoBuilder.running('erase')
-              .bytes(0, totalBytes)
-              .detail(this.t('messages.operation.startEraseSectors'))
-              .startTime(startTime)
-              .speed(0)
-              .sectors(this.currentSectorProgress, 0, 0)
-              .build(),
+          // 创建进度报告器
+          const progressReporter = new ProgressReporter(
+            'erase',
+            totalBytes,
+            (progressInfo) => { this.updateProgress(progressInfo); },
+            (key, params) => this.t(key, params),
           );
+          progressReporter.setSectors(this.currentSectorProgress);
+
+          // 报告开始状态
+          progressReporter.reportStart(this.t('messages.operation.startEraseSectors'));
 
           // 按照创建的扇区顺序进行擦除（从高地址到低地址）
           for (const sector of sectors) {
             // 检查是否已被取消
             if (signal?.aborted) {
-              this.updateProgress(
-                ProgressInfoBuilder.error('erase', this.t('messages.operation.cancelled')).build(),
-              );
+              progressReporter.reportError(this.t('messages.operation.cancelled'));
               return {
                 success: false,
                 message: this.t('messages.operation.cancelled'),
@@ -188,21 +186,6 @@ export class MBC5Adapter extends CartridgeAdapter {
               from: formatHex(sector.address, 4),
               to: formatHex(sector.address + sector.size - 1, 4),
             }), 'info');
-
-            // 更新进度显示当前正在擦除的扇区
-            this.updateProgress(
-              ProgressInfoBuilder.running('erase')
-                .progress((eraseCount / sectorsCount) * 100)
-                .detail(this.t('messages.operation.eraseSector', {
-                  from: formatHex(sector.address, 4),
-                  to: formatHex(sector.address + sector.size - 1, 4),
-                }))
-                .bytes(eraseCount * sector.size, totalBytes)
-                .startTime(startTime)
-                .speed(speedCalculator.getCurrentSpeed())
-                .sectors(this.currentSectorProgress, eraseCount, sectorIndex)
-                .build(),
-            );
 
             const { bank, cartAddress } = this.romBankRelevantAddress(sector.address);
             if (bank !== currentBank) {
@@ -225,16 +208,13 @@ export class MBC5Adapter extends CartridgeAdapter {
             // 计算当前速度
             const currentSpeed = speedCalculator.getCurrentSpeed();
 
-            // 更新进度
-            this.updateProgress(
-              ProgressInfoBuilder.running('erase')
-                .progress((eraseCount / sectorsCount) * 100)
-                .detail(this.t('messages.progress.eraseSpeed', { speed: formatSpeed(currentSpeed) }))
-                .bytes(erasedBytes, totalBytes)
-                .startTime(startTime)
-                .speed(currentSpeed)
-                .sectors(this.currentSectorProgress, eraseCount, sectorIndex)
-                .build(),
+            // 报告进度
+            progressReporter.reportProgress(
+              erasedBytes,
+              currentSpeed,
+              this.t('messages.progress.eraseSpeed', { speed: formatSpeed(currentSpeed) }),
+              eraseCount,
+              sectorIndex,
             );
           }
 
@@ -251,15 +231,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           }), 'info');
 
           // 报告完成状态
-          this.updateProgress(
-            ProgressInfoBuilder.completed('erase')
-              .detail(this.t('messages.operation.eraseSuccess'))
-              .bytes(totalBytes, totalBytes)
-              .startTime(startTime)
-              .speed(avgSpeed)
-              .sectors(this.currentSectorProgress, sectorsCount, sectorsCount)
-              .build(),
-          );
+          progressReporter.reportCompleted(this.t('messages.operation.eraseSuccess'), avgSpeed);
 
           return {
             success: true,
@@ -274,9 +246,13 @@ export class MBC5Adapter extends CartridgeAdapter {
             };
           }
 
-          this.updateProgress(
-            ProgressInfoBuilder.error('erase', this.t('messages.operation.eraseSectorFailed')).build(),
+          const progressReporter = new ProgressReporter(
+            'erase',
+            sectorInfo.reduce((sum, info) => sum + (info.endAddress - info.startAddress), 0),
+            (progressInfo) => { this.updateProgress(progressInfo); },
+            (key, params) => this.t(key, params),
           );
+          progressReporter.reportError(this.t('messages.operation.eraseSectorFailed'));
           this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
@@ -313,7 +289,6 @@ export class MBC5Adapter extends CartridgeAdapter {
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.writeROM',
       async () => {
-        const startTime = Date.now();
         try {
           const total = options.size ?? fileData.byteLength;
           let written = 0;
@@ -331,6 +306,18 @@ export class MBC5Adapter extends CartridgeAdapter {
           // 使用速度计算器
           const speedCalculator = new SpeedCalculator();
 
+          // 创建进度报告器
+          const progressReporter = new ProgressReporter(
+            'write',
+            total,
+            (progressInfo) => { this.updateProgress(progressInfo); },
+            (key, params) => this.t(key, params),
+          );
+          progressReporter.setSectors(this.currentSectorProgress);
+
+          // 报告开始状态
+          progressReporter.reportStart(this.t('messages.rom.writing', { size: total }));
+
           // 分块写入并更新进度
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
           let chunkCount = 0; // 记录已处理的块数
@@ -338,9 +325,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           while (written < total) {
             // 检查是否已被取消
             if (signal?.aborted) {
-              this.updateProgress(
-                ProgressInfoBuilder.error('write', this.t('messages.operation.cancelled')).build(),
-              );
+              progressReporter.reportError(this.t('messages.operation.cancelled'));
               return {
                 success: false,
                 message: this.t('messages.operation.cancelled'),
@@ -378,25 +363,22 @@ export class MBC5Adapter extends CartridgeAdapter {
 
             // 每10次操作或最后一次更新进度
             if (chunkCount % 10 === 0 || written >= total) {
-              const progress = (written / total) * 100;
-
               // 计算当前速度
               const currentSpeed = speedCalculator.getCurrentSpeed();
 
-              this.updateProgress(ProgressInfoBuilder.running('write')
-                .progress(progress)
-                .detail(this.t('messages.progress.writeSpeed', { speed: formatSpeed(currentSpeed) }))
-                .bytes(written, total)
-                .startTime(startTime)
-                .speed(currentSpeed)
-                .sectors(
-                  this.currentSectorProgress,
-                  this.currentSectorProgress.filter(s => s.state === 'completed').length,
-                  this.currentSectorProgress.findIndex(s =>
-                    currentAddress >= s.address && currentAddress < s.address + s.size,
-                  ),
-                )
-                .build());
+              const currentSectorIndex = this.currentSectorProgress.findIndex(s =>
+                currentAddress >= s.address && currentAddress < s.address + s.size,
+              );
+              const completedSectors = this.currentSectorProgress.filter(s => s.state === 'completed').length;
+
+              // 报告进度
+              progressReporter.reportProgress(
+                written,
+                currentSpeed,
+                this.t('messages.progress.writeSpeed', { speed: formatSpeed(currentSpeed) }),
+                completedSectors,
+                currentSectorIndex,
+              );
             }
 
             // 每5个百分比记录一次日志
@@ -420,26 +402,20 @@ export class MBC5Adapter extends CartridgeAdapter {
           }), 'info');
 
           // 报告完成状态
-          this.updateProgress(ProgressInfoBuilder.completed('write')
-            .detail(this.t('messages.rom.writeComplete'))
-            .bytes(total, total)
-            .startTime(startTime)
-            .speed(avgSpeed)
-            .sectors(
-              this.currentSectorProgress,
-              this.currentSectorProgress.length,
-              -1,
-            )
-            .build());
+          progressReporter.reportCompleted(this.t('messages.rom.writeComplete'), avgSpeed);
 
           return {
             success: true,
             message: this.t('messages.rom.writeSuccess'),
           };
         } catch (e) {
-          this.updateProgress(
-            ProgressInfoBuilder.error('write', this.t('messages.rom.writeFailed')).build(),
+          const progressReporter = new ProgressReporter(
+            'write',
+            fileData.byteLength,
+            (progressInfo) => { this.updateProgress(progressInfo); },
+            (key, params) => this.t(key, params),
           );
+          progressReporter.reportError(this.t('messages.rom.writeFailed'));
           this.log(`${this.t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
@@ -479,13 +455,16 @@ export class MBC5Adapter extends CartridgeAdapter {
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.readROM',
       async () => {
-        const startTime = Date.now();
         try {
           // 检查是否已被取消
           if (signal?.aborted) {
-            this.updateProgress(
-              ProgressInfoBuilder.error('read', this.t('messages.operation.cancelled')).build(),
+            const progressReporter = new ProgressReporter(
+              'read',
+              size,
+              (progressInfo) => { this.updateProgress(progressInfo); },
+              (key, params) => this.t(key, params),
             );
+            progressReporter.reportError(this.t('messages.operation.cancelled'));
             return {
               success: false,
               message: this.t('messages.operation.cancelled'),
@@ -500,6 +479,17 @@ export class MBC5Adapter extends CartridgeAdapter {
           // 使用速度计算器
           const speedCalculator = new SpeedCalculator();
 
+          // 创建进度报告器
+          const progressReporter = new ProgressReporter(
+            'read',
+            size,
+            (progressInfo) => { this.updateProgress(progressInfo); },
+            (key, params) => this.t(key, params),
+          );
+
+          // 报告开始状态
+          progressReporter.reportStart(this.t('messages.rom.reading'));
+
           // 分块读取以便计算速度统计
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
           let chunkCount = 0; // 记录已处理的块数
@@ -508,9 +498,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           while (totalRead < size) {
             // 检查是否已被取消
             if (signal?.aborted) {
-              this.updateProgress(
-                ProgressInfoBuilder.error('read', this.t('messages.operation.cancelled')).build(),
-              );
+              progressReporter.reportError(this.t('messages.operation.cancelled'));
               return {
                 success: false,
                 message: this.t('messages.operation.cancelled'),
@@ -540,18 +528,15 @@ export class MBC5Adapter extends CartridgeAdapter {
 
             // 每10次操作或最后一次更新进度
             if (chunkCount % 10 === 0 || totalRead >= size) {
-              const progress = (totalRead / size) * 100;
-
               // 计算当前速度
               const currentSpeed = speedCalculator.getCurrentSpeed();
 
-              this.updateProgress(ProgressInfoBuilder.running('read')
-                .progress(progress)
-                .detail(this.t('messages.progress.readSpeed', { speed: formatSpeed(currentSpeed) }))
-                .bytes(totalRead, size)
-                .startTime(startTime)
-                .speed(currentSpeed)
-                .build());
+              // 报告进度
+              progressReporter.reportProgress(
+                totalRead,
+                currentSpeed,
+                this.t('messages.progress.readSpeed', { speed: formatSpeed(currentSpeed) }),
+              );
             }
 
             // 每5个百分比记录一次日志
@@ -574,12 +559,8 @@ export class MBC5Adapter extends CartridgeAdapter {
             totalSize: formatBytes(size),
           }), 'info');
 
-          this.updateProgress(ProgressInfoBuilder.completed('read')
-            .detail(this.t('messages.rom.readSuccess', { size: data.length }))
-            .bytes(size, size)
-            .startTime(startTime)
-            .speed(avgSpeed)
-            .build());
+          // 报告完成状态
+          progressReporter.reportCompleted(this.t('messages.rom.readSuccess', { size: data.length }), avgSpeed);
 
           return {
             success: true,
@@ -587,9 +568,13 @@ export class MBC5Adapter extends CartridgeAdapter {
             message: this.t('messages.rom.readSuccess', { size: data.length }),
           };
         } catch (e) {
-          this.updateProgress(
-            ProgressInfoBuilder.error('read', this.t('messages.rom.readFailed')).build(),
+          const progressReporter = new ProgressReporter(
+            'read',
+            size,
+            (progressInfo) => { this.updateProgress(progressInfo); },
+            (key, params) => this.t(key, params),
           );
+          progressReporter.reportError(this.t('messages.rom.readFailed'));
           this.log(`${this.t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
@@ -628,15 +613,18 @@ export class MBC5Adapter extends CartridgeAdapter {
       async () => {
         // 检查是否已被取消
         if (signal?.aborted) {
-          this.updateProgress(
-            ProgressInfoBuilder.error('verify', this.t('messages.operation.cancelled')).build(),
+          const progressReporter = new ProgressReporter(
+            'verify',
+            fileData.length,
+            (progressInfo) => { this.updateProgress(progressInfo); },
+            (key, params) => this.t(key, params),
           );
+          progressReporter.reportError(this.t('messages.operation.cancelled'));
           return {
             success: false,
             message: this.t('messages.operation.cancelled'),
           };
         }
-        const startTime = Date.now(); // 移到 try 块外面以便在 catch 块中使用
         try {
           this.log(this.t('messages.rom.verifying'), 'info');
 
@@ -654,14 +642,24 @@ export class MBC5Adapter extends CartridgeAdapter {
           // 使用速度计算器
           const speedCalculator = new SpeedCalculator();
 
+          // 创建进度报告器
+          const progressReporter = new ProgressReporter(
+            'verify',
+            total,
+            (progressInfo) => { this.updateProgress(progressInfo); },
+            (key, params) => this.t(key, params),
+          );
+          progressReporter.setSectors(this.currentSectorProgress);
+
+          // 报告开始状态
+          progressReporter.reportStart(this.t('messages.rom.verifying'));
+
           // 分块校验并更新进度
           let chunkCount = 0; // 记录已处理的块数
           while (verified < total && success) {
             // 检查是否已被取消
             if (signal?.aborted) {
-              this.updateProgress(
-                ProgressInfoBuilder.error('verify', this.t('messages.operation.cancelled')).build(),
-              );
+              progressReporter.reportError(this.t('messages.operation.cancelled'));
               return {
                 success: false,
                 message: this.t('messages.operation.cancelled'),
@@ -713,25 +711,22 @@ export class MBC5Adapter extends CartridgeAdapter {
 
             // 每10次操作或最后一次更新进度
             if (chunkCount % 10 === 0 || verified >= total) {
-              const progress = (verified / total) * 100;
-
               // 计算当前速度
               const currentSpeed = speedCalculator.getCurrentSpeed();
 
-              this.updateProgress(ProgressInfoBuilder.running('verify')
-                .progress(progress)
-                .detail(this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeed) }))
-                .bytes(verified, total)
-                .startTime(startTime)
-                .speed(currentSpeed)
-                .sectors(
-                  this.currentSectorProgress,
-                  this.currentSectorProgress.filter(s => s.state === 'completed').length,
-                  this.currentSectorProgress.findIndex(s =>
-                    currentAddress >= s.address && currentAddress < s.address + s.size,
-                  ),
-                )
-                .build());
+              const currentSectorIndex = this.currentSectorProgress.findIndex(s =>
+                currentAddress >= s.address && currentAddress < s.address + s.size,
+              );
+              const completedSectors = this.currentSectorProgress.filter(s => s.state === 'completed').length;
+
+              // 报告进度
+              progressReporter.reportProgress(
+                verified,
+                currentSpeed,
+                this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeed) }),
+                completedSectors,
+                currentSectorIndex,
+              );
             }
 
             // 每5%记录一次日志
@@ -757,22 +752,12 @@ export class MBC5Adapter extends CartridgeAdapter {
               maxSpeed: formatSpeed(maxSpeed),
               totalSize: formatBytes(total),
             }), 'info');
-            this.updateProgress(ProgressInfoBuilder.completed('verify')
-              .detail(this.t('messages.rom.verifySuccess'))
-              .bytes(total, total)
-              .startTime(startTime)
-              .speed(avgSpeed)
-              .sectors(
-                this.currentSectorProgress,
-                this.currentSectorProgress.length,
-                -1,
-              )
-              .build());
+
+            // 报告完成状态
+            progressReporter.reportCompleted(this.t('messages.rom.verifySuccess'), avgSpeed);
           } else {
             this.log(this.t('messages.rom.verifyFailed'), 'error');
-            this.updateProgress(
-              ProgressInfoBuilder.error('verify', this.t('messages.rom.verifyFailed')).build(),
-            );
+            progressReporter.reportError(this.t('messages.rom.verifyFailed'));
           }
 
           const message = success ? this.t('messages.rom.verifySuccess') : this.t('messages.rom.verifyFailed');
@@ -781,9 +766,13 @@ export class MBC5Adapter extends CartridgeAdapter {
             message: message,
           };
         } catch (e) {
-          this.updateProgress(
-            ProgressInfoBuilder.error('verify', this.t('messages.rom.verifyFailed')).build(),
+          const progressReporter = new ProgressReporter(
+            'verify',
+            fileData.length,
+            (progressInfo) => { this.updateProgress(progressInfo); },
+            (key, params) => this.t(key, params),
           );
+          progressReporter.reportError(this.t('messages.rom.verifyFailed'));
           this.log(`${this.t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
