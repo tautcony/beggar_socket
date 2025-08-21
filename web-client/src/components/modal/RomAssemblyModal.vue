@@ -242,7 +242,7 @@ import {
   getRomAssemblyConfig,
   placeFileInSlots,
   removeFileFromSlots,
-} from '@/utils/rom-assembly-utils';
+} from '@/utils/rom/rom-assembly-utils';
 
 const { t } = useI18n();
 const { showToast } = useToast();
@@ -461,7 +461,7 @@ function assembleAndDownload() {
   const fileName = `assembled_${selectedRomType.value.toLowerCase()}_${timestamp}.rom`;
 
   // 下载文件
-  const blob = new Blob([assembled.data], { type: 'application/octet-stream' });
+  const blob = new Blob([assembled.data as BlobPart], { type: 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

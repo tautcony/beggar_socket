@@ -252,8 +252,8 @@ import { useI18n } from 'vue-i18n';
 import { useToast } from '@/composables/useToast';
 import { processGBALogoData } from '@/utils/compression-utils';
 import { formatBytes } from '@/utils/formatter-utils';
-import { type RomEditData, updateRomInfo } from '@/utils/rom-editor';
-import { CartridgeTypeMapper, type RomInfo } from '@/utils/rom-parser.ts';
+import { CartridgeTypeMapper, type RomInfo } from '@/utils/parsers/rom-parser.ts';
+import { type RomEditData, updateRomInfo } from '@/utils/rom/rom-editor';
 
 const { t } = useI18n();
 const { showToast } = useToast();

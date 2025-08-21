@@ -1,6 +1,5 @@
 import { SectorProgressInfo } from '@/types/progress-info';
-
-import { SectorBlock } from './cfi-parser';
+import { SectorBlock } from '@/utils/parsers/cfi-parser';
 
 export function calcSectorUsage(
   eraseSectorBlocks: SectorBlock[],

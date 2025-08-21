@@ -156,7 +156,7 @@ import { FileInfo } from '@/types/file-info.ts';
 import type { AssembledRom } from '@/types/rom-assembly';
 import { GBA_ROM_BASE_ADDRESS, MBC5_ROM_BASE_ADDRESS } from '@/utils/address-utils';
 import { formatHex } from '@/utils/formatter-utils';
-import { parseRom, type RomInfo } from '@/utils/rom-parser.ts';
+import { parseRom, type RomInfo } from '@/utils/parsers/rom-parser.ts';
 
 // 动态加载模拟器组件
 // const GBEmulator = defineAsyncComponent(() => import('@/components/emulator/GBEmulator.vue'));

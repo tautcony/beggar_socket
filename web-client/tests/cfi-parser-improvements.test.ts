@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseCFI } from '@/utils/cfi-parser';
+import { parseCFI } from '@/utils/parsers/cfi-parser';
 
 describe('CFI Parser 扇区区域改进测试', () => {
   // 创建一个模拟的CFI数据缓冲区

@@ -13,7 +13,7 @@ import {
   regionToCode,
   validateGBALogo,
   validateGBLogo,
-} from './rom-parser';
+} from '@/utils/parsers/rom-parser';
 
 export interface RomEditData {
   title: string;

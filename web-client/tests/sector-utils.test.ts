@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { SectorBlock } from '../src/utils/cfi-parser';
+import { SectorBlock } from '../src/utils/parsers/cfi-parser';
 import { calcSectorUsage } from '../src/utils/sector-utils';
 
 // 辅助函数：将旧的数组格式转换为新的EraseSectorBlock格式

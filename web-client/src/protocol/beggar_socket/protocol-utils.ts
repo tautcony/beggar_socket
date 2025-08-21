@@ -94,14 +94,14 @@ export async function getPackageWithBYOBReader(reader: BYOBReader, length: numbe
     const readOperation = (async () => {
       while (offset < length) {
         const { value, done } = await reader.read(
-          new Uint8Array(buffer, offset),
+          new Uint8Array(buffer as unknown as ArrayBufferLike, offset),
         );
         if (done) {
           break;
         }
         // 将新读取的数据复制到累积缓冲区中
         accumulatedData.set(value, offset);
-        buffer = value.buffer;
+        buffer = value.buffer as unknown as Uint8Array<ArrayBuffer>;
         offset += value.byteLength;
       }
     })();

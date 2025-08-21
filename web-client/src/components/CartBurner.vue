@@ -119,9 +119,9 @@ import { CartridgeAdapter, GBAAdapter, MBC5Adapter, MockAdapter } from '@/servic
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { DebugSettings } from '@/settings/debug-settings';
 import { CommandOptions, DeviceInfo, FileInfo, ProgressInfo } from '@/types';
-import { CFIInfo } from '@/utils/cfi-parser';
 import { formatBytes, formatHex } from '@/utils/formatter-utils';
-import { parseRom, RomInfo } from '@/utils/rom-parser.ts';
+import { CFIInfo } from '@/utils/parsers/cfi-parser';
+import { parseRom, RomInfo } from '@/utils/parsers/rom-parser.ts';
 import { calcSectorUsage } from '@/utils/sector-utils';
 
 interface GameDetectionResult {

@@ -17,12 +17,12 @@ import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { timeout } from '@/utils/async-utils';
-import { CFIInfo, parseCFI, SectorBlock } from '@/utils/cfi-parser';
 import { formatBytes, formatHex, formatSpeed, formatTimeDuration } from '@/utils/formatter-utils';
-import { ProgressReporter } from '@/utils/progress-reporter';
+import { PerformanceTracker } from '@/utils/monitoring/sentry-tracker';
+import { CFIInfo, parseCFI, SectorBlock } from '@/utils/parsers/cfi-parser';
+import { ProgressReporter } from '@/utils/progress/progress-reporter';
+import { SpeedCalculator } from '@/utils/progress/speed-calculator';
 import { calcSectorUsage } from '@/utils/sector-utils';
-import { PerformanceTracker } from '@/utils/sentry-tracker';
-import { SpeedCalculator } from '@/utils/speed-calculator';
 
 /**
  * GBA Adapter - 封装GBA卡带的协议操作

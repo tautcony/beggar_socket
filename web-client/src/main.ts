@@ -5,7 +5,7 @@ import { createApp } from 'vue';
 import App from '@/App.vue';
 import i18n from '@/i18n';
 import { AdvancedSettings } from '@/settings/advanced-settings';
-import { loadSentry } from '@/utils/sentry-loader';
+import { loadSentry } from '@/utils/monitoring/sentry-loader';
 
 AdvancedSettings.loadSettings();
 

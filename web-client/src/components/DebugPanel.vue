@@ -151,7 +151,7 @@ import { constructOutline } from 'ionicons/icons';
 import { onMounted, ref } from 'vue';
 
 import { DebugSettings } from '@/settings/debug-settings';
-import { GBA_NINTENDO_LOGO } from '@/utils/rom-parser';
+import { GBA_NINTENDO_LOGO } from '@/utils/parsers/rom-parser';
 
 const emit = defineEmits<{
   'connect-mock-device': [];

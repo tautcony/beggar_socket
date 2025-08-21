@@ -1,5 +1,5 @@
 import { ProgressInfo, SectorProgressInfo } from '@/types/progress-info';
-import { ProgressInfoBuilder } from '@/utils/progress-builder';
+import { ProgressInfoBuilder } from '@/utils/progress/progress-builder';
 
 /**
  * GBAAdapter 的进度报告辅助类

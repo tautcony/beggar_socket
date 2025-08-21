@@ -1,4 +1,4 @@
-import { ProgressInfo, SectorProgressInfo } from '../types/progress-info';
+import { ProgressInfo, SectorProgressInfo } from '@/types/progress-info';
 
 /**
  * ProgressInfo Builder - 解决参数地狱问题

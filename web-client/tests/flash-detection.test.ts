@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseCFI } from '@/utils/cfi-parser';
+import { parseCFI } from '@/utils/parsers/cfi-parser';
 
 describe('Flash检测功能测试', () => {
   // 创建一个基础的CFI数据缓冲区

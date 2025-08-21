@@ -4,9 +4,9 @@ import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { ProgressInfo, SectorProgressInfo } from '@/types/progress-info';
 import { timeout } from '@/utils/async-utils';
-import { CFIInfo, SectorBlock } from '@/utils/cfi-parser';
 import NotImplementedError from '@/utils/errors/NotImplementedError';
-import { ProgressInfoBuilder } from '@/utils/progress-builder';
+import { CFIInfo, SectorBlock } from '@/utils/parsers/cfi-parser';
+import { ProgressInfoBuilder } from '@/utils/progress/progress-builder';
 import { createSectorProgressInfo } from '@/utils/sector-utils';
 
 // 定义日志和进度回调函数类型

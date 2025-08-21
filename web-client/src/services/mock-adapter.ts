@@ -4,11 +4,11 @@ import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { timeout } from '@/utils/async-utils';
-import { CFIInfo } from '@/utils/cfi-parser';
 import { formatBytes, formatSpeed, formatTimeDuration } from '@/utils/formatter-utils';
-import { ProgressInfoBuilder } from '@/utils/progress-builder';
-import { ProgressReporter } from '@/utils/progress-reporter';
-import { SpeedCalculator } from '@/utils/speed-calculator';
+import { CFIInfo } from '@/utils/parsers/cfi-parser';
+import { ProgressInfoBuilder } from '@/utils/progress/progress-builder';
+import { ProgressReporter } from '@/utils/progress/progress-reporter';
+import { SpeedCalculator } from '@/utils/progress/speed-calculator';
 
 /**
  * 模拟适配器类

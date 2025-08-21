@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { GBA_NINTENDO_LOGO } from '@/utils/rom-parser';
+import { GBA_NINTENDO_LOGO } from '@/utils/parsers/rom-parser';
 
 import { diff16BitUnFilter, huffUnComp } from '../src/utils/compression-utils';
 

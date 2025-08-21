@@ -1,4 +1,4 @@
-import { CFIInfo } from '@/utils/cfi-parser';
+import { CFIInfo } from '@/utils/parsers/cfi-parser';
 
 export type RamType = 'SRAM' | 'FLASH';
 

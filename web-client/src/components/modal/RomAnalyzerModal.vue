@@ -171,7 +171,7 @@ import BaseModal from '@/components/common/BaseModal.vue';
 import { useToast } from '@/composables/useToast';
 import { MBC5_ROM_BASE_ADDRESS } from '@/utils/address-utils';
 import { formatBytes, formatHex } from '@/utils/formatter-utils';
-import { parseRom, type RomInfo } from '@/utils/rom-parser';
+import { parseRom, type RomInfo } from '@/utils/parsers/rom-parser';
 
 interface GameDetectionResult {
   startAddress: number;
