@@ -73,7 +73,7 @@
             <span class="key-mapping">{{ $t('ui.emulator.start') }}: C</span>
             <span class="key-mapping">{{ $t('ui.emulator.select') }}: V</span>
             <span class="key-mapping">{{ $t('ui.emulator.l') }}: Shift左</span>
-            <span class="key-mapping">{{ $t('ui.emulator.r') }}: Shift右</span>
+            <span class="key-mapping">{{ $t('ui.emulator.r') }}: L</span>
           </div>
         </div>
       </div>
@@ -121,7 +121,7 @@ const keyBindings: Record<string, number> = {
   'KeyC': 3, // START
   'KeyV': 2, // SELECT
   'ShiftLeft': 9, // L
-  'ShiftRight': 8, // R
+  'KeyL': 8, // R
 };
 
 onMounted(() => {
