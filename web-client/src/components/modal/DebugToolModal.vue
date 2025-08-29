@@ -222,7 +222,7 @@ import { useI18n } from 'vue-i18n';
 
 import BaseModal from '@/components/common/BaseModal.vue';
 import { useToast } from '@/composables/useToast';
-import { GBACommand, GBCCommand } from '@/protocol/beggar_socket/command';
+import { Command, GBACommand, GBCCommand } from '@/protocol/beggar_socket/command';
 import { createCommandPayload } from '@/protocol/beggar_socket/payload-builder';
 import { getPackage, sendPackage } from '@/protocol/beggar_socket/protocol-utils';
 import type { DeviceInfo } from '@/types/device-info';
@@ -249,7 +249,7 @@ const localVisible = computed({
 });
 
 const selectedCommandType = ref<'GBA' | 'GBC' | ''>('');
-const selectedCommand = ref<number | ''>('');
+const selectedCommand = ref<Command | ''>('');
 const address = ref('');
 const length = ref<number | ''>('');
 const data = ref('');
@@ -421,7 +421,7 @@ async function sendCommand() {
     const startTime = performance.now();
 
     // 构建命令载荷
-    const payloadBuilder = createCommandPayload(selectedCommand.value as number);
+    const payloadBuilder = createCommandPayload(selectedCommand.value as Command);
 
     // 添加地址（如果有）
     const parsedAddress = parseAddress(address.value);

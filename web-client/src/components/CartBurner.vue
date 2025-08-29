@@ -591,7 +591,15 @@ async function readRom() {
 
         let fileName = `exported_${now}.rom`;
         if (romInfo.type !== 'Unknown') {
-          fileName = `${romInfo.title} (${romInfo.region}).rom`;
+          // 清理标题和地区信息中的无效字符
+          const cleanTitle = sanitizeFilename(romInfo.title);
+          const cleanRegion = romInfo.region ? sanitizeFilename(romInfo.region) : '';
+
+          if (cleanTitle && cleanRegion) {
+            fileName = `${cleanTitle} (${cleanRegion}).rom`;
+          } else if (cleanTitle) {
+            fileName = `${cleanTitle}.rom`;
+          }
         }
         saveAsFile(response.data, fileName);
       }
@@ -761,6 +769,28 @@ function saveAsFile(data: Uint8Array, filename: string) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+/**
+ * 清理文件名中的无效字符
+ * @param text 原始文本
+ * @returns 清理后的文本
+ */
+function sanitizeFilename(text: string): string {
+  if (!text) return 'untitled';
+
+  const cleaned = text
+    // 移除替换字符 (�) 和其他控制字符
+    .replace(/\uFFFD/g, '') // Unicode 替换字符
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // 控制字符
+    // 移除文件系统不允许的字符
+    .replace(/[<>:"/\\|?*]/g, '')
+    // 移除前后空格和点
+    .trim()
+    .replace(/^\.+|\.+$/g, '');
+
+  // 如果清理后结果为空，返回默认名称
+  return cleaned || 'untitled';
 }
 
 // 重置组件状态的方法

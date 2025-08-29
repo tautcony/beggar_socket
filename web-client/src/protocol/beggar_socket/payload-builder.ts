@@ -1,5 +1,7 @@
 import { modbusCRC16_lut } from '@/utils/crc-utils';
 
+import { Command } from './command';
+
 /**
  * 高效的 Payload 构建器类，减少数据复制操作
  * 预留包装格式：[size:2bytes] + payload + [crc:2bytes]
@@ -121,7 +123,7 @@ export class PayloadBuilder {
    * 添加命令字节
    * @param command - 命令值
    */
-  addCommand(command: number): this {
+  addCommand(command: Command): this {
     return this.addByte(command);
   }
 
@@ -148,7 +150,7 @@ export function createPayload(initialCapacity?: number): PayloadBuilder {
   return new PayloadBuilder(initialCapacity);
 }
 
-export function createCommandPayload(command: number, initialCapacity?: number): PayloadBuilder {
+export function createCommandPayload(command: Command, initialCapacity?: number): PayloadBuilder {
   const builder = new PayloadBuilder(initialCapacity);
   return builder.addCommand(command);
 }

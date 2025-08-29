@@ -16,3 +16,5 @@ export enum GBCCommand {
   READ = 0xfb,
   ROM_PROGRAM = 0xfc,
 }
+
+export type Command = GBACommand | GBCCommand;
