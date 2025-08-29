@@ -22,7 +22,7 @@
       >
         重置
       </button>
-      <div class="polyfill-toggle">
+      <!--div class="polyfill-toggle">
         <label
           class="toggle-container"
           :title="t('ui.device.usePolyfillTooltip')"
@@ -36,7 +36,7 @@
           <span class="toggle-slider" />
           <span class="toggle-label">{{ t('ui.device.usePolyfill') }}</span>
         </label>
-      </div>
+      </div-->
     </div>
   </div>
 </template>
