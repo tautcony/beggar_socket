@@ -29,6 +29,10 @@
       "romAnalyzerDesc": "ROMファイル構造を分析し、個別ゲームを抽出します",
       "debugTool": "デバッグツール",
       "debugToolDesc": "プロトコルパケットを手動で送受信",
+      "cartridgeTools": "カートリッジツール",
+      "cartridgeToolsDesc": "RTC時計設定、振動テストなどの機能",
+      "cartridgeToolsUnlocked": "カートリッジツールがアンロックされました！",
+      "debugToolUnlocked": "デバッグツールがアンロックされました！",
       "settings": "設定",
       "settingsDesc": "アプリケーションオプションを設定します",
       "about": "アバウト",
@@ -281,11 +285,45 @@
       "baseAddressLabel": "ベースアドレス：",
       "typeSRAM": "SRAM",
       "typeFLASH": "FLASH",
+      "typeFRAM": "FRAM",
       "baseAddressOptions": {
         "fullCart": "フルカート",
         "menu": "メニュー",
         "game": "ゲーム{index}",
         "bank": "バンク{index}"
+      }
+    },
+    "tools": {
+      "title": "カートリッジツール",
+      "rtc": {
+        "title": "RTCクロック",
+        "readGBA": "RTC読み取り(GBA)",
+        "setGBA": "RTC設定(GBA)",
+        "readMBC3": "RTC読み取り(MBC3)",
+        "setMBC3": "RTC設定(MBC3)",
+        "year": "年",
+        "month": "月",
+        "date": "日",
+        "day": "曜日",
+        "hour": "時",
+        "minute": "分",
+        "second": "秒",
+        "dayOfYear": "年の日数",
+        "setCurrentTime": "現在時刻に設定",
+        "sunday": "日曜日",
+        "monday": "月曜日",
+        "tuesday": "火曜日", 
+        "wednesday": "水曜日",
+        "thursday": "木曜日",
+        "friday": "金曜日",
+        "saturday": "土曜日"
+      },
+      "test": {
+        "title": "テスト機能",
+        "rumble": "振動テスト",
+        "ppbUnlock": "PPBアンロック",
+        "ppbUnlockGBA": "PPBアンロック(GBA)",
+        "ppbUnlockMBC5": "PPBアンロック(MBC5)"
       }
     },
     "file": {
@@ -373,7 +411,8 @@
       "yes": "はい",
       "no": "いいえ",
       "cancel": "キャンセル",
-      "save": "保存"
+      "save": "保存",
+      "confirm": "確認"
     }
   },
   "messages": {
@@ -538,6 +577,24 @@
       "readComplete": "読み取り完了、サイズ: {size} バイト",
       "verifying": "検証開始",
       "verifyComplete": "検証完了"
+    },
+    "tools": {
+      "rtc": {
+        "gbaSuccess": "GBA RTC設定成功",
+        "mbc3Success": "MBC3 RTC設定成功",
+        "failed": "RTC設定失敗: {error}",
+        "readSuccess": "RTC読み取り成功: {time}",
+        "readFailed": "RTC読み取り失敗: {error}"
+      },
+      "rumbleSuccess": "振動テスト成功",
+      "rumbleFailed": "振動テスト失敗: {error}",
+      "ppbUnlockSuccess": "PPBアンロック成功",
+      "ppbUnlockFailed": "PPBアンロック失敗: {error}",
+      "ppbUnlockGBASuccess": "GBA PPBアンロック成功",
+      "ppbUnlockGBAFailed": "GBA PPBアンロック失敗: {error}",
+      "ppbUnlockMBC5Success": "MBC5 PPBアンロック成功",
+      "ppbUnlockMBC5Failed": "MBC5 PPBアンロック失敗: {error}",
+      "notImplemented": "機能未実装"
     },
     "debug": {
       "mockModeEnabled": "デバッグモードが有効 - モックデバイスを使用",

@@ -18,6 +18,9 @@
               <option value="FLASH">
                 {{ $t('ui.ram.typeFLASH') }}
               </option>
+              <option value="FRAM">
+                {{ $t('ui.ram.typeFRAM') }}
+              </option>
             </select>
           </div>
           <div

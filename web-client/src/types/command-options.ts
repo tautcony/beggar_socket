@@ -1,6 +1,6 @@
 import { CFIInfo } from '@/utils/parsers/cfi-parser';
 
-export type RamType = 'SRAM' | 'FLASH';
+export type RamType = 'SRAM' | 'FLASH' | 'FRAM';
 
 export interface CommandOptions {
   size?: number,
@@ -10,4 +10,5 @@ export interface CommandOptions {
   cfiInfo: CFIInfo,
   romPageSize?: number;
   ramPageSize?: number;
+  framLatency?: number;
 }

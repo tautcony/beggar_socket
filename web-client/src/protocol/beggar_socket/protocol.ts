@@ -157,6 +157,78 @@ export async function ram_erase_flash(device: DeviceInfo): Promise<void> {
   await ram_write(device, new Uint8Array([0x10]), 0x5555); // Chip-Erase
 }
 
+/**
+ * GBC: FRAM Write with latency (0xea)
+ */
+export async function gbc_write_fram(device: DeviceInfo, data: Uint8Array, baseAddress = 0, latency = 25): Promise<void> {
+  const payload = createCommandPayload(GBCCommand.FRAM_WRITE)
+    .addAddress(baseAddress)
+    .addBytes(new Uint8Array([latency]))
+    .addBytes(data)
+    .build();
+
+  await sendPackage(device, payload);
+  const ack = await getResult(device);
+  if (!ack) throw new Error(`GBC FRAM write failed (Address: ${formatHex(baseAddress, 4)})`);
+}
+
+/**
+ * GBC: FRAM Read with latency (0xeb)
+ */
+export async function gbc_read_fram(device: DeviceInfo, size: number, baseAddress = 0, latency = 25): Promise<Uint8Array> {
+  const payload = createCommandPayload(GBCCommand.FRAM_READ)
+    .addAddress(baseAddress)
+    .addLength(size)
+    .addBytes(new Uint8Array([latency]))
+    .build();
+
+  await sendPackage(device, payload);
+  const res = await getPackage(device, 2 + size);
+  if (res.data && res.data.byteLength >= 2 + size) {
+    return res.data.slice(2);
+  } else {
+    const message = `GBC FRAM read failed (Address: ${formatHex(baseAddress, 4)}, Excepted size: ${size + 2}, Actual size: ${res.data?.byteLength})`;
+    console.error(message, res.data);
+    throw new Error(message);
+  }
+}
+
+/**
+ * GBA: FRAM Write with latency (0xe7)
+ */
+export async function ram_write_fram(device: DeviceInfo, data: Uint8Array, baseAddress = 0, latency = 25): Promise<void> {
+  const payload = createCommandPayload(GBACommand.FRAM_WRITE)
+    .addAddress(baseAddress)
+    .addBytes(new Uint8Array([latency]))
+    .addBytes(data)
+    .build();
+
+  await sendPackage(device, payload);
+  const ack = await getResult(device);
+  if (!ack) throw new Error(`GBA FRAM write failed (Address: ${formatHex(baseAddress, 4)})`);
+}
+
+/**
+ * GBA: FRAM Read with latency (0xe8)
+ */
+export async function ram_read_fram(device: DeviceInfo, size: number, baseAddress = 0, latency = 25): Promise<Uint8Array> {
+  const payload = createCommandPayload(GBACommand.FRAM_READ)
+    .addAddress(baseAddress)
+    .addLength(size)
+    .addBytes(new Uint8Array([latency]))
+    .build();
+
+  await sendPackage(device, payload);
+  const res = await getPackage(device, 2 + size);
+  if (res.data && res.data.byteLength >= 2 + size) {
+    return res.data.slice(2);
+  } else {
+    const message = `GBA FRAM read failed (Address: ${formatHex(baseAddress, 4)}, Excepted size: ${size + 2}, Actual size: ${res.data?.byteLength})`;
+    console.error(message, res.data);
+    throw new Error(message);
+  }
+}
+
 // --- GBC Commands ---
 
 /**

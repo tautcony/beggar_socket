@@ -2,7 +2,9 @@ import {
   ram_erase_flash,
   ram_program_flash,
   ram_read,
+  ram_read_fram,
   ram_write,
+  ram_write_fram,
   rom_erase_chip,
   rom_erase_sector,
   rom_get_id,
@@ -866,6 +868,9 @@ export class GBAAdapter extends CartridgeAdapter {
             // 根据RAM类型选择写入方法
             if (ramType === 'FLASH') {
               await ram_program_flash(this.device, chunk, baseAddr);
+            } else if (ramType === 'FRAM') {
+              const latency = options.framLatency ?? 25;
+              await ram_write_fram(this.device, chunk, baseAddr, latency);
             } else {
               await ram_write(this.device, chunk, baseAddr);
             }
@@ -973,7 +978,9 @@ export class GBAAdapter extends CartridgeAdapter {
             const chunkSize = Math.min(pageSize, remainingSize);
 
             // 读取数据
-            const chunk = await ram_read(this.device, chunkSize, baseAddr);
+            const chunk = ramType === 'FRAM'
+              ? await ram_read_fram(this.device, chunkSize, baseAddr, options.framLatency ?? 25)
+              : await ram_read(this.device, chunkSize, baseAddr);
             const chunkEndTime = Date.now();
             result.set(chunk, read);
 

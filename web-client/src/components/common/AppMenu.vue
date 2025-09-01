@@ -49,6 +49,7 @@
         </button>
 
         <button
+          v-if="showDebugTool"
           class="menu-item"
           @click="openDebugTool"
         >
@@ -56,6 +57,18 @@
           <div class="menu-item-content">
             <span class="menu-item-title">{{ $t('ui.menu.debugTool') }}</span>
             <span class="menu-item-desc">{{ $t('ui.menu.debugToolDesc') }}</span>
+          </div>
+        </button>
+
+        <button
+          v-if="showCartridgeTools"
+          class="menu-item"
+          @click="openCartridgeTools"
+        >
+          <IonIcon :icon="buildOutline" />
+          <div class="menu-item-content">
+            <span class="menu-item-title">{{ $t('ui.menu.cartridgeTools') }}</span>
+            <span class="menu-item-desc">{{ $t('ui.menu.cartridgeToolsDesc') }}</span>
           </div>
         </button>
 
@@ -106,6 +119,14 @@
       @close="closeDebugTool"
     />
 
+    <!-- 卡带工具弹框 -->
+    <CartridgeToolsModal
+      v-model:is-visible="isCartridgeToolsVisible"
+      :device="device"
+      :mode="currentMode"
+      @close="closeCartridgeTools"
+    />
+
     <!-- 关于弹框 -->
     <AboutModal
       v-model="isAboutVisible"
@@ -125,6 +146,7 @@
 import { IonIcon } from '@ionic/vue';
 import {
   analyticsOutline,
+  buildOutline,
   constructOutline,
   informationCircleOutline,
   menuOutline,
@@ -136,6 +158,7 @@ import { useI18n } from 'vue-i18n';
 
 import AboutModal from '@/components/modal/AboutModal.vue';
 import AdvancedSettingsModal from '@/components/modal/AdvancedSettingsModal.vue';
+import CartridgeToolsModal from '@/components/modal/CartridgeToolsModal.vue';
 import DebugToolModal from '@/components/modal/DebugToolModal.vue';
 import RomAnalyzerModal from '@/components/modal/RomAnalyzerModal.vue';
 import RomAssemblyModal from '@/components/modal/RomAssemblyModal.vue';
@@ -162,11 +185,38 @@ const isMenuOpen = ref(false);
 const isRomAssemblyVisible = ref(false);
 const isRomAnalyzerVisible = ref(false);
 const isDebugToolVisible = ref(false);
+const isCartridgeToolsVisible = ref(false);
 const isSettingsVisible = ref(false);
 const isAboutVisible = ref(false);
 
+const clickCount = ref(0);
+let clickTimer: NodeJS.Timeout | null = null;
+
+const showCartridgeTools = ref(false);
+const showDebugTool = ref(false);
+
 function toggleMenu() {
   isMenuOpen.value = !isMenuOpen.value;
+
+  clickCount.value++;
+
+  if (clickCount.value >= 5 && !showCartridgeTools.value) {
+    showCartridgeTools.value = true;
+    showToast(t('ui.menu.cartridgeToolsUnlocked'), 'success');
+  }
+
+  if (clickCount.value >= 8 && !showDebugTool.value) {
+    showDebugTool.value = true;
+    showToast(t('ui.menu.debugToolUnlocked'), 'success');
+  }
+
+  if (clickTimer) {
+    clearTimeout(clickTimer);
+  }
+
+  clickTimer = setTimeout(() => {
+    clickCount.value = 0;
+  }, 3000);
 }
 
 function closeMenu() {
@@ -203,6 +253,15 @@ function openDebugTool() {
 
 function closeDebugTool() {
   isDebugToolVisible.value = false;
+}
+
+function openCartridgeTools() {
+  closeMenu();
+  isCartridgeToolsVisible.value = true;
+}
+
+function closeCartridgeTools() {
+  isCartridgeToolsVisible.value = false;
 }
 
 function openSettings() {

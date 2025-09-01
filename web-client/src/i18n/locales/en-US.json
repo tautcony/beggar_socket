@@ -28,7 +28,11 @@
       "romAnalyzer": "ROM Analyzer & Extractor",
       "romAnalyzerDesc": "Analyze ROM file structure and extract individual games",
       "debugTool": "Debug Tool",
-      "debugToolDesc": "Manually send and receive protocol packets",
+      "debugToolDesc": "Manually send and receive protocol messages",
+      "cartridgeTools": "Cartridge Tools",
+      "cartridgeToolsDesc": "RTC clock setting, rumble test and other functions",
+      "cartridgeToolsUnlocked": "Cartridge Tools Unlocked!",
+      "debugToolUnlocked": "Debug Tool Unlocked!",
       "settings": "Settings",
       "settingsDesc": "Configure application options",
       "about": "About",
@@ -281,11 +285,45 @@
       "baseAddressLabel": "Base Address:",
       "typeSRAM": "SRAM",
       "typeFLASH": "FLASH",
+      "typeFRAM": "FRAM",
       "baseAddressOptions": {
         "fullCart": "Full Cart",
         "menu": "Menu",
         "game": "Game{index}",
         "bank": "Bank{index}"
+      }
+    },
+    "tools": {
+      "title": "Cartridge Tools",
+      "rtc": {
+        "title": "RTC Clock",
+        "readGBA": "RTC Read (GBA)",
+        "setGBA": "RTC Set (GBA)",
+        "readMBC3": "RTC Read (MBC3)",
+        "setMBC3": "RTC Set (MBC3)",
+        "year": "Year",
+        "month": "Month",
+        "date": "Date",
+        "day": "Day",
+        "hour": "Hour",
+        "minute": "Minute",
+        "second": "Second",
+        "dayOfYear": "Day of Year",
+        "setCurrentTime": "Set Current Time",
+        "sunday": "Sunday",
+        "monday": "Monday",
+        "tuesday": "Tuesday", 
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday"
+      },
+      "test": {
+        "title": "Test Functions",
+        "rumble": "Rumble Test",
+        "ppbUnlock": "PPB Unlock",
+        "ppbUnlockGBA": "PPB Unlock (GBA)",
+        "ppbUnlockMBC5": "PPB Unlock (MBC5)"
       }
     },
     "file": {
@@ -373,7 +411,8 @@
       "yes": "Yes",
       "no": "No",
       "cancel": "Cancel",
-      "save": "Save"
+      "save": "Save",
+      "confirm": "Confirm"
     }
   },
   "messages": {
@@ -538,6 +577,24 @@
       "readComplete": "Read complete, size: {size} bytes",
       "verifying": "Start verifying",
       "verifyComplete": "Verify complete"
+    },
+    "tools": {
+      "rtc": {
+        "gbaSuccess": "GBA RTC set successfully",
+        "mbc3Success": "MBC3 RTC set successfully",
+        "failed": "RTC setting failed: {error}",
+        "readSuccess": "RTC read successfully: {time}",
+        "readFailed": "RTC read failed: {error}"
+      },
+      "rumbleSuccess": "Rumble test successful",
+      "rumbleFailed": "Rumble test failed: {error}",
+      "ppbUnlockSuccess": "PPB unlock successful",
+      "ppbUnlockFailed": "PPB unlock failed: {error}",
+      "ppbUnlockGBASuccess": "GBA PPB unlock successful",
+      "ppbUnlockGBAFailed": "GBA PPB unlock failed: {error}",
+      "ppbUnlockMBC5Success": "MBC5 PPB unlock successful",
+      "ppbUnlockMBC5Failed": "MBC5 PPB unlock failed: {error}",
+      "notImplemented": "Feature not yet implemented"
     },
     "debug": {
       "mockModeEnabled": "Debug mode enabled - using mock device",

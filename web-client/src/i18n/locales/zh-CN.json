@@ -29,6 +29,10 @@
       "romAnalyzerDesc": "分析ROM文件结构并提取单个游戏",
       "debugTool": "调试工具",
       "debugToolDesc": "手动发送和接收协议报文",
+      "cartridgeTools": "卡带工具",
+      "cartridgeToolsDesc": "RTC时钟设置、震动测试等功能",
+      "cartridgeToolsUnlocked": "卡带工具已解锁！",
+      "debugToolUnlocked": "调试工具已解锁！",
       "settings": "设置",
       "settingsDesc": "配置应用程序选项",
       "about": "关于",
@@ -281,11 +285,45 @@
       "baseAddressLabel": "基址:",
       "typeSRAM": "SRAM",
       "typeFLASH": "FLASH",
+      "typeFRAM": "FRAM",
       "baseAddressOptions": {
         "fullCart": "整卡",
         "menu": "菜单",
         "game": "游戏{index}",
         "bank": "Bank{index}"
+      }
+    },
+    "tools": {
+      "title": "卡带工具",
+      "rtc": {
+        "title": "RTC时钟",
+        "readGBA": "RTC读取(GBA)",
+        "setGBA": "RTC设置(GBA)",
+        "readMBC3": "RTC读取(MBC3)",
+        "setMBC3": "RTC设置(MBC3)",
+        "year": "年",
+        "month": "月",
+        "date": "日",
+        "day": "星期",
+        "hour": "时",
+        "minute": "分",
+        "second": "秒",
+        "dayOfYear": "年中天数",
+        "setCurrentTime": "设为当前时间",
+        "sunday": "星期日",
+        "monday": "星期一",
+        "tuesday": "星期二", 
+        "wednesday": "星期三",
+        "thursday": "星期四",
+        "friday": "星期五",
+        "saturday": "星期六"
+      },
+      "test": {
+        "title": "测试功能",
+        "rumble": "震动测试",
+        "ppbUnlock": "PPB解锁",
+        "ppbUnlockGBA": "PPB解锁(GBA)",
+        "ppbUnlockMBC5": "PPB解锁(MBC5)"
       }
     },
     "file": {
@@ -373,7 +411,8 @@
       "yes": "是",
       "no": "否",
       "cancel": "取消",
-      "save": "保存"
+      "save": "保存",
+      "confirm": "确认"
     }
   },
   "messages": {
@@ -538,6 +577,24 @@
       "readComplete": "读取完成，大小：{size} 字节",
       "verifying": "开始校验",
       "verifyComplete": "校验完成"
+    },
+    "tools": {
+      "rtc": {
+        "gbaSuccess": "GBA RTC设置成功",
+        "mbc3Success": "MBC3 RTC设置成功",
+        "failed": "RTC设置失败: {error}",
+        "readSuccess": "RTC读取成功: {time}",
+        "readFailed": "RTC读取失败: {error}"
+      },
+      "rumbleSuccess": "震动测试成功",
+      "rumbleFailed": "震动测试失败: {error}",
+      "ppbUnlockSuccess": "PPB解锁成功",
+      "ppbUnlockFailed": "PPB解锁失败: {error}",
+      "ppbUnlockGBASuccess": "GBA PPB解锁成功",
+      "ppbUnlockGBAFailed": "GBA PPB解锁失败: {error}",
+      "ppbUnlockMBC5Success": "MBC5 PPB解锁成功",
+      "ppbUnlockMBC5Failed": "MBC5 PPB解锁失败: {error}",
+      "notImplemented": "功能尚未实现"
     },
     "debug": {
       "mockModeEnabled": "调试模式已启用 - 使用模拟设备",

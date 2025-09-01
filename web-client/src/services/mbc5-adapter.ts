@@ -1,10 +1,12 @@
 import {
   gbc_read,
+  gbc_read_fram,
   gbc_rom_erase_chip,
   gbc_rom_erase_sector,
   gbc_rom_get_id,
   gbc_rom_program,
   gbc_write,
+  gbc_write_fram,
 } from '@/protocol/beggar_socket/protocol';
 import { getFlashName } from '@/protocol/beggar_socket/protocol-utils';
 import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
@@ -800,6 +802,7 @@ export class MBC5Adapter extends CartridgeAdapter {
   override async writeRAM(fileData: Uint8Array, options: CommandOptions) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
     const pageSize = Math.min(options.ramPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
+    const ramType = options.ramType ?? 'SRAM';
 
     this.log(this.t('messages.operation.startWriteRAM', {
       fileSize: fileData.length,
@@ -844,7 +847,12 @@ export class MBC5Adapter extends CartridgeAdapter {
             const cartAddress = 0xa000 + (ramAddress & 0x1fff);
 
             // 写入数据
-            await gbc_write(this.device, chunk, cartAddress);
+            if (ramType === 'FRAM') {
+              const latency = options.framLatency ?? 25;
+              await gbc_write_fram(this.device, chunk, cartAddress, latency);
+            } else {
+              await gbc_write(this.device, chunk, cartAddress);
+            }
 
             const chunkEndTime = Date.now();
 
@@ -907,6 +915,7 @@ export class MBC5Adapter extends CartridgeAdapter {
   override async readRAM(size: number, options: CommandOptions) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
     const pageSize = Math.min(options.ramPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
+    const ramType = options.ramType ?? 'SRAM';
 
     this.log(this.t('messages.operation.startReadRAM', {
       size,
@@ -947,7 +956,9 @@ export class MBC5Adapter extends CartridgeAdapter {
             const chunkSize = Math.min(pageSize, remainingSize);
 
             // 读取数据
-            const chunk = await gbc_read(this.device, chunkSize, cartAddress);
+            const chunk = ramType === 'FRAM'
+              ? await gbc_read_fram(this.device, chunkSize, cartAddress, options.framLatency ?? 25)
+              : await gbc_read(this.device, chunkSize, cartAddress);
             const chunkEndTime = Date.now();
             result.set(chunk, read);
 
