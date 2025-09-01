@@ -1,32 +1,40 @@
 <template>
   <div class="toast-container">
-    <div
-      v-for="toast in toasts"
-      :key="toast.id"
-      :class="['global-toast', toast.type]"
-      @mouseenter="pauseTimer(toast.id)"
-      @mouseleave="resumeTimer(toast.id)"
+    <transition-group
+      name="toast"
+      tag="div"
+      class="toast-group"
+      @before-leave="beforeLeave"
     >
-      <div class="toast-content">
-        <div class="toast-icon">
-          <IonIcon
-            v-if="toast.type === 'success'"
-            :icon="checkmarkCircle"
-          />
-          <IonIcon
-            v-else-if="toast.type === 'error'"
-            :icon="closeCircle"
-          />
-          <IonIcon
-            v-else
-            :icon="informationCircle"
-          />
-        </div>
-        <div class="toast-message">
-          {{ toast.message }}
+      <div
+        v-for="toast in toasts"
+        :key="toast.id"
+        :ref="(el: any) => setToastRef(toast.id, el as HTMLElement)"
+        :class="['global-toast', toast.type]"
+        @mouseenter="pauseTimer(toast.id)"
+        @mouseleave="resumeTimer(toast.id)"
+      >
+        <div class="toast-content">
+          <div class="toast-icon">
+            <IonIcon
+              v-if="toast.type === 'success'"
+              :icon="checkmarkCircle"
+            />
+            <IonIcon
+              v-else-if="toast.type === 'error'"
+              :icon="closeCircle"
+            />
+            <IonIcon
+              v-else
+              :icon="informationCircle"
+            />
+          </div>
+          <div class="toast-message">
+            {{ toast.message }}
+          </div>
         </div>
       </div>
-    </div>
+    </transition-group>
   </div>
 </template>
 
@@ -49,7 +57,16 @@ interface Toast {
 }
 
 const toasts = ref<Toast[]>([]);
+const toastRefs = ref<Map<number, HTMLElement>>(new Map());
 let toastIdCounter = 0;
+
+function setToastRef(toastId: number, el: HTMLElement | null) {
+  if (el) {
+    toastRefs.value.set(toastId, el);
+  } else {
+    toastRefs.value.delete(toastId);
+  }
+}
 
 function showToast(msg: string, toastType: ToastType = 'success', duration = 3000) {
   const id = ++toastIdCounter;
@@ -125,8 +142,18 @@ function removeToast(toastId: number) {
     if (toast.timer) {
       clearTimeout(toast.timer);
     }
+
     toasts.value.splice(index, 1);
   }
+}
+
+function beforeLeave(el: Element) {
+  // 在离开动画开始前锁定宽度
+  const htmlEl = el as HTMLElement;
+  const currentWidth = htmlEl.getBoundingClientRect().width;
+  htmlEl.style.width = `${currentWidth}px`;
+  htmlEl.style.minWidth = `${currentWidth}px`;
+  htmlEl.style.maxWidth = `${currentWidth}px`;
 }
 
 declare global {
@@ -150,6 +177,12 @@ if (typeof window !== 'undefined') {
   flex-direction: column;
   gap: 8px;
   pointer-events: none;
+}
+
+.toast-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .global-toast {
@@ -207,18 +240,37 @@ if (typeof window !== 'undefined') {
 }
 
 /* 动画效果 */
-.global-toast {
-  animation: slideIn 0.3s ease-out;
+.toast-enter-active {
+  transition: all 0.3s ease-out;
 }
 
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 0.96;
-  }
+.toast-leave-active {
+  transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+  position: absolute;
+  right: 0;
+}
+
+.toast-enter-from {
+  transform: translateX(100%);
+  opacity: 0;
+}
+
+.toast-enter-to {
+  transform: translateX(0);
+  opacity: 0.96;
+}
+
+.toast-leave-from {
+  transform: translateX(0);
+  opacity: 0.96;
+}
+
+.toast-leave-to {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+
+.toast-move {
+  transition: transform 0.3s ease-out;
 }
 </style>
