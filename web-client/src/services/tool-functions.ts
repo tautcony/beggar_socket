@@ -1,252 +1,42 @@
 import { gbc_read, gbc_write, rom_read, rom_write } from '@/protocol/beggar_socket/protocol';
 import { DeviceInfo } from '@/types/device-info';
 
-export interface GBARTCData {
-  year: number;
-  month: number;
-  date: number;
-  day: number;
-  hour: number;
-  minute: number;
-  second: number;
-}
-
-export interface MBC3RTCData {
-  day: number;
-  hour: number;
-  minute: number;
-  second: number;
-}
-
-/**
- * 将整数转换为压缩BCD码
- */
-function intToCompressedBCD(number: number): number {
-  const tens = Math.floor(number / 10);
-  const units = number % 10;
-  return (tens << 4) | units;
-}
-
-/**
- * 将压缩BCD码转换为整数
- */
-function compressedBCDToInt(bcd: number): number {
-  const tens = (bcd >> 4) & 0x0f;
-  const units = bcd & 0x0f;
-  return tens * 10 + units;
-}
-
-/**
- * GBA RTC GPIO 操作函数
- */
-async function s3511_writeByte(device: DeviceInfo, value: number): Promise<void> {
-  // 设置SIO为输出
-  await rom_write(device, new Uint8Array([7, 0]), 0xc6 >> 1); // sio out
-
-  for (let i = 0; i < 8; i++) {
-    const bit = (value & 0x01) !== 0 ? 0x02 : 0x00;
-    value >>= 1;
-
-    await rom_write(device, new Uint8Array([4 | bit, 0]), 0xc4 >> 1); // cs 1, sck 0
-    await rom_write(device, new Uint8Array([5 | bit, 0]), 0xc4 >> 1); // cs 1, sck 1
-  }
-}
-
-async function s3511_readByte(device: DeviceInfo): Promise<number> {
-  let value = 0;
-
-  // 设置SIO为输入
-  await rom_write(device, new Uint8Array([5, 0]), 0xc6 >> 1); // sio in
-
-  for (let i = 0; i < 8; i++) {
-    await rom_write(device, new Uint8Array([4, 0]), 0xc4 >> 1); // cs 1, sck 0
-    await rom_write(device, new Uint8Array([5, 0]), 0xc4 >> 1); // cs 1, sck 1
-
-    const data = await rom_read(device, 2, 0xc4);
-
-    // lsb in
-    value >>= 1;
-    if ((data[0] & 0x02) !== 0) {
-      value |= 0x80;
-    }
-  }
-
-  return value;
-}
+import { type GBARTCData, type MBC3RTCData, RTCManager } from './rtc';
 
 /**
  * 设置GBA RTC时间
  */
 export async function setGBARTC(device: DeviceInfo, rtcData: GBARTCData): Promise<void> {
-  try {
-    // 检测GPIO功能
-    const read1 = await rom_read(device, 6, 0xc4);
-    await rom_write(device, new Uint8Array([0x01, 0x00]), 0xc8 >> 1); // enable gpio
-    const read2 = await rom_read(device, 6, 0xc4);
-    await rom_write(device, new Uint8Array([0x00, 0x00]), 0xc8 >> 1); // disable gpio
-
-    // 检查是否有GPIO功能
-    let hasGPIO = false;
-    for (let i = 0; i < 6; i++) {
-      if (read1[i] !== read2[i]) {
-        hasGPIO = true;
-        break;
-      }
-    }
-
-    if (!hasGPIO) {
-      throw new Error('Cartridge does not have GPIO functionality');
-    }
-
-    // 正确初始化GPIO
-    await rom_write(device, new Uint8Array([0x01, 0x00]), 0xc4 >> 1); // cs 0, sck 1
-    await rom_write(device, new Uint8Array([0x07, 0x00]), 0xc6 >> 1); // cs sio sck output
-    await rom_write(device, new Uint8Array([0x01, 0x00]), 0xc8 >> 1); // enable gpio
-
-    // 读取RTC状态
-    await s3511_writeByte(device, 0xc6);
-    const status = await s3511_readByte(device);
-    await rom_write(device, new Uint8Array([0x01, 0x00]), 0xc4 >> 1); // cs 0, sck 1
-
-    // 如果电池没电，重置RTC
-    if ((status & 0x80) !== 0) {
-      await s3511_writeByte(device, 0x06); // reset
-      await rom_write(device, new Uint8Array([0x01, 0x00]), 0xc4 >> 1); // cs 0, sck 1
-
-      await s3511_writeByte(device, 0x46); // write status
-      await s3511_writeByte(device, 0x40); // 24 hour mode
-      await rom_write(device, new Uint8Array([0x01, 0x00]), 0xc4 >> 1); // cs 0, sck 1
-    }
-
-    // 设置时间
-    const year = intToCompressedBCD(rtcData.year % 100); // 只取后两位
-    const month = intToCompressedBCD(rtcData.month);
-    const date = intToCompressedBCD(rtcData.date);
-    const day = intToCompressedBCD(rtcData.day);
-    const hour = intToCompressedBCD(rtcData.hour);
-    const minute = intToCompressedBCD(rtcData.minute);
-    const second = intToCompressedBCD(rtcData.second);
-
-    await s3511_writeByte(device, 0x26); // write time command
-    await s3511_writeByte(device, year);
-    await s3511_writeByte(device, month);
-    await s3511_writeByte(device, date);
-    await s3511_writeByte(device, day);
-    await s3511_writeByte(device, hour);
-    await s3511_writeByte(device, minute);
-    await s3511_writeByte(device, second);
-    await rom_write(device, new Uint8Array([0x01, 0x00]), 0xc4 >> 1); // cs 0, sck 1
-
-    // 等待写入完成
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // 验证写入：重新读取时间来确认写入成功
-    for (let i = 4; i > 0; i--) {
-      // 重新启用GPIO
-      await rom_write(device, new Uint8Array([0x01, 0x00]), 0xc8 >> 1); // enable gpio
-
-      // 读取时间验证
-      await s3511_writeByte(device, 0xa6);
-      const verifyYear = compressedBCDToInt(await s3511_readByte(device));
-      const verifyMonth = compressedBCDToInt(await s3511_readByte(device) & 0x1f);
-      const verifyDate = compressedBCDToInt(await s3511_readByte(device) & 0x3f);
-      const verifyDay = compressedBCDToInt(await s3511_readByte(device) & 0x07);
-      const verifyHour = compressedBCDToInt(await s3511_readByte(device) & 0x3f);
-      const verifyMinute = compressedBCDToInt(await s3511_readByte(device) & 0x7f);
-      const verifySecond = compressedBCDToInt(await s3511_readByte(device) & 0x7f);
-
-      await rom_write(device, new Uint8Array([0x01, 0x00]), 0xc4 >> 1); // cs 0, sck 1
-      await rom_write(device, new Uint8Array([0x00, 0x00]), 0xc8 >> 1); // disable gpio
-
-      console.log(`验证 ${i}: ${verifyYear}-${verifyMonth}-${verifyDate} ${verifyHour}:${verifyMinute}:${verifySecond} 星期${verifyDay}`);
-
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-
-    // 最终禁用GPIO
-    await rom_write(device, new Uint8Array([0x00, 0x00]), 0xc8 >> 1); // disable gpio
-  } catch (error) {
-    // 确保在出错时也清理GPIO状态
-    try {
-      await rom_write(device, new Uint8Array([0x00, 0x00]), 0xc8 >> 1); // disable gpio
-    } catch (cleanupError) {
-      console.error('清理GPIO状态时出错:', cleanupError);
-    }
-    throw error; // 重新抛出原始错误
-  }
+  const rtcManager = new RTCManager('gba', device);
+  await rtcManager.setTime(rtcData);
 }
 
 /**
  * 设置MBC3 RTC时间
  */
 export async function setMBC3RTC(device: DeviceInfo, rtcData: MBC3RTCData): Promise<void> {
-  // 启用RAM访问
-  await gbc_write(device, new Uint8Array([0x0a]), 0x0000);
-
-  // 读取当前时间以验证功能
-  await gbc_write(device, new Uint8Array([0x01]), 0x6000); // 锁存时间
-
-  const buffer: number[] = [];
-  for (let i = 0x08; i <= 0x0d; i++) {
-    await gbc_write(device, new Uint8Array([i]), 0x4000);
-    const data = await gbc_read(device, 1, 0xa000);
-    buffer.push(data[0]);
-  }
-
-  await gbc_write(device, new Uint8Array([0x00]), 0x6000); // 解锁
-
-  // 准备新的时间数据
-  const timeData = [
-    rtcData.second,
-    rtcData.minute,
-    rtcData.hour,
-    rtcData.day & 0xff,
-    (rtcData.day & 0x100) >> 8, // 修正日期高位计算
-  ];
-
-  // 停止计时器
-  await gbc_write(device, new Uint8Array([0x00]), 0x6000);
-  await gbc_write(device, new Uint8Array([0x01]), 0x6000); // 锁存时间
-  await gbc_write(device, new Uint8Array([0x0c]), 0x4000); // RTC DH
-  await gbc_write(device, new Uint8Array([0x40]), 0xa000); // Bit 6: Halt
-
-  // 写入新时间
-  for (let i = 0x08; i <= 0x0d; i++) {
-    await gbc_write(device, new Uint8Array([i]), 0x4000);
-    const value = timeData[i - 0x08];
-    await gbc_write(device, new Uint8Array([value]), 0xa000);
-  }
-
-  // 重启计时器
-  await gbc_write(device, new Uint8Array([0x00]), 0x6000);
-  await gbc_write(device, new Uint8Array([0x01]), 0x6000);
-  await gbc_write(device, new Uint8Array([0x00]), 0x4000);
-  await gbc_write(device, new Uint8Array([0x00]), 0x0000);
-  await new Promise(resolve => setTimeout(resolve, 100));
-  await gbc_write(device, new Uint8Array([0x00]), 0x6000);
-  await new Promise(resolve => setTimeout(resolve, 100));
-
-  // 验证设置 - 重新读取时间
-  await gbc_write(device, new Uint8Array([0x0a]), 0x0000); // EnableRAM
-  for (let ii = 5; ii > 0; ii--) {
-    const verifyBuffer: number[] = [];
-    await gbc_write(device, new Uint8Array([0x01]), 0x6000); // 锁存时间
-    for (let i = 0x08; i <= 0x0d; i++) {
-      await gbc_write(device, new Uint8Array([i]), 0x4000);
-      const data = await gbc_read(device, 1, 0xa000);
-      verifyBuffer.push(data[0]);
-    }
-    await gbc_write(device, new Uint8Array([0x00]), 0x6000); // 解锁
-
-    const verifyDay = ((verifyBuffer[4] & 0x01) << 8) | verifyBuffer[3];
-    const verifyHour = verifyBuffer[2];
-    const verifyMinute = verifyBuffer[1];
-    const verifySecond = verifyBuffer[0];
-
-    console.log(`验证 ${ii}: ${verifyDay}日 ${verifyHour}:${verifyMinute}:${verifySecond}`);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-  }
+  const rtcManager = new RTCManager('mbc3', device);
+  await rtcManager.setTime(rtcData);
 }
+
+/**
+ * 读取GBA RTC信息
+ */
+export async function readGBARTC(device: DeviceInfo): Promise<{ status: boolean; time?: Date; error?: string }> {
+  const rtcManager = new RTCManager('gba', device);
+  return await rtcManager.readTime();
+}
+
+/**
+ * 读取MBC3 RTC信息
+ */
+export async function readMBC3RTC(device: DeviceInfo): Promise<{ status: boolean; time?: Date; error?: string }> {
+  const rtcManager = new RTCManager('mbc3', device);
+  return await rtcManager.readTime();
+}
+
+// 导出RTC相关类型供其他地方使用
+export type { GBARTCData, MBC3RTCData } from './rtc';
 
 /**
  * 震动测试 (GBA)
@@ -276,125 +66,6 @@ export async function rumbleTest(device: DeviceInfo): Promise<void> {
     await rom_write(device, new Uint8Array([0x02, 0x00]), 0x000800);
     await rom_write(device, new Uint8Array([0x00, 0x00]), 0x000800);
     await new Promise(resolve => setTimeout(resolve, 50));
-  }
-}
-
-/**
- * 读取GBA RTC信息
- */
-export async function readGBARTC(device: DeviceInfo): Promise<{ status: boolean; time?: Date; error?: string }> {
-  try {
-    // 检测GPIO功能
-    const read1 = await rom_read(device, 6, 0xc4);
-    await rom_write(device, new Uint8Array([0x01, 0x00]), 0xc8 >> 1); // enable gpio
-    const read2 = await rom_read(device, 6, 0xc4);
-    await rom_write(device, new Uint8Array([0x00, 0x00]), 0xc8 >> 1); // disable gpio
-
-    // 检查是否有GPIO功能
-    let hasGPIO = false;
-    for (let i = 0; i < 6; i++) {
-      if (read1[i] !== read2[i]) {
-        hasGPIO = true;
-        break;
-      }
-    }
-
-    if (!hasGPIO) {
-      return { status: false, error: 'Cartridge does not have GPIO functionality' };
-    }
-
-    // 初始化GPIO
-    await rom_write(device, new Uint8Array([0x01, 0x00]), 0xc4 >> 1); // cs 0, sck 1
-    await rom_write(device, new Uint8Array([0x07, 0x00]), 0xc6 >> 1); // cs sio sck output
-    await rom_write(device, new Uint8Array([0x01, 0x00]), 0xc8 >> 1); // enable gpio
-
-    // 读取RTC状态验证连接
-    await s3511_writeByte(device, 0xc6);
-    const status = await s3511_readByte(device);
-    await rom_write(device, new Uint8Array([0x01, 0x00]), 0xc4 >> 1); // cs 0, sck 1
-
-    console.log(`RTC Status: 0x${status.toString(16)}`);
-
-    // 如果电池没电，重置RTC（但仍然可以读取时间）
-    if ((status & 0x80) !== 0) {
-      console.log('电池没电，重置RTC');
-      await s3511_writeByte(device, 0x06); // reset
-      await rom_write(device, new Uint8Array([0x01, 0x00]), 0xc4 >> 1); // cs 0, sck 1
-
-      await s3511_writeByte(device, 0x46); // write status
-      await s3511_writeByte(device, 0x40); // 24 hour mode
-      await rom_write(device, new Uint8Array([0x01, 0x00]), 0xc4 >> 1); // cs 0, sck 1
-    }
-
-    // 读取时间数据
-    await s3511_writeByte(device, 0xa6); // read time command
-    const year = compressedBCDToInt(await s3511_readByte(device));
-    const month = compressedBCDToInt(await s3511_readByte(device) & 0x1f);
-    const date = compressedBCDToInt(await s3511_readByte(device) & 0x3f);
-    const day = compressedBCDToInt(await s3511_readByte(device) & 0x07);
-    const hour = compressedBCDToInt(await s3511_readByte(device) & 0x3f);
-    const minute = compressedBCDToInt(await s3511_readByte(device) & 0x7f);
-    const second = compressedBCDToInt(await s3511_readByte(device) & 0x7f);
-
-    await rom_write(device, new Uint8Array([0x01, 0x00]), 0xc4 >> 1); // cs 0, sck 1
-
-    const time = new Date(2000 + year, month - 1, date, hour, minute, second);
-
-    // 清理：禁用GPIO
-    await rom_write(device, new Uint8Array([0x00, 0x00]), 0xc8 >> 1); // disable gpio
-
-    return { status: true, time };
-  } catch (error) {
-    console.error('读取GBA RTC时出错:', error);
-    // 确保在出错时也清理GPIO状态
-    try {
-      await rom_write(device, new Uint8Array([0x00, 0x00]), 0xc8 >> 1); // disable gpio
-    } catch (cleanupError) {
-      console.error('清理GPIO状态时出错:', cleanupError);
-    }
-    return { status: false, error: error instanceof Error ? error.message : '未知错误' };
-  }
-}
-
-/**
- * 读取MBC3 RTC信息
- */
-export async function readMBC3RTC(device: DeviceInfo): Promise<{ status: boolean; time?: Date; error?: string }> {
-  try {
-    // MBC3 RTC读取序列
-    // 启用RTC寄存器访问
-    await gbc_write(device, new Uint8Array([0x0A]), 0x0000);
-
-    // 锁存当前时间
-    await gbc_write(device, new Uint8Array([0x00]), 0x6000);
-    await gbc_write(device, new Uint8Array([0x01]), 0x6000);
-
-    // 读取时间寄存器
-    await gbc_write(device, new Uint8Array([0x08]), 0x4000); // 选择秒寄存器
-    const second = (await gbc_read(device, 1, 0xa000))[0] & 0x3F;
-
-    await gbc_write(device, new Uint8Array([0x09]), 0x4000); // 选择分寄存器
-    const minute = (await gbc_read(device, 1, 0xa000))[0] & 0x3F;
-
-    await gbc_write(device, new Uint8Array([0x0A]), 0x4000); // 选择时寄存器
-    const hour = (await gbc_read(device, 1, 0xa000))[0] & 0x1F;
-
-    await gbc_write(device, new Uint8Array([0x0B]), 0x4000); // 选择日寄存器低位
-    const dayLow = (await gbc_read(device, 1, 0xa000))[0];
-
-    await gbc_write(device, new Uint8Array([0x0C]), 0x4000); // 选择日寄存器高位
-    const dayHigh = (await gbc_read(device, 1, 0xa000))[0] & 0x01;
-
-    const day = dayLow | (dayHigh << 8);
-
-    // MBC3没有年月信息，使用当前年月
-    const now = new Date();
-    const time = new Date(now.getFullYear(), now.getMonth(), day, hour, minute, second);
-
-    return { status: true, time };
-  } catch (error) {
-    console.error('读取MBC3 RTC时出错:', error);
-    return { status: false, error: error instanceof Error ? error.message : '未知错误' };
   }
 }
 
