@@ -222,6 +222,7 @@
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import { closeOutline, documentsOutline } from 'ionicons/icons';
+import { DateTime } from 'luxon';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -457,7 +458,7 @@ function assembleAndDownload() {
   const assembled = assembleRom(slots.value, config.value);
 
   // 创建文件名
-  const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '_');
+  const timestamp = DateTime.now().toFormat('yyyyMMdd_HHmmss');
   const fileName = `assembled_${selectedRomType.value.toLowerCase()}_${timestamp}.rom`;
 
   // 下载文件

@@ -145,6 +145,7 @@
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import { folderOpenOutline, playOutline } from 'ionicons/icons';
+import { DateTime } from 'luxon';
 import { computed, defineAsyncComponent, onErrorCaptured, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -344,7 +345,7 @@ function closeEmulator() {
 function onRomAssembled(assembled: AssembledRom) {
   // 将组装的ROM数据作为单个文件传递给父组件
   const assembledFileInfo: FileInfo = {
-    name: `assembled_${props.mode.toLowerCase()}_${new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')}.bin`,
+    name: `assembled_${props.mode.toLowerCase()}_${DateTime.now().toFormat('yyyyMMddTHHmmss')}.bin`,
     data: assembled.data,
     size: assembled.data.length,
   };

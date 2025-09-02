@@ -348,7 +348,7 @@ function finishOperation() {
 }
 
 function log(msg: string, level: LogLevelType = 'info') {
-  const time = new Date().toLocaleTimeString();
+  const time = DateTime.now().toLocaleString(DateTime.TIME_24_WITH_SECONDS);
   const message = msg;
   logs.value.push({ time, message, level });
   console.log(`[${time}] [${level}] ${message}`);
