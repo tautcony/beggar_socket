@@ -1,3 +1,5 @@
+import { DateTime } from 'luxon';
+
 import { gbc_read, gbc_write } from '@/protocol/beggar_socket/protocol';
 
 import { BaseRTC } from './base-rtc';
@@ -74,6 +76,38 @@ export class MBC3RTC extends BaseRTC {
   }
 
   /**
+   * 验证写入时间（在已启用RAM的状态下进行）
+   */
+  private async verifyWrittenTime(attempts = 5): Promise<void> {
+    for (let ii = attempts; ii > 0; ii--) {
+      const verifyBuffer: number[] = [];
+      await this.latchTime();
+      for (let i = 0x08; i <= 0x0c; i++) {
+        verifyBuffer.push(await this.readRTCRegister(i));
+      }
+      await this.unlatchTime();
+
+      const verifyDay = ((verifyBuffer[4] & 0x01) << 8) | verifyBuffer[3];
+      const verifyHour = verifyBuffer[2];
+      const verifyMinute = verifyBuffer[1];
+      const verifySecond = verifyBuffer[0];
+
+      // 使用luxon格式化输出
+      const currentYear = DateTime.now().year;
+      const dt = DateTime.fromObject({ year: currentYear, month: 1, day: 1 })
+        .plus({ days: verifyDay - 1 })
+        .set({ hour: verifyHour, minute: verifyMinute, second: verifySecond });
+
+      if (dt.isValid) {
+        console.log(`验证 ${ii}: ${dt.toFormat('yyyy-MM-dd HH:mm:ss')} (第${verifyDay}天)`);
+      } else {
+        console.log(`验证 ${ii}: ${verifyDay}日 ${verifyHour}:${verifyMinute}:${verifySecond} (无效日期)`);
+      }
+      await this.delay(1000);
+    }
+  }
+
+  /**
    * 检查MBC3 RTC功能是否可用
    */
   async checkCapability(): Promise<boolean> {
@@ -100,6 +134,27 @@ export class MBC3RTC extends BaseRTC {
     const rtcData = timeData as MBC3RTCData;
 
     try {
+      // 使用luxon验证输入的时间是否有效
+      const currentYear = DateTime.now().year;
+      const isLeapYear = DateTime.local(currentYear).isInLeapYear;
+      const maxDays = isLeapYear ? 366 : 365;
+
+      if (rtcData.day < 1 || rtcData.day > maxDays) {
+        throw new Error(`Invalid day of year: ${rtcData.day}. Must be between 1 and ${maxDays}`);
+      }
+
+      if (rtcData.hour < 0 || rtcData.hour > 23) {
+        throw new Error(`Invalid hour: ${rtcData.hour}. Must be between 0 and 23`);
+      }
+
+      if (rtcData.minute < 0 || rtcData.minute > 59) {
+        throw new Error(`Invalid minute: ${rtcData.minute}. Must be between 0 and 59`);
+      }
+
+      if (rtcData.second < 0 || rtcData.second > 59) {
+        throw new Error(`Invalid second: ${rtcData.second}. Must be between 0 and 59`);
+      }
+
       await this.enableRAMAccess();
 
       // 读取当前时间以验证功能
@@ -130,8 +185,8 @@ export class MBC3RTC extends BaseRTC {
       // 重启计时器
       await this.startTimer();
 
-      // 验证设置
-      await this.verifyTimeSet(5);
+      // 验证设置（使用专门的验证方法，不重新启用RAM）
+      await this.verifyWrittenTime(5);
     } catch (error) {
       console.error('设置MBC3 RTC时间失败:', error);
       throw error;
@@ -139,9 +194,31 @@ export class MBC3RTC extends BaseRTC {
   }
 
   /**
+   * 从DateTime设置MBC3 RTC时间
+   */
+  async setTimeFromDateTime(dt: DateTime): Promise<void> {
+    const rtcData: MBC3RTCData = {
+      day: dt.ordinal, // luxon直接提供年中天数
+      hour: dt.hour,
+      minute: dt.minute,
+      second: dt.second,
+    };
+
+    await this.setTime(rtcData);
+  }
+
+  /**
+   * 设置当前时间到RTC
+   */
+  async setCurrentTime(timezone?: string): Promise<void> {
+    const now = timezone ? DateTime.now().setZone(timezone) : DateTime.now();
+    await this.setTimeFromDateTime(now);
+  }
+
+  /**
    * 读取MBC3 RTC时间
    */
-  async readTime(): Promise<{ status: boolean; time?: Date; error?: string }> {
+  async readTime(): Promise<{ status: boolean; time?: DateTime; error?: string }> {
     try {
       await this.enableRAMAccess();
 
@@ -158,9 +235,15 @@ export class MBC3RTC extends BaseRTC {
 
       const day = dayLow | (dayHigh << 8);
 
-      // MBC3没有年月信息，使用当前年月
-      const now = new Date();
-      const time = new Date(now.getFullYear(), now.getMonth(), day, hour, minute, second);
+      // MBC3没有年月信息，使用当前年份的开始，然后加上天数
+      const currentYear = DateTime.now().year;
+      const time = DateTime.fromObject({ year: currentYear, month: 1, day: 1 })
+        .plus({ days: day - 1 })
+        .set({ hour: hour, minute: minute, second: second });
+
+      if (!time.isValid) {
+        throw new Error(`Invalid date/time values: ${time.invalidReason}`);
+      }
 
       return { status: true, time };
     } catch (error) {
@@ -188,7 +271,17 @@ export class MBC3RTC extends BaseRTC {
       const verifyMinute = verifyBuffer[1];
       const verifySecond = verifyBuffer[0];
 
-      console.log(`验证 ${ii}: ${verifyDay}日 ${verifyHour}:${verifyMinute}:${verifySecond}`);
+      // 使用luxon格式化输出
+      const currentYear = DateTime.now().year;
+      const dt = DateTime.fromObject({ year: currentYear, month: 1, day: 1 })
+        .plus({ days: verifyDay - 1 })
+        .set({ hour: verifyHour, minute: verifyMinute, second: verifySecond });
+
+      if (dt.isValid) {
+        console.log(`验证 ${ii}: ${dt.toFormat('yyyy-MM-dd HH:mm:ss')} (第${verifyDay}天)`);
+      } else {
+        console.log(`验证 ${ii}: ${verifyDay}日 ${verifyHour}:${verifyMinute}:${verifySecond} (无效日期)`);
+      }
       await this.delay(1000);
     }
   }

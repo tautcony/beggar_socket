@@ -316,7 +316,19 @@
         "wednesday": "Wednesday",
         "thursday": "Thursday",
         "friday": "Friday",
-        "saturday": "Saturday"
+        "saturday": "Saturday",
+        "currentSetting": "Current Setting",
+        "timeDiff": {
+          "fast": "fast",
+          "slow": "slow",
+          "units": {
+            "second": "second",
+            "minute": "minute",
+            "hour": "hour",
+            "day": "day"
+          }
+        },
+        "invalidDate": "Invalid Date"
       },
       "test": {
         "title": "Test Functions",
@@ -324,6 +336,10 @@
         "ppbUnlock": "PPB Unlock",
         "ppbUnlockGBA": "PPB Unlock (GBA)",
         "ppbUnlockMBC5": "PPB Unlock (MBC5)"
+      },
+      "ppb": {
+        "sectorCountPrompt": "Please enter the number of sectors to check (1-{max}):",
+        "sectorCountError": "Sector count must be an integer between {min} and {max}"
       }
     },
     "file": {

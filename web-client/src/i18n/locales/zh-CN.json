@@ -316,7 +316,19 @@
         "wednesday": "星期三",
         "thursday": "星期四",
         "friday": "星期五",
-        "saturday": "星期六"
+        "saturday": "星期六",
+        "currentSetting": "当前设置",
+        "timeDiff": {
+          "fast": "快",
+          "slow": "慢",
+          "units": {
+            "second": "秒",
+            "minute": "分",
+            "hour": "小时",
+            "day": "天"
+          }
+        },
+        "invalidDate": "无效日期"
       },
       "test": {
         "title": "测试功能",
@@ -324,6 +336,10 @@
         "ppbUnlock": "PPB解锁",
         "ppbUnlockGBA": "PPB解锁(GBA)",
         "ppbUnlockMBC5": "PPB解锁(MBC5)"
+      },
+      "ppb": {
+        "sectorCountPrompt": "请输入要检查的扇区数量 (1-{max}):",
+        "sectorCountError": "扇区数量必须是{min}-{max}之间的整数"
       }
     },
     "file": {

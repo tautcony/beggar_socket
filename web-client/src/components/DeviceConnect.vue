@@ -23,19 +23,12 @@
         重置
       </button>
       <!--div class="polyfill-toggle">
-        <label
-          class="toggle-container"
-          :title="t('ui.device.usePolyfillTooltip')"
-        >
-          <input
-            v-model="usePolyfill"
-            type="checkbox"
-            :disabled="connected || isConnecting"
-            class="toggle-input"
-          >
-          <span class="toggle-slider" />
-          <span class="toggle-label">{{ t('ui.device.usePolyfill') }}</span>
-        </label>
+        <ToggleSwitch
+          v-model="usePolyfill"
+          :label="t('ui.device.usePolyfill')"
+          :tooltip="t('ui.device.usePolyfillTooltip')"
+          :disabled="connected || isConnecting"
+        />
       </div-->
     </div>
   </div>
@@ -52,6 +45,7 @@ import { useToast } from '@/composables/useToast';
 import { DebugSettings } from '@/settings/debug-settings';
 import { DeviceInfo } from '@/types/device-info';
 import { timeout } from '@/utils/async-utils';
+// import ToggleSwitch from '@/components/common/ToggleSwitch.vue';
 
 const { showToast } = useToast();
 const { t } = useI18n();
@@ -289,72 +283,6 @@ defineExpose({
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-
-.toggle-container {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  user-select: none;
-  font-size: 0.95rem;
-}
-
-.toggle-container[title] {
-  cursor: help;
-}
-
-.toggle-input {
-  display: none;
-}
-
-.toggle-slider {
-  position: relative;
-  width: 44px;
-  height: 24px;
-  background-color: #ccc;
-  border-radius: 12px;
-  transition: background-color 0.3s ease;
-}
-
-.toggle-slider::before {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 20px;
-  height: 20px;
-  background-color: white;
-  border-radius: 50%;
-  transition: transform 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.toggle-input:checked+.toggle-slider {
-  background-color: #007bff;
-}
-
-.toggle-input:checked+.toggle-slider::before {
-  transform: translateX(20px);
-}
-
-.toggle-input:disabled+.toggle-slider {
-  background-color: #e0e0e0;
-  cursor: not-allowed;
-}
-
-.toggle-input:disabled+.toggle-slider::before {
-  background-color: #f5f5f5;
-}
-
-.toggle-container:has(.toggle-input:disabled) {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.toggle-label {
-  color: #333;
-  font-weight: 500;
 }
 
 .device-connect {

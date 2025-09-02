@@ -1,3 +1,5 @@
+import { DateTime } from 'luxon';
+
 import { DeviceInfo } from '@/types/device-info';
 
 /**
@@ -36,30 +38,52 @@ export abstract class BaseRTC {
   }
 
   /**
-   * 验证时间设置 - 子类可以重写此方法来自定义验证逻辑
+   * 验证时间设置
    */
   protected async verifyTimeSet(attempts = 5): Promise<void> {
     for (let i = attempts; i > 0; i--) {
       const result = await this.readTime();
       if (result.status && result.time) {
-        console.log(`验证 ${i}: ${result.time.toLocaleString()}`);
+        console.log(`验证 ${i}: ${result.time.toFormat('yyyy-MM-dd HH:mm:ss')}`);
       }
       await this.delay(500);
     }
   }
 
   /**
-   * 设置RTC时间 - 抽象方法，由子类实现
+   * 格式化时间显示
+   */
+  protected formatDateTime(dateTime: DateTime, format = 'yyyy-MM-dd HH:mm:ss'): string {
+    return dateTime.isValid ? dateTime.toFormat(format) : 'Invalid Date';
+  }
+
+  /**
+   * 获取当前时间的DateTime对象
+   */
+  protected static getCurrentDateTime(timezone?: string): DateTime {
+    return timezone ? DateTime.now().setZone(timezone) : DateTime.now();
+  }
+
+  /**
+   * 验证日期时间是否合理
+   */
+  protected static isValidDateTime(year: number, month: number, day: number, hour: number, minute: number, second: number): boolean {
+    const dt = DateTime.fromObject({ year, month, day, hour, minute, second });
+    return dt.isValid;
+  }
+
+  /**
+   * 设置RTC时间
    */
   abstract setTime(timeData: unknown): Promise<void>;
 
   /**
-   * 读取RTC时间 - 抽象方法，由子类实现
+   * 读取RTC时间
    */
-  abstract readTime(): Promise<{ status: boolean; time?: Date; error?: string }>;
+  abstract readTime(): Promise<{ status: boolean; time?: DateTime; error?: string }>;
 
   /**
-   * 检查RTC功能是否可用 - 抽象方法，由子类实现
+   * 检查RTC功能是否可用
    */
   abstract checkCapability(): Promise<boolean>;
 }

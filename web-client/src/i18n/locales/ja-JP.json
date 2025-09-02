@@ -316,7 +316,19 @@
         "wednesday": "水曜日",
         "thursday": "木曜日",
         "friday": "金曜日",
-        "saturday": "土曜日"
+        "saturday": "土曜日",
+        "currentSetting": "現在の設定",
+        "timeDiff": {
+          "fast": "進み",
+          "slow": "遅れ",
+          "units": {
+            "second": "秒",
+            "minute": "分",
+            "hour": "時間",
+            "day": "日"
+          }
+        },
+        "invalidDate": "無効な日付"
       },
       "test": {
         "title": "テスト機能",
@@ -324,6 +336,10 @@
         "ppbUnlock": "PPBアンロック",
         "ppbUnlockGBA": "PPBアンロック(GBA)",
         "ppbUnlockMBC5": "PPBアンロック(MBC5)"
+      },
+      "ppb": {
+        "sectorCountPrompt": "チェックするセクタ数を入力してください (1-{max}):",
+        "sectorCountError": "セクタ数は{min}～{max}の間の整数である必要があります"
       }
     },
     "file": {

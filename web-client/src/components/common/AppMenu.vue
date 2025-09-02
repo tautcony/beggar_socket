@@ -123,7 +123,6 @@
     <CartridgeToolsModal
       v-model:is-visible="isCartridgeToolsVisible"
       :device="device"
-      :mode="currentMode"
       @close="closeCartridgeTools"
     />
 
@@ -195,17 +194,15 @@ let clickTimer: NodeJS.Timeout | null = null;
 const showCartridgeTools = ref(false);
 const showDebugTool = ref(false);
 
-function toggleMenu() {
-  isMenuOpen.value = !isMenuOpen.value;
-
+function incrementClickCount() {
   clickCount.value++;
 
-  if (clickCount.value >= 5 && !showCartridgeTools.value) {
+  if (clickCount.value >= 3 && !showCartridgeTools.value) {
     showCartridgeTools.value = true;
     showToast(t('ui.menu.cartridgeToolsUnlocked'), 'success');
   }
 
-  if (clickCount.value >= 8 && !showDebugTool.value) {
+  if (clickCount.value >= 5 && !showDebugTool.value) {
     showDebugTool.value = true;
     showToast(t('ui.menu.debugToolUnlocked'), 'success');
   }
@@ -217,6 +214,11 @@ function toggleMenu() {
   clickTimer = setTimeout(() => {
     clickCount.value = 0;
   }, 3000);
+}
+
+function toggleMenu() {
+  isMenuOpen.value = !isMenuOpen.value;
+  incrementClickCount();
 }
 
 function closeMenu() {

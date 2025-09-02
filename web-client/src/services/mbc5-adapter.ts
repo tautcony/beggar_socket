@@ -1135,7 +1135,7 @@ export class MBC5Adapter extends CartridgeAdapter {
         }
       },
       {
-        adapter_type: 'gba',
+        adapter_type: 'mbc5',
         operation_type: 'get_cart_info',
       },
     );

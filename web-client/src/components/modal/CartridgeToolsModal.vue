@@ -14,25 +14,25 @@
             <div class="button-group">
               <button
                 :disabled="!device || busy"
-                @click="handleReadGBARTC"
+                @click="() => handleReadRTC('GBA')"
               >
                 {{ $t('ui.tools.rtc.readGBA') }}
               </button>
               <button
                 :disabled="!device || busy"
-                @click="handleSetGBARTC"
+                @click="() => handleSetRTC('GBA')"
               >
                 {{ $t('ui.tools.rtc.setGBA') }}
               </button>
               <button
                 :disabled="!device || busy"
-                @click="handleReadMBC3RTC"
+                @click="() => handleReadRTC('MBC3')"
               >
                 {{ $t('ui.tools.rtc.readMBC3') }}
               </button>
               <button
                 :disabled="!device || busy"
-                @click="handleSetMBC3RTC"
+                @click="() => handleSetRTC('MBC3')"
               >
                 {{ $t('ui.tools.rtc.setMBC3') }}
               </button>
@@ -77,24 +77,24 @@
 </template>
 
 <script setup lang="ts">
+import { DateTime } from 'luxon';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import BaseModal from '@/components/common/BaseModal.vue';
 import RTCModal from '@/components/modal/RTCModal.vue';
 import { useToast } from '@/composables/useToast';
-import { type GBARTCData, type MBC3RTCData, ppbUnlockGBA, ppbUnlockMBC5, readGBARTC, readMBC3RTC, rumbleTest, setGBARTC, setMBC3RTC } from '@/services/tool-functions';
+import type { GBARTCData, MBC3RTCData } from '@/services/rtc';
+import { ppbUnlockGBA, ppbUnlockMBC5, readRTC, rumbleTest, setRTC } from '@/services/tool-functions';
 import type { DeviceInfo } from '@/types/device-info';
 
 interface Props {
   isVisible: boolean;
   device?: DeviceInfo | null;
-  mode?: 'GBA' | 'MBC5';
 }
 
 const props = withDefaults(defineProps<Props>(), {
   device: null,
-  mode: 'GBA',
 });
 
 const emit = defineEmits<{
@@ -121,17 +121,43 @@ function closeModal() {
   emit('close');
 }
 
-function handleSetGBARTC() {
-  rtcType.value = 'GBA';
+// 计算时间差异的辅助函数
+function calculateTimeDifference(rtcTime: DateTime): string {
+  const rawDiff = DateTime.now().diff(rtcTime);
+  const diff = rawDiff.mapUnits(Math.abs);
+  const { days, hours, minutes, seconds } = diff.shiftTo('days', 'hours', 'minutes', 'seconds');
+
+  // 过滤有效单位，最小0.1秒
+  const units = [
+    [days, t('ui.tools.rtc.timeDiff.units.day')],
+    [hours, t('ui.tools.rtc.timeDiff.units.hour')],
+    [minutes, t('ui.tools.rtc.timeDiff.units.minute')],
+    [seconds >= 0.1 ? seconds : 0, t('ui.tools.rtc.timeDiff.units.second')],
+  ].filter(([value]) => (value as number) > 0).slice(0, 2);
+
+  if (units.length === 0) return '';
+
+  const speedText = rawDiff.as('milliseconds') >= 0
+    ? t('ui.tools.rtc.timeDiff.slow')
+    : t('ui.tools.rtc.timeDiff.fast');
+
+  const parts = units.map(([value, unit]) => {
+    const numValue = value as number;
+    const formattedValue = numValue === seconds
+      ? (Math.round(numValue * 10) / 10).toFixed(1)
+      : Math.floor(numValue).toString();
+    return formattedValue + String(unit);
+  });
+
+  return `${speedText} ${parts.join(' ')}`;
+}
+
+function handleSetRTC(type: 'GBA' | 'MBC3') {
+  rtcType.value = type;
   isRTCModalVisible.value = true;
 }
 
-function handleSetMBC3RTC() {
-  rtcType.value = 'MBC3';
-  isRTCModalVisible.value = true;
-}
-
-async function handleReadGBARTC() {
+async function handleReadRTC(type: 'GBA' | 'MBC3') {
   if (!props.device) {
     showToast(t('messages.device.notConnected'), 'error');
     return;
@@ -139,11 +165,15 @@ async function handleReadGBARTC() {
 
   busy.value = true;
   try {
-    const result = await readGBARTC(props.device);
+    const result = await readRTC(props.device, type);
     if (result.status && result.time) {
+      const timeDiff = calculateTimeDifference(result.time);
+      const timeText = timeDiff
+        ? `${result.time.toFormat('yyyy-MM-dd HH:mm:ss')} (${timeDiff})`
+        : result.time.toFormat('yyyy-MM-dd HH:mm:ss');
       showToast(
         t('messages.tools.rtc.readSuccess', {
-          time: result.time.toLocaleString(),
+          time: timeText,
         }),
         'success',
       );
@@ -156,44 +186,7 @@ async function handleReadGBARTC() {
       );
     }
   } catch (error) {
-    console.error('读取GBA RTC失败:', error);
-    showToast(
-      t('messages.tools.rtc.readFailed', {
-        error: error instanceof Error ? error.message : String(error),
-      }),
-      'error',
-    );
-  } finally {
-    busy.value = false;
-  }
-}
-
-async function handleReadMBC3RTC() {
-  if (!props.device) {
-    showToast(t('messages.device.notConnected'), 'error');
-    return;
-  }
-
-  busy.value = true;
-  try {
-    const result = await readMBC3RTC(props.device);
-    if (result.status && result.time) {
-      showToast(
-        t('messages.tools.rtc.readSuccess', {
-          time: result.time.toLocaleString(),
-        }),
-        'success',
-      );
-    } else {
-      showToast(
-        t('messages.tools.rtc.readFailed', {
-          error: result.error ?? '未知错误',
-        }),
-        'error',
-      );
-    }
-  } catch (error) {
-    console.error('读取MBC3 RTC失败:', error);
+    console.error(`读取${type} RTC失败:`, error);
     showToast(
       t('messages.tools.rtc.readFailed', {
         error: error instanceof Error ? error.message : String(error),
@@ -220,10 +213,10 @@ async function handleRTCConfirm(data: GBARTCData | MBC3RTCData) {
 
   try {
     if (rtcType.value === 'GBA') {
-      await setGBARTC(props.device, data as GBARTCData);
+      await setRTC(props.device, 'GBA', data as GBARTCData);
       showToast(t('messages.tools.rtc.gbaSuccess'), 'success');
     } else {
-      await setMBC3RTC(props.device, data as MBC3RTCData);
+      await setRTC(props.device, 'MBC3', data as MBC3RTCData);
       showToast(t('messages.tools.rtc.mbc3Success'), 'success');
     }
   } catch (error) {
@@ -269,14 +262,14 @@ async function handlePPBUnlockGBA() {
   }
 
   // 获取用户输入的扇区数量
-  const sectorCountInput = prompt('请输入要检查的扇区数量 (1-512):', '16');
+  const sectorCountInput = prompt(t('ui.tools.ppb.sectorCountPrompt', { max: 512 }), '16');
   if (sectorCountInput === null) {
     return; // 用户取消了输入
   }
 
   const sectorCount = parseInt(sectorCountInput, 10);
   if (isNaN(sectorCount) || sectorCount <= 0 || sectorCount > 512) {
-    showToast('扇区数量必须是1-512之间的整数', 'error');
+    showToast(t('ui.tools.ppb.sectorCountError', { min: 1, max: 512 }), 'error');
     return;
   }
 
@@ -317,14 +310,14 @@ async function handlePPBUnlockMBC5() {
   }
 
   // 获取用户输入的扇区数量
-  const sectorCountInput = prompt('请输入要检查的扇区数量 (1-256):', '16');
+  const sectorCountInput = prompt(t('ui.tools.ppb.sectorCountPrompt', { max: 256 }), '16');
   if (sectorCountInput === null) {
     return; // 用户取消了输入
   }
 
   const sectorCount = parseInt(sectorCountInput, 10);
   if (isNaN(sectorCount) || sectorCount <= 0 || sectorCount > 256) {
-    showToast('扇区数量必须是1-256之间的整数', 'error');
+    showToast(t('ui.tools.ppb.sectorCountError', { min: 1, max: 256 }), 'error');
     return;
   }
 

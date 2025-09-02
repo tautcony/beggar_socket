@@ -10,6 +10,18 @@
       v-if="type === 'GBA'"
       class="datetime-form"
     >
+      <div class="current-datetime-display">
+        <div class="datetime-preview">
+          <span class="label">{{ $t('ui.tools.rtc.currentSetting') }}:</span>
+          <span
+            class="datetime-value"
+            :class="{ 'invalid': !isGBADateValid }"
+          >
+            {{ currentDateTime }}
+          </span>
+        </div>
+      </div>
+
       <div class="form-row">
         <div class="form-group">
           <label>{{ $t('ui.tools.rtc.year') }}:</label>
@@ -46,18 +58,11 @@
       <div class="form-row">
         <div class="form-group">
           <label>{{ $t('ui.tools.rtc.day') }}:</label>
-          <select
-            v-model="gbaDate.day"
-            class="select-input"
+          <input
+            :value="weekDays[gbaDate.day]"
+            readonly
+            class="readonly-input"
           >
-            <option
-              v-for="(dayName, index) in weekDays"
-              :key="index"
-              :value="index"
-            >
-              {{ dayName }}
-            </option>
-          </select>
         </div>
         <div class="form-group">
           <label>{{ $t('ui.tools.rtc.hour') }}:</label>
@@ -96,6 +101,18 @@
       v-else-if="type === 'MBC3'"
       class="datetime-form"
     >
+      <div class="current-datetime-display">
+        <div class="datetime-preview">
+          <span class="label">{{ $t('ui.tools.rtc.currentSetting') }}:</span>
+          <span
+            class="datetime-value"
+            :class="{ 'invalid': !isMBC3DateValid }"
+          >
+            {{ currentDateTime }}
+          </span>
+        </div>
+      </div>
+
       <div class="form-row">
         <div class="form-group">
           <label>{{ $t('ui.tools.rtc.dayOfYear') }}:</label>
@@ -141,12 +158,12 @@
     </div>
 
     <template #footer>
-      <button
-        class="button secondary"
-        @click="setCurrentTime"
-      >
-        {{ $t('ui.tools.rtc.setCurrentTime') }}
-      </button>
+      <div class="current-time-toggle">
+        <ToggleSwitch
+          v-model="isRealTimeEnabled"
+          :label="$t('ui.tools.rtc.setCurrentTime')"
+        />
+      </div>
       <div class="button-group">
         <button
           class="button secondary"
@@ -156,6 +173,7 @@
         </button>
         <button
           class="button primary"
+          :disabled="!isDateValid"
           @click="confirm"
         >
           {{ $t('ui.common.confirm') }}
@@ -166,10 +184,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue';
+import { DateTime } from 'luxon';
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import BaseModal from '@/components/common/BaseModal.vue';
+import ToggleSwitch from '@/components/common/ToggleSwitch.vue';
 
 interface Props {
   isVisible: boolean;
@@ -201,6 +221,9 @@ export interface MBC3RTCData {
 }
 
 const { t } = useI18n();
+
+const isRealTimeEnabled = ref(false);
+const updateInterval = ref<ReturnType<typeof setInterval> | null>(null);
 
 const localVisible = computed({
   get: () => props.isVisible,
@@ -244,31 +267,109 @@ const title = computed(() => {
     : t('ui.tools.rtc.setMBC3');
 });
 
+// Computed property to show current date/time in a readable format
+const currentDateTime = computed(() => {
+  if (props.type === 'GBA') {
+    const dt = DateTime.fromObject({
+      year: gbaDate.year + 2000,
+      month: gbaDate.month,
+      day: gbaDate.date,
+      hour: gbaDate.hour,
+      minute: gbaDate.minute,
+      second: gbaDate.second,
+    });
+    return dt.isValid ? dt.toFormat('yyyy-MM-dd HH:mm:ss') : t('ui.tools.rtc.invalidDate');
+  } else {
+    const dt = DateTime.now().startOf('year').plus({ days: mbc3Date.day - 1 })
+      .set({ hour: mbc3Date.hour, minute: mbc3Date.minute, second: mbc3Date.second });
+    return dt.isValid ? dt.toFormat('yyyy-MM-dd HH:mm:ss') : t('ui.tools.rtc.invalidDate');
+  }
+});
+
+// Validation for GBA date
+const isGBADateValid = computed(() => {
+  if (props.type !== 'GBA') return true;
+
+  const dt = DateTime.fromObject({
+    year: gbaDate.year + 2000,
+    month: gbaDate.month,
+    day: gbaDate.date,
+    hour: gbaDate.hour,
+    minute: gbaDate.minute,
+    second: gbaDate.second,
+  });
+
+  return dt.isValid;
+});
+
+// Validation for MBC3 date
+const isMBC3DateValid = computed(() => {
+  if (props.type !== 'MBC3') return true;
+
+  const currentYear = DateTime.now().year;
+  const isLeapYear = DateTime.local(currentYear).isInLeapYear;
+  const maxDays = isLeapYear ? 366 : 365;
+
+  return mbc3Date.day >= 1 && mbc3Date.day <= maxDays &&
+         mbc3Date.hour >= 0 && mbc3Date.hour <= 23 &&
+         mbc3Date.minute >= 0 && mbc3Date.minute <= 59 &&
+         mbc3Date.second >= 0 && mbc3Date.second <= 59;
+});
+
+const isDateValid = computed(() => {
+  return props.type === 'GBA' ? isGBADateValid.value : isMBC3DateValid.value;
+});
+
 function closeModal() {
   emit('close');
 }
 
 function setCurrentTime() {
-  const now = new Date();
+  const now = DateTime.now();
 
   if (props.type === 'GBA') {
-    gbaDate.year = now.getFullYear() - 2000;
-    gbaDate.month = now.getMonth() + 1;
-    gbaDate.date = now.getDate();
-    gbaDate.day = now.getDay();
-    gbaDate.hour = now.getHours();
-    gbaDate.minute = now.getMinutes();
-    gbaDate.second = now.getSeconds();
+    gbaDate.year = now.year - 2000;
+    gbaDate.month = now.month;
+    gbaDate.date = now.day;
+    gbaDate.day = now.weekday % 7; // luxon: 1-7 (Monday-Sunday), convert to 0-6 (Sunday-Saturday)
+    gbaDate.hour = now.hour;
+    gbaDate.minute = now.minute;
+    gbaDate.second = now.second;
   } else {
-    const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
+    const dayOfYear = now.ordinal; // luxon provides ordinal day directly
     mbc3Date.day = dayOfYear;
-    mbc3Date.hour = now.getHours();
-    mbc3Date.minute = now.getMinutes();
-    mbc3Date.second = now.getSeconds();
+    mbc3Date.hour = now.hour;
+    mbc3Date.minute = now.minute;
+    mbc3Date.second = now.second;
   }
 }
 
+function startRealTimeUpdate() {
+  if (updateInterval.value) {
+    clearInterval(updateInterval.value);
+  }
+  setCurrentTime(); // 立即更新一次
+  updateInterval.value = setInterval(setCurrentTime, 1000); // 每秒更新
+}
+
+function stopRealTimeUpdate() {
+  if (updateInterval.value) {
+    clearInterval(updateInterval.value);
+    updateInterval.value = null;
+  }
+}
+
+function cleanupInterval() {
+  stopRealTimeUpdate();
+}
+
 function confirm() {
+  // Validate the date before confirming
+  if (!isDateValid.value) {
+    console.warn('Invalid date detected, cannot confirm');
+    return;
+  }
+
   if (props.type === 'GBA') {
     emit('confirm', { ...gbaDate });
   } else {
@@ -281,11 +382,61 @@ function initializeCurrentTime() {
   setCurrentTime();
 }
 
-// Call initialization when component is mounted or visible changes
+// Watch for real-time toggle changes
+watch(isRealTimeEnabled, (enabled) => {
+  if (enabled) {
+    startRealTimeUpdate();
+  } else {
+    stopRealTimeUpdate();
+  }
+});
+
+// Watch for date changes to auto-correct invalid values
+watch([() => gbaDate.month, () => gbaDate.year], () => {
+  if (props.type === 'GBA') {
+    // Auto-correct date when month or year changes
+    const maxDays = DateTime.fromObject({
+      year: gbaDate.year + 2000,
+      month: gbaDate.month,
+    }).daysInMonth ?? 31;
+
+    if (gbaDate.date > maxDays) {
+      gbaDate.date = maxDays;
+    }
+  }
+});
+
+// Watch for date changes to auto-calculate day of week
+watch([() => gbaDate.year, () => gbaDate.month, () => gbaDate.date], () => {
+  if (props.type === 'GBA') {
+    const dt = DateTime.fromObject({
+      year: gbaDate.year + 2000,
+      month: gbaDate.month,
+      day: gbaDate.date,
+    });
+
+    if (dt.isValid) {
+      // luxon weekday: 1 = Monday, 7 = Sunday
+      // 转换为我们的格式: 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      gbaDate.day = dt.weekday === 7 ? 0 : dt.weekday;
+    }
+  }
+});
+
+// Watch for input blur to auto-correct values
 watch(() => props.isVisible, (visible) => {
   if (visible) {
     initializeCurrentTime();
+  } else {
+    // Clean up when modal closes
+    isRealTimeEnabled.value = false;
+    stopRealTimeUpdate();
   }
+});
+
+// Cleanup on component unmount
+onBeforeUnmount(() => {
+  cleanupInterval();
 });
 </script>
 
@@ -294,6 +445,37 @@ watch(() => props.isVisible, (visible) => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.current-datetime-display {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.datetime-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.datetime-preview .label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.datetime-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.datetime-value.invalid {
+  color: #dc2626;
 }
 
 .form-row {
@@ -324,11 +506,27 @@ watch(() => props.isVisible, (visible) => {
   font-size: 0.875rem;
 }
 
+.readonly-input {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 0.875rem;
+  cursor: not-allowed;
+}
+
 .number-input:focus,
 .select-input:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.current-time-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .button-group {
@@ -354,6 +552,13 @@ watch(() => props.isVisible, (visible) => {
 .button.primary:hover {
   background: #2563eb;
   border-color: #2563eb;
+}
+
+.button.primary:disabled {
+  background: #9ca3af;
+  border-color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .button.secondary {

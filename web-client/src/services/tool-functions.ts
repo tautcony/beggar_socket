@@ -1,70 +1,58 @@
+import { DateTime } from 'luxon';
+
 import { gbc_read, gbc_write, rom_read, rom_write } from '@/protocol/beggar_socket/protocol';
+import { toLittleEndian } from '@/protocol/beggar_socket/protocol-utils';
 import { DeviceInfo } from '@/types/device-info';
 
 import { type GBARTCData, type MBC3RTCData, RTCManager } from './rtc';
 
 /**
- * 设置GBA RTC时间
+ * 设置RTC时间
+ * @param device - 设备信息
+ * @param type - RTC类型，'GBA' 或 'MBC3'
+ * @param rtcData - RTC数据
  */
-export async function setGBARTC(device: DeviceInfo, rtcData: GBARTCData): Promise<void> {
-  const rtcManager = new RTCManager('gba', device);
+export async function setRTC(device: DeviceInfo, type: 'GBA' | 'MBC3', rtcData: GBARTCData | MBC3RTCData): Promise<void> {
+  const rtcManager = new RTCManager(type, device);
   await rtcManager.setTime(rtcData);
 }
 
 /**
- * 设置MBC3 RTC时间
+ * 读取RTC信息
+ * @param device - 设备信息
+ * @param type - RTC类型，'GBA' 或 'MBC3'
  */
-export async function setMBC3RTC(device: DeviceInfo, rtcData: MBC3RTCData): Promise<void> {
-  const rtcManager = new RTCManager('mbc3', device);
-  await rtcManager.setTime(rtcData);
-}
-
-/**
- * 读取GBA RTC信息
- */
-export async function readGBARTC(device: DeviceInfo): Promise<{ status: boolean; time?: Date; error?: string }> {
-  const rtcManager = new RTCManager('gba', device);
+export async function readRTC(device: DeviceInfo, type: 'GBA' | 'MBC3'): Promise<{ status: boolean; time?: DateTime; error?: string }> {
+  const rtcManager = new RTCManager(type, device);
   return await rtcManager.readTime();
 }
-
-/**
- * 读取MBC3 RTC信息
- */
-export async function readMBC3RTC(device: DeviceInfo): Promise<{ status: boolean; time?: Date; error?: string }> {
-  const rtcManager = new RTCManager('mbc3', device);
-  return await rtcManager.readTime();
-}
-
-// 导出RTC相关类型供其他地方使用
-export type { GBARTCData, MBC3RTCData } from './rtc';
 
 /**
  * 震动测试 (GBA)
  */
 export async function rumbleTest(device: DeviceInfo): Promise<void> {
-  console.log('震动测试');
 
   console.log('GPIO 指令');
   // GPIO 震动控制序列
-  await rom_write(device, new Uint8Array([0x01, 0x00]), 0xc8 >> 1); // enable gpio
-  await rom_write(device, new Uint8Array([0x08, 0x00]), 0xc6 >> 1); // gpio3 output
-  await rom_write(device, new Uint8Array([0x08, 0x00]), 0xc4 >> 1); // gpio3 1
+  await rom_write(device, toLittleEndian(0x01, 2), 0xc8 >> 1); // enable gpio
+  await rom_write(device, toLittleEndian(0x08, 2), 0xc6 >> 1); // gpio3 output
+  await rom_write(device, toLittleEndian(0x08, 2), 0xc4 >> 1); // gpio3 1
   await new Promise(resolve => setTimeout(resolve, 500));
-  await rom_write(device, new Uint8Array([0x00, 0x00]), 0xc4 >> 1); // gpio3 0
-  await rom_write(device, new Uint8Array([0x00, 0x00]), 0xc8 >> 1); // disable gpio
+  await rom_write(device, toLittleEndian(0x00, 2), 0xc4 >> 1); // gpio3 0
+  await rom_write(device, toLittleEndian(0x00, 2), 0xc8 >> 1); // disable gpio
   await new Promise(resolve => setTimeout(resolve, 250));
 
   console.log('EZODE 指令');
   // EZODE 震动控制序列
   for (let i = 0; i < 10; i++) {
-    await rom_write(device, new Uint8Array([0x00, 0xd2]), 0xff0000);
-    await rom_write(device, new Uint8Array([0x00, 0x15]), 0x000000);
-    await rom_write(device, new Uint8Array([0x00, 0xd2]), 0x010000);
-    await rom_write(device, new Uint8Array([0x00, 0x15]), 0x020000);
-    await rom_write(device, new Uint8Array([0xf1, 0x00]), 0xf10000);
-    await rom_write(device, new Uint8Array([0x00, 0x15]), 0xfe0000);
-    await rom_write(device, new Uint8Array([0x02, 0x00]), 0x000800);
-    await rom_write(device, new Uint8Array([0x00, 0x00]), 0x000800);
+    await rom_write(device, toLittleEndian(0xd200, 2), 0xff0000);
+    await rom_write(device, toLittleEndian(0x1500, 2), 0x000000);
+    await rom_write(device, toLittleEndian(0xd200, 2), 0x010000);
+    await rom_write(device, toLittleEndian(0x1500, 2), 0x020000);
+    await rom_write(device, toLittleEndian(0x00f1, 2), 0xf10000);
+    await rom_write(device, toLittleEndian(0x1500, 2), 0xfe0000);
+    await rom_write(device, toLittleEndian(0x0002, 2), 0x000800);
+    await rom_write(device, toLittleEndian(0x0000, 2), 0x000800);
     await new Promise(resolve => setTimeout(resolve, 50));
   }
 }
@@ -81,24 +69,24 @@ export async function ppbUnlockGBA(device: DeviceInfo, sectorCount = 16, onProgr
     if (onProgress) onProgress(5);
 
     // Reset
-    await rom_write(device, new Uint8Array([0x90, 0x00]), 0);
-    await rom_write(device, new Uint8Array([0x00, 0x00]), 0); // Command Set Exit
-    await rom_write(device, new Uint8Array([0xf0, 0x00]), 0); // Reset/ASO Exit
+    await rom_write(device, toLittleEndian(0x90, 2), 0);
+    await rom_write(device, toLittleEndian(0x00, 2), 0); // Command Set Exit
+    await rom_write(device, toLittleEndian(0xf0, 2), 0); // Reset/ASO Exit
 
     if (onProgress) onProgress(10);
 
     // 检查PPB Lock状态
     // Global Non-Volatile Sector Protection Freeze Command Set Definitions
-    await rom_write(device, new Uint8Array([0xaa, 0x00]), 0x000555);
-    await rom_write(device, new Uint8Array([0x55, 0x00]), 0x0002aa);
-    await rom_write(device, new Uint8Array([0x50, 0x00]), 0x000555);
+    await rom_write(device, toLittleEndian(0xaa, 2), 0x000555);
+    await rom_write(device, toLittleEndian(0x55, 2), 0x0002aa);
+    await rom_write(device, toLittleEndian(0x50, 2), 0x000555);
 
     const lockBit = await rom_read(device, 2, 0);
 
     // Reset
-    await rom_write(device, new Uint8Array([0x90, 0x00]), 0);
-    await rom_write(device, new Uint8Array([0x00, 0x00]), 0);
-    await rom_write(device, new Uint8Array([0xf0, 0x00]), 0);
+    await rom_write(device, toLittleEndian(0x90, 2), 0);
+    await rom_write(device, toLittleEndian(0x00, 2), 0);
+    await rom_write(device, toLittleEndian(0xf0, 2), 0);
 
     const lockStatus = (lockBit[1] << 8) | lockBit[0];
     console.log(`PPB Lock Status: 0x${lockStatus.toString(16)}`);
@@ -122,16 +110,16 @@ export async function ppbUnlockGBA(device: DeviceInfo, sectorCount = 16, onProgr
     // 检查指定数量扇区的PPB状态
     for (let i = 0; i < sectorCount; i++) {
       // Non-Volatile Sector Protection Command Set Definitions
-      await rom_write(device, new Uint8Array([0xaa, 0x00]), 0x000555);
-      await rom_write(device, new Uint8Array([0x55, 0x00]), 0x0002aa);
-      await rom_write(device, new Uint8Array([0xc0, 0x00]), 0x000555);
+      await rom_write(device, toLittleEndian(0xaa, 2), 0x000555);
+      await rom_write(device, toLittleEndian(0x55, 2), 0x0002aa);
+      await rom_write(device, toLittleEndian(0xc0, 2), 0x000555);
 
       const sectorLockBit = await rom_read(device, 2, i * baseSectorSize);
 
       // Reset
-      await rom_write(device, new Uint8Array([0x90, 0x00]), 0);
-      await rom_write(device, new Uint8Array([0x00, 0x00]), 0);
-      await rom_write(device, new Uint8Array([0xf0, 0x00]), 0);
+      await rom_write(device, toLittleEndian(0x90, 2), 0);
+      await rom_write(device, toLittleEndian(0x00, 2), 0);
+      await rom_write(device, toLittleEndian(0xf0, 2), 0);
 
       const ppb = (sectorLockBit[1] << 8) | sectorLockBit[0];
       if (ppb !== 1) {
@@ -150,20 +138,20 @@ export async function ppbUnlockGBA(device: DeviceInfo, sectorCount = 16, onProgr
 
     // All PPB Erase
     console.log('---- All PPB Erase ----');
-    await rom_write(device, new Uint8Array([0xaa, 0x00]), 0x000555);
-    await rom_write(device, new Uint8Array([0x55, 0x00]), 0x0002aa);
-    await rom_write(device, new Uint8Array([0xc0, 0x00]), 0x000555);
-    await rom_write(device, new Uint8Array([0x80, 0x00]), 0);
-    await rom_write(device, new Uint8Array([0x30, 0x00]), 0); // All PPB Erase
+    await rom_write(device, toLittleEndian(0xaa, 2), 0x000555);
+    await rom_write(device, toLittleEndian(0x55, 2), 0x0002aa);
+    await rom_write(device, toLittleEndian(0xc0, 2), 0x000555);
+    await rom_write(device, toLittleEndian(0x80, 2), 0);
+    await rom_write(device, toLittleEndian(0x30, 2), 0); // All PPB Erase
 
     if (onProgress) onProgress(70);
 
     // 等待擦除完成
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    await rom_write(device, new Uint8Array([0x90, 0x00]), 0);
-    await rom_write(device, new Uint8Array([0x00, 0x00]), 0);
-    await rom_write(device, new Uint8Array([0xf0, 0x00]), 0);
+    await rom_write(device, toLittleEndian(0x90, 2), 0);
+    await rom_write(device, toLittleEndian(0x00, 2), 0);
+    await rom_write(device, toLittleEndian(0xf0, 2), 0);
 
     if (onProgress) onProgress(90);
 
@@ -171,16 +159,16 @@ export async function ppbUnlockGBA(device: DeviceInfo, sectorCount = 16, onProgr
     let verifyMsg = '';
     for (let i = 0; i < sectorCount; i++) {
       // Non-Volatile Sector Protection Command Set Definitions
-      await rom_write(device, new Uint8Array([0xaa, 0x00]), 0x000555);
-      await rom_write(device, new Uint8Array([0x55, 0x00]), 0x0002aa);
-      await rom_write(device, new Uint8Array([0xc0, 0x00]), 0x000555);
+      await rom_write(device, toLittleEndian(0xaa, 2), 0x000555);
+      await rom_write(device, toLittleEndian(0x55, 2), 0x0002aa);
+      await rom_write(device, toLittleEndian(0xc0, 2), 0x000555);
 
       const sectorLockBit = await rom_read(device, 2, i * baseSectorSize);
 
       // Reset
-      await rom_write(device, new Uint8Array([0x90, 0x00]), 0);
-      await rom_write(device, new Uint8Array([0x00, 0x00]), 0);
-      await rom_write(device, new Uint8Array([0xf0, 0x00]), 0);
+      await rom_write(device, toLittleEndian(0x90, 2), 0);
+      await rom_write(device, toLittleEndian(0x00, 2), 0);
+      await rom_write(device, toLittleEndian(0xf0, 2), 0);
 
       const ppb = (sectorLockBit[1] << 8) | sectorLockBit[0];
       verifyMsg += `${ppb.toString(16).padStart(4, '0')}  `;

@@ -1,10 +1,12 @@
+import { DateTime } from 'luxon';
+
 import { DeviceInfo } from '@/types/device-info';
 
 import { BaseRTC } from './base-rtc';
 import { GBARTC, GBARTCData } from './gba-rtc';
 import { MBC3RTC, MBC3RTCData } from './mbc3-rtc';
 
-export type RTCType = 'gba' | 'mbc3';
+export type RTCType = 'GBA' | 'MBC3';
 export type RTCData = GBARTCData | MBC3RTCData;
 
 /**
@@ -16,9 +18,9 @@ export class RTCFactory {
    */
   static createRTC(type: RTCType, device: DeviceInfo): BaseRTC {
     switch (type) {
-      case 'gba':
+      case 'GBA':
         return new GBARTC(device);
-      case 'mbc3':
+      case 'MBC3':
         return new MBC3RTC(device);
       default:
         throw new Error(`Unsupported RTC type: ${type}`);
@@ -53,7 +55,7 @@ export class RTCManager {
   /**
    * 读取RTC时间
    */
-  async readTime(): Promise<{ status: boolean; time?: Date; error?: string }> {
+  async readTime(): Promise<{ status: boolean; time?: DateTime; error?: string }> {
     return await this.rtc.readTime();
   }
 }

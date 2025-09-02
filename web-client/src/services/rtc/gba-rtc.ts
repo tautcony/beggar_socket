@@ -1,4 +1,7 @@
+import { DateTime } from 'luxon';
+
 import { rom_read, rom_write } from '@/protocol/beggar_socket/protocol';
+import { toLittleEndian } from '@/protocol/beggar_socket/protocol-utils';
 
 import { BaseRTC } from './base-rtc';
 
@@ -21,14 +24,14 @@ export class GBARTC extends BaseRTC {
    */
   private async s3511_writeByte(value: number): Promise<void> {
     // 设置SIO为输出
-    await rom_write(this.device, new Uint8Array([7, 0]), 0xc6 >> 1); // sio out
+    await rom_write(this.device, toLittleEndian(0x07, 2), 0xc6 >> 1); // sio out
 
     for (let i = 0; i < 8; i++) {
       const bit = (value & 0x01) !== 0 ? 0x02 : 0x00;
       value >>= 1;
 
-      await rom_write(this.device, new Uint8Array([4 | bit, 0]), 0xc4 >> 1); // cs 1, sck 0
-      await rom_write(this.device, new Uint8Array([5 | bit, 0]), 0xc4 >> 1); // cs 1, sck 1
+      await rom_write(this.device, toLittleEndian(0x04 | bit, 2), 0xc4 >> 1); // cs 1, sck 0
+      await rom_write(this.device, toLittleEndian(0x05 | bit, 2), 0xc4 >> 1); // cs 1, sck 1
     }
   }
 
@@ -39,13 +42,13 @@ export class GBARTC extends BaseRTC {
     let value = 0;
 
     // 设置SIO为输入
-    await rom_write(this.device, new Uint8Array([5, 0]), 0xc6 >> 1); // sio in
+    await rom_write(this.device, toLittleEndian(0x05, 2), 0xc6 >> 1); // sio in
 
     for (let i = 0; i < 8; i++) {
-      await rom_write(this.device, new Uint8Array([4, 0]), 0xc4 >> 1); // cs 1, sck 0
-      await rom_write(this.device, new Uint8Array([5, 0]), 0xc4 >> 1); // cs 1, sck 1
+      await rom_write(this.device, toLittleEndian(0x04, 2), 0xc4 >> 1); // cs 1, sck 0
+      await rom_write(this.device, toLittleEndian(0x05, 2), 0xc4 >> 1); // cs 1, sck 1
 
-      const data = await rom_read(this.device, 2, 0xc4);
+      const data = await rom_read(this.device, 0x02, 0xc4);
 
       // lsb in
       value >>= 1;
@@ -61,16 +64,16 @@ export class GBARTC extends BaseRTC {
    * 初始化GPIO
    */
   private async initializeGPIO(): Promise<void> {
-    await rom_write(this.device, new Uint8Array([0x01, 0x00]), 0xc4 >> 1); // cs 0, sck 1
-    await rom_write(this.device, new Uint8Array([0x07, 0x00]), 0xc6 >> 1); // cs sio sck output
-    await rom_write(this.device, new Uint8Array([0x01, 0x00]), 0xc8 >> 1); // enable gpio
+    await rom_write(this.device, toLittleEndian(0x01, 2), 0xc4 >> 1); // cs 0, sck 1
+    await rom_write(this.device, toLittleEndian(0x07, 2), 0xc6 >> 1); // cs sio sck output
+    await rom_write(this.device, toLittleEndian(0x01, 2), 0xc8 >> 1); // enable gpio
   }
 
   /**
    * 清理GPIO状态
    */
   private async cleanupGPIO(): Promise<void> {
-    await rom_write(this.device, new Uint8Array([0x00, 0x00]), 0xc8 >> 1); // disable gpio
+    await rom_write(this.device, toLittleEndian(0x00, 2), 0xc8 >> 1); // disable gpio
   }
 
   /**
@@ -80,31 +83,54 @@ export class GBARTC extends BaseRTC {
     // 读取RTC状态
     await this.s3511_writeByte(0xc6);
     const status = await this.s3511_readByte();
-    await rom_write(this.device, new Uint8Array([0x01, 0x00]), 0xc4 >> 1); // cs 0, sck 1
+    await rom_write(this.device, toLittleEndian(0x01, 2), 0xc4 >> 1); // cs 0, sck 1
 
     // 如果电池没电，重置RTC
     if ((status & 0x80) !== 0) {
       await this.s3511_writeByte(0x06); // reset
-      await rom_write(this.device, new Uint8Array([0x01, 0x00]), 0xc4 >> 1); // cs 0, sck 1
+      await rom_write(this.device, toLittleEndian(0x01, 2), 0xc4 >> 1); // cs 0, sck 1
 
       await this.s3511_writeByte(0x46); // write status
       await this.s3511_writeByte(0x40); // 24 hour mode
-      await rom_write(this.device, new Uint8Array([0x01, 0x00]), 0xc4 >> 1); // cs 0, sck 1
+      await rom_write(this.device, toLittleEndian(0x01, 2), 0xc4 >> 1); // cs 0, sck 1
     }
 
     return status;
   }
 
   /**
-   * 检查GPIO功能是否可用
+   * 验证写入时间（在已初始化的GPIO状态下进行）
    */
+  private async verifyWrittenTime(attempts = 5): Promise<void> {
+    for (let i = attempts; i > 0; i--) {
+      // 重新启用GPIO（关键步骤）
+      await rom_write(this.device, toLittleEndian(0x01, 2), 0xc8 >> 1); // enable gpio
+
+      // 读取时间验证
+      await this.s3511_writeByte(0xa6);
+      const verifyYear = this.compressedBCDToInt(await this.s3511_readByte());
+      const verifyMonth = this.compressedBCDToInt(await this.s3511_readByte() & 0x1f);
+      const verifyDate = this.compressedBCDToInt(await this.s3511_readByte() & 0x3f);
+      const verifyDay = this.compressedBCDToInt(await this.s3511_readByte() & 0x07);
+      const verifyHour = this.compressedBCDToInt(await this.s3511_readByte() & 0x3f);
+      const verifyMinute = this.compressedBCDToInt(await this.s3511_readByte() & 0x7f);
+      const verifySecond = this.compressedBCDToInt(await this.s3511_readByte() & 0x7f);
+
+      await rom_write(this.device, toLittleEndian(0x01, 2), 0xc4 >> 1); // cs 0, sck 1
+      await rom_write(this.device, toLittleEndian(0x00, 2), 0xc8 >> 1); // disable gpio
+
+      console.log(`验证 ${i}: ${2000 + verifyYear}-${verifyMonth.toString().padStart(2, '0')}-${verifyDate.toString().padStart(2, '0')} ${verifyHour.toString().padStart(2, '0')}:${verifyMinute.toString().padStart(2, '0')}:${verifySecond.toString().padStart(2, '0')} WK${verifyDay}`);
+
+      await this.delay(1000);
+    }
+  }
   async checkCapability(): Promise<boolean> {
     try {
       // 检测GPIO功能
       const read1 = await rom_read(this.device, 6, 0xc4);
-      await rom_write(this.device, new Uint8Array([0x01, 0x00]), 0xc8 >> 1); // enable gpio
+      await rom_write(this.device, toLittleEndian(0x01, 2), 0xc8 >> 1); // enable gpio
       const read2 = await rom_read(this.device, 6, 0xc4);
-      await rom_write(this.device, new Uint8Array([0x00, 0x00]), 0xc8 >> 1); // disable gpio
+      await rom_write(this.device, toLittleEndian(0x00, 2), 0xc8 >> 1); // disable gpio
 
       // 检查是否有GPIO功能
       for (let i = 0; i < 6; i++) {
@@ -130,6 +156,18 @@ export class GBARTC extends BaseRTC {
         throw new Error('Cartridge does not have GPIO functionality');
       }
 
+      // 使用luxon验证输入的日期时间是否有效
+      if (!BaseRTC.isValidDateTime(
+        rtcData.year + 2000,
+        rtcData.month,
+        rtcData.date,
+        rtcData.hour,
+        rtcData.minute,
+        rtcData.second,
+      )) {
+        throw new Error('Invalid date/time provided');
+      }
+
       await this.initializeGPIO();
       await this.checkAndResetIfNeeded();
 
@@ -150,13 +188,13 @@ export class GBARTC extends BaseRTC {
       await this.s3511_writeByte(hour);
       await this.s3511_writeByte(minute);
       await this.s3511_writeByte(second);
-      await rom_write(this.device, new Uint8Array([0x01, 0x00]), 0xc4 >> 1); // cs 0, sck 1
+      await rom_write(this.device, toLittleEndian(0x01, 2), 0xc4 >> 1); // cs 0, sck 1
 
       // 等待写入完成
       await this.delay(1000);
 
-      // 验证写入
-      await this.verifyTimeSet(4);
+      // 验证写入（使用专门的验证方法，不重新初始化GPIO）
+      await this.verifyWrittenTime(5);
 
       await this.cleanupGPIO();
     } catch (error) {
@@ -171,9 +209,34 @@ export class GBARTC extends BaseRTC {
   }
 
   /**
+   * 从特定时区的DateTime设置RTC时间
+   */
+  async setTimeFromDateTime(dt: DateTime): Promise<void> {
+    const rtcData: GBARTCData = {
+      year: dt.year - 2000,
+      month: dt.month,
+      date: dt.day,
+      day: dt.weekday % 7, // luxon: 1-7 (Monday-Sunday), convert to 0-6 (Sunday-Saturday)
+      hour: dt.hour,
+      minute: dt.minute,
+      second: dt.second,
+    };
+
+    await this.setTime(rtcData);
+  }
+
+  /**
+   * 设置当前时间到RTC
+   */
+  async setCurrentTime(timezone?: string): Promise<void> {
+    const now = timezone ? DateTime.now().setZone(timezone) : DateTime.now();
+    await this.setTimeFromDateTime(now);
+  }
+
+  /**
    * 读取GBA RTC时间
    */
-  async readTime(): Promise<{ status: boolean; time?: Date; error?: string }> {
+  async readTime(): Promise<{ status: boolean; time?: DateTime; error?: string }> {
     try {
       if (!(await this.checkCapability())) {
         return { status: false, error: 'Cartridge does not have GPIO functionality' };
@@ -194,9 +257,21 @@ export class GBARTC extends BaseRTC {
       const minute = this.compressedBCDToInt(await this.s3511_readByte() & 0x7f);
       const second = this.compressedBCDToInt(await this.s3511_readByte() & 0x7f);
 
-      await rom_write(this.device, new Uint8Array([0x01, 0x00]), 0xc4 >> 1); // cs 0, sck 1
+      await rom_write(this.device, toLittleEndian(0x01, 2), 0xc4 >> 1); // cs 0, sck 1
 
-      const time = new Date(2000 + year, month - 1, date, hour, minute, second);
+      // 使用luxon创建DateTime对象
+      const time = DateTime.fromObject({
+        year: 2000 + year,
+        month: month,
+        day: date,
+        hour: hour,
+        minute: minute,
+        second: second,
+      });
+
+      if (!time.isValid) {
+        throw new Error(`Invalid date/time values: ${time.invalidReason}`);
+      }
 
       await this.cleanupGPIO();
 
