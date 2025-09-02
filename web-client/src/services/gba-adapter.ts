@@ -801,6 +801,12 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   override async writeRAM(fileData: Uint8Array, options: CommandOptions): Promise<CommandResult> {
     const ramType = options.ramType ?? 'SRAM';
+
+    // 如果是免电池存档，调用专门的方法
+    if (ramType === 'BATLESS') {
+      return this.writeBatterylessSave(fileData, options);
+    }
+
     const pageSize = Math.min(options.ramPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
     const baseAddress = options.baseAddress ?? 0x00;
 
@@ -934,6 +940,12 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   override async readRAM(size = 0x8000, options: CommandOptions) {
     const ramType = options.ramType ?? 'SRAM';
+
+    // 如果是免电池存档，调用专门的方法
+    if (ramType === 'BATLESS') {
+      return this.readBatterylessSave(options);
+    }
+
     const pageSize = Math.min(options.ramPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
     const baseAddress = options.baseAddress ?? 0x00;
 
@@ -1034,6 +1046,12 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   override async verifyRAM(fileData: Uint8Array, options: CommandOptions) {
     const ramType = options.ramType ?? 'SRAM';
+
+    // 如果是免电池存档，调用专门的方法
+    if (ramType === 'BATLESS') {
+      return this.verifyBatterylessSave(fileData, options);
+    }
+
     const baseAddress = options.baseAddress ?? 0x00;
     const size = options.size ?? fileData.byteLength;
 
@@ -1190,6 +1208,549 @@ export class GBAAdapter extends CartridgeAdapter {
     await ram_write(this.device, new Uint8Array([bank]), 0x0000);
 
     this.log(this.t('messages.gba.bankSwitchFlash', { bank }), 'info');
+  }
+
+  /**
+   * 搜索免电池存档位置和大小
+   * @param baseAddress - 基地址
+   * @returns 存档信息或false
+   */
+  async searchBatteryless(baseAddress: number): Promise<{ offset: number; size: number } | false> {
+    try {
+      // 获取CFI信息
+      const cfiInfo = await this.getCartInfo();
+      if (!cfiInfo) {
+        this.log(this.t('messages.operation.getCartInfoFailed'), 'error');
+        return false;
+      }
+
+      const isMultiCard = cfiInfo.deviceSize > (1 << 25); // 32MB
+
+      // 切换到相应的bank
+      if (isMultiCard) {
+        const { bank } = this.romBankRelevantAddress(baseAddress);
+        await this.switchROMBank(bank);
+      }
+
+      // 读取启动向量
+      const boot = await rom_read(this.device, 4, baseAddress);
+      const bootVector = (boot[0] | (boot[1] << 8) | (boot[2] << 16) | (boot[3] << 24));
+      const bootVectorAddr = ((bootVector & 0x00FFFFFF) + 2) << 2;
+
+      // 搜索目标字符串 "<3 from Maniac"
+      const targetBytes = new TextEncoder().encode('<3 from Maniac');
+      const searchBuf = new Uint8Array(0x2000);
+
+      // 切换到启动向量对应的bank
+      if (isMultiCard) {
+        const { bank } = this.romBankRelevantAddress(baseAddress + bootVectorAddr);
+        await this.switchROMBank(bank);
+      }
+
+      // 分两次读取8KB数据
+      const temp1 = await rom_read(this.device, 4096, baseAddress + bootVectorAddr);
+      const temp2 = await rom_read(this.device, 4096, baseAddress + bootVectorAddr + 4096);
+      searchBuf.set(temp1, 0);
+      searchBuf.set(temp2, 4096);
+
+      // 搜索目标字符串
+      for (let i = 0; i <= searchBuf.length - targetBytes.length; i++) {
+        let found = true;
+        for (let j = 0; j < targetBytes.length; j++) {
+          if (searchBuf[i + j] !== targetBytes[j]) {
+            found = false;
+            break;
+          }
+        }
+
+        if (found) {
+          // 找到目标字符串，读取payload大小
+          let payloadSize = searchBuf[i + 0x0e] | (searchBuf[i + 0x0f] << 8);
+          if (payloadSize === 0) {
+            payloadSize = 0x414;
+          }
+
+          const offset = baseAddress + bootVectorAddr + i + 0x10; // <3 from Maniac后面是payload的大小和数据
+          const payloadStart = offset - payloadSize;
+
+          // 切换到payload开始地址对应的bank
+          if (isMultiCard) {
+            const { bank } = this.romBankRelevantAddress(payloadStart);
+            await this.switchROMBank(bank);
+          }
+
+          // 读取payload头部获取存档大小
+          const payloadHeader = await rom_read(this.device, 12, payloadStart);
+          const size = payloadHeader[8] | (payloadHeader[9] << 8) | (payloadHeader[10] << 16) | (payloadHeader[11] << 24);
+
+          this.log(this.t('messages.gba.batterylessFound', {
+            offset: formatHex(offset, 6),
+            size: size,
+          }), 'success');
+
+          return { offset, size };
+        }
+      }
+
+      this.log(this.t('messages.gba.batterylessNotFound'), 'warn');
+      return false;
+    } catch (e) {
+      this.log(`${this.t('messages.gba.batterylessSearchFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+      return false;
+    }
+  }
+
+  /**
+   * 写入免电池存档
+   * @param fileData - 存档文件数据
+   * @param options - 写入选项
+   * @param signal - 取消信号
+   * @returns 操作结果
+   */
+  async writeBatterylessSave(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
+    const baseAddress = options.baseAddress ?? 0x00;
+
+    this.log(this.t('messages.operation.startWriteBatterylessSave', {
+      fileSize: fileData.byteLength,
+      baseAddress: formatHex(baseAddress, 4),
+    }), 'info');
+
+    return PerformanceTracker.trackAsyncOperation(
+      'gba.writeBatterylessSave',
+      async () => {
+        try {
+          // 检查是否已被取消
+          if (signal?.aborted) {
+            return { success: false, message: this.t('messages.operation.cancelled') };
+          }
+
+          // 获取CFI信息
+          const cfiInfo = await this.getCartInfo();
+          if (!cfiInfo) {
+            return { success: false, message: this.t('messages.operation.getCartInfoFailed') };
+          }
+
+          const isMultiCard = cfiInfo.deviceSize > (1 << 25); // 32MB
+
+          // 搜索免电池存档位置
+          const saveInfo = await this.searchBatteryless(baseAddress);
+          if (!saveInfo) {
+            return { success: false, message: this.t('messages.gba.batterylessNotFound') };
+          }
+
+          // 限制写入大小不超过检测到的存档大小
+          const writeSize = Math.min(fileData.byteLength, saveInfo.size);
+          this.log(this.t('messages.gba.batterylessInfo', {
+            offset: formatHex(saveInfo.offset, 6),
+            size: saveInfo.size,
+            writeSize,
+          }), 'info');
+
+          // 擦除存档区域
+          this.log(this.t('messages.gba.batterylessErase', {
+            startAddress: formatHex(saveInfo.offset, 6),
+            endAddress: formatHex(saveInfo.offset + writeSize, 6),
+          }), 'info');
+
+          const sectorInfo = calcSectorUsage(cfiInfo.eraseSectorBlocks, writeSize, saveInfo.offset);
+          const eraseResult = await this.eraseSectors(sectorInfo, signal);
+          if (!eraseResult.success) {
+            return eraseResult;
+          }
+
+          // 开始写入
+          this.log(this.t('messages.gba.batterylessStartWrite'), 'info');
+
+          let written = 0;
+          let currentBank = -1;
+          const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
+
+          const speedCalculator = new SpeedCalculator();
+          const progressReporter = new ProgressReporter(
+            'write',
+            writeSize,
+            (progressInfo) => {
+              this.updateProgress(progressInfo);
+            },
+            (key, params) => this.t(key, params),
+          );
+
+          progressReporter.reportStart(this.t('messages.gba.batterylessStartWrite'));
+
+          while (written < writeSize) {
+            // 检查是否已被取消
+            if (signal?.aborted) {
+              return { success: false, message: this.t('messages.operation.cancelled') };
+            }
+
+            const chunkSize = Math.min(pageSize, writeSize - written);
+            const chunk = fileData.slice(written, written + chunkSize);
+            const currentAddress = saveInfo.offset + written;
+
+            // 切换bank
+            if (isMultiCard) {
+              const { bank } = this.romBankRelevantAddress(currentAddress);
+              if (bank !== currentBank) {
+                this.log(this.t('messages.rom.bankSwitch', { bank }), 'info');
+                await this.switchROMBank(bank);
+                currentBank = bank;
+              }
+            }
+
+            // 写入数据
+            await rom_program(this.device, chunk, currentAddress, cfiInfo.bufferSize ?? 0);
+            const chunkEndTime = Date.now();
+
+            written += chunkSize;
+            speedCalculator.addDataPoint(chunkSize, chunkEndTime);
+
+            // 更新进度
+            progressReporter.reportProgress(
+              written,
+              speedCalculator.getCurrentSpeed(),
+              this.t('messages.gba.batterylessWriting', { progress: Math.floor((written / writeSize) * 100) }),
+            );
+          }
+
+          const totalTime = speedCalculator.getTotalTime();
+          const avgSpeed = speedCalculator.getAverageSpeed();
+
+          this.log(this.t('messages.gba.batterylessWriteComplete'), 'success');
+          this.log(this.t('messages.gba.batterylessWriteSummary', {
+            totalTime: formatTimeDuration(totalTime),
+            avgSpeed: formatSpeed(avgSpeed),
+            totalSize: formatBytes(writeSize),
+          }), 'info');
+
+          progressReporter.reportCompleted(this.t('messages.gba.batterylessWriteComplete'), avgSpeed);
+
+          return {
+            success: true,
+            message: this.t('messages.gba.batterylessWriteSuccess'),
+          };
+        } catch (e) {
+          if (signal?.aborted) {
+            return { success: false, message: this.t('messages.operation.cancelled') };
+          }
+
+          this.log(`${this.t('messages.gba.batterylessWriteFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+          return {
+            success: false,
+            message: this.t('messages.gba.batterylessWriteFailed'),
+          };
+        }
+      },
+      {
+        adapter_type: 'gba',
+        operation_type: 'write_batteryless_save',
+      },
+      {
+        fileSize: fileData.byteLength,
+      },
+    );
+  }
+
+  /**
+   * 读取免电池存档
+   * @param options - 读取选项
+   * @param signal - 取消信号
+   * @returns 操作结果，包含读取的数据
+   */
+  async readBatterylessSave(options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
+    const baseAddress = options.baseAddress ?? 0x00;
+
+    this.log(this.t('messages.operation.startReadBatterylessSave', {
+      baseAddress: formatHex(baseAddress, 4),
+    }), 'info');
+
+    return PerformanceTracker.trackAsyncOperation(
+      'gba.readBatterylessSave',
+      async () => {
+        try {
+          // 检查是否已被取消
+          if (signal?.aborted) {
+            return { success: false, message: this.t('messages.operation.cancelled') };
+          }
+
+          // 获取CFI信息
+          const cfiInfo = await this.getCartInfo();
+          if (!cfiInfo) {
+            return { success: false, message: this.t('messages.operation.getCartInfoFailed') };
+          }
+
+          const isMultiCard = cfiInfo.deviceSize > (1 << 25); // 32MB
+
+          // 搜索免电池存档位置
+          const saveInfo = await this.searchBatteryless(baseAddress);
+          if (!saveInfo) {
+            return { success: false, message: this.t('messages.gba.batterylessNotFound') };
+          }
+
+          this.log(this.t('messages.gba.batterylessInfo', {
+            offset: formatHex(saveInfo.offset, 6),
+            size: saveInfo.size,
+          }), 'info');
+
+          // 开始读取
+          this.log(this.t('messages.gba.batterylessStartRead'), 'info');
+
+          const data = new Uint8Array(saveInfo.size);
+          let readCount = 0;
+          let currentBank = -1;
+          const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
+
+          const speedCalculator = new SpeedCalculator();
+          const progressReporter = new ProgressReporter(
+            'read',
+            saveInfo.size,
+            (progressInfo) => {
+              this.updateProgress(progressInfo);
+            },
+            (key, params) => this.t(key, params),
+          );
+
+          progressReporter.reportStart(this.t('messages.gba.batterylessStartRead'));
+
+          while (readCount < saveInfo.size) {
+            // 检查是否已被取消
+            if (signal?.aborted) {
+              return { success: false, message: this.t('messages.operation.cancelled') };
+            }
+
+            const chunkSize = Math.min(pageSize, saveInfo.size - readCount);
+            const currentAddress = saveInfo.offset + readCount;
+
+            // 切换bank
+            if (isMultiCard) {
+              const { bank } = this.romBankRelevantAddress(currentAddress);
+              if (bank !== currentBank) {
+                this.log(this.t('messages.rom.bankSwitch', { bank }), 'info');
+                await this.switchROMBank(bank);
+                currentBank = bank;
+              }
+            }
+
+            // 读取数据
+            const chunk = await rom_read(this.device, chunkSize, currentAddress);
+            const chunkEndTime = Date.now();
+            data.set(chunk, readCount);
+
+            readCount += chunkSize;
+            speedCalculator.addDataPoint(chunkSize, chunkEndTime);
+
+            // 更新进度
+            progressReporter.reportProgress(
+              readCount,
+              speedCalculator.getCurrentSpeed(),
+              this.t('messages.gba.batterylessReading', { progress: Math.floor((readCount / saveInfo.size) * 100) }),
+            );
+          }
+
+          const totalTime = speedCalculator.getTotalTime();
+          const avgSpeed = speedCalculator.getAverageSpeed();
+
+          this.log(this.t('messages.gba.batterylessReadComplete', { size: data.length }), 'success');
+          this.log(this.t('messages.gba.batterylessReadSummary', {
+            totalTime: formatTimeDuration(totalTime),
+            avgSpeed: formatSpeed(avgSpeed),
+            totalSize: formatBytes(saveInfo.size),
+          }), 'info');
+
+          progressReporter.reportCompleted(this.t('messages.gba.batterylessReadComplete', { size: data.length }), avgSpeed);
+
+          return {
+            success: true,
+            data: data,
+            message: this.t('messages.gba.batterylessReadSuccess', { size: data.length }),
+          };
+        } catch (e) {
+          if (signal?.aborted) {
+            return { success: false, message: this.t('messages.operation.cancelled') };
+          }
+
+          this.log(`${this.t('messages.gba.batterylessReadFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+          return {
+            success: false,
+            message: this.t('messages.gba.batterylessReadFailed'),
+          };
+        }
+      },
+      {
+        adapter_type: 'gba',
+        operation_type: 'read_batteryless_save',
+      },
+    );
+  }
+
+  /**
+   * 校验免电池存档
+   * @param fileData - 存档文件数据
+   * @param options - 校验选项
+   * @param signal - 取消信号
+   * @returns 操作结果
+   */
+  async verifyBatterylessSave(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
+    const baseAddress = options.baseAddress ?? 0x00;
+
+    this.log(this.t('messages.operation.startVerifyBatterylessSave', {
+      fileSize: fileData.byteLength,
+      baseAddress: formatHex(baseAddress, 4),
+    }), 'info');
+
+    return PerformanceTracker.trackAsyncOperation(
+      'gba.verifyBatterylessSave',
+      async () => {
+        try {
+          // 检查是否已被取消
+          if (signal?.aborted) {
+            return { success: false, message: this.t('messages.operation.cancelled') };
+          }
+
+          // 获取CFI信息
+          const cfiInfo = await this.getCartInfo();
+          if (!cfiInfo) {
+            return { success: false, message: this.t('messages.operation.getCartInfoFailed') };
+          }
+
+          const isMultiCard = cfiInfo.deviceSize > (1 << 25); // 32MB
+
+          // 搜索免电池存档位置
+          const saveInfo = await this.searchBatteryless(baseAddress);
+          if (!saveInfo) {
+            return { success: false, message: this.t('messages.gba.batterylessNotFound') };
+          }
+
+          // 限制校验大小
+          const verifySize = Math.min(fileData.byteLength, saveInfo.size);
+          this.log(this.t('messages.gba.batterylessInfo', {
+            offset: formatHex(saveInfo.offset, 6),
+            size: saveInfo.size,
+            verifySize,
+          }), 'info');
+
+          // 开始校验
+          this.log(this.t('messages.gba.batterylessStartVerify'), 'info');
+
+          let verified = 0;
+          let currentBank = -1;
+          let success = true;
+          let errorCount = 0;
+          const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
+
+          const speedCalculator = new SpeedCalculator();
+          const progressReporter = new ProgressReporter(
+            'verify',
+            verifySize,
+            (progressInfo) => {
+              this.updateProgress(progressInfo);
+            },
+            (key, params) => this.t(key, params),
+          );
+
+          progressReporter.reportStart(this.t('messages.gba.batterylessStartVerify'));
+
+          while (verified < verifySize && success) {
+            // 检查是否已被取消
+            if (signal?.aborted) {
+              return { success: false, message: this.t('messages.operation.cancelled') };
+            }
+
+            const chunkSize = Math.min(pageSize, verifySize - verified);
+            const currentAddress = saveInfo.offset + verified;
+
+            // 切换bank
+            if (isMultiCard) {
+              const { bank } = this.romBankRelevantAddress(currentAddress);
+              if (bank !== currentBank) {
+                this.log(this.t('messages.rom.bankSwitch', { bank }), 'info');
+                await this.switchROMBank(bank);
+                currentBank = bank;
+              }
+            }
+
+            // 读取数据进行比较
+            const readData = await rom_read(this.device, chunkSize, currentAddress);
+            const chunkEndTime = Date.now();
+
+            // 逐字节比较
+            for (let i = 0; i < chunkSize; i++) {
+              if (fileData[verified + i] !== readData[i]) {
+                this.log(this.t('messages.ram.verifyMismatch', {
+                  address: formatHex(verified + i, 6),
+                  expected: formatHex(fileData[verified + i], 2),
+                  actual: formatHex(readData[i], 2),
+                }), 'error');
+                errorCount++;
+
+                // 如果错误太多，停止校验
+                if (errorCount > 100) {
+                  success = false;
+                  break;
+                }
+              }
+            }
+
+            verified += chunkSize;
+            speedCalculator.addDataPoint(chunkSize, chunkEndTime);
+
+            // 更新进度
+            progressReporter.reportProgress(
+              verified,
+              speedCalculator.getCurrentSpeed(),
+              this.t('messages.gba.batterylessVerifying', { progress: Math.floor((verified / verifySize) * 100) }),
+            );
+          }
+
+          const totalTime = speedCalculator.getTotalTime();
+          const avgSpeed = speedCalculator.getAverageSpeed();
+
+          if (success && errorCount === 0) {
+            this.log(this.t('messages.gba.batterylessVerifySuccess'), 'success');
+            this.log(this.t('messages.gba.batterylessVerifySummary', {
+              totalTime: formatTimeDuration(totalTime),
+              avgSpeed: formatSpeed(avgSpeed),
+              totalSize: formatBytes(verifySize),
+            }), 'info');
+
+            progressReporter.reportCompleted(this.t('messages.gba.batterylessVerifySuccess'), avgSpeed);
+
+            return {
+              success: true,
+              message: this.t('messages.gba.batterylessVerifySuccess'),
+            };
+          } else {
+            const message = errorCount > 0
+              ? this.t('messages.gba.batterylessVerifyFailed', { errorCount })
+              : this.t('messages.gba.batterylessVerifyFailed');
+
+            this.log(message, 'error');
+            progressReporter.reportError(message);
+
+            return {
+              success: false,
+              message,
+            };
+          }
+        } catch (e) {
+          if (signal?.aborted) {
+            return { success: false, message: this.t('messages.operation.cancelled') };
+          }
+
+          this.log(`${this.t('messages.gba.batterylessVerifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+          return {
+            success: false,
+            message: this.t('messages.gba.batterylessVerifyFailed'),
+          };
+        }
+      },
+      {
+        adapter_type: 'gba',
+        operation_type: 'verify_batteryless_save',
+      },
+      {
+        fileSize: fileData.byteLength,
+      },
+    );
   }
 
   // 检查区域是否为空

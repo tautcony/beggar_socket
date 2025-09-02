@@ -1,6 +1,6 @@
 import { CFIInfo } from '@/utils/parsers/cfi-parser';
 
-export type RamType = 'SRAM' | 'FLASH' | 'FRAM';
+export type RamType = 'SRAM' | 'FLASH' | 'FRAM' | 'BATLESS';
 
 export interface CommandOptions {
   size?: number,

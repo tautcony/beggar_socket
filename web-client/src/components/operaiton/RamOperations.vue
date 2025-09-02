@@ -21,6 +21,12 @@
               <option value="FRAM">
                 {{ $t('ui.ram.typeFRAM') }}
               </option>
+              <option
+                v-if="mode === 'GBA'"
+                value="BATLESS"
+              >
+                {{ $t('ui.ram.typeBATLESS') }}
+              </option>
             </select>
           </div>
           <div
@@ -47,7 +53,7 @@
             <label class="size-label">{{ $t('ui.ram.sizeLabel') }}</label>
             <select
               v-model="selectedRamSize"
-              :disabled="!deviceReady || busy"
+              :disabled="!deviceReady || busy || selectedRamType === 'BATLESS'"
               class="size-dropdown"
               @change="onRamSizeChange"
             >
@@ -245,6 +251,23 @@ function onBaseAddressChange() {
   gap: 6px;
   min-width: fit-content;
   flex-shrink: 0;
+  flex-direction: column;
+}
+
+.type-selector > *,
+.size-selector > *:not(.batless-hint),
+.base-address-selector > * {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.batless-hint {
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 4px;
+  text-align: center;
+  font-style: italic;
 }
 
 .type-label,
