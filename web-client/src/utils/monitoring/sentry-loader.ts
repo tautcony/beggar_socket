@@ -49,7 +49,7 @@ export function loadSentry(app: App, config: SentryConfig = {}) {
       release: (config.release ?? import.meta.env.VITE_APP_VERSION as string) || '1.0.0',
       integrations: [
         browserTracingIntegration(),
-        Sentry.replayIntegration(),
+        // Sentry.replayIntegration(),
         Sentry.feedbackIntegration({
           colorScheme: 'system',
         }),

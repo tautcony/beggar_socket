@@ -154,6 +154,7 @@ import {
 } from 'ionicons/icons';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 
 import AboutModal from '@/components/modal/AboutModal.vue';
 import AdvancedSettingsModal from '@/components/modal/AdvancedSettingsModal.vue';
@@ -167,6 +168,7 @@ import type { AssembledRom } from '@/types/rom-assembly';
 
 const { t } = useI18n();
 const { showToast } = useToast();
+const route = useRoute();
 
 const props = withDefaults(defineProps<{
   currentMode?: 'MBC5' | 'GBA';
@@ -191,8 +193,9 @@ const isAboutVisible = ref(false);
 const clickCount = ref(0);
 let clickTimer: NodeJS.Timeout | null = null;
 
-const showCartridgeTools = ref(false);
-const showDebugTool = ref(false);
+// 检查 URL 参数来决定是否启用卡带工具
+const showCartridgeTools = ref(route.query.cart_tools === 'true');
+const showDebugTool = ref(route.query.debug_tool === 'true');
 
 function incrementClickCount() {
   clickCount.value++;
