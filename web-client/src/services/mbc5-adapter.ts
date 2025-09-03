@@ -449,9 +449,10 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param size - 读取大小
    * @param baseAddress - 基础地址
    * @param signal - 取消信号，用于中止操作
+   * @param showProgress - 是否显示读取进度面板，默认为true
    * @returns - 包含成功状态、数据和消息的对象
    */
-  override async readROM(size: number, options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
+  override async readROM(size: number, options: CommandOptions, signal?: AbortSignal, showProgress = true) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0;
     const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
 
@@ -471,6 +472,7 @@ export class MBC5Adapter extends CartridgeAdapter {
               size,
               (progressInfo) => { this.updateProgress(progressInfo); },
               (key, params) => this.t(key, params),
+              showProgress,
             );
             progressReporter.reportError(this.t('messages.operation.cancelled'));
             return {
@@ -493,6 +495,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             size,
             (progressInfo) => { this.updateProgress(progressInfo); },
             (key, params) => this.t(key, params),
+            showProgress,
           );
 
           // 报告开始状态
@@ -581,6 +584,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             size,
             (progressInfo) => { this.updateProgress(progressInfo); },
             (key, params) => this.t(key, params),
+            showProgress,
           );
           progressReporter.reportError(this.t('messages.rom.readFailed'));
           this.log(`${this.t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');

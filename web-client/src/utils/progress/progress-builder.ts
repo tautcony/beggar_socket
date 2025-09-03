@@ -73,6 +73,14 @@ export class ProgressInfoBuilder {
   }
 
   /**
+   * 设置是否显示进度面板
+   */
+  showProgress(show = true): this {
+    this.info.showProgress = show;
+    return this;
+  }
+
+  /**
    * 设置状态
    */
   state(state: 'idle' | 'running' | 'paused' | 'completed' | 'error'): this {

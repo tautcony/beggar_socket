@@ -298,7 +298,9 @@ onMounted(() => {
 
 function updateProgress(info: ProgressInfo) {
   // 直接更新 progressInfo 对象
-  Object.assign(progressInfo.value, info);
+  if (info.showProgress === true) {
+    Object.assign(progressInfo.value, info);
+  }
 }
 
 function handleProgressStop() {
@@ -880,7 +882,7 @@ async function readGBAMultiCartRoms(adapter: CartridgeAdapter, deviceSize: numbe
 
   for (let i = 0; i < bankCount; i++) {
     const baseAddress = i * 0x400000;
-    const headerResult = await adapter.readROM(0x150, { baseAddress, cfiInfo: cfi });
+    const headerResult = await adapter.readROM(0x150, { baseAddress, cfiInfo: cfi }, undefined, false);
 
     if (headerResult.success && headerResult.data) {
       const romInfo = parseRom(headerResult.data);
@@ -915,7 +917,7 @@ async function readMBC5MultiCartRoms(adapter: CartridgeAdapter, deviceSize: numb
     if (range.from >= deviceSize) break; // 超出芯片容量
 
     // 解析完整ROM信息
-    const fullHeaderResult = await adapter.readROM(0x150, { baseAddress: range.from, cfiInfo: cfi });
+    const fullHeaderResult = await adapter.readROM(0x150, { baseAddress: range.from, cfiInfo: cfi }, undefined, false);
     if (fullHeaderResult.success && fullHeaderResult.data) {
       const romInfo = parseRom(fullHeaderResult.data);
       if (romInfo.isValid) {

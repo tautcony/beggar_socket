@@ -86,9 +86,10 @@ export class CartridgeAdapter {
    * @param size - 读取大小
    * @param options - 选项对象
    * @param signal - 取消信号，用于中止操作
+   * @param showProgress - 是否显示读取进度面板，默认为true
    * @returns - 包含成功状态、数据和消息的对象
    */
-  async readROM(size: number, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
+  async readROM(size: number, options: CommandOptions, signal?: AbortSignal, showProgress = true): Promise<CommandResult> {
     throw new NotImplementedError();
   }
 

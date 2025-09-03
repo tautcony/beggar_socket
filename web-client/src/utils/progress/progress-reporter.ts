@@ -11,18 +11,21 @@ export class ProgressReporter {
   private sectors: SectorProgressInfo[] = [];
   private updateCallback: (progressInfo: ProgressInfo) => void;
   private translateFunc: (key: string, params?: Record<string, unknown>) => string;
+  private showProgress: boolean;
 
   constructor(
     operationType: 'erase' | 'write' | 'read' | 'verify' | 'other',
     totalBytes: number,
     updateCallback: (progressInfo: ProgressInfo) => void,
     translateFunc: (key: string, params?: Record<string, unknown>) => string,
+    showProgress = true,
   ) {
     this.operationType = operationType;
     this.totalBytes = totalBytes;
     this.startTime = Date.now();
     this.updateCallback = updateCallback;
     this.translateFunc = translateFunc;
+    this.showProgress = showProgress;
   }
 
   /**
@@ -49,6 +52,7 @@ export class ProgressReporter {
       .detail(message)
       .bytes(0, this.totalBytes)
       .startTime(this.startTime)
+      .showProgress(this.showProgress)
       .build();
 
     this.updateCallback(progress);
@@ -68,7 +72,8 @@ export class ProgressReporter {
       .bytes(transferredBytes, this.totalBytes)
       .detail(message)
       .startTime(this.startTime)
-      .speed(currentSpeed);
+      .speed(currentSpeed)
+      .showProgress(this.showProgress);
 
     if (this.sectors.length > 0) {
       builder.sectors(this.sectors, completedSectors, currentSectorIndex);
@@ -85,7 +90,8 @@ export class ProgressReporter {
       .detail(message)
       .bytes(this.totalBytes, this.totalBytes)
       .startTime(this.startTime)
-      .speed(avgSpeed);
+      .speed(avgSpeed)
+      .showProgress(this.showProgress);
 
     if (this.sectors.length > 0) {
       builder.sectors(this.sectors, this.sectors.length, -1);
@@ -99,6 +105,7 @@ export class ProgressReporter {
    */
   reportError(message: string): void {
     const progress = ProgressInfoBuilder.error(this.operationType, message)
+      .showProgress(this.showProgress)
       .build();
 
     this.updateCallback(progress);

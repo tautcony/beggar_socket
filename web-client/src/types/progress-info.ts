@@ -14,6 +14,7 @@ export interface ProgressInfo {
   currentSpeed?: number // KiB/s
   allowCancel?: boolean,
   state?: 'idle' | 'running' | 'paused' | 'completed' | 'error'
+  showProgress?: boolean // 是否显示进度面板
   // 扇区级别的可视化进度 (仅用于擦除操作)
   sectorProgress?: {
     sectors: SectorProgressInfo[]
