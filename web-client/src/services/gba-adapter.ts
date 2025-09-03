@@ -1221,20 +1221,43 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 搜索免电存档位置和大小
+   * 分块读取ROM数据
+   * @param size - 读取大小
    * @param baseAddress - 基地址
-   * @returns 存档信息或false
+   * @param chunkSize - 分块大小
+   * @returns 读取的数据
    */
-  async searchBatteryless(baseAddress: number): Promise<{ offset: number; size: number } | false> {
-    try {
-      // 获取CFI信息
-      const cfiInfo = await this.getCartInfo();
-      if (!cfiInfo) {
-        this.log(this.t('messages.operation.getCartInfoFailed'), 'error');
-        return false;
+  private async readROMChunked(size: number, baseAddress: number, chunkSize: number): Promise<Uint8Array> {
+    if (size <= chunkSize) {
+      // 单次读取
+      return await rom_read(this.device, size, baseAddress);
+    } else {
+      // 分块读取
+      const result = new Uint8Array(size);
+      let offset = 0;
+
+      while (offset < size) {
+        const currentChunkSize = Math.min(chunkSize, size - offset);
+        const chunkData = await rom_read(this.device, currentChunkSize, baseAddress + offset);
+        result.set(chunkData, offset);
+        offset += currentChunkSize;
       }
 
+      return result;
+    }
+  }
+
+  /**
+   * 搜索免电存档位置和大小
+   * @param baseAddress - 基地址
+   * @param options - 命令选项
+   * @returns 存档信息或false
+   */
+  async searchBatteryless(baseAddress: number, options: CommandOptions): Promise<{ offset: number; size: number } | false> {
+    try {
+      const cfiInfo = options.cfiInfo;
       const isMultiCard = cfiInfo.deviceSize > (1 << 25); // 32MB
+      const chunkSize = options.romPageSize ?? AdvancedSettings.romPageSize;
 
       // 切换到相应的bank
       if (isMultiCard) {
@@ -1243,9 +1266,11 @@ export class GBAAdapter extends CartridgeAdapter {
       }
 
       // 读取启动向量
-      const boot = await rom_read(this.device, 4, baseAddress);
-      const bootVector = (boot[0] | (boot[1] << 8) | (boot[2] << 16) | (boot[3] << 24));
+      const boot = await this.readROMChunked(4, baseAddress, chunkSize);
+      const bootVector = ((boot[0] | (boot[1] << 8) | (boot[2] << 16) | (boot[3] << 24)) >>> 0); // 使用无符号右移确保为正数
       const bootVectorAddr = ((bootVector & 0x00FFFFFF) + 2) << 2;
+
+      console.log(baseAddress, [...boot], bootVector, bootVectorAddr);
 
       // 搜索目标字符串 "<3 from Maniac"
       const targetBytes = new TextEncoder().encode('<3 from Maniac');
@@ -1257,11 +1282,9 @@ export class GBAAdapter extends CartridgeAdapter {
         await this.switchROMBank(bank);
       }
 
-      // 分两次读取8KB数据
-      const temp1 = await rom_read(this.device, 4096, baseAddress + bootVectorAddr);
-      const temp2 = await rom_read(this.device, 4096, baseAddress + bootVectorAddr + 4096);
-      searchBuf.set(temp1, 0);
-      searchBuf.set(temp2, 4096);
+      // 读取8KB数据用于搜索
+      const searchData = await this.readROMChunked(0x2000, baseAddress + bootVectorAddr, chunkSize);
+      searchBuf.set(searchData, 0);
 
       // 搜索目标字符串
       for (let i = 0; i <= searchBuf.length - targetBytes.length; i++) {
@@ -1290,7 +1313,7 @@ export class GBAAdapter extends CartridgeAdapter {
           }
 
           // 读取payload头部获取存档大小
-          const payloadHeader = await rom_read(this.device, 12, payloadStart);
+          const payloadHeader = await this.readROMChunked(12, payloadStart, chunkSize);
           const size = payloadHeader[8] | (payloadHeader[9] << 8) | (payloadHeader[10] << 16) | (payloadHeader[11] << 24);
 
           this.log(this.t('messages.gba.batterylessFound', {
@@ -1335,7 +1358,7 @@ export class GBAAdapter extends CartridgeAdapter {
           }
 
           // 获取CFI信息
-          const cfiInfo = await this.getCartInfo();
+          const cfiInfo = options.cfiInfo;
           if (!cfiInfo) {
             return { success: false, message: this.t('messages.operation.getCartInfoFailed') };
           }
@@ -1343,13 +1366,14 @@ export class GBAAdapter extends CartridgeAdapter {
           const isMultiCard = cfiInfo.deviceSize > (1 << 25); // 32MB
 
           // 搜索免电存档位置
-          const saveInfo = await this.searchBatteryless(baseAddress);
+          const saveInfo = await this.searchBatteryless(baseAddress, options);
           if (!saveInfo) {
             return { success: false, message: this.t('messages.gba.batterylessNotFound') };
           }
 
           // 限制写入大小不超过检测到的存档大小
           const writeSize = Math.min(fileData.byteLength, saveInfo.size);
+          console.log(writeSize, fileData.byteLength, saveInfo.size);
           this.log(this.t('messages.gba.batterylessInfo', {
             offset: formatHex(saveInfo.offset, 6),
             size: saveInfo.size,
@@ -1483,7 +1507,7 @@ export class GBAAdapter extends CartridgeAdapter {
           }
 
           // 获取CFI信息
-          const cfiInfo = await this.getCartInfo();
+          const cfiInfo = options.cfiInfo;
           if (!cfiInfo) {
             return { success: false, message: this.t('messages.operation.getCartInfoFailed') };
           }
@@ -1491,7 +1515,7 @@ export class GBAAdapter extends CartridgeAdapter {
           const isMultiCard = cfiInfo.deviceSize > (1 << 25); // 32MB
 
           // 搜索免电存档位置
-          const saveInfo = await this.searchBatteryless(baseAddress);
+          const saveInfo = await this.searchBatteryless(baseAddress, options);
           if (!saveInfo) {
             return { success: false, message: this.t('messages.gba.batterylessNotFound') };
           }
@@ -1617,7 +1641,7 @@ export class GBAAdapter extends CartridgeAdapter {
           }
 
           // 获取CFI信息
-          const cfiInfo = await this.getCartInfo();
+          const cfiInfo = options.cfiInfo;
           if (!cfiInfo) {
             return { success: false, message: this.t('messages.operation.getCartInfoFailed') };
           }
@@ -1625,7 +1649,7 @@ export class GBAAdapter extends CartridgeAdapter {
           const isMultiCard = cfiInfo.deviceSize > (1 << 25); // 32MB
 
           // 搜索免电存档位置
-          const saveInfo = await this.searchBatteryless(baseAddress);
+          const saveInfo = await this.searchBatteryless(baseAddress, options);
           if (!saveInfo) {
             return { success: false, message: this.t('messages.gba.batterylessNotFound') };
           }
