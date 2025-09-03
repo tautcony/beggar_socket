@@ -1317,8 +1317,8 @@ export class GBAAdapter extends CartridgeAdapter {
           const size = payloadHeader[8] | (payloadHeader[9] << 8) | (payloadHeader[10] << 16) | (payloadHeader[11] << 24);
 
           this.log(this.t('messages.gba.batterylessFound', {
-            offset: formatHex(offset, 6),
-            size: size,
+            offset: formatHex(offset, 4),
+            size: formatBytes(size),
           }), 'success');
 
           return { offset, size };
@@ -1375,9 +1375,9 @@ export class GBAAdapter extends CartridgeAdapter {
           const writeSize = Math.min(fileData.byteLength, saveInfo.size);
           console.log(writeSize, fileData.byteLength, saveInfo.size);
           this.log(this.t('messages.gba.batterylessInfo', {
-            offset: formatHex(saveInfo.offset, 6),
-            size: saveInfo.size,
-            writeSize,
+            offset: formatHex(saveInfo.offset, 4),
+            size: formatBytes(saveInfo.size),
+            writeSize: formatBytes(writeSize),
           }), 'info');
 
           // 擦除存档区域
@@ -1521,8 +1521,8 @@ export class GBAAdapter extends CartridgeAdapter {
           }
 
           this.log(this.t('messages.gba.batterylessInfo', {
-            offset: formatHex(saveInfo.offset, 6),
-            size: saveInfo.size,
+            offset: formatHex(saveInfo.offset, 4),
+            size: formatBytes(saveInfo.size),
           }), 'info');
 
           // 开始读取
@@ -1583,19 +1583,19 @@ export class GBAAdapter extends CartridgeAdapter {
           const totalTime = speedCalculator.getTotalTime();
           const avgSpeed = speedCalculator.getAverageSpeed();
 
-          this.log(this.t('messages.gba.batterylessReadComplete', { size: data.length }), 'success');
+          this.log(this.t('messages.gba.batterylessReadComplete', { size: formatBytes(data.length) }), 'success');
           this.log(this.t('messages.gba.batterylessReadSummary', {
             totalTime: formatTimeDuration(totalTime),
             avgSpeed: formatSpeed(avgSpeed),
             totalSize: formatBytes(saveInfo.size),
           }), 'info');
 
-          progressReporter.reportCompleted(this.t('messages.gba.batterylessReadComplete', { size: data.length }), avgSpeed);
+          progressReporter.reportCompleted(this.t('messages.gba.batterylessReadComplete', { size: formatBytes(data.length) }), avgSpeed);
 
           return {
             success: true,
             data: data,
-            message: this.t('messages.gba.batterylessReadSuccess', { size: data.length }),
+            message: this.t('messages.gba.batterylessReadSuccess', { size: formatBytes(data.length) }),
           };
         } catch (e) {
           if (signal?.aborted) {
@@ -1657,9 +1657,9 @@ export class GBAAdapter extends CartridgeAdapter {
           // 限制校验大小
           const verifySize = Math.min(fileData.byteLength, saveInfo.size);
           this.log(this.t('messages.gba.batterylessInfo', {
-            offset: formatHex(saveInfo.offset, 6),
-            size: saveInfo.size,
-            verifySize,
+            offset: formatHex(saveInfo.offset, 4),
+            size: formatBytes(saveInfo.size),
+            verifySize: formatBytes(verifySize),
           }), 'info');
 
           // 开始校验
