@@ -808,7 +808,7 @@ export class GBAAdapter extends CartridgeAdapter {
   override async writeRAM(fileData: Uint8Array, options: CommandOptions): Promise<CommandResult> {
     const ramType = options.ramType ?? 'SRAM';
 
-    // 如果是免电池存档，调用专门的方法
+    // 如果是免电存档，调用专门的方法
     if (ramType === 'BATLESS') {
       return this.writeBatterylessSave(fileData, options);
     }
@@ -947,7 +947,7 @@ export class GBAAdapter extends CartridgeAdapter {
   override async readRAM(size = 0x8000, options: CommandOptions) {
     const ramType = options.ramType ?? 'SRAM';
 
-    // 如果是免电池存档，调用专门的方法
+    // 如果是免电存档，调用专门的方法
     if (ramType === 'BATLESS') {
       return this.readBatterylessSave(options);
     }
@@ -1053,7 +1053,7 @@ export class GBAAdapter extends CartridgeAdapter {
   override async verifyRAM(fileData: Uint8Array, options: CommandOptions) {
     const ramType = options.ramType ?? 'SRAM';
 
-    // 如果是免电池存档，调用专门的方法
+    // 如果是免电存档，调用专门的方法
     if (ramType === 'BATLESS') {
       return this.verifyBatterylessSave(fileData, options);
     }
@@ -1217,7 +1217,7 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 搜索免电池存档位置和大小
+   * 搜索免电存档位置和大小
    * @param baseAddress - 基地址
    * @returns 存档信息或false
    */
@@ -1307,7 +1307,7 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 写入免电池存档
+   * 写入免电存档
    * @param fileData - 存档文件数据
    * @param options - 写入选项
    * @param signal - 取消信号
@@ -1338,7 +1338,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
           const isMultiCard = cfiInfo.deviceSize > (1 << 25); // 32MB
 
-          // 搜索免电池存档位置
+          // 搜索免电存档位置
           const saveInfo = await this.searchBatteryless(baseAddress);
           if (!saveInfo) {
             return { success: false, message: this.t('messages.gba.batterylessNotFound') };
@@ -1457,7 +1457,7 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 读取免电池存档
+   * 读取免电存档
    * @param options - 读取选项
    * @param signal - 取消信号
    * @returns 操作结果，包含读取的数据
@@ -1486,7 +1486,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
           const isMultiCard = cfiInfo.deviceSize > (1 << 25); // 32MB
 
-          // 搜索免电池存档位置
+          // 搜索免电存档位置
           const saveInfo = await this.searchBatteryless(baseAddress);
           if (!saveInfo) {
             return { success: false, message: this.t('messages.gba.batterylessNotFound') };
@@ -1589,7 +1589,7 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 校验免电池存档
+   * 校验免电存档
    * @param fileData - 存档文件数据
    * @param options - 校验选项
    * @param signal - 取消信号
@@ -1620,7 +1620,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
           const isMultiCard = cfiInfo.deviceSize > (1 << 25); // 32MB
 
-          // 搜索免电池存档位置
+          // 搜索免电存档位置
           const saveInfo = await this.searchBatteryless(baseAddress);
           if (!saveInfo) {
             return { success: false, message: this.t('messages.gba.batterylessNotFound') };

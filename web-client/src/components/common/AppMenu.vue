@@ -70,6 +70,7 @@
             <span class="menu-item-title">{{ $t('ui.menu.cartridgeTools') }}</span>
             <span class="menu-item-desc">{{ $t('ui.menu.cartridgeToolsDesc') }}</span>
           </div>
+          <span class="beta-badge">BETA</span>
         </button>
 
         <div class="menu-divider" />
@@ -200,7 +201,7 @@ const showDebugTool = ref(route.query.debug_tool === 'true');
 function incrementClickCount() {
   clickCount.value++;
 
-  if (clickCount.value >= 3 && !showCartridgeTools.value) {
+  if (clickCount.value >= 2 && !showCartridgeTools.value) {
     showCartridgeTools.value = true;
     showToast(t('ui.menu.cartridgeToolsUnlocked'), 'success');
   }
@@ -419,5 +420,18 @@ function closeAbout() {
   height: 1px;
   background: #e9ecef;
   margin: 8px 20px;
+}
+
+.beta-badge {
+  background: linear-gradient(45deg, #ff6b6b, #ff8e53);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(255, 107, 107, 0.3);
+  flex-shrink: 0;
 }
 </style>

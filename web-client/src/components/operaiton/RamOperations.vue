@@ -25,7 +25,7 @@
                 v-if="mode === 'GBA'"
                 value="BATLESS"
               >
-                {{ $t('ui.ram.typeBATLESS') }}
+                {{ $t('ui.ram.typeBATLESS') }} (WIP)
               </option>
             </select>
           </div>
