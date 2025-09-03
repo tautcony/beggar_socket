@@ -309,6 +309,9 @@ export class GBAAdapter extends CartridgeAdapter {
             await this.eraseSectors(sectorInfo, signal);
           }
 
+          // 重置扇区状态为pending，准备开始写入阶段
+          this.resetSectorsState();
+
           // 使用速度计算器
           const speedCalculator = new SpeedCalculator();
 
@@ -320,6 +323,9 @@ export class GBAAdapter extends CartridgeAdapter {
             (key, params) => this.t(key, params),
           );
           progressReporter.setSectors(this.currentSectorProgress);
+
+          // 重置 progressReporter 的扇区状态为pending（因为要开始写入阶段）
+          progressReporter.resetSectorsState();
 
           // 报告开始状态
           progressReporter.reportStart(this.t('messages.rom.writing', { size: total }));
@@ -347,7 +353,7 @@ export class GBAAdapter extends CartridgeAdapter {
             const currentAddress = baseAddress + written;
 
             // 更新当前扇区状态为"正在处理"
-            this.updateSectorProgressByAddress(currentAddress, 'processing');
+            progressReporter.updateSectorProgress(currentAddress, 'processing');
 
             const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress);
             if (options.cfiInfo.deviceSize > (1 << 25)) {
@@ -364,7 +370,7 @@ export class GBAAdapter extends CartridgeAdapter {
             chunkCount++;
 
             // 更新已写入范围的扇区状态
-            this.updateSectorRangeProgress(baseAddress, baseAddress + written - 1, 'completed');
+            progressReporter.updateSectorRangeProgress(baseAddress, baseAddress + written - 1, 'completed');
 
             // 添加数据点到速度计算器
             speedCalculator.addDataPoint(chunkSize, chunkEndTime);
@@ -672,7 +678,7 @@ export class GBAAdapter extends CartridgeAdapter {
             const currentAddress = baseAddress + verified;
 
             // 更新当前扇区状态为"正在处理"
-            this.updateSectorProgressByAddress(currentAddress, 'processing');
+            progressReporter.updateSectorProgress(currentAddress, 'processing');
 
             const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress);
             if (options.cfiInfo.deviceSize > (1 << 25)) {
@@ -706,7 +712,7 @@ export class GBAAdapter extends CartridgeAdapter {
             chunkCount++;
 
             // 更新已校验范围的扇区状态
-            this.updateSectorRangeProgress(baseAddress, baseAddress + verified - 1, 'completed');
+            progressReporter.updateSectorRangeProgress(baseAddress, baseAddress + verified - 1, 'completed');
 
             // 添加数据点到速度计算器
             speedCalculator.addDataPoint(chunkSize, chunkEndTime);

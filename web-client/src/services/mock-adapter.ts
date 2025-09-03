@@ -287,6 +287,9 @@ export class MockAdapter extends CartridgeAdapter {
       // 初始化扇区进度信息
       const sectors = this.initializeSectorProgress(mockSectorInfo);
 
+      // 重置扇区状态为pending，准备开始写入阶段
+      this.resetSectorsState();
+
       // 创建进度报告器
       const progressReporter = new ProgressReporter(
         'write',
@@ -295,6 +298,9 @@ export class MockAdapter extends CartridgeAdapter {
         (key, params) => this.t(key, params),
       );
       progressReporter.setSectors(this.currentSectorProgress);
+
+      // 重置 progressReporter 的扇区状态为pending（因为要开始写入阶段）
+      progressReporter.resetSectorsState();
 
       // 报告开始状态
       progressReporter.reportStart(this.t('messages.operation.startWriteROM'));
@@ -452,7 +458,6 @@ export class MockAdapter extends CartridgeAdapter {
     this.log(this.t('messages.rom.reading'), 'info');
 
     const startTime = Date.now();
-    let cancelled = false;
 
     // 使用速度计算器模拟
     const speedCalculator = new SpeedCalculator();
@@ -474,23 +479,23 @@ export class MockAdapter extends CartridgeAdapter {
       const sectorsCount = sectors.length;
       let readCount = 0;
 
-      // 初始化扇区可视化进度
-      this.updateProgress(
-        ProgressInfoBuilder.running('read')
-          .bytes(0, size)
-          .detail(this.t('messages.rom.reading'))
-          .startTime(startTime)
-          .speed(0)
-          .sectors(this.currentSectorProgress, 0, 0)
-          .build(),
+      // 创建进度报告器
+      const progressReporter = new ProgressReporter(
+        'read',
+        size,
+        (progressInfo) => { this.updateProgress(progressInfo); },
+        (key, params) => this.t(key, params),
       );
+      progressReporter.setSectors(this.currentSectorProgress);
+
+      // 报告开始状态
+      progressReporter.reportStart(this.t('messages.rom.reading'));
 
       // 模拟逐个扇区读取进度
       for (let i = 0; i < sectorsCount; i++) {
         // 检查是否已被取消
         if (signal?.aborted) {
-          cancelled = true;
-          this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.operation.cancelled')));
+          progressReporter.reportError(this.t('messages.operation.cancelled'));
           return {
             success: false,
             message: this.t('messages.operation.cancelled'),
@@ -500,7 +505,7 @@ export class MockAdapter extends CartridgeAdapter {
         const sector = sectors[i];
 
         // 更新当前扇区状态为"正在处理"
-        const sectorIndex = this.updateSectorProgress(sector.address, 'processing');
+        const sectorIndex = progressReporter.updateSectorProgress(sector.address, 'processing');
 
         // 模拟扇区读取延迟
         await DebugSettings.delay(120 + Math.random() * 180); // 120-300ms 每个扇区
@@ -509,37 +514,22 @@ export class MockAdapter extends CartridgeAdapter {
         const currentSpeed = 20000 + Math.random() * 15000; // 20-35 KB/s
         speedCalculator.addDataPoint(sector.size, Date.now());
 
-        // 更新进度显示当前正在读取的扇区
-        this.updateProgress(
-          ProgressInfoBuilder.running('read')
-            .progress((i / sectorsCount) * 100)
-            .detail(this.t('messages.progress.readSpeed', { speed: formatSpeed(currentSpeed) }))
-            .bytes(readCount * (size / sectorsCount), size)
-            .startTime(startTime)
-            .speed(currentSpeed)
-            .sectors(this.currentSectorProgress, readCount, sectorIndex)
-            .build(),
-        );
-
         // 更新当前扇区状态为"已完成"
-        this.updateSectorProgress(sector.address, 'completed');
+        progressReporter.updateSectorProgress(sector.address, 'completed');
         readCount++;
 
-        // 最终进度更新
-        this.updateProgress(
-          ProgressInfoBuilder.running('read')
-            .progress(((i + 1) / sectorsCount) * 100)
-            .detail(this.t('messages.progress.readSpeed', { speed: formatSpeed(currentSpeed) }))
-            .bytes((readCount * size) / sectorsCount, size)
-            .startTime(startTime)
-            .speed(currentSpeed)
-            .sectors(this.currentSectorProgress, readCount, sectorIndex)
-            .build(),
+        // 报告进度
+        progressReporter.reportProgress(
+          (readCount * size) / sectorsCount,
+          currentSpeed,
+          this.t('messages.progress.readSpeed', { speed: formatSpeed(currentSpeed) }),
+          readCount,
+          sectorIndex,
         );
       }
 
-      if (signal?.aborted || cancelled) {
-        this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.operation.cancelled')));
+      if (signal?.aborted) {
+        progressReporter.reportError(this.t('messages.operation.cancelled'));
         return {
           success: false,
           message: this.t('messages.operation.cancelled'),
@@ -547,7 +537,7 @@ export class MockAdapter extends CartridgeAdapter {
       }
 
       if (DebugSettings.shouldSimulateError()) {
-        this.updateProgress(this.createErrorProgressInfo('read', this.t('messages.rom.readFailed')));
+        progressReporter.reportError(this.t('messages.rom.readFailed'));
         this.log(`${this.t('messages.rom.readFailed')}: 模拟错误`, 'error');
         return {
           success: false,
@@ -564,18 +554,13 @@ export class MockAdapter extends CartridgeAdapter {
 
       this.log(this.t('messages.rom.readSuccess', { size: data.length }), 'success');
       this.log(this.t('messages.rom.readSummary', {
-        totalTime: totalTime.toFixed(2),
-        avgSpeed: avgSpeed.toFixed(1),
-        maxSpeed: maxSpeed.toFixed(1),
+        totalTime: formatTimeDuration(totalTime),
+        avgSpeed: formatSpeed(avgSpeed),
+        maxSpeed: formatSpeed(maxSpeed),
         totalSize: formatBytes(size),
       }), 'info');
 
-      this.updateProgress(ProgressInfoBuilder.completed('read')
-        .detail(this.t('messages.rom.readSuccess', { size: data.length }))
-        .bytes(size, size)
-        .startTime(startTime)
-        .speed(avgSpeed)
-        .build());
+      progressReporter.reportCompleted(this.t('messages.rom.readSuccess', { size: data.length }), avgSpeed);
 
       return {
         success: true,
@@ -604,7 +589,6 @@ export class MockAdapter extends CartridgeAdapter {
     this.log(this.t('messages.rom.verifying'), 'info');
 
     const startTime = Date.now();
-    let cancelled = false;
 
     // 使用速度计算器模拟
     const speedCalculator = new SpeedCalculator();
@@ -626,23 +610,23 @@ export class MockAdapter extends CartridgeAdapter {
       const sectorsCount = sectors.length;
       let verifyCount = 0;
 
-      // 初始化扇区可视化进度
-      this.updateProgress(
-        ProgressInfoBuilder.running('verify')
-          .bytes(0, fileData.length)
-          .detail(this.t('messages.rom.verifying'))
-          .startTime(startTime)
-          .speed(0)
-          .sectors(this.currentSectorProgress, 0, 0)
-          .build(),
+      // 创建进度报告器
+      const progressReporter = new ProgressReporter(
+        'verify',
+        fileData.length,
+        (progressInfo) => { this.updateProgress(progressInfo); },
+        (key, params) => this.t(key, params),
       );
+      progressReporter.setSectors(this.currentSectorProgress);
+
+      // 报告开始状态
+      progressReporter.reportStart(this.t('messages.rom.verifying'));
 
       // 模拟逐个扇区校验进度
       for (let i = 0; i < sectorsCount; i++) {
         // 检查是否已被取消
         if (signal?.aborted) {
-          cancelled = true;
-          this.updateProgress(this.createErrorProgressInfo('verify', this.t('messages.operation.cancelled')));
+          progressReporter.reportError(this.t('messages.operation.cancelled'));
           return {
             success: false,
             message: this.t('messages.operation.cancelled'),
@@ -652,7 +636,7 @@ export class MockAdapter extends CartridgeAdapter {
         const sector = sectors[i];
 
         // 更新当前扇区状态为"正在处理"
-        const sectorIndex = this.updateSectorProgress(sector.address, 'processing');
+        const sectorIndex = progressReporter.updateSectorProgress(sector.address, 'processing');
 
         // 模拟扇区校验延迟
         await DebugSettings.delay(150 + Math.random() * 250); // 150-400ms 每个扇区
@@ -662,36 +646,30 @@ export class MockAdapter extends CartridgeAdapter {
         speedCalculator.addDataPoint(sector.size, Date.now());
 
         // 更新进度显示当前正在校验的扇区
-        this.updateProgress(
-          ProgressInfoBuilder.running('verify')
-            .progress((i / sectorsCount) * 100)
-            .detail(this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeed) }))
-            .bytes(verifyCount * (fileData.length / sectorsCount), fileData.length)
-            .startTime(startTime)
-            .speed(currentSpeed)
-            .sectors(this.currentSectorProgress, verifyCount, sectorIndex)
-            .build(),
+        progressReporter.reportProgress(
+          verifyCount * (fileData.length / sectorsCount),
+          currentSpeed,
+          this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeed) }),
+          verifyCount,
+          sectorIndex,
         );
 
         // 更新当前扇区状态为"已完成"
-        this.updateSectorProgress(sector.address, 'completed');
+        progressReporter.updateSectorProgress(sector.address, 'completed');
         verifyCount++;
 
         // 最终进度更新
-        this.updateProgress(
-          ProgressInfoBuilder.running('verify')
-            .progress(((i + 1) / sectorsCount) * 100)
-            .detail(this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeed) }))
-            .bytes((verifyCount * fileData.length) / sectorsCount, fileData.length)
-            .startTime(startTime)
-            .speed(currentSpeed)
-            .sectors(this.currentSectorProgress, verifyCount, sectorIndex)
-            .build(),
+        progressReporter.reportProgress(
+          (verifyCount * fileData.length) / sectorsCount,
+          currentSpeed,
+          this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeed) }),
+          verifyCount,
+          sectorIndex,
         );
       }
 
-      if (signal?.aborted || cancelled) {
-        this.updateProgress(this.createErrorProgressInfo('verify', this.t('messages.operation.cancelled')));
+      if (signal?.aborted) {
+        progressReporter.reportError(this.t('messages.operation.cancelled'));
         return {
           success: false,
           message: this.t('messages.operation.cancelled'),
@@ -700,7 +678,7 @@ export class MockAdapter extends CartridgeAdapter {
 
       if (DebugSettings.shouldSimulateError()) {
         this.log(`${this.t('messages.rom.verifyFailed')}: 模拟错误`, 'error');
-        this.updateProgress(this.createErrorProgressInfo('verify', this.t('messages.rom.verifyFailed')));
+        progressReporter.reportError(this.t('messages.rom.verifyFailed'));
         return {
           success: false,
           message: this.t('messages.rom.verifyFailed'),
@@ -722,15 +700,10 @@ export class MockAdapter extends CartridgeAdapter {
           maxSpeed: maxSpeed.toFixed(1),
           totalSize: formatBytes(fileData.length),
         }), 'info');
-        this.updateProgress(ProgressInfoBuilder.completed('verify')
-          .detail(this.t('messages.rom.verifySuccess'))
-          .bytes(fileData.length, fileData.length)
-          .startTime(startTime)
-          .speed(avgSpeed)
-          .build());
+        progressReporter.reportCompleted(this.t('messages.rom.verifySuccess'), avgSpeed);
       } else {
         this.log(this.t('messages.rom.verifyFailed'), 'error');
-        this.updateProgress(this.createErrorProgressInfo('verify', this.t('messages.rom.verifyFailed')));
+        progressReporter.reportError(this.t('messages.rom.verifyFailed'));
       }
 
       const message = isMatch !== false ? this.t('messages.rom.verifySuccess') : this.t('messages.rom.verifyFailed');

@@ -182,7 +182,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             }
 
             // 更新当前扇区状态为"正在处理"
-            const sectorIndex = this.updateSectorProgress(sector.address, 'processing');
+            const sectorIndex = progressReporter.updateSectorProgress(sector.address, 'processing');
 
             this.log(this.t('messages.operation.eraseSector', {
               from: formatHex(sector.address, 4),
@@ -199,7 +199,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             const sectorEndTime = Date.now();
 
             // 更新当前扇区状态为"已完成"
-            this.updateSectorProgress(sector.address, 'completed');
+            progressReporter.updateSectorProgress(sector.address, 'completed');
 
             eraseCount++;
             const erasedBytes = eraseCount * sector.size;
@@ -305,6 +305,9 @@ export class MBC5Adapter extends CartridgeAdapter {
             await this.eraseSectors(sectorInfo, signal);
           }
 
+          // 重置扇区状态为pending，准备开始写入阶段
+          this.resetSectorsState();
+
           // 使用速度计算器
           const speedCalculator = new SpeedCalculator();
 
@@ -316,6 +319,9 @@ export class MBC5Adapter extends CartridgeAdapter {
             (key, params) => this.t(key, params),
           );
           progressReporter.setSectors(this.currentSectorProgress);
+
+          // 重置 progressReporter 的扇区状态为pending（因为要开始写入阶段）
+          progressReporter.resetSectorsState();
 
           // 报告开始状态
           progressReporter.reportStart(this.t('messages.rom.writing', { size: total }));
@@ -343,7 +349,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             const currentAddress = baseAddress + written;
 
             // 更新当前扇区状态为"正在处理"
-            this.updateSectorProgressByAddress(currentAddress, 'processing');
+            progressReporter.updateSectorProgress(currentAddress, 'processing');
 
             const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress);
             if (bank !== currentBank) {
@@ -358,7 +364,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             chunkCount++;
 
             // 更新已写入范围的扇区状态
-            this.updateSectorRangeProgress(baseAddress, baseAddress + written - 1, 'completed');
+            progressReporter.updateSectorRangeProgress(baseAddress, baseAddress + written - 1, 'completed');
 
             // 添加数据点到速度计算器
             speedCalculator.addDataPoint(chunkSize, chunkEndTime);
@@ -674,7 +680,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             const currentAddress = baseAddress + verified;
 
             // 更新当前扇区状态为"正在处理"
-            this.updateSectorProgressByAddress(currentAddress, 'processing');
+            progressReporter.updateSectorProgress(currentAddress, 'processing');
 
             const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress);
             if (bank !== currentBank) {
@@ -706,7 +712,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             chunkCount++;
 
             // 更新已校验范围的扇区状态
-            this.updateSectorRangeProgress(baseAddress, baseAddress + verified - 1, 'completed');
+            progressReporter.updateSectorRangeProgress(baseAddress, baseAddress + verified - 1, 'completed');
 
             // 添加数据点到速度计算器
             speedCalculator.addDataPoint(chunkSize, chunkEndTime);

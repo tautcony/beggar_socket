@@ -33,6 +33,15 @@ export class ProgressReporter {
   }
 
   /**
+   * 重置所有扇区状态为pending
+   */
+  resetSectorsState(): void {
+    for (const sector of this.sectors) {
+      sector.state = 'pending';
+    }
+  }
+
+  /**
    * 报告开始状态
    */
   reportStart(message: string): void {
