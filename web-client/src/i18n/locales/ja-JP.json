@@ -561,7 +561,38 @@
       "verifyFailedAt": "アドレス{address}で検証失敗、期待値 {expected}、実際の値 {actual}",
       "bankSwitch": "RAMバンク {bank} に切り替え",
       "writeSummary": "RAM書き込み完了サマリー - 総時間: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 総サイズ: {totalSize}",
-      "readSummary": "RAM読み取り完了サマリー - 総時間: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 総サイズ: {totalSize}"
+      "readSummary": "RAM読み取り完了サマリー - 総時間: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 総サイズ: {totalSize}",
+      "bankSwitchSram": "SRAMバンク {bank} に切り替えました",
+      "bankSwitchFlash": "Flashバンク {bank} に切り替えました",
+      "flash": {
+        "erasingFlash": "Flash消去中",
+        "eraseStatus": "消去状態: {status}",
+        "eraseComplete": "消去完了"
+      },
+      "batteryless": {
+        "found": "バッテリーレスセーブ発見 - オフセット: {offset}, サイズ: {size}",
+        "notFound": "バッテリーレスセーブが見つかりません",
+        "searchFailed": "バッテリーレスセーブ検索失敗",
+        "info": "バッテリーレスセーブ情報 - オフセット: {offset}, サイズ: {size}",
+        "erase": "バッテリーレスセーブ領域消去 {startAddress} - {endAddress}",
+        "startWrite": "バッテリーレスセーブ書き込み開始",
+        "writing": "バッテリーレスセーブ書き込み中 ({progress}%)",
+        "writeComplete": "バッテリーレスセーブ書き込み完了",
+        "writeSuccess": "バッテリーレスセーブ書き込み成功",
+        "writeFailed": "バッテリーレスセーブ書き込み失敗",
+        "writeSummary": "書き込み統計 - 所要時間: {totalTime}, 平均速度: {avgSpeed}, 総サイズ: {totalSize}",
+        "startRead": "バッテリーレスセーブ読み取り開始",
+        "reading": "バッテリーレスセーブ読み取り中 ({progress}%)",
+        "readComplete": "バッテリーレスセーブ読み取り完了、サイズ：{size}",
+        "readSuccess": "バッテリーレスセーブ読み取り成功、サイズ：{size}",
+        "readFailed": "バッテリーレスセーブ読み取り失敗",
+        "readSummary": "読み取り統計 - 所要時間: {totalTime}, 平均速度: {avgSpeed}, 総サイズ: {totalSize}",
+        "startVerify": "バッテリーレスセーブ検証開始",
+        "verifying": "バッテリーレスセーブ検証中 ({progress}%)",
+        "verifySuccess": "バッテリーレスセーブ検証成功",
+        "verifyFailed": "バッテリーレスセーブ検証失敗",
+        "verifySummary": "検証統計 - 所要時間: {totalTime}, 平均速度: {avgSpeed}, 総サイズ: {totalSize}"
+      }
     },
     "progress": {
       "writing": "処理済み: {written}/{total} バイト",
@@ -576,37 +607,6 @@
     },
     "mode": {
       "autoSwitched": "{romType}タイプのROMファイルを検出したため、{from}モードから{to}モードに自動切り替えしました"
-    },
-    "mbc5": {
-    },
-    "gba": {
-      "bankSwitchSram": "SRAMバンク {bank} に切り替えました",
-      "bankSwitchFlash": "Flashバンク {bank} に切り替えました",
-      "erasingFlash": "Flash消去中",
-      "eraseStatus": "消去状態: {status}",
-      "eraseComplete": "消去完了",
-      "batterylessFound": "バッテリーレスセーブ発見 - オフセット: {offset}, サイズ: {size}",
-      "batterylessNotFound": "バッテリーレスセーブが見つかりません",
-      "batterylessSearchFailed": "バッテリーレスセーブ検索失敗",
-      "batterylessInfo": "バッテリーレスセーブ情報 - オフセット: {offset}, サイズ: {size}",
-      "batterylessErase": "バッテリーレスセーブ領域消去 {startAddress} - {endAddress}",
-      "batterylessStartWrite": "バッテリーレスセーブ書き込み開始",
-      "batterylessWriting": "バッテリーレスセーブ書き込み中 ({progress}%)",
-      "batterylessWriteComplete": "バッテリーレスセーブ書き込み完了",
-      "batterylessWriteSuccess": "バッテリーレスセーブ書き込み成功",
-      "batterylessWriteFailed": "バッテリーレスセーブ書き込み失敗",
-      "batterylessWriteSummary": "書き込み統計 - 所要時間: {totalTime}, 平均速度: {avgSpeed}, 総サイズ: {totalSize}",
-      "batterylessStartRead": "バッテリーレスセーブ読み取り開始",
-      "batterylessReading": "バッテリーレスセーブ読み取り中 ({progress}%)",
-      "batterylessReadComplete": "バッテリーレスセーブ読み取り完了、サイズ：{size}",
-      "batterylessReadSuccess": "バッテリーレスセーブ読み取り成功、サイズ：{size}",
-      "batterylessReadFailed": "バッテリーレスセーブ読み取り失敗",
-      "batterylessReadSummary": "読み取り統計 - 所要時間: {totalTime}, 平均速度: {avgSpeed}, 総サイズ: {totalSize}",
-      "batterylessStartVerify": "バッテリーレスセーブ検証開始",
-      "batterylessVerifying": "バッテリーレスセーブ検証中 ({progress}%)",
-      "batterylessVerifySuccess": "バッテリーレスセーブ検証成功",
-      "batterylessVerifyFailed": "バッテリーレスセーブ検証失敗",
-      "batterylessVerifySummary": "検証統計 - 所要時間: {totalTime}, 平均速度: {avgSpeed}, 総サイズ: {totalSize}"
     },
     "file": {
       "selectRom": "選択されたROMファイル: {name}、サイズ {size}",

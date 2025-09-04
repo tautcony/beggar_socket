@@ -1316,7 +1316,7 @@ export class GBAAdapter extends CartridgeAdapter {
           const payloadHeader = await this.readROMChunked(12, payloadStart, chunkSize);
           const size = payloadHeader[8] | (payloadHeader[9] << 8) | (payloadHeader[10] << 16) | (payloadHeader[11] << 24);
 
-          this.log(this.t('messages.gba.batterylessFound', {
+          this.log(this.t('messages.ram.batteryless.found', {
             offset: formatHex(offset, 4),
             size: formatBytes(size),
           }), 'success');
@@ -1325,10 +1325,10 @@ export class GBAAdapter extends CartridgeAdapter {
         }
       }
 
-      this.log(this.t('messages.gba.batterylessNotFound'), 'warn');
+      this.log(this.t('messages.ram.batteryless.notFound'), 'warn');
       return false;
     } catch (e) {
-      this.log(`${this.t('messages.gba.batterylessSearchFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+      this.log(`${this.t('messages.ram.batteryless.searchFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
       return false;
     }
   }
@@ -1368,20 +1368,20 @@ export class GBAAdapter extends CartridgeAdapter {
           // 搜索免电存档位置
           const saveInfo = await this.searchBatteryless(baseAddress, options);
           if (!saveInfo) {
-            return { success: false, message: this.t('messages.gba.batterylessNotFound') };
+            return { success: false, message: this.t('messages.ram.batteryless.notFound') };
           }
 
           // 限制写入大小不超过检测到的存档大小
           const writeSize = Math.min(fileData.byteLength, saveInfo.size);
           console.log(writeSize, fileData.byteLength, saveInfo.size);
-          this.log(this.t('messages.gba.batterylessInfo', {
+          this.log(this.t('messages.ram.batteryless.info', {
             offset: formatHex(saveInfo.offset, 4),
             size: formatBytes(saveInfo.size),
             writeSize: formatBytes(writeSize),
           }), 'info');
 
           // 擦除存档区域
-          this.log(this.t('messages.gba.batterylessErase', {
+          this.log(this.t('messages.ram.batteryless.erase', {
             startAddress: formatHex(saveInfo.offset, 6),
             endAddress: formatHex(saveInfo.offset + writeSize, 6),
           }), 'info');
@@ -1393,7 +1393,7 @@ export class GBAAdapter extends CartridgeAdapter {
           }
 
           // 开始写入
-          this.log(this.t('messages.gba.batterylessStartWrite'), 'info');
+          this.log(this.t('messages.ram.batteryless.startWrite'), 'info');
 
           let written = 0;
           let currentBank = -1;
@@ -1409,7 +1409,7 @@ export class GBAAdapter extends CartridgeAdapter {
             (key, params) => this.t(key, params),
           );
 
-          progressReporter.reportStart(this.t('messages.gba.batterylessStartWrite'));
+          progressReporter.reportStart(this.t('messages.ram.batteryless.startWrite'));
 
           while (written < writeSize) {
             // 检查是否已被取消
@@ -1442,35 +1442,35 @@ export class GBAAdapter extends CartridgeAdapter {
             progressReporter.reportProgress(
               written,
               speedCalculator.getCurrentSpeed(),
-              this.t('messages.gba.batterylessWriting', { progress: Math.floor((written / writeSize) * 100) }),
+              this.t('messages.ram.batteryless.writing', { progress: Math.floor((written / writeSize) * 100) }),
             );
           }
 
           const totalTime = speedCalculator.getTotalTime();
           const avgSpeed = speedCalculator.getAverageSpeed();
 
-          this.log(this.t('messages.gba.batterylessWriteComplete'), 'success');
-          this.log(this.t('messages.gba.batterylessWriteSummary', {
+          this.log(this.t('messages.ram.batteryless.writeComplete'), 'success');
+          this.log(this.t('messages.ram.batteryless.writeSummary', {
             totalTime: formatTimeDuration(totalTime),
             avgSpeed: formatSpeed(avgSpeed),
             totalSize: formatBytes(writeSize),
           }), 'info');
 
-          progressReporter.reportCompleted(this.t('messages.gba.batterylessWriteComplete'), avgSpeed);
+          progressReporter.reportCompleted(this.t('messages.ram.batteryless.writeComplete'), avgSpeed);
 
           return {
             success: true,
-            message: this.t('messages.gba.batterylessWriteSuccess'),
+            message: this.t('messages.ram.batteryless.writeSuccess'),
           };
         } catch (e) {
           if (signal?.aborted) {
             return { success: false, message: this.t('messages.operation.cancelled') };
           }
 
-          this.log(`${this.t('messages.gba.batterylessWriteFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+          this.log(`${this.t('messages.ram.batteryless.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
-            message: this.t('messages.gba.batterylessWriteFailed'),
+            message: this.t('messages.ram.batteryless.writeFailed'),
           };
         }
       },
@@ -1517,16 +1517,16 @@ export class GBAAdapter extends CartridgeAdapter {
           // 搜索免电存档位置
           const saveInfo = await this.searchBatteryless(baseAddress, options);
           if (!saveInfo) {
-            return { success: false, message: this.t('messages.gba.batterylessNotFound') };
+            return { success: false, message: this.t('messages.ram.batteryless.notFound') };
           }
 
-          this.log(this.t('messages.gba.batterylessInfo', {
+          this.log(this.t('messages.ram.batteryless.info', {
             offset: formatHex(saveInfo.offset, 4),
             size: formatBytes(saveInfo.size),
           }), 'info');
 
           // 开始读取
-          this.log(this.t('messages.gba.batterylessStartRead'), 'info');
+          this.log(this.t('messages.ram.batteryless.startRead'), 'info');
 
           const data = new Uint8Array(saveInfo.size);
           let readCount = 0;
@@ -1543,7 +1543,7 @@ export class GBAAdapter extends CartridgeAdapter {
             (key, params) => this.t(key, params),
           );
 
-          progressReporter.reportStart(this.t('messages.gba.batterylessStartRead'));
+          progressReporter.reportStart(this.t('messages.ram.batteryless.startRead'));
 
           while (readCount < saveInfo.size) {
             // 检查是否已被取消
@@ -1576,36 +1576,36 @@ export class GBAAdapter extends CartridgeAdapter {
             progressReporter.reportProgress(
               readCount,
               speedCalculator.getCurrentSpeed(),
-              this.t('messages.gba.batterylessReading', { progress: Math.floor((readCount / saveInfo.size) * 100) }),
+              this.t('messages.ram.batteryless.reading', { progress: Math.floor((readCount / saveInfo.size) * 100) }),
             );
           }
 
           const totalTime = speedCalculator.getTotalTime();
           const avgSpeed = speedCalculator.getAverageSpeed();
 
-          this.log(this.t('messages.gba.batterylessReadComplete', { size: formatBytes(data.length) }), 'success');
-          this.log(this.t('messages.gba.batterylessReadSummary', {
+          this.log(this.t('messages.ram.batteryless.readComplete', { size: formatBytes(data.length) }), 'success');
+          this.log(this.t('messages.ram.batteryless.readSummary', {
             totalTime: formatTimeDuration(totalTime),
             avgSpeed: formatSpeed(avgSpeed),
             totalSize: formatBytes(saveInfo.size),
           }), 'info');
 
-          progressReporter.reportCompleted(this.t('messages.gba.batterylessReadComplete', { size: formatBytes(data.length) }), avgSpeed);
+          progressReporter.reportCompleted(this.t('messages.ram.batteryless.readComplete', { size: formatBytes(data.length) }), avgSpeed);
 
           return {
             success: true,
             data: data,
-            message: this.t('messages.gba.batterylessReadSuccess', { size: formatBytes(data.length) }),
+            message: this.t('messages.ram.batteryless.readSuccess', { size: formatBytes(data.length) }),
           };
         } catch (e) {
           if (signal?.aborted) {
             return { success: false, message: this.t('messages.operation.cancelled') };
           }
 
-          this.log(`${this.t('messages.gba.batterylessReadFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+          this.log(`${this.t('messages.ram.batteryless.readFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
-            message: this.t('messages.gba.batterylessReadFailed'),
+            message: this.t('messages.ram.batteryless.readFailed'),
           };
         }
       },
@@ -1651,19 +1651,19 @@ export class GBAAdapter extends CartridgeAdapter {
           // 搜索免电存档位置
           const saveInfo = await this.searchBatteryless(baseAddress, options);
           if (!saveInfo) {
-            return { success: false, message: this.t('messages.gba.batterylessNotFound') };
+            return { success: false, message: this.t('messages.ram.batteryless.notFound') };
           }
 
           // 限制校验大小
           const verifySize = Math.min(fileData.byteLength, saveInfo.size);
-          this.log(this.t('messages.gba.batterylessInfo', {
+          this.log(this.t('messages.ram.batteryless.info', {
             offset: formatHex(saveInfo.offset, 4),
             size: formatBytes(saveInfo.size),
             verifySize: formatBytes(verifySize),
           }), 'info');
 
           // 开始校验
-          this.log(this.t('messages.gba.batterylessStartVerify'), 'info');
+          this.log(this.t('messages.ram.batteryless.startVerify'), 'info');
 
           let verified = 0;
           let currentBank = -1;
@@ -1681,7 +1681,7 @@ export class GBAAdapter extends CartridgeAdapter {
             (key, params) => this.t(key, params),
           );
 
-          progressReporter.reportStart(this.t('messages.gba.batterylessStartVerify'));
+          progressReporter.reportStart(this.t('messages.ram.batteryless.startVerify'));
 
           while (verified < verifySize && success) {
             // 检查是否已被取消
@@ -1731,7 +1731,7 @@ export class GBAAdapter extends CartridgeAdapter {
             progressReporter.reportProgress(
               verified,
               speedCalculator.getCurrentSpeed(),
-              this.t('messages.gba.batterylessVerifying', { progress: Math.floor((verified / verifySize) * 100) }),
+              this.t('messages.ram.batteryless.verifying', { progress: Math.floor((verified / verifySize) * 100) }),
             );
           }
 
@@ -1739,23 +1739,23 @@ export class GBAAdapter extends CartridgeAdapter {
           const avgSpeed = speedCalculator.getAverageSpeed();
 
           if (success && errorCount === 0) {
-            this.log(this.t('messages.gba.batterylessVerifySuccess'), 'success');
-            this.log(this.t('messages.gba.batterylessVerifySummary', {
+            this.log(this.t('messages.ram.batteryless.verifySuccess'), 'success');
+            this.log(this.t('messages.ram.batteryless.verifySummary', {
               totalTime: formatTimeDuration(totalTime),
               avgSpeed: formatSpeed(avgSpeed),
               totalSize: formatBytes(verifySize),
             }), 'info');
 
-            progressReporter.reportCompleted(this.t('messages.gba.batterylessVerifySuccess'), avgSpeed);
+            progressReporter.reportCompleted(this.t('messages.ram.batteryless.verifySuccess'), avgSpeed);
 
             return {
               success: true,
-              message: this.t('messages.gba.batterylessVerifySuccess'),
+              message: this.t('messages.ram.batteryless.verifySuccess'),
             };
           } else {
             const message = errorCount > 0
-              ? this.t('messages.gba.batterylessVerifyFailed', { errorCount })
-              : this.t('messages.gba.batterylessVerifyFailed');
+              ? this.t('messages.ram.batteryless.verifyFailed', { errorCount })
+              : this.t('messages.ram.batteryless.verifyFailed');
 
             this.log(message, 'error');
             progressReporter.reportError(message);
@@ -1770,10 +1770,10 @@ export class GBAAdapter extends CartridgeAdapter {
             return { success: false, message: this.t('messages.operation.cancelled') };
           }
 
-          this.log(`${this.t('messages.gba.batterylessVerifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+          this.log(`${this.t('messages.ram.batteryless.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
-            message: this.t('messages.gba.batterylessVerifyFailed'),
+            message: this.t('messages.ram.batteryless.verifyFailed'),
           };
         }
       },

@@ -561,7 +561,38 @@
       "verifyFailedAt": "Verification failed at address {address}, expected {expected}, got {actual}",
       "bankSwitch": "Switched to RAM Bank {bank}",
       "writeSummary": "RAM write complete summary - Total time: {totalTime}, Average speed: {avgSpeed}, Maximum speed: {maxSpeed}, Total size: {totalSize}",
-      "readSummary": "RAM read complete summary - Total time: {totalTime}, Average speed: {avgSpeed}, Maximum speed: {maxSpeed}, Total size: {totalSize}"
+      "readSummary": "RAM read complete summary - Total time: {totalTime}, Average speed: {avgSpeed}, Maximum speed: {maxSpeed}, Total size: {totalSize}",
+      "bankSwitchSram": "Switched to SRAM Bank {bank}",
+      "bankSwitchFlash": "Switched to Flash Bank {bank}",
+      "flash": {
+        "erasingFlash": "Erasing Flash",
+        "eraseStatus": "Erase status: {status}",
+        "eraseComplete": "Erase complete"
+      },
+      "batteryless": {
+        "found": "Found batteryless save - Offset: {offset}, Size: {size}",
+        "notFound": "Batteryless save not found",
+        "searchFailed": "Failed to search batteryless save",
+        "info": "Batteryless save info - Offset: {offset}, Size: {size}",
+        "erase": "Erasing batteryless save region {startAddress} - {endAddress}",
+        "startWrite": "Starting batteryless save write",
+        "writing": "Writing batteryless save ({progress}%)",
+        "writeComplete": "Batteryless save write complete",
+        "writeSuccess": "Batteryless save write successful",
+        "writeFailed": "Batteryless save write failed",
+        "writeSummary": "Write stats - Time: {totalTime}, Avg speed: {avgSpeed}, Total size: {totalSize}",
+        "startRead": "Starting batteryless save read",
+        "reading": "Reading batteryless save ({progress}%)",
+        "readComplete": "Batteryless save read complete, size: {size}",
+        "readSuccess": "Batteryless save read successful, size: {size}",
+        "readFailed": "Batteryless save read failed",
+        "readSummary": "Read stats - Time: {totalTime}, Avg speed: {avgSpeed}, Total size: {totalSize}",
+        "startVerify": "Starting batteryless save verify",
+        "verifying": "Verifying batteryless save ({progress}%)",
+        "verifySuccess": "Batteryless save verify successful",
+        "verifyFailed": "Batteryless save verify failed",
+        "verifySummary": "Verify stats - Time: {totalTime}, Avg speed: {avgSpeed}, Total size: {totalSize}"
+      }
     },
     "progress": {
       "writing": "Processed: {written}/{total} bytes",
@@ -576,37 +607,6 @@
     },
     "mode": {
       "autoSwitched": "Detected {romType} ROM file, automatically switched from {from} mode to {to} mode"
-    },
-    "mbc5": {
-    },
-    "gba": {
-      "bankSwitchSram": "Switched to SRAM Bank {bank}",
-      "bankSwitchFlash": "Switched to Flash Bank {bank}",
-      "erasingFlash": "Erasing Flash",
-      "eraseStatus": "Erase status: {status}",
-      "eraseComplete": "Erase complete",
-      "batterylessFound": "Found batteryless save - Offset: {offset}, Size: {size}",
-      "batterylessNotFound": "Batteryless save not found",
-      "batterylessSearchFailed": "Failed to search batteryless save",
-      "batterylessInfo": "Batteryless save info - Offset: {offset}, Size: {size}",
-      "batterylessErase": "Erasing batteryless save region {startAddress} - {endAddress}",
-      "batterylessStartWrite": "Starting batteryless save write",
-      "batterylessWriting": "Writing batteryless save ({progress}%)",
-      "batterylessWriteComplete": "Batteryless save write complete",
-      "batterylessWriteSuccess": "Batteryless save write successful",
-      "batterylessWriteFailed": "Batteryless save write failed",
-      "batterylessWriteSummary": "Write stats - Time: {totalTime}, Avg speed: {avgSpeed}, Total size: {totalSize}",
-      "batterylessStartRead": "Starting batteryless save read",
-      "batterylessReading": "Reading batteryless save ({progress}%)",
-      "batterylessReadComplete": "Batteryless save read complete, size: {size}",
-      "batterylessReadSuccess": "Batteryless save read successful, size: {size}",
-      "batterylessReadFailed": "Batteryless save read failed",
-      "batterylessReadSummary": "Read stats - Time: {totalTime}, Avg speed: {avgSpeed}, Total size: {totalSize}",
-      "batterylessStartVerify": "Starting batteryless save verify",
-      "batterylessVerifying": "Verifying batteryless save ({progress}%)",
-      "batterylessVerifySuccess": "Batteryless save verify successful",
-      "batterylessVerifyFailed": "Batteryless save verify failed",
-      "batterylessVerifySummary": "Verify stats - Time: {totalTime}, Avg speed: {avgSpeed}, Total size: {totalSize}"
     },
     "file": {
       "selectRom": "Selected ROM file: {name}, size {size}",

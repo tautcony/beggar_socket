@@ -561,7 +561,38 @@
       "verifyFailedAt": "地址{address}校验失败，期望值 {expected}，实际值 {actual}",
       "bankSwitch": "切换到RAM Bank {bank}",
       "writeSummary": "RAM写入完成摘要 - 总耗时: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 总大小: {totalSize}",
-      "readSummary": "RAM读取完成摘要 - 总耗时: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 总大小: {totalSize}"
+      "readSummary": "RAM读取完成摘要 - 总耗时: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 总大小: {totalSize}",
+      "bankSwitchSram": "已切换至SRAM Bank {bank}",
+      "bankSwitchFlash": "已切换至Flash Bank {bank}",
+      "flash": {
+        "erasingFlash": "正在擦除Flash",
+        "eraseStatus": "擦除状态: {status}",
+        "eraseComplete": "擦除完成"
+      },
+      "batteryless": {
+        "found": "找到免电存档 - 偏移: {offset}, 大小: {size}",
+        "notFound": "未找到免电存档",
+        "searchFailed": "搜索免电存档失败",
+        "info": "免电存档信息 - 偏移: {offset}, 大小: {size}",
+        "erase": "擦除免电存档区域 {startAddress} - {endAddress}",
+        "startWrite": "开始写入免电存档",
+        "writing": "正在写入免电存档 ({progress}%)",
+        "writeComplete": "免电存档写入完成",
+        "writeSuccess": "免电存档写入成功",
+        "writeFailed": "免电存档写入失败",
+        "writeSummary": "写入统计 - 耗时: {totalTime}, 平均速度: {avgSpeed}, 总大小: {totalSize}",
+        "startRead": "开始读取免电存档",
+        "reading": "正在读取免电存档 ({progress}%)",
+        "readComplete": "免电存档读取完成，大小：{size}",
+        "readSuccess": "免电存档读取成功，大小：{size}",
+        "readFailed": "免电存档读取失败",
+        "readSummary": "读取统计 - 耗时: {totalTime}, 平均速度: {avgSpeed}, 总大小: {totalSize}",
+        "startVerify": "开始校验免电存档",
+        "verifying": "正在校验免电存档 ({progress}%)",
+        "verifySuccess": "免电存档校验成功",
+        "verifyFailed": "免电存档校验失败",
+        "verifySummary": "校验统计 - 耗时: {totalTime}, 平均速度: {avgSpeed}, 总大小: {totalSize}"
+      }
     },
     "progress": {
       "writing": "已处理: {written}/{total} 字节",
@@ -576,37 +607,6 @@
     },
     "mode": {
       "autoSwitched": "检测到{romType}类型ROM文件，已自动从{from}模式切换至{to}模式"
-    },
-    "mbc5": {
-    },
-    "gba": {
-      "bankSwitchSram": "已切换至SRAM Bank {bank}",
-      "bankSwitchFlash": "已切换至Flash Bank {bank}",
-      "erasingFlash": "正在擦除Flash",
-      "eraseStatus": "擦除状态: {status}",
-      "eraseComplete": "擦除完成",
-      "batterylessFound": "找到免电存档 - 偏移: {offset}, 大小: {size}",
-      "batterylessNotFound": "未找到免电存档",
-      "batterylessSearchFailed": "搜索免电存档失败",
-      "batterylessInfo": "免电存档信息 - 偏移: {offset}, 大小: {size}",
-      "batterylessErase": "擦除免电存档区域 {startAddress} - {endAddress}",
-      "batterylessStartWrite": "开始写入免电存档",
-      "batterylessWriting": "正在写入免电存档 ({progress}%)",
-      "batterylessWriteComplete": "免电存档写入完成",
-      "batterylessWriteSuccess": "免电存档写入成功",
-      "batterylessWriteFailed": "免电存档写入失败",
-      "batterylessWriteSummary": "写入统计 - 耗时: {totalTime}, 平均速度: {avgSpeed}, 总大小: {totalSize}",
-      "batterylessStartRead": "开始读取免电存档",
-      "batterylessReading": "正在读取免电存档 ({progress}%)",
-      "batterylessReadComplete": "免电存档读取完成，大小：{size}",
-      "batterylessReadSuccess": "免电存档读取成功，大小：{size}",
-      "batterylessReadFailed": "免电存档读取失败",
-      "batterylessReadSummary": "读取统计 - 耗时: {totalTime}, 平均速度: {avgSpeed}, 总大小: {totalSize}",
-      "batterylessStartVerify": "开始校验免电存档",
-      "batterylessVerifying": "正在校验免电存档 ({progress}%)",
-      "batterylessVerifySuccess": "免电存档校验成功",
-      "batterylessVerifyFailed": "免电存档校验失败",
-      "batterylessVerifySummary": "校验统计 - 耗时: {totalTime}, 平均速度: {avgSpeed}, 总大小: {totalSize}"
     },
     "file": {
       "selectRom": "已选择ROM文件: {name}，大小{size}",
