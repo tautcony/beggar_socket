@@ -580,18 +580,17 @@
         "writeComplete": "バッテリーレスセーブ書き込み完了",
         "writeSuccess": "バッテリーレスセーブ書き込み成功",
         "writeFailed": "バッテリーレスセーブ書き込み失敗",
-        "writeSummary": "書き込み統計 - 所要時間: {totalTime}, 平均速度: {avgSpeed}, 総サイズ: {totalSize}",
+        "writeSummary": "書き込み統計 - 総時間: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 総サイズ: {totalSize}",
         "startRead": "バッテリーレスセーブ読み取り開始",
         "reading": "バッテリーレスセーブ読み取り中 ({progress}%)",
         "readComplete": "バッテリーレスセーブ読み取り完了、サイズ：{size}",
         "readSuccess": "バッテリーレスセーブ読み取り成功、サイズ：{size}",
         "readFailed": "バッテリーレスセーブ読み取り失敗",
-        "readSummary": "読み取り統計 - 所要時間: {totalTime}, 平均速度: {avgSpeed}, 総サイズ: {totalSize}",
+        "readSummary": "読み取り統計 - 総時間: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 総サイズ: {totalSize}",
         "startVerify": "バッテリーレスセーブ検証開始",
         "verifying": "バッテリーレスセーブ検証中 ({progress}%)",
         "verifySuccess": "バッテリーレスセーブ検証成功",
-        "verifyFailed": "バッテリーレスセーブ検証失敗",
-        "verifySummary": "検証統計 - 所要時間: {totalTime}, 平均速度: {avgSpeed}, 総サイズ: {totalSize}"
+        "verifyFailed": "バッテリーレスセーブ検証失敗"
       }
     },
     "progress": {

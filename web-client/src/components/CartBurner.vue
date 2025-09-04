@@ -641,7 +641,8 @@ async function verifyRom() {
       return;
     }
 
-    const response = await adapter.verifyROM(romFileData.value, { baseAddress: parseInt(selectedBaseAddress.value, 16), cfiInfo: cfiInfo.value }, abortSignal);
+    const size = Math.min(parseInt(selectedRomSize.value, 16), romFileData.value.byteLength);
+    const response = await adapter.verifyROM(romFileData.value, { baseAddress: parseInt(selectedBaseAddress.value, 16), cfiInfo: cfiInfo.value, size }, abortSignal);
     showToast(response.message, response.success ? 'success' : 'error');
     await adapter.resetCommandBuffer();
   } catch (e) {
@@ -743,10 +744,12 @@ async function verifyRam() {
       return;
     }
 
+    const size = Math.min(parseInt(selectedRamSize.value, 16), ramFileData.value.byteLength);
     const response = await adapter.verifyRAM(ramFileData.value, {
       ramType: selectedRamType.value as RamType,
       baseAddress: parseInt(selectedRamBaseAddress.value, 16),
       cfiInfo: cfiInfo.value,
+      size,
     });
     showToast(response.message, response.success ? 'success' : 'error');
     if (response.success) {

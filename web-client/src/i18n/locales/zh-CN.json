@@ -580,18 +580,17 @@
         "writeComplete": "免电存档写入完成",
         "writeSuccess": "免电存档写入成功",
         "writeFailed": "免电存档写入失败",
-        "writeSummary": "写入统计 - 耗时: {totalTime}, 平均速度: {avgSpeed}, 总大小: {totalSize}",
+        "writeSummary": "写入统计 - 总耗时: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 总大小: {totalSize}",
         "startRead": "开始读取免电存档",
         "reading": "正在读取免电存档 ({progress}%)",
         "readComplete": "免电存档读取完成，大小：{size}",
         "readSuccess": "免电存档读取成功，大小：{size}",
         "readFailed": "免电存档读取失败",
-        "readSummary": "读取统计 - 耗时: {totalTime}, 平均速度: {avgSpeed}, 总大小: {totalSize}",
+        "readSummary": "读取统计 - 总耗时: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 总大小: {totalSize}",
         "startVerify": "开始校验免电存档",
         "verifying": "正在校验免电存档 ({progress}%)",
         "verifySuccess": "免电存档校验成功",
-        "verifyFailed": "免电存档校验失败",
-        "verifySummary": "校验统计 - 耗时: {totalTime}, 平均速度: {avgSpeed}, 总大小: {totalSize}"
+        "verifyFailed": "免电存档校验失败"
       }
     },
     "progress": {

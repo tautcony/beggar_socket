@@ -654,7 +654,7 @@ export class GBAAdapter extends CartridgeAdapter {
         try {
           this.log(this.t('messages.rom.verifying'), 'info');
 
-          const total = fileData.byteLength;
+          const total = options.size ?? fileData.byteLength;
           let verified = 0;
           let success = true;
           let failedAddress = -1;
@@ -1414,16 +1414,6 @@ export class GBAAdapter extends CartridgeAdapter {
           const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
 
           const speedCalculator = new SpeedCalculator();
-          const progressReporter = new ProgressReporter(
-            'write',
-            writeSize,
-            (progressInfo) => {
-              this.updateProgress(progressInfo);
-            },
-            (key, params) => this.t(key, params),
-          );
-
-          progressReporter.reportStart(this.t('messages.ram.batteryless.startWrite'));
 
           while (written < writeSize) {
             // 检查是否已被取消
@@ -1439,7 +1429,6 @@ export class GBAAdapter extends CartridgeAdapter {
             if (isMultiCard) {
               const { bank } = this.romBankRelevantAddress(currentAddress);
               if (bank !== currentBank) {
-                this.log(this.t('messages.rom.bankSwitch', { bank }), 'info');
                 await this.switchROMBank(bank);
                 currentBank = bank;
               }
@@ -1451,26 +1440,19 @@ export class GBAAdapter extends CartridgeAdapter {
 
             written += chunkSize;
             speedCalculator.addDataPoint(chunkSize, chunkEndTime);
-
-            // 更新进度
-            progressReporter.reportProgress(
-              written,
-              speedCalculator.getCurrentSpeed(),
-              this.t('messages.ram.batteryless.writing', { progress: Math.floor((written / writeSize) * 100) }),
-            );
           }
 
           const totalTime = speedCalculator.getTotalTime();
           const avgSpeed = speedCalculator.getAverageSpeed();
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
           this.log(this.t('messages.ram.batteryless.writeComplete'), 'success');
           this.log(this.t('messages.ram.batteryless.writeSummary', {
             totalTime: formatTimeDuration(totalTime),
             avgSpeed: formatSpeed(avgSpeed),
+            maxSpeed: formatSpeed(maxSpeed),
             totalSize: formatBytes(writeSize),
           }), 'info');
-
-          progressReporter.reportCompleted(this.t('messages.ram.batteryless.writeComplete'), avgSpeed);
 
           return {
             success: true,
@@ -1548,16 +1530,6 @@ export class GBAAdapter extends CartridgeAdapter {
           const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
 
           const speedCalculator = new SpeedCalculator();
-          const progressReporter = new ProgressReporter(
-            'read',
-            saveInfo.size,
-            (progressInfo) => {
-              this.updateProgress(progressInfo);
-            },
-            (key, params) => this.t(key, params),
-          );
-
-          progressReporter.reportStart(this.t('messages.ram.batteryless.startRead'));
 
           while (readCount < saveInfo.size) {
             // 检查是否已被取消
@@ -1572,7 +1544,6 @@ export class GBAAdapter extends CartridgeAdapter {
             if (isMultiCard) {
               const { bank } = this.romBankRelevantAddress(currentAddress);
               if (bank !== currentBank) {
-                this.log(this.t('messages.rom.bankSwitch', { bank }), 'info');
                 await this.switchROMBank(bank);
                 currentBank = bank;
               }
@@ -1585,26 +1556,19 @@ export class GBAAdapter extends CartridgeAdapter {
 
             readCount += chunkSize;
             speedCalculator.addDataPoint(chunkSize, chunkEndTime);
-
-            // 更新进度
-            progressReporter.reportProgress(
-              readCount,
-              speedCalculator.getCurrentSpeed(),
-              this.t('messages.ram.batteryless.reading', { progress: Math.floor((readCount / saveInfo.size) * 100) }),
-            );
           }
 
           const totalTime = speedCalculator.getTotalTime();
           const avgSpeed = speedCalculator.getAverageSpeed();
+          const maxSpeed = speedCalculator.getMaxSpeed();
 
           this.log(this.t('messages.ram.batteryless.readComplete', { size: formatBytes(data.length) }), 'success');
           this.log(this.t('messages.ram.batteryless.readSummary', {
             totalTime: formatTimeDuration(totalTime),
             avgSpeed: formatSpeed(avgSpeed),
+            maxSpeed: formatSpeed(maxSpeed),
             totalSize: formatBytes(saveInfo.size),
           }), 'info');
-
-          progressReporter.reportCompleted(this.t('messages.ram.batteryless.readComplete', { size: formatBytes(data.length) }), avgSpeed);
 
           return {
             success: true,
@@ -1649,141 +1613,37 @@ export class GBAAdapter extends CartridgeAdapter {
       'gba.verifyBatterylessSave',
       async () => {
         try {
-          // 检查是否已被取消
-          if (signal?.aborted) {
-            return { success: false, message: this.t('messages.operation.cancelled') };
-          }
-
-          // 获取CFI信息
-          const cfiInfo = options.cfiInfo;
-          if (!cfiInfo) {
-            return { success: false, message: this.t('messages.operation.getCartInfoFailed') };
-          }
-
-          const isMultiCard = cfiInfo.deviceSize > (1 << 25); // 32MB
-
-          // 搜索免电存档位置
-          const saveInfo = await this.searchBatteryless(baseAddress, options);
-          if (!saveInfo) {
-            return { success: false, message: this.t('messages.ram.batteryless.notFound') };
-          }
-
-          // 限制校验大小
-          const verifySize = Math.min(fileData.byteLength, saveInfo.size);
-          this.log(this.t('messages.ram.batteryless.info', {
-            offset: formatHex(saveInfo.offset, 4),
-            size: formatBytes(saveInfo.size),
-            verifySize: formatBytes(verifySize),
-          }), 'info');
-
-          // 开始校验
-          this.log(this.t('messages.ram.batteryless.startVerify'), 'info');
-
-          let verified = 0;
-          let currentBank = -1;
+          this.log(this.t('messages.ram.verifying'), 'info');
           let success = true;
-          let errorCount = 0;
-          const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
 
-          const speedCalculator = new SpeedCalculator();
-          const progressReporter = new ProgressReporter(
-            'verify',
-            verifySize,
-            (progressInfo) => {
-              this.updateProgress(progressInfo);
-            },
-            (key, params) => this.t(key, params),
-          );
+          const readResult = await this.readBatterylessSave(options, signal);
+          if (readResult.success && readResult.data) {
+            const saveData = readResult.data;
+            const verifySize = Math.min(fileData.byteLength, saveData.length);
 
-          progressReporter.reportStart(this.t('messages.ram.batteryless.startVerify'));
-
-          while (verified < verifySize && success) {
-            // 检查是否已被取消
-            if (signal?.aborted) {
-              return { success: false, message: this.t('messages.operation.cancelled') };
-            }
-
-            const chunkSize = Math.min(pageSize, verifySize - verified);
-            const currentAddress = saveInfo.offset + verified;
-
-            // 切换bank
-            if (isMultiCard) {
-              const { bank } = this.romBankRelevantAddress(currentAddress);
-              if (bank !== currentBank) {
-                this.log(this.t('messages.rom.bankSwitch', { bank }), 'info');
-                await this.switchROMBank(bank);
-                currentBank = bank;
-              }
-            }
-
-            // 读取数据进行比较
-            const readData = await rom_read(this.device, chunkSize, currentAddress);
-            const chunkEndTime = Date.now();
-
-            // 逐字节比较
-            for (let i = 0; i < chunkSize; i++) {
-              if (fileData[verified + i] !== readData[i]) {
-                this.log(this.t('messages.ram.verifyMismatch', {
-                  address: formatHex(verified + i, 6),
-                  expected: formatHex(fileData[verified + i], 2),
-                  actual: formatHex(readData[i], 2),
+            for (let i = 0; i < verifySize; i++) {
+              if (fileData[i] !== saveData[i]) {
+                this.log(this.t('messages.ram.verifyFailedAt', {
+                  address: formatHex(i, 4),
+                  expected: formatHex(fileData[i], 1),
+                  actual: formatHex(saveData[i], 1),
                 }), 'error');
-                errorCount++;
-
-                // 如果错误太多，停止校验
-                if (errorCount > 100) {
-                  success = false;
-                  break;
-                }
+                success = false;
+                break;
               }
             }
-
-            verified += chunkSize;
-            speedCalculator.addDataPoint(chunkSize, chunkEndTime);
-
-            // 更新进度
-            progressReporter.reportProgress(
-              verified,
-              speedCalculator.getCurrentSpeed(),
-              this.t('messages.ram.batteryless.verifying', { progress: Math.floor((verified / verifySize) * 100) }),
-            );
-          }
-
-          const totalTime = speedCalculator.getTotalTime();
-          const avgSpeed = speedCalculator.getAverageSpeed();
-
-          if (success && errorCount === 0) {
-            this.log(this.t('messages.ram.batteryless.verifySuccess'), 'success');
-            this.log(this.t('messages.ram.batteryless.verifySummary', {
-              totalTime: formatTimeDuration(totalTime),
-              avgSpeed: formatSpeed(avgSpeed),
-              totalSize: formatBytes(verifySize),
-            }), 'info');
-
-            progressReporter.reportCompleted(this.t('messages.ram.batteryless.verifySuccess'), avgSpeed);
-
-            return {
-              success: true,
-              message: this.t('messages.ram.batteryless.verifySuccess'),
-            };
           } else {
-            const message = errorCount > 0
-              ? this.t('messages.ram.batteryless.verifyFailed', { errorCount })
-              : this.t('messages.ram.batteryless.verifyFailed');
-
-            this.log(message, 'error');
-            progressReporter.reportError(message);
-
-            return {
-              success: false,
-              message,
-            };
+            return readResult; // 返回读取失败的结果
           }
+
+          const message = success ? this.t('messages.ram.batteryless.verifySuccess') : this.t('messages.ram.batteryless.verifyFailed');
+          this.log(`${this.t('messages.ram.verify')}: ${message}`, success ? 'success' : 'error');
+
+          return {
+            success: success,
+            message,
+          };
         } catch (e) {
-          if (signal?.aborted) {
-            return { success: false, message: this.t('messages.operation.cancelled') };
-          }
-
           this.log(`${this.t('messages.ram.batteryless.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,

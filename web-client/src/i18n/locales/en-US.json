@@ -580,18 +580,17 @@
         "writeComplete": "Batteryless save write complete",
         "writeSuccess": "Batteryless save write successful",
         "writeFailed": "Batteryless save write failed",
-        "writeSummary": "Write stats - Time: {totalTime}, Avg speed: {avgSpeed}, Total size: {totalSize}",
+        "writeSummary": "Write stats - Total time: {totalTime}, Average speed: {avgSpeed}, Maximum speed: {maxSpeed}, Total size: {totalSize}",
         "startRead": "Starting batteryless save read",
         "reading": "Reading batteryless save ({progress}%)",
         "readComplete": "Batteryless save read complete, size: {size}",
         "readSuccess": "Batteryless save read successful, size: {size}",
         "readFailed": "Batteryless save read failed",
-        "readSummary": "Read stats - Time: {totalTime}, Avg speed: {avgSpeed}, Total size: {totalSize}",
+        "readSummary": "Read stats - Total time: {totalTime}, Average speed: {avgSpeed}, Maximum speed: {maxSpeed}, Total size: {totalSize}",
         "startVerify": "Starting batteryless save verify",
         "verifying": "Verifying batteryless save ({progress}%)",
         "verifySuccess": "Batteryless save verify successful",
-        "verifyFailed": "Batteryless save verify failed",
-        "verifySummary": "Verify stats - Time: {totalTime}, Avg speed: {avgSpeed}, Total size: {totalSize}"
+        "verifyFailed": "Batteryless save verify failed"
       }
     },
     "progress": {
