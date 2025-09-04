@@ -134,7 +134,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 else()
     # Use -O1 instead of -O2 to avoid aggressive optimizations that break timing
     # Add flags to prevent problematic optimizations
-    set(OPTIMIZATION_FLAGS -O1 -fno-schedule-insns -fno-schedule-insns2)
+    set(OPTIMIZATION_FLAGS -O1 -fno-schedule-insns -fno-schedule-insns2 -fno-reorder-blocks-and-partition -fno-reorder-functions)
 endif()
 
 # Defines
