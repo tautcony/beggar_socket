@@ -23,6 +23,7 @@
     "@sentry/vue": "^10.8.0",
     "gameboy-emulator": "^1.1.2",
     "gbats": "^1.0.9",
+    "jimp": "^1.6.0",
     "luxon": "^3.7.1",
     "vue": "^3.5.20",
     "vue-i18n": "^11.1.11",
@@ -32,6 +33,7 @@
   },
   "devDependencies": {
     "@stylistic/eslint-plugin": "^5.3.1",
+    "@types/jimp": "^0.2.1",
     "@types/luxon": "^3.7.1",
     "@types/node": "^24.3.0",
     "@types/w3c-web-serial": "^1.0.8",
