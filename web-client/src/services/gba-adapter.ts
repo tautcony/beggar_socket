@@ -75,7 +75,7 @@ export class GBAAdapter extends CartridgeAdapter {
           while (true) {
             // 检查是否已被取消
             if (signal?.aborted) {
-              this.log(this.t('messages.operation.cancelled'), 'error');
+              this.log(this.t('messages.operation.cancelled'), 'warn');
               return {
                 success: false,
                 message: this.t('messages.operation.cancelled'),
@@ -99,7 +99,7 @@ export class GBAAdapter extends CartridgeAdapter {
           };
         } catch (e) {
           if (signal?.aborted) {
-            this.log(this.t('messages.operation.cancelled'), 'error');
+            this.log(this.t('messages.operation.cancelled'), 'warn');
             return {
               success: false,
               message: this.t('messages.operation.cancelled'),
@@ -184,12 +184,6 @@ export class GBAAdapter extends CartridgeAdapter {
               };
             }
 
-            const { bank } = this.romBankRelevantAddress(sector.address);
-            if (bank !== currentBank) {
-              currentBank = bank;
-              await this.switchROMBank(bank);
-            }
-
             // 更新当前扇区状态为"正在处理"
             const sectorIndex = progressReporter.updateSectorProgress(sector.address, 'processing');
 
@@ -197,6 +191,12 @@ export class GBAAdapter extends CartridgeAdapter {
               from: formatHex(sector.address, 4),
               to: formatHex(sector.address + sector.size - 1, 4),
             }), 'info');
+
+            const { bank } = this.romBankRelevantAddress(sector.address);
+            if (bank !== currentBank) {
+              currentBank = bank;
+              await this.switchROMBank(bank);
+            }
 
             await rom_erase_sector(this.device, sector.address);
             const sectorEndTime = Date.now();
@@ -232,7 +232,7 @@ export class GBAAdapter extends CartridgeAdapter {
             totalTime: formatTimeDuration(totalTime),
             avgSpeed: formatSpeed(avgSpeed),
             maxSpeed: formatSpeed(maxSpeed),
-            totalSectors: sectors.length,
+            totalSectors: totalSectors,
           }), 'info');
 
           // 报告完成状态
@@ -244,13 +244,20 @@ export class GBAAdapter extends CartridgeAdapter {
           };
         } catch (e) {
           if (signal?.aborted) {
-            this.log(this.t('messages.operation.cancelled'), 'error');
+            this.log(this.t('messages.operation.cancelled'), 'warn');
             return {
               success: false,
               message: this.t('messages.operation.cancelled'),
             };
           }
 
+          const progressReporter = new ProgressReporter(
+            'erase',
+            sectorInfo.reduce((sum, info) => sum + (info.endAddress - info.startAddress), 0),
+            (progressInfo) => { this.updateProgress(progressInfo); },
+            (key, params) => this.t(key, params),
+          );
+          progressReporter.reportError(this.t('messages.operation.eraseSectorFailed'));
           this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
@@ -287,7 +294,6 @@ export class GBAAdapter extends CartridgeAdapter {
     return PerformanceTracker.trackAsyncOperation(
       'gba.writeROM',
       async () => {
-        const startTime = Date.now();
         try {
           const total = options.size ?? fileData.byteLength;
           let written = 0;
@@ -423,6 +429,13 @@ export class GBAAdapter extends CartridgeAdapter {
             message: this.t('messages.rom.writeSuccess'),
           };
         } catch (e) {
+          const progressReporter = new ProgressReporter(
+            'write',
+            fileData.byteLength,
+            (progressInfo) => { this.updateProgress(progressInfo); },
+            (key, params) => this.t(key, params),
+          );
+          progressReporter.reportError(this.t('messages.rom.writeFailed'));
           this.log(`${this.t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
           return {
             success: false,
@@ -463,7 +476,6 @@ export class GBAAdapter extends CartridgeAdapter {
     return PerformanceTracker.trackAsyncOperation(
       'gba.readROM',
       async () => {
-        const startTime = Date.now();
         try {
           // 检查是否已被取消
           if (signal?.aborted) {
@@ -505,6 +517,7 @@ export class GBAAdapter extends CartridgeAdapter {
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
           let chunkCount = 0; // 记录已处理的块数
           let currentBank = -1;
+
           while (totalRead < size) {
             // 检查是否已被取消
             if (signal?.aborted) {
@@ -518,6 +531,7 @@ export class GBAAdapter extends CartridgeAdapter {
             const chunkSize = Math.min(pageSize, size - totalRead);
             const currentAddress = baseAddress + totalRead;
 
+            // 计算bank和地址
             const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress);
             if (options.cfiInfo.deviceSize > (1 << 25)) {
               if (bank !== currentBank) {
@@ -526,6 +540,7 @@ export class GBAAdapter extends CartridgeAdapter {
               }
             }
 
+            // 读取数据
             const chunk = await rom_read(this.device, chunkSize, cartAddress);
             const chunkEndTime = Date.now();
             data.set(chunk, totalRead);
@@ -552,7 +567,7 @@ export class GBAAdapter extends CartridgeAdapter {
             // 每5个百分比记录一次日志
             const progress = Math.floor((totalRead / size) * 100);
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
-              this.log(this.t('messages.rom.readingAt', { address: formatHex(baseAddress + totalRead, 4), progress }), 'info');
+              this.log(this.t('messages.rom.readingAt', { address: formatHex(currentAddress, 4), progress }), 'info');
               lastLoggedProgress = progress;
             }
           }
@@ -611,7 +626,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @returns - 操作结果
    */
   override async verifyROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
-    const baseAddress = options.baseAddress ?? 0x00;
+    const baseAddress = options.baseAddress ?? 0;
     const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
 
     this.log(this.t('messages.operation.startVerifyROM', {
@@ -692,7 +707,7 @@ export class GBAAdapter extends CartridgeAdapter {
               }
             }
 
-            // 读取对应的ROM数据
+            // 读取数据
             const actualChunk = await rom_read(this.device, chunkSize, cartAddress);
             const chunkEndTime = Date.now();
 
@@ -745,7 +760,7 @@ export class GBAAdapter extends CartridgeAdapter {
             const progress = Math.floor((verified / total) * 100);
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
               this.log(this.t('messages.rom.verifyingAt', {
-                address: formatHex(verified, 4),
+                address: formatHex(currentAddress, 4),
                 progress,
               }), 'info');
               lastLoggedProgress = progress;
@@ -810,15 +825,14 @@ export class GBAAdapter extends CartridgeAdapter {
    * @returns - 操作结果
    */
   override async writeRAM(fileData: Uint8Array, options: CommandOptions): Promise<CommandResult> {
+    const baseAddress = options.baseAddress ?? 0x00;
     const ramType = options.ramType ?? 'SRAM';
+    const pageSize = Math.min(options.ramPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
 
     // 如果是免电存档，调用专门的方法
     if (ramType === 'BATLESS') {
       return this.writeBatterylessSave(fileData, options);
     }
-
-    const pageSize = Math.min(options.ramPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
-    const baseAddress = options.baseAddress ?? 0x00;
 
     this.log(this.t('messages.operation.startWriteRAM', {
       fileSize: fileData.byteLength,
@@ -858,6 +872,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
           // 使用速度计算器
           const speedCalculator = new SpeedCalculator();
+
           while (written < total) {
             // 切bank
             if (written === 0x00000) {
@@ -938,6 +953,7 @@ export class GBAAdapter extends CartridgeAdapter {
       },
       {
         fileSize: fileData.byteLength,
+        base_address: baseAddress,
       },
     );
   }
@@ -949,15 +965,14 @@ export class GBAAdapter extends CartridgeAdapter {
    * @returns - 操作结果，包含读取的数据
    */
   override async readRAM(size = 0x8000, options: CommandOptions) {
+    const baseAddress = options.baseAddress ?? 0x00;
     const ramType = options.ramType ?? 'SRAM';
+    const pageSize = Math.min(options.ramPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
 
     // 如果是免电存档，调用专门的方法
     if (ramType === 'BATLESS') {
       return this.readBatterylessSave(options);
     }
-
-    const pageSize = Math.min(options.ramPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
-    const baseAddress = options.baseAddress ?? 0x00;
 
     this.log(this.t('messages.operation.startReadRAM', {
       size,
@@ -972,7 +987,6 @@ export class GBAAdapter extends CartridgeAdapter {
 
           const result = new Uint8Array(size);
           let read = 0;
-          const startTime = Date.now();
 
           // 使用速度计算器
           const speedCalculator = new SpeedCalculator();
@@ -1044,6 +1058,7 @@ export class GBAAdapter extends CartridgeAdapter {
       },
       {
         dataSize: size,
+        base_address: baseAddress,
       },
     );
   }
@@ -1055,15 +1070,14 @@ export class GBAAdapter extends CartridgeAdapter {
    * @returns - 操作结果
    */
   override async verifyRAM(fileData: Uint8Array, options: CommandOptions) {
+    const baseAddress = options.baseAddress ?? 0x00;
     const ramType = options.ramType ?? 'SRAM';
+    const size = options.size ?? fileData.byteLength;
 
     // 如果是免电存档，调用专门的方法
     if (ramType === 'BATLESS') {
       return this.verifyBatterylessSave(fileData, options);
     }
-
-    const baseAddress = options.baseAddress ?? 0x00;
-    const size = options.size ?? fileData.byteLength;
 
     this.log(this.t('messages.operation.startVerifyRAM', {
       fileSize: fileData.byteLength,
@@ -1114,7 +1128,7 @@ export class GBAAdapter extends CartridgeAdapter {
         ram_type: ramType ?? 'SRAM',
       },
       {
-        fileSize: fileData.byteLength,
+        file_size: fileData.byteLength,
       },
     );
   }

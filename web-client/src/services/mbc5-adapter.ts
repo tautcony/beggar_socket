@@ -153,7 +153,6 @@ export class MBC5Adapter extends CartridgeAdapter {
 
           // 创建扇区进度信息
           const sectors = this.initializeSectorProgress(sectorInfo);
-          const sectorsCount = sectors.length;
 
           // 计算总字节数
           const totalBytes = sectorInfo.reduce((sum, info) => sum + (info.endAddress - info.startAddress), 0);
@@ -450,10 +449,10 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param baseAddress - 基础地址
    * @param signal - 取消信号，用于中止操作
    * @param showProgress - 是否显示读取进度面板，默认为true
-   * @returns - 包含成功状态、数据和消息的对象
+   * @returns - 操作结果，包含读取的数据
    */
   override async readROM(size: number, options: CommandOptions, signal?: AbortSignal, showProgress = true) : Promise<CommandResult> {
-    const baseAddress = options.baseAddress ?? 0;
+    const baseAddress = options.baseAddress ?? 0x00;
     const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
 
     this.log(this.t('messages.operation.startReadROM', {
@@ -616,7 +615,7 @@ export class MBC5Adapter extends CartridgeAdapter {
     const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
 
     this.log(this.t('messages.operation.startVerifyROM', {
-      fileSize: fileData.length,
+      fileSize: fileData.byteLength,
       baseAddress: formatHex(baseAddress, 4),
     }), 'info');
 
@@ -627,7 +626,7 @@ export class MBC5Adapter extends CartridgeAdapter {
         if (signal?.aborted) {
           const progressReporter = new ProgressReporter(
             'verify',
-            fileData.length,
+            fileData.byteLength,
             (progressInfo) => { this.updateProgress(progressInfo); },
             (key, params) => this.t(key, params),
           );
@@ -640,12 +639,12 @@ export class MBC5Adapter extends CartridgeAdapter {
         try {
           this.log(this.t('messages.rom.verifying'), 'info');
 
-          let currentBank = -1;
-          const total = fileData.length;
+          const total = fileData.byteLength;
           let verified = 0;
           let success = true;
           let failedAddress = -1;
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
+          let currentBank = -1;
 
           // 初始化扇区进度信息 (用于显示校验进度可视化)
           const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, total, baseAddress);
@@ -680,7 +679,6 @@ export class MBC5Adapter extends CartridgeAdapter {
 
             const chunkSize = Math.min(pageSize, total - verified);
             const expectedChunk = fileData.slice(verified, verified + chunkSize);
-
             const currentAddress = baseAddress + verified;
 
             // 更新当前扇区状态为"正在处理"
@@ -702,7 +700,7 @@ export class MBC5Adapter extends CartridgeAdapter {
                 success = false;
                 failedAddress = verified + i;
                 this.log(this.t('messages.rom.verifyFailedAt', {
-                  address:  formatHex(failedAddress, 4),
+                  address: formatHex(failedAddress, 4),
                   expected: formatHex(expectedChunk[i], 1),
                   actual: formatHex(actualChunk[i], 1),
                 }), 'error');
@@ -745,7 +743,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             const progress = Math.floor((verified / total) * 100);
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
               this.log(this.t('messages.rom.verifyingAt', {
-                address: formatHex(baseAddress + verified, 4),
+                address: formatHex(currentAddress, 4),
                 progress,
               }), 'info');
               lastLoggedProgress = progress;
@@ -780,7 +778,7 @@ export class MBC5Adapter extends CartridgeAdapter {
         } catch (e) {
           const progressReporter = new ProgressReporter(
             'verify',
-            fileData.length,
+            fileData.byteLength,
             (progressInfo) => { this.updateProgress(progressInfo); },
             (key, params) => this.t(key, params),
           );
@@ -797,7 +795,7 @@ export class MBC5Adapter extends CartridgeAdapter {
         operation_type: 'verify_rom',
       },
       {
-        fileSize: fileData.length,
+        fileSize: fileData.byteLength,
         baseAddress: baseAddress,
       },
     );
@@ -807,15 +805,15 @@ export class MBC5Adapter extends CartridgeAdapter {
    * 写入RAM
    * @param fileData - 文件数据
    * @param options - 写入选项
-   * @returns - 包含成功状态和消息的对象
+   * @returns - 操作结果
    */
   override async writeRAM(fileData: Uint8Array, options: CommandOptions) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
-    const pageSize = Math.min(options.ramPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
     const ramType = options.ramType ?? 'SRAM';
+    const pageSize = Math.min(options.ramPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
 
     this.log(this.t('messages.operation.startWriteRAM', {
-      fileSize: fileData.length,
+      fileSize: fileData.byteLength,
       baseAddress: formatHex(baseAddress, 4),
     }), 'info');
 
@@ -823,14 +821,15 @@ export class MBC5Adapter extends CartridgeAdapter {
       'mbc5.writeRAM',
       async () => {
         try {
-          this.log(this.t('messages.ram.writing', { size: fileData.length }), 'info');
+          this.log(this.t('messages.ram.writing', { size: fileData.byteLength }), 'info');
 
-          const total = fileData.length;
+          const total = options.size ?? fileData.byteLength;
           let written = 0;
 
           // 开启RAM访问权限
           await gbc_write(this.device, new Uint8Array([0x0a]), 0x0000);
 
+          // 开始写入
           const startTime = Date.now();
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
           let chunkCount = 0; // 记录已处理的块数
@@ -908,10 +907,11 @@ export class MBC5Adapter extends CartridgeAdapter {
       {
         adapter_type: 'mbc5',
         operation_type: 'write_ram',
+        ram_type: ramType,
       },
       {
-        fileSize: fileData.length,
-        baseAddress,
+        fileSize: fileData.byteLength,
+        base_address: baseAddress,
       },
     );
   }
@@ -924,8 +924,8 @@ export class MBC5Adapter extends CartridgeAdapter {
    */
   override async readRAM(size: number, options: CommandOptions) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
-    const pageSize = Math.min(options.ramPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
     const ramType = options.ramType ?? 'SRAM';
+    const pageSize = Math.min(options.ramPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
 
     this.log(this.t('messages.operation.startReadRAM', {
       size,
@@ -1006,10 +1006,11 @@ export class MBC5Adapter extends CartridgeAdapter {
       {
         adapter_type: 'mbc5',
         operation_type: 'read_ram',
+        ram_type: ramType ?? 'SRAM',
       },
       {
         dataSize: size,
-        baseAddress,
+        base_address: baseAddress,
       },
     );
   }
@@ -1022,10 +1023,11 @@ export class MBC5Adapter extends CartridgeAdapter {
    */
   override async verifyRAM(fileData: Uint8Array, options: CommandOptions) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
-    const pageSize = Math.min(options.ramPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
+    const ramType = options.ramType ?? 'SRAM';
+    const size = options.size ?? fileData.byteLength;
 
     this.log(this.t('messages.operation.startVerifyRAM', {
-      fileSize: fileData.length,
+      fileSize: fileData.byteLength,
       baseAddress: formatHex(baseAddress, 4),
     }), 'info');
 
@@ -1034,46 +1036,22 @@ export class MBC5Adapter extends CartridgeAdapter {
       async () => {
         try {
           this.log(this.t('messages.ram.verifying'), 'info');
-
-          // 开启RAM访问权限
-          await gbc_write(this.device, new Uint8Array([0x0a]), 0x0000);
-
-          let currentBank = -1;
-          const total = fileData.length;
-          let read = 0;
           let success = true;
 
-          while (read < total) {
-            const currAddress = baseAddress + read;
-            // 计算bank和地址
-            const { bank, cartAddress } = this.ramBankRelevantAddress(currAddress);
-            if (bank !== currentBank) {
-              currentBank = bank;
-              await this.switchRAMBank(bank);
-            }
-            // 分包
-            const remainingSize = total - currAddress;
-            const chunkSize = Math.min(pageSize, remainingSize);
-
-            // 读取数据进行比较
-            const chunk = await gbc_read(this.device, chunkSize, cartAddress);
-
-            // 校验数据
-            for (let i = 0; i < chunkSize; i++) {
-              if (fileData[currAddress + i] !== chunk[i]) {
+          const readResult = await this.readRAM(size, options);
+          if (readResult.success && readResult.data) {
+            const ramData = readResult.data;
+            for (let i = 0; i < size; i++) {
+              if (fileData[i] !== ramData[i]) {
                 this.log(this.t('messages.ram.verifyFailedAt', {
-                  address: formatHex(currAddress + i, 4),
-                  expected: formatHex(fileData[currAddress + i], 1),
-                  actual: formatHex(chunk[i], 1),
+                  address: formatHex(i, 4),
+                  expected: formatHex(fileData[i], 1),
+                  actual: formatHex(ramData[i], 1),
                 }), 'error');
                 success = false;
                 break;
               }
             }
-
-            if (!success) break;
-
-            read += chunkSize;
           }
 
           const message = success ? this.t('messages.ram.verifySuccess') : this.t('messages.ram.verifyFailed');
@@ -1081,7 +1059,7 @@ export class MBC5Adapter extends CartridgeAdapter {
 
           return {
             success: success,
-            message: message,
+            message,
           };
         } catch (e) {
           this.log(`${this.t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
@@ -1094,14 +1072,18 @@ export class MBC5Adapter extends CartridgeAdapter {
       {
         adapter_type: 'mbc5',
         operation_type: 'verify_ram',
+        ram_type: ramType ?? 'SRAM',
       },
       {
-        fileSize: fileData.length,
+        file_size: fileData.byteLength,
       },
     );
   }
 
-  // 获取卡带信息 - 通过CFI查询
+  /**
+   * 获取卡带信息
+   * @returns 卡带容量相关信息
+   */
   override async getCartInfo(): Promise<CFIInfo | false> {
     this.log(this.t('messages.operation.startGetCartInfo'), 'info');
 
@@ -1135,7 +1117,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           }
 
           // 记录CFI解析结果
-          this.log(this.t('messages.operation.cfiParseSuccess'), 'info');
+          this.log(this.t('messages.operation.cfiParseSuccess'), 'success');
           this.log(cfiInfo.info, 'info');
 
           return cfiInfo;
