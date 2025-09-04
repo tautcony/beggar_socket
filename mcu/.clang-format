@@ -1,82 +1,77 @@
-# clang-format configuration for STM32 embedded C project
-
 BasedOnStyle: LLVM
 
-# Language settings
+# Language
 Language: Cpp
 Standard: c++11
 
-# Indentation - match existing style
+# Basic formatting
 IndentWidth: 4
-TabWidth: 4
 UseTab: Never
-ContinuationIndentWidth: 4
-IndentCaseLabels: true
-IndentGotoLabels: true
-IndentPPDirectives: None
+ColumnLimit: 100  # Reasonable line length for embedded code
 
-# Line length - more lenient for embedded code
-ColumnLimit: 120
-
-# Brace style - match existing K&R style
+# Braces - K&R style (common in embedded C)
 BreakBeforeBraces: Linux
 AlwaysBreakAfterDefinitionReturnType: None
 AlwaysBreakAfterReturnType: None
-AlwaysBreakBeforeMultilineStrings: false
-BreakBeforeBinaryOperators: None
-BreakBeforeTernaryOperators: true
-BreakStringLiterals: true
 
-# Function formatting - allow more compact style
+# Function and control structure formatting
 AllowShortFunctionsOnASingleLine: Empty
-AllowShortBlocksOnASingleLine: Empty
-AllowShortCaseLabelsOnASingleLine: true
+AllowShortBlocksOnASingleLine: false
 AllowShortIfStatementsOnASingleLine: WithoutElse
 AllowShortLoopsOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: true
 AllowAllParametersOfDeclarationOnNextLine: true
-BinPackArguments: true
-BinPackParameters: true
 
-# Spacing - preserve existing style
+# Spacing - clean and readable
 SpaceAfterCStyleCast: false
 SpaceAfterLogicalNot: false
-SpaceBeforeAssignmentOperators: true
 SpaceBeforeParens: ControlStatements
 SpaceInEmptyParentheses: false
-SpacesBeforeTrailingComments: 1
-SpacesInCStyleCastParentheses: false
 SpacesInParentheses: false
+SpacesInCStyleCastParentheses: false
 SpacesInSquareBrackets: false
+SpaceBeforeAssignmentOperators: true
+SpacesBeforeTrailingComments: 2
 
-# Alignment - minimal alignment for existing code
-AlignAfterOpenBracket: Align
+# Alignment - moderate alignment for readability
+AlignTrailingComments: true
 AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
-AlignEscapedNewlines: Right
+AlignAfterOpenBracket: Align
 AlignOperands: true
-AlignTrailingComments: false
 
-# Pointers - match existing style
+# Pointers and references
 PointerAlignment: Right
 DerivePointerAlignment: false
 
-# Include sorting - preserve existing order
-SortIncludes: false
+# Include sorting - organize but preserve groups
+SortIncludes: true
+IncludeBlocks: Preserve
+
+# Breaking and wrapping
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: true
+BreakStringLiterals: true
+BinPackArguments: true
+BinPackParameters: true
+
+# Comments
+ReflowComments: false  # Preserve embedded comments as-is
+CommentPragmas: '^ (NOTE|TODO|FIXME|XXX):'
 
 # Empty lines
-KeepEmptyLinesAtTheStartOfBlocks: true
+KeepEmptyLinesAtTheStartOfBlocks: false
 MaxEmptyLinesToKeep: 2
 
-# Comments - preserve existing comment style
-ReflowComments: false
-
-# Lower penalties to be less aggressive
+# Penalties - moderate enforcement
 PenaltyBreakAssignment: 10
-PenaltyBreakBeforeFirstCallParameter: 50
-PenaltyBreakComment: 1000
-PenaltyBreakString: 1000
-PenaltyExcessCharacter: 10
-PenaltyReturnTypeOnItsOwnLine: 200
+PenaltyBreakBeforeFirstCallParameter: 30
+PenaltyBreakComment: 300
+PenaltyBreakString: 100
+PenaltyExcessCharacter: 50
+PenaltyReturnTypeOnItsOwnLine: 100
 
-# Disable some aggressive formatting
-DisableFormat: false
+# Indentation specifics
+IndentCaseLabels: true
+IndentGotoLabels: true
+IndentPPDirectives: BeforeHash

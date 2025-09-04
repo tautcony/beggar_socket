@@ -260,6 +260,7 @@ void uart_cmdHandler()
         case 0xeb:  // gbc 带延迟读取
             gbcRead_forFram();
             break;
+
         default:
             // 未知命令，清除缓冲区避免busy死锁
             uart_clearRecvBuf();
