@@ -606,9 +606,7 @@ async function loadDefaultBackground() {
     cleanupBgImagePreview();
 
     // 从public目录加载默认背景图像
-    const response = await fetch('/bg.png', {
-      cache: 'default', // 允许使用缓存，但仍然可以处理304
-    });
+    const response = await fetch('bg.png');
 
     // 检查成功状态码：200-299 或 304 (Not Modified)
     if (response.ok || response.status === 304) {
