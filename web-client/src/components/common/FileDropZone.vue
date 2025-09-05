@@ -27,15 +27,17 @@
             <slot name="icon" />
           </div>
           <div class="upload-text">
-            <p class="main-text">
-              {{ mainText }}
-            </p>
-            <p class="sub-text">
-              {{ $t('ui.file.dropArea') }}
-            </p>
-            <p class="hint-text">
-              {{ $t('ui.file.accept', { format: acceptHint }) }}
-            </p>
+            <slot>
+              <p class="main-text">
+                {{ mainText }}
+              </p>
+              <p class="sub-text">
+                {{ $t('ui.file.dropArea') }}
+              </p>
+              <p class="hint-text">
+                {{ $t('ui.file.accept', { format: acceptHint }) }}
+              </p>
+            </slot>
           </div>
         </div>
       </template>
@@ -45,15 +47,17 @@
             <slot name="icon" />
           </div>
           <div class="file-details">
-            <div class="file-name">
-              {{ fileName }}
-            </div>
-            <div class="file-size">
-              {{ fileData ? formatBytes(fileData.length) : '' }}
-            </div>
-            <div class="file-title">
-              {{ fileTitle }}
-            </div>
+            <slot name="preview">
+              <div class="file-name">
+                {{ fileName }}
+              </div>
+              <div class="file-size">
+                {{ fileData ? formatBytes(fileData.length) : '' }}
+              </div>
+              <div class="file-title">
+                {{ fileTitle }}
+              </div>
+            </slot>
           </div>
           <div class="file-actions">
             <button

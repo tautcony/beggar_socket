@@ -23,8 +23,8 @@
     },
     "menu": {
       "tools": "工具",
-      "romAssembly": "ROM组装",
-      "romAssemblyDesc": "将多个ROM文件组装成一个合卡",
+      "romAssembly": "ROM合并",
+      "romAssemblyDesc": "将多个ROM文件合并成一个ROM",
       "romAnalyzer": "ROM分析与提取",
       "romAnalyzerDesc": "分析ROM文件结构并提取单个游戏",
       "debugTool": "调试工具",
@@ -35,6 +35,8 @@
       "debugToolUnlocked": "调试工具已解锁！",
       "settings": "设置",
       "settingsDesc": "配置应用程序选项",
+      "gbaMultiMenu": "GBA合卡",
+      "gbaMultiMenuDesc": "创建包含多个游戏的ROM",
       "about": "关于",
       "aboutDesc": "查看应用程序信息和版本"
     },
@@ -430,6 +432,39 @@
       "cancel": "取消",
       "save": "保存",
       "confirm": "确认"
+    },
+    "gbaMultiMenu": {
+      "title": "GBA ROM构建器",
+      "status": "状态",
+      "romCode": "ROM代码",
+      "menuRom": "菜单ROM",
+      "dropMenuRom": "拖拽菜单ROM文件到此处",
+      "gameRoms": "游戏ROM",
+      "dropGameRoms": "拖拽游戏ROM文件到此处",
+      "backgroundImage": "背景图像",
+      "dropBgImage": "拖拽背景图像文件到此处",
+      "saveFiles": "存档文件",
+      "dropSaveFiles": "拖拽存档文件到此处",
+      "configuration": "配置",
+      "configureGame": "配置游戏",
+      "gameTitle": "游戏标题",
+      "titleFont": "标题字体",
+      "saveSlot": "存档槽位",
+      "enabled": "启用",
+      "cartridgeType": "卡带类型",
+      "batterySupport": "电池支持",
+      "splitOutput": "分割输出",
+      "outputName": "输出文件名",
+      "buildRom": "构建ROM",
+      "building": "构建中",
+      "buildLog": "构建日志",
+      "buildSuccess": "构建成功",
+      "romSize": "ROM大小",
+      "downloadRom": "下载ROM",
+      "statusBuilding": "构建中",
+      "statusSuccess": "成功",
+      "statusReady": "就绪",
+      "dragToReorder": "拖拽以重新排序"
     }
   },
   "messages": {
@@ -641,6 +676,23 @@
     "debug": {
       "mockModeEnabled": "调试模式已启用 - 使用模拟设备",
       "mockDataCleared": "模拟数据已清除"
+    },
+    "gbaMultiMenu": {
+      "logMenuRomLoaded": "菜单ROM已加载: {name}",
+      "logGameRomLoaded": "游戏ROM已加载: {name}",
+      "logGameRomLoadFailed": "加载游戏ROM失败 {name}: {error}",
+      "logBgImageLoaded": "背景图像已加载: {name}",
+      "logBgImageLoadFailed": "加载背景图像失败: {error}",
+      "logSaveFileLoaded": "存档文件已加载: {name}",
+      "logSaveFileLoadFailed": "加载存档文件失败 {name}: {error}",
+      "logGameRomRemoved": "已移除游戏ROM: {name}",
+      "logSaveFileRemoved": "已移除存档文件: {name}",
+      "logGameReordered": "游戏ROM顺序已重新排列",
+      "logBuildStarted": "开始构建ROM...",
+      "logConfigReady": "配置准备完成，开始构建...",
+      "logBuildCompleted": "构建完成！",
+      "logBuildFailed": "构建失败: {error}",
+      "logRomDownloaded": "ROM已下载"
     }
   }
 }

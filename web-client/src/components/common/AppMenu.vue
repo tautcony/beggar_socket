@@ -73,6 +73,18 @@
           <span class="beta-badge">BETA</span>
         </button>
 
+        <button
+          class="menu-item"
+          @click="openGbaMultiMenu"
+        >
+          <IonIcon :icon="gameControllerOutline" />
+          <div class="menu-item-content">
+            <span class="menu-item-title">{{ $t('ui.menu.gbaMultiMenu') }}</span>
+            <span class="menu-item-desc">{{ $t('ui.menu.gbaMultiMenuDesc') }}</span>
+          </div>
+          <span class="alpha-badge">ALPHA</span>
+        </button>
+
         <div class="menu-divider" />
 
         <button
@@ -127,6 +139,12 @@
       @close="closeCartridgeTools"
     />
 
+    <!-- GBA多游戏菜单弹框 -->
+    <GBAMultiMenuModal
+      v-model="isGbaMultiMenuVisible"
+      @close="closeGbaMultiMenu"
+    />
+
     <!-- 关于弹框 -->
     <AboutModal
       v-model="isAboutVisible"
@@ -148,6 +166,7 @@ import {
   analyticsOutline,
   buildOutline,
   constructOutline,
+  gameControllerOutline,
   informationCircleOutline,
   menuOutline,
   settingsOutline,
@@ -161,6 +180,7 @@ import AboutModal from '@/components/modal/AboutModal.vue';
 import AdvancedSettingsModal from '@/components/modal/AdvancedSettingsModal.vue';
 import CartridgeToolsModal from '@/components/modal/CartridgeToolsModal.vue';
 import DebugToolModal from '@/components/modal/DebugToolModal.vue';
+import GBAMultiMenuModal from '@/components/modal/GBAMultiMenuModal.vue';
 import RomAnalyzerModal from '@/components/modal/RomAnalyzerModal.vue';
 import RomAssemblyModal from '@/components/modal/RomAssemblyModal.vue';
 import { useToast } from '@/composables/useToast';
@@ -190,6 +210,7 @@ const isDebugToolVisible = ref(false);
 const isCartridgeToolsVisible = ref(false);
 const isSettingsVisible = ref(false);
 const isAboutVisible = ref(false);
+const isGbaMultiMenuVisible = ref(false);
 
 const clickCount = ref(0);
 let clickTimer: NodeJS.Timeout | null = null;
@@ -290,6 +311,15 @@ function openAbout() {
 
 function closeAbout() {
   isAboutVisible.value = false;
+}
+
+function openGbaMultiMenu() {
+  closeMenu();
+  isGbaMultiMenuVisible.value = true;
+}
+
+function closeGbaMultiMenu() {
+  isGbaMultiMenuVisible.value = false;
 }
 </script>
 
@@ -420,6 +450,19 @@ function closeAbout() {
   height: 1px;
   background: #e9ecef;
   margin: 8px 20px;
+}
+
+.alpha-badge {
+  background: linear-gradient(45deg, #6a5acd, #8a2be2);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(106, 90, 205, 0.3);
+  flex-shrink: 0;
 }
 
 .beta-badge {
