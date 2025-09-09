@@ -912,7 +912,7 @@ export class MockAdapter extends CartridgeAdapter {
   async switchSRAMBank(bank: number): Promise<void> {
     bank = bank === 0 ? 0 : 1;
     await DebugSettings.delay(50);
-    this.log(this.t('messages.gba.bankSwitchSram', { bank }) || `切换SRAM Bank到 ${bank}`, 'info');
+    this.log(this.t('messages.ram.bankSwitchSram', { bank }) || `切换SRAM Bank到 ${bank}`, 'info');
   }
 
   /**

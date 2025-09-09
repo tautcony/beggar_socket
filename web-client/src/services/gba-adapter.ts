@@ -1216,7 +1216,7 @@ export class GBAAdapter extends CartridgeAdapter {
   async switchSRAMBank(bank: number) : Promise<void> {
     bank = bank === 0 ? 0 : 1;
     await rom_write(this.device, toLittleEndian(bank, 2), 0x800000);
-    this.log(this.t('messages.gba.bankSwitchSram', { bank }), 'info');
+    this.log(this.t('messages.ram.bankSwitchSram', { bank }), 'info');
   }
 
   /**
