@@ -362,15 +362,21 @@
               class="config-select"
             >
               <option value="1">
-                MSP55LV100S (32MB)
+                MSP55LV100S (64MB)
               </option>
               <option value="2">
-                6600M0U0BE (128MB)
+                6600M0U0BE (256MB)
               </option>
               <option value="3">
-                MSP54LV100 (64MB)
+                MSP54LV100 (128MB)
               </option>
               <option value="4">
+                ChisFlash1.0G-128MB (128MB)
+              </option>
+              <option value="5">
+                ChisFlash2.0G-256MB (256MB)
+              </option>
+              <option value="6">
                 F0095H0 (512MB)
               </option>
             </select>

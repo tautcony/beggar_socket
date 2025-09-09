@@ -14,6 +14,8 @@ export const cartridgeTypes: CartridgeType[] = [
   { name: 'MSP55LV100S', flash_size: 0x4000000, sector_size: 0x20000, block_size: 0x80000 },
   { name: '6600M0U0BE', flash_size: 0x10000000, sector_size: 0x40000, block_size: 0x80000 },
   { name: 'MSP54LV100', flash_size: 0x8000000, sector_size: 0x20000, block_size: 0x80000 },
+  { name: 'ChisFlash1.0G-128MB', flash_size: 0x8000000, sector_size: 0x20000, block_size: 0x80000 },
+  { name: 'ChisFlash2.0G-256MB', flash_size: 0x10000000, sector_size: 0x20000, block_size: 0x80000 },
   { name: 'F0095H0', flash_size: 0x20000000, sector_size: 0x40000, block_size: 0x80000 },
 ];
 
