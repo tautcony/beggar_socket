@@ -177,116 +177,8 @@
           </div>
         </div>
 
-        <!-- 右侧：菜单ROM、背景图像、存档文件 -->
+        <!-- 右侧：存档文件 -->
         <div class="right-section">
-          <!-- 菜单ROM -->
-          <div class="file-section">
-            <h4>{{ $t('ui.gbaMultiMenu.menuRom') }}</h4>
-            <div class="file-upload-area">
-              <input
-                ref="menuRomInput"
-                type="file"
-                accept=".gba"
-                style="display: none"
-                @change="handleMenuRomChange"
-              >
-              <div
-                class="file-drop-zone"
-                @click="() => menuRomInput?.click()"
-                @dragover.prevent
-                @drop.prevent="handleMenuRomDrop"
-              >
-                <div
-                  v-if="menuRomData"
-                  class="file-info"
-                >
-                  <IonIcon :icon="documentOutline" />
-                  <span>{{ menuRomFileName }}</span>
-                  <span class="file-size">({{ formatFileSize(menuRomData.byteLength) }})</span>
-                  <button
-                    class="remove-btn"
-                    @click="clearMenuRom"
-                  >
-                    <IonIcon :icon="closeCircleOutline" />
-                  </button>
-                </div>
-                <div
-                  v-else
-                  class="file-placeholder"
-                >
-                  <div class="placeholder-content">
-                    <IonIcon
-                      :icon="documentOutline"
-                      class="placeholder-icon"
-                    />
-                    <div class="placeholder-text">
-                      <p>{{ $t('ui.gbaMultiMenu.dropMenuRom') }}</p>
-                      <p class="hint">
-                        {{ $t('ui.file.browse') }}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 背景图像 -->
-          <div class="file-section">
-            <h4>{{ $t('ui.gbaMultiMenu.backgroundImage') }}</h4>
-            <div class="file-upload-area">
-              <input
-                ref="bgImageInput"
-                type="file"
-                accept=".png"
-                style="display: none"
-                @change="handleBgImageChange"
-              >
-              <div
-                class="file-drop-zone"
-                @click="() => bgImageInput?.click()"
-                @dragover.prevent
-                @drop.prevent="handleBgImageDrop"
-              >
-                <div
-                  v-if="bgImageData"
-                  class="file-info bg-image-info"
-                  @mouseenter="showBgImagePreviewHandler"
-                  @mouseleave="hideBgImagePreviewHandler"
-                >
-                  <IonIcon :icon="imageOutline" />
-                  <span>{{ bgImageFileName === 'bg.png' ? `${bgImageFileName} (默认)` : bgImageFileName }}</span>
-                  <span class="file-size">({{ formatFileSize(bgImageData.byteLength) }})</span>
-                  <button
-                    class="remove-btn"
-                    @click="clearBgImage"
-                  >
-                    <IonIcon :icon="closeCircleOutline" />
-                  </button>
-                </div>
-                <div
-                  v-else
-                  class="file-placeholder"
-                >
-                  <div class="placeholder-content">
-                    <IonIcon
-                      :icon="imageOutline"
-                      class="placeholder-icon"
-                    />
-                    <div class="placeholder-text">
-                      <p>
-                        {{ $t('ui.gbaMultiMenu.dropBgImage') }}
-                      </p>
-                      <p class="hint">
-                        {{ $t('ui.file.browse') }}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
           <!-- 存档文件 -->
           <div class="file-section">
             <h4>{{ $t('ui.gbaMultiMenu.saveFiles') }}</h4>
@@ -300,48 +192,44 @@
                 @change="handleSaveFileChange"
               >
               <div
+                v-if="saveFiles.size > 0"
+                class="file-list"
+              >
+                <div
+                  v-for="[fileName, data] of saveFiles"
+                  :key="fileName"
+                  class="file-item"
+                >
+                  <IonIcon :icon="saveOutline" />
+                  <span class="file-name">{{ fileName }}</span>
+                  <span class="file-size">({{ formatFileSize(data.byteLength) }})</span>
+                  <button
+                    class="remove-btn"
+                    @click="removeSaveFile(fileName)"
+                  >
+                    <IonIcon :icon="closeCircleOutline" />
+                  </button>
+                </div>
+              </div>
+              <div
+                v-else
                 class="file-drop-zone"
                 @click="() => saveFileInput?.click()"
                 @dragover.prevent
                 @drop.prevent="handleSaveFileDrop"
               >
-                <div
-                  v-if="saveFiles.size > 0"
-                  class="file-list"
-                >
-                  <div
-                    v-for="[fileName, data] of saveFiles"
-                    :key="fileName"
-                    class="file-item"
-                  >
-                    <IonIcon :icon="saveOutline" />
-                    <span class="file-name">{{ fileName }}</span>
-                    <span class="file-size">({{ formatFileSize(data.byteLength) }})</span>
-                    <button
-                      class="remove-btn"
-                      @click="removeSaveFile(fileName)"
-                    >
-                      <IonIcon :icon="closeCircleOutline" />
-                    </button>
-                  </div>
-                </div>
-                <div
-                  v-else
-                  class="file-placeholder"
-                >
-                  <div class="placeholder-content">
-                    <IonIcon
-                      :icon="saveOutline"
-                      class="placeholder-icon"
-                    />
-                    <div class="placeholder-text">
-                      <p>
-                        {{ $t('ui.gbaMultiMenu.dropSaveFiles') }}
-                      </p>
-                      <p class="hint">
-                        {{ $t('ui.file.browse') }}
-                      </p>
-                    </div>
+                <div class="placeholder-content">
+                  <IonIcon
+                    :icon="saveOutline"
+                    class="placeholder-icon"
+                  />
+                  <div class="placeholder-text">
+                    <p>
+                      {{ $t('ui.gbaMultiMenu.dropSaveFiles') }}
+                    </p>
+                    <p class="hint">
+                      {{ $t('ui.file.browse') }}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -353,65 +241,148 @@
       <!-- 配置选项 -->
       <div class="config-section">
         <h4>{{ $t('ui.gbaMultiMenu.configuration') }}</h4>
-        <div class="config-grid">
-          <div class="config-item">
-            <label for="cartridgeType">{{ $t('ui.gbaMultiMenu.cartridgeType') }}</label>
-            <select
-              id="cartridgeType"
-              v-model="cartridgeType"
-              class="config-select"
-            >
-              <option value="1">
-                MSP55LV100S (64MB)
-              </option>
-              <option value="2">
-                6600M0U0BE (256MB)
-              </option>
-              <option value="3">
-                MSP54LV100 (128MB)
-              </option>
-              <option value="4">
-                ChisFlash1.0G-128MB (128MB)
-              </option>
-              <option value="5">
-                ChisFlash2.0G-256MB (256MB)
-              </option>
-              <option value="6">
-                F0095H0 (512MB)
-              </option>
-            </select>
-          </div>
 
-          <div class="config-item">
-            <label class="checkbox-label">
-              <input
-                v-model="batteryPresent"
-                type="checkbox"
-                class="config-checkbox"
+        <!-- 基础配置组 -->
+        <div class="config-group">
+          <h5>基础设置</h5>
+          <div class="config-grid-row">
+            <div class="config-item config-item-flex">
+              <label for="cartridgeType">{{ $t('ui.gbaMultiMenu.cartridgeType') }}</label>
+              <select
+                id="cartridgeType"
+                v-model="cartridgeType"
+                class="config-select"
               >
-              {{ $t('ui.gbaMultiMenu.batterySupport') }}
-            </label>
-          </div>
+                <option value="0">
+                  MSP55LV100S (64MB)
+                </option>
+                <option value="1">
+                  6600M0U0BE (256MB)
+                </option>
+                <option value="2">
+                  MSP54LV100 (128MB)
+                </option>
+                <option value="3">
+                  ChisFlash1.0G-128MB (128MB)
+                </option>
+                <option value="4">
+                  ChisFlash2.0G-256MB (256MB)
+                </option>
+                <option value="5">
+                  F0095H0 (512MB)
+                </option>
+              </select>
+            </div>
 
-          <div class="config-item">
-            <label class="checkbox-label">
+            <div class="config-item config-item-flex">
+              <label for="outputName">{{ $t('ui.gbaMultiMenu.outputName') }}</label>
               <input
-                v-model="splitOutput"
-                type="checkbox"
-                class="config-checkbox"
+                id="outputName"
+                v-model="outputName"
+                type="text"
+                class="config-input"
               >
-              {{ $t('ui.gbaMultiMenu.splitOutput') }}
-            </label>
+            </div>
           </div>
 
-          <div class="config-item">
-            <label for="outputName">{{ $t('ui.gbaMultiMenu.outputName') }}</label>
-            <input
-              id="outputName"
-              v-model="outputName"
-              type="text"
-              class="config-input"
-            >
+          <div class="config-grid-row config-checkboxes">
+            <div class="config-item config-checkbox-item">
+              <label class="checkbox-label">
+                <input
+                  v-model="batteryPresent"
+                  type="checkbox"
+                  class="config-checkbox"
+                >
+                {{ $t('ui.gbaMultiMenu.batterySupport') }}
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 文件配置组 -->
+        <div class="config-group">
+          <h5>文件设置</h5>
+
+          <!-- 菜单ROM配置 -->
+          <div class="config-item config-file-item">
+            <label for="menuRom">{{ $t('ui.gbaMultiMenu.menuRom') }}</label>
+            <div class="file-config-row">
+              <input
+                ref="menuRomInput"
+                type="file"
+                accept=".gba"
+                style="display: none"
+                @change="handleMenuRomChange"
+              >
+              <button
+                class="file-select-btn"
+                @click="() => menuRomInput?.click()"
+              >
+                <IonIcon :icon="documentOutline" />
+                {{ $t('ui.file.browse') }}
+              </button>
+              <span
+                v-if="menuRomData"
+                class="file-info-text"
+              >
+                {{ menuRomFileName }}
+                <span class="file-size-small">({{ formatFileSize(menuRomData.byteLength) }})</span>
+                <button
+                  class="remove-btn-small"
+                  @click="clearMenuRom"
+                >
+                  <IonIcon :icon="closeCircleOutline" />
+                </button>
+              </span>
+              <span
+                v-else
+                class="file-info-text text-muted"
+              >
+                {{ $t('ui.gbaMultiMenu.noFileSelected') }}
+              </span>
+            </div>
+          </div>
+
+          <!-- 背景图片配置 -->
+          <div class="config-item config-file-item">
+            <label for="bgImage">{{ $t('ui.gbaMultiMenu.backgroundImage') }}</label>
+            <div class="file-config-row">
+              <input
+                ref="bgImageInput"
+                type="file"
+                accept=".png"
+                style="display: none"
+                @change="handleBgImageChange"
+              >
+              <button
+                class="file-select-btn"
+                @click="() => bgImageInput?.click()"
+              >
+                <IonIcon :icon="imageOutline" />
+                {{ $t('ui.file.browse') }}
+              </button>
+              <span
+                v-if="bgImageData"
+                class="file-info-text bg-image-info-inline"
+                @mouseenter="showBgImagePreviewHandler"
+                @mouseleave="hideBgImagePreviewHandler"
+              >
+                {{ bgImageFileName === 'bg.png' ? `${bgImageFileName} (默认)` : bgImageFileName }}
+                <span class="file-size-small">({{ formatFileSize(bgImageData.byteLength) }})</span>
+                <button
+                  class="remove-btn-small"
+                  @click="clearBgImage"
+                >
+                  <IonIcon :icon="closeCircleOutline" />
+                </button>
+              </span>
+              <span
+                v-else
+                class="file-info-text text-muted"
+              >
+                {{ $t('ui.gbaMultiMenu.noFileSelected') }}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -426,22 +397,6 @@
           <IonIcon :icon="buildOutline" />
           {{ $t('ui.gbaMultiMenu.buildRom') }}
         </button>
-      </div>
-
-      <!-- 进度条 -->
-      <div
-        v-if="isBuilding"
-        class="progress-section"
-      >
-        <div class="progress-bar">
-          <div
-            class="progress-fill"
-            :style="{ width: progressPercent + '%' }"
-          />
-        </div>
-        <div class="progress-text">
-          {{ $t('ui.gbaMultiMenu.building') }} {{ progressPercent.toFixed(1) }}%
-        </div>
       </div>
 
       <!-- 下载区域 -->
@@ -515,6 +470,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];
+  'close': [];
 }>();
 
 // Refs
@@ -554,15 +510,12 @@ const expandedConfigs = ref<Set<string>>(new Set());
 const showBgImagePreview = ref(false);
 const bgImagePreviewUrl = ref<string | null>(null);
 
-const cartridgeType = ref(1);
+const cartridgeType = ref(3);
 const batteryPresent = ref(true);
-const splitOutput = ref(false);
 const outputName = ref('LK_MULTIMENU_<CODE>.gba');
 
 const isBuilding = ref(false);
-const progressPercent = ref(0);
 const buildResult = ref<BuildResult | null>(null);
-let logIdCounter = 0; // 用于确保日志ID的唯一性
 let gameIdCounter = 0; // 用于生成唯一的游戏ID
 let draggedIndex = -1; // 当前拖拽的项目索引
 
@@ -583,16 +536,13 @@ const statusClass = computed(() => {
   return 'status-ready';
 });
 
-const bgImageUint8Array = computed(() => {
-  return bgImageData.value ? new Uint8Array(bgImageData.value) : null;
-});
-
 // 监听modal显示状态
 watch(() => props.modelValue, (newValue) => {
   localVisible.value = newValue;
   if (newValue) {
     resetState();
     void loadDefaultBackground();
+    void loadDefaultMenuRom();
   }
 });
 
@@ -626,6 +576,28 @@ async function loadDefaultBackground() {
     }
   } catch (error) {
     console.log('默认背景图像加载失败:', error);
+  }
+}
+
+// 加载默认菜单ROM
+async function loadDefaultMenuRom() {
+  const defaultMenuRom = 'lk_multimenu_for_chisflash_01_02G.gba';
+  try {
+    // 从public目录加载默认菜单ROM
+    const response = await fetch(defaultMenuRom);
+
+    // 检查成功状态码：200-299 或 304 (Not Modified)
+    if (response.ok || response.status === 304) {
+      const blob = await response.blob();
+      const arrayBuffer = await blob.arrayBuffer();
+      menuRomData.value = arrayBuffer;
+      menuRomFileName.value = defaultMenuRom;
+      console.log(t('messages.gbaMultiMenu.logMenuRomLoaded', { name: defaultMenuRom }));
+    } else {
+      console.log(`默认菜单ROM无法访问，状态码: ${response.status}`);
+    }
+  } catch (error) {
+    console.log('默认菜单ROM加载失败:', error);
   }
 }
 
@@ -701,16 +673,6 @@ function removeSaveFile(fileName: string) {
 }
 
 // 拖拽处理函数
-function handleMenuRomDrop(e: DragEvent) {
-  const files = e.dataTransfer?.files;
-  if (files && files.length > 0) {
-    const file = files[0];
-    if (file.name.toLowerCase().endsWith('.gba')) {
-      processMenuRomFile(file);
-    }
-  }
-}
-
 function handleGameRomDrop(e: DragEvent) {
   const files = e.dataTransfer?.files;
   if (files && files.length > 0) {
@@ -719,16 +681,6 @@ function handleGameRomDrop(e: DragEvent) {
         processGameRomFile(file);
       }
     });
-  }
-}
-
-function handleBgImageDrop(e: DragEvent) {
-  const files = e.dataTransfer?.files;
-  if (files && files.length > 0) {
-    const file = files[0];
-    if (file.name.toLowerCase().endsWith('.png')) {
-      processBgImageFile(file);
-    }
   }
 }
 
@@ -819,6 +771,8 @@ function clearMenuRom() {
   if (menuRomInput.value) {
     menuRomInput.value.value = '';
   }
+  // 重新加载默认菜单ROM
+  void loadDefaultMenuRom();
 }
 
 function clearBgImage() {
@@ -861,12 +815,10 @@ async function buildRom() {
   if (!canBuild.value) return;
 
   isBuilding.value = true;
-  progressPercent.value = 0;
   buildResult.value = null;
 
   try {
     console.log(t('messages.gbaMultiMenu.logBuildStarted'));
-    progressPercent.value = 10;
 
     // 生成游戏配置
     const games = gameRomItems.value.map(item => item.config);
@@ -880,8 +832,6 @@ async function buildRom() {
       games: games,
     };
 
-    progressPercent.value = 30;
-
     // 准备构建输入
     const romFilesMap = new Map<string, ArrayBuffer>();
     gameRomItems.value.forEach(item => {
@@ -894,7 +844,7 @@ async function buildRom() {
       romFiles: romFilesMap,
       saveFiles: saveFiles.value,
       options: {
-        split: splitOutput.value,
+        split: false,
         noLog: false,
         bgImage: bgImageData.value instanceof ArrayBuffer ? bgImageData.value : undefined,
         output: outputName.value,
@@ -902,12 +852,10 @@ async function buildRom() {
     };
 
     console.log(t('messages.gbaMultiMenu.logConfigReady'));
-    progressPercent.value = 50;
 
     // 执行构建
     const result = await buildRomFromService(input);
 
-    progressPercent.value = 100;
     buildResult.value = result;
 
     console.log(t('messages.gbaMultiMenu.logBuildCompleted'));
@@ -948,20 +896,18 @@ function resetState() {
   bgImageFileName.value = '';
   saveFiles.value.clear();
   expandedConfigs.value.clear();
-  cartridgeType.value = 1;
+  cartridgeType.value = 3;
   batteryPresent.value = true;
-  splitOutput.value = false;
   outputName.value = 'LK_MULTIMENU_<CODE>.gba';
   isBuilding.value = false;
-  progressPercent.value = 0;
   buildResult.value = null;
-  logIdCounter = 0;
   gameIdCounter = 0;
   draggedIndex = -1;
 }
 
 function closeModal() {
   localVisible.value = false;
+  emit('close');
 }
 
 function handleMenuRomChange(e: Event) {
@@ -1048,25 +994,6 @@ function toggleGameConfig(fileName: string) {
   padding: 20px;
 }
 
-.file-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-.file-section {
-  display: flex;
-  flex-direction: column;
-}
-
-.file-section h4 {
-  margin: 0 0 12px 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #333;
-}
-
 .modal-title {
   margin: 0;
   font-size: 1.5rem;
@@ -1132,13 +1059,6 @@ function toggleGameConfig(fileName: string) {
   color: #333;
 }
 
-.file-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
 /* 新的左右布局样式 */
 .main-layout {
   display: flex;
@@ -1149,6 +1069,8 @@ function toggleGameConfig(fileName: string) {
 
 .left-section {
   flex: 2; /* 左侧占2/3空间 */
+  display: flex;
+  flex-direction: column;
 }
 
 .right-section {
@@ -1156,14 +1078,20 @@ function toggleGameConfig(fileName: string) {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-height: 360px; /* 右侧总高度和左侧一致 */
 }
 
 .right-section .file-section {
-  flex: 1; /* 右侧三个区域等高 */
+  flex: 1; /* 右侧两个区域等高 */
   display: flex;
   flex-direction: column;
   min-height: 0; /* 允许flex子项缩小 */
+}
+
+.left-section .file-section {
+  flex: 1; /* 左侧ROM区域占满左侧空间 */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .right-section .file-upload-area {
@@ -1173,12 +1101,19 @@ function toggleGameConfig(fileName: string) {
   min-height: 0; /* 重置最小高度，让flex控制 */
 }
 
-.right-section .file-drop-zone {
+.left-section .file-upload-area {
+  flex: 1; /* 左侧上传区域也填满空间 */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.file-drop-zone {
   flex: 1; /* 让拖拽区域填满上传区域 */
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 80px; /* 设置合适的最小高度 */
+  min-height: 120px; /* 设置合适的最小高度 */
   border: 2px dashed #ddd;
   border-radius: 8px;
   padding: 16px;
@@ -1187,9 +1122,21 @@ function toggleGameConfig(fileName: string) {
   background-color: #fafafa;
 }
 
-.right-section .file-drop-zone:hover {
+.file-drop-zone:hover {
   border-color: #007bff;
   background-color: #f8f9fa;
+}
+
+.file-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 120px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #fafafa;
+  max-height: 400px;
 }
 
 .file-section {
@@ -1209,7 +1156,7 @@ function toggleGameConfig(fileName: string) {
   padding: 0;
   cursor: pointer;
   transition: background-color 0.2s;
-  min-height: 120px; /* 基础最小高度 */
+  min-height: 120px;
 }
 
 .file-upload-area:hover {
@@ -1217,7 +1164,11 @@ function toggleGameConfig(fileName: string) {
 }
 
 .file-drop-zone {
-  min-height: 120px; /* 增加基础拖拽区域高度 */
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
   border: 2px dashed #ddd;
   border-radius: 8px;
   padding: 16px;
@@ -1237,8 +1188,7 @@ function toggleGameConfig(fileName: string) {
   background-color: #e7f3ff;
 }
 
-.file-info,
-.file-placeholder {
+.file-info {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1247,16 +1197,6 @@ function toggleGameConfig(fileName: string) {
   background-color: transparent;
   min-height: 80px;
   width: 100%;
-}
-
-.file-placeholder {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 80px;
-  width: 100%;
-  color: #666;
-  font-style: normal;
 }
 
 .placeholder-content {
@@ -1283,7 +1223,7 @@ function toggleGameConfig(fileName: string) {
   margin: 0;
 }
 
-.file-placeholder .hint {
+.hint {
   background: linear-gradient(135deg, #007bff, #0056b3);
   color: white;
   padding: 8px 16px;
@@ -1295,12 +1235,12 @@ function toggleGameConfig(fileName: string) {
   transition: all 0.2s ease;
 }
 
-.file-placeholder:hover .hint {
+.file-drop-zone:hover .hint {
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 123, 255, 0.4);
 }
 
-.file-placeholder:hover .placeholder-icon {
+.file-drop-zone:hover .placeholder-icon {
   color: #0056b3;
   transform: scale(1.1);
 }
@@ -1308,14 +1248,6 @@ function toggleGameConfig(fileName: string) {
 .file-size {
   color: #666;
   font-size: 0.9rem;
-}
-
-.file-list {
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  background-color: #fafafa;
-  max-height: 400px; /* 增加最大高度 */
-  overflow-y: auto;
 }
 
 .file-item-container {
@@ -1446,10 +1378,18 @@ function toggleGameConfig(fileName: string) {
   font-size: 0.9rem;
 }
 
+.config-row label:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  min-width: auto;
+}
+
 .config-input,
 .config-select {
   flex: 1;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 0.9rem;
@@ -1462,14 +1402,6 @@ function toggleGameConfig(fileName: string) {
   outline: none;
   border-color: #007bff;
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-}
-
-.config-row label:has(input[type="checkbox"]) {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  min-width: auto;
 }
 
 .config-section {
@@ -1487,10 +1419,53 @@ function toggleGameConfig(fileName: string) {
   color: #333;
 }
 
-.config-grid {
+.config-group {
+  margin-bottom: 24px;
+}
+
+.config-group:last-child {
+  margin-bottom: 0;
+}
+
+.config-group h5 {
+  margin: 0 0 12px 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #555;
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 4px;
+}
+
+.config-grid-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
+  margin-bottom: 16px;
+}
+
+.config-grid-row.config-checkboxes {
+  grid-template-columns: auto auto;
+  justify-content: start;
+  gap: 32px;
+}
+
+.config-item-flex {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.config-checkbox-item {
+  display: flex;
+  align-items: center;
+}
+
+.config-file-item {
+  margin-bottom: 12px;
+}
+
+.config-file-item:last-child {
+  margin-bottom: 0;
 }
 
 .config-item {
@@ -1513,21 +1488,12 @@ function toggleGameConfig(fileName: string) {
   font-weight: 500 !important;
 }
 
-.config-select,
-.config-input,
 .config-checkbox {
   padding: 8px 12px;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 0.9rem;
   background-color: white;
-}
-
-.config-select:focus,
-.config-input:focus {
-  outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
 .action-section {
@@ -1677,10 +1643,6 @@ function toggleGameConfig(fileName: string) {
     gap: 8px;
   }
 
-  .config-grid {
-    grid-template-columns: 1fr;
-  }
-
   .file-item {
     flex-direction: column;
     align-items: flex-start;
@@ -1701,16 +1663,58 @@ function toggleGameConfig(fileName: string) {
   .left-section,
   .right-section {
     flex: 1;
-    min-height: auto; /* 移动端重置高度限制 */
+    min-height: auto;
   }
 
   .left-section .file-upload-area {
-    min-height: 240px; /* 移动端左侧高度适中 */
+    min-height: 240px;
   }
 
   .right-section {
     gap: 12px;
     min-height: auto;
+  }
+
+  .config-grid-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .config-grid-row.config-checkboxes {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .config-group h5 {
+    font-size: 0.9rem;
+  }
+
+  .file-config-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .file-info-text {
+    word-break: break-all;
+  }
+}
+
+@media (max-width: 480px) {
+  .config-section {
+    padding: 16px;
+  }
+
+  .config-group {
+    margin-bottom: 20px;
+  }
+
+  .file-config-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .file-select-btn {
+    justify-content: center;
   }
 }
 
@@ -1774,5 +1778,81 @@ function toggleGameConfig(fileName: string) {
 .preview-size {
   font-size: 12px;
   color: #666;
+}
+
+/* 文件配置行样式 */
+.file-config-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.file-select-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.file-select-btn:hover {
+  background: #e9ecef;
+  border-color: #007bff;
+}
+
+.file-info-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #333;
+  flex: 1;
+  min-width: 0;
+}
+
+.file-info-text.text-muted {
+  color: #666;
+  font-style: italic;
+}
+
+.file-size-small {
+  color: #666;
+  font-size: 0.8rem;
+}
+
+.remove-btn-small {
+  background: none;
+  border: none;
+  color: #dc3545;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  font-size: 0.8rem;
+}
+
+.remove-btn-small:hover {
+  background-color: #f8d7da;
+}
+
+.bg-image-info-inline {
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.bg-image-info-inline:hover {
+  background-color: rgba(0, 123, 255, 0.1);
 }
 </style>
