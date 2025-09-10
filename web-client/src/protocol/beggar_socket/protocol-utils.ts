@@ -1,6 +1,8 @@
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { type BYOBReader, type DefaultReader, type DeviceInfo } from '@/types';
 
+import { ProtocolAdapter } from './protocol-adapter';
+
 const INIT_ERROR_MESSAGE = 'Serial port not properly initialized';
 
 export function toLittleEndian(value: number, byteLength: number): Uint8Array {
@@ -21,27 +23,20 @@ export function fromLittleEndian(bytes: Uint8Array): number {
   return value;
 }
 
+// 使用适配器的统一接口
 export async function sendPackage(device: DeviceInfo, payload: Uint8Array, timeoutMs?: number): Promise<boolean> {
-  const writer = device.port?.writable?.getWriter();
-  if (!writer) throw new Error(INIT_ERROR_MESSAGE);
-  const timeout = timeoutMs ?? AdvancedSettings.packageSendTimeout;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    const writePromise = writer.write(payload);
-    const timeoutPromise = new Promise((_, reject) => {
-      timer = setTimeout(() => {
-        writer.releaseLock();
-        reject(new Error(`Send package timeout in ${timeout}ms`));
-      }, timeout);
-    });
-    await Promise.race([writePromise, timeoutPromise]);
-    return true;
-  } finally {
-    if (timer) clearTimeout(timer);
-    try { writer.releaseLock(); } catch {}
-  }
+  return ProtocolAdapter.sendPackage(device, payload, timeoutMs);
 }
 
+export async function getPackage(device: DeviceInfo, length: number, timeoutMs?: number, mode: 'byob' | 'default' = 'byob'): Promise<{ data: Uint8Array }> {
+  return ProtocolAdapter.getPackage(device, length, timeoutMs, mode);
+}
+
+export async function getResult(device: DeviceInfo, timeoutMs?: number): Promise<boolean> {
+  return ProtocolAdapter.getResult(device, timeoutMs);
+}
+
+// 保留原有的读取函数以兼容现有代码
 export async function getPackageWithDefaultReader(reader: DefaultReader, length: number, timeoutMs?: number): Promise<{ data: Uint8Array }> {
   const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
   let offset = 0;
@@ -127,26 +122,7 @@ export async function getPackageWithBYOBReader(reader: BYOBReader, length: numbe
   }
 }
 
-export async function getPackage(device: DeviceInfo, length: number, timeoutMs?: number, mode: 'byob' | 'default' = 'byob'): Promise<{ data: Uint8Array }> {
-  if (!device.port?.readable) {
-    throw new Error(INIT_ERROR_MESSAGE);
-  }
-
-  if (mode === 'byob') {
-    const reader = device.port.readable.getReader({ mode: 'byob' });
-    return getPackageWithBYOBReader(reader, length, timeoutMs);
-  } else {
-    const reader = device.port.readable.getReader();
-    return getPackageWithDefaultReader(reader, length, timeoutMs);
-  }
-}
-
-export async function getResult(device: DeviceInfo, timeoutMs?: number): Promise<boolean> {
-  const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
-  const result = await getPackage(device, 1, timeout);
-  return result.data?.byteLength > 0 && result.data[0] === 0xaa;
-}
-
+// Flash 类型定义和工具函数
 type ArrayElement<T extends readonly unknown[]> = T extends readonly (infer U)[] ? U : never;
 
 export interface FlashType<

@@ -85,6 +85,18 @@
           <span class="alpha-badge">ALPHA</span>
         </button>
 
+        <button
+          class="menu-item"
+          @click="openSerialTest"
+        >
+          <IonIcon :icon="hardwareChipOutline" />
+          <div class="menu-item-content">
+            <span class="menu-item-title">串口测试</span>
+            <span class="menu-item-desc">测试统一串口服务功能</span>
+          </div>
+          <span class="beta-badge">NEW</span>
+        </button>
+
         <div class="menu-divider" />
 
         <button
@@ -167,6 +179,7 @@ import {
   buildOutline,
   constructOutline,
   gameControllerOutline,
+  hardwareChipOutline,
   informationCircleOutline,
   menuOutline,
   settingsOutline,
@@ -174,7 +187,7 @@ import {
 } from 'ionicons/icons';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import AboutModal from '@/components/modal/AboutModal.vue';
 import AdvancedSettingsModal from '@/components/modal/AdvancedSettingsModal.vue';
@@ -190,6 +203,7 @@ import type { AssembledRom } from '@/types/rom-assembly';
 const { t } = useI18n();
 const { showToast } = useToast();
 const route = useRoute();
+const router = useRouter();
 
 const props = withDefaults(defineProps<{
   currentMode?: 'MBC5' | 'GBA';
@@ -320,6 +334,11 @@ function openGbaMultiMenu() {
 
 function closeGbaMultiMenu() {
   isGbaMultiMenuVisible.value = false;
+}
+
+function openSerialTest() {
+  closeMenu();
+  void router.push('/serial-test');
 }
 </script>
 

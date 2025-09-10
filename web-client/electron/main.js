@@ -1,12 +1,18 @@
-const { app, BrowserWindow, Menu, shell, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, shell } = require('electron');
 const path = require('path');
+const { setupIpcHandlers, cleanupSerialPorts } = require('./ipc-handlers');
+
+// 串口支持检查（移到 ipc-handlers.js 中）
+
 // 只有在明确设置开发环境或通过 electron:dev 启动时才是开发模式
 const isDev = process.env.ELECTRON_DEV === 'true';
 
-console.log('isDev:', isDev);
-console.log('app.isPackaged:', app.isPackaged);
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('ELECTRON_DEV:', process.env.ELECTRON_DEV);
+if (isDev) {
+  console.log('isDev:', isDev);
+  console.log('app.isPackaged:', app.isPackaged);
+  console.log('NODE_ENV:', process.env.NODE_ENV);
+  console.log('ELECTRON_DEV:', process.env.ELECTRON_DEV);
+}
 
 // 保持窗口对象的全局引用，如果你不这样做，当JavaScript对象被
 // 垃圾回收，该窗口会被自动地关闭
@@ -54,6 +60,9 @@ function createWindow() {
     if (isDev) {
       mainWindow.focus();
     }
+
+    // 设置 IPC 处理器
+    setupIpcHandlers(mainWindow);
   });
 
   // 添加加载失败的错误处理
@@ -114,9 +123,17 @@ app.whenReady().then(() => {
 
 // 当全部窗口关闭时退出
 app.on('window-all-closed', () => {
+  // 清理串口资源
+  cleanupSerialPorts();
+  
   // 在 macOS 上，除非用户用 Cmd + Q 确定地退出，
   // 否则绝大部分应用及其菜单栏会保持激活。
   if (process.platform !== 'darwin') app.quit();
+});
+
+// 应用即将退出时清理资源
+app.on('before-quit', () => {
+  cleanupSerialPorts();
 });
 
 // 在这个文件中，你可以续写应用剩下主进程代码。
@@ -200,18 +217,3 @@ function createMenu() {
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
 }
-
-// IPC 通信处理
-ipcMain.handle('get-platform', () => {
-  return process.platform;
-});
-
-ipcMain.handle('get-app-version', () => {
-  return app.getVersion();
-});
-
-// 处理串口相关的权限请求
-ipcMain.handle('request-serial-port', async () => {
-  // Electron 中串口访问需要特殊处理
-  return { granted: true };
-});

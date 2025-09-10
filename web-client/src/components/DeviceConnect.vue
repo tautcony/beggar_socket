@@ -4,6 +4,7 @@
       <button
         :class="connected ? 'disconnect-btn' : 'connect-btn'"
         :disabled="isConnecting"
+        :title="connectionTooltip"
         @click="handleConnectDisconnect"
       >
         <IonIcon
@@ -18,7 +19,7 @@
         v-if="connected"
         class="reset-btn"
         :disabled="isConnecting"
-        @click="() => initializeSerialState(deviceInfo?.port, true)"
+        @click="() => initializeSerialState(deviceInfo, true)"
       >
         重置
       </button>
@@ -31,6 +32,14 @@
         />
       </div-->
     </div>
+    <!-- 串口选择模态框 -->
+    <PortSelectorModal
+      :visible="showPortSelector"
+      :ports="availablePorts"
+      @select="onPortSelected"
+      @cancel="onPortSelectionCanceled"
+      @refresh="onRefreshPorts"
+    />
   </div>
 </template>
 
@@ -39,12 +48,13 @@ import { IonIcon } from '@ionic/vue';
 import { checkmarkDoneOutline, flashOutline, reloadOutline } from 'ionicons/icons';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { serial as polyfill } from 'web-serial-polyfill';
 
+import PortSelectorModal from '@/components/modal/PortSelectorModal.vue';
 import { useToast } from '@/composables/useToast';
-import { DebugSettings } from '@/settings/debug-settings';
+import { DeviceConnectionManager, PortSelectionRequiredError } from '@/services/DeviceConnectionManager';
+import { type SerialPortInfo, SerialService } from '@/services/SerialService';
 import { DeviceInfo } from '@/types/device-info';
-import { timeout } from '@/utils/async-utils';
+import { isElectron } from '@/utils/electron';
 // import ToggleSwitch from '@/components/common/ToggleSwitch.vue';
 
 const { showToast } = useToast();
@@ -57,8 +67,12 @@ const emit = defineEmits<{
 const connected = ref(false);
 const isConnecting = ref(false);
 const usePolyfill = ref(false);
+const showPortSelector = ref(false);
+const availablePorts = ref<SerialPortInfo[]>([]);
 
 let deviceInfo: DeviceInfo | null = null;
+const deviceManager = DeviceConnectionManager.getInstance();
+const serialService = SerialService.getInstance();
 
 // 热重载状态恢复 - 在开发模式下处理 HMR
 if (import.meta.hot) {
@@ -75,7 +89,7 @@ if (import.meta.hot) {
   // 从 HMR 数据恢复状态
   if (data.connected) {
     // 验证恢复的状态是否完整
-    if (data.device.port) {
+    if (data.device && deviceManager.isDeviceConnected(data.device)) {
       connected.value = data.connected;
       deviceInfo = data.device;
       console.log('[DeviceConnect] HMR: 成功恢复设备连接状态');
@@ -96,21 +110,13 @@ if (import.meta.hot) {
 
   // 热重载后验证连接状态
   import.meta.hot.accept(() => {
-    console.log('[DeviceConnect] HMR: 验证连接状态', { connected: connected.value, hasPort: !!deviceInfo?.port });
+    console.log('[DeviceConnect] HMR: 验证连接状态', {
+      connected: connected.value,
+      hasDevice: !!deviceInfo,
+      isConnected: deviceInfo ? deviceManager.isDeviceConnected(deviceInfo) : false,
+    });
     if (connected.value) {
-      if (!deviceInfo?.port) {
-        console.warn('[DeviceConnect] HMR: 连接对象丢失，重置连接状态');
-        disposeConnection().catch(console.error);
-        return;
-      }
-    }
-  });
-
-  // 热重载后验证连接状态
-  import.meta.hot.accept(() => {
-    console.log('[DeviceConnect] HMR: 验证连接状态', { connected: connected.value, hasPort: !!deviceInfo?.port });
-    if (connected.value) {
-      if (!deviceInfo?.port) {
+      if (!deviceInfo || !deviceManager.isDeviceConnected(deviceInfo)) {
         console.warn('[DeviceConnect] HMR: 连接对象丢失，重置连接状态');
         disposeConnection().catch(console.error);
         return;
@@ -123,19 +129,19 @@ if (import.meta.hot) {
 onMounted(async () => {
   // 如果显示已连接但实际连接对象为空，重置状态
   if (connected.value) {
-    if (!deviceInfo?.port) {
+    if (!deviceInfo || !deviceManager.isDeviceConnected(deviceInfo)) {
       console.warn('[DeviceConnect] 检测到状态不一致，重置连接状态');
       await disposeConnection();
     } else {
-      // 额外检查端口是否真正可用
+      // 额外检查设备信息
       try {
-        const portInfo = deviceInfo.port.getInfo?.();
-        if (!portInfo) {
-          console.warn('[DeviceConnect] 端口信息不可用，重置连接状态');
+        const deviceInfoResult = deviceManager.getDeviceInfo(deviceInfo);
+        if (!deviceInfoResult) {
+          console.warn('[DeviceConnect] 设备信息不可用，重置连接状态');
           await disposeConnection();
         }
       } catch (error) {
-        console.warn('[DeviceConnect] 端口状态检查失败，重置连接状态:', error);
+        console.warn('[DeviceConnect] 设备状态检查失败，重置连接状态:', error);
         await disposeConnection();
       }
     }
@@ -149,45 +155,47 @@ async function connect() {
   showToast(t('messages.device.tryingConnect'), 'idle');
 
   try {
-    if (DebugSettings.debugMode) {
-      await timeout(1000);
-      const mockPort = {
-        readable: new ReadableStream({ start(controller) { } }),
-        writable: new WritableStream({ write(chunk) { } }),
-        open: async () => { },
-        close: async () => { },
-        getInfo: () => ({ usbVendorId: 0x0483, usbProductId: 0x0721 }),
-      };
-      deviceInfo = {
-        port: mockPort as unknown as SerialPort,
-      };
-      connected.value = true;
-      isConnecting.value = false;
-      showToast(t('messages.device.connectionSuccess') + ' (Debug Mode)', 'success');
-      emit('device-ready', deviceInfo);
-      return;
-    }
-    const filters = [
-      { usbVendorId: 0x0483, usbProductId: 0x0721 },
-    ];
-    let port: SerialPort | null = null;
-    if (usePolyfill.value) {
-      if (!polyfill) throw new Error('Web Serial Polyfill is not available');
-      if (!navigator.usb) throw new Error('WebUSB API is not supported in this browser');
-      port = await polyfill.requestPort({ filters }) as unknown as SerialPort;
-    } else {
-      if (!navigator.serial) throw new Error('Web Serial API is not supported in this browser');
-      port = await navigator.serial.requestPort({ filters });
-    }
-    if (!port) throw new Error('No serial port selected');
-    await port.open({ baudRate: 9600, dataBits: 8, parity: 'none', stopBits: 1, flowControl: 'none' });
+    // 使用统一的设备连接管理器
+    const device = await deviceManager.requestDevice();
 
-    await initializeSerialState(port, false);
+    // 初始化设备状态
+    await deviceManager.initializeDevice(device);
 
     connected.value = true;
     isConnecting.value = false;
     showToast(t('messages.device.connectionSuccess'), 'success');
-    deviceInfo = { port };
+    deviceInfo = device;
+    emit('device-ready', deviceInfo);
+  } catch (e) {
+    // 检查是否需要用户选择串口
+    if (e instanceof PortSelectionRequiredError) {
+      availablePorts.value = e.availablePorts;
+      showPortSelector.value = true;
+      isConnecting.value = false;
+      return;
+    }
+
+    showToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
+    await disposeConnection();
+  }
+}
+
+// 处理串口选择
+async function onPortSelected(selectedPort: SerialPortInfo) {
+  showPortSelector.value = false;
+  isConnecting.value = true;
+
+  try {
+    // 使用选定的串口连接
+    const device = await deviceManager.connectWithSelectedPort(selectedPort);
+
+    // 初始化设备状态
+    await deviceManager.initializeDevice(device);
+
+    connected.value = true;
+    isConnecting.value = false;
+    showToast(t('messages.device.connectionSuccess'), 'success');
+    deviceInfo = device;
     emit('device-ready', deviceInfo);
   } catch (e) {
     showToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
@@ -195,12 +203,35 @@ async function connect() {
   }
 }
 
+// 处理串口选择取消
+function onPortSelectionCanceled() {
+  showPortSelector.value = false;
+  isConnecting.value = false;
+}
+
+// 刷新串口列表
+async function onRefreshPorts() {
+  try {
+    // 重新获取串口列表
+    const portResult = await serialService.requestPort();
+
+    if (Array.isArray(portResult)) {
+      availablePorts.value = portResult;
+    } else {
+      // 如果只有一个端口，也放入列表中
+      availablePorts.value = portResult ? [portResult] : [];
+    }
+  } catch (error) {
+    console.error('Failed to refresh ports:', error);
+    showToast('刷新串口列表失败', 'error');
+  }
+}
+
 async function disconnect() {
   if (!deviceInfo) return;
   isConnecting.value = true;
   try {
-    await deviceInfo.port?.close();
-    deviceInfo.port = null;
+    await deviceManager.disconnectDevice(deviceInfo);
     showToast(t('messages.device.disconnectionSuccess'), 'success');
   } catch (e) {
     console.error(t('messages.device.disconnectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), e);
@@ -208,23 +239,27 @@ async function disconnect() {
   } finally {
     isConnecting.value = false;
     connected.value = false;
+    deviceInfo = null;
     emit('device-disconnected');
   }
 }
 
-async function initializeSerialState(port?: SerialPort | null, toast = false) {
-  if (!port) {
-    console.warn('[DeviceConnect] 初始化失败：端口未定义');
+async function initializeSerialState(device?: DeviceInfo | null, toast = false) {
+  if (!device) {
+    console.warn('[DeviceConnect] 初始化失败：设备未定义');
     return;
   }
 
-  // send dtr & rts signals to ensure device is ready
-  await port?.setSignals({ dataTerminalReady: false, requestToSend: false });
-  await timeout(200);
-  await port?.setSignals({ dataTerminalReady: true, requestToSend: true });
-
-  if (toast) {
-    showToast(t('messages.device.initializationSuccess'), 'success');
+  try {
+    await deviceManager.initializeDevice(device);
+    if (toast) {
+      showToast(t('messages.device.initializationSuccess'), 'success');
+    }
+  } catch (error) {
+    console.error('Failed to initialize device:', error);
+    if (toast) {
+      showToast(t('messages.device.initializationFailed', { error: error instanceof Error ? error.message : String(error) }), 'error');
+    }
   }
 }
 
@@ -235,12 +270,10 @@ async function disposeConnection() {
   if (deviceInfo !== null) {
     // 安全地清理资源
     try {
-      if (deviceInfo.port) {
-        await deviceInfo.port.close().catch(() => {});
-      }
-    } catch {}
-
-    deviceInfo.port = null;
+      await deviceManager.disconnectDevice(deviceInfo);
+    } catch (error) {
+      console.warn('Error during device cleanup:', error);
+    }
     deviceInfo = null;
   }
 
@@ -265,6 +298,18 @@ const buttonIcon = computed(() => {
   if (isConnecting.value && !connected.value) return reloadOutline;
   if (connected.value) return checkmarkDoneOutline;
   return flashOutline;
+});
+
+const connectionTooltip = computed(() => {
+  const baseMessage = connected.value
+    ? t('ui.device.connected')
+    : t('ui.device.connect');
+
+  const envMessage = isElectron()
+    ? 'SerialPort'
+    : 'Web Serial API';
+
+  return `${baseMessage} - ${envMessage}`;
 });
 
 // 暴露方法给父组件

@@ -9,6 +9,11 @@ const routes = [
     // 仅当路由被访问时才被延迟加载
     component: () => import('@/views/HomeView.vue'),
   },
+  {
+    path: '/serial-test',
+    name: 'serial-test',
+    component: () => import('@/views/SerialTestView.vue'),
+  },
 ];
 
 const router = createRouter({
