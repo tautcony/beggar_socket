@@ -10,7 +10,9 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dist-electron
 *.local
+.env.local
 
 # Editor directories and files
 .vscode/*
@@ -24,3 +26,11 @@ dist-ssr
 *.sw?
 
 coverage/
+
+# Electron
+out/
+app/
+release/
+build/*.log
+build/*.tmp
+!build/entitlements.mac.plist

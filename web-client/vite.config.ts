@@ -20,11 +20,21 @@ export default defineConfig({
           vue: ['vue', 'vue-i18n', 'vue-router'],
           sentry: ['@sentry/vue', '@sentry/tracing'],
           luxon: ['luxon'],
+          jimp: ['jimp'],
         },
+      },
+    },
+    terserOptions: {
+      compress: {
+        drop_debugger: true,
       },
     },
   },
   server: {
     host: '0.0.0.0',
+    port: 5173,
+  },
+  define: {
+    __IS_ELECTRON__: 'false',
   },
 });
