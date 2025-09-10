@@ -35,6 +35,8 @@
       "debugToolUnlocked": "デバッグツールがアンロックされました！",
       "settings": "設定",
       "settingsDesc": "アプリケーションオプションを設定します",
+      "gbaMultiMenu": "GBAマルチカート",
+      "gbaMultiMenuDesc": "複数のゲームを含むROMを作成します",
       "about": "アバウト",
       "aboutDesc": "アプリケーション情報とバージョンを表示します"
     },
@@ -430,6 +432,40 @@
       "cancel": "キャンセル",
       "save": "保存",
       "confirm": "確認"
+    },
+    "gbaMultiMenu": {
+      "title": "GBA ROMビルダー",
+      "status": "ステータス",
+      "romCode": "ROMコード",
+      "menuRom": "メニューROM",
+      "dropMenuRom": "メニューROMファイルをここにドラッグ",
+      "gameRoms": "ゲームROM",
+      "dropGameRoms": "ゲームROMファイルをここにドラッグ",
+      "backgroundImage": "背景画像",
+      "dropBgImage": "背景画像ファイルをここにドラッグ",
+      "saveFiles": "セーブファイル",
+      "dropSaveFiles": "セーブファイルをここにドラッグ",
+      "configuration": "設定",
+      "configureGame": "ゲーム設定",
+      "gameTitle": "ゲームタイトル",
+      "titleFont": "タイトルフォント",
+      "saveSlot": "セーブスロット",
+      "enabled": "有効",
+      "cartridgeType": "カートリッジタイプ",
+      "batterySupport": "バッテリーサポート",
+      "splitOutput": "分割出力",
+      "outputName": "出力名",
+      "buildRom": "ROM構築",
+      "building": "構築中",
+      "buildLog": "構築ログ",
+      "buildSuccess": "構築成功",
+      "romSize": "ROMサイズ",
+      "downloadRom": "ROMダウンロード",
+      "statusBuilding": "構築中",
+      "statusSuccess": "成功",
+      "statusReady": "準備完了",
+      "dragToReorder": "ドラッグして並び替え",
+      "noFileSelected": "ファイルが選択されていません"
     }
   },
   "messages": {
@@ -641,6 +677,23 @@
     "debug": {
       "mockModeEnabled": "デバッグモードが有効 - モックデバイスを使用",
       "mockDataCleared": "モックデータがクリアされました"
+    },
+    "gbaMultiMenu": {
+      "logMenuRomLoaded": "メニューROMが読み込まれました: {name}",
+      "logGameRomLoaded": "ゲームROMが読み込まれました: {name}",
+      "logGameRomLoadFailed": "ゲームROM {name} の読み込みに失敗しました: {error}",
+      "logBgImageLoaded": "背景画像が読み込まれました: {name}",
+      "logBgImageLoadFailed": "背景画像の読み込みに失敗しました: {error}",
+      "logSaveFileLoaded": "セーブファイルが読み込まれました: {name}",
+      "logSaveFileLoadFailed": "セーブファイル {name} の読み込みに失敗しました: {error}",
+      "logGameRomRemoved": "ゲームROMが削除されました: {name}",
+      "logSaveFileRemoved": "セーブファイルが削除されました: {name}",
+      "logGameReordered": "ゲームROMの順序が変更されました",
+      "logBuildStarted": "ROM構築を開始しています...",
+      "logConfigReady": "設定準備完了、構築を開始します...",
+      "logBuildCompleted": "構築完了！",
+      "logBuildFailed": "構築に失敗しました: {error}",
+      "logRomDownloaded": "ROMがダウンロードされました"
     }
   }
 }

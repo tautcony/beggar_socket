@@ -14,8 +14,7 @@ if (isDev) {
   console.log('ELECTRON_DEV:', process.env.ELECTRON_DEV);
 }
 
-// 保持窗口对象的全局引用，如果你不这样做，当JavaScript对象被
-// 垃圾回收，该窗口会被自动地关闭
+// 保持窗口对象的全局引用
 let mainWindow;
 
 function createWindow() {
@@ -45,11 +44,7 @@ function createWindow() {
   } else {
     // 生产模式下加载本地文件
     const indexPath = path.join(__dirname, '../dist/index.html');
-    console.log('Loading file from:', indexPath);
     mainWindow.loadFile(indexPath);
-    
-    // 在生产模式下也打开开发者工具以便调试
-    mainWindow.webContents.openDevTools();
   }
 
   // 当窗口准备好显示时
@@ -61,7 +56,7 @@ function createWindow() {
       mainWindow.focus();
     }
 
-    // 设置 IPC 处理器
+    // 设置 IPC 处理器（防重复注册已在函数内处理）
     setupIpcHandlers(mainWindow);
   });
 
@@ -136,9 +131,6 @@ app.on('before-quit', () => {
   cleanupSerialPorts();
 });
 
-// 在这个文件中，你可以续写应用剩下主进程代码。
-// 也可以拆分成几个文件，然后用 require 导入。
-
 function createMenu() {
   const template = [
     {
@@ -151,18 +143,6 @@ function createMenu() {
             app.quit();
           }
         }
-      ]
-    },
-    {
-      label: 'Edit',
-      submenu: [
-        { role: 'undo' },
-        { role: 'redo' },
-        { type: 'separator' },
-        { role: 'cut' },
-        { role: 'copy' },
-        { role: 'paste' },
-        { role: 'selectall' }
       ]
     },
     {
@@ -193,8 +173,6 @@ function createMenu() {
       label: app.getName(),
       submenu: [
         { role: 'about' },
-        { type: 'separator' },
-        { role: 'services', submenu: [] },
         { type: 'separator' },
         { role: 'hide' },
         { role: 'hideOthers' },

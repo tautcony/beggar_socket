@@ -572,33 +572,4 @@ function cleanup() {
     padding: 3px 6px;
   }
 }
-
-@media (max-width: 480px) {
-  .emulator-header {
-    padding: 8px 12px;
-  }
-
-  .emulator-title {
-    font-size: 0.9rem;
-  }
-
-  .control-btn {
-    width: 32px;
-    height: 32px;
-    font-size: 0.9rem;
-  }
-
-  .emulator-content {
-    padding: 12px;
-  }
-
-  .game-canvas {
-    min-width: 240px;
-    min-height: 160px;
-  }
-
-  .emulator-footer {
-    padding: 12px;
-  }
-}
 </style>

@@ -732,7 +732,7 @@ onUnmounted(() => {
 }
 
 /* 响应式调整 */
-@media (max-width: 600px) {
+@media (max-width: 768px) {
   .legend-row {
     gap: 8px;
   }

@@ -1,4 +1,4 @@
-const { ipcMain } = require('electron');
+const { ipcMain, app } = require('electron');
 
 // 串口支持
 let SerialPort;
@@ -13,24 +13,32 @@ try {
 // 存储活跃的串口连接
 let activeSerialPorts = new Map();
 
+// 防止重复注册 IPC 处理器
+let ipcHandlersRegistered = false;
+
 /**
  * 初始化 IPC 处理器
  * @param {BrowserWindow} mainWindow - 主窗口实例
  */
 function setupIpcHandlers(mainWindow) {
+  // 如果已经注册过处理器，直接返回
+  if (ipcHandlersRegistered) {
+    return;
+  }
+  
+  ipcHandlersRegistered = true;
+  
   // 基础系统信息
   ipcMain.handle('get-platform', () => {
     return process.platform;
   });
 
   ipcMain.handle('get-app-version', () => {
-    const { app } = require('electron');
     return app.getVersion();
   });
 
-  // 串口相关的权限请求（Web Serial API 兼容）
+  // 串口相关的权限请求
   ipcMain.handle('request-serial-port', async () => {
-    // 在 Electron 中，我们有直接的串口访问权限
     return { granted: true };
   });
 

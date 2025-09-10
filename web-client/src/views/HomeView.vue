@@ -230,12 +230,4 @@ h1 {
     padding: 3px 6px;
   }
 }
-
-@media (max-width: 480px) {
-  .title-badge {
-    right: calc(50% - 80px);
-    font-size: 0.55rem;
-    padding: 2px 5px;
-  }
-}
 </style>

@@ -92,7 +92,7 @@ import { IonIcon } from '@ionic/vue';
 import { checkmarkCircle, close, hardwareChipOutline, refreshOutline } from 'ionicons/icons';
 import { ref, watch } from 'vue';
 
-import type { SerialPortInfo } from '@/services/SerialService';
+import type { SerialPortInfo } from '@/services/serial-service';
 
 interface Props {
   visible: boolean;

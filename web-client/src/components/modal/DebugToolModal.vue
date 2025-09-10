@@ -683,7 +683,7 @@ function formatHexData(hexData: Uint8Array): string {
   to { transform: rotate(360deg); }
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
   .debug-tool {
     grid-template-columns: 1fr;
   }

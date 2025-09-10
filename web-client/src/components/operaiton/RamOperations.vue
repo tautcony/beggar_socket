@@ -255,19 +255,11 @@ function onBaseAddressChange() {
 }
 
 .type-selector > *,
-.size-selector > *:not(.batless-hint),
+.size-selector > *,
 .base-address-selector > * {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.batless-hint {
-  font-size: 0.8rem;
-  color: #666;
-  margin-top: 4px;
-  text-align: center;
-  font-style: italic;
 }
 
 .type-label,

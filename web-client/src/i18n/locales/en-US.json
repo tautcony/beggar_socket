@@ -35,6 +35,8 @@
       "debugToolUnlocked": "Debug Tool Unlocked!",
       "settings": "Settings",
       "settingsDesc": "Configure application options",
+      "gbaMultiMenu": "GBA Multi-Cart",
+      "gbaMultiMenuDesc": "Create ROMs containing multiple games",
       "about": "About",
       "aboutDesc": "View application information and version"
     },
@@ -430,6 +432,40 @@
       "cancel": "Cancel",
       "save": "Save",
       "confirm": "Confirm"
+    },
+    "gbaMultiMenu": {
+      "title": "GBA ROM Builder",
+      "status": "Status",
+      "romCode": "ROM Code",
+      "menuRom": "Menu ROM",
+      "dropMenuRom": "Drag menu ROM file here",
+      "gameRoms": "Game ROMs",
+      "dropGameRoms": "Drag game ROM files here",
+      "backgroundImage": "Background Image",
+      "dropBgImage": "Drag background image file here",
+      "saveFiles": "Save Files",
+      "dropSaveFiles": "Drag save files here",
+      "configuration": "Configuration",
+      "configureGame": "Configure Game",
+      "gameTitle": "Game Title",
+      "titleFont": "Title Font",
+      "saveSlot": "Save Slot",
+      "enabled": "Enabled",
+      "cartridgeType": "Cartridge Type",
+      "batterySupport": "Battery Support",
+      "splitOutput": "Split Output",
+      "outputName": "Output Name",
+      "buildRom": "Build ROM",
+      "building": "Building",
+      "buildLog": "Build Log",
+      "buildSuccess": "Build Successful",
+      "romSize": "ROM Size",
+      "downloadRom": "Download ROM",
+      "statusBuilding": "Building",
+      "statusSuccess": "Success",
+      "statusReady": "Ready",
+      "dragToReorder": "Drag to reorder",
+      "noFileSelected": "No file selected"
     }
   },
   "messages": {
@@ -641,6 +677,23 @@
     "debug": {
       "mockModeEnabled": "Debug mode enabled - using mock device",
       "mockDataCleared": "Mock data cleared"
+    },
+    "gbaMultiMenu": {
+      "logMenuRomLoaded": "Menu ROM loaded: {name}",
+      "logGameRomLoaded": "Game ROM loaded: {name}",
+      "logGameRomLoadFailed": "Failed to load game ROM {name}: {error}",
+      "logBgImageLoaded": "Background image loaded: {name}",
+      "logBgImageLoadFailed": "Failed to load background image: {error}",
+      "logSaveFileLoaded": "Save file loaded: {name}",
+      "logSaveFileLoadFailed": "Failed to load save file {name}: {error}",
+      "logGameRomRemoved": "Game ROM removed: {name}",
+      "logSaveFileRemoved": "Save file removed: {name}",
+      "logGameReordered": "Game ROM order rearranged",
+      "logBuildStarted": "Starting ROM build...",
+      "logConfigReady": "Configuration ready, starting build...",
+      "logBuildCompleted": "Build completed!",
+      "logBuildFailed": "Build failed: {error}",
+      "logRomDownloaded": "ROM downloaded"
     }
   }
 }

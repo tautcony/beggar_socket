@@ -14,6 +14,11 @@ const routes = [
     name: 'serial-test',
     component: () => import('@/views/SerialTestView.vue'),
   },
+  {
+    path: '/gba-multi-menu',
+    name: 'gba-multi-menu',
+    component: () => import('@/views/GBAMultiMenuView.vue'),
+  },
 ];
 
 const router = createRouter({

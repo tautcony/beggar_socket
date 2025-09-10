@@ -464,7 +464,8 @@
       "statusBuilding": "构建中",
       "statusSuccess": "成功",
       "statusReady": "就绪",
-      "dragToReorder": "拖拽以重新排序"
+      "dragToReorder": "拖拽以重新排序",
+      "noFileSelected": "未选择文件"
     }
   },
   "messages": {

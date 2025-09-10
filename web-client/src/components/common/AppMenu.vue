@@ -85,7 +85,7 @@
           <span class="alpha-badge">ALPHA</span>
         </button>
 
-        <button
+        <!--button
           class="menu-item"
           @click="openSerialTest"
         >
@@ -95,7 +95,7 @@
             <span class="menu-item-desc">测试统一串口服务功能</span>
           </div>
           <span class="beta-badge">NEW</span>
-        </button>
+        </button-->
 
         <div class="menu-divider" />
 
@@ -151,12 +151,6 @@
       @close="closeCartridgeTools"
     />
 
-    <!-- GBA多游戏菜单弹框 -->
-    <GBAMultiMenuModal
-      v-model="isGbaMultiMenuVisible"
-      @close="closeGbaMultiMenu"
-    />
-
     <!-- 关于弹框 -->
     <AboutModal
       v-model="isAboutVisible"
@@ -193,7 +187,6 @@ import AboutModal from '@/components/modal/AboutModal.vue';
 import AdvancedSettingsModal from '@/components/modal/AdvancedSettingsModal.vue';
 import CartridgeToolsModal from '@/components/modal/CartridgeToolsModal.vue';
 import DebugToolModal from '@/components/modal/DebugToolModal.vue';
-import GBAMultiMenuModal from '@/components/modal/GBAMultiMenuModal.vue';
 import RomAnalyzerModal from '@/components/modal/RomAnalyzerModal.vue';
 import RomAssemblyModal from '@/components/modal/RomAssemblyModal.vue';
 import { useToast } from '@/composables/useToast';
@@ -224,8 +217,6 @@ const isDebugToolVisible = ref(false);
 const isCartridgeToolsVisible = ref(false);
 const isSettingsVisible = ref(false);
 const isAboutVisible = ref(false);
-const isGbaMultiMenuVisible = ref(false);
-
 const clickCount = ref(0);
 let clickTimer: NodeJS.Timeout | null = null;
 
@@ -329,11 +320,7 @@ function closeAbout() {
 
 function openGbaMultiMenu() {
   closeMenu();
-  isGbaMultiMenuVisible.value = true;
-}
-
-function closeGbaMultiMenu() {
-  isGbaMultiMenuVisible.value = false;
+  void router.push({ name: 'gba-multi-menu' });
 }
 
 function openSerialTest() {

@@ -164,8 +164,7 @@ onMounted(async () => {
 }
 
 .environment-info,
-.serial-testing,
-.quick-actions {
+.serial-testing {
   background: white;
   border-radius: 12px;
   padding: 24px;
@@ -225,96 +224,6 @@ onMounted(async () => {
   border: 1px solid #f5c6cb;
 }
 
-.action-buttons {
-  display: flex;
-  gap: 16px;
-  margin: 16px 0;
-  flex-wrap: wrap;
-}
-
-.test-button {
-  padding: 12px 24px;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  min-width: 160px;
-}
-
-.test-button.integration {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
-
-.test-button.performance {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: white;
-}
-
-.test-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-.test-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.test-results {
-  margin-top: 24px;
-}
-
-.test-results h3 {
-  color: #333;
-  margin-bottom: 12px;
-}
-
-.results-log {
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
-  padding: 16px;
-  max-height: 300px;
-  overflow-y: auto;
-  font-family: 'Courier New', monospace;
-  font-size: 0.875rem;
-}
-
-.result-item {
-  display: flex;
-  margin-bottom: 8px;
-  padding: 4px 0;
-}
-
-.result-item.success {
-  color: #28a745;
-}
-
-.result-item.error {
-  color: #dc3545;
-}
-
-.result-item.warning {
-  color: #ffc107;
-}
-
-.result-item.info {
-  color: #17a2b8;
-}
-
-.timestamp {
-  font-weight: 600;
-  margin-right: 12px;
-  min-width: 80px;
-}
-
-.message {
-  flex: 1;
-}
-
 /* 响应式设计 */
 @media (max-width: 768px) {
   .serial-test-view {
@@ -327,14 +236,6 @@ onMounted(async () => {
 
   .info-grid {
     grid-template-columns: 1fr;
-  }
-
-  .action-buttons {
-    flex-direction: column;
-  }
-
-  .test-button {
-    width: 100%;
   }
 }
 </style>

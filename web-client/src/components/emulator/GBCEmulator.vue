@@ -463,23 +463,4 @@ async function handleOverlayClick(event: MouseEvent) {
     font-size: 0.75rem;
   }
 }
-
-@media (max-width: 480px) {
-  .game-canvas {
-    width: 240px;
-    height: 216px;
-  }
-
-  .emulator-footer {
-    padding: 12px 16px;
-  }
-
-  .emulator-header {
-    padding: 10px 12px;
-  }
-
-  .emulator-title {
-    font-size: 0.9rem;
-  }
-}
 </style>

@@ -4,7 +4,7 @@ import stylistic from '@stylistic/eslint-plugin'
 import simpleImportSort from 'eslint-plugin-simple-import-sort'
 import importPlugin from 'eslint-plugin-import';
 import globals from 'globals'
-// import eslintPluginVueScopedCSS from 'eslint-plugin-vue-scoped-css';
+import eslintPluginVueScopedCSS from 'eslint-plugin-vue-scoped-css';
 
 
 const commonRules = {
@@ -99,7 +99,7 @@ export default tseslint.config(
     },
   },
   // Vue files configuration
-  // ...eslintPluginVueScopedCSS.configs['flat/recommended'],
+  ...eslintPluginVueScopedCSS.configs['flat/recommended'],
   // JavaScript files configuration
   {
     files: ['**/*.{js,mjs,cjs}'],

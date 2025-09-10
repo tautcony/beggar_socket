@@ -1,4 +1,4 @@
-import { SerialConnection, SerialService } from '@/services/SerialService';
+import { SerialConnection, SerialService } from '@/services/serial-service';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { type BYOBReader, type DefaultReader, type DeviceInfo } from '@/types';
 

@@ -496,8 +496,7 @@ onBeforeUnmount(() => {
   color: #374151;
 }
 
-.number-input,
-.select-input {
+.number-input {
   padding: 0.5rem;
   border: 1px solid #d1d5db;
   border-radius: 4px;
@@ -516,8 +515,7 @@ onBeforeUnmount(() => {
   cursor: not-allowed;
 }
 
-.number-input:focus,
-.select-input:focus {
+.number-input:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);

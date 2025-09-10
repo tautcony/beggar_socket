@@ -1,4 +1,4 @@
-import type { SerialPortInfo } from '@/services/SerialService';
+import type { SerialPortInfo } from '@/services/serial-service';
 
 /**
  * 当需要用户选择串口时抛出的错误

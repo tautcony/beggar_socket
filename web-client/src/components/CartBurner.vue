@@ -1084,18 +1084,6 @@ function clearChipInfo() {
   }
 }
 
-/* 小屏幕进一步优化 */
-@media (max-width: 480px) {
-  .flashburner-container {
-    margin: 8px;
-    padding: 12px 16px;
-  }
-
-  .content-area {
-    min-width: 280px;
-  }
-}
-
 .mode-tabs-card {
   display: flex;
   gap: 0;

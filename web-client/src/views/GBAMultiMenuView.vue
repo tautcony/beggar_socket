@@ -1,18 +1,11 @@
 <template>
-  <BaseModal
-    v-model="localVisible"
-    :title="$t('ui.gbaMultiMenu.title')"
-    width="95vw"
-    max-width="1400px"
-    max-height="90vh"
-    :mask-closable="false"
-    @close="closeModal"
-  >
-    <template #header>
-      <h3 class="modal-title">
+  <div class="gba-multi-menu-view">
+    <!-- 页面头部 -->
+    <div class="page-header">
+      <h2 class="page-title">
         {{ $t('ui.gbaMultiMenu.title') }}
-      </h3>
-      <div class="modal-controls">
+      </h2>
+      <div class="header-controls">
         <div class="status-info">
           <span class="status-label">{{ $t('ui.gbaMultiMenu.status') }}:</span>
           <span
@@ -29,14 +22,15 @@
           <span class="result-label">{{ $t('ui.gbaMultiMenu.romCode') }}:</span>
           <span class="result-value">{{ buildResult.code }}</span>
         </div>
+        <button
+          class="back-btn"
+          @click="goBack"
+        >
+          <IonIcon :icon="arrowBackOutline" />
+          返回
+        </button>
       </div>
-      <button
-        class="close-btn"
-        @click="closeModal"
-      >
-        <IonIcon :icon="closeOutline" />
-      </button>
-    </template>
+    </div>
 
     <div class="gba-multi-menu-content">
       <!-- 文件选择区域 - 左右布局 -->
@@ -327,12 +321,6 @@
               >
                 {{ menuRomFileName }}
                 <span class="file-size-small">({{ formatFileSize(menuRomData.byteLength) }})</span>
-                <button
-                  class="remove-btn-small"
-                  @click="clearMenuRom"
-                >
-                  <IonIcon :icon="closeCircleOutline" />
-                </button>
               </span>
               <span
                 v-else
@@ -369,12 +357,6 @@
               >
                 {{ bgImageFileName === 'bg.png' ? `${bgImageFileName} (默认)` : bgImageFileName }}
                 <span class="file-size-small">({{ formatFileSize(bgImageData.byteLength) }})</span>
-                <button
-                  class="remove-btn-small"
-                  @click="clearBgImage"
-                >
-                  <IonIcon :icon="closeCircleOutline" />
-                </button>
               </span>
               <span
                 v-else
@@ -418,22 +400,22 @@
         </button>
       </div>
     </div>
-  </BaseModal>
 
-  <!-- 背景图像预览 - 移到Modal外部 -->
-  <div
-    v-if="showBgImagePreview && bgImagePreviewUrl"
-    class="bg-image-preview-overlay"
-  >
-    <div class="bg-image-preview">
-      <img
-        :src="bgImagePreviewUrl"
-        :alt="bgImageFileName"
-        class="preview-image"
-      >
-      <div class="preview-info">
-        <span class="preview-filename">{{ bgImageFileName }}</span>
-        <span class="preview-size">{{ formatFileSize(bgImageData?.byteLength || 0) }}</span>
+    <!-- 背景图像预览 -->
+    <div
+      v-if="showBgImagePreview && bgImagePreviewUrl"
+      class="bg-image-preview-overlay"
+    >
+      <div class="bg-image-preview">
+        <img
+          :src="bgImagePreviewUrl"
+          :alt="bgImageFileName"
+          class="preview-image"
+        >
+        <div class="preview-info">
+          <span class="preview-filename">{{ bgImageFileName }}</span>
+          <span class="preview-size">{{ formatFileSize(bgImageData?.byteLength || 0) }}</span>
+        </div>
       </div>
     </div>
   </div>
@@ -442,6 +424,7 @@
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import {
+  arrowBackOutline,
   buildOutline,
   closeCircleOutline,
   closeOutline,
@@ -454,24 +437,19 @@ import {
 } from 'ionicons/icons';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 
-import BaseModal from '@/components/common/BaseModal.vue';
 import { type BuildInput, type BuildResult, buildRom as buildRomFromService } from '@/services/lk';
 import { FileInfo } from '@/types/file-info';
 import { formatBytes } from '@/utils/formatter-utils';
 
 const { t } = useI18n();
+const router = useRouter();
 
-const props = withDefaults(defineProps<{
-  modelValue?: boolean;
-}>(), {
-  modelValue: false,
-});
-
-const emit = defineEmits<{
-  'update:modelValue': [value: boolean];
-  'close': [];
-}>();
+// Navigation methods
+const goBack = () => {
+  router.back();
+};
 
 // Refs
 const menuRomInput = ref<HTMLInputElement>();
@@ -497,7 +475,6 @@ interface GameRomItem {
 }
 
 // 响应式数据
-const localVisible = ref(false);
 const menuRomData = ref<ArrayBuffer | null>(null);
 const menuRomFileName = ref('');
 const gameRomItems = ref<GameRomItem[]>([]);
@@ -536,19 +513,10 @@ const statusClass = computed(() => {
   return 'status-ready';
 });
 
-// 监听modal显示状态
-watch(() => props.modelValue, (newValue) => {
-  localVisible.value = newValue;
-  if (newValue) {
-    resetState();
-    void loadDefaultBackground();
-    void loadDefaultMenuRom();
-  }
-});
-
-watch(localVisible, (newValue) => {
-  emit('update:modelValue', newValue);
-});
+// 页面初始化
+resetState();
+void loadDefaultBackground();
+void loadDefaultMenuRom();
 
 // 组件卸载时清理预览URL
 onUnmounted(() => {
@@ -905,9 +873,8 @@ function resetState() {
   draggedIndex = -1;
 }
 
-function closeModal() {
-  localVisible.value = false;
-  emit('close');
+function closeView() {
+  goBack();
 }
 
 function handleMenuRomChange(e: Event) {
@@ -990,8 +957,69 @@ function toggleGameConfig(fileName: string) {
 </script>
 
 <style scoped>
+.gba-multi-menu-view {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding: 0;
+  /* 突破父容器限制，占满屏幕并使用80%宽度 */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  overflow-y: auto;
+}
+
+.page-header {
+  background: white;
+  border-bottom: 1px solid #e9ecef;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.back-btn:hover {
+  background: #5a6268;
+  transform: translateY(-1px);
+}
+
 .gba-multi-menu-content {
-  padding: 20px;
+  padding: 24px;
+  max-width: 80%;
+  margin: 0 auto;
 }
 
 .modal-title {
@@ -1000,11 +1028,10 @@ function toggleGameConfig(fileName: string) {
   font-weight: 600;
 }
 
-.modal-controls {
+.header-controls {
   display: flex;
   align-items: center;
   gap: 20px;
-  margin-left: auto;
 }
 
 .status-info,
@@ -1043,38 +1070,22 @@ function toggleGameConfig(fileName: string) {
   color: #155724;
 }
 
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: #666;
-  padding: 4px;
-  border-radius: 4px;
-  transition: all 0.2s;
-}
-
-.close-btn:hover {
-  background-color: #f0f0f0;
-  color: #333;
-}
-
 /* 新的左右布局样式 */
 .main-layout {
   display: flex;
   gap: 24px;
-  margin-bottom: 24px;
+  margin-bottom: 32px;
   align-items: stretch; /* 确保左右两侧等高 */
 }
 
 .left-section {
-  flex: 2; /* 左侧占2/3空间 */
+  flex: 3; /* 左侧占3/5空间 */
   display: flex;
   flex-direction: column;
 }
 
 .right-section {
-  flex: 1; /* 右侧占1/3空间 */
+  flex: 2; /* 右侧占2/5空间 */
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1142,6 +1153,12 @@ function toggleGameConfig(fileName: string) {
 .file-section {
   display: flex;
   flex-direction: column;
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e9ecef;
+  text-align: left;
 }
 
 .file-section h4 {
@@ -1149,6 +1166,7 @@ function toggleGameConfig(fileName: string) {
   font-size: 1.1rem;
   font-weight: 600;
   color: #333;
+  text-align: left;
 }
 
 .file-upload-area {
@@ -1406,10 +1424,12 @@ function toggleGameConfig(fileName: string) {
 
 .config-section {
   margin: 24px 0;
-  padding: 20px;
-  background-color: #f8f9fa;
+  padding: 24px;
+  background: white;
   border-radius: 8px;
-  border: 1px solid #dee2e6;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  text-align: left;
 }
 
 .config-section h4 {
@@ -1417,6 +1437,7 @@ function toggleGameConfig(fileName: string) {
   font-size: 1.1rem;
   font-weight: 600;
   color: #333;
+  text-align: left;
 }
 
 .config-group {
@@ -1434,6 +1455,7 @@ function toggleGameConfig(fileName: string) {
   color: #555;
   border-bottom: 1px solid #e9ecef;
   padding-bottom: 4px;
+  text-align: left;
 }
 
 .config-grid-row {
@@ -1478,6 +1500,7 @@ function toggleGameConfig(fileName: string) {
   font-weight: 500;
   color: #333;
   font-size: 0.9rem;
+  text-align: left;
 }
 
 .checkbox-label {
@@ -1498,7 +1521,11 @@ function toggleGameConfig(fileName: string) {
 
 .action-section {
   text-align: center;
-  margin: 24px 0;
+  margin: 32px 0;
+  padding: 24px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .build-btn {
@@ -1528,7 +1555,12 @@ function toggleGameConfig(fileName: string) {
 }
 
 .progress-section {
-  margin: 20px 0;
+  margin: 24px 0;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e9ecef;
 }
 
 .progress-bar {
@@ -1555,6 +1587,11 @@ function toggleGameConfig(fileName: string) {
 
 .log-section {
   margin: 24px 0;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e9ecef;
 }
 
 .log-section h4 {
@@ -1591,12 +1628,13 @@ function toggleGameConfig(fileName: string) {
 }
 
 .download-section {
-  margin: 24px 0;
-  padding: 20px;
+  margin: 32px 0;
+  padding: 24px;
   background: linear-gradient(135deg, #d4edda, #c3e6cb);
   border: 1px solid #c3e6cb;
   border-radius: 8px;
   text-align: center;
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
 }
 
 .download-section h4 {
@@ -1637,10 +1675,16 @@ function toggleGameConfig(fileName: string) {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .modal-controls {
+  .page-header {
+    padding: 12px 16px;
     flex-direction: column;
     align-items: flex-start;
-    gap: 8px;
+    gap: 12px;
+  }
+
+  .header-controls {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .file-item {
@@ -1696,25 +1740,6 @@ function toggleGameConfig(fileName: string) {
 
   .file-info-text {
     word-break: break-all;
-  }
-}
-
-@media (max-width: 480px) {
-  .config-section {
-    padding: 16px;
-  }
-
-  .config-group {
-    margin-bottom: 20px;
-  }
-
-  .file-config-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .file-select-btn {
-    justify-content: center;
   }
 }
 

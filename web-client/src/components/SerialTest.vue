@@ -158,7 +158,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
-import { type SerialConnection, type SerialPortInfo, serialService } from '@/services/SerialService';
+import { type SerialConnection, type SerialPortInfo, serialService } from '@/services/serial-service';
 import { isElectron } from '@/utils/electron';
 
 // 响应式数据

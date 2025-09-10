@@ -1,4 +1,4 @@
-import { SerialService } from '@/services/SerialService';
+import { SerialService } from '@/services/serial-service';
 import { DebugSettings } from '@/settings/debug-settings';
 import { DeviceInfo } from '@/types/device-info';
 import { timeout } from '@/utils/async-utils';
@@ -57,7 +57,7 @@ export class DeviceConnectionManager {
   /**
    * 使用指定的串口连接设备（Electron 环境专用）
    */
-  async connectWithSelectedPort(selectedPort: import('@/services/SerialService').SerialPortInfo): Promise<DeviceInfo> {
+  async connectWithSelectedPort(selectedPort: import('@/services/serial-service').SerialPortInfo): Promise<DeviceInfo> {
     if (!isElectron()) {
       throw new Error('This method is only available in Electron environment');
     }

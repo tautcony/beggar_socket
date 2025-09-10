@@ -40,19 +40,18 @@
     "gbats": "^1.0.9",
     "jimp": "^1.6.0",
     "luxon": "^3.7.2",
+    "serialport": "^13.0.0",
     "vue": "^3.5.21",
     "vue-i18n": "^11.1.12",
     "vue-router": "^4.5.1",
     "wasmboy": "^0.7.1",
-    "web-serial-polyfill": "^1.0.15",
-    "serialport": "^12.0.0"
+    "web-serial-polyfill": "^1.0.15"
   },
   "devDependencies": {
     "@stylistic/eslint-plugin": "^5.3.1",
     "@types/jimp": "^0.2.28",
     "@types/luxon": "^3.7.1",
     "@types/node": "^24.3.1",
-    "@types/serialport": "^8.0.5",
     "@types/w3c-web-serial": "^1.0.8",
     "@types/w3c-web-usb": "^1.0.12",
     "@vitejs/plugin-vue": "^6.0.1",
@@ -67,6 +66,7 @@
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "eslint-plugin-vue": "^10.4.0",
+    "eslint-plugin-vue-scoped-css": "^2.12.0",
     "jsdom": "^26.1.0",
     "terser": "^5.44.0",
     "typescript": "^5.9.2",
@@ -117,7 +117,9 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["arm64"]
+          "arch": [
+            "arm64"
+          ]
         }
       ],
       "hardenedRuntime": true,
@@ -129,7 +131,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },
@@ -137,7 +141,9 @@
       "target": [
         {
           "target": "AppImage",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },

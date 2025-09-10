@@ -51,8 +51,8 @@ import { useI18n } from 'vue-i18n';
 
 import PortSelectorModal from '@/components/modal/PortSelectorModal.vue';
 import { useToast } from '@/composables/useToast';
-import { DeviceConnectionManager, PortSelectionRequiredError } from '@/services/DeviceConnectionManager';
-import { type SerialPortInfo, SerialService } from '@/services/SerialService';
+import { DeviceConnectionManager, PortSelectionRequiredError } from '@/services/device-connection-manager';
+import { type SerialPortInfo, SerialService } from '@/services/serial-service';
 import { DeviceInfo } from '@/types/device-info';
 import { isElectron } from '@/utils/electron';
 // import ToggleSwitch from '@/components/common/ToggleSwitch.vue';
