@@ -173,7 +173,6 @@ import {
   buildOutline,
   constructOutline,
   gameControllerOutline,
-  hardwareChipOutline,
   informationCircleOutline,
   menuOutline,
   settingsOutline,
@@ -221,17 +220,17 @@ const clickCount = ref(0);
 let clickTimer: NodeJS.Timeout | null = null;
 
 // 检查 URL 参数来决定是否启用卡带工具
-const showCartridgeTools = ref(route.query.cart_tools === 'true');
+const showCartridgeTools = true;// ref(route.query.cart_tools === 'true');
 const showDebugTool = ref(route.query.debug_tool === 'true');
 
 function incrementClickCount() {
   clickCount.value++;
-
-  if (clickCount.value >= 2 && !showCartridgeTools.value) {
+  /*
+  if (clickCount.value >= 1 && !showCartridgeTools.value) {
     showCartridgeTools.value = true;
     showToast(t('ui.menu.cartridgeToolsUnlocked'), 'success');
   }
-
+  */
   if (clickCount.value >= 5 && !showDebugTool.value) {
     showDebugTool.value = true;
     showToast(t('ui.menu.debugToolUnlocked'), 'success');

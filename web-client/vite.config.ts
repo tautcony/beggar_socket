@@ -6,9 +6,14 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   plugins: [vue()],
   base: './',
+  define: {
+    __IS_ELECTRON__: 'false',
+    global: 'globalThis',
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
+      buffer: 'buffer',
     },
   },
   build: {
@@ -33,8 +38,5 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
-  },
-  define: {
-    __IS_ELECTRON__: 'false',
   },
 });

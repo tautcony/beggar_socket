@@ -30,12 +30,14 @@
     "electron:build": "npm run build && electron-builder",
     "electron:build:win": "npm run build && electron-builder --win",
     "electron:build:mac": "npm run build && electron-builder --mac",
+    "electron:build:mac:universal": "npm run build && electron-builder --mac --universal",
     "electron:build:linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
     "@ionic/vue": "^8.7.3",
     "@sentry/tracing": "^7.120.4",
     "@sentry/vue": "^10.11.0",
+    "buffer": "^6.0.3",
     "gameboy-emulator": "^1.1.2",
     "gbats": "^1.0.9",
     "jimp": "^1.6.0",
@@ -83,6 +85,8 @@
     "electronDownload": {
       "mirror": "https://npmmirror.com/mirrors/electron/"
     },
+    "nodeGypRebuild": false,
+    "buildDependenciesFromSource": false,
     "directories": {
       "output": "dist-electron",
       "buildResources": "build"
@@ -90,7 +94,10 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
-      "!node_modules/**/*",
+      "node_modules/serialport/**/*",
+      "node_modules/@serialport/**/*",
+      "!node_modules/serialport/test/**/*",
+      "!node_modules/@serialport/test/**/*",
       "!**/*.map",
       "!**/*.md",
       "!**/README*",
@@ -104,7 +111,10 @@
       "!**/example/**",
       "!**/examples/**"
     ],
-    "asarUnpack": [],
+    "asarUnpack": [
+      "node_modules/serialport/**/*",
+      "node_modules/@serialport/**/*"
+    ],
     "compression": "maximum",
     "extraResources": [
       {
@@ -118,7 +128,7 @@
         {
           "target": "dmg",
           "arch": [
-            "arm64"
+            "universal"
           ]
         }
       ],

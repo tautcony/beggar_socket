@@ -1,5 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// 提供Buffer polyfill
+contextBridge.exposeInMainWorld('Buffer', Buffer);
+
 contextBridge.exposeInMainWorld('electronAPI', {
   // 获取平台信息
   getPlatform: () => ipcRenderer.invoke('get-platform'),
