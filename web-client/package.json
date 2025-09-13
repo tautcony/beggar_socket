@@ -7,6 +7,10 @@
     "name": "tautcony",
     "email": "i@tautcony.xyz"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tautcony/beggar_socket.git"
+  },
   "type": "module",
   "main": "electron/main.js",
   "homepage": "./",
