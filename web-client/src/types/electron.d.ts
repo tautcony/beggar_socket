@@ -22,7 +22,7 @@ declare global {
         // 打开串口
         open: (portPath: string, options?: {
           baudRate?: number;
-          dataBits?: 5 | 6 | 7 | 8;
+          dataBits?: 7 | 8;
           stopBits?: 1 | 2;
           parity?: 'none' | 'even' | 'odd';
           rtscts?: boolean;
@@ -82,7 +82,7 @@ interface SerialPortInfo {
 
 interface SerialPortOptions {
   baudRate?: number;
-  dataBits?: 5 | 6 | 7 | 8;
+  dataBits?: 7 | 8;
   stopBits?: 1 | 2;
   parity?: 'none' | 'even' | 'odd' | 'mark' | 'space';
   rtscts?: boolean;

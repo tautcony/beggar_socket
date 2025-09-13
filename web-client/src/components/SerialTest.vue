@@ -172,7 +172,7 @@ const currentConnection = ref<SerialConnection | null>(null);
 // 串口配置
 const serialOptions = ref({
   baudRate: 115200,
-  dataBits: 8 as 5 | 6 | 7 | 8,
+  dataBits: 8 as 7 | 8,
   stopBits: 1 as 1 | 2,
   parity: 'none' as 'none' | 'even' | 'odd' | undefined,
 });

@@ -6,7 +6,7 @@ const INIT_ERROR_MESSAGE = 'Serial port not properly initialized';
 
 interface SerialPortOptions {
   baudRate?: number;
-  dataBits?: 5 | 6 | 7 | 8;
+  dataBits?: 7 | 8;
   stopBits?: 1 | 2;
   parity?: 'none' | 'even' | 'odd' | undefined;
   rtscts?: boolean;
