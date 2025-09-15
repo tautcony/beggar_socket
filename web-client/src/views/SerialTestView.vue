@@ -1,41 +1,41 @@
 <template>
   <div class="serial-test-view">
     <header class="page-header">
-      <h1>串口测试工具</h1>
+      <h1>{{ $t('ui.serialTest.title') }}</h1>
       <p class="description">
-        测试统一的串口服务，支持 Web Serial API 和 Electron 原生串口
+        {{ $t('ui.serialTest.description') }}
       </p>
     </header>
 
     <main class="main-content">
       <!-- 环境信息 -->
       <section class="environment-info">
-        <h2>运行环境</h2>
+        <h2>{{ $t('ui.serialTest.environment') }}</h2>
         <div class="info-grid">
           <div class="info-item">
-            <label>平台:</label>
+            <label>{{ $t('ui.serialTest.platform') }}</label>
             <span>{{ platformInfo.platform }}</span>
           </div>
           <div class="info-item">
-            <label>用户代理:</label>
+            <label>{{ $t('ui.serialTest.userAgent') }}</label>
             <span>{{ platformInfo.userAgent }}</span>
           </div>
           <div class="info-item">
-            <label>Electron 环境:</label>
+            <label>{{ $t('ui.serialTest.electronEnv') }}</label>
             <span
               class="badge"
               :class="{ 'badge-success': isElectronEnv, 'badge-info': !isElectronEnv }"
             >
-              {{ isElectronEnv ? '是 (原生串口)' : '否 (Web Serial API)' }}
+              {{ isElectronEnv ? `${$t('ui.serialTest.yes')} (${$t('ui.serialTest.nativeSerial')})` : `${$t('ui.serialTest.no')} (${$t('ui.serialTest.webSerialApi')})` }}
             </span>
           </div>
           <div class="info-item">
-            <label>Web Serial API 支持:</label>
+            <label>{{ $t('ui.serialTest.webSerialSupport') }}</label>
             <span
               class="badge"
               :class="{ 'badge-success': hasWebSerial, 'badge-error': !hasWebSerial }"
             >
-              {{ hasWebSerial ? '支持' : '不支持' }}
+              {{ hasWebSerial ? $t('ui.serialTest.supported') : $t('ui.serialTest.notSupported') }}
             </span>
           </div>
         </div>

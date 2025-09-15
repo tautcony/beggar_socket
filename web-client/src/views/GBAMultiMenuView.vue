@@ -238,7 +238,7 @@
 
         <!-- 基础配置组 -->
         <div class="config-group">
-          <h5>基础设置</h5>
+          <h5>{{ $t('ui.gbaMultiMenu.basicSettings') }}</h5>
           <div class="config-grid-row">
             <div class="config-item config-item-flex">
               <label for="cartridgeType">{{ $t('ui.gbaMultiMenu.cartridgeType') }}</label>
@@ -295,7 +295,7 @@
 
         <!-- 文件配置组 -->
         <div class="config-group">
-          <h5>文件设置</h5>
+          <h5>{{ $t('ui.gbaMultiMenu.fileSettings') }}</h5>
 
           <!-- 菜单ROM配置 -->
           <div class="config-item config-file-item">

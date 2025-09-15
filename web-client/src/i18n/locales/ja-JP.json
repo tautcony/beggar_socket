@@ -41,6 +41,8 @@
       "cartridgeToolsDesc": "RTC時計設定、振動テストなどの機能",
       "cartridgeToolsUnlocked": "カートリッジツールがアンロックされました！",
       "debugToolUnlocked": "デバッグツールがアンロックされました！",
+      "serialTest": "シリアルテスト",
+      "serialTestDesc": "統合シリアルサービス機能をテストします",
       "settings": "設定",
       "settingsDesc": "アプリケーションオプションを設定します",
       "gbaMultiMenu": "GBAマルチカート",
@@ -60,6 +62,21 @@
       "viewLicense": "ライセンスを表示",
       "acknowledgments": "謝辞",
       "acknowledgmentsText": "Chisユニバースに貢献するすべての開発者に感謝します。"
+    },
+    "serialTest": {
+      "title": "シリアルテストツール",
+      "description": "統合シリアルサービスをテストし、Web Serial APIとElectronネイティブシリアルをサポートします",
+      "environment": "実行環境",
+      "platform": "プラットフォーム:",
+      "userAgent": "ユーザーエージェント:",
+      "electronEnv": "Electron環境:",
+      "webSerialSupport": "Web Serial APIサポート:",
+      "yes": "はい",
+      "no": "いいえ",
+      "supported": "サポート済み",
+      "notSupported": "サポートされていません",
+      "nativeSerial": "ネイティブシリアル",
+      "webSerialApi": "Web Serial API"
     },
     "operation": {
       "title": "チップ操作",
@@ -474,7 +491,9 @@
       "statusSuccess": "成功",
       "statusReady": "準備完了",
       "dragToReorder": "ドラッグして並び替え",
-      "noFileSelected": "ファイルが選択されていません"
+      "noFileSelected": "ファイルが選択されていません",
+      "basicSettings": "基本設定",
+      "fileSettings": "ファイル設定"
     }
   },
   "messages": {

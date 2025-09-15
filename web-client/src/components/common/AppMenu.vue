@@ -91,8 +91,8 @@
         >
           <IonIcon :icon="hardwareChipOutline" />
           <div class="menu-item-content">
-            <span class="menu-item-title">串口测试</span>
-            <span class="menu-item-desc">测试统一串口服务功能</span>
+            <span class="menu-item-title">{{ $t('ui.menu.serialTest') }}</span>
+            <span class="menu-item-desc">{{ $t('ui.menu.serialTestDesc') }}</span>
           </div>
           <span class="beta-badge">NEW</span>
         </button-->

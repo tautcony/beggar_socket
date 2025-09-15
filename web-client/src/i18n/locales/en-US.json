@@ -41,6 +41,8 @@
       "cartridgeToolsDesc": "RTC clock setting, rumble test and other functions",
       "cartridgeToolsUnlocked": "Cartridge Tools Unlocked!",
       "debugToolUnlocked": "Debug Tool Unlocked!",
+      "serialTest": "Serial Test",
+      "serialTestDesc": "Test unified serial service functionality",
       "settings": "Settings",
       "settingsDesc": "Configure application options",
       "gbaMultiMenu": "GBA Multi-Cart",
@@ -60,6 +62,21 @@
       "viewLicense": "View License",
       "acknowledgments": "Acknowledgments",
       "acknowledgmentsText": "Thanks to all developers who contribute to the Chis Universe."
+    },
+    "serialTest": {
+      "title": "Serial Test Tool",
+      "description": "Test unified serial service, supports Web Serial API and Electron native serial",
+      "environment": "Runtime Environment",
+      "platform": "Platform:",
+      "userAgent": "User Agent:",
+      "electronEnv": "Electron Environment:",
+      "webSerialSupport": "Web Serial API Support:",
+      "yes": "Yes",
+      "no": "No",
+      "supported": "Supported",
+      "notSupported": "Not Supported",
+      "nativeSerial": "Native Serial",
+      "webSerialApi": "Web Serial API"
     },
     "operation": {
       "title": "Chip Operations",
@@ -474,7 +491,9 @@
       "statusSuccess": "Success",
       "statusReady": "Ready",
       "dragToReorder": "Drag to reorder",
-      "noFileSelected": "No file selected"
+      "noFileSelected": "No file selected",
+      "basicSettings": "Basic Settings",
+      "fileSettings": "File Settings"
     }
   },
   "messages": {
