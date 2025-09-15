@@ -6,14 +6,14 @@
   >
     <div class="port-selector-modal">
       <div class="modal-header">
-        <h3>选择串口</h3>
+        <h3>{{ $t('ui.device.portSelector.title') }}</h3>
         <div class="header-actions">
           <button
             class="refresh-button"
             @click="onRefresh"
           >
             <IonIcon :icon="refreshOutline" />
-            刷新
+            {{ $t('ui.device.portSelector.refresh') }}
           </button>
           <button
             class="close-button"
@@ -26,7 +26,7 @@
 
       <div class="modal-body">
         <p class="description">
-          检测到多个可用串口，请选择要连接的设备：
+          {{ $t('ui.device.portSelector.description') }}
         </p>
 
         <div class="port-list">
@@ -54,7 +54,7 @@
                 v-if="port.serialNumber"
                 class="port-serial"
               >
-                序列号: {{ port.serialNumber }}
+                {{ $t('ui.device.portSelector.serialNumber') }}: {{ port.serialNumber }}
               </div>
             </div>
             <div class="port-indicator">
@@ -73,14 +73,14 @@
           class="button secondary"
           @click="onCancel"
         >
-          取消
+          {{ $t('ui.device.portSelector.cancel') }}
         </button>
         <button
           class="button primary"
           :disabled="selectedIndex === -1"
           @click="onConfirm"
         >
-          连接
+          {{ $t('ui.device.portSelector.connect') }}
         </button>
       </div>
     </div>
@@ -91,6 +91,7 @@
 import { IonIcon } from '@ionic/vue';
 import { checkmarkCircle, close, hardwareChipOutline, refreshOutline } from 'ionicons/icons';
 import { ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import type { SerialPortInfo } from '@/services/serial-service';
 
@@ -107,6 +108,7 @@ interface Emits {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
+const { t } = useI18n();
 const selectedIndex = ref(-1);
 
 // 当对话框显示时重置选择
@@ -363,86 +365,5 @@ const onRefresh = () => {
 
 .button.primary:hover:not(:disabled) {
   background: #2563eb;
-}
-
-/* 暗色模式支持 */
-@media (prefers-color-scheme: dark) {
-  .port-selector-modal {
-    background: #1f2937;
-    color: #f9fafb;
-  }
-
-  .modal-header {
-    border-bottom-color: #374151;
-  }
-
-  .modal-header h3 {
-    color: #f9fafb;
-  }
-
-  .close-button {
-    color: #9ca3af;
-  }
-
-  .close-button:hover {
-    background: #374151;
-    color: #d1d5db;
-  }
-
-  .description {
-    color: #9ca3af;
-  }
-
-  .port-item {
-    border-color: #374151;
-    background: #1f2937;
-  }
-
-  .port-item:hover {
-    border-color: #3b82f6;
-    background: #1e3a8a;
-  }
-
-  .port-item.selected {
-    background: #1e3a8a;
-  }
-
-  .port-icon {
-    background: #374151;
-    color: #9ca3af;
-  }
-
-  .port-item.selected .port-icon {
-    background: #1e40af;
-    color: #60a5fa;
-  }
-
-  .port-path {
-    color: #f9fafb;
-  }
-
-  .port-manufacturer {
-    color: #9ca3af;
-  }
-
-  .port-serial {
-    color: #6b7280;
-  }
-
-  .modal-footer {
-    border-top-color: #374151;
-    background: #111827;
-  }
-
-  .button.secondary {
-    background: #374151;
-    color: #d1d5db;
-    border-color: #4b5563;
-  }
-
-  .button.secondary:hover:not(:disabled) {
-    background: #4b5563;
-    border-color: #6b7280;
-  }
 }
 </style>

@@ -14,7 +14,15 @@
       "connectFailed": "连接失败",
       "disconnectFailed": "断开连接失败",
       "usePolyfill": "使用 SoW",
-      "usePolyfillTooltip": "使用 Web Serial Polyfill 实现，适用于不支持原生 Web Serial API 的浏览器"
+      "usePolyfillTooltip": "使用 Web Serial Polyfill 实现，适用于不支持原生 Web Serial API 的浏览器",
+      "portSelector": {
+        "title": "选择串口",
+        "description": "请选择要连接的设备：",
+        "refresh": "刷新",
+        "connect": "连接",
+        "cancel": "取消",
+        "serialNumber": "序列号"
+      }
     },
     "mode": {
       "gba": "GBA",

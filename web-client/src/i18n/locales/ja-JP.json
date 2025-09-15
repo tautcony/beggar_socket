@@ -14,7 +14,15 @@
       "connectFailed": "接続失敗",
       "disconnectFailed": "切断失敗",
       "usePolyfill": "SoWを使用",
-      "usePolyfillTooltip": "Web Serial Polyfill実装を使用します。ネイティブWeb Serial APIをサポートしていないブラウザに適しています"
+      "usePolyfillTooltip": "Web Serial Polyfill実装を使用します。ネイティブWeb Serial APIをサポートしていないブラウザに適しています",
+      "portSelector": {
+        "title": "ポートを選択",
+        "description": "接続するデバイスを選択してください：",
+        "refresh": "更新",
+        "connect": "接続",
+        "cancel": "キャンセル",
+        "serialNumber": "シリアル番号"
+      }
     },
     "mode": {
       "gba": "GBA",

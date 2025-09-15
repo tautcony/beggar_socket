@@ -1,6 +1,7 @@
 /**
  * 统一的串口服务，自动适配 Web Serial API 和 Electron 原生串口
  */
+import { DeviceInfo } from '@/types';
 import { isElectron } from '@/utils/electron';
 
 export interface SerialPortInfo {
@@ -11,17 +12,6 @@ export interface SerialPortInfo {
   locationId?: string;
   productId?: string;
   vendorId?: string;
-}
-
-export interface SerialPortOptions {
-  baudRate?: number;
-  dataBits?: 7 | 8;
-  stopBits?: 1 | 2;
-  parity?: 'none' | 'even' | 'odd';
-  rtscts?: boolean;
-  xon?: boolean;
-  xoff?: boolean;
-  xany?: boolean;
 }
 
 export interface SerialConnection {
@@ -62,10 +52,11 @@ export class SerialService {
   /**
    * 列出可用的串口
    */
-  async listPorts(): Promise<SerialPortInfo[]> {
+  async listPorts(filter?: (port: SerialPortInfo) => boolean): Promise<SerialPortInfo[]> {
     if (isElectron()) {
       try {
-        return await window.electronAPI.serial.listPorts();
+        const ports = await window.electronAPI.serial.listPorts();
+        return filter ? ports.filter(filter) : ports;
       } catch (error) {
         console.error('Failed to list ports in Electron:', error);
         throw error;
@@ -77,71 +68,60 @@ export class SerialService {
   }
 
   /**
-   * 请求串口权限（Web 环境）或获取串口列表用于选择（Electron 环境）
+   * 获取串口选择信息（包含是否需要用户选择的状态）
    */
-  async requestPort(options?: SerialPortOptions): Promise<SerialPortInfo | SerialPortInfo[] | null> {
+  async getPortSelectionInfo(filter?: (port: SerialPortInfo) => boolean): Promise<{ ports: SerialPortInfo[]; needsSelection: boolean } | null> {
     if (isElectron()) {
-      // Electron 环境下，首先获取端口列表
       try {
         const result = await window.electronAPI.selectSerialPort();
+        if (!result) return null;
 
-        // 如果需要用户选择，返回端口列表
-        if (result && 'needsSelection' in result) {
-          return result.ports;
-        }
+        // 如果提供了过滤器，应用过滤
+        const filteredPorts = filter ? result.ports.filter(filter) : result.ports;
 
-        // 如果只有一个端口或用户已选择，直接返回端口信息
-        return result;
+        console.log(result, filteredPorts);
+
+        return {
+          ports: filteredPorts,
+          needsSelection: filteredPorts.length > 1,
+        };
       } catch (error) {
-        console.error('Failed to get serial port info:', error);
+        console.error('Failed to get port selection info:', error);
         return null;
       }
     } else {
-      // Web Serial API
-      try {
-        if ('serial' in navigator) {
-          const port = await navigator.serial.requestPort();
-          const info = port.getInfo();
-          return {
-            path: 'web-serial-port',
-            productId: info.usbProductId?.toString(16),
-            vendorId: info.usbVendorId?.toString(16),
-          };
-        }
-        throw new Error('Web Serial API not supported');
-      } catch (error) {
-        console.error('Failed to request port:', error);
-        return null;
-      }
+      // Web Serial API 总是需要用户选择
+      return { ports: [], needsSelection: true };
     }
   }
 
   /**
    * 打开串口连接
    */
-  async openPort(portPath: string, options: SerialPortOptions = {}): Promise<SerialConnection> {
+  async openPort(portPath: string, options: SerialOptions): Promise<DeviceInfo> {
     if (isElectron()) {
-      return this.openElectronPort(portPath, options);
-    } else {
-      return this.openWebPort(options);
+      return {
+        port: null,
+        connection: await this.openElectronPort(portPath, options),
+      };
     }
+    return {
+      port: await this.openWebPort(options),
+      connection: null,
+    };
   }
 
   /**
    * Electron 环境下打开串口
    */
-  private async openElectronPort(portPath: string, options: SerialPortOptions): Promise<SerialConnection> {
+  private async openElectronPort(portPath: string, options: SerialOptions): Promise<SerialConnection> {
     try {
       // 只传递可序列化的选项
       const serializedOptions = {
-        baudRate: options.baudRate ?? 115200,
+        baudRate: options.baudRate ?? 9600,
         dataBits: options.dataBits ?? 8,
         stopBits: options.stopBits ?? 1,
         parity: options.parity ?? 'none',
-        rtscts: options.rtscts ?? false,
-        xon: options.xon ?? false,
-        xoff: options.xoff ?? false,
-        xany: options.xany ?? false,
       };
 
       const portId = await window.electronAPI.serial.open(portPath, serializedOptions);
@@ -194,7 +174,7 @@ export class SerialService {
   /**
    * Web 环境下打开串口
    */
-  private async openWebPort(options: SerialPortOptions): Promise<SerialConnection> {
+  private async openWebPort(options: SerialOptions): Promise<SerialPort> {
     try {
       if (!('serial' in navigator)) {
         throw new Error('Web Serial API not supported');
@@ -202,68 +182,13 @@ export class SerialService {
 
       const port = await navigator.serial.requestPort();
       await port.open({
-        baudRate: options.baudRate ?? 115200,
+        baudRate: options.baudRate ?? 9600,
         dataBits: options.dataBits ?? 8,
         stopBits: options.stopBits ?? 1,
         parity: options.parity ?? 'none',
       });
 
-      const portId = `web-${Date.now()}`;
-      const reader = port.readable?.getReader();
-      const writer = port.writable?.getWriter();
-
-      if (!reader || !writer) {
-        throw new Error('Failed to get port reader/writer');
-      }
-
-      // 启动数据读取
-      void this.startWebReading(portId, reader);
-
-      const connection: SerialConnection = {
-        id: portId,
-        isOpen: true,
-        write: async (data: Uint8Array | number[]) => {
-          const uint8Array = data instanceof Uint8Array ? data : new Uint8Array(data);
-          await writer.write(uint8Array);
-        },
-        close: async () => {
-          try {
-            await reader.cancel();
-            await writer.close();
-            await port.close();
-          } catch (error) {
-            console.warn('Error closing web serial port:', error);
-          }
-          this.connections.delete(portId);
-          this.dataListeners.delete(portId);
-          this.errorListeners.delete(portId);
-          this.closeListeners.delete(portId);
-        },
-        setSignals: async (signals: { dataTerminalReady?: boolean; requestToSend?: boolean }) => {
-          await port.setSignals(signals);
-        },
-        onData: (callback: (data: Uint8Array) => void) => {
-          this.dataListeners.set(portId, callback);
-        },
-        onError: (callback: (error: string) => void) => {
-          this.errorListeners.set(portId, callback);
-        },
-        onClose: (callback: () => void) => {
-          this.closeListeners.set(portId, callback);
-        },
-        removeDataListener: (_callback: (data: Uint8Array) => void) => {
-          this.dataListeners.delete(portId);
-        },
-        removeErrorListener: (_callback: (error: string) => void) => {
-          this.errorListeners.delete(portId);
-        },
-        removeCloseListener: (_callback: () => void) => {
-          this.closeListeners.delete(portId);
-        },
-      };
-
-      this.connections.set(portId, connection);
-      return connection;
+      return port;
     } catch (error) {
       console.error('Failed to open web serial port:', error);
       throw error;

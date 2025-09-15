@@ -1,12 +1,9 @@
-import { SerialService } from '@/services/serial-service';
-import { DebugSettings } from '@/settings/debug-settings';
+import { type SerialPortInfo, SerialService } from '@/services/serial-service';
 import { DeviceInfo } from '@/types/device-info';
 import { timeout } from '@/utils/async-utils';
 import { isElectron } from '@/utils/electron';
 import { PortSelectionRequiredError } from '@/utils/errors/PortSelectionRequiredError';
-
-// 导出错误类供外部使用
-export { PortSelectionRequiredError };
+import { PortFilter } from '@/utils/port-filter';
 
 /**
  * 设备连接管理器
@@ -28,36 +25,20 @@ export class DeviceConnectionManager {
   /**
    * 请求串口设备连接
    */
-  async requestDevice(): Promise<DeviceInfo> {
-    // 调试模式
-    if (DebugSettings.debugMode) {
-      await timeout(1000);
-      const mockPort = {
-        readable: new ReadableStream({ start() { } }),
-        writable: new WritableStream({ write() { } }),
-        open: async () => { },
-        close: async () => { },
-        getInfo: () => ({ usbVendorId: 0x0483, usbProductId: 0x0721 }),
-      };
-      return {
-        port: mockPort as unknown as SerialPort,
-        connection: null,
-      };
-    }
-
+  async requestDevice(filter?: PortFilter): Promise<DeviceInfo> {
     // Electron 环境：使用原生串口
     if (isElectron()) {
-      return this.requestElectronDevice();
+      return this.requestElectronDevice(filter);
     }
 
     // Web 环境：使用 Web Serial API
-    return this.requestWebDevice();
+    return this.requestWebDevice(filter);
   }
 
   /**
-   * 使用指定的串口连接设备（Electron 环境专用）
+   * 使用指定的串口连接设备
    */
-  async connectWithSelectedPort(selectedPort: import('@/services/serial-service').SerialPortInfo): Promise<DeviceInfo> {
+  async connectWithSelectedPort(selectedPort: SerialPortInfo): Promise<DeviceInfo> {
     if (!isElectron()) {
       throw new Error('This method is only available in Electron environment');
     }
@@ -66,17 +47,14 @@ export class DeviceConnectionManager {
       console.log('Connecting with selected port:', selectedPort);
 
       // 打开串口连接
-      const connection = await this.serialService.openPort(selectedPort.path, {
+      const deviceInfo = await this.serialService.openPort(selectedPort.path, {
         baudRate: 9600,
         dataBits: 8,
         parity: 'none',
         stopBits: 1,
       });
 
-      return {
-        port: null, // Electron 环境下不需要 Web Serial Port
-        connection,
-      };
+      return deviceInfo;
     } catch (error) {
       console.error('Failed to connect to selected port:', error);
       throw error;
@@ -86,34 +64,17 @@ export class DeviceConnectionManager {
   /**
    * Electron 环境下的设备连接
    */
-  private async requestElectronDevice(): Promise<DeviceInfo> {
+  private async requestElectronDevice(filter?: PortFilter): Promise<DeviceInfo> {
     try {
-      // 获取串口信息
-      const portResult = await this.serialService.requestPort();
+      const serialPortInfos = await this.serialService.listPorts(filter);
 
-      if (!portResult) {
-        throw new Error('No serial port selected');
+      if (serialPortInfos.length !== 1) {
+        throw new PortSelectionRequiredError(serialPortInfos);
       }
 
-      // 如果需要用户选择（返回的是端口列表），抛出特殊错误让上层处理
-      if (Array.isArray(portResult)) {
-        throw new PortSelectionRequiredError(portResult);
-      }
-
-      console.log('Selected port:', portResult);
-
-      // 打开串口连接
-      const connection = await this.serialService.openPort(portResult.path, {
-        baudRate: 9600,
-        dataBits: 8,
-        parity: 'none',
-        stopBits: 1,
-      });
-
-      return {
-        port: null, // Electron 环境下不需要 Web Serial Port
-        connection,
-      };
+      // 只有一个端口，直接使用
+      const selectedPort = serialPortInfos[0];
+      return await this.connectWithSelectedPort(selectedPort);
     } catch (error) {
       // 如果是 PortSelectionRequiredError，直接重新抛出，不要包装
       if (error instanceof PortSelectionRequiredError) {
@@ -128,17 +89,15 @@ export class DeviceConnectionManager {
   /**
    * Web 环境下的设备连接
    */
-  private async requestWebDevice(): Promise<DeviceInfo> {
+  private async requestWebDevice(filter?: PortFilter): Promise<DeviceInfo> {
     try {
-      const filters = [
-        { usbVendorId: 0x0483, usbProductId: 0x0721 },
-      ];
+      const serialPortFilters = filter?.toWebSerialFilters ? filter?.toWebSerialFilters() : [];
 
       if (!navigator.serial) {
         throw new Error('Web Serial API is not supported in this browser');
       }
 
-      const port = await navigator.serial.requestPort({ filters });
+      const port = await navigator.serial.requestPort({ filters: serialPortFilters });
       if (!port) {
         throw new Error('No serial port selected');
       }
@@ -209,22 +168,8 @@ export class DeviceConnectionManager {
   isDeviceConnected(device: DeviceInfo): boolean {
     return !!(device.connection ?? device.port);
   }
-
-  /**
-   * 获取设备信息
-   */
-  getDeviceInfo(device: DeviceInfo): { type: string; [key: string]: unknown } | null {
-    if (device.connection?.id) {
-      return { type: 'native-serial', id: device.connection.id };
-    }
-
-    if (device.port) {
-      return { type: 'web-serial', ...device.port.getInfo?.() };
-    }
-
-    return null;
-  }
 }
 
 // 导出单例实例
 export const deviceConnectionManager = DeviceConnectionManager.getInstance();
+export { PortSelectionRequiredError };

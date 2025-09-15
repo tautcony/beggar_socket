@@ -1,14 +1,7 @@
 const { ipcMain, app } = require('electron');
 
 // 串口支持
-let SerialPort;
-try {
-  const { SerialPort: SP } = require('serialport');
-  SerialPort = SP;
-} catch (error) {
-  console.warn('SerialPort not available:', error.message);
-  SerialPort = null;
-}
+const { SerialPort } = require('serialport');
 
 // 存储活跃的串口连接
 let activeSerialPorts = new Map();
@@ -79,31 +72,20 @@ function setupIpcHandlers(mainWindow) {
         throw new Error('No serial ports available');
       }
 
-      // 如果只有一个串口，直接返回
-      if (ports.length === 1) {
-        return {
-          path: ports[0].path,
-          manufacturer: ports[0].manufacturer,
-          serialNumber: ports[0].serialNumber,
-          pnpId: ports[0].pnpId,
-          locationId: ports[0].locationId,
-          productId: ports[0].productId,
-          vendorId: ports[0].vendorId,
-        };
-      }
-      
-      // 返回所有串口信息，让前端处理选择界面
+      const formattedPorts = ports.map(port => ({
+        path: port.path,
+        manufacturer: port.manufacturer,
+        serialNumber: port.serialNumber,
+        pnpId: port.pnpId,
+        locationId: port.locationId,
+        productId: port.productId,
+        vendorId: port.vendorId,
+      }));
+
+      // 返回格式：包含端口列表和是否需要用户选择的标志
       return {
-        needsSelection: true,
-        ports: ports.map(port => ({
-          path: port.path,
-          manufacturer: port.manufacturer,
-          serialNumber: port.serialNumber,
-          pnpId: port.pnpId,
-          locationId: port.locationId,
-          productId: port.productId,
-          vendorId: port.vendorId,
-        }))
+        ports: formattedPorts,
+        needsSelection: ports.length > 1
       };
     } catch (error) {
       console.error('Failed to select serial port:', error);
@@ -119,7 +101,7 @@ function setupIpcHandlers(mainWindow) {
 
     try {
       const defaultOptions = {
-        baudRate: 115200,
+        baudRate: 9600,
         dataBits: 8,
         stopBits: 1,
         parity: 'none',

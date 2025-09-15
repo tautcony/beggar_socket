@@ -4,17 +4,6 @@ import { type BYOBReader, type DefaultReader, type DeviceInfo } from '@/types';
 
 const INIT_ERROR_MESSAGE = 'Serial port not properly initialized';
 
-interface SerialPortOptions {
-  baudRate?: number;
-  dataBits?: 7 | 8;
-  stopBits?: 1 | 2;
-  parity?: 'none' | 'even' | 'odd' | undefined;
-  rtscts?: boolean;
-  xon?: boolean;
-  xoff?: boolean;
-  xany?: boolean;
-}
-
 /**
  * 统一的串口操作适配器
  * 自动检测是否使用新的 SerialService 或传统的 Web Serial API
@@ -25,15 +14,13 @@ export class ProtocolAdapter {
   }
 
   /**
-   * 发送数据包（兼容版本）
+   * 发送数据包
    */
   static async sendPackage(device: DeviceInfo, payload: Uint8Array, timeoutMs?: number): Promise<boolean> {
-    // 优先使用新的连接对象
     if (device.connection) {
       return this.sendPackageViaConnection(device.connection, payload, timeoutMs);
     }
 
-    // 回退到传统的 Web Serial API
     if (device.port) {
       return this.sendPackageViaWebSerial(device.port, payload, timeoutMs);
     }
@@ -68,7 +55,7 @@ export class ProtocolAdapter {
   }
 
   /**
-   * 通过传统 Web Serial API 发送数据
+   * 通过 Web Serial API 发送数据
    */
   private static async sendPackageViaWebSerial(
     port: SerialPort,
@@ -98,7 +85,7 @@ export class ProtocolAdapter {
   }
 
   /**
-   * 接收数据包（兼容版本）
+   * 接收数据包
    */
   static async getPackage(
     device: DeviceInfo,
@@ -106,12 +93,10 @@ export class ProtocolAdapter {
     timeoutMs?: number,
     mode: 'byob' | 'default' = 'byob',
   ): Promise<{ data: Uint8Array }> {
-    // 优先使用新的连接对象
     if (device.connection) {
       return this.getPackageViaConnection(device.connection, length, timeoutMs);
     }
 
-    // 回退到传统的 Web Serial API
     if (device.port?.readable) {
       return this.getPackageViaWebSerial(device.port, length, timeoutMs, mode);
     }
@@ -157,7 +142,7 @@ export class ProtocolAdapter {
   }
 
   /**
-   * 通过传统 Web Serial API 接收数据
+   * 通过 Web Serial API 接收数据
    */
   private static async getPackageViaWebSerial(
     port: SerialPort,
@@ -274,7 +259,7 @@ export class ProtocolAdapter {
   }
 
   /**
-   * 获取单字节结果（兼容版本）
+   * 获取单字节结果
    */
   static async getResult(device: DeviceInfo, timeoutMs?: number): Promise<boolean> {
     const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
@@ -283,11 +268,10 @@ export class ProtocolAdapter {
   }
 
   /**
-   * 设置串口信号（兼容版本）
+   * 设置串口信号
    */
   static async setSignals(device: DeviceInfo, signals: SerialOutputSignals): Promise<void> {
     if (device.connection) {
-      // 使用新的统一接口设置信号
       await device.connection.setSignals(signals);
       return;
     }
@@ -297,68 +281,5 @@ export class ProtocolAdapter {
     } else {
       throw new Error(INIT_ERROR_MESSAGE);
     }
-  }
-
-  /**
-   * 从串口路径创建设备连接（新方法）
-   */
-  static async createDeviceFromPort(portPath: string, options?: SerialPortOptions): Promise<DeviceInfo> {
-    try {
-      const connection = await this.serialService.openPort(portPath, options);
-      return {
-        port: null, // 当使用新服务时，port 可以为 null
-        connection,
-      };
-    } catch (error) {
-      console.error('Failed to create device from port:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 从 Web Serial Port 创建设备连接（兼容方法）
-   */
-  static createDeviceFromWebSerial(port: SerialPort): DeviceInfo {
-    return {
-      port,
-      connection: null,
-    };
-  }
-
-  /**
-   * 关闭设备连接（兼容版本）
-   */
-  static async closeDevice(device: DeviceInfo): Promise<void> {
-    if (device.connection) {
-      await device.connection.close();
-      device.connection = null;
-    }
-
-    if (device.port) {
-      await device.port.close();
-      device.port = null;
-    }
-  }
-
-  /**
-   * 检查设备是否已连接
-   */
-  static isDeviceConnected(device: DeviceInfo): boolean {
-    return !!(device.connection ?? device.port);
-  }
-
-  /**
-   * 获取设备信息
-   */
-  static getDeviceInfo(device: DeviceInfo): { type: string; [key: string]: unknown } | null {
-    if (device.connection) {
-      return { type: 'native-serial', id: device.connection.id };
-    }
-
-    if (device.port) {
-      return { type: 'web-serial', ...device.port.getInfo?.() };
-    }
-
-    return null;
   }
 }

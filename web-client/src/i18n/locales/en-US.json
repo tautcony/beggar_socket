@@ -14,7 +14,15 @@
       "connectFailed": "Connection Failed",
       "disconnectFailed": "Disconnect Failed",
       "usePolyfill": "Use SoW",
-      "usePolyfillTooltip": "Use Web Serial Polyfill implementation, suitable for browsers that don't support native Web Serial API"
+      "usePolyfillTooltip": "Use Web Serial Polyfill implementation, suitable for browsers that don't support native Web Serial API",
+      "portSelector": {
+        "title": "Select Port",
+        "description": "Please select the device to connect:",
+        "refresh": "Refresh",
+        "connect": "Connect",
+        "cancel": "Cancel",
+        "serialNumber": "Serial Number"
+      }
     },
     "mode": {
       "gba": "GBA",

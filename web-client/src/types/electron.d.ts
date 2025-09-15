@@ -12,7 +12,7 @@ declare global {
       requestSerialPort: () => Promise<{ granted: boolean; selectedPort?: SerialPortInfo }>;
 
       // 选择串口（显示选择对话框）
-      selectSerialPort: () => Promise<SerialPortInfo | { needsSelection: true; ports: SerialPortInfo[] } | null>;
+      selectSerialPort: () => Promise<{ ports: SerialPortInfo[]; needsSelection: boolean } | null>;
 
       // 原生串口 API
       serial: {
@@ -20,16 +20,7 @@ declare global {
         listPorts: () => Promise<SerialPortInfo[]>;
 
         // 打开串口
-        open: (portPath: string, options?: {
-          baudRate?: number;
-          dataBits?: 7 | 8;
-          stopBits?: 1 | 2;
-          parity?: 'none' | 'even' | 'odd';
-          rtscts?: boolean;
-          xon?: boolean;
-          xoff?: boolean;
-          xany?: boolean;
-        }) => Promise<string>;
+        open: (portPath: string, options?: SerialOptions) => Promise<string>;
 
         // 写入数据
         write: (portId: string, data: number[] | Uint8Array) => Promise<boolean>;
@@ -80,11 +71,11 @@ interface SerialPortInfo {
   vendorId?: string;
 }
 
-interface SerialPortOptions {
+interface SerialOptions {
   baudRate?: number;
   dataBits?: 7 | 8;
   stopBits?: 1 | 2;
-  parity?: 'none' | 'even' | 'odd' | 'mark' | 'space';
+  parity?: 'none' | 'even' | 'odd';
   rtscts?: boolean;
   xon?: boolean;
   xoff?: boolean;

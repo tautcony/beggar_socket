@@ -55,6 +55,7 @@ import { DeviceConnectionManager, PortSelectionRequiredError } from '@/services/
 import { type SerialPortInfo, SerialService } from '@/services/serial-service';
 import { DeviceInfo } from '@/types/device-info';
 import { isElectron } from '@/utils/electron';
+import { PortFilters } from '@/utils/port-filter';
 // import ToggleSwitch from '@/components/common/ToggleSwitch.vue';
 
 const { showToast } = useToast();
@@ -110,11 +111,6 @@ if (import.meta.hot) {
 
   // 热重载后验证连接状态
   import.meta.hot.accept(() => {
-    console.log('[DeviceConnect] HMR: 验证连接状态', {
-      connected: connected.value,
-      hasDevice: !!deviceInfo,
-      isConnected: deviceInfo ? deviceManager.isDeviceConnected(deviceInfo) : false,
-    });
     if (connected.value) {
       if (!deviceInfo || !deviceManager.isDeviceConnected(deviceInfo)) {
         console.warn('[DeviceConnect] HMR: 连接对象丢失，重置连接状态');
@@ -132,18 +128,6 @@ onMounted(async () => {
     if (!deviceInfo || !deviceManager.isDeviceConnected(deviceInfo)) {
       console.warn('[DeviceConnect] 检测到状态不一致，重置连接状态');
       await disposeConnection();
-    } else {
-      // 额外检查设备信息
-      try {
-        const deviceInfoResult = deviceManager.getDeviceInfo(deviceInfo);
-        if (!deviceInfoResult) {
-          console.warn('[DeviceConnect] 设备信息不可用，重置连接状态');
-          await disposeConnection();
-        }
-      } catch (error) {
-        console.warn('[DeviceConnect] 设备状态检查失败，重置连接状态:', error);
-        await disposeConnection();
-      }
     }
   }
 });
@@ -156,7 +140,9 @@ async function connect() {
 
   try {
     // 使用统一的设备连接管理器
-    const device = await deviceManager.requestDevice();
+    const filter = PortFilters.device('0483', '0721');
+
+    const device = await deviceManager.requestDevice(filter);
 
     // 初始化设备状态
     await deviceManager.initializeDevice(device);
@@ -212,8 +198,10 @@ function onPortSelectionCanceled() {
 // 刷新串口列表
 async function onRefreshPorts() {
   try {
+    const filter = PortFilters.device('0483', '0721');
+
     // 重新获取串口列表
-    const portResult = await serialService.requestPort();
+    const portResult = await serialService.listPorts(filter);
 
     if (Array.isArray(portResult)) {
       availablePorts.value = portResult;
