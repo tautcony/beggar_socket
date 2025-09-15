@@ -440,6 +440,11 @@ function getAdapter() {
   return adapter;
 }
 
+function clearChipInfo() {
+  chipId.value = undefined;
+  cfiInfo.value = null;
+}
+
 async function readCart() {
   // 先清空芯片信息，防止显示旧数据
   clearChipInfo();
@@ -959,11 +964,6 @@ function printGameDetectionResults(gameResults: GameDetectionResult[]) {
 defineExpose({
   resetState,
 });
-
-function clearChipInfo() {
-  chipId.value = undefined;
-  cfiInfo.value = null;
-}
 </script>
 
 <style scoped>

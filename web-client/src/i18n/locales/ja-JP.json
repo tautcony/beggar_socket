@@ -469,6 +469,7 @@
       "buildSuccess": "構築成功",
       "romSize": "ROMサイズ",
       "downloadRom": "ROMダウンロード",
+      "applyRom": "ROM適用",
       "statusBuilding": "構築中",
       "statusSuccess": "成功",
       "statusReady": "準備完了",
@@ -583,7 +584,8 @@
       "assembled": "ROM組み立て完了、総サイズ: {size}、使用スロット: {usedSlots}",
       "downloaded": "ROMダウンロード完了、ファイル名: {fileName}、サイズ: {size}",
       "assembledForMainInterface": "{romType} ROMを組み立てました、サイズ: {size}、ROM操作画面で利用可能です",
-      "applied": "ROM組み立てがメイン画面に適用されました"
+      "applied": "ROM組み立てがメイン画面に適用されました",
+      "returnedFromAssembly": "ROM組み立て完了！{romType} ROMサイズ: {size}MB、ホームに戻りました"
     },
     "ram": {
       "writing": "RAMを書き込み中、サイズ {size} バイト",
@@ -701,7 +703,8 @@
       "logConfigReady": "設定準備完了、構築を開始します...",
       "logBuildCompleted": "構築完了！",
       "logBuildFailed": "構築に失敗しました: {error}",
-      "logRomDownloaded": "ROMがダウンロードされました"
+      "logRomDownloaded": "ROMがダウンロードされました",
+      "logRomApplied": "ROMをメインページに適用しました"
     }
   }
 }

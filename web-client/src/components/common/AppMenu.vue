@@ -123,13 +123,7 @@
       </div>
     </div>
 
-    <!-- ROM组装弹框 -->
-    <RomAssemblyModal
-      v-model="isRomAssemblyVisible"
-      :initial-rom-type="currentMode"
-      @close="closeRomAssembly"
-      @assembled="onRomAssembled"
-    />
+    <!-- ROM组装功能已移至独立页面 -->
 
     <!-- ROM分析器弹框 -->
     <RomAnalyzerModal
@@ -187,10 +181,8 @@ import AdvancedSettingsModal from '@/components/modal/AdvancedSettingsModal.vue'
 import CartridgeToolsModal from '@/components/modal/CartridgeToolsModal.vue';
 import DebugToolModal from '@/components/modal/DebugToolModal.vue';
 import RomAnalyzerModal from '@/components/modal/RomAnalyzerModal.vue';
-import RomAssemblyModal from '@/components/modal/RomAssemblyModal.vue';
 import { useToast } from '@/composables/useToast';
 import type { DeviceInfo } from '@/types/device-info';
-import type { AssembledRom } from '@/types/rom-assembly';
 
 const { t } = useI18n();
 const { showToast } = useToast();
@@ -205,12 +197,7 @@ const props = withDefaults(defineProps<{
   device: null,
 });
 
-const emit = defineEmits<{
-  'rom-assembled': [rom: AssembledRom, romType: 'MBC5' | 'GBA'];
-}>();
-
 const isMenuOpen = ref(false);
-const isRomAssemblyVisible = ref(false);
 const isRomAnalyzerVisible = ref(false);
 const isDebugToolVisible = ref(false);
 const isCartridgeToolsVisible = ref(false);
@@ -256,16 +243,22 @@ function closeMenu() {
 
 function openRomAssembly() {
   closeMenu();
-  isRomAssemblyVisible.value = true;
-}
 
-function closeRomAssembly() {
-  isRomAssemblyVisible.value = false;
-}
+  // 可以在这里使用 Pinia store 预设数据
+  // 例如：
+  // import { useRomAssemblyStore } from '@/stores/rom-assembly-store';
+  // const romAssemblyStore = useRomAssemblyStore();
+  // romAssemblyStore.presetData({
+  //   romType: currentMode,
+  //   fromExternal: true
+  // });
 
-function onRomAssembled(rom: AssembledRom, romType: 'MBC5' | 'GBA') {
-  emit('rom-assembled', rom, romType);
-  showToast(t('messages.romAssembly.applied'), 'success');
+  void router.push({
+    path: '/rom-assembly',
+    query: {
+      romType: props.currentMode,
+    },
+  });
 }
 
 function openRomAnalyzer() {

@@ -4,7 +4,6 @@
       <AppMenu
         :current-mode="currentMode"
         :device="device"
-        @rom-assembled="onRomAssembled"
       />
       <LanguageSwitcher />
     </div>
@@ -44,7 +43,7 @@
 
 <script setup lang="ts">
 // DeviceConnect 组件引用
-import { computed, provide, ref, useTemplateRef } from 'vue';
+import { computed, onMounted, provide, ref, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import CartBurner from '@/components/CartBurner.vue';
@@ -55,14 +54,12 @@ import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
 import DebugLink from '@/components/link/DebugLink.vue';
 import { useToast } from '@/composables/useToast';
 import { DebugSettings } from '@/settings/debug-settings';
-import { setAssembledRom } from '@/stores/assembled-rom-store';
+import { useRomAssemblyResultStore } from '@/stores/rom-assembly-store';
 import { DeviceInfo } from '@/types/device-info';
-import type { AssembledRom } from '@/types/rom-assembly';
-
-import { formatBytes } from '../utils/formatter-utils';
 
 const { showToast } = useToast();
 const { t } = useI18n();
+const romAssemblyResultStore = useRomAssemblyResultStore();
 
 const device = ref<DeviceInfo | null>(null);
 const deviceReady = ref(false);
@@ -142,24 +139,6 @@ function onClearMockData() {
   console.log('[DEBUG] 模拟数据清除完成');
 
   showToast(t('messages.debug.mockDataCleared'), 'success', 2000);
-}
-
-/**
- * 处理ROM组装完成事件
- */
-function onRomAssembled(rom: AssembledRom, romType: 'MBC5' | 'GBA') {
-  console.log(`[ROM Assembly] ROM assembled for ${romType}, size: ${rom.totalSize} bytes`);
-
-  // 更新当前模式
-  currentMode.value = romType;
-
-  // 将组装的ROM数据保存到全局状态
-  setAssembledRom(rom, romType);
-
-  showToast(t('messages.romAssembly.assembledForMainInterface', {
-    romType,
-    size: formatBytes(rom.totalSize),
-  }), 'success', 4000);
 }
 </script>
 

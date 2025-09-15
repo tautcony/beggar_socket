@@ -469,6 +469,7 @@
       "buildSuccess": "构建成功",
       "romSize": "ROM大小",
       "downloadRom": "下载ROM",
+      "applyRom": "应用ROM",
       "statusBuilding": "构建中",
       "statusSuccess": "成功",
       "statusReady": "就绪",
@@ -583,7 +584,8 @@
       "assembled": "ROM组装完成，总大小: {size}，使用槽位: {usedSlots}",
       "downloaded": "ROM下载完成，文件名: {fileName}，大小: {size}",
       "assembledForMainInterface": "已组装{romType} ROM，大小: {size}，可在ROM操作界面使用",
-      "applied": "ROM组装已应用到主界面"
+      "applied": "ROM组装已应用到主界面",
+      "returnedFromAssembly": "ROM组装完成！{romType} ROM 大小: {size}MB，已返回主页"
     },
     "ram": {
       "writing": "正在写入RAM，大小 {size} 字节",
@@ -701,7 +703,8 @@
       "logConfigReady": "配置准备完成，开始构建...",
       "logBuildCompleted": "构建完成！",
       "logBuildFailed": "构建失败: {error}",
-      "logRomDownloaded": "ROM已下载"
+      "logRomDownloaded": "ROM已下载",
+      "logRomApplied": "ROM已应用到主页面"
     }
   }
 }

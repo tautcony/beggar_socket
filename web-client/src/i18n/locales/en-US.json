@@ -469,6 +469,7 @@
       "buildSuccess": "Build Successful",
       "romSize": "ROM Size",
       "downloadRom": "Download ROM",
+      "applyRom": "Apply ROM",
       "statusBuilding": "Building",
       "statusSuccess": "Success",
       "statusReady": "Ready",
@@ -583,7 +584,8 @@
       "assembled": "ROM assembly completed, total size: {size}, used slots: {usedSlots}",
       "downloaded": "ROM download completed, file: {fileName}, size: {size}",
       "assembledForMainInterface": "Assembled {romType} ROM, size: {size}, available in ROM operations interface",
-      "applied": "ROM assembly has been applied to main interface"
+      "applied": "ROM assembly has been applied to main interface",
+      "returnedFromAssembly": "ROM assembly completed! {romType} ROM size: {size}MB, returned to home"
     },
     "ram": {
       "writing": "Writing RAM, size {size} bytes",
@@ -701,7 +703,8 @@
       "logConfigReady": "Configuration ready, starting build...",
       "logBuildCompleted": "Build completed!",
       "logBuildFailed": "Build failed: {error}",
-      "logRomDownloaded": "ROM downloaded"
+      "logRomDownloaded": "ROM downloaded",
+      "logRomApplied": "ROM applied to main page"
     }
   }
 }

@@ -391,13 +391,22 @@
           <p>{{ $t('ui.gbaMultiMenu.romSize') }}: {{ formatFileSize(buildResult.rom.byteLength) }}</p>
           <p>{{ $t('ui.gbaMultiMenu.romCode') }}: {{ buildResult.code }}</p>
         </div>
-        <button
-          class="download-btn"
-          @click="downloadRom"
-        >
-          <IonIcon :icon="downloadOutline" />
-          {{ $t('ui.gbaMultiMenu.downloadRom') }}
-        </button>
+        <div class="download-actions">
+          <button
+            class="download-btn"
+            @click="downloadRom"
+          >
+            <IonIcon :icon="downloadOutline" />
+            {{ $t('ui.gbaMultiMenu.downloadRom') }}
+          </button>
+          <button
+            class="apply-btn"
+            @click="applyRom"
+          >
+            <IonIcon :icon="saveOutline" />
+            {{ $t('ui.gbaMultiMenu.applyRom') }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -440,11 +449,13 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import { type BuildInput, type BuildResult, buildRom as buildRomFromService } from '@/services/lk';
+import { useRomAssemblyResultStore } from '@/stores/rom-assembly-store';
 import { FileInfo } from '@/types/file-info';
 import { formatBytes } from '@/utils/formatter-utils';
 
 const { t } = useI18n();
 const router = useRouter();
+const romAssemblyResultStore = useRomAssemblyResultStore();
 
 // Navigation methods
 const goBack = () => {
@@ -851,6 +862,26 @@ function downloadRom() {
   console.log(t('messages.gbaMultiMenu.logRomDownloaded'));
 }
 
+// 应用ROM到主页面
+function applyRom() {
+  if (!buildResult.value) return;
+
+  // 创建AssembledRom格式的数据
+  const assembledRom = {
+    data: new Uint8Array(buildResult.value.rom),
+    totalSize: buildResult.value.rom.byteLength,
+    slots: [], // GBA多游戏菜单不需要具体的slots信息
+  };
+
+  // 保存到store，用于传递到主页
+  romAssemblyResultStore.setResult(assembledRom, 'GBA');
+
+  console.log(t('messages.gbaMultiMenu.logRomApplied'));
+
+  // 导航回主页
+  void router.push('/');
+}
+
 // 工具函数
 function formatFileSize(size: number): string {
   return formatBytes(size);
@@ -1070,22 +1101,21 @@ function toggleGameConfig(fileName: string) {
   color: #155724;
 }
 
-/* 新的左右布局样式 */
 .main-layout {
   display: flex;
   gap: 24px;
-  margin-bottom: 32px;
-  align-items: stretch; /* 确保左右两侧等高 */
+  margin-bottom: 24px;
+  align-items: stretch;
 }
 
 .left-section {
-  flex: 3; /* 左侧占3/5空间 */
+  flex: 3;
   display: flex;
   flex-direction: column;
 }
 
 .right-section {
-  flex: 2; /* 右侧占2/5空间 */
+  flex: 2;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1095,36 +1125,36 @@ function toggleGameConfig(fileName: string) {
   flex: 1; /* 右侧两个区域等高 */
   display: flex;
   flex-direction: column;
-  min-height: 0; /* 允许flex子项缩小 */
+  min-height: 0;
 }
 
 .left-section .file-section {
-  flex: 1; /* 左侧ROM区域占满左侧空间 */
+  flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
 
 .right-section .file-upload-area {
-  flex: 1; /* 让上传区域填满剩余空间 */
+  flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 0; /* 重置最小高度，让flex控制 */
+  min-height: 0;
 }
 
 .left-section .file-upload-area {
-  flex: 1; /* 左侧上传区域也填满空间 */
+  flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
 
 .file-drop-zone {
-  flex: 1; /* 让拖拽区域填满上传区域 */
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 120px; /* 设置合适的最小高度 */
+  min-height: 120px;
   border: 2px dashed #ddd;
   border-radius: 8px;
   padding: 16px;
@@ -1521,7 +1551,7 @@ function toggleGameConfig(fileName: string) {
 
 .action-section {
   text-align: center;
-  margin: 32px 0;
+  margin: 24px 0;
   padding: 24px;
   background: white;
   border-radius: 8px;
@@ -1554,81 +1584,8 @@ function toggleGameConfig(fileName: string) {
   transform: none;
 }
 
-.progress-section {
-  margin: 24px 0;
-  padding: 20px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e9ecef;
-}
-
-.progress-bar {
-  width: 100%;
-  height: 8px;
-  background-color: #e9ecef;
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 8px;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #007bff, #28a745);
-  transition: width 0.3s ease;
-}
-
-.progress-text {
-  text-align: center;
-  font-size: 0.9rem;
-  color: #666;
-  font-weight: 500;
-}
-
-.log-section {
-  margin: 24px 0;
-  padding: 20px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e9ecef;
-}
-
-.log-section h4 {
-  margin: 0 0 12px 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #333;
-}
-
-.log-output {
-  max-height: 200px;
-  overflow-y: auto;
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  padding: 12px;
-  font-family: 'Courier New', monospace;
-  font-size: 0.85rem;
-  line-height: 1.4;
-}
-
-.log-entry {
-  margin-bottom: 4px;
-}
-
-.log-time {
-  color: #666;
-  margin-right: 8px;
-  font-size: 0.8rem;
-}
-
-.log-message {
-  color: #333;
-}
-
 .download-section {
-  margin: 32px 0;
+  margin: 24px 0;
   padding: 24px;
   background: linear-gradient(135deg, #d4edda, #c3e6cb);
   border: 1px solid #c3e6cb;
@@ -1653,6 +1610,13 @@ function toggleGameConfig(fileName: string) {
   font-weight: 500;
 }
 
+.download-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
 .download-btn {
   display: inline-flex;
   align-items: center;
@@ -1673,74 +1637,24 @@ function toggleGameConfig(fileName: string) {
   transform: translateY(-1px);
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .page-header {
-    padding: 12px 16px;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
+.apply-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
 
-  .header-controls {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .file-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-
-  .gba-multi-menu-content {
-    padding: 16px;
-  }
-
-  /* 移动端布局调整 */
-  .main-layout {
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
-  }
-
-  .left-section,
-  .right-section {
-    flex: 1;
-    min-height: auto;
-  }
-
-  .left-section .file-upload-area {
-    min-height: 240px;
-  }
-
-  .right-section {
-    gap: 12px;
-    min-height: auto;
-  }
-
-  .config-grid-row {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
-  .config-grid-row.config-checkboxes {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
-  .config-group h5 {
-    font-size: 0.9rem;
-  }
-
-  .file-config-row {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .file-info-text {
-    word-break: break-all;
-  }
+.apply-btn:hover {
+  background: #0056b3;
+  transform: translateY(-1px);
 }
 
 /* 背景图像预览样式 */

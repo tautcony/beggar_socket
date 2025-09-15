@@ -11,6 +11,11 @@ const routes = [
     name: 'gba-multi-menu',
     component: () => import('@/views/GBAMultiMenuView.vue'),
   },
+  {
+    path: '/rom-assembly',
+    name: 'rom-assembly',
+    component: () => import('@/views/RomAssemblyView.vue'),
+  },
 ];
 
 const router = createRouter({

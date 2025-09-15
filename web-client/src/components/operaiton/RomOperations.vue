@@ -152,7 +152,7 @@ import { useI18n } from 'vue-i18n';
 import FileDropZone from '@/components/common/FileDropZone.vue';
 import RomInfoPanel from '@/components/common/RomInfoPanel.vue';
 import { useToast } from '@/composables/useToast';
-import { assembledRomState, clearAssembledRom } from '@/stores/assembled-rom-store';
+import { useRomAssemblyResultStore } from '@/stores/rom-assembly-store';
 import { FileInfo } from '@/types/file-info.ts';
 import type { AssembledRom } from '@/types/rom-assembly';
 import { GBA_ROM_BASE_ADDRESS, MBC5_ROM_BASE_ADDRESS } from '@/utils/address-utils';
@@ -166,6 +166,7 @@ const GBAEmulator = defineAsyncComponent(() => import('@/components/emulator/GBA
 
 const { t } = useI18n();
 const { showToast } = useToast();
+const romAssemblyResultStore = useRomAssemblyResultStore();
 
 const props = withDefaults(defineProps<{
   mode: 'MBC5' | 'GBA';
@@ -359,23 +360,25 @@ function onRomAssembled(assembled: AssembledRom) {
 
 // 使用组装的ROM
 function useAssembledRom() {
-  if (assembledRomState.value && assembledRomState.value.romType === props.mode) {
+  const result = romAssemblyResultStore.consumeResult();
+
+  if (result && result.romType === props.mode) {
     const fileInfo: FileInfo = {
       name: `assembled_${props.mode.toLowerCase()}_${Date.now()}.bin`,
-      data: assembledRomState.value.rom.data,
-      size: assembledRomState.value.rom.data.length,
+      data: result.rom.data,
+      size: result.rom.data.length,
     };
 
     // 将组装的ROM作为文件选择
     emit('file-selected', fileInfo);
 
-    // 清除组装的ROM状态
-    clearAssembledRom();
-
     showToast(t('messages.rom.assembledRomApplied'), 'success');
-  } else if (assembledRomState.value && assembledRomState.value.romType !== props.mode) {
+  } else if (result && result.romType !== props.mode) {
+    // 如果类型不匹配，将结果放回store
+    romAssemblyResultStore.setResult(result.rom, result.romType);
+
     showToast(t('messages.rom.assembledRomTypeMismatch', {
-      assembled: assembledRomState.value.romType,
+      assembled: result.romType,
       current: props.mode,
     }), 'error');
   } else {
@@ -401,7 +404,7 @@ function onRomUpdated(newRomData: Uint8Array) {
 
 // 计算是否存在已组装的ROM
 const hasAssembledRom = computed(() => {
-  return assembledRomState.value !== null && assembledRomState.value.romType === props.mode;
+  return romAssemblyResultStore.hasResult && romAssemblyResultStore.romType === props.mode;
 });
 </script>
 
