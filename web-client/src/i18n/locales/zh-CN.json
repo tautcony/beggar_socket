@@ -319,7 +319,12 @@
         "menu": "菜单",
         "game": "游戏{index}",
         "bank": "Bank{index}"
-      }
+      },
+      "selectFileName": "选择保存文件名",
+      "recentFileNames": "最近使用的ROM文件（点击选择对应.sav文件名）",
+      "enterFileName": "输入文件名...",
+      "resetToDefault": "重置为默认文件名",
+      "download": "下载"
     },
     "tools": {
       "title": "卡带工具",
@@ -623,6 +628,7 @@
       "sizeChanged": "RAM大小已更改为 {size}",
       "typeChanged": "RAM类型已更改为 {type}",
       "baseAddressChanged": "RAM基址已更改为 {address}",
+      "exportSuccess": "RAM文件已导出为 {name}",
       "verifyFailedAt": "地址{address}校验失败，期望值 {expected}，实际值 {actual}",
       "bankSwitch": "切换到RAM Bank {bank}",
       "writeSummary": "RAM写入完成摘要 - 总耗时: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 总大小: {totalSize}",

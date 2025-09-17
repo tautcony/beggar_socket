@@ -152,6 +152,7 @@ import { useI18n } from 'vue-i18n';
 import FileDropZone from '@/components/common/FileDropZone.vue';
 import RomInfoPanel from '@/components/common/RomInfoPanel.vue';
 import { useToast } from '@/composables/useToast';
+import { useRecentFileNamesStore } from '@/stores/recent-file-names-store';
 import { useRomAssemblyResultStore } from '@/stores/rom-assembly-store';
 import { FileInfo } from '@/types/file-info.ts';
 import type { AssembledRom } from '@/types/rom-assembly';
@@ -167,6 +168,7 @@ const GBAEmulator = defineAsyncComponent(() => import('@/components/emulator/GBA
 const { t } = useI18n();
 const { showToast } = useToast();
 const romAssemblyResultStore = useRomAssemblyResultStore();
+const recentFileNamesStore = useRecentFileNamesStore();
 
 const props = withDefaults(defineProps<{
   mode: 'MBC5' | 'GBA';
@@ -277,6 +279,11 @@ const canPreview = computed(() => {
 watch(() => props.romFileData, (newData) => {
   if (newData && newData.length > 0) {
     romInfo.value = parseRom(newData);
+
+    // 添加文件名到最近列表
+    if (romInfo.value?.isValid) {
+      recentFileNamesStore.addFileName(romInfo.value.fileName);
+    }
 
     // 检查ROM类型，根据类型自动切换模式
     if (romInfo.value?.isValid) {

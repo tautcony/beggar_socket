@@ -15,6 +15,7 @@ export interface RomInfo {
   isValid: boolean;
   region?: string;
   logoData?: Uint8Array;
+  fileName: string;
 }
 
 /**
@@ -73,6 +74,15 @@ export const CartridgeTypeMapper: Record<number, string> = {
   0xFF: 'HuC1+RAM+BATTERY',
 };
 
+const INVALID_ROM_INFO = (romSize: number) => ({
+  title: 'Unknown ROM',
+  type: 'Unknown',
+  romSize,
+  isValid: false,
+  logoData: new Uint8Array(0),
+  fileName: 'UNTITLED',
+}) as RomInfo;
+
 /**
  * 验证GBA Nintendo Logo
  * @param data ROM数据
@@ -116,13 +126,7 @@ export function validateGBLogo(data: Uint8Array): boolean {
  */
 function parseGBARom(data: Uint8Array): RomInfo {
   if (data.length < 0xC0) {
-    return {
-      title: 'Invalid GBA ROM',
-      type: 'Unknown',
-      romSize: data.length,
-      isValid: false,
-      logoData: new Uint8Array(0),
-    };
+    return INVALID_ROM_INFO(data.length);
   }
 
   // GBA ROM标题位置：0xA0-0xAB (12字节)
@@ -172,6 +176,12 @@ function parseGBARom(data: Uint8Array): RomInfo {
   // 提取Logo数据 (0x04-0x9F, 156字节)
   const logoData = data.slice(0x04, 0x04 + GBA_NINTENDO_LOGO.length);
 
+  // 生成文件名
+  const sanitizedTitle = sanitizeString(title) || 'UNTITLED';
+  const sanitizedCode = sanitizeString(gameCode) || '';
+  const sanitizedMaker = sanitizeString(makerCode) || '';
+  const fileName = `${sanitizedTitle}${sanitizedCode}${sanitizedMaker}.gba`;
+
   return {
     title: title,
     gameCode,
@@ -182,6 +192,7 @@ function parseGBARom(data: Uint8Array): RomInfo {
     isValid,
     region,
     logoData,
+    fileName,
   };
 }
 
@@ -192,13 +203,7 @@ function parseGBARom(data: Uint8Array): RomInfo {
  */
 function parseGBRom(data: Uint8Array): RomInfo {
   if (data.length < 0x150) {
-    return {
-      title: 'Invalid ROM',
-      type: 'Unknown',
-      romSize: data.length,
-      isValid: false,
-      logoData: new Uint8Array(0),
-    };
+    return INVALID_ROM_INFO(data.length);
   }
 
   // GB ROM标题位置：0x134-0x143 (16字节，但0x143可能是CGB标志)
@@ -282,6 +287,12 @@ function parseGBRom(data: Uint8Array): RomInfo {
   // 提取Logo数据 (0x104-0x133, 48字节)
   const logoData = data.slice(0x104, 0x104 + GB_NINTENDO_LOGO.length);
 
+  // 生成文件名
+  const sanitizedTitle = sanitizeString(title) || 'UNTITLED';
+  const sanitizedMaker = sanitizeString(makerCode) || '';
+  const extension = type === 'GBC' ? '.gbc' : '.gb';
+  const fileName = `${sanitizedTitle}${sanitizedMaker}${extension}`.trim();
+
   return {
     title: title,
     makerCode,
@@ -293,6 +304,7 @@ function parseGBRom(data: Uint8Array): RomInfo {
     isValid,
     region,
     logoData,
+    fileName,
   };
 }
 
@@ -417,19 +429,31 @@ export function regionToCode(region: string): string {
 }
 
 /**
+ * 清理字符串，移除非法文件名字符
+ * @param str 输入字符串
+ * @returns 清理后的字符串
+ */
+export function sanitizeString(str: string): string {
+  if (!str) return '';
+
+  const cleaned = str
+    .replace(/\uFFFD/g, '') // Unicode 替换字符
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // 控制字符
+    .replace(/[<>:"/\\|?*]/g, '') // 移除文件系统不允许的字符
+    .replace(/ /g, '_') // 空格替换为下划线
+    .replace(/^\.+|\.+$/g, ''); // 移除前后的点
+
+  return cleaned || '';
+}
+
+/**
  * 检测并解析ROM文件
  * @param data ROM数据
  * @returns ROM信息
  */
 export function parseRom(data: Uint8Array): RomInfo {
   if (!data || data.length === 0) {
-    return {
-      title: 'Empty ROM',
-      type: 'Unknown',
-      romSize: 0,
-      isValid: false,
-      logoData: new Uint8Array(0),
-    };
+    return INVALID_ROM_INFO(data.length);
   }
 
   const romType = detectRomType(data);
@@ -440,12 +464,6 @@ export function parseRom(data: Uint8Array): RomInfo {
     case 'GB':
       return parseGBRom(data);
     default:
-      return {
-        title: 'Unknown ROM',
-        type: 'Unknown',
-        romSize: data.length,
-        isValid: false,
-        logoData: new Uint8Array(0),
-      };
+      return INVALID_ROM_INFO(data.length);
   }
 }

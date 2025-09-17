@@ -319,7 +319,12 @@
         "menu": "Menu",
         "game": "Game{index}",
         "bank": "Bank{index}"
-      }
+      },
+      "selectFileName": "Select Save File Name",
+      "recentFileNames": "Recent ROM Files (Click to select corresponding .sav file name)",
+      "enterFileName": "Enter file name...",
+      "resetToDefault": "Reset to default file name",
+      "download": "Download"
     },
     "tools": {
       "title": "Cartridge Tools",
@@ -623,6 +628,7 @@
       "sizeChanged": "RAM size changed to {size}",
       "typeChanged": "RAM type changed to {type}",
       "baseAddressChanged": "RAM base address changed to {address}",
+      "exportSuccess": "RAM file exported as {name}",
       "verifyFailedAt": "Verification failed at address {address}, expected {expected}, got {actual}",
       "bankSwitch": "Switched to RAM Bank {bank}",
       "writeSummary": "RAM write complete summary - Total time: {totalTime}, Average speed: {avgSpeed}, Maximum speed: {maxSpeed}, Total size: {totalSize}",

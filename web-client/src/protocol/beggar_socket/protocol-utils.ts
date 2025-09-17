@@ -3,7 +3,6 @@ import { type BYOBReader, type DefaultReader, type DeviceInfo } from '@/types';
 
 import { ProtocolAdapter } from './protocol-adapter';
 
-const INIT_ERROR_MESSAGE = 'Serial port not properly initialized';
 
 export function toLittleEndian(value: number, byteLength: number): Uint8Array {
   const bytes = new Uint8Array(byteLength);

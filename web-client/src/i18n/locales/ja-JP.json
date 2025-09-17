@@ -319,7 +319,12 @@
         "menu": "メニュー",
         "game": "ゲーム{index}",
         "bank": "バンク{index}"
-      }
+      },
+      "selectFileName": "保存ファイル名を選択",
+      "recentFileNames": "最近使用したROMファイル（クリックして対応する.savファイル名を選択）",
+      "enterFileName": "ファイル名を入力...",
+      "resetToDefault": "デフォルトのファイル名にリセット",
+      "download": "ダウンロード"
     },
     "tools": {
       "title": "カートリッジツール",
@@ -623,6 +628,7 @@
       "sizeChanged": "RAMサイズが {size} に変更されました",
       "typeChanged": "RAMタイプが {type} に変更されました",
       "baseAddressChanged": "RAMベースアドレスが {address} に変更されました",
+      "exportSuccess": "RAMファイルを {name} として出力しました",
       "verifyFailedAt": "アドレス{address}で検証失敗、期待値 {expected}、実際の値 {actual}",
       "bankSwitch": "RAMバンク {bank} に切り替え",
       "writeSummary": "RAM書き込み完了サマリー - 総時間: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 総サイズ: {totalSize}",

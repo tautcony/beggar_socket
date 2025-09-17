@@ -8,6 +8,10 @@
       @stop="handleProgressStop"
       @close="resetProgress"
     />
+    <FileNameSelectorModal
+      v-model="showFileNameSelector"
+      @file-name-selected="onFileNameSelected"
+    />
     <div class="mode-tabs-card">
       <button
         :class="{ active: mode === 'GBA' }"
@@ -111,6 +115,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import LogViewer from '@/components/LogViewer.vue';
+import FileNameSelectorModal from '@/components/modal/FileNameSelectorModal.vue';
 import ProgressDisplayModal from '@/components/modal/ProgressDisplayModal.vue';
 import { ChipOperations, RamOperations, RomOperations } from '@/components/operaiton';
 import { useToast } from '@/composables/useToast';
@@ -118,6 +123,7 @@ import { arraysEqual, getFlashId } from '@/protocol/beggar_socket/protocol-utils
 import { CartridgeAdapter, GBAAdapter, MBC5Adapter, MockAdapter } from '@/services';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { DebugSettings } from '@/settings/debug-settings';
+import { useRecentFileNamesStore } from '@/stores/recent-file-names-store';
 import { CommandOptions, DeviceInfo, FileInfo, ProgressInfo } from '@/types';
 import { formatBytes, formatHex } from '@/utils/formatter-utils';
 import { CFIInfo } from '@/utils/parsers/cfi-parser';
@@ -135,6 +141,7 @@ type RamType = 'SRAM' | 'FLASH';
 
 const { showToast } = useToast();
 const { t } = useI18n();
+const recentFileNamesStore = useRecentFileNamesStore();
 
 const props = defineProps<{
   device: DeviceInfo | null,
@@ -173,6 +180,9 @@ const operationTimeout = computed(() => {
 const showProgressModal = computed(() => {
   return progressInfo.value.progress !== null && progressInfo.value.progress !== undefined;
 });
+
+// file name selector modal visibility
+const showFileNameSelector = ref(false);
 
 // chip props
 const chipId = ref<number[] | undefined>(undefined);
@@ -243,6 +253,7 @@ const ramFileName = ref('');
 const selectedRamSize = ref('0x08000'); // 默认32KB
 const selectedRamType = ref('SRAM'); // 默认SRAM
 const selectedRamBaseAddress = ref('0x000000'); // 默认RAM基址0x000000
+const pendingRamData = ref<Uint8Array | null>(null); // 等待用户选择文件名的RAM数据
 
 // 设备连接状态改变时，初始化适配器
 function initializeAdapters() {
@@ -390,6 +401,16 @@ function onRamFileCleared() {
   ramFileData.value = null;
   ramFileName.value = '';
   log(t('messages.file.clearRam'));
+}
+
+function onFileNameSelected(fileName: string) {
+  if (pendingRamData.value) {
+    // 使用选择的文件名保存RAM数据
+    const fileExtension = fileName.includes('.') ? '' : '.sav';
+    saveAsFile(pendingRamData.value, `${fileName}${fileExtension}`);
+    pendingRamData.value = null;
+    log(t('messages.ram.exportSuccess', { name: `${fileName}${fileExtension}` }), 'success');
+  }
 }
 
 // 大小选择处理函数
@@ -594,19 +615,16 @@ async function readRom() {
       showToast(response.message, 'success');
       if (response.data) {
         const romInfo = parseRom(response.data);
+
+        if (romInfo.isValid) {
+          recentFileNamesStore.addFileName(romInfo.fileName);
+        }
+
         const now = DateTime.now().toLocal().toISO();
 
         let fileName = `exported_${now}.rom`;
         if (romInfo.type !== 'Unknown') {
-          // 清理标题和地区信息中的无效字符
-          const cleanTitle = sanitizeFilename(romInfo.title);
-          const cleanRegion = romInfo.region ? sanitizeFilename(romInfo.region) : '';
-
-          if (cleanTitle && cleanRegion) {
-            fileName = `${cleanTitle} (${cleanRegion}).rom`;
-          } else if (cleanTitle) {
-            fileName = `${cleanTitle}.rom`;
-          }
+          fileName = romInfo.fileName;
         }
         saveAsFile(response.data, fileName);
       }
@@ -719,8 +737,16 @@ async function readRam() {
       showToast(response.message, 'success');
       if (response.data) {
         const now = DateTime.now().toLocal().toFormat('yyyyMMdd-HHmmss');
+        const defaultFileName = `exported_${now}.sav`;
 
-        saveAsFile(response.data, `exported_${now}.sav`);
+        // 检查是否有最近的文件名，如果有则显示选择器让用户选择
+        if (recentFileNamesStore.hasFileNames) {
+          pendingRamData.value = response.data;
+          showFileNameSelector.value = true;
+        } else {
+          // 没有最近文件名，直接使用默认文件名
+          saveAsFile(response.data, defaultFileName);
+        }
       }
     } else {
       showToast(response.message, 'error');
@@ -779,28 +805,6 @@ function saveAsFile(data: Uint8Array, filename: string) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
-}
-
-/**
- * 清理文件名中的无效字符
- * @param text 原始文本
- * @returns 清理后的文本
- */
-function sanitizeFilename(text: string): string {
-  if (!text) return 'untitled';
-
-  const cleaned = text
-    // 移除替换字符 (�) 和其他控制字符
-    .replace(/\uFFFD/g, '') // Unicode 替换字符
-    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // 控制字符
-    // 移除文件系统不允许的字符
-    .replace(/[<>:"/\\|?*]/g, '')
-    // 移除前后空格和点
-    .trim()
-    .replace(/^\.+|\.+$/g, '');
-
-  // 如果清理后结果为空，返回默认名称
-  return cleaned || 'untitled';
 }
 
 // 重置组件状态的方法
@@ -901,6 +905,7 @@ async function readGBAMultiCartRoms(adapter: CartridgeAdapter, deviceSize: numbe
           desc: `Bank ${i.toString().padStart(2, '0')}`,
           romInfo,
         });
+        recentFileNamesStore.addFileName(romInfo.fileName);
       }
     }
   }
@@ -934,6 +939,7 @@ async function readMBC5MultiCartRoms(adapter: CartridgeAdapter, deviceSize: numb
           desc: range.name,
           romInfo,
         });
+        recentFileNamesStore.addFileName(romInfo.fileName);
       }
     }
   }
