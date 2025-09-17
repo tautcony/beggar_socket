@@ -498,7 +498,10 @@
       "dragToReorder": "Drag to reorder",
       "noFileSelected": "No file selected",
       "basicSettings": "Basic Settings",
-      "fileSettings": "File Settings"
+      "fileSettings": "File Settings",
+      "loadingLibrary": "Loading image processing library...",
+      "libraryLoaded": "Image processing library loaded",
+      "loadingDescription": "Loading image processing library for first-time access, please wait..."
     }
   },
   "messages": {

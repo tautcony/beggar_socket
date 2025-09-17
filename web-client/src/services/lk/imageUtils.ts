@@ -1,12 +1,13 @@
 // imageUtils.ts - 图像处理工具
 
-import { intToRGBA, Jimp } from 'jimp';
-
 // 背景图片处理（Jimp实现，自动索引色并写入ROM）
 export async function updateBackgroundImage(menuRom: Uint8Array, bgImage?: ArrayBuffer): Promise<void> {
   if (!bgImage) return;
 
   try {
+    // 动态导入 jimp 以减少初始加载时间
+    const { intToRGBA, Jimp } = await import('jimp');
+
     // 使用Jimp读取背景图像数据
     const img = await Jimp.fromBuffer(Buffer.from(bgImage));
 

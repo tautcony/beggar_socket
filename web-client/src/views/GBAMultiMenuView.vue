@@ -1,5 +1,20 @@
 <template>
   <div class="gba-multi-menu-view">
+    <!-- 加载遮罩 -->
+    <div
+      v-if="isLoadingLibrary"
+      class="loading-overlay"
+    >
+      <div class="loading-content">
+        <div class="loading-spinner" />
+        <div class="loading-text">
+          {{ $t('ui.gbaMultiMenu.loadingLibrary') }}
+        </div>
+        <div class="loading-description">
+          {{ $t('ui.gbaMultiMenu.loadingDescription') }}
+        </div>
+      </div>
+    </div>
     <!-- 页面头部 -->
     <div class="page-header">
       <h2 class="page-title">
@@ -377,7 +392,12 @@
           @click="buildRom"
         >
           <IonIcon :icon="buildOutline" />
-          {{ $t('ui.gbaMultiMenu.buildRom') }}
+          <template v-if="isLoadingLibrary">
+            {{ $t('ui.gbaMultiMenu.loadingLibrary') }}
+          </template>
+          <template v-else>
+            {{ $t('ui.gbaMultiMenu.buildRom') }}
+          </template>
         </button>
       </div>
 
@@ -436,7 +456,6 @@ import {
   arrowBackOutline,
   buildOutline,
   closeCircleOutline,
-  closeOutline,
   documentOutline,
   downloadOutline,
   gameControllerOutline,
@@ -504,30 +523,57 @@ const outputName = ref('LK_MULTIMENU_<CODE>.gba');
 
 const isBuilding = ref(false);
 const buildResult = ref<BuildResult | null>(null);
+const isLoadingLibrary = ref(false);
+const libraryLoaded = ref(false);
 let gameIdCounter = 0; // 用于生成唯一的游戏ID
 let draggedIndex = -1; // 当前拖拽的项目索引
 
 // 计算属性
 const canBuild = computed(() => {
-  return menuRomData.value !== null && gameRomItems.value.length > 0 && !isBuilding.value;
+  return menuRomData.value !== null &&
+         gameRomItems.value.length > 0 &&
+         !isBuilding.value &&
+         libraryLoaded.value;
 });
 
 const statusText = computed(() => {
+  if (isLoadingLibrary.value) return t('ui.gbaMultiMenu.loadingLibrary');
   if (isBuilding.value) return t('ui.gbaMultiMenu.statusBuilding');
   if (buildResult.value) return t('ui.gbaMultiMenu.statusSuccess');
   return t('ui.gbaMultiMenu.statusReady');
 });
 
 const statusClass = computed(() => {
+  if (isLoadingLibrary.value) return 'status-building';
   if (isBuilding.value) return 'status-building';
   if (buildResult.value) return 'status-success';
   return 'status-ready';
 });
 
+// 预加载图像处理库
+async function preloadImageLibrary() {
+  if (libraryLoaded.value || isLoadingLibrary.value) return;
+
+  isLoadingLibrary.value = true;
+  try {
+    // 动态导入 jimp 库以预加载
+    await import('jimp');
+    libraryLoaded.value = true;
+    console.log(t('ui.gbaMultiMenu.libraryLoaded'));
+  } catch (error) {
+    console.error('Failed to preload image library:', error);
+    // 即使预加载失败，也设置为 true，在实际使用时再处理错误
+    libraryLoaded.value = true;
+  } finally {
+    isLoadingLibrary.value = false;
+  }
+}
+
 // 页面初始化
 resetState();
 void loadDefaultBackground();
 void loadDefaultMenuRom();
+void preloadImageLibrary();
 
 // 组件卸载时清理预览URL
 onUnmounted(() => {
@@ -1793,5 +1839,56 @@ function toggleGameConfig(fileName: string) {
 
 .bg-image-info-inline:hover {
   background-color: rgba(0, 123, 255, 0.1);
+}
+
+/* 加载遮罩样式 */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.95);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-content {
+  text-align: center;
+  padding: 2rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e1e5e9;
+}
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 1rem auto;
+  border: 4px solid #f3f4f6;
+  border-top: 4px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.loading-description {
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.4;
 }
 </style>

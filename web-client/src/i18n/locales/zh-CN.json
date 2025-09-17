@@ -498,7 +498,10 @@
       "dragToReorder": "拖拽以重新排序",
       "noFileSelected": "未选择文件",
       "basicSettings": "基础设置",
-      "fileSettings": "文件设置"
+      "fileSettings": "文件设置",
+      "loadingLibrary": "正在加载图像处理库...",
+      "libraryLoaded": "图像处理库加载完成",
+      "loadingDescription": "首次访问需要加载图像处理库，请稍候..."
     }
   },
   "messages": {

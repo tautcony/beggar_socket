@@ -498,7 +498,10 @@
       "dragToReorder": "ドラッグして並び替え",
       "noFileSelected": "ファイルが選択されていません",
       "basicSettings": "基本設定",
-      "fileSettings": "ファイル設定"
+      "fileSettings": "ファイル設定",
+      "loadingLibrary": "画像処理ライブラリを読み込み中...",
+      "libraryLoaded": "画像処理ライブラリが読み込まれました",
+      "loadingDescription": "初回アクセス時には画像処理ライブラリを読み込みますので、お待ちください..."
     }
   },
   "messages": {
