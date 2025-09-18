@@ -192,7 +192,7 @@ const ROM_SIZE_RANGE = [
   { value: '0x00200000', size: 0x00200000, text: '2MiB' },
 ];
 
-for (let i = 1; i <= 32; ++i) {
+for (let i = 1; i <= 64; ++i) {
   ROM_SIZE_RANGE.push({ value: formatHex(0x00400000 * i, 4), size: 0x00400000 * i, text: `${i * 4}MiB` });
 }
 
