@@ -50,8 +50,8 @@ function changeLanguage() {
 <style scoped>
 .language-switcher {
   position: fixed;
-  top: 20px;
-  right: 20px;
+  top: var(--space-5);
+  right: var(--space-5);
   z-index: 1000;
 }
 
@@ -63,45 +63,45 @@ function changeLanguage() {
 
 .lang-icon {
   position: absolute;
-  left: 12px;
+  left: var(--space-3);
   top: 50%;
   transform: translateY(-50%);
   font-size: 1.2em;
-  color: #1976d2;
+  color: var(--color-primary);
   transition: color 0.2s ease;
   pointer-events: none;
   z-index: 1;
 }
 
 .select-container:hover .lang-icon {
-  color: #1565c0;
+  color: var(--color-primary-hover);
 }
 
 .dropdown-icon {
   position: absolute;
-  right: 8px;
+  right: var(--space-2);
   top: 50%;
   transform: translateY(-50%);
   font-size: 1em;
-  color: #666;
+  color: var(--color-text-secondary);
   transition: color 0.2s ease;
   pointer-events: none;
   z-index: 1;
 }
 
 .select-container:hover .dropdown-icon {
-  color: #333;
+  color: var(--color-text);
 }
 
 .language-select {
-  padding: 8px 30px 8px 40px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  background: white;
-  color: #333;
-  font-size: 0.9rem;
+  padding: var(--space-2) var(--space-8) var(--space-2) var(--space-10);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
   cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: var(--shadow-sm);
   appearance: none;
   transition: all 0.2s ease;
   min-width: 120px;
@@ -109,17 +109,17 @@ function changeLanguage() {
 
 .language-select:focus {
   outline: none;
-  border-color: #1976d2;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
 }
 
 .language-select:hover {
-  border-color: #aaa;
+  border-color: var(--color-border-dark);
   transform: translateY(-1px);
 }
 
 .language-select option {
-  background-color: white;
-  color: #333;
+  background-color: var(--color-bg);
+  color: var(--color-text);
 }
 </style>

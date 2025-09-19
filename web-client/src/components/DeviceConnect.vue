@@ -1,28 +1,22 @@
 <template>
   <div class="device-connect-container">
     <div class="device-connect">
-      <button
-        :class="connected ? 'disconnect-btn' : 'connect-btn'"
+      <BaseButton
+        :variant="connected ? 'secondary' : 'primary'"
         :disabled="isConnecting"
         :title="connectionTooltip"
+        :icon="buttonIcon"
+        :text="buttonText"
         @click="handleConnectDisconnect"
-      >
-        <IonIcon
-          class="icon"
-          :icon="buttonIcon"
-          style="font-size: 1.2em; margin-right: 4px;"
-        />
-        {{ buttonText }}
-      </button>
+      />
       <!-- 重置连接状态按钮，仅在已连接时显示 -->
-      <button
+      <BaseButton
         v-if="connected"
-        class="reset-btn"
+        variant="warning"
         :disabled="isConnecting"
+        text="重置"
         @click="() => initializeSerialState(deviceInfo, true)"
-      >
-        重置
-      </button>
+      />
       <!--div class="polyfill-toggle">
         <ToggleSwitch
           v-model="usePolyfill"
@@ -49,6 +43,7 @@ import { checkmarkDoneOutline, flashOutline, reloadOutline } from 'ionicons/icon
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import BaseButton from '@/components/common/BaseButton.vue';
 import PortSelectorModal from '@/components/modal/PortSelectorModal.vue';
 import { useToast } from '@/composables/useToast';
 import { DeviceConnectionManager, PortSelectionRequiredError } from '@/services/device-connection-manager';
@@ -322,89 +317,8 @@ defineExpose({
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 12px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
   width: 100%;
-}
-
-.connect-btn,
-.disconnect-btn {
-  padding: 6px 16px;
-  border-radius: 6px;
-  border: none;
-  /* Removed border, relying on background and shadow */
-  background: #007bff;
-  /* Primary blue */
-  color: white;
-  font-size: 1.1rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.connect-btn:hover:not(:disabled) {
-  background: #0056b3;
-  /* Darker blue on hover */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-}
-
-.connect-btn:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-.disconnect-btn {
-  background: #6c757d;
-  /* Grey for connected/disconnect */
-  color: white;
-}
-
-.disconnect-btn:hover:not(:disabled) {
-  background: #545b62;
-  /* Darker grey */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-}
-
-.disconnect-btn:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-button:disabled {
-  background-color: #cccccc;
-  color: #666666;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.icon {
-  font-size: 1.2em;
-}
-
-.reset-btn {
-  padding: 6px 16px;
-  border-radius: 6px;
-  border: none;
-  background: #ffc107;
-  /* 警告黄 */
-  color: #212529;
-  font-size: 1.1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s ease, box-shadow 0.2s ease;
-}
-.reset-btn:hover:not(:disabled) {
-  background: #e0a800;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
-.reset-btn:active:not(:disabled) {
-  transform: translateY(1px);
-}
-.reset-btn:disabled {
-  background-color: #cccccc;
-  color: #666666;
-  cursor: not-allowed;
 }
 </style>

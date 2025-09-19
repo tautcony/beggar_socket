@@ -219,17 +219,17 @@ function handleDrop(e: DragEvent) {
 
 <style scoped>
 .file-upload-area {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .file-drop-zone {
-  border: 2px dashed #d1d5db;
-  border-radius: 8px;
-  padding: 0;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 0 !important;
   text-align: center;
   cursor: pointer;
   transition: all 0.3s ease;
-  background: #fafbfc;
+  background: var(--color-bg);
   min-height: 80px;
   display: flex;
   align-items: center;
@@ -248,20 +248,20 @@ function handleDrop(e: DragEvent) {
 }
 
 .file-drop-zone:hover:not(.disabled) {
-  border-color: #1976d2;
+  border-color: var(--color-primary);
   background: #f8faff;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(25, 118, 210, 0.1);
 }
 
 .file-drop-zone.drag-over {
-  border-color: #1976d2;
+  border-color: var(--color-primary);
   background: #e3f2fd;
   transform: scale(1.02);
 }
 
 .file-drop-zone.has-file {
-  border-color: #4caf50;
+  border-color: var(--color-success);
   background: #f1f8e9;
   border-style: solid;
 }
@@ -269,8 +269,8 @@ function handleDrop(e: DragEvent) {
 .file-drop-zone.disabled {
   cursor: not-allowed;
   opacity: 0.6;
-  border-color: #e0e0e0;
-  background: #f5f5f5;
+  border-color: var(--color-border-light);
+  background: var(--color-bg-secondary);
 }
 
 .drop-zone-content {
@@ -278,11 +278,11 @@ function handleDrop(e: DragEvent) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   width: 100%;
   height: 100%;
   min-height: 80px;
-  padding: 16px;
+  padding: var(--space-4);
 }
 
 .upload-icon {
@@ -290,58 +290,58 @@ function handleDrop(e: DragEvent) {
   align-items: center;
   justify-content: center;
   font-size: 2rem;
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
   opacity: 0.7;
 }
 
 .upload-text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
   align-items: center;
 }
 
 .main-text {
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
   color: #2c3e50;
   margin: 0;
 }
 
 .sub-text {
-  font-size: 0.85rem;
-  color: #6c757d;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
   margin: 0;
 }
 
 .hint-text {
-  font-size: 0.75rem;
-  color: #9ca3af;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
   margin: 0;
 }
 
 .file-preview {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   width: 100%;
   max-width: 100%;
   min-width: 0;
   min-height: 80px;
-  padding: 16px;
-  background: white;
-  border-radius: 6px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  padding: var(--space-4);
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
   justify-content: flex-start;
   overflow: hidden;
-  box-sizing: border-box; /* 确保 padding 包含在宽度内 */
+  box-sizing: border-box;
 }
 
 .file-icon {
   font-size: 2.2em;
-  color: #1976d2;
+  color: var(--color-primary);
   margin-bottom: 0;
-  margin-right: 8px;
+  margin-right: var(--space-2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -351,47 +351,47 @@ function handleDrop(e: DragEvent) {
 }
 
 .file-details {
-  flex: 1 1 0;  /* 改为固定的 flex-basis */
+  flex: 1 1 0;
   min-width: 0;
-  max-width: calc(100% - 80px); /* 减去图标和按钮的空间 */
-  width: 0;     /* 强制设置 width 为 0，配合 flex 使用 */
+  max-width: calc(100% - 80px);
+  width: 0;
   text-align: left;
   overflow: hidden;
 }
 
 .file-name {
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
   color: #2c3e50;
-  margin-bottom: 2px;
+  margin-bottom: var(--space-1);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 100%;  /* 确保不超过父容器 */
-  width: 100%;      /* 占满父容器宽度 */
+  max-width: 100%;
+  width: 100%;
 }
 
 .file-size {
-  font-size: 0.8rem;
-  color: #6c757d;
-  margin-bottom: 1px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-half);
 }
 
 .file-title {
-  font-size: 0.75rem;
-  color: #4caf50;
-  font-weight: 500;
+  font-size: var(--font-size-xs);
+  color: var(--color-success);
+  font-weight: var(--font-weight-medium);
 }
 
 .remove-file-btn {
   width: 24px;
   height: 24px;
-  border-radius: 50%;
-  border: 1px solid #dc3545;
-  background: #fff;
-  color: #dc3545;
-  font-size: 0.8rem;
-  font-weight: bold;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-error);
+  background: var(--color-bg);
+  color: var(--color-error);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -401,7 +401,7 @@ function handleDrop(e: DragEvent) {
 }
 
 .remove-file-btn:hover:not(:disabled) {
-  background: #dc3545;
+  background: var(--color-error);
   color: white;
   transform: scale(1.1);
 }
@@ -414,23 +414,23 @@ function handleDrop(e: DragEvent) {
 .download-file-btn {
   width: 24px;
   height: 24px;
-  border-radius: 50%;
-  border: 1px solid #007bff;
-  background: #fff;
-  color: #007bff;
-  font-size: 0.8rem;
-  font-weight: bold;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-primary);
+  background: var(--color-bg);
+  color: var(--color-primary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
   padding: 0;
-  margin-right: 8px; /* 右侧留出间距 */
+  margin-right: var(--space-2);
 }
 
 .download-file-btn:hover:not(:disabled) {
-  background: #007bff;
+  background: var(--color-primary);
   color: white;
   transform: scale(1.1);
 }
@@ -444,6 +444,6 @@ function handleDrop(e: DragEvent) {
 .file-actions {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 </style>

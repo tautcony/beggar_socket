@@ -13,28 +13,18 @@
       @file-name-selected="onFileNameSelected"
     />
     <div class="mode-tabs-card">
-      <button
-        :class="{ active: mode === 'GBA' }"
+      <BaseButton
+        :variant="mode === 'GBA' ? 'primary' : 'secondary'"
+        :icon="gameControllerOutline"
+        :text="$t('ui.mode.gba')"
         @click="mode = 'GBA'"
-      >
-        <IonIcon
-          class="tab-icon"
-          size="medium"
-          :icon="gameControllerOutline"
-        />
-        {{ $t('ui.mode.gba') }}
-      </button>
-      <button
-        :class="{ active: mode === 'MBC5' }"
+      />
+      <BaseButton
+        :variant="mode === 'MBC5' ? 'primary' : 'secondary'"
+        :icon="hardwareChipOutline"
+        :text="$t('ui.mode.mbc5')"
         @click="mode = 'MBC5'"
-      >
-        <IonIcon
-          class="tab-icon"
-          size="medium"
-          :icon="hardwareChipOutline"
-        />
-        {{ $t('ui.mode.mbc5') }}
-      </button>
+      />
     </div>
     <div class="main-layout">
       <div class="content-area">
@@ -114,6 +104,7 @@ import { DateTime } from 'luxon';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import BaseButton from '@/components/common/BaseButton.vue';
 import LogViewer from '@/components/LogViewer.vue';
 import FileNameSelectorModal from '@/components/modal/FileNameSelectorModal.vue';
 import ProgressDisplayModal from '@/components/modal/ProgressDisplayModal.vue';
@@ -975,17 +966,17 @@ defineExpose({
 <style scoped>
 .flashburner-container {
   max-width: 1200px;
-  margin: 32px auto;
-  padding: 24px 32px;
-  background: #fafbfc;
-  border-radius: 14px;
-  box-shadow: 0 2px 16px #0002;
+  margin: var(--space-8) auto;
+  padding: var(--space-6) var(--space-8);
+  background: var(--color-bg);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
 }
 
 /* 响应式主布局 */
 .main-layout {
   display: flex;
-  gap: 24px;
+  gap: var(--space-6);
   height: 820px;
   align-items: stretch;
 }
@@ -998,9 +989,9 @@ defineExpose({
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  overflow-x: hidden;  /* 隐藏水平溢出 */
-  padding-right: 8px;
-  box-sizing: border-box;  /* 确保 padding 包含在宽度内 */
+  overflow-x: hidden;
+  padding-right: var(--space-2);
+  box-sizing: border-box;
 }
 
 /* 操作容器 */
@@ -1051,29 +1042,29 @@ defineExpose({
 }
 
 .content-area::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
+  background: var(--color-scrollbar-track);
+  border-radius: var(--radius-sm);
 }
 
 .content-area::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
+  background: var(--color-scrollbar-thumb);
+  border-radius: var(--radius-sm);
 }
 
 .content-area::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
+  background: var(--color-scrollbar-thumb-hover);
 }
 
 /* 移动端响应式 */
 @media (max-width: 768px) {
   .flashburner-container {
-    margin: 16px;
-    padding: 16px 20px;
+    margin: var(--space-4);
+    padding: var(--space-4) var(--space-5);
   }
 
   .main-layout {
     flex-direction: column;
-    gap: 20px;
+    gap: var(--space-5);
     height: auto;
   }
 
@@ -1083,31 +1074,28 @@ defineExpose({
     overflow-y: visible;
     padding-right: 0;
   }
-
-  .mode-tabs-card button {
-    font-size: 1rem;
-    padding: 10px 0 8px 0;
-  }
 }
 
 .mode-tabs-card {
   display: flex;
   gap: 0;
-  margin-bottom: 22px;
+  margin-bottom: var(--space-6);
+  padding: 0;
+  border: unset;
   background: #e3f2fd;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: 0 1px 4px #0001;
+  box-shadow: var(--shadow-sm);
 }
 
-.mode-tabs-card button {
+.mode-tabs-card .button {
   flex: 1 1 0;
   border: none;
   background: none;
-  padding: 12px 0 10px 0;
-  font-size: 1.08rem;
-  font-weight: 600;
-  color: #1976d2;
+  padding: var(--space-3) 0 var(--space-3) 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
   background: #e3f2fd;
   transition: background 0.2s, color 0.2s;
   cursor: pointer;
@@ -1116,21 +1104,25 @@ defineExpose({
   align-items: center;
   justify-content: center;
   outline: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
-.mode-tabs-card button:focus {
-  outline: none;
+.mode-tabs-card .button:hover:not(.button-disabled) {
+  background: var(--color-bg);
+  color: var(--color-primary-hover);
+  border-bottom: 2.5px solid var(--color-primary);
+  transform: none;
 }
 
-.mode-tabs-card button.active {
-  background: #fff;
-  color: #1565c0;
-  border-bottom: 2.5px solid #1976d2;
-  z-index: 1;
+.mode-tabs-card .button-primary {
+  background: var(--color-bg);
+  color: var(--color-primary-hover);
+  border-bottom: 2.5px solid var(--color-primary);
 }
 
 .tab-icon {
-  margin-right: 6px;
+  margin-right: var(--space-2);
   font-size: 1.2em;
 }
 </style>

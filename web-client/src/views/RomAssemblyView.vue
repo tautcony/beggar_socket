@@ -83,11 +83,11 @@
                   <span class="file-name">{{ file.name }}</span>
                   <span class="file-size">{{ formatBytes(file.size) }}</span>
                   <span class="required-slots">
-                    {{ $t('ui.romAssembly.requiredSlots', { count: getRequiredSlots(file.size, config, 0) }) }}
+                    {{ $t('ui.romAssembly.romType', { count: getRequiredSlots(file.size, config, 0) }) }}
                   </span>
                 </div>
                 <button
-                  class="remove-file-btn corner-btn"
+                  class="corner-btn"
                   @click="removePendingFile(file.name)"
                 >
                   <IonIcon :icon="closeOutline" />
@@ -165,7 +165,7 @@
                 </div>
                 <button
                   v-if="slot.isFirstSlot"
-                  class="remove-slot-btn corner-btn"
+                  class="corner-btn"
                   @click.stop="removeFileFromSlot(slot.id)"
                 >
                   <IonIcon :icon="closeOutline" />
@@ -185,29 +185,26 @@
 
       <!-- 操作按钮区域 -->
       <div class="action-section">
-        <button
+        <BaseButton
           :disabled="!hasAnyFiles"
-          class="clear-all-btn"
+          variant="error"
+          :text="$t('ui.romAssembly.clearAll')"
           @click="clearAllSlots"
-        >
-          {{ $t('ui.romAssembly.clearAll') }}
-        </button>
-        <button
+        />
+        <BaseButton
           :disabled="!hasAnyFiles"
-          class="download-btn"
+          variant="success"
+          :icon="downloadOutline"
+          :text="$t('ui.romAssembly.assembleAndDownload')"
           @click="assembleAndDownload"
-        >
-          <IonIcon :icon="downloadOutline" />
-          {{ $t('ui.romAssembly.assembleAndDownload') }}
-        </button>
-        <button
+        />
+        <BaseButton
           :disabled="!hasAnyFiles"
-          class="assemble-btn"
+          variant="primary"
+          :icon="buildOutline"
+          :text="$t('ui.romAssembly.assembleAndApply')"
           @click="assembleAndApply"
-        >
-          <IonIcon :icon="buildOutline" />
-          {{ $t('ui.romAssembly.assembleAndApply') }}
-        </button>
+        />
       </div>
     </div>
   </div>
@@ -221,6 +218,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import BaseButton from '@/components/common/BaseButton.vue';
 import FileDropZone from '@/components/common/FileDropZone.vue';
 import { useToast } from '@/composables/useToast';
 import { useRomAssemblyResultStore } from '@/stores/rom-assembly-store';
@@ -503,13 +501,13 @@ function getUsageBarColor(percentage: number): string {
 
 /* 页面头部样式 */
 .page-header {
-  background: white;
-  border-bottom: 1px solid #e9ecef;
-  padding: 16px 24px;
+  background: var(--color-bg);
+  border-bottom: var(--border-width) var(--border-style) var(--color-border-light);
+  padding: var(--space-4) var(--space-6);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -517,93 +515,74 @@ function getUsageBarColor(percentage: number): string {
 
 .page-title {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #333;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 
 .header-controls {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: var(--space-5);
 }
 
 .rom-type-info,
 .size-info {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
 }
 
 .rom-type-label,
 .size-label {
-  font-weight: 500;
-  color: #666;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
 }
 
 .rom-type-select {
-  padding: 6px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: #fff;
-  font-size: 0.9rem;
-  color: #333;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) var(--border-style) var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
   cursor: pointer;
   transition: border-color 0.2s ease;
 }
 
 .rom-type-select:focus {
   outline: none;
-  border-color: #007bff;
+  border-color: var(--color-primary);
 }
 
 .size-value {
-  font-weight: 600;
-  color: #333;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 
 .usage-text {
-  font-size: 0.85rem;
-  color: #666;
-}
-
-.back-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: #6c757d;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.back-btn:hover {
-  background: #5a6268;
-  transform: translateY(-1px);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
 }
 
 /* 主体内容样式 */
 .rom-assembly-content {
-  padding: 24px;
+  padding: var(--space-6);
   max-width: 80%;
   margin: 0 auto;
 }
 
 .file-upload-section {
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
 
 /* 左右布局样式 */
 .main-layout {
   display: flex;
-  gap: 20px;
+  gap: var(--space-5);
   height: 500px;
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
 
 .left-panel {
@@ -611,11 +590,11 @@ function getUsageBarColor(percentage: number): string {
   display: flex;
   flex-direction: column;
   min-width: 280px;
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  border: 1px solid #e9ecef;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  background: var(--color-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  border: var(--border-width) var(--border-style) var(--color-border-light);
+  box-shadow: var(--shadow-sm);
 }
 
 .right-panel {
@@ -623,19 +602,19 @@ function getUsageBarColor(percentage: number): string {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  border: 1px solid #e9ecef;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  background: var(--color-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  border: var(--border-width) var(--border-style) var(--color-border-light);
+  box-shadow: var(--shadow-sm);
 }
 
 .left-panel .pending-files-section h4,
 .right-panel h4 {
-  margin: 0 0 16px 0;
-  color: #333;
-  font-size: 1.1rem;
-  font-weight: 600;
+  margin: 0 0 var(--space-4) 0;
+  color: var(--color-text);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
   flex-shrink: 0;
 }
 
@@ -650,14 +629,14 @@ function getUsageBarColor(percentage: number): string {
 .pending-files-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
   flex: 1;
   overflow-y: auto;
   overflow-x: visible;
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 6px;
-  border: 1px solid #e9ecef;
+  padding: var(--space-4);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-base);
+  border: var(--border-width) var(--border-style) var(--color-border-light);
   min-height: 120px;
 }
 
@@ -666,10 +645,10 @@ function getUsageBarColor(percentage: number): string {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 24px 12px 12px;
-  background: #ffffff;
-  border: 1px solid #e9ecef;
-  border-radius: 6px;
+  padding: var(--space-3) var(--space-6) var(--space-3) var(--space-3);
+  background: var(--color-bg);
+  border: var(--border-width) var(--border-style) var(--color-border-light);
+  border-radius: var(--radius-base);
   cursor: grab;
   transition: all 0.2s ease;
   flex-shrink: 0;
@@ -678,8 +657,8 @@ function getUsageBarColor(percentage: number): string {
 }
 
 .pending-file-item:hover {
-  border-color: #007bff;
-  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.15);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
   transform: translateY(-1px);
 }
 
@@ -690,64 +669,64 @@ function getUsageBarColor(percentage: number): string {
 
 .file-info {
   display: flex;
-  padding-left: 8px;
+  padding-left: var(--space-2);
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-2);
   flex: 1;
 }
 
 .file-name {
-  font-weight: 600;
-  color: #333;
-  font-size: 0.9rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: calc(100% - 24px);
-  line-height: 1.3;
+  line-height: var(--line-height-normal);
 }
 
 .file-size {
-  font-size: 0.8rem;
-  color: #666;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
 }
 
 .required-slots {
-  font-size: 0.8rem;
-  color: #007bff;
-  font-weight: 500;
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-medium);
 }
 
 /* 角标样式移除按钮 */
 .corner-btn {
-  box-sizing: border-box;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  min-width: 0;
+  box-sizing: border-box !important;
+  width: 24px !important;
+  height: 24px !important;
+  padding: 0 !important;
+  min-width: 0 !important;
   overflow: hidden;
   position: absolute;
   top: -10px;
   right: -10px;
   border-radius: 50%;
-  background: #dc3545;
-  color: white;
-  border: 2px solid white;
+  background: var(--color-error);
+  color: var(--color-text-inverse);
+  border: var(--border-width-thick) var(--border-style) var(--color-bg);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   transition: all 0.2s ease;
-  font-size: 14px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  font-size: var(--font-size-sm);
+  box-shadow: var(--shadow-lg);
   pointer-events: auto;
 }
 
 .corner-btn:hover {
-  background: #c82333;
+  background: var(--color-error-hover);
   transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-xl);
   z-index: 1001;
 }
 
@@ -761,45 +740,45 @@ function getUsageBarColor(percentage: number): string {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #666;
+  color: var(--color-text-secondary);
   text-align: center;
-  background: #f8f9fa;
-  border-radius: 6px;
-  border: 2px dashed #e9ecef;
-  padding: 20px;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-base);
+  border: var(--border-width-thick) var(--border-style-dashed) var(--color-border-light);
+  padding: var(--space-5);
 }
 
 .empty-pending-message p {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
 }
 
 .empty-pending-message .hint {
-  font-size: 0.8rem;
-  color: #999;
-  margin-top: 8px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  margin-top: var(--space-2);
 }
 
 .slots-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 8px;
+  gap: var(--space-2);
   flex: 1;
   overflow-y: auto;
   overflow-x: visible;
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 6px;
-  border: 1px solid #e9ecef;
+  padding: var(--space-4);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-base);
+  border: var(--border-width) var(--border-style) var(--color-border-light);
   min-height: 240px;
 }
 
 .slot-item {
   position: relative;
-  border: 1px solid #e9ecef;
-  border-radius: 6px;
-  padding: 12px 20px 12px 12px;
-  background: #ffffff;
+  border: var(--border-width) var(--border-style) var(--color-border-light);
+  border-radius: var(--radius-base);
+  padding: var(--space-3) var(--space-5) var(--space-3) var(--space-3);
+  background: var(--color-bg);
   cursor: pointer;
   transition: all 0.2s ease;
   min-height: 80px;
@@ -809,35 +788,35 @@ function getUsageBarColor(percentage: number): string {
 }
 
 .slot-item:hover {
-  border-color: #007bff;
+  border-color: var(--color-primary);
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.1);
+  box-shadow: var(--shadow-sm);
 }
 
 .slot-item.drag-over {
-  border-color: #28a745;
-  background: #f8fff9;
+  border-color: var(--color-success);
+  background: var(--color-success-light);
 }
 
 .slot-item.can-drop {
-  border-color: #28a745;
+  border-color: var(--color-success);
   border-style: dashed;
 }
 
 .slot-item.has-file {
-  border-color: #007bff;
+  border-color: var(--color-primary);
 }
 
 .slot-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
-  font-size: 0.8rem;
-  color: #666;
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
 }
 
 .slot-index {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .slot-offset {
@@ -851,22 +830,22 @@ function getUsageBarColor(percentage: number): string {
   justify-content: space-between;
   overflow: visible;
   min-width: 0;
-  padding-right: 6px;
+  padding-right: var(--space-2);
 }
 
 .slot-content .file-info {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
   min-width: 0;
 }
 
 .slot-content .file-info .file-name {
-  font-size: 0.85rem;
+  font-size: var(--font-size-xs);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: calc(100% - 24px);
   display: block;
-  line-height: 1.3;
+  line-height: var(--line-height-normal);
 }
 
 .slot-empty {
@@ -877,52 +856,52 @@ function getUsageBarColor(percentage: number): string {
 }
 
 .empty-text {
-  color: #adb5bd;
-  font-size: 0.8rem;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
   font-style: italic;
 }
 
 .slot-content.multi-slot-file.first-slot {
-  border-left: 3px solid #007bff;
+  border-left: var(--border-width-thick) var(--border-style) var(--color-primary);
 }
 
 .slot-content.multi-slot-file.continuation-slot {
-  background: rgba(0, 123, 255, 0.1);
-  border-left: 3px solid #007bff;
+  background: var(--color-primary-light);
+  border-left: var(--border-width-thick) var(--border-style) var(--color-primary);
 }
 
 .continuation-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 0.85rem;
-  padding-left: 8px;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  padding-left: var(--space-2);
   overflow: visible;
   min-width: 0;
-  padding-right: 6px;
+  padding-right: var(--space-2);
 }
 
 .continuation-text {
-  color: #007bff;
-  font-size: 0.8rem;
+  color: var(--color-primary);
+  font-size: var(--font-size-xs);
   font-style: italic;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: calc(100% - 24px);
-  line-height: 1.3;
+  line-height: var(--line-height-normal);
 }
 
 .slot-position {
-  color: #666;
-  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
 }
 
 .slot-range {
-  font-size: 0.75rem;
-  color: #007bff;
-  font-weight: 500;
-  margin-top: 4px;
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-medium);
+  margin-top: var(--space-1);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -931,139 +910,56 @@ function getUsageBarColor(percentage: number): string {
 .size-range-info {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-3);
   flex-wrap: wrap;
 }
 
 .size-range-info .file-size {
-  color: #666;
-  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
 }
 
 .size-range-info .slot-range {
-  color: #007bff;
-  font-weight: 500;
-  font-size: 0.75rem;
+  color: var(--color-primary);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-xs);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   flex-shrink: 0;
 }
 
-/* 操作按钮区域样式 */
-.action-section {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  flex-wrap: wrap;
-  padding: 20px 0;
-}
-
-.clear-all-btn,
-.download-btn,
-.assemble-btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.2s ease;
-  font-size: 0.9rem;
+.back-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: background 0.2s ease;
 }
 
-.clear-all-btn {
-  background: #ffc107;
-  color: #212529;
-  border: 1px solid #ffc107;
+.back-btn:hover {
+  background: var(--color-bg-hover);
 }
 
-.clear-all-btn:hover:not(:disabled) {
-  background: #e0a800;
-  border-color: #e0a800;
+.back-btn:active {
+  transform: scale(0.98);
 }
 
-.download-btn {
-  background: #17a2b8;
-  color: white;
-  border: 1px solid #17a2b8;
+.action-section {
+  display: flex;
+  gap: var(--space-4);
+  justify-content: center;
+  align-items: center;
+  margin-top: var(--space-6);
+  flex-wrap: wrap;
 }
 
-.download-btn:hover:not(:disabled) {
-  background: #138496;
-  border-color: #138496;
-}
-
-.assemble-btn {
-  background: #28a745;
-  color: white;
-  border: 1px solid #28a745;
-}
-
-.assemble-btn:hover:not(:disabled) {
-  background: #218838;
-  border-color: #218838;
-}
-
-.clear-all-btn:disabled,
-.download-btn:disabled,
-.assemble-btn:disabled {
-  background: #e9ecef;
-  color: #adb5bd;
-  border-color: #e9ecef;
-  cursor: not-allowed;
-}
-
-/* 响应式设计 */
-@media (max-width: 1200px) {
-  .rom-assembly-content {
-    max-width: 90%;
-  }
-}
-
-@media (max-width: 768px) {
-  .rom-assembly-content {
-    max-width: 95%;
-    padding: 16px;
-  }
-
-  .page-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-    padding: 12px 16px;
-  }
-
-  .header-controls {
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    gap: 12px;
-  }
-
-  .main-layout {
-    flex-direction: column;
-    height: auto;
-    gap: 16px;
-  }
-
-  .left-panel,
-  .right-panel {
-    min-width: 0;
-    height: 300px;
-  }
-
-  .action-section {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-  }
-
-  .clear-all-btn,
-  .download-btn,
-  .assemble-btn {
-    justify-content: center;
-  }
+.action-section > * {
+  flex: 0 0 auto;
 }
 </style>

@@ -24,10 +24,4 @@ import FloatingLink from '@/components/common/FloatingLink.vue';
 </script>
 
 <style scoped>
-@media (max-width: 768px) {
-  :deep(.floating-link) {
-    bottom: 10px !important;
-    right: 10px !important;
-  }
-}
 </style>

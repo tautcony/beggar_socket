@@ -16,14 +16,14 @@
             :placeholder="$t('ui.ram.enterFileName')"
             @keyup.enter="downloadFile"
           >
-          <button
+          <BaseButton
             v-if="selectedFileName !== defaultFileName"
-            class="clear-button"
+            variant="error"
+            size="sm"
+            text="✕"
             :title="$t('ui.ram.resetToDefault')"
             @click="resetFileName"
-          >
-            ✕
-          </button>
+          />
         </div>
       </div>
 
@@ -47,13 +47,12 @@
       </div>
 
       <div class="action-section">
-        <button
-          class="download-button"
+        <BaseButton
+          variant="primary"
+          :text="$t('ui.ram.download')"
           :disabled="!selectedFileName.trim()"
           @click="downloadFile"
-        >
-          {{ $t('ui.ram.download') }}
-        </button>
+        />
       </div>
     </div>
   </BaseModal>
@@ -64,6 +63,7 @@ import { DateTime } from 'luxon';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import BaseButton from '@/components/common/BaseButton.vue';
 import BaseModal from '@/components/common/BaseModal.vue';
 import { useRecentFileNamesStore } from '@/stores/recent-file-names-store';
 
@@ -123,19 +123,19 @@ watch(modelValue, (newValue) => {
 .file-name-selector {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--space-5);
 }
 
 .input-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .input-label {
-  font-weight: 600;
-  color: #1976d2;
-  font-size: 0.9rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
 }
 
 .input-wrapper {
@@ -146,86 +146,58 @@ watch(modelValue, (newValue) => {
 
 .file-name-input {
   width: 100%;
-  padding: 12px 16px;
+  padding: var(--space-3) var(--space-4);
   padding-right: 40px; /* 为清除按钮留出空间 */
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
-  background: #ffffff;
-  color: #333333;
+  border: var(--border-width) var(--border-style) var(--color-border);
+  border-radius: var(--radius-base);
+  background: var(--color-bg);
+  color: var(--color-text);
   font-family: monospace;
-  font-size: 14px;
+  font-size: var(--font-size-sm);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .file-name-input:focus {
   outline: none;
-  border-color: #1976d2;
-  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
-}
-
-.clear-button {
-  position: absolute;
-  right: 8px;
-  width: 24px !important;
-  height: 24px !important;
-  border: none;
-  border-radius: 50%;
-  background: #6c757d;
-  color: white;
-  font-size: 12px;
-  line-height: 1;
-  cursor: pointer;
-  display: block;
-  text-align: center;
-  transition: all 0.2s;
-  opacity: 0.7;
-  box-sizing: border-box;
-  flex-shrink: 0;
-  padding: 0;
-  margin: 0;
-}
-
-.clear-button:hover {
-  background: #dc3545;
-  opacity: 1;
-  transform: scale(1.1);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus);
 }
 
 .recent-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .section-label {
-  font-weight: 600;
-  color: #1976d2;
-  font-size: 0.9rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
 }
 
 .recent-list {
   display: flex;
   flex-direction: column;
-  border: 1px solid #d0d7de;
-  border-radius: 8px;
+  border: var(--border-width) var(--border-style) var(--color-border);
+  border-radius: var(--radius-lg);
   overflow: hidden;
   max-height: 240px;
   overflow-y: auto;
-  background: #ffffff;
+  background: var(--color-bg);
 }
 
 .recent-item {
   display: flex;
   align-items: center;
-  padding: 14px 16px;
+  padding: var(--space-4) var(--space-4);
   border: none;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: var(--border-width) var(--border-style) var(--color-border-light);
   background: transparent;
-  color: #333333;
+  color: var(--color-text);
   text-align: left;
   cursor: pointer;
   transition: all 0.2s;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .recent-item:last-child {
@@ -233,13 +205,13 @@ watch(modelValue, (newValue) => {
 }
 
 .recent-item:hover {
-  background-color: #e3f2fd;
+  background-color: var(--color-primary-light);
 }
 
 .rom-name {
   font-family: monospace;
-  font-weight: 500;
-  color: #1976d2;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary);
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -248,17 +220,17 @@ watch(modelValue, (newValue) => {
 }
 
 .arrow {
-  color: #6c757d;
+  color: var(--color-text-secondary);
   font-weight: bold;
   flex-shrink: 0;
-  margin: 0 4px;
-  font-size: 16px;
+  margin: 0 var(--space-1);
+  font-size: var(--font-size-base);
 }
 
 .sav-name {
   font-family: monospace;
-  color: #198754;
-  font-weight: 500;
+  color: var(--color-success);
+  font-weight: var(--font-weight-medium);
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -269,50 +241,26 @@ watch(modelValue, (newValue) => {
 .action-section {
   display: flex;
   justify-content: flex-end;
-  padding-top: 8px;
-  border-top: 1px solid #e9ecef;
-}
-
-.download-button {
-  padding: 12px 24px;
-  border: none;
-  border-radius: 6px;
-  background: #1976d2;
-  color: white;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  min-width: 120px;
-}
-
-.download-button:hover:not(:disabled) {
-  background: #1565c0;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.download-button:disabled {
-  background: #6c757d;
-  cursor: not-allowed;
-  opacity: 0.6;
+  padding-top: var(--space-2);
+  border-top: var(--border-width) var(--border-style) var(--color-border-light);
 }
 
 /* 美化滚动条 */
 .recent-list::-webkit-scrollbar {
-  width: 6px;
+  width: var(--space-2);
 }
 
 .recent-list::-webkit-scrollbar-track {
-  background: #f8f9fa;
-  border-radius: 3px;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-xs);
 }
 
 .recent-list::-webkit-scrollbar-thumb {
-  background: #6c757d;
-  border-radius: 3px;
+  background: var(--color-secondary);
+  border-radius: var(--radius-xs);
 }
 
 .recent-list::-webkit-scrollbar-thumb:hover {
-  background: #5a6268;
+  background: var(--color-text-secondary);
 }
 </style>

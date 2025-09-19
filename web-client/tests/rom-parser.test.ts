@@ -265,7 +265,7 @@ describe('rom-parser', () => {
       expect(result.type).toBe('Unknown');
       expect(result.isValid).toBe(false);
       expect(result.romSize).toBe(0);
-      expect(result.title).toBe('Empty ROM');
+      expect(result.title).toBe('Unknown ROM');
     });
 
     it('应该处理非常小的数据', () => {

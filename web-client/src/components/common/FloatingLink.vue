@@ -72,14 +72,14 @@ const buttonStyle = computed<Record<string, string | number>>(() => ({
 .floating-button {
   display: flex;
   align-items: center;
-  background: #1976d2;
-  color: white;
-  padding: 8px 12px;
+  background: var(--color-primary);
+  color: #ffffff;
+  padding: var(--space-2) var(--space-3);
   border-radius: 25px;
   border: none;
-  font-size: 14px;
-  font-weight: 500;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  box-shadow: var(--shadow-md);
   transition: all 0.3s ease;
   transform: translateX(calc(100% - 40px));
   overflow: hidden;
@@ -87,11 +87,13 @@ const buttonStyle = computed<Record<string, string | number>>(() => ({
   cursor: pointer;
   text-decoration: none;
 }
+
 .floating-button:hover {
-  background: #1565c0;
+  background: var(--color-primary-hover);
   transform: translateX(0);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
+
 .floating-icon {
   width: 20px;
   height: 20px;
@@ -99,25 +101,16 @@ const buttonStyle = computed<Record<string, string | number>>(() => ({
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: var(--font-size-base);
 }
+
 .floating-text {
-  margin-left: 8px;
+  margin-left: var(--space-2);
   opacity: 0;
   transition: opacity 0.3s ease 0.1s;
 }
+
 .floating-button:hover .floating-text {
   opacity: 1;
-}
-@media (max-width: 768px) {
-  .floating-button {
-    padding: 6px 10px;
-    font-size: 12px;
-  }
-  .floating-icon {
-    width: 18px;
-    height: 18px;
-    font-size: 14px;
-  }
 }
 </style>

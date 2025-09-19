@@ -125,47 +125,58 @@ onUnmounted(() => {
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.6);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   backdrop-filter: blur(2px);
 }
+
 .modal-container {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  background: var(--color-bg);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
   animation: modalSlideIn 0.3s ease-out;
   display: flex;
   flex-direction: column;
 }
+
 @keyframes modalSlideIn {
-  from { opacity: 0; transform: scale(0.9) translateY(-20px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
+
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid #e5e7eb;
+  padding: var(--space-5) var(--space-6) var(--space-4);
+  border-bottom: 1px solid var(--color-border-light);
 }
+
 .modal-title {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #111827;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
+
 .close-btn {
   background: none;
   border: none;
-  font-size: 1.25rem;
+  font-size: var(--font-size-xl);
   cursor: pointer;
-  color: #6b7280;
-  padding: 4px;
-  border-radius: 4px;
+  color: var(--color-text-secondary);
+  padding: var(--space-1);
+  border-radius: var(--radius-base);
   transition: all 0.2s;
   width: 28px;
   height: 28px;
@@ -173,24 +184,28 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
 }
+
 .close-btn:hover:not(:disabled) {
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
 }
+
 .close-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
 .modal-body {
-  padding: 24px;
+  padding: var(--space-6);
   flex: 1 1 auto;
   overflow-y: auto;
 }
+
 .modal-footer {
-  padding: 16px 24px 20px;
-  border-top: 1px solid #e5e7eb;
+  padding: var(--space-4) var(--space-6) var(--space-5);
+  border-top: 1px solid var(--color-border-light);
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-2);
 }
 </style>

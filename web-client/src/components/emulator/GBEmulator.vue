@@ -14,27 +14,27 @@
           {{ $t('ui.emulator.title') }} - {{ romName }}
         </h3>
         <div class="emulator-controls">
-          <button
-            class="control-btn"
+          <BaseButton
+            variant="secondary"
+            size="sm"
+            :icon="isPaused ? play : pause"
             :title="$t('ui.emulator.pause')"
             @click="togglePause"
-          >
-            <IonIcon :icon="isPaused ? play : pause" />
-          </button>
-          <button
-            class="control-btn"
+          />
+          <BaseButton
+            variant="warning"
+            size="sm"
+            :icon="refresh"
             :title="$t('ui.emulator.reset')"
             @click="resetGame"
-          >
-            <IonIcon :icon="refresh" />
-          </button>
-          <button
-            class="control-btn close-btn"
+          />
+          <BaseButton
+            variant="error"
+            size="sm"
+            :icon="close"
             :title="$t('ui.emulator.close')"
             @click="closeEmulator"
-          >
-            <IonIcon :icon="close" />
-          </button>
+          />
         </div>
       </div>
 
@@ -70,6 +70,7 @@ import { close, gameControllerOutline, pause, play, refresh } from 'ionicons/ico
 import { nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import BaseButton from '@/components/common/BaseButton.vue';
 import { useToast } from '@/composables/useToast';
 
 const { t } = useI18n();
@@ -320,9 +321,9 @@ function handleOverlayClick(event: MouseEvent) {
 }
 
 .emulator-container {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  background: var(--color-bg);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
   max-width: 90vw;
   max-height: 90vh;
   overflow: hidden;
@@ -334,65 +335,40 @@ function handleOverlayClick(event: MouseEvent) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: var(--space-4) var(--space-5);
   background: linear-gradient(135deg, #5bcffa 0%, #f5abb9 100%);
-  color: white;
+  color: var(--color-text-inverse);
 }
 
 .emulator-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   margin: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
 }
 
 .emulator-icon {
-  font-size: 1.2em;
+  font-size: var(--font-size-xl);
 }
 
 .emulator-controls {
   display: flex;
-  gap: 8px;
-}
-
-.control-btn {
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  border-radius: 6px;
-  color: white;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
-  padding: 8px;
-  transition: all 0.2s ease;
-  width: 36px;
-  height: 36px;
-}
-
-.control-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: translateY(-1px);
-}
-
-.control-btn.close-btn:hover {
-  background: rgba(239, 68, 68, 0.8);
+  gap: var(--space-2);
 }
 
 .emulator-content {
   display: flex;
   justify-content: center;
-  padding: 20px;
+  padding: var(--space-5);
   align-items: center;
 }
 
 .game-canvas {
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  background: #000;
+  border: var(--border-width-thick) var(--border-style) var(--color-border-light);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-inverse);
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
@@ -402,9 +378,9 @@ function handleOverlayClick(event: MouseEvent) {
 }
 
 .emulator-footer {
-  background: #f9fafb;
-  padding: 16px 20px;
-  border-top: 1px solid #e5e7eb;
+  background: var(--color-bg-secondary);
+  padding: var(--space-4) var(--space-5);
+  border-top: var(--border-width) var(--border-style) var(--color-border-light);
 }
 
 .controls-help {
@@ -412,60 +388,25 @@ function handleOverlayClick(event: MouseEvent) {
 }
 
 .controls-help p {
-  margin: 0 0 12px 0;
-  font-size: 0.9rem;
-  color: #6b7280;
+  margin: 0 0 var(--space-3) 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
 }
 
 .key-mappings {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: var(--space-3);
   justify-content: center;
   align-items: center;
 }
 
 .key-mapping {
-  background: #f3f4f6;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  color: #374151;
-  border: 1px solid #d1d5db;
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .emulator-container {
-    margin: 10px;
-    max-width: calc(100vw - 20px);
-    max-height: 95vh;
-  }
-
-  .emulator-content {
-    padding: 16px;
-  }
-
-  .game-canvas {
-    width: 320px;
-    height: 288px;
-    align-self: center;
-  }
-
-  .emulator-header {
-    padding: 12px 16px;
-  }
-
-  .emulator-title {
-    font-size: 1rem;
-  }
-
-  .key-mappings {
-    gap: 8px;
-  }
-
-  .key-mapping {
-    font-size: 0.75rem;
-  }
+  background: var(--color-bg-tertiary);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-text);
+  border: var(--border-width) var(--border-style) var(--color-border);
 }
 </style>

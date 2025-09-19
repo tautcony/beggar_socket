@@ -42,10 +42,10 @@ function handleChange(event: Event) {
 .toggle-container {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   cursor: pointer;
   user-select: none;
-  font-size: 0.95rem;
+  font-size: var(--font-size-sm);
 }
 
 .toggle-container[title] {
@@ -60,26 +60,26 @@ function handleChange(event: Event) {
   position: relative;
   width: 44px;
   height: 24px;
-  background-color: #ccc;
-  border-radius: 12px;
+  background-color: var(--color-border);
+  border-radius: var(--radius-2xl);
   transition: background-color 0.3s ease;
 }
 
 .toggle-slider::before {
   content: '';
   position: absolute;
-  top: 2px;
-  left: 2px;
+  top: var(--space-1);
+  left: var(--space-1);
   width: 20px;
   height: 20px;
   background-color: white;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   transition: transform 0.3s ease;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .toggle-input:checked + .toggle-slider {
-  background-color: #007bff;
+  background-color: var(--color-primary);
 }
 
 .toggle-input:checked + .toggle-slider::before {
@@ -87,12 +87,12 @@ function handleChange(event: Event) {
 }
 
 .toggle-input:disabled + .toggle-slider {
-  background-color: #e0e0e0;
+  background-color: var(--color-border-light);
   cursor: not-allowed;
 }
 
 .toggle-input:disabled + .toggle-slider::before {
-  background-color: #f5f5f5;
+  background-color: var(--color-bg-secondary);
 }
 
 .toggle-container:has(.toggle-input:disabled) {
@@ -101,7 +101,7 @@ function handleChange(event: Event) {
 }
 
 .toggle-label {
-  color: #333;
-  font-weight: 500;
+  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
 }
 </style>

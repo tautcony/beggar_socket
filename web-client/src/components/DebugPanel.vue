@@ -94,30 +94,31 @@
       >
         <h4>{{ $t('ui.debug.quickActions') }}</h4>
         <div class="debug-buttons">
-          <button
-            class="debug-btn"
+          <BaseButton
+            variant="debug"
+            size="sm"
+            :text="$t('ui.debug.connectMockDevice')"
             @click="connectMockDevice"
-          >
-            {{ $t('ui.debug.connectMockDevice') }}
-          </button>
-          <button
-            class="debug-btn"
+          />
+          <BaseButton
+            variant="debug"
+            size="sm"
+            :text="$t('ui.debug.generateTestRom')"
             @click="generateTestRom"
-          >
-            {{ $t('ui.debug.generateTestRom') }}
-          </button>
-          <button
-            class="debug-btn"
+          />
+          <BaseButton
+            variant="debug"
+            size="sm"
+            :text="$t('ui.debug.generateTestRam')"
             @click="generateTestRam"
-          >
-            {{ $t('ui.debug.generateTestRam') }}
-          </button>
-          <button
-            class="debug-btn secondary"
+          />
+          <BaseButton
+            variant="debug"
+            size="sm"
+            class="secondary"
+            :text="$t('ui.debug.clearMockData')"
             @click="clearMockData"
-          >
-            {{ $t('ui.debug.clearMockData') }}
-          </button>
+          />
         </div>
       </div>
 
@@ -150,6 +151,7 @@ import { IonIcon } from '@ionic/vue';
 import { constructOutline } from 'ionicons/icons';
 import { onMounted, ref } from 'vue';
 
+import BaseButton from '@/components/common/BaseButton.vue';
 import { DebugSettings } from '@/settings/debug-settings';
 import { GBA_NINTENDO_LOGO } from '@/utils/parsers/rom-parser';
 
@@ -311,17 +313,17 @@ function clearMockData() {
 <style scoped>
 .debug-panel {
   position: fixed;
-  top: 20px;
-  left: 20px;
+  top: var(--space-5);
+  left: var(--space-5);
   width: 320px;
   max-height: 80vh;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
-  border: 2px solid #ff9800;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  border: 2px solid var(--color-warning);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
   z-index: 1000;
-  color: #333;
+  color: var(--color-text);
   overflow: hidden;
   transition: all 0.3s ease;
 }
@@ -330,45 +332,49 @@ function clearMockData() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: linear-gradient(135deg, #ff9800, #f57c00);
-  border-radius: 10px 10px 0 0;
+  padding: var(--space-3) var(--space-4);
+  background: linear-gradient(135deg, var(--color-warning), var(--color-warning-light));
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   position: relative;
 }
 
 .debug-header::before {
   /* content: ''; */
   position: absolute;
-  left: -8px;
+  left: calc(var(--space-2) * -1);
   top: 50%;
   transform: translateY(-50%);
-  font-size: 20px;
+  font-size: var(--font-size-xl);
   animation: pulse 2s infinite;
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .debug-header h3 {
   margin: 0;
-  font-size: 16px;
-  color: white;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  font-size: var(--font-size-base);
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .debug-content {
-  padding: 16px;
+  padding: var(--space-4);
   max-height: 60vh;
   overflow-y: auto;
   background: rgba(248, 249, 250, 0.8);
 }
 
 .debug-section {
-  margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #e9ecef;
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-3) var(--space-4) 0;
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .debug-section:last-child {
@@ -377,51 +383,51 @@ function clearMockData() {
 }
 
 .debug-section h4 {
-  margin: 0 0 10px 0;
-  font-size: 14px;
-  color: #495057;
-  font-weight: 600;
+  margin: 0 0 var(--space-2) 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
 }
 
 .debug-switch {
   display: flex;
   align-items: center;
   cursor: pointer;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 
 .debug-switch input {
-  margin-right: 8px;
+  margin-right: var(--space-2);
 }
 
 .debug-control {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .debug-control label {
   display: block;
-  margin-bottom: 4px;
-  font-size: 13px;
-  color: #6c757d;
-  font-weight: 500;
+  margin-bottom: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
 }
 
 .debug-control input[type="number"],
 .debug-control input[type="range"] {
   width: 80%;
-  padding: 6px 10px;
-  border: 1px solid #ced4da;
-  border-radius: 6px;
-  background: white;
-  color: #495057;
-  font-size: 12px;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-base);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: var(--font-size-xs);
   transition: border-color 0.2s ease;
 }
 
 .debug-control input[type="number"]:focus,
 .debug-control input[type="range"]:focus {
   outline: none;
-  border-color: #ff9800;
+  border-color: var(--color-warning);
   box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.1);
 }
 
@@ -430,78 +436,48 @@ function clearMockData() {
 }
 
 .debug-value {
-  margin-left: 8px;
-  font-size: 12px;
-  color: #ff9800;
-  font-weight: 600;
+  margin-left: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-warning);
+  font-weight: var(--font-weight-semibold);
 }
 
 .debug-buttons {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.debug-btn {
-  padding: 8px 12px;
-  border: 1px solid #28a745;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  background: #28a745;
-  color: white;
-  transition: all 0.2s ease;
-}
-
-.debug-btn:hover {
-  background: #218838;
-  border-color: #218838;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
-}
-
-.debug-btn.secondary {
-  background: #dc3545;
-  border-color: #dc3545;
-}
-
-.debug-btn.secondary:hover {
-  background: #c82333;
-  border-color: #c82333;
-  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+  gap: var(--space-2);
 }
 
 .debug-status {
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   background: rgba(248, 249, 250, 0.5);
-  padding: 10px;
-  border-radius: 6px;
-  border: 1px solid #e9ecef;
+  padding: var(--space-2);
+  border-radius: var(--radius-base);
+  border: 1px solid var(--color-border-light);
 }
 
 .status-item {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 6px;
-  padding: 2px 0;
+  margin-bottom: var(--space-1);
+  padding: var(--space-px) 0;
 }
 
 .status-label {
-  color: #6c757d;
-  font-weight: 500;
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
 }
 
 .status-value {
-  color: #495057;
-  font-weight: 600;
+  color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
 }
 
 .status-value.active {
-  color: #28a745;
+  color: var(--color-success);
 }
 
 .status-value.inactive {
-  color: #6c757d;
+  color: var(--color-text-secondary);
 }
 </style>

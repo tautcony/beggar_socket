@@ -138,23 +138,23 @@ onMounted(async () => {
 .serial-test-view {
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px;
+  padding: var(--space-5);
 }
 
 .page-header {
   text-align: center;
   color: white;
-  margin-bottom: 30px;
+  margin-bottom: var(--space-8);
 }
 
 .page-header h1 {
-  font-size: 2.5rem;
-  margin-bottom: 10px;
+  font-size: var(--font-size-5xl);
+  margin-bottom: var(--space-2-5);
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .description {
-  font-size: 1.1rem;
+  font-size: var(--font-size-lg);
   opacity: 0.9;
 }
 
@@ -165,50 +165,50 @@ onMounted(async () => {
 
 .environment-info,
 .serial-testing {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 24px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  background: var(--color-bg);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  margin-bottom: var(--space-6);
+  box-shadow: var(--shadow-md);
 }
 
 .environment-info h2,
 .quick-actions h2 {
   margin-top: 0;
-  color: #333;
+  color: var(--color-text);
   border-bottom: 2px solid #667eea;
-  padding-bottom: 8px;
+  padding-bottom: var(--space-2);
 }
 
 .info-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 16px;
-  margin-top: 16px;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
 }
 
 .info-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .info-item label {
-  font-weight: 600;
-  color: #555;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
   min-width: 120px;
 }
 
 .badge {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  font-weight: 500;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-base);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
 }
 
 .badge-success {
-  background-color: #d4edda;
-  color: #155724;
+  background-color: var(--color-success-light);
+  color: var(--color-success);
   border: 1px solid #c3e6cb;
 }
 
@@ -219,23 +219,8 @@ onMounted(async () => {
 }
 
 .badge-error {
-  background-color: #f8d7da;
-  color: #721c24;
+  background-color: var(--color-error-light);
+  color: var(--color-error);
   border: 1px solid #f5c6cb;
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .serial-test-view {
-    padding: 10px;
-  }
-
-  .page-header h1 {
-    font-size: 2rem;
-  }
-
-  .info-grid {
-    grid-template-columns: 1fr;
-  }
 }
 </style>

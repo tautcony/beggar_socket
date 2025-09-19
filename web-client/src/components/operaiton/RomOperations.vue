@@ -2,7 +2,9 @@
   <div class="rom-operations-container">
     <section class="section">
       <div class="section-header">
-        <h2>{{ $t('ui.rom.title') }}</h2>
+        <div class="op-title-row">
+          <span :class="['op-title', { busy }]">{{ $t('ui.rom.title') }}</span>
+        </div>
         <div class="selector-container">
           <div class="base-address-selector">
             <label class="base-address-label">{{ $t('ui.rom.baseAddressLabel') }}</label>
@@ -59,14 +61,14 @@
             <IonIcon :icon="folderOpenOutline" />
           </template>
         </FileDropZone>
-        <button
+        <BaseButton
           v-if="romFileData && romInfo && canPreview"
-          :disabled="busy"
           class="play-button"
+          :disabled="busy"
+          variant="success"
+          :icon="playOutline"
           @click="playRom"
-        >
-          <IonIcon :icon="playOutline" />
-        </button>
+        />
       </div>
 
       <!-- ROM信息显示 -->
@@ -79,30 +81,30 @@
       />
 
       <div class="button-row">
-        <button
+        <BaseButton
           v-if="hasAssembledRom"
+          variant="secondary"
+          :text="$t('ui.rom.useAssembledRom')"
           @click="useAssembledRom"
-        >
-          {{ $t('ui.rom.useAssembledRom') }}
-        </button>
-        <button
+        />
+        <BaseButton
           :disabled="!deviceReady || !romFileData || busy"
+          variant="primary"
+          :text="$t('ui.rom.write')"
           @click="$emit('write-rom')"
-        >
-          {{ $t('ui.rom.write') }}
-        </button>
-        <button
+        />
+        <BaseButton
           :disabled="!deviceReady || busy"
+          variant="primary"
+          :text="$t('ui.rom.read')"
           @click="$emit('read-rom')"
-        >
-          {{ $t('ui.rom.read') }}
-        </button>
-        <button
+        />
+        <BaseButton
           :disabled="!deviceReady || !romFileData || busy"
+          variant="primary"
+          :text="$t('ui.rom.verify')"
           @click="$emit('verify-rom')"
-        >
-          {{ $t('ui.rom.verify') }}
-        </button>
+        />
       </div>
     </section>
 
@@ -149,6 +151,7 @@ import { DateTime } from 'luxon';
 import { computed, defineAsyncComponent, onErrorCaptured, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import BaseButton from '@/components/common/BaseButton.vue';
 import FileDropZone from '@/components/common/FileDropZone.vue';
 import RomInfoPanel from '@/components/common/RomInfoPanel.vue';
 import { useToast } from '@/composables/useToast';
@@ -417,80 +420,105 @@ const hasAssembledRom = computed(() => {
 
 <style scoped>
 .section {
-  margin-bottom: 28px;
+  margin-bottom: var(--space-7);
+}
+
+.op-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-bottom: var(--space-3);
+  min-width: 0;
+}
+
+.op-title {
+  font-size: var(--font-size-lg);
+  color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
+  transition: color 0.2s, font-weight 0.2s;
+  white-space: nowrap;
+}
+
+.op-title.busy {
+  color: var(--color-warning);
+  font-weight: bold;
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 16px;
-  gap: 12px;
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-2);
+  gap: var(--space-3);
   flex-wrap: wrap;
-}
-
-.section h2 {
-  font-size: 1.15rem;
-  margin: 0;
-  color: #2c3e50;
-  font-weight: 600;
 }
 
 .selector-container {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-4);
   flex-wrap: wrap;
-  min-width: fit-content;
+  min-width: 0;
+  margin-bottom: var(--space-3);
 }
 
-.base-address-selector,
-.size-selector {
+.size-selector,
+.base-address-selector {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   min-width: fit-content;
   flex-shrink: 0;
 }
 
-.base-address-label,
-.size-label {
-  font-size: 0.9rem;
-  color: #666;
+.size-selector > *,
+.base-address-selector > * {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.size-label,
+.base-address-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
   margin: 0;
   white-space: nowrap;
 }
 
-.base-address-dropdown,
-.size-dropdown {
-  padding: 4px 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: #fff;
-  font-size: 0.9rem;
-  color: #333;
+.size-dropdown,
+.base-address-dropdown {
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  border-radius: var(--radius-base);
+  box-shadow: var(--shadow-sm);
+  background: var(--color-bg);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
   cursor: pointer;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
   min-width: 80px;
+  max-width: 180px;
   white-space: nowrap;
 }
 
-.base-address-dropdown:hover:not(:disabled),
-.size-dropdown:hover:not(:disabled) {
-  border-color: #1976d2;
+.size-dropdown:hover:not(:disabled),
+.base-address-dropdown:hover:not(:disabled) {
+  box-shadow: var(--shadow-md);
 }
 
-.base-address-dropdown:disabled,
-.size-dropdown:disabled {
-  background: #f5f5f5;
-  color: #aaa;
+.size-dropdown:disabled,
+.base-address-dropdown:disabled {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
   cursor: not-allowed;
 }
 
 .file-upload-container {
   display: flex;
   align-items: stretch;
-  gap: 12px;
+  gap: var(--space-3);
   width: 100%;
 }
 
@@ -508,22 +536,25 @@ const hasAssembledRom = computed(() => {
 
 .file-upload-container.has-play-button .play-button {
   max-width: none;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .play-button {
   display: flex;
   align-items: center;
+  align-self: stretch;
+  height: auto;
   justify-content: center;
-  padding: 12px;
+  padding: var(--space-3);
   min-width: 48px;
-  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%) !important;
+  width: 100%;
+  background: linear-gradient(135deg, var(--color-success) 0%, #45a049 100%) !important;
   color: white !important;
   border: none !important;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
   transition: all 0.2s ease;
-  font-size: 1.2rem;
+  font-size: var(--font-size-lg);
 }
 
 .play-button:hover:not(:disabled) {
@@ -533,8 +564,8 @@ const hasAssembledRom = computed(() => {
 }
 
 .play-button:disabled {
-  background: #e9ecef !important;
-  color: #6c757d !important;
+  background: var(--color-bg-tertiary) !important;
+  color: var(--color-text-secondary) !important;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
@@ -542,38 +573,13 @@ const hasAssembledRom = computed(() => {
 
 .button-row {
   display: flex;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
   flex-wrap: wrap;
   min-width: 0;
 }
 
-button {
-  padding: 6px 16px;
-  border-radius: 5px;
-  border: 1px solid #bbb;
-  background: #f5f7fa;
-  cursor: pointer;
-  font-size: 0.95rem;
-  transition: background 0.2s, color 0.2s;
-  outline: none;
-  white-space: nowrap;
-  min-width: fit-content;
+.button-row > * {
   flex: 1 1 auto;
-}
-
-button:focus {
-  outline: none;
-}
-
-button:disabled {
-  background: #eee;
-  color: #aaa;
-  cursor: not-allowed;
-}
-
-button:not(:disabled):hover {
-  background: #e3f2fd;
-  color: #1976d2;
 }
 </style>

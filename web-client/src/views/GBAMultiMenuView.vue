@@ -96,19 +96,19 @@
                         <span class="file-size">({{ formatFileSize(item.data.byteLength) }})</span>
                       </div>
                       <div class="file-actions">
-                        <button
-                          class="config-toggle-btn"
+                        <BaseButton
+                          variant="secondary"
+                          size="sm"
+                          :icon="buildOutline"
                           :title="$t('ui.gbaMultiMenu.configureGame')"
                           @click.stop="toggleGameConfig(item.fileName)"
-                        >
-                          <IonIcon :icon="buildOutline" />
-                        </button>
-                        <button
-                          class="remove-btn"
+                        />
+                        <BaseButton
+                          variant="error"
+                          size="sm"
+                          :icon="closeCircleOutline"
                           @click.stop="removeGameRom(item.fileName)"
-                        >
-                          <IonIcon :icon="closeCircleOutline" />
-                        </button>
+                        />
                       </div>
                     </div>
 
@@ -212,12 +212,12 @@
                   <IonIcon :icon="saveOutline" />
                   <span class="file-name">{{ fileName }}</span>
                   <span class="file-size">({{ formatFileSize(data.byteLength) }})</span>
-                  <button
-                    class="remove-btn"
+                  <BaseButton
+                    variant="error"
+                    size="sm"
+                    :icon="closeCircleOutline"
                     @click="removeSaveFile(fileName)"
-                  >
-                    <IonIcon :icon="closeCircleOutline" />
-                  </button>
+                  />
                 </div>
               </div>
               <div
@@ -323,13 +323,12 @@
                 style="display: none"
                 @change="handleMenuRomChange"
               >
-              <button
-                class="file-select-btn"
+              <BaseButton
+                variant="primary"
+                :icon="documentOutline"
+                :text="$t('ui.file.browse')"
                 @click="() => menuRomInput?.click()"
-              >
-                <IonIcon :icon="documentOutline" />
-                {{ $t('ui.file.browse') }}
-              </button>
+              />
               <span
                 v-if="menuRomData"
                 class="file-info-text"
@@ -357,13 +356,12 @@
                 style="display: none"
                 @change="handleBgImageChange"
               >
-              <button
-                class="file-select-btn"
+              <BaseButton
+                variant="primary"
+                :icon="imageOutline"
+                :text="$t('ui.file.browse')"
                 @click="() => bgImageInput?.click()"
-              >
-                <IonIcon :icon="imageOutline" />
-                {{ $t('ui.file.browse') }}
-              </button>
+              />
               <span
                 v-if="bgImageData"
                 class="file-info-text bg-image-info-inline"
@@ -386,19 +384,13 @@
 
       <!-- 构建按钮 -->
       <div class="action-section">
-        <button
-          class="build-btn"
+        <BaseButton
+          variant="success"
+          :icon="buildOutline"
+          :text="isLoadingLibrary ? $t('ui.gbaMultiMenu.loadingLibrary') : $t('ui.gbaMultiMenu.buildRom')"
           :disabled="!canBuild"
           @click="buildRom"
-        >
-          <IonIcon :icon="buildOutline" />
-          <template v-if="isLoadingLibrary">
-            {{ $t('ui.gbaMultiMenu.loadingLibrary') }}
-          </template>
-          <template v-else>
-            {{ $t('ui.gbaMultiMenu.buildRom') }}
-          </template>
-        </button>
+        />
       </div>
 
       <!-- 下载区域 -->
@@ -412,20 +404,18 @@
           <p>{{ $t('ui.gbaMultiMenu.romCode') }}: {{ buildResult.code }}</p>
         </div>
         <div class="download-actions">
-          <button
-            class="download-btn"
+          <BaseButton
+            variant="success"
+            :icon="downloadOutline"
+            :text="$t('ui.gbaMultiMenu.downloadRom')"
             @click="downloadRom"
-          >
-            <IonIcon :icon="downloadOutline" />
-            {{ $t('ui.gbaMultiMenu.downloadRom') }}
-          </button>
-          <button
-            class="apply-btn"
+          />
+          <BaseButton
+            variant="primary"
+            :icon="saveOutline"
+            :text="$t('ui.gbaMultiMenu.applyRom')"
             @click="applyRom"
-          >
-            <IonIcon :icon="saveOutline" />
-            {{ $t('ui.gbaMultiMenu.applyRom') }}
-          </button>
+          />
         </div>
       </div>
     </div>
@@ -467,6 +457,7 @@ import { computed, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
+import BaseButton from '@/components/common/BaseButton.vue';
 import { type BuildInput, type BuildResult, buildRom as buildRomFromService } from '@/services/lk';
 import { useRomAssemblyResultStore } from '@/stores/rom-assembly-store';
 import { FileInfo } from '@/types/file-info';
@@ -1036,9 +1027,8 @@ function toggleGameConfig(fileName: string) {
 <style scoped>
 .gba-multi-menu-view {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: var(--color-bg);
   padding: 0;
-  /* 突破父容器限制，占满屏幕并使用80%宽度 */
   position: fixed;
   top: 0;
   left: 0;
@@ -1049,13 +1039,13 @@ function toggleGameConfig(fileName: string) {
 }
 
 .page-header {
-  background: white;
-  border-bottom: 1px solid #e9ecef;
-  padding: 16px 24px;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border-light);
+  padding: var(--space-4) var(--space-6);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -1063,94 +1053,97 @@ function toggleGameConfig(fileName: string) {
 
 .page-title {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #333;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 
 .header-controls {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: var(--space-5);
 }
 
 .back-btn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: #6c757d;
-  color: white;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
   border: none;
-  border-radius: 6px;
-  font-size: 0.9rem;
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.2s ease;
 }
 
 .back-btn:hover {
-  background: #5a6268;
-  transform: translateY(-1px);
+  background: var(--color-bg-hover);
+}
+
+.back-btn:active {
+  transform: scale(0.98);
 }
 
 .gba-multi-menu-content {
-  padding: 24px;
+  padding: var(--space-6);
   max-width: 80%;
   margin: 0 auto;
 }
 
 .modal-title {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
 }
 
 .header-controls {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: var(--space-5);
 }
 
 .status-info,
 .result-info {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
 }
 
 .status-label,
 .result-label {
-  font-weight: 500;
-  color: #666;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
 }
 
 .status-value {
-  font-weight: 600;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.8rem;
+  font-weight: var(--font-weight-semibold);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
 }
 
 .status-ready {
-  background-color: #e9ecef;
-  color: #495057;
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text);
 }
 
 .status-building {
-  background-color: #cce5ff;
-  color: #0066cc;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-primary);
 }
 
 .status-success {
-  background-color: #d4edda;
-  color: #155724;
+  background-color: var(--color-success-light);
+  color: var(--color-success);
 }
 
 .main-layout {
   display: flex;
-  gap: 24px;
-  margin-bottom: 24px;
+  gap: var(--space-6);
+  margin-bottom: var(--space-6);
   align-items: stretch;
 }
 
@@ -1158,13 +1151,14 @@ function toggleGameConfig(fileName: string) {
   flex: 3;
   display: flex;
   flex-direction: column;
+  max-width: 70%;
 }
 
 .right-section {
   flex: 2;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .right-section .file-section {
@@ -1195,56 +1189,6 @@ function toggleGameConfig(fileName: string) {
   min-height: 0;
 }
 
-.file-drop-zone {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 120px;
-  border: 2px dashed #ddd;
-  border-radius: 8px;
-  padding: 16px;
-  transition: all 0.3s ease;
-  cursor: pointer;
-  background-color: #fafafa;
-}
-
-.file-drop-zone:hover {
-  border-color: #007bff;
-  background-color: #f8f9fa;
-}
-
-.file-list {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 120px;
-  overflow-y: auto;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  background-color: #fafafa;
-  max-height: 400px;
-}
-
-.file-section {
-  display: flex;
-  flex-direction: column;
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e9ecef;
-  text-align: left;
-}
-
-.file-section h4 {
-  margin: 0 0 12px 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #333;
-  text-align: left;
-}
-
 .file-upload-area {
   background-color: transparent;
   padding: 0;
@@ -1260,98 +1204,48 @@ function toggleGameConfig(fileName: string) {
 .file-drop-zone {
   flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   min-height: 120px;
-  border: 2px dashed #ddd;
-  border-radius: 8px;
-  padding: 16px;
+  border: var(--border-width) var(--border-style) var(--color-border);
+  border-radius: var(--radius-lg);
   transition: all 0.3s ease;
   cursor: pointer;
   position: relative;
-  background-color: #fafafa;
+  background-color: var(--color-bg-tertiary);
+  padding: var(--space-4);
 }
 
-.file-drop-zone:hover {
-  border-color: #007bff;
-  background-color: #f8f9fa;
+.file-drop-zone:has(.file-list) {
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 0;
 }
 
-.file-drop-zone.drag-over {
-  border-color: #007bff;
-  background-color: #e7f3ff;
-}
-
-.file-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 8px;
-  background-color: transparent;
-  min-height: 80px;
+.file-list {
+  border: var(--border-width) var(--border-style) var(--color-border-light);
+  border-radius: var(--radius-base);
+  background-color: var(--color-bg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
   width: 100%;
-}
-
-.placeholder-content {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.placeholder-icon {
-  font-size: 2.5rem; /* 40x40像素 */
-  color: #007bff;
-  flex-shrink: 0;
-  transition: all 0.2s ease;
-}
-
-.placeholder-text {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  text-align: left;
-}
-
-.placeholder-text p {
-  margin: 0;
-}
-
-.hint {
-  background: linear-gradient(135deg, #007bff, #0056b3);
-  color: white;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  margin-top: 8px;
-  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
-  transition: all 0.2s ease;
-}
-
-.file-drop-zone:hover .hint {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.4);
-}
-
-.file-drop-zone:hover .placeholder-icon {
-  color: #0056b3;
-  transform: scale(1.1);
-}
-
-.file-size {
-  color: #666;
-  font-size: 0.9rem;
+  margin-top: 0;
+  margin-bottom: auto;
 }
 
 .file-item-container {
-  border-bottom: 1px solid #eee;
+  border-bottom: var(--border-width) var(--border-style) var(--color-border-light);
   cursor: move;
   transition: all 0.2s ease;
+  background-color: var(--color-bg);
+  position: relative;
 }
 
 .file-item-container:hover {
-  background-color: #f8f9fa;
+  background-color: var(--color-bg-secondary);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
 }
 
 .file-item-container:last-child {
@@ -1361,104 +1255,152 @@ function toggleGameConfig(fileName: string) {
 .file-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--border-width) var(--border-style) var(--color-border-light);
+  background-color: var(--color-bg);
+  transition: all 0.2s ease;
+}
+
+.file-item:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+.file-item:last-child {
+  border-bottom: none;
+}
+
+.placeholder-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  flex: 1;
+  flex-direction: column;
+  text-align: center;
+}
+
+.placeholder-icon {
+  font-size: var(--font-size-3xl);
+  color: var(--color-primary);
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.placeholder-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  text-align: left;
+}
+
+.placeholder-text p {
+  margin: 0;
+}
+
+.hint {
+  background: var(--color-primary);
+  color: var(--color-bg);
+  padding: var(--space-2) var(--space-4);
+  border-radius: 20px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  margin-top: var(--space-2);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.file-drop-zone:hover .hint {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.file-drop-zone:hover .placeholder-icon {
+  color: var(--color-primary-hover);
+  transform: scale(1.1);
+}
+
+.file-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.file-name {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-size {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.file-item-container {
+  border-bottom: var(--border-width) var(--border-style) var(--color-border-light);
+  cursor: move;
+  transition: all 0.2s ease;
+}
+
+.file-item-container:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+.file-item-container:last-child {
+  border-bottom: none;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
 }
 
 .drag-handle {
   background: none;
   border: none;
-  color: #666;
+  color: var(--color-text-secondary);
   cursor: grab;
-  padding: 4px;
-  border-radius: 4px;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
   transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
+  font-size: var(--font-size-base);
 }
 
 .drag-handle:hover {
-  background-color: #e9ecef;
-  color: #333;
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text);
 }
 
 .drag-handle:active {
   cursor: grabbing;
 }
 
-.file-info {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: none;
-  padding: 0;
-  min-height: auto;
-}
-
-.file-name {
-  flex: 1;
-  font-weight: 500;
-}
-
-.file-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.config-toggle-btn {
-  background: none;
-  border: none;
-  color: #007bff;
-  cursor: pointer;
-  padding: 6px;
-  border-radius: 4px;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.config-toggle-btn:hover {
-  background-color: #e7f3ff;
-  color: #0056b3;
-}
-
-.remove-btn {
-  background: none;
-  border: none;
-  color: #dc3545;
-  cursor: pointer;
-  padding: 6px;
-  border-radius: 4px;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.remove-btn:hover {
-  background-color: #f8d7da;
-}
-
 /* 游戏配置面板样式 */
 .game-config-panel {
-  margin-top: 12px;
-  padding: 16px;
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
-  border-top: 3px solid #007bff;
+  margin-top: var(--space-3);
+  padding: var(--space-4);
+  background-color: var(--color-bg-secondary);
+  border: var(--border-width) var(--border-style) var(--color-border);
+  border-radius: var(--radius-base);
+  border-top: var(--border-width-thick) var(--border-style) var(--color-primary);
 }
 
 .config-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
 }
 
 .config-row:last-child {
@@ -1467,15 +1409,15 @@ function toggleGameConfig(fileName: string) {
 
 .config-row label {
   min-width: 80px;
-  font-weight: 500;
-  color: #333;
-  font-size: 0.9rem;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
 }
 
 .config-row label:has(input[type="checkbox"]) {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   cursor: pointer;
   min-width: auto;
 }
@@ -1483,41 +1425,41 @@ function toggleGameConfig(fileName: string) {
 .config-input,
 .config-select {
   flex: 1;
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  background-color: white;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) var(--border-style) var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  background-color: var(--color-bg);
   transition: border-color 0.2s;
 }
 
 .config-input:focus,
 .config-select:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus);
 }
 
 .config-section {
-  margin: 24px 0;
-  padding: 24px;
-  background: white;
-  border-radius: 8px;
-  border: 1px solid #e9ecef;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin: var(--space-6) 0;
+  padding: var(--space-6);
+  background: var(--color-bg);
+  border-radius: var(--radius-lg);
+  border: var(--border-width) var(--border-style) var(--color-border-light);
+  box-shadow: var(--shadow-sm);
   text-align: left;
 }
 
 .config-section h4 {
-  margin: 0 0 16px 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #333;
+  margin: 0 0 var(--space-4) 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
   text-align: left;
 }
 
 .config-group {
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
 
 .config-group:last-child {
@@ -1525,32 +1467,32 @@ function toggleGameConfig(fileName: string) {
 }
 
 .config-group h5 {
-  margin: 0 0 12px 0;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #555;
-  border-bottom: 1px solid #e9ecef;
-  padding-bottom: 4px;
+  margin: 0 0 var(--space-3) 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  border-bottom: var(--border-width) var(--border-style) var(--color-border-light);
+  padding-bottom: var(--space-1);
   text-align: left;
 }
 
 .config-grid-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
 }
 
 .config-grid-row.config-checkboxes {
   grid-template-columns: auto auto;
   justify-content: start;
-  gap: 32px;
+  gap: var(--space-8);
 }
 
 .config-item-flex {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .config-checkbox-item {
@@ -1559,7 +1501,7 @@ function toggleGameConfig(fileName: string) {
 }
 
 .config-file-item {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .config-file-item:last-child {
@@ -1569,149 +1511,78 @@ function toggleGameConfig(fileName: string) {
 .config-item {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .config-item label {
-  font-weight: 500;
-  color: #333;
-  font-size: 0.9rem;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
   text-align: left;
 }
 
 .checkbox-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   cursor: pointer;
-  font-weight: 500 !important;
+  font-weight: var(--font-weight-medium) !important;
 }
 
 .config-checkbox {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  background-color: white;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) var(--border-style) var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  background-color: var(--color-bg);
 }
 
 .action-section {
   text-align: center;
-  margin: 24px 0;
-  padding: 24px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.build-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  background: #007bff;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.build-btn:hover:not(:disabled) {
-  background: #0056b3;
-  transform: translateY(-1px);
-}
-
-.build-btn:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-  transform: none;
+  margin: var(--space-6) 0;
+  padding: var(--space-6);
+  background: var(--color-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .download-section {
-  margin: 24px 0;
-  padding: 24px;
-  background: linear-gradient(135deg, #d4edda, #c3e6cb);
-  border: 1px solid #c3e6cb;
-  border-radius: 8px;
+  margin: var(--space-6) 0;
+  padding: var(--space-6);
+  background: var(--color-success-light);
+  border: var(--border-width) var(--border-style) var(--color-success-light);
+  border-radius: var(--radius-lg);
   text-align: center;
-  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
+  box-shadow: var(--shadow-sm);
 }
 
 .download-section h4 {
-  margin: 0 0 12px 0;
-  color: #155724;
-  font-size: 1.2rem;
+  margin: 0 0 var(--space-3) 0;
+  color: var(--color-success);
+  font-size: var(--font-size-xl);
 }
 
 .download-info {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .download-info p {
-  margin: 4px 0;
-  color: #155724;
-  font-weight: 500;
+  margin: var(--space-1) 0;
+  color: var(--color-success);
+  font-weight: var(--font-weight-medium);
 }
 
 .download-actions {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   flex-wrap: wrap;
   justify-content: center;
-}
-
-.download-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  background: #28a745;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.download-btn:hover {
-  background: #218838;
-  transform: translateY(-1px);
-}
-
-.apply-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  background: #007bff;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.apply-btn:hover {
-  background: #0056b3;
-  transform: translateY(-1px);
 }
 
 /* 背景图像预览样式 */
 .bg-image-info {
   cursor: pointer;
   transition: all 0.2s ease;
-}
-
-.bg-image-info:hover {
-  background-color: rgba(0, 123, 255, 0.1);
-  border-color: #007bff;
 }
 
 .bg-image-preview-overlay {
@@ -1728,13 +1599,13 @@ function toggleGameConfig(fileName: string) {
 }
 
 .bg-image-preview {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  padding: 15px;
+  background: var(--color-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-4);
   max-width: 400px;
   max-height: 500px;
-  border: 2px solid #007bff;
+  border: var(--border-width) var(--border-style) var(--color-primary);
 }
 
 .preview-image {
@@ -1742,103 +1613,66 @@ function toggleGameConfig(fileName: string) {
   max-height: 300px;
   object-fit: contain;
   display: block;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
 }
 
 .preview-info {
-  margin-top: 10px;
+  margin-top: var(--space-3);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .preview-filename {
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
   text-align: center;
 }
 
 .preview-size {
-  font-size: 12px;
-  color: #666;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
 }
 
 /* 文件配置行样式 */
 .file-config-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   flex-wrap: wrap;
-}
-
-.file-select-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.file-select-btn:hover {
-  background: #e9ecef;
-  border-color: #007bff;
 }
 
 .file-info-text {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
-  color: #333;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
   flex: 1;
   min-width: 0;
 }
 
 .file-info-text.text-muted {
-  color: #666;
+  color: var(--color-text-secondary);
   font-style: italic;
 }
 
 .file-size-small {
-  color: #666;
-  font-size: 0.8rem;
-}
-
-.remove-btn-small {
-  background: none;
-  border: none;
-  color: #dc3545;
-  cursor: pointer;
-  padding: 2px;
-  border-radius: 2px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  font-size: 0.8rem;
-}
-
-.remove-btn-small:hover {
-  background-color: #f8d7da;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
 }
 
 .bg-image-info-inline {
   cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 4px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
   transition: all 0.2s ease;
 }
 
 .bg-image-info-inline:hover {
-  background-color: rgba(0, 123, 255, 0.1);
+  background-color: var(--color-primary-light);
 }
 
 /* 加载遮罩样式 */
@@ -1848,7 +1682,7 @@ function toggleGameConfig(fileName: string) {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(255, 255, 255, 0.95);
+  background-color: var(--color-overlay);
   z-index: 10000;
   display: flex;
   align-items: center;
@@ -1857,19 +1691,19 @@ function toggleGameConfig(fileName: string) {
 
 .loading-content {
   text-align: center;
-  padding: 2rem;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e1e5e9;
+  padding: var(--space-8);
+  background: var(--color-bg);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  border: var(--border-width) var(--border-style) var(--color-border);
 }
 
 .loading-spinner {
-  width: 48px;
-  height: 48px;
-  margin: 0 auto 1rem auto;
-  border: 4px solid #f3f4f6;
-  border-top: 4px solid #007bff;
+  width: var(--space-12);
+  height: var(--space-12);
+  margin: 0 auto var(--space-4) auto;
+  border: var(--border-width-thick) var(--border-style) var(--color-bg-tertiary);
+  border-top: var(--border-width-thick) var(--border-style) var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -1880,15 +1714,15 @@ function toggleGameConfig(fileName: string) {
 }
 
 .loading-text {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 0.5rem;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  margin-bottom: var(--space-2);
 }
 
 .loading-description {
-  font-size: 0.9rem;
-  color: #666;
-  line-height: 1.4;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-normal);
 }
 </style>

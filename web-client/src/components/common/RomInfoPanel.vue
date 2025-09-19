@@ -475,83 +475,83 @@ onMounted(async () => {
 
 <style scoped>
 .rom-info-panel {
-  margin-bottom: 12px;
-  padding: 16px;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: var(--space-3);
+  padding: var(--space-4);
+  background: linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--color-bg-tertiary) 100%);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .rom-info-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   margin: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #495057;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
   cursor: pointer;
   transition: color 0.2s ease;
   user-select: none;
 }
 
 .rom-info-title:hover {
-  color: #007bff;
+  color: var(--color-primary);
 }
 
 .info-icon {
-  font-size: 1.2rem;
-  color: #007bff;
+  font-size: var(--font-size-lg);
+  color: var(--color-primary);
 }
 
 .collapse-icon {
   margin-left: auto;
-  font-size: 1rem;
+  font-size: var(--font-size-base);
   transition: transform 0.3s ease;
-  color: #6c757d;
+  color: var(--color-text-secondary);
 }
 
 .rom-info-content {
-  background: #ffffff;
-  border-radius: 6px;
-  padding: 16px;
-  border: 1px solid #e9ecef;
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-light);
   overflow: hidden;
   transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
   max-height: 800px;
   opacity: 1;
-  margin-top: 16px;
+  margin-top: var(--space-4);
 }
 
 .rom-info-content.collapsed {
   max-height: 0;
   opacity: 0;
-  padding: 0 16px;
+  padding: 0 var(--space-4);
   margin-top: 0;
 }
 
 /* Logo部分样式 */
 .rom-logo-section {
-  margin-bottom: 20px;
-  padding: 16px;
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
   background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
   border: 1px solid #ffcc02;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .logo-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 0 0 12px 0;
-  font-size: 1rem;
-  font-weight: 600;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3) 0;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   color: #ef6c00;
 }
 
 .logo-icon {
-  font-size: 1.1rem;
+  font-size: var(--font-size-lg);
   color: #ff9800;
 }
 
@@ -562,13 +562,13 @@ onMounted(async () => {
 }
 
 .logo-canvas {
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  background: #ffffff;
+  border: 2px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   max-width: 100%;
   height: auto;
 }
@@ -577,7 +577,7 @@ onMounted(async () => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 200px;
 }
 
@@ -585,25 +585,25 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   background: rgba(255, 255, 255, 0.8);
-  border-radius: 4px;
+  border-radius: var(--radius-base);
   border-left: 3px solid #ff9800;
   min-height: 40px;
 }
 
 .logo-info-label {
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: #ef6c00;
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
   flex-shrink: 0;
-  margin-right: 12px;
+  margin-right: var(--space-3);
 }
 
 .logo-info-value {
-  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Menlo', 'Consolas', monospace;
+  font-family: var(--font-family-mono);
   color: #212529;
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
   text-align: right;
   flex: 1;
 }
@@ -611,52 +611,52 @@ onMounted(async () => {
 .logo-validity {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .logo-validity.valid {
-  color: #28a745;
+  color: var(--color-success);
 }
 
 .logo-validity.invalid {
-  color: #dc3545;
+  color: var(--color-error);
 }
 
 /* ROM信息网格 */
 .rom-info-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .rom-info-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
-  background: #f8f9fa;
-  border-radius: 4px;
-  border-left: 3px solid #007bff;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-base);
+  border-left: 3px solid var(--color-primary);
 }
 
 .rom-info-label {
-  font-weight: 500;
-  color: #495057;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
 .rom-info-value {
-  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Menlo', 'Consolas', monospace;
+  font-family: var(--font-family-mono);
   color: #212529;
   text-align: right;
   word-break: break-all;
 }
 
 .rom-type {
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.85rem;
-  font-weight: 600;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-2xl);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
 }
 
@@ -676,26 +676,26 @@ onMounted(async () => {
 }
 
 .rom-type.unknown {
-  background: linear-gradient(45deg, #6c757d, #adb5bd);
+  background: linear-gradient(45deg, var(--color-secondary), #adb5bd);
   color: white;
 }
 
 .rom-validity {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .validity-icon {
-  font-size: 1.1rem;
+  font-size: var(--font-size-lg);
 }
 
 .rom-validity.valid {
-  color: #28a745;
+  color: var(--color-success);
 }
 
 .rom-validity.invalid {
-  color: #dc3545;
+  color: var(--color-error);
 }
 
 /* 编辑功能样式 */
@@ -712,28 +712,28 @@ onMounted(async () => {
 .rom-edit-select {
   width: 100%;
   max-width: 100%;
-  padding: 4px 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  background: #fff;
-  color: #333;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-base);
+  font-size: var(--font-size-base);
+  background: var(--color-bg);
+  color: var(--color-text);
   text-align: right;
   box-sizing: border-box;
-  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Menlo', 'Consolas', monospace;
+  font-family: var(--font-family-mono);
 }
 
 .rom-edit-input:focus,
 .rom-edit-select:focus {
   outline: none;
-  border-color: #1976d2;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
 }
 
 .rom-edit-actions {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #eee;
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border-light);
 }
 
 .rom-edit-button,
@@ -741,32 +741,32 @@ onMounted(async () => {
 .rom-cancel-button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
   border: none;
-  border-radius: 6px;
-  font-size: 0.9rem;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .rom-edit-button {
-  background: #1976d2;
+  background: var(--color-primary);
   color: white;
 }
 
 .rom-edit-button:hover {
-  background: #1565c0;
+  background: var(--color-primary-hover);
 }
 
 .rom-edit-buttons {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   justify-content: flex-end;
 }
 
 .rom-save-button {
-  background: #4caf50;
+  background: var(--color-success);
   color: white;
 }
 
@@ -775,7 +775,7 @@ onMounted(async () => {
 }
 
 .rom-cancel-button {
-  background: #f44336;
+  background: var(--color-error);
   color: white;
 }
 
@@ -786,8 +786,8 @@ onMounted(async () => {
 .rom-edit-button:disabled,
 .rom-save-button:disabled,
 .rom-cancel-button:disabled {
-  background: #e0e0e0;
-  color: #9e9e9e;
+  background: var(--color-border-light);
+  color: var(--color-text-secondary);
   cursor: not-allowed;
 }
 </style>

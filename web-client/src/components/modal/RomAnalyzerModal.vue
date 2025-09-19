@@ -51,12 +51,12 @@
                   {{ formatBytes(selectedFile.size) }}
                 </div>
               </div>
-              <button
-                class="remove-file-btn"
+              <BaseButton
+                variant="error"
+                size="sm"
+                :icon="closeOutline"
                 @click.stop="clearFile"
-              >
-                <IonIcon :icon="closeOutline" />
-              </button>
+              />
             </div>
           </template>
         </div>
@@ -96,14 +96,13 @@
             </div>
           </div>
           <div class="game-actions">
-            <button
-              class="extract-button"
+            <BaseButton
+              variant="success"
+              :icon="downloadOutline"
+              :text="$t('ui.romAnalyzer.extract')"
               :disabled="isExtracting"
               @click="extractGame(game)"
-            >
-              <IonIcon :icon="downloadOutline" />
-              {{ $t('ui.romAnalyzer.extract') }}
-            </button>
+            />
           </div>
         </div>
       </div>
@@ -138,19 +137,17 @@
     </div>
 
     <template #footer>
-      <button
-        class="cancel-button"
+      <BaseButton
+        variant="secondary"
+        :text="$t('ui.common.cancel')"
         @click="closeModal"
-      >
-        {{ $t('ui.common.cancel') }}
-      </button>
-      <button
+      />
+      <BaseButton
         v-if="selectedFile && !isAnalyzing"
-        class="analyze-button"
+        variant="primary"
+        :text="$t('ui.romAnalyzer.analyze')"
         @click="analyzeRom"
-      >
-        {{ $t('ui.romAnalyzer.analyze') }}
-      </button>
+      />
     </template>
   </BaseModal>
 </template>
@@ -167,6 +164,7 @@ import {
 import { computed, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import BaseButton from '@/components/common/BaseButton.vue';
 import BaseModal from '@/components/common/BaseModal.vue';
 import { useToast } from '@/composables/useToast';
 import { MBC5_ROM_BASE_ADDRESS } from '@/utils/address-utils';
@@ -502,7 +500,7 @@ async function extractGame(game: GameDetectionResult) {
 
 <style scoped>
 .upload-section {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
 .file-input {
@@ -510,9 +508,9 @@ async function extractGame(game: GameDetectionResult) {
 }
 
 .upload-drop-zone {
-  border: 2px dashed #dee2e6;
-  border-radius: 8px;
-  padding: 40px 20px;
+  border: var(--border-width-thick) var(--border-style-dashed) var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-10) var(--space-5);
   text-align: center;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -521,14 +519,14 @@ async function extractGame(game: GameDetectionResult) {
 
 .upload-drop-zone:hover,
 .upload-drop-zone.dragover {
-  border-color: #007bff;
-  background: #f8f9fa;
+  border-color: var(--color-primary);
+  background: var(--color-bg-secondary);
 }
 
 .upload-drop-zone.has-file {
-  padding: 20px;
-  background: #f8f9fa;
-  border-color: #28a745;
+  padding: var(--space-5);
+  background: var(--color-bg-secondary);
+  border-color: var(--color-success);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -537,14 +535,14 @@ async function extractGame(game: GameDetectionResult) {
 .file-preview {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: var(--space-4);
   width: 100%;
   text-align: left;
 }
 
 .file-icon {
-  font-size: 2rem;
-  color: #28a745;
+  font-size: var(--font-size-3xl);
+  color: var(--color-success);
   flex-shrink: 0;
 }
 
@@ -554,32 +552,16 @@ async function extractGame(game: GameDetectionResult) {
 }
 
 .file-name {
-  font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 4px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  margin-bottom: var(--space-1);
   word-break: break-all;
 }
 
 .file-size {
-  color: #6c757d;
-  font-size: 0.9rem;
-  margin-bottom: 4px;
-}
-
-.remove-file-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #dc3545;
-  font-size: 1.2rem;
-  padding: 4px;
-  border-radius: 4px;
-  transition: background 0.2s ease;
-  flex-shrink: 0;
-}
-
-.remove-file-btn:hover {
-  background: rgba(220, 53, 69, 0.1);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-1);
 }
 
 .upload-content {
@@ -590,49 +572,49 @@ async function extractGame(game: GameDetectionResult) {
 }
 
 .upload-icon {
-  font-size: 3rem;
-  color: #6c757d;
-  margin-bottom: 10px;
+  font-size: var(--font-size-5xl);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-3);
 }
 
 .upload-drop-zone p {
   margin: 0;
-  color: #495057;
-  font-weight: 500;
+  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
 }
 
 .upload-hint {
-  margin-top: 5px !important;
-  font-size: 0.9rem;
-  color: #6c757d !important;
+  margin-top: var(--space-2) !important;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary) !important;
 }
 
 .analysis-results {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
 .analysis-results h4 {
-  margin: 0 0 15px 0;
-  color: #2c3e50;
-  font-size: 1rem;
-  font-weight: 600;
+  margin: 0 0 var(--space-4) 0;
+  color: var(--color-text);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
 }
 
 .games-list {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: var(--space-4);
   font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Menlo', 'Consolas', monospace;
 }
 
 .game-item {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 15px;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 15px;
+  gap: var(--space-4);
 }
 
 .game-info {
@@ -642,74 +624,50 @@ async function extractGame(game: GameDetectionResult) {
 .game-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
 }
 
 .game-title {
-  font-weight: 600;
-  color: #2c3e50;
-  font-size: 1.1rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  font-size: var(--font-size-lg);
 }
 
 .game-type {
-  background: #007bff;
-  color: white;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 500;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
 }
 
 .game-details {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: var(--space-2);
 }
 
 .detail-item {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .detail-label {
-  font-weight: 500;
-  color: #495057;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
   min-width: 80px;
 }
 
 .detail-value {
-  color: #2c3e50;
+  color: var(--color-text);
 }
 
 .game-actions {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-}
-
-.extract-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: #28a745;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: background 0.2s ease;
-}
-
-.extract-button:hover:not(:disabled) {
-  background: #218838;
-}
-
-.extract-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  gap: var(--space-3);
 }
 
 .analysis-progress,
@@ -717,63 +675,23 @@ async function extractGame(game: GameDetectionResult) {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  padding: var(--space-10) var(--space-5);
 }
 
 .progress-info {
   display: flex;
   align-items: center;
-  gap: 10px;
-  color: #6c757d;
+  gap: var(--space-3);
+  color: var(--color-text-secondary);
 }
 
 .loading-icon {
-  font-size: 1.5rem;
+  font-size: var(--font-size-xl);
   animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
-}
-
-.cancel-button,
-.analyze-button {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background 0.2s ease;
-}
-
-.cancel-button {
-  background: #6c757d;
-  color: white;
-}
-
-.cancel-button:hover {
-  background: #5a6268;
-}
-
-.analyze-button {
-  background: #007bff;
-  color: white;
-}
-
-.analyze-button:hover {
-  background: #0056b3;
-}
-
-@media (max-width: 768px) {
-  .game-item {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .game-actions {
-    flex-direction: row;
-    justify-content: flex-end;
-  }
 }
 </style>

@@ -10,27 +10,27 @@
           {{ $t('ui.emulator.title') }} - {{ romName }}
         </h3>
         <div class="emulator-controls">
-          <button
-            class="control-btn"
+          <BaseButton
+            variant="secondary"
+            size="sm"
+            :icon="isPaused ? play : pause"
             :title="$t('ui.emulator.pause')"
             @click="togglePause"
-          >
-            <IonIcon :icon="isPaused ? play : pause" />
-          </button>
-          <button
-            class="control-btn"
+          />
+          <BaseButton
+            variant="warning"
+            size="sm"
+            :icon="refresh"
             :title="$t('ui.emulator.reset')"
             @click="resetGame"
-          >
-            <IonIcon :icon="refresh" />
-          </button>
-          <button
-            class="control-btn close-btn"
+          />
+          <BaseButton
+            variant="error"
+            size="sm"
+            :icon="close"
             :title="$t('ui.emulator.close')"
             @click="closeEmulator"
-          >
-            <IonIcon :icon="close" />
-          </button>
+          />
         </div>
       </div>
 
@@ -47,12 +47,11 @@
           </div>
           <h4>{{ $t('ui.emulator.errors.error') }}</h4>
           <p>{{ errorMessage }}</p>
-          <button
-            class="retry-btn"
+          <BaseButton
+            variant="primary"
+            :text="$t('ui.emulator.retry')"
             @click="retryInitialization"
-          >
-            {{ $t('ui.emulator.retry') }}
-          </button>
+          />
         </div>
         <canvas
           v-else
@@ -88,6 +87,7 @@ import { close, pause, play, refresh, warning } from 'ionicons/icons';
 import { nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import BaseButton from '@/components/common/BaseButton.vue';
 import { useToast } from '@/composables/useToast';
 
 const { t } = useI18n();
@@ -388,9 +388,9 @@ function cleanup() {
 }
 
 .emulator-container {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  background: var(--color-bg);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
   max-width: 90vw;
   max-height: 90vh;
@@ -400,8 +400,8 @@ function cleanup() {
 
 .emulator-header {
   background: linear-gradient(135deg, #5bcffa 0%, #f5abb9 100%);
-  color: white;
-  padding: 16px 20px;
+  color: #ffffff;
+  padding: var(--space-4) var(--space-5);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -409,101 +409,55 @@ function cleanup() {
 
 .emulator-title {
   margin: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .emulator-controls {
   display: flex;
-  gap: 8px;
-}
-
-.control-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
-  border-radius: 6px;
-  padding: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  font-size: 1rem;
-  width: 36px;
-  height: 36px;
-}
-
-.control-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateY(-1px);
-}
-
-.close-btn:hover {
-  background: rgba(239, 68, 68, 0.3);
+  gap: var(--space-2);
 }
 
 .emulator-content {
-  background: #fff;
+  background: var(--color-bg);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: var(--space-5);
   min-height: 200px;
 }
 
 .error-display {
   text-align: center;
-  padding: 40px 20px;
-  color: #dc2626;
+  padding: var(--space-10) var(--space-5);
+  color: var(--color-error);
 }
 
 .error-icon {
-  font-size: 3rem;
-  margin-bottom: 16px;
+  font-size: var(--font-size-5xl);
+  margin-bottom: var(--space-4);
 }
 
 .error-display h4 {
-  margin: 0 0 12px 0;
-  font-size: 1.2rem;
-  color: #dc2626;
+  margin: 0 0 var(--space-3) 0;
+  font-size: var(--font-size-xl);
+  color: var(--color-error);
 }
 
 .error-display p {
-  margin: 0 0 20px 0;
-  color: #6b7280;
-  line-height: 1.5;
+  margin: 0 0 var(--space-5) 0;
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-normal);
   max-width: 400px;
 }
 
-.retry-btn {
-  background: #dc2626;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: background-color 0.2s ease;
-}
-
-.retry-btn:hover {
-  background: #b91c1c;
-}
-
-.retry-btn:disabled {
-  background: #9ca3af;
-  cursor: not-allowed;
-}
-
 .game-canvas {
-  border: 2px solid #333;
-  border-radius: 4px;
-  background: #000;
+  border: 2px solid var(--color-text);
+  border-radius: var(--radius-base);
+  background: #000000;
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
@@ -517,10 +471,10 @@ function cleanup() {
 }
 
 .emulator-footer {
-  background: #f9fafb;
-  color: #374151;
-  padding: 16px 20px;
-  border-top: 1px solid #e5e7eb;
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--color-border-light);
 }
 
 .controls-help {
@@ -528,48 +482,25 @@ function cleanup() {
 }
 
 .controls-help p {
-  margin: 0 0 12px 0;
-  font-size: 0.9rem;
-  color: #6b7280;
+  margin: 0 0 var(--space-3) 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
 }
 
 .key-mappings {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: var(--space-3);
   justify-content: center;
   align-items: center;
 }
 
 .key-mapping {
-  background: #f3f4f6;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  color: #374151;
-  border: 1px solid #d1d5db;
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .emulator-container {
-    margin: 10px;
-    max-width: calc(100vw - 20px);
-    max-height: calc(100vh - 20px);
-  }
-
-  .game-canvas {
-    min-width: 320px;
-    min-height: 213px;
-  }
-
-  .key-mappings {
-    gap: 8px;
-  }
-
-  .key-mapping {
-    font-size: 0.7rem;
-    padding: 3px 6px;
-  }
+  background: var(--color-bg-tertiary);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-base);
+  font-size: var(--font-size-xs);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
 }
 </style>

@@ -117,30 +117,20 @@
         </div>
 
         <div class="form-actions">
-          <button
-            class="btn btn-primary"
+          <BaseButton
+            variant="primary"
+            :icon="isSending ? hourglassOutline : sendOutline"
+            :text="isSending ? $t('ui.debug.tool.sending') : $t('ui.debug.tool.send')"
             :disabled="!canSend || isSending"
             @click="sendCommand"
-          >
-            <IonIcon
-              v-if="isSending"
-              :icon="hourglassOutline"
-              class="spinning"
-            />
-            <IonIcon
-              v-else
-              :icon="sendOutline"
-            />
-            {{ isSending ? $t('ui.debug.tool.sending') : $t('ui.debug.tool.send') }}
-          </button>
+          />
 
-          <button
-            class="btn btn-secondary"
+          <BaseButton
+            variant="secondary"
+            :icon="refreshOutline"
+            :text="$t('ui.debug.tool.clear')"
             @click="clearForm"
-          >
-            <IonIcon :icon="refreshOutline" />
-            {{ $t('ui.debug.tool.clear') }}
-          </button>
+          />
         </div>
       </div>
 
@@ -220,6 +210,7 @@ import {
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import BaseButton from '@/components/common/BaseButton.vue';
 import BaseModal from '@/components/common/BaseModal.vue';
 import { useToast } from '@/composables/useToast';
 import { Command, GBACommand, GBCCommand } from '@/protocol/beggar_socket/command';
@@ -491,41 +482,41 @@ function formatHexData(hexData: Uint8Array): string {
 .debug-tool {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  gap: var(--space-6);
   min-height: 400px;
 }
 
 .debug-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--space-5);
 }
 
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .form-group label {
-  font-weight: 600;
-  color: #2c3e50;
-  font-size: 0.9rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
 }
 
 .form-group select,
 .form-group input,
 .form-group textarea {
-  padding: 10px 12px;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
-  font-size: 0.9rem;
+  padding: var(--space-3) var(--space-3);
+  border: var(--border-width) var(--border-style) var(--color-border);
+  border-radius: var(--radius-base);
+  font-size: var(--font-size-sm);
   font-family: 'Fira Code', 'Monaco', monospace;
 }
 
@@ -533,83 +524,47 @@ function formatHexData(hexData: Uint8Array): string {
 .form-group input:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus);
 }
 
 .form-hint {
-  color: #6c757d;
-  font-size: 0.8rem;
-  margin-top: 4px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  margin-top: var(--space-1);
 }
 
 .form-actions {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   margin-top: auto;
-}
-
-.btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border: none;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 0.9rem;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background: #007bff;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #0056b3;
-}
-
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #545b62;
 }
 
 .debug-output {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--space-5);
 }
 
 .output-section {
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
+  background: var(--color-bg-secondary);
+  border: var(--border-width) var(--border-style) var(--color-border);
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
 .output-section h4 {
   margin: 0;
-  padding: 12px 16px;
-  background: #e9ecef;
-  border-bottom: 1px solid #dee2e6;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #495057;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-tertiary);
+  border-bottom: var(--border-width) var(--border-style) var(--color-border);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 
 .data-display {
-  padding: 16px;
+  padding: var(--space-4);
   min-height: 100px;
   max-height: 200px;
   overflow-y: auto;
@@ -617,18 +572,18 @@ function formatHexData(hexData: Uint8Array): string {
 
 .data-hex {
   font-family: 'Fira Code', 'Monaco', monospace;
-  font-size: 0.85rem;
-  line-height: 1.4;
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
   white-space: pre;
-  color: #2c3e50;
-  background: white;
-  padding: 12px;
-  border-radius: 4px;
-  border: 1px solid #e9ecef;
+  color: var(--color-text);
+  background: var(--color-bg);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  border: var(--border-width) var(--border-style) var(--color-border);
 }
 
 .data-placeholder {
-  color: #6c757d;
+  color: var(--color-text-secondary);
   font-style: italic;
   display: flex;
   align-items: center;
@@ -637,26 +592,26 @@ function formatHexData(hexData: Uint8Array): string {
 }
 
 .data-error {
-  color: #dc3545;
+  color: var(--color-error);
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: #f8d7da;
-  padding: 12px;
-  border-radius: 4px;
-  border: 1px solid #f5c6cb;
+  gap: var(--space-2);
+  background: var(--color-error-light);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  border: var(--border-width) var(--border-style) var(--color-error-light);
 }
 
 .analysis-display {
-  padding: 16px;
+  padding: var(--space-4);
 }
 
 .analysis-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid #e9ecef;
+  padding: var(--space-2) 0;
+  border-bottom: var(--border-width) var(--border-style) var(--color-border-light);
 }
 
 .analysis-item:last-child {
@@ -664,32 +619,13 @@ function formatHexData(hexData: Uint8Array): string {
 }
 
 .analysis-item .label {
-  font-weight: 500;
-  color: #495057;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
 }
 
 .analysis-item .value {
   font-family: 'Fira Code', 'Monaco', monospace;
-  color: #2c3e50;
-  font-weight: 600;
-}
-
-.spinning {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-@media (max-width: 768px) {
-  .debug-tool {
-    grid-template-columns: 1fr;
-  }
-
-  .form-row {
-    grid-template-columns: 1fr;
-  }
+  color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
 }
 </style>

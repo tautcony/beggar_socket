@@ -37,17 +37,19 @@ h1 {
 
 button {
   border-radius: 8px;
-  border: 1px solid transparent;
+  border: none;
+  box-shadow: var(--shadow-sm);
   padding: 0.6em 1.2em;
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
   background-color: #f9f9f9;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: border-color 0.25s, box-shadow 0.25s;
 }
 button:hover {
-  border-color: #646cff;
+  border-color: transparent;
+  box-shadow: var(--shadow-md);
 }
 button:focus,
 button:focus-visible {

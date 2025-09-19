@@ -354,7 +354,7 @@ async function handlePPBUnlockMBC5() {
 
 <style scoped>
 .tool-operations-container {
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-4);
 }
 
 .tool-content {
@@ -364,43 +364,43 @@ async function handlePPBUnlockMBC5() {
 .tool-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.5rem;
+  gap: var(--space-6);
 }
 
 .tool-category {
-  border: 1px solid #f3f4f6;
-  border-radius: 6px;
-  padding: 1rem;
-  background: #f9fafb;
+  border: var(--border-width) var(--border-style) var(--color-border-light);
+  border-radius: var(--radius-base);
+  padding: var(--space-4);
+  background: var(--color-bg-secondary);
 }
 
 .tool-category h3 {
-  margin: 0 0 0.75rem 0;
-  font-size: 1rem;
-  font-weight: 500;
-  color: #6b7280;
+  margin: 0 0 var(--space-3) 0;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
 }
 
 .button-group {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .button-group button {
-  padding: 0.5rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  background: white;
-  color: #374151;
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-width) var(--border-style) var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
   cursor: pointer;
   transition: all 0.2s ease;
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
 }
 
 .button-group button:hover:not(:disabled) {
-  background: #f9fafb;
-  border-color: #9ca3af;
+  background: var(--color-bg-secondary);
+  border-color: var(--color-border-light);
 }
 
 .button-group button:disabled {

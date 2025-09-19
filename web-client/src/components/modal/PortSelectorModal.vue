@@ -150,9 +150,9 @@ const onRefresh = () => {
 }
 
 .port-selector-modal {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  background: var(--color-bg);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
   max-width: 500px;
   width: 90%;
   max-height: 80vh;
@@ -175,97 +175,97 @@ const onRefresh = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px;
-  border-bottom: 1px solid #e5e7eb;
+  padding: var(--space-5) var(--space-6);
+  border-bottom: var(--border-width) var(--border-style) var(--color-border-light);
 }
 
 .modal-header h3 {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1f2937;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .refresh-button {
   display: flex;
   align-items: center;
-  gap: 4px;
-  background: #f3f4f6;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 0.8rem;
-  color: #374151;
+  gap: var(--space-1);
+  background: var(--color-bg-tertiary);
+  border: var(--border-width) var(--border-style) var(--color-border);
+  border-radius: var(--radius-base);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--color-text);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .refresh-button:hover {
-  background: #e5e7eb;
-  border-color: #9ca3af;
+  background: var(--color-bg-secondary);
+  border-color: var(--color-border-light);
 }
 
 .close-button {
   background: none;
   border: none;
-  font-size: 1.5rem;
-  color: #6b7280;
+  font-size: var(--font-size-xl);
+  color: var(--color-text-secondary);
   cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
   transition: all 0.2s;
 }
 
 .close-button:hover {
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text);
 }
 
 .modal-body {
-  padding: 20px 24px;
+  padding: var(--space-5) var(--space-6);
   max-height: 400px;
   overflow-y: auto;
 }
 
 .description {
-  margin: 0 0 16px 0;
-  color: #6b7280;
-  font-size: 0.875rem;
-  line-height: 1.5;
+  margin: 0 0 var(--space-4) 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
 }
 
 .port-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .port-item {
   display: flex;
   align-items: center;
-  padding: 16px;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
+  padding: var(--space-4);
+  border: var(--border-width-thick) var(--border-style) var(--color-border-light);
+  border-radius: var(--radius-lg);
   cursor: pointer;
   transition: all 0.2s;
-  background: white;
+  background: var(--color-bg);
 }
 
 .port-item:hover {
-  border-color: #3b82f6;
-  background: #f8faff;
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
 }
 
 .port-item.selected {
-  border-color: #3b82f6;
-  background: #eff6ff;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  box-shadow: var(--shadow-focus);
 }
 
 .port-icon {
@@ -274,16 +274,16 @@ const onRefresh = () => {
   justify-content: center;
   width: 40px;
   height: 40px;
-  background: #f3f4f6;
-  border-radius: 8px;
-  margin-right: 12px;
-  color: #6b7280;
-  font-size: 1.25rem;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-lg);
+  margin-right: var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xl);
 }
 
 .port-item.selected .port-icon {
-  background: #dbeafe;
-  color: #3b82f6;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
 }
 
 .port-info {
@@ -292,21 +292,21 @@ const onRefresh = () => {
 }
 
 .port-path {
-  font-weight: 600;
-  color: #1f2937;
-  font-size: 0.875rem;
-  margin-bottom: 2px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-1);
 }
 
 .port-manufacturer {
-  color: #6b7280;
-  font-size: 0.8rem;
-  margin-bottom: 1px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  margin-bottom: var(--space-1);
 }
 
 .port-serial {
-  color: #9ca3af;
-  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
   font-family: monospace;
 }
 
@@ -319,24 +319,24 @@ const onRefresh = () => {
 }
 
 .selected-icon {
-  color: #10b981;
-  font-size: 1.25rem;
+  color: var(--color-success);
+  font-size: var(--font-size-xl);
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  padding: 20px 24px;
-  border-top: 1px solid #e5e7eb;
-  background: #f9fafb;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-6);
+  border-top: var(--border-width) var(--border-style) var(--color-border-light);
+  background: var(--color-bg-secondary);
 }
 
 .button {
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-base);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: all 0.2s;
   border: none;
@@ -348,22 +348,22 @@ const onRefresh = () => {
 }
 
 .button.secondary {
-  background: white;
-  color: #374151;
-  border: 1px solid #d1d5db;
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: var(--border-width) var(--border-style) var(--color-border);
 }
 
 .button.secondary:hover:not(:disabled) {
-  background: #f9fafb;
-  border-color: #9ca3af;
+  background: var(--color-bg-secondary);
+  border-color: var(--color-border-light);
 }
 
 .button.primary {
-  background: #3b82f6;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
 }
 
 .button.primary:hover:not(:disabled) {
-  background: #2563eb;
+  background: var(--color-primary-hover);
 }
 </style>

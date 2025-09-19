@@ -329,31 +329,31 @@ function openSerialTest() {
 .menu-trigger {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
   cursor: pointer;
   transition: all 0.2s ease;
-  font-size: 0.9rem;
-  color: #495057;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
   min-width: 120px;
 }
 
 .menu-trigger:hover {
-  background: #e9ecef;
-  border-color: #adb5bd;
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-border);
 }
 
 .menu-trigger.active {
-  background: #007bff;
-  border-color: #007bff;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
   color: white;
 }
 
 .menu-text {
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .menu-overlay {
@@ -367,49 +367,50 @@ function openSerialTest() {
 
 .menu-dropdown {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + var(--space-2));
   left: 0;
-  background: white;
-  border: 1px solid #e1e8ed;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
   z-index: 1000;
   min-width: 320px;
   overflow: hidden;
 }
 
 .menu-header {
-  padding: 16px 20px 12px;
-  border-bottom: 1px solid #f1f3f4;
-  background: #f8f9fa;
+  padding: var(--space-4) var(--space-5) var(--space-3);
+  border-bottom: 1px solid var(--color-border-light);
+  background: var(--color-bg-secondary);
 }
 
 .menu-header h4 {
   margin: 0;
   color: #2c3e50;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
 }
 
 .menu-items {
-  padding: 8px 0;
+  padding: var(--space-2) 0;
 }
 
 .menu-item {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 20px;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
   background: none;
   border: none;
+  box-shadow: none;
   cursor: pointer;
   transition: background 0.2s ease;
   text-align: left;
 }
 
 .menu-item:hover:not(:disabled) {
-  background: #f8f9fa;
+  background: var(--color-bg-secondary);
 }
 
 .menu-item:disabled {
@@ -420,43 +421,43 @@ function openSerialTest() {
 .menu-item-content {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
   flex: 1;
 }
 
 .menu-item-title {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: #2c3e50;
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
 }
 
 .menu-item-desc {
-  font-size: 0.8rem;
-  color: #6c757d;
-  line-height: 1.3;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-snug);
 }
 
 .menu-item:disabled .menu-item-title {
-  color: #adb5bd;
+  color: var(--color-border);
 }
 
 .menu-item:disabled .menu-item-desc {
-  color: #adb5bd;
+  color: var(--color-border);
 }
 
 .menu-divider {
-  height: 1px;
-  background: #e9ecef;
-  margin: 8px 20px;
+    height: 1px;
+    background: #e9ecef;
+    margin: 8px 20px;
 }
 
 .alpha-badge {
   background: linear-gradient(45deg, #6a5acd, #8a2be2);
   color: white;
-  font-size: 0.65rem;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 10px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-2xl);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   box-shadow: 0 2px 4px rgba(106, 90, 205, 0.3);
@@ -466,10 +467,10 @@ function openSerialTest() {
 .beta-badge {
   background: linear-gradient(45deg, #ff6b6b, #ff8e53);
   color: white;
-  font-size: 0.65rem;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 10px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-2xl);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   box-shadow: 0 2px 4px rgba(255, 107, 107, 0.3);

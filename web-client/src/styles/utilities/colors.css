@@ -1,0 +1,34 @@
+/* 颜色工具类 */
+
+/* 文本颜色 */
+.text-primary { color: var(--color-primary); }
+.text-secondary { color: var(--color-secondary); }
+.text-success { color: var(--color-success); }
+.text-warning { color: var(--color-warning); }
+.text-error { color: var(--color-error); }
+.text-white { color: #ffffff; }
+.text-black { color: #000000; }
+
+/* 背景颜色 */
+.bg-primary { background-color: var(--color-primary); }
+.bg-secondary { background-color: var(--color-bg-secondary); }
+.bg-tertiary { background-color: var(--color-bg-tertiary); }
+.bg-success { background-color: var(--color-success); }
+.bg-success-light { background-color: var(--color-success-light); }
+.bg-warning { background-color: var(--color-warning); }
+.bg-warning-light { background-color: var(--color-warning-light); }
+.bg-error { background-color: var(--color-error); }
+.bg-error-light { background-color: var(--color-error-light); }
+.bg-white { background-color: #ffffff; }
+.bg-transparent { background-color: transparent; }
+
+/* 边框颜色 */
+.border-primary { border-color: var(--color-primary); }
+.border-secondary { border-color: var(--color-border); }
+.border-light { border-color: var(--color-border-light); }
+.border-dark { border-color: var(--color-border-dark); }
+
+/* 悬停状态 */
+.hover\:bg-primary:hover { background-color: var(--color-primary); }
+.hover\:bg-primary-hover:hover { background-color: var(--color-primary-hover); }
+.hover\:text-primary:hover { color: var(--color-primary); }

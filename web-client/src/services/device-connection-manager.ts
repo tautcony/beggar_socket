@@ -1,4 +1,5 @@
 import { type SerialPortInfo, SerialService } from '@/services/serial-service';
+import { DebugSettings } from '@/settings/debug-settings';
 import { DeviceInfo } from '@/types/device-info';
 import { timeout } from '@/utils/async-utils';
 import { isElectron } from '@/utils/electron';
@@ -26,6 +27,12 @@ export class DeviceConnectionManager {
    * 请求串口设备连接
    */
   async requestDevice(filter?: PortFilter): Promise<DeviceInfo> {
+    // 调试模式：返回模拟设备
+    if (DebugSettings.debugMode) {
+      console.log('[DEBUG] 调试模式启用，返回模拟设备');
+      return DebugSettings.createMockDeviceInfo();
+    }
+
     // Electron 环境：使用原生串口
     if (isElectron()) {
       return this.requestElectronDevice(filter);
@@ -124,6 +131,12 @@ export class DeviceConnectionManager {
    * 初始化串口状态（设置 DTR/RTS 信号）
    */
   async initializeDevice(device: DeviceInfo): Promise<void> {
+    // 调试模式：跳过硬件初始化
+    if (DebugSettings.debugMode) {
+      console.log('[DEBUG] 调试模式，跳过设备初始化');
+      return;
+    }
+
     if (device.port) {
       // Web Serial API 环境
       await device.port.setSignals({ dataTerminalReady: false, requestToSend: false });

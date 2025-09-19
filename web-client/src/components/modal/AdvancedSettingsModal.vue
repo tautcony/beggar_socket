@@ -343,7 +343,7 @@ onMounted(() => {
 
 <style scoped>
 .setting-group {
-  margin-bottom: 24px;
+  margin-bottom: var(--space-8);
 }
 
 .setting-group:last-child {
@@ -351,18 +351,18 @@ onMounted(() => {
 }
 
 .setting-group h4 {
-  margin: 0 0 16px 0;
-  color: #333;
-  font-size: 1.1em;
-  border-bottom: 1px solid #e0e0e0;
-  padding-bottom: 8px;
+  margin: 0 0 var(--space-4) 0;
+  color: var(--color-text);
+  font-size: var(--font-size-lg);
+  border-bottom: 1px solid var(--color-border-light);
+  padding-bottom: var(--space-2);
 }
 
 .setting-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-bottom: 16px;
+  gap: var(--space-5);
+  margin-bottom: var(--space-4);
 }
 
 .setting-row:last-child {
@@ -375,9 +375,9 @@ onMounted(() => {
 
 .setting-item label {
   display: block;
-  margin-bottom: 6px;
-  color: #555;
-  font-weight: 500;
+  margin-bottom: var(--space-1-5);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
 }
 
 .input-group {
@@ -388,32 +388,32 @@ onMounted(() => {
 
 .input-group input {
   width: 100%;
-  padding: 8px 70px 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: white;
-  color: #333;
-  font-size: 14px;
+  padding: var(--space-2) 70px var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-base);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
   transition: border-color 0.2s;
 }
 
 .input-group input:focus {
   outline: none;
-  border-color: #007bff;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
 .input-group input:invalid {
-  border-color: #dc3545;
+  border-color: var(--color-error);
 }
 
 .unit {
   position: absolute;
-  right: 12px;
+  right: var(--space-3);
   top: 50%;
   transform: translateY(-50%);
-  color: #666;
-  font-size: 0.9em;
+  color: var(--color-secondary);
+  font-size: var(--font-size-xs);
   white-space: nowrap;
   pointer-events: none;
   user-select: none;
@@ -421,42 +421,42 @@ onMounted(() => {
 
 .hint {
   display: block;
-  margin-top: 4px;
-  color: #666;
-  font-size: 12px;
+  margin-top: var(--space-1);
+  color: var(--color-secondary);
+  font-size: var(--font-size-xs);
   text-align: center;
 }
 
 .validation-error {
-  margin-top: 4px;
-  color: #dc3545;
-  font-size: 0.85em;
+  margin-top: var(--space-1);
+  color: var(--color-error);
+  font-size: var(--font-size-xs);
 }
 
 .footer-right {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .btn-primary,
 .btn-secondary {
-  padding: 8px 16px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-base);
+  font-size: var(--font-size-sm);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .btn-primary {
-  background: #007bff;
+  background: var(--color-primary);
   color: white;
-  border-color: #007bff;
+  border-color: var(--color-primary);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #0056b3;
-  border-color: #0056b3;
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
 }
 
 .btn-primary:disabled {
@@ -465,30 +465,12 @@ onMounted(() => {
 }
 
 .btn-secondary {
-  background: white;
-  color: #333;
+  background: var(--color-bg);
+  color: var(--color-text);
 }
 
 .btn-secondary:hover {
-  background: #f8f9fa;
-  border-color: #bbb;
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-  .setting-row {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-
-  .footer-right {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .btn-primary,
-  .btn-secondary {
-    width: 100%;
-  }
+  background: var(--color-bg-secondary);
+  border-color: var(--color-border-dark);
 }
 </style>

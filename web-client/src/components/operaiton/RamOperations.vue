@@ -2,7 +2,9 @@
   <div class="rom-operations-container">
     <section class="section">
       <div class="section-header">
-        <h2>{{ $t('ui.ram.title') }}</h2>
+        <div class="op-title-row">
+          <span :class="['op-title', { busy }]">{{ $t('ui.ram.title') }}</span>
+        </div>
         <div class="selector-container">
           <div class="type-selector">
             <label class="type-label">{{ $t('ui.ram.typeLabel') }}</label>
@@ -85,24 +87,24 @@
           </template>
         </FileDropZone>
         <div class="button-row">
-          <button
+          <BaseButton
             :disabled="!deviceReady || !ramFileData || busy"
+            variant="primary"
+            :text="$t('ui.ram.write')"
             @click="$emit('write-ram')"
-          >
-            {{ $t('ui.ram.write') }}
-          </button>
-          <button
+          />
+          <BaseButton
             :disabled="!deviceReady || busy"
+            variant="primary"
+            :text="$t('ui.ram.read')"
             @click="$emit('read-ram')"
-          >
-            {{ $t('ui.ram.read') }}
-          </button>
-          <button
+          />
+          <BaseButton
             :disabled="!deviceReady || !ramFileData || busy"
+            variant="warning"
+            :text="$t('ui.ram.verify')"
             @click="$emit('verify-ram')"
-          >
-            {{ $t('ui.ram.verify') }}
-          </button>
+          />
         </div>
       </div>
     </section>
@@ -115,6 +117,7 @@ import { saveOutline } from 'ionicons/icons';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import BaseButton from '@/components/common/BaseButton.vue';
 import FileDropZone from '@/components/common/FileDropZone.vue';
 import { FileInfo } from '@/types/file-info.ts';
 import { MBC5_RAM_BASE_ADDRESS } from '@/utils/address-utils';
@@ -212,35 +215,47 @@ function onBaseAddressChange() {
 
 <style scoped>
 .section {
-  margin-bottom: 28px;
+  margin-bottom: var(--space-7);
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 16px;
-  gap: 12px;
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-2);
+  gap: var(--space-3);
   flex-wrap: wrap;
 }
 
-.selector-container {
-  margin-left: auto;
+.op-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-bottom: var(--space-3);
+  min-width: 0;
 }
 
-.section h2 {
-  font-size: 1.15rem;
-  margin: 0;
-  color: #2c3e50;
-  font-weight: 600;
+.op-title {
+  font-size: var(--font-size-lg);
+  color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
+  transition: color 0.2s, font-weight 0.2s;
+  white-space: nowrap;
+}
+
+.op-title.busy {
+  color: var(--color-warning);
+  font-weight: bold;
 }
 
 .selector-container {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-4);
   flex-wrap: wrap;
-  min-width: fit-content;
+  min-width: 0;
+  margin-bottom: var(--space-3);
 }
 
 .type-selector,
@@ -248,10 +263,9 @@ function onBaseAddressChange() {
 .base-address-selector {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   min-width: fit-content;
   flex-shrink: 0;
-  flex-direction: column;
 }
 
 .type-selector > *,
@@ -259,14 +273,14 @@ function onBaseAddressChange() {
 .base-address-selector > * {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .type-label,
 .size-label,
 .base-address-label {
-  font-size: 0.9rem;
-  color: #666;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
   margin: 0;
   white-space: nowrap;
 }
@@ -274,14 +288,15 @@ function onBaseAddressChange() {
 .type-dropdown,
 .size-dropdown,
 .base-address-dropdown {
-  padding: 4px 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: #fff;
-  font-size: 0.9rem;
-  color: #333;
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  border-radius: var(--radius-base);
+  box-shadow: var(--shadow-sm);
+  background: var(--color-bg);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
   cursor: pointer;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
   min-width: 80px;
   max-width: 180px;
   white-space: nowrap;
@@ -290,51 +305,26 @@ function onBaseAddressChange() {
 .type-dropdown:hover:not(:disabled),
 .size-dropdown:hover:not(:disabled),
 .base-address-dropdown:hover:not(:disabled) {
-  border-color: #1976d2;
+  box-shadow: var(--shadow-md);
 }
 
 .type-dropdown:disabled,
 .size-dropdown:disabled,
 .base-address-dropdown:disabled {
-  background: #f5f5f5;
-  color: #aaa;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
   cursor: not-allowed;
 }
 
 .button-row {
   display: flex;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
   flex-wrap: wrap;
   min-width: 0;
 }
 
-button {
-  padding: 6px 16px;
-  border-radius: 5px;
-  border: 1px solid #bbb;
-  background: #f5f7fa;
-  cursor: pointer;
-  font-size: 0.95rem;
-  transition: background 0.2s, color 0.2s;
-  outline: none;
-  white-space: nowrap;
-  min-width: fit-content;
+.button-row > * {
   flex: 1 1 auto;
-}
-
-button:focus {
-  outline: none;
-}
-
-button:disabled {
-  background: #eee;
-  color: #aaa;
-  cursor: not-allowed;
-}
-
-button:not(:disabled):hover {
-  background: #e3f2fd;
-  color: #1976d2;
 }
 </style>

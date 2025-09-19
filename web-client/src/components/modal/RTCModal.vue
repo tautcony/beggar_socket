@@ -444,129 +444,129 @@ onBeforeUnmount(() => {
 .datetime-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .current-datetime-display {
-  background-color: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 6px;
-  padding: 0.75rem;
-  margin-bottom: 0.5rem;
+  background-color: var(--color-bg-secondary);
+  border: var(--border-width) var(--border-style) var(--color-border-light);
+  border-radius: var(--radius-base);
+  padding: var(--space-3);
+  margin-bottom: var(--space-2);
 }
 
 .datetime-preview {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .datetime-preview .label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #6b7280;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
 }
 
 .datetime-value {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #374151;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 }
 
 .datetime-value.invalid {
-  color: #dc2626;
+  color: var(--color-error);
 }
 
 .form-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .form-group label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #374151;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
 }
 
 .number-input {
-  padding: 0.5rem;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  background: white;
-  color: #111827;
-  font-size: 0.875rem;
+  padding: var(--space-2);
+  border: var(--border-width) var(--border-style) var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
 }
 
 .readonly-input {
-  padding: 0.5rem;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  background: #f9fafb;
-  color: #6b7280;
-  font-size: 0.875rem;
+  padding: var(--space-2);
+  border: var(--border-width) var(--border-style) var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
   cursor: not-allowed;
 }
 
 .number-input:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus);
 }
 
 .current-time-toggle {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .button-group {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .button {
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  border: 1px solid;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-base);
+  border: var(--border-width) var(--border-style);
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
   transition: all 0.2s ease;
 }
 
 .button.primary {
-  background: #3b82f6;
-  border-color: #3b82f6;
-  color: white;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-text-inverse);
 }
 
 .button.primary:hover {
-  background: #2563eb;
-  border-color: #2563eb;
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
 }
 
 .button.primary:disabled {
-  background: #9ca3af;
-  border-color: #9ca3af;
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-bg-tertiary);
   cursor: not-allowed;
   opacity: 0.6;
 }
 
 .button.secondary {
-  background: white;
-  border-color: #d1d5db;
-  color: #374151;
+  background: var(--color-bg);
+  border-color: var(--color-border);
+  color: var(--color-text);
 }
 
 .button.secondary:hover {
-  background: #f9fafb;
-  border-color: #9ca3af;
+  background: var(--color-bg-secondary);
+  border-color: var(--color-border-light);
 }
 </style>

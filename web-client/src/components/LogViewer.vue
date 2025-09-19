@@ -157,42 +157,43 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
   flex-shrink: 0;
   height: 32px;
 }
 
 .log-header h2 {
   margin: 0;
-  font-size: 1.1rem;
-  color: #333;
+  font-size: var(--font-size-lg);
+  color: var(--color-text);
 }
 
 .log-clear {
-  background: #f44336;
+  background-color: var(--color-error);
   color: white;
   border: none;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.8rem;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-base);
+  font-size: var(--font-size-sm);
   cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
 .log-clear:hover {
-  background: #d32f2f;
+  background-color: #b71c1c;
 }
 
 .log-area-scroll {
-  background: #f4f4f4;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  padding: 8px 8px 8px 12px;
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Menlo', 'Consolas', monospace;
-  font-size: 0.97rem;
-  line-height: 1.6;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
   height: calc(820px - 44px);
   word-break: break-all;
   white-space: pre-wrap;
@@ -203,17 +204,17 @@ onUnmounted(() => {
 }
 
 .log-area-scroll::-webkit-scrollbar-track {
-  background: #e8e8e8;
-  border-radius: 3px;
+  background: var(--color-scrollbar-track);
+  border-radius: var(--radius-sm);
 }
 
 .log-area-scroll::-webkit-scrollbar-thumb {
-  background: #bbb;
-  border-radius: 3px;
+  background: var(--color-scrollbar-thumb);
+  border-radius: var(--radius-sm);
 }
 
 .log-area-scroll::-webkit-scrollbar-thumb:hover {
-  background: #999;
+  background: var(--color-scrollbar-thumb-hover);
 }
 
 .log-line {
@@ -223,53 +224,41 @@ onUnmounted(() => {
   white-space: normal;
   word-break: break-all;
   text-align: left;
-  font-size: small;
-  gap: 8px;
+  font-size: var(--font-size-sm);
+  gap: var(--space-2);
 }
 
 .log-time {
-  color: #1976d2;
-  font-weight: bold;
+  color: var(--color-primary);
+  font-weight: var(--font-weight-bold);
   min-width: 70px;
   flex-shrink: 0;
   text-align: right;
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
 }
 
 .log-message {
-  color: #333;
+  color: var(--color-text);
   flex: 1 1 0;
   white-space: pre-wrap;
   word-break: break-all;
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
 }
 
 .log-message.log-success {
-  color: #388e3c;
+  color: var(--color-success);
 }
 
 .log-message.log-warn {
-  color: #fbc02d;
+  color: var(--color-warning);
 }
 
 .log-message.log-error {
-  color: #d32f2f;
+  color: var(--color-error);
 }
 
 .scroll-anchor {
   height: 1px;
   width: 1px;
-}
-
-/* 移动端响应式 */
-@media (max-width: 768px) {
-  .log-section {
-    width: 100%;
-    height: 350px;
-  }
-
-  .log-area-scroll {
-    height: calc(350px - 44px) !important;
-  }
 }
 </style>

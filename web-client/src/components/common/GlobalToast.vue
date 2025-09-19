@@ -170,29 +170,29 @@ if (typeof window !== 'undefined') {
 <style scoped>
 .toast-container {
   position: fixed;
-  top: 24px;
-  right: 24px;
+  top: var(--space-6);
+  right: var(--space-6);
   z-index: 2000;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
   pointer-events: none;
 }
 
 .toast-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .global-toast {
   min-width: 180px;
   max-width: 320px;
-  padding: 12px 16px;
-  border-radius: 8px;
-  color: #fff;
-  font-size: 0.875rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  color: var(--color-toast-text);
+  font-size: var(--font-size-sm);
+  box-shadow: var(--shadow-lg);
   transition: all 0.3s ease;
   opacity: 0.96;
   pointer-events: auto;
@@ -208,7 +208,7 @@ if (typeof window !== 'undefined') {
 .toast-content {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .toast-icon {
@@ -222,21 +222,21 @@ if (typeof window !== 'undefined') {
 
 .toast-message {
   flex: 1;
-  line-height: 1.4;
+  line-height: var(--line-height-normal);
   word-break: break-word;
   text-align: left;
 }
 
 .global-toast.success {
-  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+  background: linear-gradient(135deg, var(--color-toast-success-start) 0%, var(--color-toast-success-end) 100%);
 }
 
 .global-toast.error {
-  background: linear-gradient(135deg, #f44336 0%, #e53935 100%);
+  background: linear-gradient(135deg, var(--color-toast-error-start) 0%, var(--color-toast-error-end) 100%);
 }
 
 .global-toast.idle {
-  background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+  background: linear-gradient(135deg, var(--color-toast-info-start) 0%, var(--color-toast-info-end) 100%);
 }
 
 /* 动画效果 */

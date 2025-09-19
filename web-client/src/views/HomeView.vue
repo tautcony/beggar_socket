@@ -147,18 +147,19 @@ function onClearMockData() {
   display: flex;
   justify-content: flex-start;
   align-items: center;
-  padding: 16px 20px 0;
+  padding: var(--space-4) var(--space-5) 0;
 }
 
 h1 {
   text-align: center;
-  font-size: 1.8rem;
+  font-size: var(--font-size-2xl);
   color: #2c3e50;
-  margin: 16px 0;
-  font-weight: 600;
+  margin: var(--space-4) 0;
+  font-weight: var(--font-weight-semibold);
 }
 
 .title-container {
+  font-size: 1.8rem;
   position: relative;
   display: inline-block;
   width: 100%;
@@ -166,14 +167,14 @@ h1 {
 
 .title-badge {
   position: absolute;
-  top: -16px;
+  top: calc(var(--space-4) * -1);
   right: calc(50% - 180px);
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 0.7rem;
-  font-weight: 500;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-2xl);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
   text-decoration: none;
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
   transform-origin: center;
@@ -198,15 +199,6 @@ h1 {
   }
   75% {
     transform: rotate(-3deg);
-  }
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .title-badge {
-    right: calc(50% - 100px);
-    font-size: 0.6rem;
-    padding: 3px 6px;
   }
 }
 </style>
