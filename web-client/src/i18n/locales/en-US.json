@@ -385,7 +385,9 @@
     },
     "log": {
       "title": "Log",
-      "clear": "Clear Log"
+      "clear": "Clear Log",
+      "autoScrollEnabled": "Auto-scroll enabled",
+      "autoScrollDisabled": "Auto-scroll disabled"
     },
     "settings": {
       "title": "Advanced Settings",

@@ -2,12 +2,23 @@
   <div class="log-section">
     <div class="log-header">
       <h2>{{ $t('ui.log.title') }}</h2>
-      <button
-        class="log-clear"
-        @click="clearLog"
-      >
-        {{ $t('ui.log.clear') }}
-      </button>
+      <div class="log-header-actions">
+        <BaseButton
+          class="auto-scroll-button"
+          :variant="autoScrollEnabled ? 'success' : 'primary'"
+          size="sm"
+          :icon="chevronDownOutline"
+          :title="autoScrollEnabled ? $t('ui.log.autoScrollEnabled') : $t('ui.log.autoScrollDisabled')"
+          @click="handleButtonClick"
+          @dblclick="handleButtonDoubleClick"
+        />
+        <BaseButton
+          class="log-clear"
+          size="sm"
+          :text="$t('ui.log.clear')"
+          @click="clearLog"
+        />
+      </div>
     </div>
     <div
       ref="logBox"
@@ -24,16 +35,15 @@
           :class="'log-' + line.level"
         >{{ line.message }}</span>
       </div>
-      <div
-        ref="scrollAnchor"
-        class="scroll-anchor"
-      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { chevronDownOutline } from 'ionicons/icons';
 import { nextTick, onUnmounted, ref, useTemplateRef, watch } from 'vue';
+
+import BaseButton from './common/BaseButton.vue';
 
 type LogLevelType = 'info' | 'success' | 'warn' | 'error';
 
@@ -53,9 +63,9 @@ const emit = defineEmits<{
 }>();
 
 const logBox = useTemplateRef<HTMLDivElement>('logBox');
-const scrollAnchor = useTemplateRef<HTMLDivElement>('scrollAnchor');
-const isUserScrolling = ref(false);
 const scrollTimeout = ref<ReturnType<typeof setTimeout>>();
+const isUserScrolling = ref(false);
+const autoScrollEnabled = ref(false); // 将由detectAutoScrollState()决定初始状态
 
 function clearLog() {
   emit('clear-logs');
@@ -98,14 +108,45 @@ function scrollToBottom() {
   // 使用requestAnimationFrame确保DOM渲染完成
   requestAnimationFrame(() => {
     if (logBox.value) {
-      logBox.value.scrollTop = logBox.value.scrollHeight;
+      // 精确计算滚动到底部的位置
+      // scrollHeight - clientHeight 可以得到最大滚动距离
+      const maxScrollTop = logBox.value.scrollHeight - logBox.value.clientHeight;
+      logBox.value.scrollTop = maxScrollTop;
     }
   });
 }
 
+// 处理按钮点击事件
+function handleButtonClick() {
+  // 单机：滚动到底部
+  scrollToBottom();
+}
+
+// 处理按钮双击事件
+function handleButtonDoubleClick() {
+  // 双击：切换持续自动下滚
+  autoScrollEnabled.value = !autoScrollEnabled.value;
+
+  // 如果启用了自动滚动，立即滚动到底部
+  if (autoScrollEnabled.value) {
+    scrollToBottom();
+  }
+}
+
+// 智能检测是否需要启用自动滚动
+function detectAutoScrollState() {
+  // 如果日志数量较少，默认启用自动滚动
+  // 如果日志数量较多，默认禁用，让用户手动控制
+  const logCountThreshold = 50;
+  autoScrollEnabled.value = props.logs.length <= logCountThreshold;
+}
+
 // 自动滚动到底部
 watch(() => props.logs, async () => {
-  if (!props.autoScroll || isUserScrolling.value) {
+  // 检测是否需要调整自动滚动状态
+  detectAutoScrollState();
+
+  if (!autoScrollEnabled.value || isUserScrolling.value) {
     return;
   }
 
@@ -126,8 +167,11 @@ watch(logBox, (newLogBox, oldLogBox) => {
     // 添加滚动事件监听
     newLogBox.addEventListener('scroll', handleScroll);
 
-    // 初始滚动到底部
-    if (props.autoScroll) {
+    // 智能检测是否需要启用自动滚动
+    detectAutoScrollState();
+
+    // 初始滚动到底部（如果启用了自动滚动）
+    if (autoScrollEnabled.value) {
       scrollToBottom();
     }
   }
@@ -168,6 +212,12 @@ onUnmounted(() => {
   color: var(--color-text);
 }
 
+.log-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .log-clear {
   background-color: var(--color-error);
   color: white;
@@ -194,7 +244,6 @@ onUnmounted(() => {
   font-family: var(--font-family-mono);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-relaxed);
-  height: calc(820px - 44px);
   word-break: break-all;
   white-space: pre-wrap;
 }
@@ -255,10 +304,5 @@ onUnmounted(() => {
 
 .log-message.log-error {
   color: var(--color-error);
-}
-
-.scroll-anchor {
-  height: 1px;
-  width: 1px;
 }
 </style>

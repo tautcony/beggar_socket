@@ -385,7 +385,9 @@
     },
     "log": {
       "title": "ログ",
-      "clear": "ログをクリア"
+      "clear": "ログをクリア",
+      "autoScrollEnabled": "自動スクロール有効",
+      "autoScrollDisabled": "自動スクロール無効"
     },
     "settings": {
       "title": "高度な設定",

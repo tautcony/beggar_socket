@@ -385,7 +385,9 @@
     },
     "log": {
       "title": "日志",
-      "clear": "清除日志"
+      "clear": "清除日志",
+      "autoScrollEnabled": "自动滚动已启用",
+      "autoScrollDisabled": "自动滚动已禁用"
     },
     "settings": {
       "title": "高级设置",
