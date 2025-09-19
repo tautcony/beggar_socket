@@ -1,0 +1,113 @@
+// 卡片组件样式
+@use '../variables/colors' as color-vars;
+@use '../variables/spacing' as spacing-vars;
+@use '../variables/radius' as radius;
+
+// 卡片基础混合器
+@mixin card-base {
+  background-color: color-vars.$color-bg;
+  border-radius: radius.$radius-card;
+  box-shadow: color-vars.$shadow-sm;
+  border: 1px solid color-vars.$color-border-light;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease-in-out;
+
+  &:hover {
+    box-shadow: color-vars.$shadow-md;
+  }
+}
+
+// 基础卡片样式
+.card {
+  @include card-base;
+}
+
+// 卡片头部
+.card-header {
+  padding: spacing-vars.$space-4;
+  border-bottom: 1px solid color-vars.$color-border-light;
+  background-color: color-vars.$color-bg-secondary;
+
+  .card-title {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: color-vars.$color-text;
+  }
+
+  .card-subtitle {
+    margin: spacing-vars.$space-1 0 0 0;
+    font-size: 0.875rem;
+    color: color-vars.$color-text-secondary;
+  }
+}
+
+// 卡片内容
+.card-body {
+  padding: spacing-vars.$space-4;
+}
+
+// 卡片底部
+.card-footer {
+  padding: spacing-vars.$space-4;
+  border-top: 1px solid color-vars.$color-border-light;
+  background-color: color-vars.$color-bg-secondary;
+}
+
+// 卡片变体
+.card-elevated {
+  box-shadow: color-vars.$shadow-lg;
+
+  &:hover {
+    box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15);
+  }
+}
+
+.card-flat {
+  box-shadow: none;
+  border: 1px solid color-vars.$color-border;
+
+  &:hover {
+    box-shadow: none;
+  }
+}
+
+.card-outlined {
+  background-color: transparent;
+  box-shadow: none;
+
+  &:hover {
+    background-color: color-vars.$color-bg;
+  }
+}
+
+// 卡片尺寸
+.card-sm {
+  .card-header,
+  .card-body,
+  .card-footer {
+    padding: spacing-vars.$space-3;
+  }
+}
+
+.card-lg {
+  .card-header,
+  .card-body,
+  .card-footer {
+    padding: spacing-vars.$space-6;
+  }
+}
+
+// 卡片布局
+.card-full-height {
+  height: 100%;
+}
+
+.card-flex {
+  display: flex;
+  flex-direction: column;
+
+  .card-body {
+    flex: 1;
+  }
+}

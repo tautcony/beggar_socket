@@ -16,6 +16,11 @@ export default defineConfig({
       buffer: 'buffer',
     },
   },
+  css: {
+    preprocessorOptions: {
+      scss: {}
+    }
+  },
   build: {
     sourcemap: true,
     minify: 'terser',

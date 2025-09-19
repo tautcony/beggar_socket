@@ -1,0 +1,94 @@
+// 颜色变量系统
+
+// 基础色
+$color-primary: #1976d2;
+$color-primary-hover: #1565c0;
+$color-secondary: #666;
+$color-text: #333;
+$color-text-secondary: #666;
+$color-text-tertiary: #999;
+
+// 状态色
+$color-success: #388e3c;
+$color-success-hover: #2e7d32;
+$color-success-light: #d4edda;
+$color-warning: #fbc02d;
+$color-warning-light: #fff3cd;
+$color-error: #d32f2f;
+$color-error-hover: #b71c1c;
+$color-error-light: #f8d7da;
+
+// 背景色
+$color-bg: #ffffff;
+$color-bg-secondary: #f4f4f4;
+$color-bg-tertiary: #e9ecef;
+$color-border: #cccccc;
+$color-border-light: #dddddd;
+$color-border-dark: #999999;
+
+// 滚动条颜色
+$color-scrollbar-track: #e8e8e8;
+$color-scrollbar-thumb: #bbbbbb;
+$color-scrollbar-thumb-hover: #999999;
+
+// 阴影
+$shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
+$shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+$shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+
+// Toast 颜色
+$color-toast-success-start: #4caf50;
+$color-toast-success-end: #45a049;
+$color-toast-error-start: #f44336;
+$color-toast-error-end: #e53935;
+$color-toast-info-start: #2196f3;
+$color-toast-info-end: #1976d2;
+$color-toast-text: #ffffff;
+
+// 导出为CSS变量
+:root {
+  // 基础色
+  --color-primary: #{$color-primary};
+  --color-primary-hover: #{$color-primary-hover};
+  --color-secondary: #{$color-secondary};
+  --color-text: #{$color-text};
+  --color-text-secondary: #{$color-text-secondary};
+  --color-text-tertiary: #{$color-text-tertiary};
+
+  // 状态色
+  --color-success: #{$color-success};
+  --color-success-hover: #{$color-success-hover};
+  --color-success-light: #{$color-success-light};
+  --color-warning: #{$color-warning};
+  --color-warning-light: #{$color-warning-light};
+  --color-error: #{$color-error};
+  --color-error-hover: #{$color-error-hover};
+  --color-error-light: #{$color-error-light};
+
+  // 背景色
+  --color-bg: #{$color-bg};
+  --color-bg-secondary: #{$color-bg-secondary};
+  --color-bg-tertiary: #{$color-bg-tertiary};
+  --color-border: #{$color-border};
+  --color-border-light: #{$color-border-light};
+  --color-border-dark: #{$color-border-dark};
+
+  // 滚动条颜色
+  --color-scrollbar-track: #{$color-scrollbar-track};
+  --color-scrollbar-thumb: #{$color-scrollbar-thumb};
+  --color-scrollbar-thumb-hover: #{$color-scrollbar-thumb-hover};
+
+  // 阴影
+  --shadow-sm: #{$shadow-sm};
+  --shadow-md: #{$shadow-md};
+  --shadow-lg: #{$shadow-lg};
+
+  // Toast 颜色
+  --color-toast-success-start: #{$color-toast-success-start};
+  --color-toast-success-end: #{$color-toast-success-end};
+  --color-toast-error-start: #{$color-toast-error-start};
+  --color-toast-error-end: #{$color-toast-error-end};
+  --color-toast-info-start: #{$color-toast-info-start};
+  --color-toast-info-end: #{$color-toast-info-end};
+  --color-toast-text: #{$color-toast-text};
+}

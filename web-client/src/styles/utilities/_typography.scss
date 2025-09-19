@@ -1,0 +1,49 @@
+// 字体工具类
+@use '../variables/typography' as typography-vars;
+
+// 字体大小工具类
+@each $key, $value in typography-vars.$font-sizes {
+  .text-#{$key} {
+    font-size: $value;
+  }
+}
+
+// 字体权重工具类
+@each $key, $value in typography-vars.$font-weights {
+  .font-#{$key} {
+    font-weight: $value;
+  }
+}
+
+// 字体族工具类
+.font-primary { font-family: typography-vars.$font-family-primary; }
+.font-mono { font-family: typography-vars.$font-family-mono; }
+
+// 行高工具类
+.leading-tight { line-height: typography-vars.$line-height-tight; }
+.leading-snug { line-height: typography-vars.$line-height-snug; }
+.leading-normal { line-height: typography-vars.$line-height-normal; }
+.leading-relaxed { line-height: typography-vars.$line-height-relaxed; }
+.leading-loose { line-height: typography-vars.$line-height-loose; }
+
+// 字间距工具类
+.tracking-tight { letter-spacing: typography-vars.$letter-spacing-tight; }
+.tracking-normal { letter-spacing: typography-vars.$letter-spacing-normal; }
+.tracking-wide { letter-spacing: typography-vars.$letter-spacing-wide; }
+
+// 文本对齐工具类
+.text-left { text-align: left; }
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.text-justify { text-align: justify; }
+
+// 文本装饰工具类
+.underline { text-decoration: underline; }
+.line-through { text-decoration: line-through; }
+.no-underline { text-decoration: none; }
+
+// 文本变换工具类
+.uppercase { text-transform: uppercase; }
+.lowercase { text-transform: lowercase; }
+.capitalize { text-transform: capitalize; }
+.normal-case { text-transform: none; }

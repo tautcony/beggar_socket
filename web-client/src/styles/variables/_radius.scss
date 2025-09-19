@@ -1,0 +1,49 @@
+// 圆角变量系统
+
+// 基础圆角
+$radius-none: 0;
+$radius-sm: 0.125rem;   // 2px
+$radius-base: 0.25rem;  // 4px
+$radius-md: 0.375rem;   // 6px
+$radius-lg: 0.5rem;     // 8px
+$radius-xl: 0.75rem;    // 12px
+$radius-2xl: 1rem;      // 16px
+$radius-3xl: 1.5rem;    // 24px
+$radius-full: 9999px;   // 完全圆形
+
+// 特殊圆角
+$radius-card: $radius-lg;
+$radius-button: $radius-base;
+$radius-input: $radius-base;
+$radius-modal: $radius-xl;
+
+// 圆角映射
+$radii: (
+  none: $radius-none,
+  sm: $radius-sm,
+  base: $radius-base,
+  md: $radius-md,
+  lg: $radius-lg,
+  xl: $radius-xl,
+  2xl: $radius-2xl,
+  3xl: $radius-3xl,
+  full: $radius-full
+);
+
+// 导出为CSS变量
+:root {
+  --radius-none: #{$radius-none};
+  --radius-sm: #{$radius-sm};
+  --radius-base: #{$radius-base};
+  --radius-md: #{$radius-md};
+  --radius-lg: #{$radius-lg};
+  --radius-xl: #{$radius-xl};
+  --radius-2xl: #{$radius-2xl};
+  --radius-3xl: #{$radius-3xl};
+  --radius-full: #{$radius-full};
+
+  --radius-card: #{$radius-card};
+  --radius-button: #{$radius-button};
+  --radius-input: #{$radius-input};
+  --radius-modal: #{$radius-modal};
+}

@@ -1,0 +1,30 @@
+// 颜色工具类
+@use '../variables/colors' as color-vars;
+
+// 文本颜色工具类
+.text-primary { color: color-vars.$color-primary; }
+.text-secondary { color: color-vars.$color-secondary; }
+.text-success { color: color-vars.$color-success; }
+.text-warning { color: color-vars.$color-warning; }
+.text-error { color: color-vars.$color-error; }
+.text-white { color: #ffffff; }
+.text-black { color: #000000; }
+
+// 背景颜色工具类
+.bg-primary { background-color: color-vars.$color-primary; }
+.bg-secondary { background-color: color-vars.$color-secondary; }
+.bg-success { background-color: color-vars.$color-success; }
+.bg-warning { background-color: color-vars.$color-warning; }
+.bg-error { background-color: color-vars.$color-error; }
+.bg-white { background-color: #ffffff; }
+.bg-black { background-color: #000000; }
+.bg-transparent { background-color: transparent; }
+
+// 边框颜色工具类
+.border-primary { border-color: color-vars.$color-primary; }
+.border-secondary { border-color: color-vars.$color-secondary; }
+.border-success { border-color: color-vars.$color-success; }
+.border-warning { border-color: color-vars.$color-warning; }
+.border-error { border-color: color-vars.$color-error; }
+.border-white { border-color: #ffffff; }
+.border-black { border-color: #000000; }

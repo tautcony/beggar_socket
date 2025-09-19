@@ -1,0 +1,22 @@
+// 样式系统主入口文件
+
+// 导入混合器
+@use 'mixins';
+
+// 导入变量
+@use 'variables/colors' as color-vars;
+@use 'variables/typography' as typography-vars;
+@use 'variables/spacing' as spacing-vars;
+@use 'variables/radius';
+
+// 导入工具类
+@use 'utilities/spacing' as spacing-utils;
+@use 'utilities/colors' as color-utils;
+@use 'utilities/layout';
+@use 'utilities/typography' as typography-utils;
+
+// 导入组件样式
+@use 'components/buttons';
+@use 'components/cards';
+@use 'components/forms';
+@use 'components/modals';

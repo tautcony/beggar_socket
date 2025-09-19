@@ -1,0 +1,40 @@
+// 间距工具类
+@use '../variables/spacing' as spacing-vars;
+
+// 生成间距工具类的混合器
+@mixin generate-spacing-utilities($property, $prefix, $values) {
+  @each $key, $value in $values {
+    .#{$prefix}-#{$key} {
+      #{$property}: $value;
+    }
+  }
+}
+
+// Padding 工具类
+@include generate-spacing-utilities(padding, 'p', spacing-vars.$spaces);
+
+// Padding X (左右) 工具类
+@include generate-spacing-utilities(padding-left, 'pl', spacing-vars.$spaces);
+@include generate-spacing-utilities(padding-right, 'pr', spacing-vars.$spaces);
+
+// Padding Y (上下) 工具类
+@include generate-spacing-utilities(padding-top, 'pt', spacing-vars.$spaces);
+@include generate-spacing-utilities(padding-bottom, 'pb', spacing-vars.$spaces);
+
+// Margin 工具类
+@include generate-spacing-utilities(margin, 'm', spacing-vars.$spaces);
+@include generate-spacing-utilities(margin-left, 'ml', spacing-vars.$spaces);
+@include generate-spacing-utilities(margin-right, 'mr', spacing-vars.$spaces);
+@include generate-spacing-utilities(margin-top, 'mt', spacing-vars.$spaces);
+@include generate-spacing-utilities(margin-bottom, 'mb', spacing-vars.$spaces);
+
+// 负间距工具类
+.m-neg-1 { margin: spacing-vars.$space-neg-1; }
+.m-neg-2 { margin: spacing-vars.$space-neg-2; }
+.m-neg-3 { margin: spacing-vars.$space-neg-3; }
+.m-neg-4 { margin: spacing-vars.$space-neg-4; }
+
+// 特殊间距工具类
+.m-auto { margin: auto; }
+.mx-auto { margin-left: auto; margin-right: auto; }
+.my-auto { margin-top: auto; margin-bottom: auto; }

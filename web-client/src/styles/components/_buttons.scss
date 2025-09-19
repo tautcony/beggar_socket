@@ -1,0 +1,144 @@
+@use "sass:color";
+
+// 按钮组件样式
+@use '../variables/colors' as color-vars;
+@use '../variables/typography' as typography-vars;
+@use '../variables/spacing' as spacing-vars;
+@use '../variables/radius' as radius;
+
+// 按钮基础混合器
+@mixin button-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: spacing-vars.$space-2 spacing-vars.$space-4;
+  font-size: typography-vars.$font-size-sm;
+  font-weight: typography-vars.$font-weight-medium;
+  font-family: typography-vars.$font-family-primary;
+  line-height: typography-vars.$line-height-normal;
+  border-radius: radius.$radius-button;
+  border: none;
+  box-shadow: color-vars.$shadow-sm;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  text-decoration: none;
+  white-space: nowrap;
+
+  &:hover {
+    box-shadow: color-vars.$shadow-md;
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+// 按钮变体混合器
+@mixin button-variant($bg-color, $text-color: #ffffff, $hover-color: null) {
+  background-color: $bg-color;
+  color: $text-color;
+
+  @if $hover-color {
+    &:hover:not(:disabled) {
+      background-color: $hover-color;
+    }
+  } @else {
+    &:hover:not(:disabled) {
+      background-color: color.adjust($bg-color, $lightness: -10%);
+    }
+  }
+}
+
+// 基础按钮样式
+.btn {
+  @include button-base;
+}
+
+// 按钮变体
+.btn-primary {
+  @include button-variant(color-vars.$color-primary, #ffffff, color-vars.$color-primary-hover);
+}
+
+.btn-secondary {
+  @include button-variant(color-vars.$color-bg-secondary, color-vars.$color-text);
+
+  &:hover:not(:disabled) {
+    background-color: color-vars.$color-border-light;
+  }
+}
+
+.btn-success {
+  @include button-variant(color-vars.$color-success, #ffffff, color-vars.$color-success-hover);
+}
+
+.btn-warning {
+  @include button-variant(color-vars.$color-warning, color-vars.$color-text);
+}
+
+.btn-error {
+  @include button-variant(color-vars.$color-error, #ffffff, color-vars.$color-error-hover);
+}
+
+// 按钮尺寸
+.btn-sm {
+  padding: spacing-vars.$space-1 spacing-vars.$space-3;
+  font-size: typography-vars.$font-size-xs;
+}
+
+.btn-lg {
+  padding: spacing-vars.$space-3 spacing-vars.$space-6;
+  font-size: typography-vars.$font-size-lg;
+}
+
+// 按钮形状
+.btn-rounded {
+  border-radius: radius.$radius-full;
+}
+
+.btn-square {
+  aspect-ratio: 1;
+  padding: spacing-vars.$space-2;
+}
+
+// 按钮状态
+.btn-outline {
+  background-color: transparent;
+  border: 1px solid;
+
+  &.btn-primary {
+    border-color: color-vars.$color-primary;
+    color: color-vars.$color-primary;
+
+    &:hover:not(:disabled) {
+      background-color: color-vars.$color-primary;
+      color: #ffffff;
+    }
+  }
+
+  &.btn-secondary {
+    border-color: color-vars.$color-border;
+    color: color-vars.$color-text;
+
+    &:hover:not(:disabled) {
+      background-color: color-vars.$color-bg-secondary;
+    }
+  }
+}
+
+.btn-ghost {
+  background-color: transparent;
+  box-shadow: none;
+
+  &.btn-primary {
+    color: color-vars.$color-primary;
+
+    &:hover:not(:disabled) {
+      background-color: rgba(color-vars.$color-primary, 0.1);
+    }
+  }
+}

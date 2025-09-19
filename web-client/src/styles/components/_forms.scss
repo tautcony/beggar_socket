@@ -1,0 +1,197 @@
+// 表单组件样式
+@use '../variables/colors' as color-vars;
+@use '../variables/typography' as typography-vars;
+@use '../variables/spacing' as spacing-vars;
+@use '../variables/radius' as radius;
+
+// 表单控件基础混合器
+@mixin form-control-base {
+  width: 100%;
+  padding: spacing-vars.$space-2 spacing-vars.$space-3;
+  font-size: typography-vars.$font-size-base;
+  font-family: typography-vars.$font-family-primary;
+  line-height: typography-vars.$line-height-normal;
+  border: 1px solid color-vars.$color-border;
+  border-radius: radius.$radius-input;
+  background-color: color-vars.$color-bg;
+  color: color-vars.$color-text;
+  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+
+  &:focus {
+    outline: none;
+    border-color: color-vars.$color-primary;
+    box-shadow: 0 0 0 3px rgba(color-vars.$color-primary, 0.1);
+  }
+
+  &:disabled {
+    background-color: color-vars.$color-bg-secondary;
+    color: color-vars.$color-text-secondary;
+    cursor: not-allowed;
+  }
+
+  &::placeholder {
+    color: color-vars.$color-text-tertiary;
+  }
+}
+
+// 输入框样式
+.input {
+  @include form-control-base;
+}
+
+// 文本域样式
+.textarea {
+  @include form-control-base;
+  resize: vertical;
+  min-height: 80px;
+}
+
+// 选择框样式
+.select {
+  @include form-control-base;
+  cursor: pointer;
+
+  &:focus {
+    box-shadow: 0 0 0 3px rgba(color-vars.$color-primary, 0.1);
+  }
+}
+
+// 复选框样式
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: spacing-vars.$space-2;
+  cursor: pointer;
+
+  input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    border: 1px solid color-vars.$color-border;
+    border-radius: radius.$radius-sm;
+    background-color: color-vars.$color-bg;
+    cursor: pointer;
+
+    &:checked {
+      background-color: color-vars.$color-primary;
+      border-color: color-vars.$color-primary;
+    }
+
+    &:focus {
+      box-shadow: 0 0 0 3px rgba(color-vars.$color-primary, 0.1);
+    }
+  }
+
+  label {
+    cursor: pointer;
+    user-select: none;
+  }
+}
+
+// 单选框样式
+.radio {
+  display: inline-flex;
+  align-items: center;
+  gap: spacing-vars.$space-2;
+  cursor: pointer;
+
+  input[type="radio"] {
+    width: 16px;
+    height: 16px;
+    border: 1px solid color-vars.$color-border;
+    border-radius: radius.$radius-full;
+    background-color: color-vars.$color-bg;
+    cursor: pointer;
+
+    &:checked {
+      background-color: color-vars.$color-primary;
+      border-color: color-vars.$color-primary;
+    }
+
+    &:focus {
+      box-shadow: 0 0 0 3px rgba(color-vars.$color-primary, 0.1);
+    }
+  }
+
+  label {
+    cursor: pointer;
+    user-select: none;
+  }
+}
+
+// 表单组样式
+.form-group {
+  margin-bottom: spacing-vars.$space-4;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  label {
+    display: block;
+    margin-bottom: spacing-vars.$space-2;
+    font-weight: typography-vars.$font-weight-medium;
+    color: color-vars.$color-text;
+  }
+}
+
+// 表单行样式
+.form-row {
+  display: flex;
+  gap: spacing-vars.$space-4;
+  align-items: end;
+
+  .form-group {
+    flex: 1;
+    margin-bottom: 0;
+  }
+}
+
+// 表单验证状态
+.form-group {
+  &.has-error {
+    .input,
+    .textarea,
+    .select {
+      border-color: color-vars.$color-error;
+
+      &:focus {
+        border-color: color-vars.$color-error;
+        box-shadow: 0 0 0 3px rgba(color-vars.$color-error, 0.1);
+      }
+    }
+
+    .error-message {
+      margin-top: spacing-vars.$space-1;
+      font-size: typography-vars.$font-size-sm;
+      color: color-vars.$color-error;
+    }
+  }
+
+  &.has-success {
+    .input,
+    .textarea,
+    .select {
+      border-color: color-vars.$color-success;
+
+      &:focus {
+        border-color: color-vars.$color-success;
+        box-shadow: 0 0 0 3px rgba(color-vars.$color-success, 0.1);
+      }
+    }
+  }
+}
+
+// 表单尺寸
+.input-sm,
+.textarea-sm,
+.select-sm {
+  padding: spacing-vars.$space-1 spacing-vars.$space-2;
+  font-size: typography-vars.$font-size-sm;
+}
+
+.input-lg,
+.textarea-lg,
+.select-lg {
+  padding: spacing-vars.$space-3 spacing-vars.$space-4;
+  font-size: typography-vars.$font-size-lg;
+}
