@@ -167,48 +167,66 @@ if (typeof window !== 'undefined') {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '@/styles/variables/colors' as color-vars;
+@use '@/styles/variables/spacing' as spacing-vars;
+@use '@/styles/variables/typography' as typography-vars;
+@use '@/styles/variables/radius' as radius-vars;
+@use '@/styles/mixins' as mixins;
+
 .toast-container {
   position: fixed;
-  top: var(--space-6);
-  right: var(--space-6);
+  top: spacing-vars.$space-6;
+  right: spacing-vars.$space-6;
   z-index: 2000;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: spacing-vars.$space-2;
   pointer-events: none;
 }
 
 .toast-group {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: spacing-vars.$space-2;
 }
 
 .global-toast {
   min-width: 180px;
   max-width: 320px;
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-lg);
-  color: var(--color-toast-text);
-  font-size: var(--font-size-sm);
-  box-shadow: var(--shadow-lg);
+  padding: spacing-vars.$space-3 spacing-vars.$space-4;
+  border-radius: radius-vars.$radius-lg;
+  color: color-vars.$color-toast-text;
+  font-size: typography-vars.$font-size-sm;
+  box-shadow: color-vars.$shadow-lg;
   transition: all 0.3s ease;
   opacity: 0.96;
   pointer-events: auto;
   cursor: default;
-}
 
-.global-toast:hover {
-  opacity: 1;
-  transform: translateX(-4px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  &:hover {
+    opacity: 1;
+    transform: translateX(-4px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  &.success {
+    background: linear-gradient(135deg, color-vars.$color-toast-success-start 0%, color-vars.$color-toast-success-end 100%);
+  }
+
+  &.error {
+    background: linear-gradient(135deg, color-vars.$color-toast-error-start 0%, color-vars.$color-toast-error-end 100%);
+  }
+
+  &.idle {
+    background: linear-gradient(135deg, color-vars.$color-toast-info-start 0%, color-vars.$color-toast-info-end 100%);
+  }
 }
 
 .toast-content {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: spacing-vars.$space-2;
 }
 
 .toast-icon {
@@ -222,21 +240,9 @@ if (typeof window !== 'undefined') {
 
 .toast-message {
   flex: 1;
-  line-height: var(--line-height-normal);
+  line-height: typography-vars.$line-height-normal;
   word-break: break-word;
   text-align: left;
-}
-
-.global-toast.success {
-  background: linear-gradient(135deg, var(--color-toast-success-start) 0%, var(--color-toast-success-end) 100%);
-}
-
-.global-toast.error {
-  background: linear-gradient(135deg, var(--color-toast-error-start) 0%, var(--color-toast-error-end) 100%);
-}
-
-.global-toast.idle {
-  background: linear-gradient(135deg, var(--color-toast-info-start) 0%, var(--color-toast-info-end) 100%);
 }
 
 /* 动画效果 */

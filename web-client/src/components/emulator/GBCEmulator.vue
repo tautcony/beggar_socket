@@ -300,7 +300,13 @@ async function handleOverlayClick(event: MouseEvent) {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '@/styles/variables/colors' as color-vars;
+@use '@/styles/variables/spacing' as spacing-vars;
+@use '@/styles/variables/typography' as typography-vars;
+@use '@/styles/variables/radius' as radius-vars;
+@use '@/styles/mixins' as mixins;
+
 .emulator-overlay {
   position: fixed;
   top: 0;
@@ -316,9 +322,9 @@ async function handleOverlayClick(event: MouseEvent) {
 }
 
 .emulator-container {
-  background: var(--color-bg);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
+  background: color-vars.$color-bg;
+  border-radius: radius-vars.$radius-xl;
+  box-shadow: color-vars.$shadow-lg;
   max-width: 90vw;
   max-height: 90vh;
   overflow: hidden;
@@ -330,40 +336,40 @@ async function handleOverlayClick(event: MouseEvent) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-4) var(--space-5);
+  padding: spacing-vars.$space-4 spacing-vars.$space-5;
   background: linear-gradient(135deg, #5bcffa 0%, #f5abb9 100%);
-  color: var(--color-text-inverse);
+  color: color-vars.$color-text-inverse;
 }
 
 .emulator-title {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: spacing-vars.$space-2;
   margin: 0;
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
+  font-size: typography-vars.$font-size-lg;
+  font-weight: typography-vars.$font-weight-semibold;
 }
 
 .emulator-icon {
-  font-size: var(--font-size-xl);
+  font-size: typography-vars.$font-size-xl;
 }
 
 .emulator-controls {
   display: flex;
-  gap: var(--space-2);
+  gap: spacing-vars.$space-2;
 }
 
 .emulator-content {
   display: flex;
   justify-content: center;
-  padding: var(--space-5);
+  padding: spacing-vars.$space-5;
   align-items: center;
 }
 
 .game-canvas {
-  border: 2px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-inverse);
+  border: 2px solid color-vars.$color-border-light;
+  border-radius: radius-vars.$radius-lg;
+  background: color-vars.$color-bg-inverse;
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
@@ -373,35 +379,35 @@ async function handleOverlayClick(event: MouseEvent) {
 }
 
 .emulator-footer {
-  background: var(--color-bg-secondary);
-  padding: var(--space-4) var(--space-5);
-  border-top: 1px solid var(--color-border-light);
+  background: color-vars.$color-bg-secondary;
+  padding: spacing-vars.$space-4 spacing-vars.$space-5;
+  border-top: 1px solid color-vars.$color-border-light;
 }
 
 .controls-help {
   text-align: center;
-}
 
-.controls-help p {
-  margin: 0 0 var(--space-3) 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  p {
+    margin: 0 0 spacing-vars.$space-3 0;
+    font-size: typography-vars.$font-size-sm;
+    color: color-vars.$color-text-secondary;
+  }
 }
 
 .key-mappings {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  gap: spacing-vars.$space-3;
   justify-content: center;
   align-items: center;
 }
 
 .key-mapping {
-  background: var(--color-bg-tertiary);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-base);
-  font-size: var(--font-size-xs);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
+  background: color-vars.$color-bg-tertiary;
+  padding: spacing-vars.$space-1 spacing-vars.$space-2;
+  border-radius: radius-vars.$radius-base;
+  font-size: typography-vars.$font-size-xs;
+  color: color-vars.$color-text;
+  border: 1px solid color-vars.$color-border;
 }
 </style>

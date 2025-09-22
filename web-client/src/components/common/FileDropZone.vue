@@ -217,19 +217,25 @@ function handleDrop(e: DragEvent) {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '@/styles/variables/colors' as color-vars;
+@use '@/styles/variables/spacing' as spacing-vars;
+@use '@/styles/variables/typography' as typography-vars;
+@use '@/styles/variables/radius' as radius-vars;
+@use '@/styles/mixins' as mixins;
+
 .file-upload-area {
-  margin-bottom: var(--space-3);
+  margin-bottom: spacing-vars.$space-3;
 }
 
 .file-drop-zone {
-  border: 2px dashed var(--color-border);
-  border-radius: var(--radius-lg);
+  border: 2px dashed color-vars.$color-border;
+  border-radius: radius-vars.$radius-lg;
   padding: 0 !important;
   text-align: center;
   cursor: pointer;
   transition: all 0.3s ease;
-  background: var(--color-bg);
+  background: color-vars.$color-bg;
   min-height: 80px;
   display: flex;
   align-items: center;
@@ -239,38 +245,38 @@ function handleDrop(e: DragEvent) {
   width: 100%;
   height: 100%;
   box-sizing: border-box;
-}
 
-.file-drop-zone > * {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-}
+  > * {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
 
-.file-drop-zone:hover:not(.disabled) {
-  border-color: var(--color-primary);
-  background: #f8faff;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.1);
-}
+  &:hover:not(.disabled) {
+    border-color: color-vars.$color-primary;
+    background: #f8faff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(25, 118, 210, 0.1);
+  }
 
-.file-drop-zone.drag-over {
-  border-color: var(--color-primary);
-  background: #e3f2fd;
-  transform: scale(1.02);
-}
+  &.drag-over {
+    border-color: color-vars.$color-primary;
+    background: #e3f2fd;
+    transform: scale(1.02);
+  }
 
-.file-drop-zone.has-file {
-  border-color: var(--color-success);
-  background: #f1f8e9;
-  border-style: solid;
-}
+  &.has-file {
+    border-color: color-vars.$color-success;
+    background: #f1f8e9;
+    border-style: solid;
+  }
 
-.file-drop-zone.disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-  border-color: var(--color-border-light);
-  background: var(--color-bg-secondary);
+  &.disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    border-color: color-vars.$color-border-light;
+    background: color-vars.$color-bg-secondary;
+  }
 }
 
 .drop-zone-content {
@@ -278,11 +284,11 @@ function handleDrop(e: DragEvent) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
+  gap: spacing-vars.$space-2;
   width: 100%;
   height: 100%;
   min-height: 80px;
-  padding: var(--space-4);
+  padding: spacing-vars.$space-4;
 }
 
 .upload-icon {
@@ -290,48 +296,48 @@ function handleDrop(e: DragEvent) {
   align-items: center;
   justify-content: center;
   font-size: 2rem;
-  margin-bottom: var(--space-1);
+  margin-bottom: spacing-vars.$space-1;
   opacity: 0.7;
 }
 
 .upload-text {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: spacing-vars.$space-1;
   align-items: center;
 }
 
 .main-text {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
+  font-size: typography-vars.$font-size-sm;
+  font-weight: typography-vars.$font-weight-semibold;
   color: #2c3e50;
   margin: 0;
 }
 
 .sub-text {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
+  font-size: typography-vars.$font-size-xs;
+  color: color-vars.$color-text-secondary;
   margin: 0;
 }
 
 .hint-text {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
+  font-size: typography-vars.$font-size-xs;
+  color: color-vars.$color-text-secondary;
   margin: 0;
 }
 
 .file-preview {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: spacing-vars.$space-3;
   width: 100%;
   max-width: 100%;
   min-width: 0;
   min-height: 80px;
-  padding: var(--space-4);
-  background: var(--color-bg);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  padding: spacing-vars.$space-4;
+  background: color-vars.$color-bg;
+  border-radius: radius-vars.$radius-md;
+  box-shadow: color-vars.$shadow-sm;
   justify-content: flex-start;
   overflow: hidden;
   box-sizing: border-box;
@@ -339,9 +345,9 @@ function handleDrop(e: DragEvent) {
 
 .file-icon {
   font-size: 2.2em;
-  color: var(--color-primary);
+  color: color-vars.$color-primary;
   margin-bottom: 0;
-  margin-right: var(--space-2);
+  margin-right: spacing-vars.$space-2;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -360,10 +366,10 @@ function handleDrop(e: DragEvent) {
 }
 
 .file-name {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
+  font-size: typography-vars.$font-size-sm;
+  font-weight: typography-vars.$font-weight-semibold;
   color: #2c3e50;
-  margin-bottom: var(--space-1);
+  margin-bottom: spacing-vars.$space-1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -372,78 +378,78 @@ function handleDrop(e: DragEvent) {
 }
 
 .file-size {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  margin-bottom: var(--space-half);
+  font-size: typography-vars.$font-size-xs;
+  color: color-vars.$color-text-secondary;
+  margin-bottom: spacing-vars.$space-half;
 }
 
 .file-title {
-  font-size: var(--font-size-xs);
-  color: var(--color-success);
-  font-weight: var(--font-weight-medium);
+  font-size: typography-vars.$font-size-xs;
+  color: color-vars.$color-success;
+  font-weight: typography-vars.$font-weight-medium;
 }
 
 .remove-file-btn {
   width: 24px;
   height: 24px;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--color-error);
-  background: var(--color-bg);
-  color: var(--color-error);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
+  border-radius: radius-vars.$radius-full;
+  border: 1px solid color-vars.$color-error;
+  background: color-vars.$color-bg;
+  color: color-vars.$color-error;
+  font-size: typography-vars.$font-size-xs;
+  font-weight: typography-vars.$font-weight-bold;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
   padding: 0;
-}
 
-.remove-file-btn:hover:not(:disabled) {
-  background: var(--color-error);
-  color: white;
-  transform: scale(1.1);
-}
+  &:hover:not(:disabled) {
+    background: color-vars.$color-error;
+    color: white;
+    transform: scale(1.1);
+  }
 
-.remove-file-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
 .download-file-btn {
   width: 24px;
   height: 24px;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--color-primary);
-  background: var(--color-bg);
-  color: var(--color-primary);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
+  border-radius: radius-vars.$radius-full;
+  border: 1px solid color-vars.$color-primary;
+  background: color-vars.$color-bg;
+  color: color-vars.$color-primary;
+  font-size: typography-vars.$font-size-xs;
+  font-weight: typography-vars.$font-weight-bold;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
   padding: 0;
-  margin-right: var(--space-2);
-}
+  margin-right: spacing-vars.$space-2;
 
-.download-file-btn:hover:not(:disabled) {
-  background: var(--color-primary);
-  color: white;
-  transform: scale(1.1);
-}
+  &:hover:not(:disabled) {
+    background: color-vars.$color-primary;
+    color: white;
+    transform: scale(1.1);
+  }
 
-.download-file-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
 /* 按钮容器，垂直布局 */
 .file-actions {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: spacing-vars.$space-2;
 }
 </style>

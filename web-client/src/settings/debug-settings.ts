@@ -197,7 +197,6 @@ export class DebugSettings {
       }),
 
       setSignals: (signals: SerialOutputSignals) => {
-        console.log('Mock SerialPort: 设置信号', signals);
         return Promise.resolve();
       },
 

@@ -1,6 +1,12 @@
 <template>
-  <div class="device-connect-container">
-    <div class="device-connect">
+  <div
+    class="device-connect-container"
+    :class="{ 'compact': props.compact }"
+  >
+    <div
+      class="device-connect"
+      :class="{ 'compact': props.compact }"
+    >
       <BaseButton
         :variant="connected ? 'secondary' : 'primary'"
         :disabled="isConnecting"
@@ -40,7 +46,7 @@
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import { checkmarkDoneOutline, flashOutline, reloadOutline } from 'ionicons/icons';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, withDefaults } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import BaseButton from '@/components/common/BaseButton.vue';
@@ -52,6 +58,12 @@ import { DeviceInfo } from '@/types/device-info';
 import { isElectron } from '@/utils/electron';
 import { PortFilters } from '@/utils/port-filter';
 // import ToggleSwitch from '@/components/common/ToggleSwitch.vue';
+
+const props = withDefaults(defineProps<{
+  compact?: boolean
+}>(), {
+  compact: false,
+});
 
 const { showToast } = useToast();
 const { t } = useI18n();
@@ -320,5 +332,17 @@ defineExpose({
   gap: var(--space-4);
   margin-bottom: var(--space-3);
   width: 100%;
+}
+
+.device-connect-container.compact {
+  width: auto;
+  position: static;
+}
+
+.device-connect.compact {
+  gap: var(--space-2);
+  margin-bottom: 0;
+  width: auto;
+  justify-content: flex-start;
 }
 </style>

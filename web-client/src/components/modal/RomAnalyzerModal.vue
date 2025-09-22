@@ -498,9 +498,15 @@ async function extractGame(game: GameDetectionResult) {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '@/styles/variables/colors' as color-vars;
+@use '@/styles/variables/spacing' as spacing-vars;
+@use '@/styles/variables/typography' as typography-vars;
+@use '@/styles/variables/radius' as radius-vars;
+@use '@/styles/mixins' as mixins;
+
 .upload-section {
-  margin-bottom: var(--space-5);
+  margin-bottom: spacing-vars.$space-5;
 }
 
 .file-input {
@@ -508,41 +514,45 @@ async function extractGame(game: GameDetectionResult) {
 }
 
 .upload-drop-zone {
-  border: var(--border-width-thick) var(--border-style-dashed) var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-10) var(--space-5);
+  border: 2px dashed color-vars.$color-border;
+  border-radius: radius-vars.$radius-lg;
+  padding: spacing-vars.$space-10 spacing-vars.$space-5;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s ease;
   min-height: 120px;
-}
 
-.upload-drop-zone:hover,
-.upload-drop-zone.dragover {
-  border-color: var(--color-primary);
-  background: var(--color-bg-secondary);
-}
+  &:hover,
+  &.dragover {
+    border-color: color-vars.$color-primary;
+    background: color-vars.$color-bg-secondary;
+  }
 
-.upload-drop-zone.has-file {
-  padding: var(--space-5);
-  background: var(--color-bg-secondary);
-  border-color: var(--color-success);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  &.has-file {
+    padding: spacing-vars.$space-5;
+    background: color-vars.$color-bg-secondary;
+    border-color: color-vars.$color-success;
+    @include mixins.flex-center;
+  }
+
+  p {
+    margin: 0;
+    color: color-vars.$color-text;
+    font-weight: typography-vars.$font-weight-medium;
+  }
 }
 
 .file-preview {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: spacing-vars.$space-4;
   width: 100%;
   text-align: left;
 }
 
 .file-icon {
-  font-size: var(--font-size-3xl);
-  color: var(--color-success);
+  font-size: typography-vars.$font-size-3xl;
+  color: color-vars.$color-success;
   flex-shrink: 0;
 }
 
@@ -552,69 +562,59 @@ async function extractGame(game: GameDetectionResult) {
 }
 
 .file-name {
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
-  margin-bottom: var(--space-1);
+  font-weight: typography-vars.$font-weight-semibold;
+  color: color-vars.$color-text;
+  margin-bottom: spacing-vars.$space-1;
   word-break: break-all;
 }
 
 .file-size {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  margin-bottom: var(--space-1);
+  color: color-vars.$color-text-secondary;
+  font-size: typography-vars.$font-size-sm;
+  margin-bottom: spacing-vars.$space-1;
 }
 
 .upload-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  @include mixins.flex-column;
+  @include mixins.flex-center;
 }
 
 .upload-icon {
-  font-size: var(--font-size-5xl);
-  color: var(--color-text-secondary);
-  margin-bottom: var(--space-3);
-}
-
-.upload-drop-zone p {
-  margin: 0;
-  color: var(--color-text);
-  font-weight: var(--font-weight-medium);
+  font-size: typography-vars.$font-size-5xl;
+  color: color-vars.$color-text-secondary;
+  margin-bottom: spacing-vars.$space-3;
 }
 
 .upload-hint {
-  margin-top: var(--space-2) !important;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary) !important;
+  margin-top: spacing-vars.$space-2 !important;
+  font-size: typography-vars.$font-size-sm;
+  color: color-vars.$color-text-secondary !important;
 }
 
 .analysis-results {
-  margin-bottom: var(--space-5);
-}
+  margin-bottom: spacing-vars.$space-5;
 
-.analysis-results h4 {
-  margin: 0 0 var(--space-4) 0;
-  color: var(--color-text);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
+  h4 {
+    margin: 0 0 spacing-vars.$space-4 0;
+    color: color-vars.$color-text;
+    font-size: typography-vars.$font-size-base;
+    font-weight: typography-vars.$font-weight-semibold;
+  }
 }
 
 .games-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+  @include mixins.flex-column;
+  gap: spacing-vars.$space-4;
   font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Menlo', 'Consolas', monospace;
 }
 
 .game-item {
-  background: var(--color-bg-secondary);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4);
-  display: flex;
-  justify-content: space-between;
+  background: color-vars.$color-bg-secondary;
+  border-radius: radius-vars.$radius-lg;
+  padding: spacing-vars.$space-4;
+  @include mixins.flex-between;
   align-items: flex-start;
-  gap: var(--space-4);
+  gap: spacing-vars.$space-4;
 }
 
 .game-info {
@@ -624,69 +624,65 @@ async function extractGame(game: GameDetectionResult) {
 .game-header {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
+  gap: spacing-vars.$space-3;
+  margin-bottom: spacing-vars.$space-3;
 }
 
 .game-title {
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
-  font-size: var(--font-size-lg);
+  font-weight: typography-vars.$font-weight-semibold;
+  color: color-vars.$color-text;
+  font-size: typography-vars.$font-size-lg;
 }
 
 .game-type {
-  background: var(--color-primary);
-  color: var(--color-text-inverse);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
+  background: color-vars.$color-primary;
+  color: white;
+  padding: spacing-vars.$space-1 spacing-vars.$space-2;
+  border-radius: radius-vars.$radius-sm;
+  font-size: typography-vars.$font-size-xs;
+  font-weight: typography-vars.$font-weight-medium;
 }
 
 .game-details {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  @include mixins.flex-column;
+  gap: spacing-vars.$space-2;
 }
 
 .detail-item {
   display: flex;
-  gap: var(--space-2);
+  gap: spacing-vars.$space-2;
 }
 
 .detail-label {
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text);
+  font-weight: typography-vars.$font-weight-medium;
+  color: color-vars.$color-text;
   min-width: 80px;
 }
 
 .detail-value {
-  color: var(--color-text);
+  color: color-vars.$color-text;
 }
 
 .game-actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  @include mixins.flex-column;
+  gap: spacing-vars.$space-3;
 }
 
 .analysis-progress,
 .extract-progress {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-10) var(--space-5);
+  @include mixins.flex-center;
+  padding: spacing-vars.$space-10 spacing-vars.$space-5;
 }
 
 .progress-info {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  color: var(--color-text-secondary);
+  gap: spacing-vars.$space-3;
+  color: color-vars.$color-text-secondary;
 }
 
 .loading-icon {
-  font-size: var(--font-size-xl);
+  font-size: typography-vars.$font-size-xl;
   animation: spin 1s linear infinite;
 }
 

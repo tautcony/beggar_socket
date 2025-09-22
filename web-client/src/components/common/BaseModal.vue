@@ -121,26 +121,29 @@ onUnmounted(() => {
 });
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '@/styles/variables/colors' as color-vars;
+@use '@/styles/variables/spacing' as spacing-vars;
+@use '@/styles/variables/typography' as typography-vars;
+@use '@/styles/variables/radius' as radius-vars;
+@use '@/styles/mixins' as mixins;
+
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  @include mixins.flex-center;
   z-index: 1000;
   backdrop-filter: blur(2px);
 }
 
 .modal-container {
-  background: var(--color-bg);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
+  background: color-vars.$color-bg;
+  border-radius: radius-vars.$radius-xl;
+  box-shadow: color-vars.$shadow-lg;
   overflow: hidden;
   animation: modalSlideIn 0.3s ease-out;
-  display: flex;
-  flex-direction: column;
+  @include mixins.flex-column;
 }
 
 @keyframes modalSlideIn {
@@ -155,57 +158,53 @@ onUnmounted(() => {
 }
 
 .modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-5) var(--space-6) var(--space-4);
-  border-bottom: 1px solid var(--color-border-light);
+  @include mixins.flex-between;
+  padding: spacing-vars.$space-5 spacing-vars.$space-6 spacing-vars.$space-4;
+  border-bottom: 1px solid color-vars.$color-border-light;
 }
 
 .modal-title {
   margin: 0;
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
+  font-size: typography-vars.$font-size-xl;
+  font-weight: typography-vars.$font-weight-semibold;
+  color: color-vars.$color-text;
 }
 
 .close-btn {
   background: none;
   border: none;
-  font-size: var(--font-size-xl);
+  font-size: typography-vars.$font-size-xl;
   cursor: pointer;
-  color: var(--color-text-secondary);
-  padding: var(--space-1);
-  border-radius: var(--radius-base);
+  color: color-vars.$color-text-secondary;
+  padding: spacing-vars.$space-1;
+  border-radius: radius-vars.$radius-base;
   transition: all 0.2s;
   width: 28px;
   height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+  @include mixins.flex-center;
 
-.close-btn:hover:not(:disabled) {
-  background: var(--color-bg-secondary);
-  color: var(--color-text);
-}
+  &:hover:not(:disabled) {
+    background: color-vars.$color-bg-secondary;
+    color: color-vars.$color-text;
+  }
 
-.close-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
 .modal-body {
-  padding: var(--space-6);
+  padding: spacing-vars.$space-6;
   flex: 1 1 auto;
   overflow-y: auto;
 }
 
 .modal-footer {
-  padding: var(--space-4) var(--space-6) var(--space-5);
-  border-top: 1px solid var(--color-border-light);
+  padding: spacing-vars.$space-4 spacing-vars.$space-6 spacing-vars.$space-5;
+  border-top: 1px solid color-vars.$color-border-light;
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-2);
+  gap: spacing-vars.$space-2;
 }
 </style>

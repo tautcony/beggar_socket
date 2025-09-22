@@ -134,7 +134,13 @@ const onRefresh = () => {
 };
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '@/styles/variables/colors' as color-vars;
+@use '@/styles/variables/spacing' as spacing-vars;
+@use '@/styles/variables/typography' as typography-vars;
+@use '@/styles/variables/radius' as radius-vars;
+@use '@/styles/mixins' as mixins;
+
 .port-selector-overlay {
   position: fixed;
   top: 0;
@@ -142,17 +148,15 @@ const onRefresh = () => {
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  @include mixins.flex-center;
   z-index: 1000;
   backdrop-filter: blur(4px);
 }
 
 .port-selector-modal {
-  background: var(--color-bg);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-xl);
+  background: color-vars.$color-bg;
+  border-radius: radius-vars.$radius-xl;
+  box-shadow: color-vars.$shadow-lg;
   max-width: 500px;
   width: 90%;
   max-height: 80vh;
@@ -172,118 +176,113 @@ const onRefresh = () => {
 }
 
 .modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-5) var(--space-6);
-  border-bottom: var(--border-width) var(--border-style) var(--color-border-light);
-}
+  @include mixins.flex-between;
+  padding: spacing-vars.$space-5 spacing-vars.$space-6;
+  border-bottom: 1px solid color-vars.$color-border-light;
 
-.modal-header h3 {
-  margin: 0;
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
+  h3 {
+    margin: 0;
+    font-size: typography-vars.$font-size-xl;
+    font-weight: typography-vars.$font-weight-semibold;
+    color: color-vars.$color-text;
+  }
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: spacing-vars.$space-2;
 }
 
 .refresh-button {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  background: var(--color-bg-tertiary);
-  border: var(--border-width) var(--border-style) var(--color-border);
-  border-radius: var(--radius-base);
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--font-size-xs);
-  color: var(--color-text);
+  gap: spacing-vars.$space-1;
+  background: color-vars.$color-bg-tertiary;
+  border: 1px solid color-vars.$color-border;
+  border-radius: radius-vars.$radius-base;
+  padding: spacing-vars.$space-2 spacing-vars.$space-3;
+  font-size: typography-vars.$font-size-xs;
+  color: color-vars.$color-text;
   cursor: pointer;
   transition: all 0.2s;
-}
 
-.refresh-button:hover {
-  background: var(--color-bg-secondary);
-  border-color: var(--color-border-light);
+  &:hover {
+    background: color-vars.$color-bg-secondary;
+    border-color: color-vars.$color-border-light;
+  }
 }
 
 .close-button {
   background: none;
   border: none;
-  font-size: var(--font-size-xl);
-  color: var(--color-text-secondary);
+  font-size: typography-vars.$font-size-xl;
+  color: color-vars.$color-text-secondary;
   cursor: pointer;
-  padding: var(--space-1);
-  border-radius: var(--radius-sm);
+  padding: spacing-vars.$space-1;
+  border-radius: radius-vars.$radius-sm;
   transition: all 0.2s;
-}
 
-.close-button:hover {
-  background: var(--color-bg-tertiary);
-  color: var(--color-text);
+  &:hover {
+    background: color-vars.$color-bg-tertiary;
+    color: color-vars.$color-text;
+  }
 }
 
 .modal-body {
-  padding: var(--space-5) var(--space-6);
+  padding: spacing-vars.$space-5 spacing-vars.$space-6;
   max-height: 400px;
   overflow-y: auto;
 }
 
 .description {
-  margin: 0 0 var(--space-4) 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-normal);
+  margin: 0 0 spacing-vars.$space-4 0;
+  color: color-vars.$color-text-secondary;
+  font-size: typography-vars.$font-size-sm;
+  line-height: typography-vars.$line-height-normal;
 }
 
 .port-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  @include mixins.flex-column;
+  gap: spacing-vars.$space-2;
 }
 
 .port-item {
   display: flex;
   align-items: center;
-  padding: var(--space-4);
-  border: var(--border-width-thick) var(--border-style) var(--color-border-light);
-  border-radius: var(--radius-lg);
+  padding: spacing-vars.$space-4;
+  border: 2px solid color-vars.$color-border-light;
+  border-radius: radius-vars.$radius-lg;
   cursor: pointer;
   transition: all 0.2s;
-  background: var(--color-bg);
-}
+  background: color-vars.$color-bg;
 
-.port-item:hover {
-  border-color: var(--color-primary);
-  background: var(--color-primary-light);
-}
+  &:hover {
+    border-color: color-vars.$color-primary;
+    background: rgba(color-vars.$color-primary, 0.1);
+  }
 
-.port-item.selected {
-  border-color: var(--color-primary);
-  background: var(--color-primary-light);
-  box-shadow: var(--shadow-focus);
+  &.selected {
+    border-color: color-vars.$color-primary;
+    background: rgba(color-vars.$color-primary, 0.1);
+    box-shadow: color-vars.$shadow-sm;
+
+    .port-icon {
+      background: rgba(color-vars.$color-primary, 0.2);
+      color: color-vars.$color-primary;
+    }
+  }
 }
 
 .port-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  @include mixins.flex-center;
   width: 40px;
   height: 40px;
-  background: var(--color-bg-tertiary);
-  border-radius: var(--radius-lg);
-  margin-right: var(--space-3);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xl);
-}
-
-.port-item.selected .port-icon {
-  background: var(--color-primary-light);
-  color: var(--color-primary);
+  background: color-vars.$color-bg-tertiary;
+  border-radius: radius-vars.$radius-lg;
+  margin-right: spacing-vars.$space-3;
+  color: color-vars.$color-text-secondary;
+  font-size: typography-vars.$font-size-xl;
 }
 
 .port-info {
@@ -292,78 +291,71 @@ const onRefresh = () => {
 }
 
 .port-path {
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
-  margin-bottom: var(--space-1);
+  font-weight: typography-vars.$font-weight-semibold;
+  color: color-vars.$color-text;
+  font-size: typography-vars.$font-size-sm;
+  margin-bottom: spacing-vars.$space-1;
 }
 
 .port-manufacturer {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
-  margin-bottom: var(--space-1);
+  color: color-vars.$color-text-secondary;
+  font-size: typography-vars.$font-size-xs;
+  margin-bottom: spacing-vars.$space-1;
 }
 
 .port-serial {
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-xs);
+  color: color-vars.$color-text-tertiary;
+  font-size: typography-vars.$font-size-xs;
   font-family: monospace;
 }
 
 .port-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  @include mixins.flex-center;
   width: 24px;
   height: 24px;
 }
 
 .selected-icon {
-  color: var(--color-success);
-  font-size: var(--font-size-xl);
+  color: color-vars.$color-success;
+  font-size: typography-vars.$font-size-xl;
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-3);
-  padding: var(--space-5) var(--space-6);
-  border-top: var(--border-width) var(--border-style) var(--color-border-light);
-  background: var(--color-bg-secondary);
+  gap: spacing-vars.$space-3;
+  padding: spacing-vars.$space-5 spacing-vars.$space-6;
+  border-top: 1px solid color-vars.$color-border-light;
+  background: color-vars.$color-bg-secondary;
 }
 
 .button {
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-base);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
+  padding: spacing-vars.$space-2 spacing-vars.$space-4;
+  border-radius: radius-vars.$radius-base;
+  font-size: typography-vars.$font-size-sm;
+  font-weight: typography-vars.$font-weight-medium;
   cursor: pointer;
   transition: all 0.2s;
   border: none;
-}
 
-.button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 
-.button.secondary {
-  background: var(--color-bg);
-  color: var(--color-text);
-  border: var(--border-width) var(--border-style) var(--color-border);
-}
+  &.secondary {
+    background: color-vars.$color-bg;
+    color: color-vars.$color-text;
+    border: 1px solid color-vars.$color-border;
 
-.button.secondary:hover:not(:disabled) {
-  background: var(--color-bg-secondary);
-  border-color: var(--color-border-light);
-}
+    &:hover:not(:disabled) {
+      background: color-vars.$color-bg-secondary;
+      border-color: color-vars.$color-border-light;
+    }
+  }
 
-.button.primary {
-  background: var(--color-primary);
-  color: var(--color-text-inverse);
-}
-
-.button.primary:hover:not(:disabled) {
-  background: var(--color-primary-hover);
+  &.primary {
+    @include mixins.button-variant(white, color-vars.$color-primary);
+  }
 }
 </style>

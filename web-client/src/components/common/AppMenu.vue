@@ -321,7 +321,13 @@ function openSerialTest() {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '@/styles/variables/colors' as color-vars;
+@use '@/styles/variables/spacing' as spacing-vars;
+@use '@/styles/variables/typography' as typography-vars;
+@use '@/styles/variables/radius' as radius-vars;
+@use '@/styles/mixins' as mixins;
+
 .app-menu-container {
   position: relative;
 }
@@ -329,31 +335,31 @@ function openSerialTest() {
 .menu-trigger {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
+  gap: spacing-vars.$space-2;
+  padding: spacing-vars.$space-3 spacing-vars.$space-4;
+  background: color-vars.$color-bg-secondary;
+  border: 1px solid color-vars.$color-border-light;
+  border-radius: radius-vars.$radius-lg;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  font-size: typography-vars.$font-size-sm;
+  color: color-vars.$color-text-secondary;
   min-width: 120px;
-}
 
-.menu-trigger:hover {
-  background: var(--color-bg-tertiary);
-  border-color: var(--color-border);
-}
+  &:hover {
+    background: color-vars.$color-bg-tertiary;
+    border-color: color-vars.$color-border;
+  }
 
-.menu-trigger.active {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: white;
+  &.active {
+    background: color-vars.$color-primary;
+    border-color: color-vars.$color-primary;
+    color: white;
+  }
 }
 
 .menu-text {
-  font-weight: var(--font-weight-medium);
+  font-weight: typography-vars.$font-weight-medium;
 }
 
 .menu-overlay {
@@ -367,97 +373,97 @@ function openSerialTest() {
 
 .menu-dropdown {
   position: absolute;
-  top: calc(100% + var(--space-2));
+  top: calc(100% + spacing-vars.$space-2);
   left: 0;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
+  background: color-vars.$color-bg;
+  border: 1px solid color-vars.$color-border-light;
+  border-radius: radius-vars.$radius-xl;
+  box-shadow: color-vars.$shadow-lg;
   z-index: 1000;
   min-width: 320px;
   overflow: hidden;
 }
 
 .menu-header {
-  padding: var(--space-4) var(--space-5) var(--space-3);
-  border-bottom: 1px solid var(--color-border-light);
-  background: var(--color-bg-secondary);
-}
+  padding: spacing-vars.$space-4 spacing-vars.$space-5 spacing-vars.$space-3;
+  border-bottom: 1px solid color-vars.$color-border-light;
+  background: color-vars.$color-bg-secondary;
 
-.menu-header h4 {
-  margin: 0;
-  color: #2c3e50;
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
+  h4 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: typography-vars.$font-size-base;
+    font-weight: typography-vars.$font-weight-semibold;
+  }
 }
 
 .menu-items {
-  padding: var(--space-2) 0;
+  padding: spacing-vars.$space-2 0;
 }
 
 .menu-item {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-5);
+  gap: spacing-vars.$space-3;
+  padding: spacing-vars.$space-3 spacing-vars.$space-5;
   background: none;
   border: none;
   box-shadow: none;
   cursor: pointer;
   transition: background 0.2s ease;
   text-align: left;
-}
 
-.menu-item:hover:not(:disabled) {
-  background: var(--color-bg-secondary);
-}
+  &:hover:not(:disabled) {
+    background: color-vars.$color-bg-secondary;
+  }
 
-.menu-item:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+
+    .menu-item-title {
+      color: color-vars.$color-border;
+    }
+
+    .menu-item-desc {
+      color: color-vars.$color-border;
+    }
+  }
 }
 
 .menu-item-content {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: spacing-vars.$space-1;
   flex: 1;
 }
 
 .menu-item-title {
-  font-weight: var(--font-weight-semibold);
+  font-weight: typography-vars.$font-weight-semibold;
   color: #2c3e50;
-  font-size: var(--font-size-sm);
+  font-size: typography-vars.$font-size-sm;
 }
 
 .menu-item-desc {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  line-height: var(--line-height-snug);
-}
-
-.menu-item:disabled .menu-item-title {
-  color: var(--color-border);
-}
-
-.menu-item:disabled .menu-item-desc {
-  color: var(--color-border);
+  font-size: typography-vars.$font-size-xs;
+  color: color-vars.$color-text-secondary;
+  line-height: typography-vars.$line-height-snug;
 }
 
 .menu-divider {
-    height: 1px;
-    background: #e9ecef;
-    margin: 8px 20px;
+  height: 1px;
+  background: #e9ecef;
+  margin: 8px 20px;
 }
 
 .alpha-badge {
   background: linear-gradient(45deg, #6a5acd, #8a2be2);
   color: white;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-2xl);
+  font-size: typography-vars.$font-size-xs;
+  font-weight: typography-vars.$font-weight-bold;
+  padding: spacing-vars.$space-1 spacing-vars.$space-2;
+  border-radius: radius-vars.$radius-2xl;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   box-shadow: 0 2px 4px rgba(106, 90, 205, 0.3);
@@ -467,10 +473,10 @@ function openSerialTest() {
 .beta-badge {
   background: linear-gradient(45deg, #ff6b6b, #ff8e53);
   color: white;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-2xl);
+  font-size: typography-vars.$font-size-xs;
+  font-weight: typography-vars.$font-weight-bold;
+  padding: spacing-vars.$space-1 spacing-vars.$space-2;
+  border-radius: radius-vars.$radius-2xl;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   box-shadow: 0 2px 4px rgba(255, 107, 107, 0.3);

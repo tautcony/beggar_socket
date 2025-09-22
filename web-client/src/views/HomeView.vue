@@ -1,28 +1,46 @@
 <template>
   <div>
     <div class="top-bar">
-      <AppMenu
-        :current-mode="currentMode"
-        :device="device"
-      />
-      <LanguageSwitcher />
+      <div class="left-section">
+        <AppMenu
+          :current-mode="currentMode"
+          :device="device"
+        />
+        <DeviceConnect
+          ref="deviceConnectRef"
+          :compact="true"
+          @device-ready="onDeviceReady"
+          @device-disconnected="onDeviceDisconnected"
+        />
+        <div class="title-section">
+          <h1 class="main-title">
+            {{ $t('ui.app.title') }}
+          </h1>
+          <a
+            href="https://oshwhub.com/linscon/beggar_socket"
+            target="_blank"
+            class="title-badge"
+            rel="noopener noreferrer"
+          >
+            for beggar_socket
+          </a>
+        </div>
+      </div>
+      <div class="right-section">
+        <LanguageSwitcher />
+      </div>
     </div>
-    <h1 class="title-container">
-      {{ $t('ui.app.title') }}
-      <a
-        href="https://oshwhub.com/linscon/beggar_socket"
-        target="_blank"
-        class="title-badge"
-        rel="noopener noreferrer"
-      >
-        for beggar_socket
-      </a>
-    </h1>
-    <DeviceConnect
-      ref="deviceConnectRef"
-      @device-ready="onDeviceReady"
-      @device-disconnected="onDeviceDisconnected"
-    />
+    <div class="morse-border-container">
+      <MorseBorder
+        :text="'CHISFLASH-BURNER'"
+        :height="4"
+        :stroke-width="3"
+        :dot-length="3"
+        :dash-length="9"
+        :spacing="3"
+        :letter-spacing="12"
+      />
+    </div>
     <CartBurner
       ref="cartBurnerRef"
       :device-ready="deviceReady"
@@ -52,6 +70,7 @@ import DebugPanel from '@/components/DebugPanel.vue';
 import DeviceConnect from '@/components/DeviceConnect.vue';
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
 import DebugLink from '@/components/link/DebugLink.vue';
+import MorseBorder from '@/components/MorseBorder.vue';
 import { useToast } from '@/composables/useToast';
 import { DebugSettings } from '@/settings/debug-settings';
 import { useRomAssemblyResultStore } from '@/stores/rom-assembly-store';
@@ -142,54 +161,33 @@ function onClearMockData() {
 }
 </script>
 
-<style scoped>
-.top-bar {
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  padding: var(--space-4) var(--space-5) 0;
+<style lang="scss" scoped>
+@use '@/styles/variables/colors' as color-vars;
+@use '@/styles/variables/spacing' as spacing-vars;
+@use '@/styles/variables/typography' as typography-vars;
+@use '@/styles/variables/radius' as radius-vars;
+@use '@/styles/mixins' as mixins;
+
+// 定义主题颜色变量
+$badge-primary: #667eea;
+$badge-secondary: #764ba2;
+$title-color: #2c3e50;
+
+// Badge渐变背景混入
+@mixin badge-gradient($primary: $badge-primary, $secondary: $badge-secondary) {
+  @include mixins.gradient(135deg, $primary 0%, $secondary 100%);
 }
 
-h1 {
-  text-align: center;
-  font-size: var(--font-size-2xl);
-  color: #2c3e50;
-  margin: var(--space-4) 0;
-  font-weight: var(--font-weight-semibold);
+// Badge阴影混入
+@mixin badge-shadow($level: 1) {
+  @if $level == 1 {
+    box-shadow: 0 2px 8px rgba($badge-primary, 0.3);
+  } @else if $level == 2 {
+    box-shadow: 0 4px 12px rgba($badge-primary, 0.5);
+  }
 }
 
-.title-container {
-  font-size: 1.8rem;
-  position: relative;
-  display: inline-block;
-  width: 100%;
-}
-
-.title-badge {
-  position: absolute;
-  top: calc(var(--space-4) * -1);
-  right: calc(50% - 180px);
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-2xl);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  text-decoration: none;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-  transform-origin: center;
-  animation: wiggle 2s ease-in-out infinite;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-}
-
-.title-badge:hover {
-  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
-  animation-play-state: paused;
-}
-
+// 动画定义
 @keyframes wiggle {
   0%, 100% {
     transform: rotate(0deg);
@@ -199,6 +197,114 @@ h1 {
   }
   75% {
     transform: rotate(-3deg);
+  }
+}
+
+.top-bar {
+  @include mixins.flex-between;
+  @include mixins.transition();
+
+  padding: spacing-vars.$space-3 0 spacing-vars.$space-3 0;
+  min-height: 60px;
+
+  @include mixins.respond-to(lg) {
+    padding: spacing-vars.$space-3 spacing-vars.$space-5;
+  }
+}
+
+.morse-border-container {
+  height: 4px;
+  width: 100%;
+  @include mixins.transition(all, 0.3s, ease);
+
+  position: relative;
+  overflow: hidden;
+}
+
+.left-section {
+  @include mixins.flex-center;
+
+  justify-content: flex-start;
+  gap: spacing-vars.$space-2;
+  flex: 1;
+  min-width: 0;
+
+  @include mixins.respond-to(lg) {
+    gap: spacing-vars.$space-3;
+  }
+}
+
+.right-section {
+  @include mixins.flex-center;
+
+  gap: spacing-vars.$space-2;
+  flex-shrink: 0;
+
+  @include mixins.respond-to(lg) {
+    gap: spacing-vars.$space-3;
+  }
+}
+
+.title-section {
+  position: relative;
+  @include mixins.flex-column;
+
+  align-items: flex-start;
+  gap: spacing-vars.$space-1;
+  margin-left: spacing-vars.$space-2;
+
+  @include mixins.respond-to(lg) {
+    @include mixins.flex-center;
+
+    justify-content: flex-start;
+    margin-left: spacing-vars.$space-4;
+    gap: 0;
+  }
+}
+
+.main-title {
+  font-size: typography-vars.$font-size-xl;
+  color: $title-color;
+  margin: 0;
+  font-weight: typography-vars.$font-weight-semibold;
+  @include mixins.text-truncate;
+
+  @include mixins.respond-to(lg) {
+    font-size: typography-vars.$font-size-3xl;
+  }
+}
+
+.title-badge {
+  position: static;
+  top: auto;
+  right: auto;
+  align-self: flex-start;
+
+  @include badge-gradient();
+  @include badge-shadow(1);
+  @include mixins.transition(all, 0.3s, ease);
+  animation: wiggle 2s ease-in-out infinite;
+
+  color: white;
+  padding: spacing-vars.$space-1 spacing-vars.$space-2;
+  border-radius: radius-vars.$radius-2xl;
+  font-size: typography-vars.$font-size-xs;
+  font-weight: typography-vars.$font-weight-medium;
+  text-decoration: none;
+  @include mixins.text-truncate;
+
+  &:hover {
+    @include badge-gradient($badge-secondary, $badge-primary);
+    @include badge-shadow(2);
+
+    transform: scale(1.05);
+    animation-play-state: paused;
+  }
+
+  @include mixins.respond-to(lg) {
+    position: absolute;
+    top: -8px;
+    right: -120px;
   }
 }
 </style>

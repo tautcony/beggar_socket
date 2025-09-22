@@ -966,7 +966,7 @@ defineExpose({
 <style scoped>
 .flashburner-container {
   max-width: 1200px;
-  margin: var(--space-8) auto;
+  margin: var(--space-4) auto;
   padding: var(--space-6) var(--space-8);
   background: var(--color-bg);
   border-radius: var(--radius-xl);
@@ -1056,7 +1056,7 @@ defineExpose({
 }
 
 /* 移动端响应式 */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .flashburner-container {
     margin: var(--space-4);
     padding: var(--space-4) var(--space-5);

@@ -1,5 +1,6 @@
 // 混合器工具库
 @use "sass:color";
+@use "sass:map";
 
 // 响应式断点混合器
 $breakpoints: (
@@ -11,12 +12,12 @@ $breakpoints: (
 );
 
 @mixin respond-to($breakpoint) {
-  @if map-has-key($breakpoints, $breakpoint) {
-    @media (min-width: map-get($breakpoints, $breakpoint)) {
+  @if map.has-key($breakpoints, $breakpoint) {
+    @media (min-width: map.get($breakpoints, $breakpoint)) {
       @content;
     }
   } @else {
-    @warn "#{$breakpoint} 不是有效的断点名称。可用断点: #{map-keys($breakpoints)}";
+    @warn "#{$breakpoint} 不是有效的断点名称。可用断点: #{map.keys($breakpoints)}";
   }
 }
 

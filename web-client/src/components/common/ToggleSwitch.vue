@@ -38,70 +38,76 @@ function handleChange(event: Event) {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '@/styles/variables/colors' as color-vars;
+@use '@/styles/variables/spacing' as spacing-vars;
+@use '@/styles/variables/typography' as typography-vars;
+@use '@/styles/variables/radius' as radius-vars;
+@use '@/styles/mixins' as mixins;
+
 .toggle-container {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: spacing-vars.$space-2;
   cursor: pointer;
   user-select: none;
-  font-size: var(--font-size-sm);
-}
+  font-size: typography-vars.$font-size-sm;
 
-.toggle-container[title] {
-  cursor: help;
+  &[title] {
+    cursor: help;
+  }
+
+  &:has(.toggle-input:disabled) {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
 }
 
 .toggle-input {
   display: none;
+
+  &:checked + .toggle-slider {
+    background-color: color-vars.$color-primary;
+
+    &::before {
+      transform: translateX(20px);
+    }
+  }
+
+  &:disabled + .toggle-slider {
+    background-color: color-vars.$color-border-light;
+    cursor: not-allowed;
+
+    &::before {
+      background-color: color-vars.$color-bg-secondary;
+    }
+  }
 }
 
 .toggle-slider {
   position: relative;
   width: 44px;
   height: 24px;
-  background-color: var(--color-border);
-  border-radius: var(--radius-2xl);
+  background-color: color-vars.$color-border;
+  border-radius: radius-vars.$radius-2xl;
   transition: background-color 0.3s ease;
-}
 
-.toggle-slider::before {
-  content: '';
-  position: absolute;
-  top: var(--space-1);
-  left: var(--space-1);
-  width: 20px;
-  height: 20px;
-  background-color: white;
-  border-radius: var(--radius-full);
-  transition: transform 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.toggle-input:checked + .toggle-slider {
-  background-color: var(--color-primary);
-}
-
-.toggle-input:checked + .toggle-slider::before {
-  transform: translateX(20px);
-}
-
-.toggle-input:disabled + .toggle-slider {
-  background-color: var(--color-border-light);
-  cursor: not-allowed;
-}
-
-.toggle-input:disabled + .toggle-slider::before {
-  background-color: var(--color-bg-secondary);
-}
-
-.toggle-container:has(.toggle-input:disabled) {
-  cursor: not-allowed;
-  opacity: 0.6;
+  &::before {
+    content: '';
+    position: absolute;
+    top: spacing-vars.$space-1;
+    left: spacing-vars.$space-1;
+    width: 20px;
+    height: 20px;
+    background-color: white;
+    border-radius: radius-vars.$radius-full;
+    transition: transform 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
 }
 
 .toggle-label {
-  color: var(--color-text);
-  font-weight: var(--font-weight-medium);
+  color: color-vars.$color-text;
+  font-weight: typography-vars.$font-weight-medium;
 }
 </style>

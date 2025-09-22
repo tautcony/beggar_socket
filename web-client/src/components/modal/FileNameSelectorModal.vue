@@ -119,23 +119,27 @@ watch(modelValue, (newValue) => {
 });
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '@/styles/variables/colors' as color-vars;
+@use '@/styles/variables/spacing' as spacing-vars;
+@use '@/styles/variables/typography' as typography-vars;
+@use '@/styles/variables/radius' as radius-vars;
+@use '@/styles/mixins' as mixins;
+
 .file-name-selector {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
+  @include mixins.flex-column;
+  gap: spacing-vars.$space-5;
 }
 
 .input-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  @include mixins.flex-column;
+  gap: spacing-vars.$space-2;
 }
 
 .input-label {
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-primary);
-  font-size: var(--font-size-sm);
+  font-weight: typography-vars.$font-weight-semibold;
+  color: color-vars.$color-primary;
+  font-size: typography-vars.$font-size-sm;
 }
 
 .input-wrapper {
@@ -146,72 +150,89 @@ watch(modelValue, (newValue) => {
 
 .file-name-input {
   width: 100%;
-  padding: var(--space-3) var(--space-4);
+  padding: spacing-vars.$space-3 spacing-vars.$space-4;
   padding-right: 40px; /* 为清除按钮留出空间 */
-  border: var(--border-width) var(--border-style) var(--color-border);
-  border-radius: var(--radius-base);
-  background: var(--color-bg);
-  color: var(--color-text);
+  border: 1px solid color-vars.$color-border;
+  border-radius: radius-vars.$radius-base;
+  background: color-vars.$color-bg;
+  color: color-vars.$color-text;
   font-family: monospace;
-  font-size: var(--font-size-sm);
+  font-size: typography-vars.$font-size-sm;
   transition: border-color 0.2s, box-shadow 0.2s;
-}
 
-.file-name-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-focus);
+  &:focus {
+    outline: none;
+    border-color: color-vars.$color-primary;
+    box-shadow: color-vars.$shadow-sm;
+  }
 }
 
 .recent-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  @include mixins.flex-column;
+  gap: spacing-vars.$space-3;
 }
 
 .section-label {
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-primary);
-  font-size: var(--font-size-sm);
+  font-weight: typography-vars.$font-weight-semibold;
+  color: color-vars.$color-primary;
+  font-size: typography-vars.$font-size-sm;
 }
 
 .recent-list {
-  display: flex;
-  flex-direction: column;
-  border: var(--border-width) var(--border-style) var(--color-border);
-  border-radius: var(--radius-lg);
+  @include mixins.flex-column;
+  border: 1px solid color-vars.$color-border;
+  border-radius: radius-vars.$radius-lg;
   overflow: hidden;
   max-height: 240px;
   overflow-y: auto;
-  background: var(--color-bg);
+  background: color-vars.$color-bg;
+
+  /* 美化滚动条 */
+  &::-webkit-scrollbar {
+    width: spacing-vars.$space-2;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: color-vars.$color-bg-secondary;
+    border-radius: radius-vars.$radius-sm;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: color-vars.$color-secondary;
+    border-radius: radius-vars.$radius-sm;
+
+    &:hover {
+      background: color-vars.$color-text-secondary;
+    }
+  }
 }
 
 .recent-item {
   display: flex;
   align-items: center;
-  padding: var(--space-4) var(--space-4);
+  padding: spacing-vars.$space-4;
   border: none;
-  border-bottom: var(--border-width) var(--border-style) var(--color-border-light);
+  border-bottom: 1px solid color-vars.$color-border-light;
   background: transparent;
-  color: var(--color-text);
+  color: color-vars.$color-text;
   text-align: left;
   cursor: pointer;
   transition: all 0.2s;
-  gap: var(--space-3);
-}
+  gap: spacing-vars.$space-3;
 
-.recent-item:last-child {
-  border-bottom: none;
-}
+  &:last-child {
+    border-bottom: none;
+  }
 
-.recent-item:hover {
-  background-color: var(--color-primary-light);
+  &:hover {
+    background-color: rgba(color-vars.$color-primary, 0.1);
+  }
 }
 
 .rom-name {
   font-family: monospace;
-  font-weight: var(--font-weight-medium);
-  color: var(--color-primary);
+  font-weight: typography-vars.$font-weight-medium;
+  color: color-vars.$color-primary;
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -220,17 +241,17 @@ watch(modelValue, (newValue) => {
 }
 
 .arrow {
-  color: var(--color-text-secondary);
+  color: color-vars.$color-text-secondary;
   font-weight: bold;
   flex-shrink: 0;
-  margin: 0 var(--space-1);
-  font-size: var(--font-size-base);
+  margin: 0 spacing-vars.$space-1;
+  font-size: typography-vars.$font-size-base;
 }
 
 .sav-name {
   font-family: monospace;
-  color: var(--color-success);
-  font-weight: var(--font-weight-medium);
+  color: color-vars.$color-success;
+  font-weight: typography-vars.$font-weight-medium;
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -241,26 +262,7 @@ watch(modelValue, (newValue) => {
 .action-section {
   display: flex;
   justify-content: flex-end;
-  padding-top: var(--space-2);
-  border-top: var(--border-width) var(--border-style) var(--color-border-light);
-}
-
-/* 美化滚动条 */
-.recent-list::-webkit-scrollbar {
-  width: var(--space-2);
-}
-
-.recent-list::-webkit-scrollbar-track {
-  background: var(--color-bg-secondary);
-  border-radius: var(--radius-xs);
-}
-
-.recent-list::-webkit-scrollbar-thumb {
-  background: var(--color-secondary);
-  border-radius: var(--radius-xs);
-}
-
-.recent-list::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-secondary);
+  padding-top: spacing-vars.$space-2;
+  border-top: 1px solid color-vars.$color-border-light;
 }
 </style>

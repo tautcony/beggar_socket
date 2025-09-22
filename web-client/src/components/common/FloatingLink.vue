@@ -68,30 +68,40 @@ const buttonStyle = computed<Record<string, string | number>>(() => ({
 }));
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '@/styles/variables/colors' as color-vars;
+@use '@/styles/variables/spacing' as spacing-vars;
+@use '@/styles/variables/typography' as typography-vars;
+@use '@/styles/variables/radius' as radius-vars;
+@use '@/styles/mixins' as mixins;
+
 .floating-button {
   display: flex;
   align-items: center;
-  background: var(--color-primary);
+  background: color-vars.$color-primary;
   color: #ffffff;
-  padding: var(--space-2) var(--space-3);
+  padding: spacing-vars.$space-2 spacing-vars.$space-3;
   border-radius: 25px;
   border: none;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  box-shadow: var(--shadow-md);
+  font-size: typography-vars.$font-size-sm;
+  font-weight: typography-vars.$font-weight-medium;
+  box-shadow: color-vars.$shadow-md;
   transition: all 0.3s ease;
   transform: translateX(calc(100% - 40px));
   overflow: hidden;
   white-space: nowrap;
   cursor: pointer;
   text-decoration: none;
-}
 
-.floating-button:hover {
-  background: var(--color-primary-hover);
-  transform: translateX(0);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  &:hover {
+    background: color-vars.$color-primary-hover;
+    transform: translateX(0);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+
+    .floating-text {
+      opacity: 1;
+    }
+  }
 }
 
 .floating-icon {
@@ -101,16 +111,12 @@ const buttonStyle = computed<Record<string, string | number>>(() => ({
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--font-size-base);
+  font-size: typography-vars.$font-size-base;
 }
 
 .floating-text {
-  margin-left: var(--space-2);
+  margin-left: spacing-vars.$space-2;
   opacity: 0;
   transition: opacity 0.3s ease 0.1s;
-}
-
-.floating-button:hover .floating-text {
-  opacity: 1;
 }
 </style>

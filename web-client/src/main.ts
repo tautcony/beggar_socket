@@ -1,4 +1,3 @@
-import '@/style.css';
 import '@/styles/index.scss';
 
 import { createPinia } from 'pinia';

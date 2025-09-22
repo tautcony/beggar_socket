@@ -478,93 +478,94 @@ function formatHexData(hexData: Uint8Array): string {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '@/styles/variables/colors' as color-vars;
+@use '@/styles/variables/spacing' as spacing-vars;
+@use '@/styles/variables/typography' as typography-vars;
+@use '@/styles/variables/radius' as radius-vars;
+@use '@/styles/mixins' as mixins;
+
 .debug-tool {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-6);
+  gap: spacing-vars.$space-6;
   min-height: 400px;
 }
 
 .debug-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
+  @include mixins.flex-column;
+  gap: spacing-vars.$space-5;
 }
 
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-4);
+  gap: spacing-vars.$space-4;
 }
 
 .form-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
+  @include mixins.flex-column;
+  gap: spacing-vars.$space-2;
 
-.form-group label {
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
-}
+  label {
+    font-weight: typography-vars.$font-weight-semibold;
+    color: color-vars.$color-text;
+    font-size: typography-vars.$font-size-sm;
+  }
 
-.form-group select,
-.form-group input,
-.form-group textarea {
-  padding: var(--space-3) var(--space-3);
-  border: var(--border-width) var(--border-style) var(--color-border);
-  border-radius: var(--radius-base);
-  font-size: var(--font-size-sm);
-  font-family: 'Fira Code', 'Monaco', monospace;
-}
+  select,
+  input,
+  textarea {
+    padding: spacing-vars.$space-3;
+    border: 1px solid color-vars.$color-border;
+    border-radius: radius-vars.$radius-base;
+    font-size: typography-vars.$font-size-sm;
+    font-family: 'Fira Code', 'Monaco', monospace;
 
-.form-group select:focus,
-.form-group input:focus,
-.form-group textarea:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-focus);
+    &:focus {
+      outline: none;
+      border-color: color-vars.$color-primary;
+      box-shadow: color-vars.$shadow-sm;
+    }
+  }
 }
 
 .form-hint {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
-  margin-top: var(--space-1);
+  color: color-vars.$color-text-secondary;
+  font-size: typography-vars.$font-size-xs;
+  margin-top: spacing-vars.$space-1;
 }
 
 .form-actions {
   display: flex;
-  gap: var(--space-3);
+  gap: spacing-vars.$space-3;
   margin-top: auto;
 }
 
 .debug-output {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
+  @include mixins.flex-column;
+  gap: spacing-vars.$space-5;
 }
 
 .output-section {
-  background: var(--color-bg-secondary);
-  border: var(--border-width) var(--border-style) var(--color-border);
-  border-radius: var(--radius-lg);
+  background: color-vars.$color-bg-secondary;
+  border: 1px solid color-vars.$color-border;
+  border-radius: radius-vars.$radius-lg;
   overflow: hidden;
-}
 
-.output-section h4 {
-  margin: 0;
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-bg-tertiary);
-  border-bottom: var(--border-width) var(--border-style) var(--color-border);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
+  h4 {
+    margin: 0;
+    padding: spacing-vars.$space-3 spacing-vars.$space-4;
+    background: color-vars.$color-bg-tertiary;
+    border-bottom: 1px solid color-vars.$color-border;
+    font-size: typography-vars.$font-size-sm;
+    font-weight: typography-vars.$font-weight-semibold;
+    color: color-vars.$color-text;
+  }
 }
 
 .data-display {
-  padding: var(--space-4);
+  padding: spacing-vars.$space-4;
   min-height: 100px;
   max-height: 200px;
   overflow-y: auto;
@@ -572,60 +573,56 @@ function formatHexData(hexData: Uint8Array): string {
 
 .data-hex {
   font-family: 'Fira Code', 'Monaco', monospace;
-  font-size: var(--font-size-xs);
-  line-height: var(--line-height-normal);
+  font-size: typography-vars.$font-size-xs;
+  line-height: typography-vars.$line-height-normal;
   white-space: pre;
-  color: var(--color-text);
-  background: var(--color-bg);
-  padding: var(--space-3);
-  border-radius: var(--radius-sm);
-  border: var(--border-width) var(--border-style) var(--color-border);
+  color: color-vars.$color-text;
+  background: color-vars.$color-bg;
+  padding: spacing-vars.$space-3;
+  border-radius: radius-vars.$radius-sm;
+  border: 1px solid color-vars.$color-border;
 }
 
 .data-placeholder {
-  color: var(--color-text-secondary);
+  @include mixins.flex-center;
+  color: color-vars.$color-text-secondary;
   font-style: italic;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   height: 68px;
 }
 
 .data-error {
-  color: var(--color-error);
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  background: var(--color-error-light);
-  padding: var(--space-3);
-  border-radius: var(--radius-sm);
-  border: var(--border-width) var(--border-style) var(--color-error-light);
+  gap: spacing-vars.$space-2;
+  color: color-vars.$color-error;
+  background: color-vars.$color-error-light;
+  padding: spacing-vars.$space-3;
+  border-radius: radius-vars.$radius-sm;
+  border: 1px solid color-vars.$color-error-light;
 }
 
 .analysis-display {
-  padding: var(--space-4);
+  padding: spacing-vars.$space-4;
 }
 
 .analysis-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-2) 0;
-  border-bottom: var(--border-width) var(--border-style) var(--color-border-light);
-}
+  @include mixins.flex-between;
+  padding: spacing-vars.$space-2 0;
+  border-bottom: 1px solid color-vars.$color-border-light;
 
-.analysis-item:last-child {
-  border-bottom: none;
-}
+  &:last-child {
+    border-bottom: none;
+  }
 
-.analysis-item .label {
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text);
-}
+  .label {
+    font-weight: typography-vars.$font-weight-medium;
+    color: color-vars.$color-text;
+  }
 
-.analysis-item .value {
-  font-family: 'Fira Code', 'Monaco', monospace;
-  color: var(--color-text);
-  font-weight: var(--font-weight-semibold);
+  .value {
+    font-family: 'Fira Code', 'Monaco', monospace;
+    color: color-vars.$color-text;
+    font-weight: typography-vars.$font-weight-semibold;
+  }
 }
 </style>

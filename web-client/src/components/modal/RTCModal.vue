@@ -440,133 +440,130 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '@/styles/variables/colors' as color-vars;
+@use '@/styles/variables/spacing' as spacing-vars;
+@use '@/styles/variables/typography' as typography-vars;
+@use '@/styles/variables/radius' as radius-vars;
+@use '@/styles/mixins' as mixins;
+
 .datetime-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+  @include mixins.flex-column;
+  gap: spacing-vars.$space-4;
 }
 
 .current-datetime-display {
-  background-color: var(--color-bg-secondary);
-  border: var(--border-width) var(--border-style) var(--color-border-light);
-  border-radius: var(--radius-base);
-  padding: var(--space-3);
-  margin-bottom: var(--space-2);
+  background-color: color-vars.$color-bg-secondary;
+  border: 1px solid color-vars.$color-border-light;
+  border-radius: radius-vars.$radius-base;
+  padding: spacing-vars.$space-3;
+  margin-bottom: spacing-vars.$space-2;
 }
 
 .datetime-preview {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
+  @include mixins.flex-column;
+  gap: spacing-vars.$space-1;
 
-.datetime-preview .label {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
+  .label {
+    font-size: typography-vars.$font-size-sm;
+    font-weight: typography-vars.$font-weight-medium;
+    color: color-vars.$color-text-secondary;
+  }
 }
 
 .datetime-value {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
+  font-size: typography-vars.$font-size-sm;
+  font-weight: typography-vars.$font-weight-semibold;
+  color: color-vars.$color-text;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-}
 
-.datetime-value.invalid {
-  color: var(--color-error);
+  &.invalid {
+    color: color-vars.$color-error;
+  }
 }
 
 .form-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: var(--space-4);
+  gap: spacing-vars.$space-4;
 }
 
 .form-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  @include mixins.flex-column;
+  gap: spacing-vars.$space-1;
+
+  label {
+    font-size: typography-vars.$font-size-sm;
+    font-weight: typography-vars.$font-weight-medium;
+    color: color-vars.$color-text;
+  }
 }
 
-.form-group label {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text);
+@mixin input-base {
+  padding: spacing-vars.$space-2;
+  border: 1px solid color-vars.$color-border;
+  border-radius: radius-vars.$radius-sm;
+  font-size: typography-vars.$font-size-sm;
 }
 
 .number-input {
-  padding: var(--space-2);
-  border: var(--border-width) var(--border-style) var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
+  @include input-base;
+  background: color-vars.$color-bg;
+  color: color-vars.$color-text;
+
+  &:focus {
+    outline: none;
+    border-color: color-vars.$color-primary;
+    box-shadow: color-vars.$shadow-sm;
+  }
 }
 
 .readonly-input {
-  padding: var(--space-2);
-  border: var(--border-width) var(--border-style) var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
+  @include input-base;
+  background: color-vars.$color-bg-tertiary;
+  color: color-vars.$color-text-secondary;
   cursor: not-allowed;
-}
-
-.number-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-focus);
 }
 
 .current-time-toggle {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: spacing-vars.$space-2;
 }
 
 .button-group {
   display: flex;
-  gap: var(--space-2);
+  gap: spacing-vars.$space-2;
 }
 
 .button {
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-base);
-  border: var(--border-width) var(--border-style);
+  padding: spacing-vars.$space-2 spacing-vars.$space-4;
+  border-radius: radius-vars.$radius-base;
+  border: 1px solid;
   cursor: pointer;
-  font-size: var(--font-size-sm);
+  font-size: typography-vars.$font-size-sm;
   transition: all 0.2s ease;
-}
 
-.button.primary {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: var(--color-text-inverse);
-}
+  &.primary {
+    @include mixins.button-variant(white, color-vars.$color-primary);
 
-.button.primary:hover {
-  background: var(--color-primary-hover);
-  border-color: var(--color-primary-hover);
-}
+    &:disabled {
+      background: color-vars.$color-bg-tertiary;
+      border-color: color-vars.$color-bg-tertiary;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+  }
 
-.button.primary:disabled {
-  background: var(--color-bg-tertiary);
-  border-color: var(--color-bg-tertiary);
-  cursor: not-allowed;
-  opacity: 0.6;
-}
+  &.secondary {
+    background: color-vars.$color-bg;
+    border-color: color-vars.$color-border;
+    color: color-vars.$color-text;
 
-.button.secondary {
-  background: var(--color-bg);
-  border-color: var(--color-border);
-  color: var(--color-text);
-}
-
-.button.secondary:hover {
-  background: var(--color-bg-secondary);
-  border-color: var(--color-border-light);
+    &:hover {
+      background: color-vars.$color-bg-secondary;
+      border-color: color-vars.$color-border-light;
+    }
+  }
 }
 </style>

@@ -7,6 +7,7 @@ $color-secondary: #666;
 $color-text: #333;
 $color-text-secondary: #666;
 $color-text-tertiary: #999;
+$color-text-inverse: #ffffff;
 
 // 状态色
 $color-success: #388e3c;
@@ -22,6 +23,7 @@ $color-error-light: #f8d7da;
 $color-bg: #ffffff;
 $color-bg-secondary: #f4f4f4;
 $color-bg-tertiary: #e9ecef;
+$color-bg-inverse: #1a1a1a;
 $color-border: #cccccc;
 $color-border-light: #dddddd;
 $color-border-dark: #999999;
@@ -54,6 +56,7 @@ $color-toast-text: #ffffff;
   --color-text: #{$color-text};
   --color-text-secondary: #{$color-text-secondary};
   --color-text-tertiary: #{$color-text-tertiary};
+  --color-text-inverse: #{$color-text-inverse};
 
   // 状态色
   --color-success: #{$color-success};
@@ -69,6 +72,7 @@ $color-toast-text: #ffffff;
   --color-bg: #{$color-bg};
   --color-bg-secondary: #{$color-bg-secondary};
   --color-bg-tertiary: #{$color-bg-tertiary};
+  --color-bg-inverse: #{$color-bg-inverse};
   --color-border: #{$color-border};
   --color-border-light: #{$color-border-light};
   --color-border-dark: #{$color-border-dark};

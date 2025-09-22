@@ -473,85 +473,91 @@ onMounted(async () => {
 });
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '@/styles/variables/colors' as color-vars;
+@use '@/styles/variables/spacing' as spacing-vars;
+@use '@/styles/variables/typography' as typography-vars;
+@use '@/styles/variables/radius' as radius-vars;
+@use '@/styles/mixins' as mixins;
+
 .rom-info-panel {
-  margin-bottom: var(--space-3);
-  padding: var(--space-4);
-  background: linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--color-bg-tertiary) 100%);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  margin-bottom: spacing-vars.$space-3;
+  padding: spacing-vars.$space-4;
+  background: linear-gradient(135deg, color-vars.$color-bg-secondary 0%, color-vars.$color-bg-tertiary 100%);
+  border: 1px solid color-vars.$color-border-light;
+  border-radius: radius-vars.$radius-lg;
+  box-shadow: color-vars.$shadow-sm;
 }
 
 .rom-info-title {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: spacing-vars.$space-2;
   margin: 0;
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-secondary);
+  font-size: typography-vars.$font-size-lg;
+  font-weight: typography-vars.$font-weight-semibold;
+  color: color-vars.$color-text-secondary;
   cursor: pointer;
   transition: color 0.2s ease;
   user-select: none;
-}
 
-.rom-info-title:hover {
-  color: var(--color-primary);
+  &:hover {
+    color: color-vars.$color-primary;
+  }
 }
 
 .info-icon {
-  font-size: var(--font-size-lg);
-  color: var(--color-primary);
+  font-size: typography-vars.$font-size-lg;
+  color: color-vars.$color-primary;
 }
 
 .collapse-icon {
   margin-left: auto;
-  font-size: var(--font-size-base);
+  font-size: typography-vars.$font-size-base;
   transition: transform 0.3s ease;
-  color: var(--color-text-secondary);
+  color: color-vars.$color-text-secondary;
 }
 
 .rom-info-content {
-  background: var(--color-bg);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
-  border: 1px solid var(--color-border-light);
+  background: color-vars.$color-bg;
+  border-radius: radius-vars.$radius-md;
+  padding: spacing-vars.$space-4;
+  border: 1px solid color-vars.$color-border-light;
   overflow: hidden;
   transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
   max-height: 800px;
   opacity: 1;
-  margin-top: var(--space-4);
-}
+  margin-top: spacing-vars.$space-4;
 
-.rom-info-content.collapsed {
-  max-height: 0;
-  opacity: 0;
-  padding: 0 var(--space-4);
-  margin-top: 0;
+  &.collapsed {
+    max-height: 0;
+    opacity: 0;
+    padding: 0 spacing-vars.$space-4;
+    margin-top: 0;
+  }
 }
 
 /* Logo部分样式 */
 .rom-logo-section {
-  margin-bottom: var(--space-5);
-  padding: var(--space-4);
+  margin-bottom: spacing-vars.$space-5;
+  padding: spacing-vars.$space-4;
   background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
   border: 1px solid #ffcc02;
-  border-radius: var(--radius-lg);
+  border-radius: radius-vars.$radius-lg;
 }
 
 .logo-title {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  margin: 0 0 var(--space-3) 0;
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
+  gap: spacing-vars.$space-2;
+  margin: 0 0 spacing-vars.$space-3 0;
+  font-size: typography-vars.$font-size-base;
+  font-weight: typography-vars.$font-weight-semibold;
   color: #ef6c00;
 }
 
 .logo-icon {
-  font-size: var(--font-size-lg);
+  font-size: typography-vars.$font-size-lg;
   color: #ff9800;
 }
 
@@ -562,13 +568,13 @@ onMounted(async () => {
 }
 
 .logo-canvas {
-  border: 2px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
-  background: var(--color-bg);
+  border: 2px solid color-vars.$color-border-light;
+  border-radius: radius-vars.$radius-lg;
+  background: color-vars.$color-bg;
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
-  box-shadow: var(--shadow-sm);
+  box-shadow: color-vars.$shadow-sm;
   max-width: 100%;
   height: auto;
 }
@@ -577,7 +583,7 @@ onMounted(async () => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: spacing-vars.$space-2;
   min-width: 200px;
 }
 
@@ -585,25 +591,25 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-2) var(--space-3);
+  padding: spacing-vars.$space-2 spacing-vars.$space-3;
   background: rgba(255, 255, 255, 0.8);
-  border-radius: var(--radius-base);
+  border-radius: radius-vars.$radius-base;
   border-left: 3px solid #ff9800;
   min-height: 40px;
 }
 
 .logo-info-label {
-  font-weight: var(--font-weight-medium);
+  font-weight: typography-vars.$font-weight-medium;
   color: #ef6c00;
-  font-size: var(--font-size-sm);
+  font-size: typography-vars.$font-size-sm;
   flex-shrink: 0;
-  margin-right: var(--space-3);
+  margin-right: spacing-vars.$space-3;
 }
 
 .logo-info-value {
-  font-family: var(--font-family-mono);
+  font-family: typography-vars.$font-family-mono;
   color: #212529;
-  font-size: var(--font-size-sm);
+  font-size: typography-vars.$font-size-sm;
   text-align: right;
   flex: 1;
 }
@@ -611,91 +617,91 @@ onMounted(async () => {
 .logo-validity {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-}
+  gap: spacing-vars.$space-1;
 
-.logo-validity.valid {
-  color: var(--color-success);
-}
+  &.valid {
+    color: color-vars.$color-success;
+  }
 
-.logo-validity.invalid {
-  color: var(--color-error);
+  &.invalid {
+    color: color-vars.$color-error;
+  }
 }
 
 /* ROM信息网格 */
 .rom-info-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: var(--space-3);
+  gap: spacing-vars.$space-3;
 }
 
 .rom-info-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-bg-secondary);
-  border-radius: var(--radius-base);
-  border-left: 3px solid var(--color-primary);
+  padding: spacing-vars.$space-2 spacing-vars.$space-3;
+  background: color-vars.$color-bg-secondary;
+  border-radius: radius-vars.$radius-base;
+  border-left: 3px solid color-vars.$color-primary;
 }
 
 .rom-info-label {
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
+  font-weight: typography-vars.$font-weight-medium;
+  color: color-vars.$color-text-secondary;
   white-space: nowrap;
 }
 
 .rom-info-value {
-  font-family: var(--font-family-mono);
+  font-family: typography-vars.$font-family-mono;
   color: #212529;
   text-align: right;
   word-break: break-all;
 }
 
 .rom-type {
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-2xl);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
+  padding: spacing-vars.$space-1 spacing-vars.$space-2;
+  border-radius: radius-vars.$radius-2xl;
+  font-size: typography-vars.$font-size-xs;
+  font-weight: typography-vars.$font-weight-semibold;
   text-transform: uppercase;
-}
 
-.rom-type.gba {
-  background: linear-gradient(45deg, #4e54c8, #8f94fb);
-  color: white;
-}
+  &.gba {
+    background: linear-gradient(45deg, #4e54c8, #8f94fb);
+    color: white;
+  }
 
-.rom-type.gb {
-  background: linear-gradient(45deg, #90a955, #b8c77a);
-  color: white;
-}
+  &.gb {
+    background: linear-gradient(45deg, #90a955, #b8c77a);
+    color: white;
+  }
 
-.rom-type.gbc {
-  background: linear-gradient(45deg, #ff6b6b, #ffa726);
-  color: white;
-}
+  &.gbc {
+    background: linear-gradient(45deg, #ff6b6b, #ffa726);
+    color: white;
+  }
 
-.rom-type.unknown {
-  background: linear-gradient(45deg, var(--color-secondary), #adb5bd);
-  color: white;
+  &.unknown {
+    background: linear-gradient(45deg, color-vars.$color-secondary, #adb5bd);
+    color: white;
+  }
 }
 
 .rom-validity {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: spacing-vars.$space-1;
+
+  &.valid {
+    color: color-vars.$color-success;
+  }
+
+  &.invalid {
+    color: color-vars.$color-error;
+  }
 }
 
 .validity-icon {
-  font-size: var(--font-size-lg);
-}
-
-.rom-validity.valid {
-  color: var(--color-success);
-}
-
-.rom-validity.invalid {
-  color: var(--color-error);
+  font-size: typography-vars.$font-size-lg;
 }
 
 /* 编辑功能样式 */
@@ -712,28 +718,27 @@ onMounted(async () => {
 .rom-edit-select {
   width: 100%;
   max-width: 100%;
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-base);
-  font-size: var(--font-size-base);
-  background: var(--color-bg);
-  color: var(--color-text);
+  padding: spacing-vars.$space-1 spacing-vars.$space-2;
+  border: 1px solid color-vars.$color-border-light;
+  border-radius: radius-vars.$radius-base;
+  font-size: typography-vars.$font-size-base;
+  background: color-vars.$color-bg;
+  color: color-vars.$color-text;
   text-align: right;
   box-sizing: border-box;
-  font-family: var(--font-family-mono);
-}
+  font-family: typography-vars.$font-family-mono;
 
-.rom-edit-input:focus,
-.rom-edit-select:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+  &:focus {
+    outline: none;
+    border-color: color-vars.$color-primary;
+    box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+  }
 }
 
 .rom-edit-actions {
-  margin-top: var(--space-4);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--color-border-light);
+  margin-top: spacing-vars.$space-4;
+  padding-top: spacing-vars.$space-4;
+  border-top: 1px solid color-vars.$color-border-light;
 }
 
 .rom-edit-button,
@@ -741,53 +746,51 @@ onMounted(async () => {
 .rom-cancel-button {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
+  gap: spacing-vars.$space-2;
+  padding: spacing-vars.$space-2 spacing-vars.$space-4;
   border: none;
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
+  border-radius: radius-vars.$radius-md;
+  font-size: typography-vars.$font-size-sm;
   cursor: pointer;
   transition: all 0.2s ease;
+
+  &:disabled {
+    background: color-vars.$color-border-light;
+    color: color-vars.$color-text-secondary;
+    cursor: not-allowed;
+  }
 }
 
 .rom-edit-button {
-  background: var(--color-primary);
+  background: color-vars.$color-primary;
   color: white;
-}
 
-.rom-edit-button:hover {
-  background: var(--color-primary-hover);
+  &:hover {
+    background: color-vars.$color-primary-hover;
+  }
 }
 
 .rom-edit-buttons {
   display: flex;
-  gap: var(--space-2);
+  gap: spacing-vars.$space-2;
   justify-content: flex-end;
 }
 
 .rom-save-button {
-  background: var(--color-success);
+  background: color-vars.$color-success;
   color: white;
-}
 
-.rom-save-button:hover {
-  background: #45a049;
+  &:hover {
+    background: #45a049;
+  }
 }
 
 .rom-cancel-button {
-  background: var(--color-error);
+  background: color-vars.$color-error;
   color: white;
-}
 
-.rom-cancel-button:hover {
-  background: #d32f2f;
-}
-
-.rom-edit-button:disabled,
-.rom-save-button:disabled,
-.rom-cancel-button:disabled {
-  background: var(--color-border-light);
-  color: var(--color-text-secondary);
-  cursor: not-allowed;
+  &:hover {
+    background: #d32f2f;
+  }
 }
 </style>

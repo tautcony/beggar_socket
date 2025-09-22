@@ -372,7 +372,13 @@ function cleanup() {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '@/styles/variables/colors' as color-vars;
+@use '@/styles/variables/spacing' as spacing-vars;
+@use '@/styles/variables/typography' as typography-vars;
+@use '@/styles/variables/radius' as radius-vars;
+@use '@/styles/mixins' as mixins;
+
 .emulator-overlay {
   position: fixed;
   top: 0;
@@ -388,9 +394,9 @@ function cleanup() {
 }
 
 .emulator-container {
-  background: var(--color-bg);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
+  background: color-vars.$color-bg;
+  border-radius: radius-vars.$radius-xl;
+  box-shadow: color-vars.$shadow-lg;
   overflow: hidden;
   max-width: 90vw;
   max-height: 90vh;
@@ -401,7 +407,7 @@ function cleanup() {
 .emulator-header {
   background: linear-gradient(135deg, #5bcffa 0%, #f5abb9 100%);
   color: #ffffff;
-  padding: var(--space-4) var(--space-5);
+  padding: spacing-vars.$space-4 spacing-vars.$space-5;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -409,54 +415,54 @@ function cleanup() {
 
 .emulator-title {
   margin: 0;
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
+  font-size: typography-vars.$font-size-lg;
+  font-weight: typography-vars.$font-weight-semibold;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: spacing-vars.$space-2;
 }
 
 .emulator-controls {
   display: flex;
-  gap: var(--space-2);
+  gap: spacing-vars.$space-2;
 }
 
 .emulator-content {
-  background: var(--color-bg);
+  background: color-vars.$color-bg;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-5);
+  padding: spacing-vars.$space-5;
   min-height: 200px;
 }
 
 .error-display {
   text-align: center;
-  padding: var(--space-10) var(--space-5);
-  color: var(--color-error);
+  padding: spacing-vars.$space-10 spacing-vars.$space-5;
+  color: color-vars.$color-error;
+
+  h4 {
+    margin: 0 0 spacing-vars.$space-3 0;
+    font-size: typography-vars.$font-size-xl;
+    color: color-vars.$color-error;
+  }
+
+  p {
+    margin: 0 0 spacing-vars.$space-5 0;
+    color: color-vars.$color-text-secondary;
+    line-height: typography-vars.$line-height-normal;
+    max-width: 400px;
+  }
 }
 
 .error-icon {
-  font-size: var(--font-size-5xl);
-  margin-bottom: var(--space-4);
-}
-
-.error-display h4 {
-  margin: 0 0 var(--space-3) 0;
-  font-size: var(--font-size-xl);
-  color: var(--color-error);
-}
-
-.error-display p {
-  margin: 0 0 var(--space-5) 0;
-  color: var(--color-text-secondary);
-  line-height: var(--line-height-normal);
-  max-width: 400px;
+  font-size: typography-vars.$font-size-5xl;
+  margin-bottom: spacing-vars.$space-4;
 }
 
 .game-canvas {
-  border: 2px solid var(--color-text);
-  border-radius: var(--radius-base);
+  border: 2px solid color-vars.$color-text;
+  border-radius: radius-vars.$radius-base;
   background: #000000;
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
@@ -471,36 +477,36 @@ function cleanup() {
 }
 
 .emulator-footer {
-  background: var(--color-bg-secondary);
-  color: var(--color-text);
-  padding: var(--space-4) var(--space-5);
-  border-top: 1px solid var(--color-border-light);
+  background: color-vars.$color-bg-secondary;
+  color: color-vars.$color-text;
+  padding: spacing-vars.$space-4 spacing-vars.$space-5;
+  border-top: 1px solid color-vars.$color-border-light;
 }
 
 .controls-help {
   text-align: center;
-}
 
-.controls-help p {
-  margin: 0 0 var(--space-3) 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  p {
+    margin: 0 0 spacing-vars.$space-3 0;
+    font-size: typography-vars.$font-size-sm;
+    color: color-vars.$color-text-secondary;
+  }
 }
 
 .key-mappings {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  gap: spacing-vars.$space-3;
   justify-content: center;
   align-items: center;
 }
 
 .key-mapping {
-  background: var(--color-bg-tertiary);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-base);
-  font-size: var(--font-size-xs);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
+  background: color-vars.$color-bg-tertiary;
+  padding: spacing-vars.$space-1 spacing-vars.$space-2;
+  border-radius: radius-vars.$radius-base;
+  font-size: typography-vars.$font-size-xs;
+  color: color-vars.$color-text;
+  border: 1px solid color-vars.$color-border;
 }
 </style>

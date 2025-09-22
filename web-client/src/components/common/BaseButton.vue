@@ -94,7 +94,13 @@ function handleClick(event: Event) {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '@/styles/variables/colors' as color-vars;
+@use '@/styles/variables/spacing' as spacing-vars;
+@use '@/styles/variables/typography' as typography-vars;
+@use '@/styles/variables/radius' as radius-vars;
+@use '@/styles/mixins' as mixins;
+
 .button {
   display: inline-flex;
   align-items: center;
@@ -102,188 +108,167 @@ function handleClick(event: Event) {
   vertical-align: middle;
   line-height: 1;
   border: none;
-  border-radius: var(--radius-button);
-  font-family: var(--font-family-primary);
-  font-weight: var(--font-weight-medium);
+  border-radius: radius-vars.$radius-button;
+  font-family: inherit;
+  font-weight: typography-vars.$font-weight-medium;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: var(--shadow-sm);
+  box-shadow: color-vars.$shadow-sm;
   position: relative;
   overflow: hidden;
-}
 
-/* 有icon时的样式 */
-.button-with-icon {
-  gap: var(--space-2);
-}
+  // 防止文字换行
+  white-space: nowrap;
+  text-overflow: ellipsis;
 
-/* 没有icon时的样式 */
-.button-without-icon {
-  gap: 0;
+  /* 有icon时的样式 */
+  &.button-with-icon {
+    gap: spacing-vars.$space-2;
+  }
+
+  /* 没有icon时的样式 */
+  &.button-without-icon {
+    gap: 0;
+  }
 }
 
 /* 尺寸变体 */
 .button-sm {
-  padding: var(--space-1) var(--space-3);
-  font-size: var(--font-size-sm);
+  padding: spacing-vars.$space-1 spacing-vars.$space-3;
+  font-size: typography-vars.$font-size-sm;
   min-height: 32px;
   height: 32px;
 }
 
 .button-md {
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--font-size-base);
+  padding: spacing-vars.$space-2 spacing-vars.$space-4;
+  font-size: typography-vars.$font-size-base;
   min-height: 40px;
   height: 40px;
 }
 
 .button-lg {
-  padding: var(--space-3) var(--space-6);
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
+  padding: spacing-vars.$space-3 spacing-vars.$space-6;
+  font-size: typography-vars.$font-size-lg;
+  font-weight: typography-vars.$font-weight-semibold;
   min-height: 48px;
   height: 48px;
 }
 
 /* 颜色变体 */
+@mixin button-hover-effect {
+  &:hover:not(.button-disabled) {
+    box-shadow: color-vars.$shadow-md;
+    transform: translateY(-1px);
+  }
+
+  &:active:not(.button-disabled) {
+    transform: translateY(1px);
+  }
+}
+
 .button-primary {
-  background: var(--color-primary);
-  color: white;
-}
-
-.button-primary:hover:not(.button-disabled) {
-  background: var(--color-primary-hover);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
-}
-
-.button-primary:active:not(.button-disabled) {
-  transform: translateY(1px);
+  @include mixins.button-variant(white, color-vars.$color-primary);
+  @include button-hover-effect;
 }
 
 .button-secondary {
-  background: var(--color-secondary);
+  background: color-vars.$color-secondary;
   color: white;
-}
+  @include button-hover-effect;
 
-.button-secondary:hover:not(.button-disabled) {
-  background: #545b62;
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
-}
-
-.button-secondary:active:not(.button-disabled) {
-  transform: translateY(1px);
+  &:hover:not(.button-disabled) {
+    background: #545b62;
+    box-shadow: color-vars.$shadow-md;
+    transform: translateY(-1px);
+  }
 }
 
 .button-success {
-  background: var(--color-success);
-  color: white;
-}
-
-.button-success:hover:not(.button-disabled) {
-  background: var(--color-success-hover);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
-}
-
-.button-success:active:not(.button-disabled) {
-  transform: translateY(1px);
+  @include mixins.button-variant(white, color-vars.$color-success);
+  @include button-hover-effect;
 }
 
 .button-warning {
-  background: var(--color-warning);
-  color: var(--color-text);
-}
+  background: color-vars.$color-warning;
+  color: color-vars.$color-text;
+  @include button-hover-effect;
 
-.button-warning:hover:not(.button-disabled) {
-  background: #e0a800;
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
-}
-
-.button-warning:active:not(.button-disabled) {
-  transform: translateY(1px);
+  &:hover:not(.button-disabled) {
+    background: #e0a800;
+    box-shadow: color-vars.$shadow-md;
+    transform: translateY(-1px);
+  }
 }
 
 .button-error {
-  background: var(--color-error);
-  color: white;
-}
-
-.button-error:hover:not(.button-disabled) {
-  background: var(--color-error-hover);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
-}
-
-.button-error:active:not(.button-disabled) {
-  transform: translateY(1px);
+  @include mixins.button-variant(white, color-vars.$color-error);
+  @include button-hover-effect;
 }
 
 .button-debug {
-  background: var(--color-success);
+  background: color-vars.$color-success;
   color: white;
-  border: 1px solid var(--color-success);
-}
+  border: 1px solid color-vars.$color-success;
 
-.button-debug:hover:not(.button-disabled) {
-  background: var(--color-success-hover);
-  border-color: var(--color-success-hover);
-  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
-  transform: translateY(-1px);
-}
+  &:hover:not(.button-disabled) {
+    background: color-vars.$color-success-hover;
+    border-color: color-vars.$color-success-hover;
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+    transform: translateY(-1px);
+  }
 
-.button-debug:active:not(.button-disabled) {
-  transform: translateY(1px);
-}
+  &:active:not(.button-disabled) {
+    transform: translateY(1px);
+  }
 
-.button-debug.secondary {
-  background: var(--color-error);
-  border-color: var(--color-error);
-}
+  &.secondary {
+    background: color-vars.$color-error;
+    border-color: color-vars.$color-error;
 
-.button-debug.secondary:hover:not(.button-disabled) {
-  background: var(--color-error-hover);
-  border-color: var(--color-error-hover);
-  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+    &:hover:not(.button-disabled) {
+      background: color-vars.$color-error-hover;
+      border-color: color-vars.$color-error-hover;
+      box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+    }
+  }
 }
 
 /* 禁用状态 */
 .button-disabled {
-  background-color: var(--color-border);
-  color: var(--color-text-secondary);
+  background-color: color-vars.$color-border;
+  color: color-vars.$color-text-secondary;
   cursor: not-allowed;
   box-shadow: none;
   transform: none;
-}
 
-.button-disabled:hover {
-  background-color: var(--color-border);
-  box-shadow: none;
-  transform: none;
+  &:hover {
+    background-color: color-vars.$color-border;
+    box-shadow: none;
+    transform: none;
+  }
 }
 
 /* 加载状态 */
 .button-loading {
   position: relative;
-}
 
-.button-loading::after {
-  content: '';
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  margin: auto;
-  border: 2px solid transparent;
-  border-top-color: currentColor;
-  border-radius: 50%;
-  animation: button-loading-spinner 1s ease infinite;
-}
+  &::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    margin: auto;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: button-loading-spinner 1s ease infinite;
+  }
 
-.button-loading .button-icon,
-.button-loading slot {
-  opacity: 0;
+  .button-icon,
+  slot {
+    opacity: 0;
+  }
 }
 
 @keyframes button-loading-spinner {
@@ -306,23 +291,23 @@ function handleClick(event: Event) {
 }
 
 /* 响应式调整 */
-@media (max-width: 768px) {
+@include mixins.respond-to(md) {
   .button {
     min-height: auto;
   }
 
   .button-sm {
-    padding: var(--space-1) var(--space-2);
-    font-size: var(--font-size-xs);
+    padding: spacing-vars.$space-1 spacing-vars.$space-2;
+    font-size: typography-vars.$font-size-xs;
   }
 
   .button-md {
-    padding: var(--space-2) var(--space-3);
+    padding: spacing-vars.$space-2 spacing-vars.$space-3;
   }
 
   .button-lg {
-    padding: var(--space-2) var(--space-4);
-    font-size: var(--font-size-base);
+    padding: spacing-vars.$space-2 spacing-vars.$space-4;
+    font-size: typography-vars.$font-size-base;
   }
 }
 </style>

@@ -352,9 +352,15 @@ async function handlePPBUnlockMBC5() {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '@/styles/variables/colors' as color-vars;
+@use '@/styles/variables/spacing' as spacing-vars;
+@use '@/styles/variables/typography' as typography-vars;
+@use '@/styles/variables/radius' as radius-vars;
+@use '@/styles/mixins' as mixins;
+
 .tool-operations-container {
-  margin-bottom: var(--space-4);
+  margin-bottom: spacing-vars.$space-4;
 }
 
 .tool-content {
@@ -364,51 +370,50 @@ async function handlePPBUnlockMBC5() {
 .tool-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: var(--space-6);
+  gap: spacing-vars.$space-6;
 }
 
 .tool-category {
-  border: var(--border-width) var(--border-style) var(--color-border-light);
-  border-radius: var(--radius-base);
-  padding: var(--space-4);
-  background: var(--color-bg-secondary);
-}
+  border: 1px solid color-vars.$color-border-light;
+  border-radius: radius-vars.$radius-base;
+  padding: spacing-vars.$space-4;
+  background: color-vars.$color-bg-secondary;
 
-.tool-category h3 {
-  margin: 0 0 var(--space-3) 0;
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
+  h3 {
+    margin: 0 0 spacing-vars.$space-3 0;
+    font-size: typography-vars.$font-size-base;
+    font-weight: typography-vars.$font-weight-medium;
+    color: color-vars.$color-text-secondary;
+  }
 }
 
 .button-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
+  @include mixins.flex-column;
+  gap: spacing-vars.$space-2;
 
-.button-group button {
-  padding: var(--space-2) var(--space-4);
-  border: var(--border-width) var(--border-style) var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg);
-  color: var(--color-text);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: var(--font-size-sm);
-}
+  button {
+    padding: spacing-vars.$space-2 spacing-vars.$space-4;
+    border: 1px solid color-vars.$color-border;
+    border-radius: radius-vars.$radius-sm;
+    background: color-vars.$color-bg;
+    color: color-vars.$color-text;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: typography-vars.$font-size-sm;
 
-.button-group button:hover:not(:disabled) {
-  background: var(--color-bg-secondary);
-  border-color: var(--color-border-light);
-}
+    &:hover:not(:disabled) {
+      background: color-vars.$color-bg-secondary;
+      border-color: color-vars.$color-border-light;
+    }
 
-.button-group button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
 
-.button-group button:active:not(:disabled) {
-  transform: translateY(1px);
+    &:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+  }
 }
 </style>
