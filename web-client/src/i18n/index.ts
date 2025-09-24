@@ -2,12 +2,20 @@ import { createI18n } from 'vue-i18n';
 
 import enUS from '@/i18n/locales/en-US.json';
 import jaJP from '@/i18n/locales/ja-JP.json';
-import zhCN from '@/i18n/locales/zh-CN.json';
+import ruRU from '@/i18n/locales/ru-RU.json';
+import zhHans from '@/i18n/locales/zh-Hans.json';
+import zhHant from '@/i18n/locales/zh-Hant.json';
 
 export const messages = {
-  'zh-CN': zhCN,
+  'zh-Hans': zhHans,
+  'zh-CN': zhHans,
+  'zh-Hant': zhHant,
+  'zh-TW': zhHant,
+  'zh-HK': zhHant,
+  'zh-MO': zhHant,
   'en-US': enUS,
   'ja-JP': jaJP,
+  'ru-RU': ruRU,
 };
 
 export function getLanguage() {

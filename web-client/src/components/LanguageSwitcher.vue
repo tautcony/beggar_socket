@@ -6,14 +6,20 @@
         class="language-select"
         @change="changeLanguage"
       >
-        <option value="zh-CN">
-          中文
+        <option value="zh-Hans">
+          简体中文
+        </option>
+        <option value="zh-Hant">
+          繁體中文
         </option>
         <option value="en-US">
           English
         </option>
         <option value="ja-JP">
           日本語
+        </option>
+        <option value="ru-RU">
+          Русский
         </option>
       </select>
       <IonIcon

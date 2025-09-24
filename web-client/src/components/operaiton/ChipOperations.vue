@@ -213,11 +213,4 @@ const emits = defineEmits<{
 .chip-info-row:not(.id-row) {
   justify-content: flex-start;
 }
-
-.chip-info-row:not(.id-row) > .chip-info-label:last-of-type,
-.chip-info-row:not(.id-row) > .chip-info-value:last-of-type {
-  margin-left: 0;
-  justify-content: flex-start;
-  text-align: left;
-}
 </style>
