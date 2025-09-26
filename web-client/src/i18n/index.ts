@@ -7,6 +7,7 @@ import zhHans from '@/i18n/locales/zh-Hans.json';
 import zhHant from '@/i18n/locales/zh-Hant.json';
 
 export const messages = {
+  'zh': zhHans,
   'zh-Hans': zhHans,
   'zh-CN': zhHans,
   'zh-Hant': zhHant,
@@ -41,13 +42,13 @@ export function getLanguage() {
     }
   }
 
-  return 'zh-CN';
+  return 'zh-Hans';
 }
 
 const i18n = createI18n({
   legacy: false,
   locale: getLanguage(),
-  fallbackLocale: 'zh-CN',
+  fallbackLocale: 'zh-Hans',
   messages,
 });
 

@@ -476,6 +476,8 @@
       "saveFiles": "Файлы сохранений",
       "dropSaveFiles": "Перетащите файлы сохранений сюда",
       "configuration": "Конфигурация",
+      "basicSettings": "Основные настройки",
+      "fileSettings": "Настройки файлов",
       "configureGame": "Настроить игру",
       "gameTitle": "Название игры",
       "titleFont": "Шрифт заголовка",
@@ -496,12 +498,11 @@
       "statusSuccess": "Успешно",
       "statusReady": "Готово",
       "dragToReorder": "Перетащите для изменения порядка",
-      "noFileSelected": "Файл не выбран",
-      "basicSettings": "Основные настройки",
-      "fileSettings": "Настройки файлов",
       "loadingLibrary": "Загрузка библиотеки обработки изображений...",
       "libraryLoaded": "Библиотека обработки изображений загружена",
-      "loadingDescription": "При первом посещении необходимо загрузить библиотеку обработки изображений, подождите..."
+      "libraryLoadFailed": "Не удалось загрузить библиотеку обработки изображений",
+      "loadingDescription": "Инициализация необходимых компонентов, пожалуйста, подождите...",
+      "noFileSelected": "Файл не выбран"
     }
   },
   "messages": {
@@ -717,22 +718,23 @@
       "mockDataCleared": "Макетные данные очищены"
     },
     "gbaMultiMenu": {
-      "logMenuRomLoaded": "ROM меню загружен: {name}",
-      "logGameRomLoaded": "ROM игры загружен: {name}",
-      "logGameRomLoadFailed": "Ошибка загрузки ROM игры {name}: {error}",
-      "logBgImageLoaded": "Фоновое изображение загружено: {name}",
-      "logBgImageLoadFailed": "Ошибка загрузки фонового изображения: {error}",
-      "logSaveFileLoaded": "Файл сохранения загружен: {name}",
-      "logSaveFileLoadFailed": "Ошибка загрузки файла сохранения {name}: {error}",
-      "logGameRomRemoved": "ROM игры удален: {name}",
-      "logSaveFileRemoved": "Файл сохранения удален: {name}",
-      "logGameReordered": "Порядок ROM игр изменен",
-      "logBuildStarted": "Начало сборки ROM...",
-      "logConfigReady": "Конфигурация готова, начало сборки...",
-      "logBuildCompleted": "Сборка завершена!",
-      "logBuildFailed": "Ошибка сборки: {error}",
-      "logRomDownloaded": "ROM скачан",
-      "logRomApplied": "ROM применен к главной странице"
+      "menuRomLoaded": "ROM меню загружен: {name}",
+      "menuRomLoadFailed": "Ошибка загрузки ROM меню {name}: {status}",
+      "gameRomLoaded": "ROM игры загружен: {name}",
+      "gameRomLoadFailed": "Ошибка загрузки ROM игры {name}: {error}",
+      "bgImageLoaded": "Фоновое изображение загружено: {name}",
+      "bgImageLoadFailed": "Ошибка загрузки фонового изображения {name}: {status}",
+      "saveFileLoaded": "Файл сохранения загружен: {name}",
+      "saveFileLoadFailed": "Ошибка загрузки файла сохранения {name}: {error}",
+      "gameRomRemoved": "ROM игры удален: {name}",
+      "saveFileRemoved": "Файл сохранения удален: {name}",
+      "gameReordered": "Порядок ROM игр изменен",
+      "buildStarted": "Начало сборки ROM...",
+      "configReady": "Конфигурация готова, начало сборки...",
+      "buildCompleted": "Сборка завершена!",
+      "buildFailed": "Ошибка сборки: {error}",
+      "romDownloaded": "ROM скачан",
+      "romApplied": "ROM применен к главной странице"
     }
   }
 }

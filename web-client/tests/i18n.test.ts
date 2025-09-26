@@ -1,30 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock locale files
-vi.mock('../src/i18n/locales/zh-CN.json', () => ({
-  default: {
-    'ui.device.connect': '连接设备',
-    'ui.device.disconnect': '断开连接',
-    'messages.success': '操作成功',
-  },
-}));
-
-vi.mock('../src/i18n/locales/en-US.json', () => ({
-  default: {
-    'ui.device.connect': 'Connect Device',
-    'ui.device.disconnect': 'Disconnect',
-    'messages.success': 'Operation Successful',
-  },
-}));
-
-vi.mock('../src/i18n/locales/ja-JP.json', () => ({
-  default: {
-    'ui.device.connect': 'デバイスに接続',
-    'ui.device.disconnect': '切断',
-    'messages.success': '操作成功',
-  },
-}));
-
 describe('i18n', () => {
   let localStorageMock: Record<string, string>;
   let navigatorLanguageMock: string;
@@ -70,7 +45,7 @@ describe('i18n', () => {
       navigatorLanguageMock = 'fr-FR'; // 不支持的语言
 
       const { getLanguage } = await import('../src/i18n/index');
-      expect(getLanguage()).toBe('zh-CN'); // 默认中文
+      expect(getLanguage()).toBe('zh-Hans'); // 默认中文
     });
 
     it('应该支持部分语言匹配', async () => {
@@ -93,37 +68,42 @@ describe('i18n', () => {
     it('应该包含所有支持的语言', async () => {
       const { messages } = await import('../src/i18n/index');
 
-      expect(messages).toHaveProperty('zh-CN');
+      expect(messages).toHaveProperty('zh-Hans');
+      expect(messages).toHaveProperty('zh-Hant');
       expect(messages).toHaveProperty('en-US');
       expect(messages).toHaveProperty('ja-JP');
+      expect(messages).toHaveProperty('ru-RU');
     });
 
     it('应该包含必要的翻译键', async () => {
       const { messages } = await import('../src/i18n/index');
 
-      const zhCN = messages['zh-CN'];
+      const zhHans = messages['zh-Hans'];
+      const zhHant = messages['zh-Hant'];
       const enUS = messages['en-US'];
       const jaJP = messages['ja-JP'];
+      const ruRU = messages['ru-RU'];
+
+      expect(zhHans).toBeDefined();
+      expect(zhHant).toBeDefined();
+      expect(enUS).toBeDefined();
+      expect(jaJP).toBeDefined();
+      expect(ruRU).toBeDefined();
 
       // 检查所有语言都有相同的键
-      expect(zhCN).toHaveProperty('ui.device.connect');
-      expect(enUS).toHaveProperty('ui.device.connect');
-      expect(jaJP).toHaveProperty('ui.device.connect');
-
-      expect(zhCN).toHaveProperty('messages.success');
-      expect(enUS).toHaveProperty('messages.success');
-      expect(jaJP).toHaveProperty('messages.success');
+      expect(zhHans.ui.device.connect).toBeDefined();
+      expect(zhHant.ui.device.connect).toBeDefined();
+      expect(enUS.ui.device.connect).toBeDefined();
+      expect(jaJP.ui.device.connect).toBeDefined();
+      expect(ruRU.ui.device.connect).toBeDefined();
     });
 
     it('应该有正确的翻译内容', async () => {
       const { messages } = await import('../src/i18n/index');
 
-      // @ts-expect-error: 索引签名为字符串，允许动态访问
-      expect(messages['zh-CN']['ui.device.connect']).toBe('连接设备');
-      // @ts-expect-error: 索引签名为字符串，允许动态访问
-      expect(messages['en-US']['ui.device.connect']).toBe('Connect Device');
-      // @ts-expect-error: 索引签名为字符串，允许动态访问
-      expect(messages['ja-JP']['ui.device.connect']).toBe('デバイスに接続');
+      expect(messages['zh-Hans'].ui.device.connect).toBe('连接设备');
+      expect(messages['en-US'].ui.device.connect).toBe('Connect Device');
+      expect(messages['ja-JP'].ui.device.connect).toBe('デバイスを接続');
     });
 
     it('应该创建有效的i18n实例', async () => {
@@ -137,7 +117,7 @@ describe('i18n', () => {
     it('应该使用正确的fallback语言', async () => {
       const { default: i18n } = await import('../src/i18n/index');
 
-      expect(i18n.global.fallbackLocale.value).toBe('zh-CN');
+      expect(i18n.global.fallbackLocale.value).toBe('zh-Hans');
     });
   });
 
@@ -149,7 +129,7 @@ describe('i18n', () => {
       });
 
       const { getLanguage } = await import('../src/i18n/index');
-      expect(getLanguage()).toBe('zh-CN');
+      expect(getLanguage()).toBe('zh-Hans');
     });
 
     it('应该处理undefined的navigator.language', async () => {
@@ -159,14 +139,14 @@ describe('i18n', () => {
       });
 
       const { getLanguage } = await import('../src/i18n/index');
-      expect(getLanguage()).toBe('zh-CN');
+      expect(getLanguage()).toBe('zh-Hans');
     });
 
     it('应该处理复杂的语言代码', async () => {
       navigatorLanguageMock = 'zh-CN-Hans';
 
       const { getLanguage } = await import('@/i18n/index');
-      expect(getLanguage()).toBe('zh-CN');
+      expect(getLanguage()).toBe('zh-Hans');
     });
   });
 });

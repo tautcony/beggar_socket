@@ -241,7 +241,9 @@ export function generateItemList(games: GameConfig[], roms_keys: number[], batte
       view.setUint8(7, game.save_slot ?? 0);
       view.setUint16(8, game.keysValue ?? 0, true);
       // 填充10-16字节为0
-      buf.fill(0, 10, 16);
+      for (let i = 10; i < 16; i++) {
+        buf[i] = 0;
+      }
       // 模拟Buffer.write() - 写入最多0x30个字符的UTF-16LE
       const titleBuffer = new Uint8Array(0x30 * 2);
       const maxChars = Math.min(title.length, 0x30);
@@ -299,7 +301,7 @@ export async function writeCompilation(
   logp(`Game List:       0x${(item_list_offset * sector_size).toString(16).padStart(8, '0').toUpperCase()}–0x${(item_list_offset * sector_size + item_list.length).toString(16).padStart(8, '0').toUpperCase()}`);
   logp(`Status Area:     0x${(status_offset * sector_size).toString(16).padStart(8, '0').toUpperCase()}–0x${(status_offset * sector_size + 0x1000).toString(16).padStart(8, '0').toUpperCase()}`);
   logp('');
-  logp(`Cartridge Type:  ${cartridge_type + 1} (${cartridgeTypes[cartridge_type].name}) ${battery_present ? 'with battery' : 'without battery'}`);
+  logp(`Cartridge Type:  ${cartridge_type} (${cartridgeTypes[cartridge_type].name}) ${battery_present ? 'with battery' : 'without battery'}`);
   logp(`Output ROM Size: ${(rom_size / 1024 / 1024).toFixed(2)} MiB`);
   logp(`Output ROM Code: ${rom_code}`);
 
@@ -316,7 +318,7 @@ export async function buildRom(input: BuildInput): Promise<BuildResult> {
   const { config, menuRom, romFiles, saveFiles, options } = input;
   const { games, cartridge_type, battery_present, min_rom_size } = {
     games: config.games,
-    cartridge_type: config.cartridge.type - 1,
+    cartridge_type: config.cartridge.type,
     battery_present: config.cartridge.battery_present,
     min_rom_size: config.cartridge.min_rom_size || 0x400000,
   };
@@ -327,6 +329,12 @@ export async function buildRom(input: BuildInput): Promise<BuildResult> {
   const { menu_rom } = readMenuRom(menuRom, sector_size, compilation);
   // 更新背景
   await updateBackgroundImage(menu_rom, options.bgImage);
+
+  // 将更新后的 menu_rom 数据复制回 compilation
+  if (options.bgImage) {
+    compilation.set(menu_rom.subarray(0, Math.min(menu_rom.length, compilation.length)), 0);
+  }
+
   // 初始化扇区映射
   const menuSectors = Math.ceil(menu_rom.length / sector_size);
   updateSectorMap(sector_map, 0, menuSectors, 'm');
@@ -347,7 +355,7 @@ export async function buildRom(input: BuildInput): Promise<BuildResult> {
   const bootLogoFound = await addRomData(validGames, compilation, sector_map, sector_size, block_size, save_end_offset, true, romFiles);
   // 生成item list
   const itemList = generateItemList(validGames, roms_keys, battery_present, block_size, sector_size, save_data_sector);
-  // 写入item list到扇区位置（不是字节偏移！）
+  // 写入item list到扇区位置
   compilation.set(itemList, item_list_sector * sector_size);
   // 写出ROM
   const { rom, code } = await writeCompilation(compilation, sector_map, sector_size, options.output, options.split, flash_size, statusData, itemList, status_sector, item_list_sector, menu_rom, cartridge_type, battery_present);

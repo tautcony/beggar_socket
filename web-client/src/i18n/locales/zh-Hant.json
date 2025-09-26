@@ -478,6 +478,8 @@
       "saveFiles": "存檔檔案",
       "dropSaveFiles": "拖拽存檔檔案到此處",
       "configuration": "配置",
+      "basicSettings": "基本設定",
+      "fileSettings": "檔案設定",
       "configureGame": "配置遊戲",
       "gameTitle": "遊戲標題",
       "titleFont": "標題字體",
@@ -498,12 +500,11 @@
       "statusSuccess": "成功",
       "statusReady": "就緒",
       "dragToReorder": "拖拽以重新排序",
-      "noFileSelected": "未選擇檔案",
-      "basicSettings": "基礎設定",
-      "fileSettings": "檔案設定",
       "loadingLibrary": "正在載入圖像處理程式庫...",
       "libraryLoaded": "圖像處理程式庫載入完成",
-      "loadingDescription": "首次存取需要載入圖像處理程式庫，請稍候..."
+      "libraryLoadFailed": "圖像處理程式庫載入失敗",
+      "loadingDescription": "正在初始化必要的元件，請稍候...",
+      "noFileSelected": "未選擇檔案"
     }
   },
   "messages": {
@@ -719,22 +720,23 @@
       "mockDataCleared": "模擬資料已清除"
     },
     "gbaMultiMenu": {
-      "logMenuRomLoaded": "選單ROM已載入: {name}",
-      "logGameRomLoaded": "遊戲ROM已載入: {name}",
-      "logGameRomLoadFailed": "載入遊戲ROM失敗 {name}: {error}",
-      "logBgImageLoaded": "背景圖像已載入: {name}",
-      "logBgImageLoadFailed": "載入背景圖像失敗: {error}",
-      "logSaveFileLoaded": "存檔檔案已載入: {name}",
-      "logSaveFileLoadFailed": "載入存檔檔案失敗 {name}: {error}",
-      "logGameRomRemoved": "已移除遊戲ROM: {name}",
-      "logSaveFileRemoved": "已移除存檔檔案: {name}",
-      "logGameReordered": "遊戲ROM順序已重新排列",
-      "logBuildStarted": "開始建構ROM...",
-      "logConfigReady": "配置準備完成，開始建構...",
-      "logBuildCompleted": "建構完成！",
-      "logBuildFailed": "建構失敗: {error}",
-      "logRomDownloaded": "ROM已下載",
-      "logRomApplied": "ROM已應用到主頁面"
+      "menuRomLoaded": "選單ROM已載入: {name}",
+      "menuRomLoadFailed": "載入選單ROM失敗 {name}: {status}",
+      "gameRomLoaded": "遊戲ROM已載入: {name}",
+      "gameRomLoadFailed": "載入遊戲ROM失敗 {name}: {error}",
+      "bgImageLoaded": "背景圖像已載入: {name}",
+      "bgImageLoadFailed": "載入背景圖像失敗 {name}: {status}",
+      "saveFileLoaded": "存檔檔案已載入: {name}",
+      "saveFileLoadFailed": "載入存檔檔案失敗 {name}: {error}",
+      "gameRomRemoved": "已移除遊戲ROM: {name}",
+      "saveFileRemoved": "已移除存檔檔案: {name}",
+      "gameReordered": "遊戲ROM順序已重新排列",
+      "buildStarted": "開始建構ROM...",
+      "configReady": "配置準備完成，開始建構...",
+      "buildCompleted": "建構完成！",
+      "buildFailed": "建構失敗: {error}",
+      "romDownloaded": "ROM已下載",
+      "romApplied": "ROM已應用到主頁面"
     }
   }
 }

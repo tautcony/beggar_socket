@@ -478,6 +478,8 @@
       "saveFiles": "Save Files",
       "dropSaveFiles": "Drag save files here",
       "configuration": "Configuration",
+      "basicSettings": "Basic Settings",
+      "fileSettings": "File Settings",
       "configureGame": "Configure Game",
       "gameTitle": "Game Title",
       "titleFont": "Title Font",
@@ -498,12 +500,11 @@
       "statusSuccess": "Success",
       "statusReady": "Ready",
       "dragToReorder": "Drag to reorder",
-      "noFileSelected": "No file selected",
-      "basicSettings": "Basic Settings",
-      "fileSettings": "File Settings",
       "loadingLibrary": "Loading image processing library...",
       "libraryLoaded": "Image processing library loaded",
-      "loadingDescription": "Loading image processing library for first-time access, please wait..."
+      "libraryLoadFailed": "Failed to load image processing library",
+      "loadingDescription": "Initializing necessary components, please wait...",
+      "noFileSelected": "No file selected"
     }
   },
   "messages": {
@@ -719,22 +720,23 @@
       "mockDataCleared": "Mock data cleared"
     },
     "gbaMultiMenu": {
-      "logMenuRomLoaded": "Menu ROM loaded: {name}",
-      "logGameRomLoaded": "Game ROM loaded: {name}",
-      "logGameRomLoadFailed": "Failed to load game ROM {name}: {error}",
-      "logBgImageLoaded": "Background image loaded: {name}",
-      "logBgImageLoadFailed": "Failed to load background image: {error}",
-      "logSaveFileLoaded": "Save file loaded: {name}",
-      "logSaveFileLoadFailed": "Failed to load save file {name}: {error}",
-      "logGameRomRemoved": "Game ROM removed: {name}",
-      "logSaveFileRemoved": "Save file removed: {name}",
-      "logGameReordered": "Game ROM order rearranged",
-      "logBuildStarted": "Starting ROM build...",
-      "logConfigReady": "Configuration ready, starting build...",
-      "logBuildCompleted": "Build completed!",
-      "logBuildFailed": "Build failed: {error}",
-      "logRomDownloaded": "ROM downloaded",
-      "logRomApplied": "ROM applied to main page"
+      "menuRomLoaded": "Menu ROM loaded: {name}",
+      "menuRomLoadFailed": "Failed to load menu ROM {name}: {status}",
+      "gameRomLoaded": "Game ROM loaded: {name}",
+      "gameRomLoadFailed": "Failed to load game ROM {name}: {error}",
+      "bgImageLoaded": "Background image loaded: {name}",
+      "bgImageLoadFailed": "Failed to load background image {name}: {status}",
+      "saveFileLoaded": "Save file loaded: {name}",
+      "saveFileLoadFailed": "Failed to load save file {name}: {error}",
+      "gameRomRemoved": "Game ROM removed: {name}",
+      "saveFileRemoved": "Save file removed: {name}",
+      "gameReordered": "Game ROM order rearranged",
+      "buildStarted": "Starting ROM build...",
+      "configReady": "Configuration ready, starting build...",
+      "buildCompleted": "Build completed!",
+      "buildFailed": "Build failed: {error}",
+      "romDownloaded": "ROM downloaded",
+      "romApplied": "ROM applied to main page"
     }
   }
 }

@@ -11,6 +11,7 @@ export interface CartridgeType {
 }
 
 export const cartridgeTypes: CartridgeType[] = [
+  { name: 'None', flash_size: 0, sector_size: 0, block_size: 0 },
   { name: 'MSP55LV100S', flash_size: 0x4000000, sector_size: 0x20000, block_size: 0x80000 },
   { name: '6600M0U0BE', flash_size: 0x10000000, sector_size: 0x40000, block_size: 0x80000 },
   { name: 'MSP54LV100', flash_size: 0x8000000, sector_size: 0x20000, block_size: 0x80000 },

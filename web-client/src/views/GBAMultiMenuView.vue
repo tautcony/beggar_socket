@@ -262,23 +262,23 @@
                 v-model="cartridgeType"
                 class="config-select"
               >
-                <option value="0">
-                  MSP55LV100S (64MB)
-                </option>
                 <option value="1">
-                  6600M0U0BE (256MB)
+                  1. MSP55LV100S (64MB)
                 </option>
                 <option value="2">
-                  MSP54LV100 (128MB)
+                  2. 6600M0U0BE (256MB)
                 </option>
                 <option value="3">
-                  ChisFlash1.0G-128MB (128MB)
+                  3. MSP54LV100 (128MB)
                 </option>
                 <option value="4">
-                  ChisFlash2.0G-256MB (256MB)
+                  4. ChisFlash1.0G-128MB (128MB)
                 </option>
                 <option value="5">
-                  F0095H0 (512MB)
+                  5. ChisFlash2.0G-256MB (256MB)
+                </option>
+                <option value="6">
+                  6. F0095H0 (512MB)
                 </option>
               </select>
             </div>
@@ -458,11 +458,13 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import BaseButton from '@/components/common/BaseButton.vue';
+import { useToast } from '@/composables/useToast';
 import { type BuildInput, type BuildResult, buildRom as buildRomFromService } from '@/services/lk';
 import { useRomAssemblyResultStore } from '@/stores/rom-assembly-store';
 import { FileInfo } from '@/types/file-info';
 import { formatBytes } from '@/utils/formatter-utils';
 
+const { showToast } = useToast();
 const { t } = useI18n();
 const router = useRouter();
 const romAssemblyResultStore = useRomAssemblyResultStore();
@@ -508,7 +510,7 @@ const expandedConfigs = ref<Set<string>>(new Set());
 const showBgImagePreview = ref(false);
 const bgImagePreviewUrl = ref<string | null>(null);
 
-const cartridgeType = ref(3);
+const cartridgeType = ref(4);
 const batteryPresent = ref(true);
 const outputName = ref('LK_MULTIMENU_<CODE>.gba');
 
@@ -550,9 +552,10 @@ async function preloadImageLibrary() {
     // 动态导入 jimp 库以预加载
     await import('jimp');
     libraryLoaded.value = true;
-    console.log(t('ui.gbaMultiMenu.libraryLoaded'));
+    showToast(t('ui.gbaMultiMenu.libraryLoaded'), 'success');
   } catch (error) {
-    console.error('Failed to preload image library:', error);
+    showToast(t('ui.gbaMultiMenu.libraryLoadFailed'), 'error');
+    console.error('Failed to load image library:', error);
     // 即使预加载失败，也设置为 true，在实际使用时再处理错误
     libraryLoaded.value = true;
   } finally {
@@ -586,12 +589,12 @@ async function loadDefaultBackground() {
       const arrayBuffer = await blob.arrayBuffer();
       bgImageData.value = arrayBuffer;
       bgImageFileName.value = 'bg.png';
-      console.log(t('messages.gbaMultiMenu.logBgImageLoaded', { name: 'bg.png (默认)' }));
+      showToast(t('messages.gbaMultiMenu.bgImageLoaded', { name: 'bg.png (默认)' }), 'success');
     } else {
-      console.log(`默认背景图像无法访问，状态码: ${response.status}`);
+      showToast(t('messages.gbaMultiMenu.bgImageLoadFailed', { name: 'bg.png (默认)', status: response.status }), 'error');
     }
   } catch (error) {
-    console.log('默认背景图像加载失败:', error);
+    showToast(t('messages.gbaMultiMenu.bgImageLoadFailed', { name: 'bg.png (默认)', status: (error as Error).message }), 'error');
   }
 }
 
@@ -608,12 +611,12 @@ async function loadDefaultMenuRom() {
       const arrayBuffer = await blob.arrayBuffer();
       menuRomData.value = arrayBuffer;
       menuRomFileName.value = defaultMenuRom;
-      console.log(t('messages.gbaMultiMenu.logMenuRomLoaded', { name: defaultMenuRom }));
+      showToast(t('messages.gbaMultiMenu.menuRomLoaded', { name: defaultMenuRom }), 'success');
     } else {
-      console.log(`默认菜单ROM无法访问，状态码: ${response.status}`);
+      showToast(t('messages.gbaMultiMenu.menuRomLoadFailed', { name: defaultMenuRom, status: response.status }), 'error');
     }
   } catch (error) {
-    console.log('默认菜单ROM加载失败:', error);
+    showToast(t('messages.gbaMultiMenu.menuRomLoadFailed', { name: defaultMenuRom, status: (error as Error).message }), 'error');
   }
 }
 
@@ -653,7 +656,7 @@ function onBgImageSelected(fileInfo: FileInfo | FileInfo[]) {
   new Uint8Array(buffer).set(new Uint8Array(file.data.buffer));
   bgImageData.value = buffer;
   bgImageFileName.value = file.name;
-  console.log(t('messages.gbaMultiMenu.logBgImageLoaded', { name: file.name }));
+  showToast(t('messages.gbaMultiMenu.bgImageLoaded', { name: file.name }), 'success');
 }
 
 function onSaveFilesSelected(fileInfos: FileInfo | FileInfo[]) {
@@ -662,9 +665,9 @@ function onSaveFilesSelected(fileInfos: FileInfo | FileInfo[]) {
     try {
       const data = file.data.buffer.slice(file.data.byteOffset, file.data.byteOffset + file.data.byteLength) as ArrayBuffer;
       saveFiles.value.set(file.name, data);
-      console.log(t('messages.gbaMultiMenu.logSaveFileLoaded', { name: file.name }));
+      showToast(t('messages.gbaMultiMenu.saveFileLoaded', { name: file.name }), 'success');
     } catch (error: unknown) {
-      console.log(t('messages.gbaMultiMenu.logSaveFileLoadFailed', { name: file.name, error: (error as Error).message }));
+      showToast(t('messages.gbaMultiMenu.saveFileLoadFailed', { name: file.name, error: (error as Error).message }), 'error');
     }
   });
 }
@@ -680,12 +683,12 @@ function removeGameRom(fileName: string) {
     });
   }
   expandedConfigs.value.delete(fileName);
-  console.log(t('messages.gbaMultiMenu.logGameRomRemoved', { name: fileName }));
+  showToast(t('messages.gbaMultiMenu.gameRomRemoved', { name: fileName }), 'info');
 }
 
 function removeSaveFile(fileName: string) {
   saveFiles.value.delete(fileName);
-  console.log(t('messages.gbaMultiMenu.logSaveFileRemoved', { name: fileName }));
+  showToast(t('messages.gbaMultiMenu.saveFileRemoved', { name: fileName }), 'info');
 }
 
 // 拖拽处理函数
@@ -717,7 +720,7 @@ function processMenuRomFile(file: File) {
     const data = reader.result as ArrayBuffer;
     menuRomData.value = data;
     menuRomFileName.value = file.name;
-    console.log(t('messages.gbaMultiMenu.logMenuRomLoaded', { name: file.name }));
+    showToast(t('messages.gbaMultiMenu.menuRomLoaded', { name: file.name }), 'success');
   };
   reader.readAsArrayBuffer(file);
 }
@@ -751,7 +754,7 @@ function processGameRomFile(file: File) {
     };
 
     gameRomItems.value.push(newItem);
-    console.log(t('messages.gbaMultiMenu.logGameRomLoaded', { name: file.name }));
+    showToast(t('messages.gbaMultiMenu.gameRomLoaded', { name: file.name }), 'success');
   };
   reader.readAsArrayBuffer(file);
 }
@@ -765,7 +768,7 @@ function processBgImageFile(file: File) {
     const data = reader.result as ArrayBuffer;
     bgImageData.value = data;
     bgImageFileName.value = file.name;
-    console.log(t('messages.gbaMultiMenu.logBgImageLoaded', { name: file.name }));
+    showToast(t('messages.gbaMultiMenu.bgImageLoaded', { name: file.name }), 'success');
   };
   reader.readAsArrayBuffer(file);
 }
@@ -775,7 +778,7 @@ function processSaveFile(file: File) {
   reader.onload = () => {
     const data = reader.result as ArrayBuffer;
     saveFiles.value.set(file.name, data);
-    console.log(t('messages.gbaMultiMenu.logSaveFileLoaded', { name: file.name }));
+    showToast(t('messages.gbaMultiMenu.saveFileLoaded', { name: file.name }), 'success');
   };
   reader.readAsArrayBuffer(file);
 }
@@ -834,7 +837,7 @@ async function buildRom() {
   buildResult.value = null;
 
   try {
-    console.log(t('messages.gbaMultiMenu.logBuildStarted'));
+    showToast(t('messages.gbaMultiMenu.buildStarted'), 'info');
 
     // 生成游戏配置
     const games = gameRomItems.value.map(item => item.config);
@@ -867,18 +870,18 @@ async function buildRom() {
       },
     };
 
-    console.log(t('messages.gbaMultiMenu.logConfigReady'));
+    showToast(t('messages.gbaMultiMenu.configReady'), 'info');
 
     // 执行构建
     const result = await buildRomFromService(input);
 
     buildResult.value = result;
 
-    console.log(t('messages.gbaMultiMenu.logBuildCompleted'));
+    showToast(t('messages.gbaMultiMenu.buildCompleted'), 'success');
 
   } catch (error: unknown) {
-    console.error(t('messages.gbaMultiMenu.logBuildFailed', { error: (error as Error).message }), error);
-    console.log(t('messages.gbaMultiMenu.logBuildFailed', { error: (error as Error).message }));
+    showToast(t('messages.gbaMultiMenu.buildFailed', { error: (error as Error).message }), 'error');
+    console.error('Build failed:', error);
   } finally {
     isBuilding.value = false;
   }
@@ -896,7 +899,7 @@ function downloadRom() {
   a.click();
   URL.revokeObjectURL(url);
 
-  console.log(t('messages.gbaMultiMenu.logRomDownloaded'));
+  showToast(t('messages.gbaMultiMenu.romDownloaded'), 'success');
 }
 
 // 应用ROM到主页面
@@ -913,7 +916,7 @@ function applyRom() {
   // 保存到store，用于传递到主页
   romAssemblyResultStore.setResult(assembledRom, 'GBA');
 
-  console.log(t('messages.gbaMultiMenu.logRomApplied'));
+  showToast(t('messages.gbaMultiMenu.romApplied'), 'success');
 
   // 导航回主页
   void router.push('/');
@@ -932,7 +935,7 @@ function resetState() {
   bgImageFileName.value = '';
   saveFiles.value.clear();
   expandedConfigs.value.clear();
-  cartridgeType.value = 3;
+  cartridgeType.value = 4;
   batteryPresent.value = true;
   outputName.value = 'LK_MULTIMENU_<CODE>.gba';
   isBuilding.value = false;
@@ -1011,7 +1014,7 @@ function handleDrop(e: DragEvent, dropIndex: number) {
   gameRomItems.value = items;
   draggedIndex = -1;
 
-  console.log(t('messages.gbaMultiMenu.logGameReordered'));
+  showToast(t('messages.gbaMultiMenu.gameReordered'), 'success');
 }
 
 // 切换游戏配置面板

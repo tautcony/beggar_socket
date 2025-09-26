@@ -478,6 +478,8 @@
       "saveFiles": "セーブファイル",
       "dropSaveFiles": "セーブファイルをここにドラッグ",
       "configuration": "設定",
+      "basicSettings": "基本設定",
+      "fileSettings": "ファイル設定",
       "configureGame": "ゲーム設定",
       "gameTitle": "ゲームタイトル",
       "titleFont": "タイトルフォント",
@@ -498,12 +500,11 @@
       "statusSuccess": "成功",
       "statusReady": "準備完了",
       "dragToReorder": "ドラッグして並び替え",
-      "noFileSelected": "ファイルが選択されていません",
-      "basicSettings": "基本設定",
-      "fileSettings": "ファイル設定",
       "loadingLibrary": "画像処理ライブラリを読み込み中...",
       "libraryLoaded": "画像処理ライブラリが読み込まれました",
-      "loadingDescription": "初回アクセス時には画像処理ライブラリを読み込みますので、お待ちください..."
+      "libraryLoadFailed": "画像処理ライブラリの読み込みに失敗しました",
+      "loadingDescription": "必要なコンポーネントを初期化しています。お待ちください...",
+      "noFileSelected": "ファイルが選択されていません"
     }
   },
   "messages": {
@@ -719,22 +720,23 @@
       "mockDataCleared": "モックデータがクリアされました"
     },
     "gbaMultiMenu": {
-      "logMenuRomLoaded": "メニューROMが読み込まれました: {name}",
-      "logGameRomLoaded": "ゲームROMが読み込まれました: {name}",
-      "logGameRomLoadFailed": "ゲームROM {name} の読み込みに失敗しました: {error}",
-      "logBgImageLoaded": "背景画像が読み込まれました: {name}",
-      "logBgImageLoadFailed": "背景画像の読み込みに失敗しました: {error}",
-      "logSaveFileLoaded": "セーブファイルが読み込まれました: {name}",
-      "logSaveFileLoadFailed": "セーブファイル {name} の読み込みに失敗しました: {error}",
-      "logGameRomRemoved": "ゲームROMが削除されました: {name}",
-      "logSaveFileRemoved": "セーブファイルが削除されました: {name}",
-      "logGameReordered": "ゲームROMの順序が変更されました",
-      "logBuildStarted": "ROM構築を開始しています...",
-      "logConfigReady": "設定準備完了、構築を開始します...",
-      "logBuildCompleted": "構築完了！",
-      "logBuildFailed": "構築に失敗しました: {error}",
-      "logRomDownloaded": "ROMがダウンロードされました",
-      "logRomApplied": "ROMをメインページに適用しました"
+      "menuRomLoaded": "メニューROMが読み込まれました: {name}",
+      "menuRomLoadFailed": "メニューROM {name} の読み込みに失敗しました: {status}",
+      "gameRomLoaded": "ゲームROMが読み込まれました: {name}",
+      "gameRomLoadFailed": "ゲームROM {name} の読み込みに失敗しました: {error}",
+      "bgImageLoaded": "背景画像が読み込まれました: {name}",
+      "bgImageLoadFailed": "背景画像 {name} の読み込みに失敗しました: {status}",
+      "saveFileLoaded": "セーブファイルが読み込まれました: {name}",
+      "saveFileLoadFailed": "セーブファイル {name} の読み込みに失敗しました: {error}",
+      "gameRomRemoved": "ゲームROMが削除されました: {name}",
+      "saveFileRemoved": "セーブファイルが削除されました: {name}",
+      "gameReordered": "ゲームROMの順序が変更されました",
+      "buildStarted": "ROM構築を開始しています...",
+      "configReady": "設定準備完了、構築を開始します...",
+      "buildCompleted": "構築完了！",
+      "buildFailed": "構築に失敗しました: {error}",
+      "romDownloaded": "ROMがダウンロードされました",
+      "romApplied": "ROMをメインページに適用しました"
     }
   }
 }
