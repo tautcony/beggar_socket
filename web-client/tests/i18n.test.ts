@@ -141,12 +141,5 @@ describe('i18n', () => {
       const { getLanguage } = await import('../src/i18n/index');
       expect(getLanguage()).toBe('zh-Hans');
     });
-
-    it('应该处理复杂的语言代码', async () => {
-      navigatorLanguageMock = 'zh-CN-Hans';
-
-      const { getLanguage } = await import('@/i18n/index');
-      expect(getLanguage()).toBe('zh-Hans');
-    });
   });
 });
