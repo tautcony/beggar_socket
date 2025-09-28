@@ -356,7 +356,7 @@ function closeEmulator() {
 function onRomAssembled(assembled: AssembledRom) {
   // 将组装的ROM数据作为单个文件传递给父组件
   const assembledFileInfo: FileInfo = {
-    name: `assembled_${props.mode.toLowerCase()}_${DateTime.now().toFormat('yyyyMMddTHHmmss')}.bin`,
+    name: `assembled_${props.mode.toLowerCase()}_${DateTime.now().toFormat('yyyyMMddTHHmmss')}.rom`,
     data: assembled.data,
     size: assembled.data.length,
   };
@@ -374,7 +374,7 @@ function useAssembledRom() {
 
   if (result && result.romType === props.mode) {
     const fileInfo: FileInfo = {
-      name: `assembled_${props.mode.toLowerCase()}_${Date.now()}.bin`,
+      name: `assembled_${props.mode.toLowerCase()}_${Date.now()}.rom`,
       data: result.rom.data,
       size: result.rom.data.length,
     };

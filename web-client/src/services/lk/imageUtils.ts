@@ -1,7 +1,6 @@
-// imageUtils.ts - 图像处理工具
-
-import { intToRGBA, Jimp } from 'jimp';
-import quantize from 'quantize';
+import * as IQ from 'image-q';
+import { Jimp, rgbaToInt } from 'jimp';
+import path from 'path';
 
 type JimpObject = InstanceType<typeof Jimp>;
 
@@ -10,13 +9,11 @@ export async function updateBackgroundImage(menuRom: Uint8Array, bgImage?: Array
   if (!bgImage) return;
 
   try {
-    // 动态导入 jimp 以减少初始加载时间
-
     // 使用Jimp读取背景图像数据
     const img = await Jimp.fromBuffer(bgImage) as JimpObject;
 
     // 提取调色板和位图数据
-    const { palette, bitmap, palette_rgb555 } = convertToIndexedImage(img, 256);
+    const { palette, bitmap, palette_rgb555 } = await convertToIndexedImage(img, 256);
 
     // 定位ROM背景区
     const marker = new Uint8Array([0x52, 0x54, 0x46, 0x4E, 0xFF, 0xFE]); // 'RTFN\xFF\xFE'
@@ -61,81 +58,74 @@ function findMarkerIndex(array: Uint8Array, marker: Uint8Array): number {
 }
 
 // 将图片转换为索引色图片
-export function convertToIndexedImage(image: JimpObject, maxColors = 256): {
-  palette: quantize.RgbPixel[];
+export async function convertToIndexedImage(image: JimpObject, maxColors = 256): Promise<{
+  palette: IQ.utils.Point[];
   bitmap: Uint8Array;
   palette_rgb555: number[];
-} {
-  const bitmap = image.bitmap;
-  const pixels: [number, number, number][] = [];
-  for (let y = 0; y < bitmap.height; y++) {
-    for (let x = 0; x < bitmap.width; x++) {
-      const { r, g, b } = intToRGBA(image.getPixelColor(x, y));
-      pixels.push([r, g, b]);
-    }
-  }
+}> {
+  const { bitmap, width, height } = image;
 
-  // 量化颜色以确保不超过maxColors
-  const quantizeResult = quantize(pixels, maxColors);
-  if (quantizeResult === false) {
-    throw new Error('Color quantization failed');
-  }
-  const quantizedPalette = quantizeResult.palette();
+  const pointContainer = IQ.utils.PointContainer.fromUint8Array(
+    bitmap.data, width, height,
+  );
 
-  // GBA RGB555格式转换
-  const palette_rgb555 = quantizedPalette.map(color => {
-    return ((color[2] >> 3) << 10) | ((color[1] >> 3) << 5) | (color[0] >> 3);
+  const palette = await IQ.buildPalette([pointContainer], {
+    colorDistanceFormula: 'euclidean',
+    paletteQuantization: 'neuquant',
+    colors: maxColors,
+    // onProgress: (progress) => { console.log('buildPalette', progress); },
   });
 
-  // ---------- LUT 生成 ----------
-  const lut = new Uint8Array(32 * 32 * 32);
+  const outPointContainer = await IQ.applyPalette(pointContainer, palette, {
+    colorDistanceFormula: 'euclidean',
+    imageQuantization: 'floyd-steinberg',
+    // onProgress: (progress) => { console.log('applyPalette', progress); },
+  });
 
-  for (let r = 0; r < 32; r++) {
-    for (let g = 0; g < 32; g++) {
-      for (let b = 0; b < 32; b++) {
-        const color: quantize.RgbPixel = [r << 3, g << 3, b << 3];
-
-        // 找到最近的调色板颜色
-        let closestIndex = 0;
-        let minDistance = colorDistance(color, quantizedPalette[0]);
-        for (let i = 1; i < quantizedPalette.length; i++) {
-          const d = colorDistance(color, quantizedPalette[i]);
-          if (d < minDistance) {
-            minDistance = d;
-            closestIndex = i;
-          }
-        }
-
-        lut[(r << 10) | (g << 5) | b] = closestIndex;
-      }
-    }
+  const palettePoints = palette.getPointContainer().getPointArray();
+  const paletteColorToIndex = new Map<number, number>();
+  for (let i = 0; i < palettePoints.length; i++) {
+    const pt = palettePoints[i];
+    const key = (pt.r << 16) | (pt.g << 8) | pt.b;
+    paletteColorToIndex.set(key, i);
   }
 
-  // ---------- 位图映射 ----------
-  const raw_bitmap = new Uint8Array(bitmap.width * bitmap.height);
-
-  for (let y = 0; y < bitmap.height; y++) {
-    for (let x = 0; x < bitmap.width; x++) {
-      const pixelIndex = y * bitmap.width + x;
-      const { r, g, b } = intToRGBA(image.getPixelColor(x, y));
-
-      // RGB 压缩到 5bit 后查 LUT
-      const idx = lut[((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3)];
-      raw_bitmap[pixelIndex] = idx;
-    }
+  const outPoints = outPointContainer.getPointArray();
+  const indexBitmap = new Uint8Array(outPoints.length);
+  for (let i = 0; i < outPoints.length; i++) {
+    const pt = outPoints[i];
+    const key = (pt.r << 16) | (pt.g << 8) | pt.b;
+    indexBitmap[i] = paletteColorToIndex.get(key) ?? 0;
   }
+
+  // 用于 ROM 的 GBA RGB555
+  const palette_rgb555 = palettePoints.map(pt => {
+    const r = pt.r, g = pt.g, b = pt.b;
+    return ((b >> 3) << 10) | ((g >> 3) << 5) | (r >> 3);
+  });
 
   return {
-    palette: quantizedPalette,
-    bitmap: raw_bitmap,
-    palette_rgb555,
+    palette: palettePoints, // 8bit RGB 调色板（调试/显示用）
+    bitmap: indexBitmap, // 每像素索引
+    palette_rgb555, // GBA RGB555（写 ROM 用）
   };
 }
 
-// 颜色距离计算函数
-function colorDistance(c1: quantize.RgbPixel, c2: quantize.RgbPixel): number {
-  const dr = c1[0] - c2[0];
-  const dg = c1[1] - c2[1];
-  const db = c1[2] - c2[2];
-  return Math.sqrt(dr * dr + dg * dg + db * db);
+export async function saveIndexedImageAsPng(indexedImage: {
+  palette: IQ.utils.Point[];
+  bitmap: Uint8Array;
+}, filename: string, width: number, height: number) {
+  const img = new Jimp({ width, height, color: 0xffffffff });
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const index = indexedImage.bitmap[y * width + x];
+      const point = indexedImage.palette[index];
+      const rgba = rgbaToInt(point.r, point.g, point.b, 255);
+      img.setPixelColor(rgba, x, y);
+    }
+  }
+
+  const outputPath = path.join(__dirname, filename);
+  await img.write(`${outputPath}.png`);
 }
