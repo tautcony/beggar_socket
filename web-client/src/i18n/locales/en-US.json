@@ -504,7 +504,10 @@
       "libraryLoaded": "Image processing library loaded",
       "libraryLoadFailed": "Failed to load image processing library",
       "loadingDescription": "Initializing necessary components, please wait...",
-      "noFileSelected": "No file selected"
+      "noFileSelected": "No file selected",
+      "imagePreview": "Image Preview",
+      "originalImage": "Original Image",
+      "processedImage": "Processed Image"
     }
   },
   "messages": {

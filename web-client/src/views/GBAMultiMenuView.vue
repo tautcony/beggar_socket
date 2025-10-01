@@ -352,7 +352,7 @@
               <input
                 ref="bgImageInput"
                 type="file"
-                accept=".png"
+                accept=".png,.jpg,.jpeg"
                 style="display: none"
                 @change="handleBgImageChange"
               >
@@ -426,14 +426,33 @@
       class="bg-image-preview-overlay"
     >
       <div class="bg-image-preview">
-        <img
-          :src="bgImagePreviewUrl"
-          :alt="bgImageFileName"
-          class="preview-image"
-        >
-        <div class="preview-info">
-          <span class="preview-filename">{{ bgImageFileName }}</span>
-          <span class="preview-size">{{ formatFileSize(bgImageData?.byteLength || 0) }}</span>
+        <div class="preview-images-container">
+          <div class="preview-item">
+            <h6>{{ $t('ui.gbaMultiMenu.originalImage') }}</h6>
+            <div
+              v-if="bgImageDimensions"
+              class="image-dimensions"
+            >
+              {{ bgImageDimensions.width }} × {{ bgImageDimensions.height }}
+            </div>
+            <img
+              :src="bgImagePreviewUrl"
+              :alt="$t('ui.gbaMultiMenu.originalImage')"
+              class="preview-thumbnail"
+            >
+          </div>
+          <div class="preview-item">
+            <h6>{{ $t('ui.gbaMultiMenu.processedImage') }}</h6>
+            <div class="image-dimensions">
+              240 × 160
+            </div>
+            <img
+              v-if="processedBgImagePreviewUrl"
+              :src="processedBgImagePreviewUrl"
+              :alt="$t('ui.gbaMultiMenu.processedImage')"
+              class="preview-thumbnail"
+            >
+          </div>
         </div>
       </div>
     </div>
@@ -509,6 +528,8 @@ const expandedConfigs = ref<Set<string>>(new Set());
 // 背景图像预览相关
 const showBgImagePreview = ref(false);
 const bgImagePreviewUrl = ref<string | null>(null);
+const processedBgImagePreviewUrl = ref<string | null>(null);
+const bgImageDimensions = ref<{ width: number; height: number } | null>(null);
 
 const cartridgeType = ref(4);
 const batteryPresent = ref(true);
@@ -589,6 +610,24 @@ async function loadDefaultBackground() {
       const arrayBuffer = await blob.arrayBuffer();
       bgImageData.value = arrayBuffer;
       bgImageFileName.value = 'bg.png';
+
+      try {
+        // 生成处理后的预览图像
+        const { Jimp } = await import('jimp');
+        const img = await Jimp.fromBuffer(arrayBuffer) as InstanceType<typeof Jimp>;
+
+        // 存储图像尺寸
+        bgImageDimensions.value = { width: img.width, height: img.height };
+
+        const { generateIndexedPreviewImage } = await import('../services/lk/imageUtils');
+        const processedPreviewUrl = await generateIndexedPreviewImage(img);
+        processedBgImagePreviewUrl.value = processedPreviewUrl;
+      } catch (error) {
+        console.error('Failed to generate processed preview for default image:', error);
+        processedBgImagePreviewUrl.value = null;
+        bgImageDimensions.value = null;
+      }
+
       showToast(t('messages.gbaMultiMenu.bgImageLoaded', { name: 'bg.png (默认)' }), 'success');
     } else {
       showToast(t('messages.gbaMultiMenu.bgImageLoadFailed', { name: 'bg.png (默认)', status: response.status }), 'error');
@@ -764,10 +803,28 @@ function processBgImageFile(file: File) {
   cleanupBgImagePreview();
 
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = async () => {
     const data = reader.result as ArrayBuffer;
     bgImageData.value = data;
     bgImageFileName.value = file.name;
+
+    try {
+      // 生成处理后的预览图像
+      const { Jimp } = await import('jimp');
+      const img = await Jimp.fromBuffer(data) as InstanceType<typeof Jimp>;
+
+      // 存储图像尺寸
+      bgImageDimensions.value = { width: img.width, height: img.height };
+
+      const { generateIndexedPreviewImage } = await import('../services/lk/imageUtils');
+      const processedPreviewUrl = await generateIndexedPreviewImage(img);
+      processedBgImagePreviewUrl.value = processedPreviewUrl;
+    } catch (error) {
+      console.error('Failed to generate processed preview:', error);
+      processedBgImagePreviewUrl.value = null;
+      bgImageDimensions.value = null;
+    }
+
     showToast(t('messages.gbaMultiMenu.bgImageLoaded', { name: file.name }), 'success');
   };
   reader.readAsArrayBuffer(file);
@@ -805,6 +862,12 @@ function clearBgImage() {
     URL.revokeObjectURL(bgImagePreviewUrl.value);
     bgImagePreviewUrl.value = null;
   }
+  // 清理处理后的预览URL
+  if (processedBgImagePreviewUrl.value) {
+    processedBgImagePreviewUrl.value = null; // base64字符串不需要revoke
+  }
+  // 清理图像尺寸
+  bgImageDimensions.value = null;
   // 重新加载默认背景
   void loadDefaultBackground();
 }
@@ -964,7 +1027,7 @@ function handleBgImageChange(e: Event) {
   const files = input.files;
   if (files && files.length > 0) {
     const file = files[0];
-    if (file.name.toLowerCase().endsWith('.png')) {
+    if (file.name.toLowerCase().endsWith('.png') || file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg')) {
       processBgImageFile(file);
     }
   }
@@ -1606,37 +1669,51 @@ function toggleGameConfig(fileName: string) {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   padding: var(--space-4);
-  max-width: 400px;
+  max-width: 600px;
   max-height: 500px;
   border: var(--border-width) var(--border-style) var(--color-primary);
 }
 
-.preview-image {
-  max-width: 100%;
-  max-height: 300px;
-  object-fit: contain;
-  display: block;
-  box-shadow: var(--shadow-sm);
+.preview-images-container {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  justify-content: center;
+  margin-bottom: var(--space-3);
 }
 
-.preview-info {
-  margin-top: var(--space-3);
+.preview-images-container .preview-item {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
+  max-width: 250px;
 }
 
-.preview-filename {
+.preview-images-container .preview-item h6 {
+  margin: 0;
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
   text-align: center;
 }
 
-.preview-size {
+.image-dimensions {
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+  text-align: center;
+}
+
+.preview-thumbnail {
+  max-width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  display: block;
+  box-shadow: var(--shadow-sm);
+  border: var(--border-width) var(--border-style) var(--color-border-light);
+  border-radius: var(--radius-sm);
 }
 
 /* 文件配置行样式 */

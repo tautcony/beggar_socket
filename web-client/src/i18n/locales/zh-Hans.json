@@ -504,7 +504,10 @@
       "libraryLoaded": "图像处理库加载完成",
       "libraryLoadFailed": "图像处理库加载失败",
       "loadingDescription": "正在初始化必要的组件，请稍候...",
-      "noFileSelected": "未选择文件"
+      "noFileSelected": "未选择文件",
+      "imagePreview": "图像预览",
+      "originalImage": "原图",
+      "processedImage": "处理后图像"
     }
   },
   "messages": {
