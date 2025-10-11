@@ -44,9 +44,8 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
 import { checkmarkDoneOutline, flashOutline, reloadOutline } from 'ionicons/icons';
-import { computed, onMounted, ref, withDefaults } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import BaseButton from '@/components/common/BaseButton.vue';
