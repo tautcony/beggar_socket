@@ -218,6 +218,7 @@ if (typeof window !== 'undefined') {
     background: linear-gradient(135deg, color-vars.$color-toast-error-start 0%, color-vars.$color-toast-error-end 100%);
   }
 
+  &.info,
   &.idle {
     background: linear-gradient(135deg, color-vars.$color-toast-info-start 0%, color-vars.$color-toast-info-end 100%);
   }

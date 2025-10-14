@@ -272,13 +272,13 @@
                   3. MSP54LV100 (128MB)
                 </option>
                 <option value="4">
-                  4. ChisFlash1.0G-128MB (128MB)
+                  4. F0095H0 (512MB)
                 </option>
                 <option value="5">
-                  5. ChisFlash2.0G-256MB (256MB)
+                  5. ChisFlash 1.0G (128MB)
                 </option>
                 <option value="6">
-                  6. F0095H0 (512MB)
+                  6. ChisFlash 2.0G (256MB)
                 </option>
               </select>
             </div>
@@ -531,7 +531,7 @@ const bgImagePreviewUrl = ref<string | null>(null);
 const processedBgImagePreviewUrl = ref<string | null>(null);
 const bgImageDimensions = ref<{ width: number; height: number } | null>(null);
 
-const cartridgeType = ref(4);
+const cartridgeType = ref(5);
 const batteryPresent = ref(true);
 const outputName = ref('LK_MULTIMENU_<CODE>.gba');
 
@@ -998,7 +998,7 @@ function resetState() {
   bgImageFileName.value = '';
   saveFiles.value.clear();
   expandedConfigs.value.clear();
-  cartridgeType.value = 4;
+  cartridgeType.value = 5;
   batteryPresent.value = true;
   outputName.value = 'LK_MULTIMENU_<CODE>.gba';
   isBuilding.value = false;
