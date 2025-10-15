@@ -95,8 +95,8 @@ function handleChange(event: Event) {
   &::before {
     content: '';
     position: absolute;
-    top: spacing-vars.$space-1;
-    left: spacing-vars.$space-1;
+    top: 2px;
+    left: 2px;
     width: 20px;
     height: 20px;
     background-color: white;
