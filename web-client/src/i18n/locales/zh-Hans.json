@@ -334,6 +334,7 @@
         "setGBA": "RTC设置(GBA)",
         "readMBC3": "RTC读取(MBC3)",
         "setMBC3": "RTC设置(MBC3)",
+        "clockPlaceholder": "读取 RTC 时间后，此处将显示时钟",
         "year": "年",
         "month": "月",
         "date": "日",
@@ -368,7 +369,8 @@
         "rumble": "震动测试",
         "ppbUnlock": "PPB解锁",
         "ppbUnlockGBA": "PPB解锁(GBA)",
-        "ppbUnlockMBC5": "PPB解锁(MBC5)"
+        "ppbUnlockMBC5": "PPB解锁(MBC5)",
+        "noLogs": "暂无日志"
       },
       "ppb": {
         "sectorCountPrompt": "请输入要检查的扇区数量 (1-{max}):",
@@ -708,12 +710,45 @@
         "readSuccess": "RTC读取成功: {time}",
         "readFailed": "RTC读取失败: {error}"
       },
+      "rumbleTest": {
+        "start": "开始震动测试..."
+      },
       "rumbleSuccess": "震动测试成功",
       "rumbleFailed": "震动测试失败: {error}",
       "ppbUnlockSuccess": "PPB解锁成功",
       "ppbUnlockFailed": "PPB解锁失败: {error}",
+      "ppbUnlockGBA": {
+        "start": "开始GBA PPB解锁...",
+        "progress": "解锁进度",
+        "starting": "开始解锁PPB",
+        "flashDetectionFailed": "NOR flash识别异常",
+        "deviceInfo": "容量:{capacity} 扇区数量:{sectorCount} 扇区大小:{sectorSize}",
+        "checkingSectors": "检查 {count} 个扇区的PPB状态",
+        "allSectorsUnlocked": "所有扇区已解锁，但仍将执行PPB擦除操作",
+        "ppbEraseStarting": "---- All PPB Erase ----",
+        "verifyingStatus": "验证PPB状态: {status}",
+        "cannotUnlock": "无法解锁PPB",
+        "unlockSuccess": "PPB解锁成功",
+        "unlockFailed": "GBA PPB解锁失败: {error}",
+        "unknownError": "未知错误"
+      },
       "ppbUnlockGBASuccess": "GBA PPB解锁成功",
       "ppbUnlockGBAFailed": "GBA PPB解锁失败: {error}",
+      "ppbUnlockMBC5": {
+        "start": "开始MBC5 PPB解锁...",
+        "progress": "解锁进度",
+        "starting": "开始解锁PPB",
+        "flashDetectionFailed": "NOR flash识别异常",
+        "deviceInfo": "容量:{capacity} 扇区数量:{sectorCount} 扇区大小:{sectorSize}",
+        "checkingSectors": "检查 {count} 个扇区的PPB状态",
+        "allSectorsUnlocked": "所有扇区已解锁，但仍将执行PPB擦除操作",
+        "ppbEraseStarting": "---- All PPB Erase ----",
+        "verifyingStatus": "验证PPB状态: {status}",
+        "cannotUnlock": "无法解锁PPB",
+        "unlockSuccess": "PPB解锁成功",
+        "unlockFailed": "MBC5 PPB解锁失败: {error}",
+        "unknownError": "未知错误"
+      },
       "ppbUnlockMBC5Success": "MBC5 PPB解锁成功",
       "ppbUnlockMBC5Failed": "MBC5 PPB解锁失败: {error}",
       "notImplemented": "功能尚未实现"

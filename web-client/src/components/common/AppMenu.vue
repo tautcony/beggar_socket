@@ -123,8 +123,6 @@
       </div>
     </div>
 
-    <!-- ROM组装功能已移至独立页面 -->
-
     <!-- ROM分析器弹框 -->
     <RomAnalyzerModal
       v-model="isRomAnalyzerVisible"

@@ -1,10 +1,44 @@
 import { DateTime } from 'luxon';
 
+import i18n from '@/i18n';
 import { gbc_read, gbc_write, rom_read, rom_write } from '@/protocol/beggar_socket/protocol';
 import { toLittleEndian } from '@/protocol/beggar_socket/protocol-utils';
+import { LogCallback, ProgressCallback } from '@/services/cartridge-adapter';
 import { DeviceInfo } from '@/types/device-info';
+import { ProgressInfo } from '@/types/progress-info';
 
+import { GBAAdapter } from './gba-adapter';
+import { MBC5Adapter } from './mbc5-adapter';
 import { type GBARTCData, type MBC3RTCData, RTCManager } from './rtc';
+
+/**
+ * PPB 操作进度信息
+ */
+export interface PPBProgress {
+  progress?: number;
+  message?: string;
+  type?: 'info' | 'success' | 'warn' | 'error';
+}
+
+/**
+ * 创建日志回调函数
+ */
+function createLogCallback(onProgress?: (progress: PPBProgress) => void): LogCallback {
+  return (message: string, type: 'info' | 'success' | 'warn' | 'error') => {
+    onProgress?.({ message, type });
+  };
+}
+
+/**
+ * 创建进度回调函数
+ */
+function createProgressCallback(onProgress?: (progress: PPBProgress) => void): ProgressCallback {
+  return (progressInfo: ProgressInfo) => {
+    if (progressInfo.progress !== undefined && progressInfo.progress !== null) {
+      onProgress?.({ progress: progressInfo.progress });
+    }
+  };
+}
 
 /**
  * 设置RTC时间
@@ -60,20 +94,60 @@ export async function rumbleTest(device: DeviceInfo): Promise<void> {
 /**
  * PPB解锁功能 - GBA模式
  * @param device - 设备信息
- * @param sectorCount - 要检查的扇区数量（可选，默认16）
  * @param onProgress - 进度回调函数
  */
-export async function ppbUnlockGBA(device: DeviceInfo, sectorCount = 16, onProgress?: (progress: number) => void): Promise<{ success: boolean; message: string }> {
+export async function ppbUnlockGBA(device: DeviceInfo, onProgress?: (progress: PPBProgress) => void): Promise<{ success: boolean; message: string }> {
+  const t = i18n.global.t;
+
   try {
-    console.log('解锁PPB');
-    if (onProgress) onProgress(5);
+    // 创建回调函数
+    const logCallback = createLogCallback(onProgress);
+    const progressCallback = createProgressCallback(onProgress);
+
+    // 创建 GBA Adapter
+    const gbaAdapter = new GBAAdapter(
+      device,
+      logCallback,
+      progressCallback,
+      t,
+    );
+
+    onProgress?.({ message: t('messages.tools.ppbUnlockGBA.starting'), type: 'info' });
+    onProgress?.({ progress: 5 });
+
+    // 获取设备信息
+    const cartInfo = await gbaAdapter.getCartInfo();
+    if (!cartInfo) {
+      return { success: false, message: t('messages.tools.ppbUnlockGBA.flashDetectionFailed') };
+    }
+
+    const deviceSize = cartInfo.deviceSize;
+    const actualSectorCount = cartInfo.eraseSectorBlocks.reduce((sum: number, block) => sum + block.sectorCount, 0);
+    const sectorSize = cartInfo.eraseSectorBlocks[0]?.sectorSize ?? 0x10000;
+
+    logCallback(
+      t('messages.tools.ppbUnlockGBA.deviceInfo', {
+        capacity: deviceSize,
+        sectorCount: actualSectorCount,
+        sectorSize: sectorSize,
+      }),
+      'info',
+    );
+
+    // 检查设备容量
+    if (deviceSize > 512 * 1024 * 1024) {
+      return { success: false, message: t('messages.tools.ppbUnlockGBA.flashDetectionFailed') };
+    }
+
+    // 判断是否为多卡 (>32MB)
+    const isMultiCard = deviceSize > (32 * 1024 * 1024);
 
     // Reset
     await rom_write(device, toLittleEndian(0x90, 2), 0);
     await rom_write(device, toLittleEndian(0x00, 2), 0); // Command Set Exit
     await rom_write(device, toLittleEndian(0xf0, 2), 0); // Reset/ASO Exit
 
-    if (onProgress) onProgress(10);
+    onProgress?.({ progress: 10 });
 
     // 检查PPB Lock状态
     // Global Non-Volatile Sector Protection Freeze Command Set Definitions
@@ -89,32 +163,37 @@ export async function ppbUnlockGBA(device: DeviceInfo, sectorCount = 16, onProgr
     await rom_write(device, toLittleEndian(0xf0, 2), 0);
 
     const lockStatus = (lockBit[1] << 8) | lockBit[0];
-    console.log(`PPB Lock Status: 0x${lockStatus.toString(16)}`);
+    onProgress?.({ message: `PPB Lock Status: 0x${lockStatus.toString(16)}`, type: 'info' });
 
     if ((lockBit[0] & 0x01) !== 1) {
-      return { success: false, message: '无法解锁PPB' };
+      return { success: false, message: t('messages.tools.ppbUnlockGBA.cannotUnlock') };
     }
 
-    if (onProgress) onProgress(20);
+    onProgress?.({ progress: 20 });
 
-    // 验证扇区数量
-    if (sectorCount <= 0 || sectorCount > 512) {
-      return { success: false, message: '扇区数量必须在1-512之间' };
-    }
-
-    console.log(`检查 ${sectorCount} 个扇区的PPB状态`);
-    const baseSectorSize = 0x10000; // 64KB 扇区大小
+    // 使用实际扇区数量
+    onProgress?.({ message: t('messages.tools.ppbUnlockGBA.checkingSectors', { count: actualSectorCount }), type: 'info' });
+    let currentBank = -1;
     let needToUnlock = false;
     let ppbStatusMsg = '';
 
     // 检查指定数量扇区的PPB状态
-    for (let i = 0; i < sectorCount; i++) {
+    for (let i = 0; i < actualSectorCount; i++) {
+      // 如果是多卡，需要切换 bank
+      if (isMultiCard) {
+        const bank = Math.floor((i * sectorSize) / (32 * 1024 * 1024));
+        if (bank !== currentBank) {
+          await gbaAdapter.switchROMBank(bank);
+          currentBank = bank;
+        }
+      }
+
       // Non-Volatile Sector Protection Command Set Definitions
       await rom_write(device, toLittleEndian(0xaa, 2), 0x000555);
       await rom_write(device, toLittleEndian(0x55, 2), 0x0002aa);
       await rom_write(device, toLittleEndian(0xc0, 2), 0x000555);
 
-      const sectorLockBit = await rom_read(device, 2, i * baseSectorSize);
+      const sectorLockBit = await rom_read(device, 2, i * sectorSize);
 
       // Reset
       await rom_write(device, toLittleEndian(0x90, 2), 0);
@@ -126,25 +205,33 @@ export async function ppbUnlockGBA(device: DeviceInfo, sectorCount = 16, onProgr
         needToUnlock = true;
       }
       ppbStatusMsg += `${ppb.toString(16).padStart(4, '0')}  `;
+
+      // 每16个扇区输出一次日志
+      if (i !== 0 && ((i + 1) % 16 === 0)) {
+        onProgress?.({ message: ppbStatusMsg, type: 'info' });
+        ppbStatusMsg = '';
+      }
     }
 
-    console.log(`PPB状态: ${ppbStatusMsg}`);
+    if (ppbStatusMsg) {
+      onProgress?.({ message: ppbStatusMsg, type: 'info' });
+    }
 
     if (!needToUnlock) {
-      console.log('所有扇区已解锁，但仍将执行PPB擦除操作');
+      onProgress?.({ message: t('messages.tools.ppbUnlockGBA.allSectorsUnlocked'), type: 'info' });
     }
 
-    if (onProgress) onProgress(40);
+    onProgress?.({ progress: 40 });
 
     // All PPB Erase
-    console.log('---- All PPB Erase ----');
+    onProgress?.({ message: t('messages.tools.ppbUnlockGBA.ppbEraseStarting'), type: 'info' });
     await rom_write(device, toLittleEndian(0xaa, 2), 0x000555);
     await rom_write(device, toLittleEndian(0x55, 2), 0x0002aa);
     await rom_write(device, toLittleEndian(0xc0, 2), 0x000555);
     await rom_write(device, toLittleEndian(0x80, 2), 0);
     await rom_write(device, toLittleEndian(0x30, 2), 0); // All PPB Erase
 
-    if (onProgress) onProgress(70);
+    onProgress?.({ progress: 70 });
 
     // 等待擦除完成
     await new Promise(resolve => setTimeout(resolve, 2000));
@@ -153,17 +240,27 @@ export async function ppbUnlockGBA(device: DeviceInfo, sectorCount = 16, onProgr
     await rom_write(device, toLittleEndian(0x00, 2), 0);
     await rom_write(device, toLittleEndian(0xf0, 2), 0);
 
-    if (onProgress) onProgress(90);
+    onProgress?.({ progress: 90 });
 
     // 验证PPB擦除结果
+    currentBank = -1;
     let verifyMsg = '';
-    for (let i = 0; i < sectorCount; i++) {
+    for (let i = 0; i < actualSectorCount; i++) {
+      // 如果是多卡，需要切换 bank
+      if (isMultiCard) {
+        const bank = Math.floor((i * sectorSize) / (32 * 1024 * 1024));
+        if (bank !== currentBank) {
+          await gbaAdapter.switchROMBank(bank);
+          currentBank = bank;
+        }
+      }
+
       // Non-Volatile Sector Protection Command Set Definitions
       await rom_write(device, toLittleEndian(0xaa, 2), 0x000555);
       await rom_write(device, toLittleEndian(0x55, 2), 0x0002aa);
       await rom_write(device, toLittleEndian(0xc0, 2), 0x000555);
 
-      const sectorLockBit = await rom_read(device, 2, i * baseSectorSize);
+      const sectorLockBit = await rom_read(device, 2, i * sectorSize);
 
       // Reset
       await rom_write(device, toLittleEndian(0x90, 2), 0);
@@ -172,36 +269,82 @@ export async function ppbUnlockGBA(device: DeviceInfo, sectorCount = 16, onProgr
 
       const ppb = (sectorLockBit[1] << 8) | sectorLockBit[0];
       verifyMsg += `${ppb.toString(16).padStart(4, '0')}  `;
+
+      // 每16个扇区输出一次日志
+      if (i !== 0 && ((i + 1) % 16 === 0)) {
+        onProgress?.({ message: verifyMsg, type: 'info' });
+        verifyMsg = '';
+      }
     }
 
-    console.log(`验证PPB状态: ${verifyMsg}`);
+    if (verifyMsg) {
+      onProgress?.({ message: t('messages.tools.ppbUnlockGBA.verifyingStatus', { status: verifyMsg }), type: 'success' });
+    }
 
-    if (onProgress) onProgress(100);
+    onProgress?.({ progress: 100 });
 
-    return { success: true, message: 'PPB解锁成功' };
+    return { success: true, message: t('messages.tools.ppbUnlockGBA.unlockSuccess') };
   } catch (error) {
-    console.error('GBA PPB解锁失败:', error);
-    return { success: false, message: error instanceof Error ? error.message : '未知错误' };
+    const errorMsg = error instanceof Error ? error.message : t('messages.tools.ppbUnlockGBA.unknownError');
+    onProgress?.({ message: t('messages.tools.ppbUnlockGBA.unlockFailed', { error: errorMsg }), type: 'error' });
+    return { success: false, message: errorMsg };
   }
 }
 
 /**
  * PPB解锁功能 - MBC5模式
  * @param device - 设备信息
- * @param sectorCount - 要检查的扇区数量（可选，默认16）
  * @param onProgress - 进度回调函数
  */
-export async function ppbUnlockMBC5(device: DeviceInfo, sectorCount = 16, onProgress?: (progress: number) => void): Promise<{ success: boolean; message: string }> {
+export async function ppbUnlockMBC5(device: DeviceInfo, onProgress?: (progress: PPBProgress) => void): Promise<{ success: boolean; message: string }> {
+  const t = i18n.global.t;
+
   try {
-    console.log('解锁PPB');
-    if (onProgress) onProgress(5);
+    // 创建回调函数
+    const logCallback = createLogCallback(onProgress);
+    const progressCallback = createProgressCallback(onProgress);
+
+    // 创建 MBC5 Adapter
+    const mbc5Adapter = new MBC5Adapter(
+      device,
+      logCallback,
+      progressCallback,
+      t,
+    );
+
+    logCallback(t('messages.tools.ppbUnlockMBC5.starting'), 'info');
+    onProgress?.({ progress: 5 });
+
+    // 获取设备信息
+    const cartInfo = await mbc5Adapter.getCartInfo();
+    if (!cartInfo) {
+      return { success: false, message: t('messages.tools.ppbUnlockMBC5.flashDetectionFailed') };
+    }
+
+    const deviceSize = cartInfo.deviceSize;
+    const actualSectorCount = cartInfo.eraseSectorBlocks.reduce((sum: number, block) => sum + block.sectorCount, 0);
+    const sectorSize = cartInfo.eraseSectorBlocks[0]?.sectorSize ?? 0x4000;
+
+    logCallback(
+      t('messages.tools.ppbUnlockMBC5.deviceInfo', {
+        capacity: deviceSize,
+        sectorCount: actualSectorCount,
+        sectorSize: sectorSize,
+      }),
+      'info',
+    );
+
+    // 检查设备容量
+    if (deviceSize > 512 * 1024 * 1024) {
+      return { success: false, message: t('messages.tools.ppbUnlockMBC5.flashDetectionFailed') };
+    }
 
     // Reset
     await gbc_write(device, new Uint8Array([0x90]), 0);
     await gbc_write(device, new Uint8Array([0x00]), 0); // Command Set Exit
     await gbc_write(device, new Uint8Array([0xf0]), 0); // Reset/ASO Exit
 
-    if (onProgress) onProgress(10);
+    onProgress?.({ progress: 10 });
 
     // 检查PPB Lock状态
     // Global Non-Volatile Sector Protection Freeze Command Set Definitions
@@ -216,37 +359,36 @@ export async function ppbUnlockMBC5(device: DeviceInfo, sectorCount = 16, onProg
     await gbc_write(device, new Uint8Array([0x00]), 0);
     await gbc_write(device, new Uint8Array([0xf0]), 0);
 
-    console.log(`PPB Lock Status: 0x${lockBit[0].toString(16)}`);
+    logCallback(`PPB Lock Status: 0x${lockBit[0].toString(16)}`, 'info');
 
     if ((lockBit[0] & 0x01) !== 1) {
-      return { success: false, message: '无法解锁PPB' };
+      return { success: false, message: t('messages.tools.ppbUnlockMBC5.cannotUnlock') };
     }
 
-    if (onProgress) onProgress(20);
+    onProgress?.({ progress: 20 });
 
-    // 验证扇区数量
-    if (sectorCount <= 0 || sectorCount > 256) {
-      return { success: false, message: '扇区数量必须在1-256之间' };
-    }
-
-    console.log(`检查 ${sectorCount} 个扇区的PPB状态`);
-    const baseSectorSize = 0x4000; // 16KB 扇区大小
+    // 使用实际扇区数量
+    logCallback(t('messages.tools.ppbUnlockMBC5.checkingSectors', { count: actualSectorCount }), 'info');
+    let currentBank = -1;
     let needUnlock = false;
     let ppbStatusMsg = '';
 
-    for (let i = 0; i < sectorCount; i++) {
+    for (let i = 0; i < actualSectorCount; i++) {
       // 计算bank和cartridge地址
-      const bank = (i * baseSectorSize) >> 14;
+      const bank = Math.floor((i * sectorSize) / 0x4000);
       let cartAddress: number;
 
       if (bank === 0) {
-        cartAddress = 0x0000 + ((i * baseSectorSize) & 0x3fff);
+        cartAddress = 0x0000 + ((i * sectorSize) & 0x3fff);
       } else {
-        cartAddress = 0x4000 + ((i * baseSectorSize) & 0x3fff);
+        cartAddress = 0x4000 + ((i * sectorSize) & 0x3fff);
       }
 
-      // 注意：这里简化了bank切换逻辑
-      // 完整实现需要调用 mbc5_romSwitchBank(bank)
+      // 切换 ROM bank（如果需要）
+      if (bank !== currentBank) {
+        await mbc5Adapter.switchROMBank(bank);
+        currentBank = bank;
+      }
 
       // Non-Volatile Sector Protection Command Set Definitions
       await gbc_write(device, new Uint8Array([0xaa]), 0xaaa);
@@ -264,25 +406,33 @@ export async function ppbUnlockMBC5(device: DeviceInfo, sectorCount = 16, onProg
         needUnlock = true;
       }
       ppbStatusMsg += `${sectorLockBit[0].toString(16).padStart(2, '0')}  `;
+
+      // 每16个扇区输出一次日志
+      if (i !== 0 && ((i + 1) % 16 === 0)) {
+        logCallback(ppbStatusMsg, 'info');
+        ppbStatusMsg = '';
+      }
     }
 
-    console.log(`PPB状态: ${ppbStatusMsg}`);
+    if (ppbStatusMsg) {
+      logCallback(ppbStatusMsg, 'info');
+    }
 
     if (!needUnlock) {
-      console.log('所有扇区已解锁，但仍将执行PPB擦除操作');
+      logCallback(t('messages.tools.ppbUnlockMBC5.allSectorsUnlocked'), 'info');
     }
 
-    if (onProgress) onProgress(40);
+    onProgress?.({ progress: 40 });
 
     // All PPB Erase
-    console.log('---- All PPB Erase ----');
+    logCallback(t('messages.tools.ppbUnlockMBC5.ppbEraseStarting'), 'info');
     await gbc_write(device, new Uint8Array([0xaa]), 0xaaa);
     await gbc_write(device, new Uint8Array([0x55]), 0x555);
     await gbc_write(device, new Uint8Array([0xc0]), 0xaaa);
     await gbc_write(device, new Uint8Array([0x80]), 0);
     await gbc_write(device, new Uint8Array([0x30]), 0); // All PPB Erase
 
-    if (onProgress) onProgress(70);
+    onProgress?.({ progress: 70 });
 
     // 等待擦除完成
     await new Promise(resolve => setTimeout(resolve, 2000));
@@ -291,19 +441,26 @@ export async function ppbUnlockMBC5(device: DeviceInfo, sectorCount = 16, onProg
     await gbc_write(device, new Uint8Array([0x00]), 0);
     await gbc_write(device, new Uint8Array([0xf0]), 0);
 
-    if (onProgress) onProgress(90);
+    onProgress?.({ progress: 90 });
 
     // 验证PPB擦除结果
+    currentBank = -1;
     let verifyMsg = '';
-    for (let i = 0; i < sectorCount; i++) {
+    for (let i = 0; i < actualSectorCount; i++) {
       // 计算bank和cartridge地址
-      const bank = (i * baseSectorSize) >> 14;
+      const bank = Math.floor((i * sectorSize) / 0x4000);
       let cartAddress: number;
 
       if (bank === 0) {
-        cartAddress = 0x0000 + ((i * baseSectorSize) & 0x3fff);
+        cartAddress = 0x0000 + ((i * sectorSize) & 0x3fff);
       } else {
-        cartAddress = 0x4000 + ((i * baseSectorSize) & 0x3fff);
+        cartAddress = 0x4000 + ((i * sectorSize) & 0x3fff);
+      }
+
+      // 切换 ROM bank（如果需要）
+      if (bank !== currentBank) {
+        await mbc5Adapter.switchROMBank(bank);
+        currentBank = bank;
       }
 
       // Non-Volatile Sector Protection Command Set Definitions
@@ -319,15 +476,24 @@ export async function ppbUnlockMBC5(device: DeviceInfo, sectorCount = 16, onProg
       await gbc_write(device, new Uint8Array([0xf0]), 0);
 
       verifyMsg += `${sectorLockBit[0].toString(16).padStart(2, '0')}  `;
+
+      // 每16个扇区输出一次日志
+      if (i !== 0 && ((i + 1) % 16 === 0)) {
+        logCallback(verifyMsg, 'info');
+        verifyMsg = '';
+      }
     }
 
-    console.log(`验证PPB状态: ${verifyMsg}`);
+    if (verifyMsg) {
+      logCallback(t('messages.tools.ppbUnlockMBC5.verifyingStatus', { status: verifyMsg }), 'success');
+    }
 
-    if (onProgress) onProgress(100);
+    onProgress?.({ progress: 100 });
 
-    return { success: true, message: 'PPB解锁成功' };
+    return { success: true, message: t('messages.tools.ppbUnlockMBC5.unlockSuccess') };
   } catch (error) {
-    console.error('MBC5 PPB解锁失败:', error);
-    return { success: false, message: error instanceof Error ? error.message : '未知错误' };
+    const errorMsg = error instanceof Error ? error.message : t('messages.tools.ppbUnlockMBC5.unknownError');
+    onProgress?.({ message: t('messages.tools.ppbUnlockMBC5.unlockFailed', { error: errorMsg }), type: 'error' });
+    return { success: false, message: errorMsg };
   }
 }

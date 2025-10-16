@@ -26,7 +26,10 @@
             </button>
           </template>
         </div>
-        <div class="modal-body">
+        <div
+          class="modal-body"
+          :style="bodyStyle"
+        >
           <slot />
         </div>
         <div
@@ -52,6 +55,7 @@ const props = withDefaults(defineProps<{
   width?: string | number;
   maxWidth?: string | number;
   maxHeight?: string | number;
+  padding?: string;
   escClosable?: boolean;
   maskClosable?: boolean;
 }>(), {
@@ -61,6 +65,7 @@ const props = withDefaults(defineProps<{
   width: '500px',
   maxWidth: '90vw',
   maxHeight: '90vh',
+  padding: '1.5rem',
   escClosable: true,
   maskClosable: true,
 });
@@ -74,6 +79,10 @@ const containerStyle = computed(() => ({
   width: typeof props.width === 'number' ? `${props.width}px` : props.width,
   maxWidth: typeof props.maxWidth === 'number' ? `${props.maxWidth}px` : props.maxWidth,
   maxHeight: typeof props.maxHeight === 'number' ? `${props.maxHeight}px` : props.maxHeight,
+}));
+
+const bodyStyle = computed(() => ({
+  padding: props.padding,
 }));
 
 function onOverlayClick() {
@@ -195,7 +204,6 @@ onUnmounted(() => {
 }
 
 .modal-body {
-  padding: spacing-vars.$space-6;
   flex: 1 1 auto;
   overflow-y: auto;
 }

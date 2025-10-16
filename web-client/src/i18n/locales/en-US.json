@@ -334,6 +334,7 @@
         "setGBA": "RTC Set (GBA)",
         "readMBC3": "RTC Read (MBC3)",
         "setMBC3": "RTC Set (MBC3)",
+        "clockPlaceholder": "Clock will be displayed here after reading RTC time",
         "year": "Year",
         "month": "Month",
         "date": "Date",
@@ -368,7 +369,8 @@
         "rumble": "Rumble Test",
         "ppbUnlock": "PPB Unlock",
         "ppbUnlockGBA": "PPB Unlock (GBA)",
-        "ppbUnlockMBC5": "PPB Unlock (MBC5)"
+        "ppbUnlockMBC5": "PPB Unlock (MBC5)",
+        "noLogs": "No logs yet"
       },
       "ppb": {
         "sectorCountPrompt": "Please enter the number of sectors to check (1-{max}):",
@@ -708,12 +710,45 @@
         "readSuccess": "RTC read successfully: {time}",
         "readFailed": "RTC read failed: {error}"
       },
+      "rumbleTest": {
+        "start": "Starting rumble test..."
+      },
       "rumbleSuccess": "Rumble test successful",
       "rumbleFailed": "Rumble test failed: {error}",
       "ppbUnlockSuccess": "PPB unlock successful",
       "ppbUnlockFailed": "PPB unlock failed: {error}",
+      "ppbUnlockGBA": {
+        "start": "Starting GBA PPB unlock...",
+        "progress": "Unlock progress",
+        "starting": "Starting PPB unlock",
+        "flashDetectionFailed": "NOR flash detection failed",
+        "deviceInfo": "Capacity:{capacity} Sector count:{sectorCount} Sector size:{sectorSize}",
+        "checkingSectors": "Checking PPB status of {count} sectors",
+        "allSectorsUnlocked": "All sectors unlocked, but PPB erase will still be performed",
+        "ppbEraseStarting": "---- All PPB Erase ----",
+        "verifyingStatus": "Verifying PPB status: {status}",
+        "cannotUnlock": "Cannot unlock PPB",
+        "unlockSuccess": "PPB unlock successful",
+        "unlockFailed": "GBA PPB unlock failed: {error}",
+        "unknownError": "Unknown error"
+      },
       "ppbUnlockGBASuccess": "GBA PPB unlock successful",
       "ppbUnlockGBAFailed": "GBA PPB unlock failed: {error}",
+      "ppbUnlockMBC5": {
+        "start": "Starting MBC5 PPB unlock...",
+        "progress": "Unlock progress",
+        "starting": "Starting PPB unlock",
+        "flashDetectionFailed": "NOR flash detection failed",
+        "deviceInfo": "Capacity:{capacity} Sector count:{sectorCount} Sector size:{sectorSize}",
+        "checkingSectors": "Checking PPB status of {count} sectors",
+        "allSectorsUnlocked": "All sectors unlocked, but PPB erase will still be performed",
+        "ppbEraseStarting": "---- All PPB Erase ----",
+        "verifyingStatus": "Verifying PPB status: {status}",
+        "cannotUnlock": "Cannot unlock PPB",
+        "unlockSuccess": "PPB unlock successful",
+        "unlockFailed": "MBC5 PPB unlock failed: {error}",
+        "unknownError": "Unknown error"
+      },
       "ppbUnlockMBC5Success": "MBC5 PPB unlock successful",
       "ppbUnlockMBC5Failed": "MBC5 PPB unlock failed: {error}",
       "notImplemented": "Feature not yet implemented"
