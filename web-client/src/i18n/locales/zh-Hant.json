@@ -3,6 +3,33 @@
     "app": {
       "title": "ChisFlash Burner"
     },
+    "systemNotice": {
+      "title": "系統通知",
+      "publishedAt": "發布時間",
+      "acknowledge": "我已知道",
+      "translate": "翻譯",
+      "viewTranslation": "查看翻譯",
+      "viewOriginal": "查看原文",
+      "translating": "正在翻譯…",
+      "translationFailed": "翻譯失敗，請稍後再試。"
+    },
+    "systemNoticeHistory": {
+      "title": "歷史通知紀錄",
+      "subtitle": "檢視已閱讀的系統公告。",
+      "publishedAt": "發布時間",
+      "viewedAt": "最近查看",
+      "unread": "尚未查看",
+      "loading": "正在載入通知...",
+      "loadingContent": "正在載入內容...",
+      "noContent": "目前沒有可用的內容。",
+      "empty": "尚未發布系統通知。",
+      "selectHint": "請從左側選擇通知以檢視詳細資訊。",
+      "translate": "翻譯",
+      "viewTranslation": "查看翻譯",
+      "viewOriginal": "查看原文",
+      "translating": "正在翻譯…",
+      "translationFailed": "翻譯失敗，請稍後再試。"
+    },
     "github": {
       "tooltip": "造訪 GitHub 倉庫"
     },
@@ -47,6 +74,8 @@
       "settingsDesc": "配置應用程式選項",
       "gbaMultiMenu": "GBA合卡",
       "gbaMultiMenuDesc": "建立包含多個遊戲的ROM",
+      "systemNoticeHistory": "歷史通知",
+      "systemNoticeHistoryDesc": "檢視已閱讀的系統通知",
       "about": "關於",
       "aboutDesc": "檢視應用程式資訊和版本"
     },
@@ -463,7 +492,8 @@
       "no": "否",
       "cancel": "取消",
       "save": "儲存",
-      "confirm": "確認"
+      "confirm": "確認",
+      "close": "關閉"
     },
     "gbaMultiMenu": {
       "title": "GBA ROM建構器",

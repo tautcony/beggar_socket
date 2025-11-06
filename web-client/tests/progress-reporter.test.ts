@@ -1,12 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import type { ProgressInfo, SectorProgressInfo } from '../src/types/progress-info';
 import { ProgressReporter } from '../src/utils/progress/progress-reporter';
 
 describe('ProgressReporter', () => {
   let reporter: ProgressReporter;
-  let mockUpdateCallback: ReturnType<typeof vi.fn>;
-  let mockTranslateFunc: ReturnType<typeof vi.fn>;
+  let mockUpdateCallback: Mock<(progressInfo: ProgressInfo) => void>;
+  let mockTranslateFunc: Mock<(key: string, params?: Record<string, unknown>) => string>;
   const totalBytes = 1024 * 1024; // 1MB
 
   beforeEach(() => {
@@ -126,7 +126,7 @@ describe('ProgressReporter', () => {
     it('should work without sector information', () => {
       reporter.reportProgress(512, 1024, 'test');
 
-      const call = mockUpdateCallback.mock.calls[0][0] as ProgressInfo;
+      const call = mockUpdateCallback.mock.calls[0][0];
       expect(call.sectorProgress).toBeUndefined();
     });
   });
@@ -247,7 +247,7 @@ describe('ProgressReporter', () => {
 
       // Check by reporting progress to see updated sectors
       reporter.reportProgress(0, 0, 'test');
-      const call = mockUpdateCallback.mock.calls[0][0] as ProgressInfo;
+      const call = mockUpdateCallback.mock.calls[0][0];
       const sectors = call.sectorProgress?.sectors;
 
       expect(sectors?.[0].state).toBe('pending'); // 0x0000 - outside range
@@ -260,7 +260,7 @@ describe('ProgressReporter', () => {
       reporter.updateSectorRangeProgress(0x1000, 0x2000, 'error');
 
       reporter.reportProgress(0, 0, 'test');
-      const call = mockUpdateCallback.mock.calls[0][0] as ProgressInfo;
+      const call = mockUpdateCallback.mock.calls[0][0];
       const sectors = call.sectorProgress?.sectors;
 
       expect(sectors?.[0].state).toBe('pending'); // 0x0000 - outside range
@@ -273,7 +273,7 @@ describe('ProgressReporter', () => {
       reporter.updateSectorRangeProgress(0x5000, 0x6000, 'completed');
 
       reporter.reportProgress(0, 0, 'test');
-      const call = mockUpdateCallback.mock.calls[0][0] as ProgressInfo;
+      const call = mockUpdateCallback.mock.calls[0][0];
       const sectors = call.sectorProgress?.sectors;
 
       // All sectors should remain pending

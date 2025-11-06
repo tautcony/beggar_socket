@@ -85,6 +85,17 @@
           <span class="alpha-badge">ALPHA</span>
         </button>
 
+        <button
+          class="menu-item"
+          @click="openSystemNoticeHistoryDialog"
+        >
+          <IonIcon :icon="notificationsOutline" />
+          <div class="menu-item-content">
+            <span class="menu-item-title">{{ $t('ui.menu.systemNoticeHistory') }}</span>
+            <span class="menu-item-desc">{{ $t('ui.menu.systemNoticeHistoryDesc') }}</span>
+          </div>
+        </button>
+
         <!--button
           class="menu-item"
           @click="openSerialTest"
@@ -136,6 +147,12 @@
       @close="closeDebugTool"
     />
 
+    <!-- 系统通知历史 -->
+    <SystemNoticeHistoryModal
+      v-model="isSystemNoticeHistoryVisible"
+      @close="closeSystemNoticeHistory"
+    />
+
     <!-- 卡带工具弹框 -->
     <CartridgeToolsModal
       v-model:is-visible="isCartridgeToolsVisible"
@@ -167,6 +184,7 @@ import {
   gameControllerOutline,
   informationCircleOutline,
   menuOutline,
+  notificationsOutline,
   settingsOutline,
   terminalOutline,
 } from 'ionicons/icons';
@@ -179,6 +197,7 @@ import AdvancedSettingsModal from '@/components/modal/AdvancedSettingsModal.vue'
 import CartridgeToolsModal from '@/components/modal/CartridgeToolsModal.vue';
 import DebugToolModal from '@/components/modal/DebugToolModal.vue';
 import RomAnalyzerModal from '@/components/modal/RomAnalyzerModal.vue';
+import SystemNoticeHistoryModal from '@/components/modal/SystemNoticeHistoryModal.vue';
 import { useToast } from '@/composables/useToast';
 import type { DeviceInfo } from '@/types/device-info';
 
@@ -201,6 +220,7 @@ const isDebugToolVisible = ref(false);
 const isCartridgeToolsVisible = ref(false);
 const isSettingsVisible = ref(false);
 const isAboutVisible = ref(false);
+const isSystemNoticeHistoryVisible = ref(false);
 const clickCount = ref(0);
 let clickTimer: NodeJS.Timeout | null = null;
 
@@ -239,6 +259,11 @@ function closeMenu() {
   isMenuOpen.value = false;
 }
 
+function openSystemNoticeHistoryDialog() {
+  closeMenu();
+  isSystemNoticeHistoryVisible.value = true;
+}
+
 function openRomAssembly() {
   closeMenu();
 
@@ -275,6 +300,10 @@ function openDebugTool() {
 
 function closeDebugTool() {
   isDebugToolVisible.value = false;
+}
+
+function closeSystemNoticeHistory() {
+  isSystemNoticeHistoryVisible.value = false;
 }
 
 function openCartridgeTools() {

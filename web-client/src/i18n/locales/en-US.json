@@ -3,6 +3,33 @@
     "app": {
       "title": "ChisFlash Burner"
     },
+    "systemNotice": {
+      "title": "System Notice",
+      "publishedAt": "Published on",
+      "acknowledge": "Got it",
+      "translate": "Translate",
+      "viewTranslation": "View Translation",
+      "viewOriginal": "View Original",
+      "translating": "Translating…",
+      "translationFailed": "Translation failed. Please try again later."
+    },
+    "systemNoticeHistory": {
+      "title": "System Notice History",
+      "subtitle": "Review previously acknowledged announcements.",
+      "publishedAt": "Published",
+      "viewedAt": "Last viewed",
+      "unread": "Not viewed yet",
+      "loading": "Loading notices...",
+      "loadingContent": "Loading content...",
+      "noContent": "No content available for this notice.",
+      "empty": "No system notices have been published yet.",
+      "selectHint": "Select a notice on the left to view its details.",
+      "translate": "Translate",
+      "viewTranslation": "View Translation",
+      "viewOriginal": "View Original",
+      "translating": "Translating…",
+      "translationFailed": "Translation failed. Please try again later."
+    },
     "github": {
       "tooltip": "Visit GitHub Repository"
     },
@@ -47,6 +74,8 @@
       "settingsDesc": "Configure application options",
       "gbaMultiMenu": "GBA Multi-Cart",
       "gbaMultiMenuDesc": "Create ROMs containing multiple games",
+      "systemNoticeHistory": "Notice History",
+      "systemNoticeHistoryDesc": "Review previously acknowledged system notices",
       "about": "About",
       "aboutDesc": "View application information and version"
     },
@@ -465,7 +494,8 @@
       "no": "No",
       "cancel": "Cancel",
       "save": "Save",
-      "confirm": "Confirm"
+      "confirm": "Confirm",
+      "close": "Close"
     },
     "gbaMultiMenu": {
       "title": "GBA ROM Builder",

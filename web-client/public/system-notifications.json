@@ -1,0 +1,10 @@
+{
+  "notifications": [
+    {
+      "id": "2025-11-android-support",
+      "title": "安卓主机丐！",
+      "publishedAt": "2025-11-04T05:14:00+08:00",
+      "contentPath": "system-notifications/2025-11-android.md"
+    }
+  ]
+}
