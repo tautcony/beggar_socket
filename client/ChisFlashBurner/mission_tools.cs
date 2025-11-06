@@ -4,8 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.TaskbarClock;
 using System.Windows.Forms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.Rebar;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.TaskbarClock;
 
 namespace ChisFlashBurner
 {
@@ -193,7 +194,7 @@ namespace ChisFlashBurner
             this.Size = new System.Drawing.Size(width, height);
 
             printLog("解锁PPB");
-            mbc5_romSwitchBank(0);
+            mbc_romSwitchBank(mbcTypeSelected(), 0);
 
             // reset
             gbcCart_write(0, new byte[] { 0x90 });
@@ -243,7 +244,7 @@ namespace ChisFlashBurner
                 if (bank != currentBank)
                 {
                     currentBank = bank;
-                    mbc5_romSwitchBank(bank);
+                    mbc_romSwitchBank(mbcTypeSelected(), bank);
                 }
 
                 if (bank == 0)
@@ -294,7 +295,6 @@ namespace ChisFlashBurner
                 }
             }
 
-
             // All PPB Erase
             printLog("---- All PPB Erase ----");
             // Non-Volatile Sector Protection Command Set Definitions
@@ -317,7 +317,7 @@ namespace ChisFlashBurner
                 if (bank != currentBank)
                 {
                     currentBank = bank;
-                    mbc5_romSwitchBank(bank);
+                    mbc_romSwitchBank(mbcTypeSelected(), bank);
                 }
 
                 if (bank == 0)
@@ -345,8 +345,7 @@ namespace ChisFlashBurner
             }
             printLog(str);
 
-
-            mbc5_romSwitchBank(0);
+            mbc_romSwitchBank(mbcTypeSelected(), 0);
             printLog("-----------------------");
             port.Close();
             enableButton();
@@ -402,10 +401,14 @@ namespace ChisFlashBurner
             byte[] read1 = new byte[6];
             byte[] read2 = new byte[6];
 
-            rom_read(0xc4, ref read1);
             rom_write(0xc8 >> 1, BitConverter.GetBytes((UInt16)(0x01))); // enable gpio
-            rom_read(0xc4, ref read2);
+            rom_write(0xc6 >> 1, BitConverter.GetBytes((UInt16)7));      // cs sio sck output
+            rom_write(0xc4 >> 1, BitConverter.GetBytes((UInt16)1));      // cs 0, sck 1
+            rom_read(0xc4, ref read1);
+
             rom_write(0xc8 >> 1, BitConverter.GetBytes((UInt16)(0x00))); // diable gpio
+            rom_read(0xc4, ref read2);
+
             printLog(
                 string.Format("{0:s} <-> {1:s}",
                 BitConverter.ToString(read1).Replace("-", " "),
@@ -421,8 +424,8 @@ namespace ChisFlashBurner
             }
 
 
-            rom_write(0xc4 >> 1, BitConverter.GetBytes((UInt16)1)); // cs 0, sck 1
-            rom_write(0xc6 >> 1, BitConverter.GetBytes((UInt16)7)); // cs sio sck output
+            rom_write(0xc4 >> 1, BitConverter.GetBytes((UInt16)1));      // cs 0, sck 1
+            rom_write(0xc6 >> 1, BitConverter.GetBytes((UInt16)7));      // cs sio sck output
             rom_write(0xc8 >> 1, BitConverter.GetBytes((UInt16)(0x01))); // enable gpio
 
 
