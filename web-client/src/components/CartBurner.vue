@@ -35,6 +35,7 @@
         >
           <ChipOperations
             key="chip-operations"
+            :mode="mode"
             :chip-id="chipId"
             :device-ready="deviceReady"
             :busy="busy"
@@ -42,9 +43,13 @@
             :sector-counts="sectorCounts"
             :sector-sizes="sectorSizes"
             :buffer-write-bytes="cfiInfo?.bufferSize"
+            :selected-mbc-type="selectedMbcType"
+            :mbc-power5-v="mbcPower5V"
             @read-id="readCart"
             @erase-chip="eraseChip"
             @read-rom-info="readRomInfo"
+            @mbc-type-change="(value: string) => selectedMbcType = value as MbcType"
+            @mbc-power-change="mbcPower5V = $event"
           />
 
           <RomOperations
@@ -98,7 +103,6 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
 import { gameControllerOutline, hardwareChipOutline } from 'ionicons/icons';
 import { DateTime } from 'luxon';
 import { computed, onMounted, ref, watch } from 'vue';
@@ -116,6 +120,7 @@ import { AdvancedSettings } from '@/settings/advanced-settings';
 import { DebugSettings } from '@/settings/debug-settings';
 import { useRecentFileNamesStore } from '@/stores/recent-file-names-store';
 import { CommandOptions, DeviceInfo, FileInfo, ProgressInfo } from '@/types';
+import type { MbcType } from '@/types/command-options';
 import { formatBytes, formatHex } from '@/utils/formatter-utils';
 import { CFIInfo } from '@/utils/parsers/cfi-parser';
 import { parseRom, RomInfo } from '@/utils/parsers/rom-parser.ts';
@@ -142,6 +147,8 @@ const props = defineProps<{
 const mode = ref<ModeType>('GBA');
 const busy = ref(false);
 const logs = ref<{ time: string; message: string; level: LogLevelType }[]>([]);
+const selectedMbcType = ref<MbcType>('MBC5');
+const mbcPower5V = ref(false);
 
 // progress info object
 const progressInfo = ref<ProgressInfo>({
@@ -198,6 +205,12 @@ const currentAbortController = ref<AbortController | null>(null);
 // Adapter
 const gbaAdapter = ref<CartridgeAdapter | null>();
 const mbc5Adapter = ref<CartridgeAdapter | null>();
+
+watch(mode, (newMode) => {
+  if (newMode !== 'MBC5') {
+    mbcPower5V.value = false;
+  }
+});
 
 // 热重载状态恢复 - 保持适配器状态和日志
 if (import.meta.hot) {
@@ -272,12 +285,13 @@ function initializeAdapters() {
         updateProgress,
         t,
       );
-      mbc5Adapter.value = new MBC5Adapter(
+      const newMbc5Adapter = new MBC5Adapter(
         props.device,
         (msg, level) => { log(msg, level); },
         updateProgress,
         t,
       );
+      mbc5Adapter.value = newMbc5Adapter;
     }
   } else {
     // 设备未连接时清空适配器
@@ -362,6 +376,28 @@ function log(msg: string, level: LogLevelType = 'info') {
 function clearLog() {
   logs.value = [];
 }
+
+function detectMbcType(cartType?: number): MbcType {
+  if (cartType === undefined) return 'MBC5';
+  if ([0x0f, 0x10, 0x11, 0x12, 0x13].includes(cartType)) return 'MBC3';
+  if ([0x05, 0x06].includes(cartType)) return 'MBC2';
+  if ([0x01, 0x02, 0x03].includes(cartType)) return 'MBC1';
+  if ([0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e].includes(cartType)) return 'MBC5';
+  return 'MBC5';
+}
+
+watch(romFileData, (data) => {
+  if (!data) return;
+  const info = parseRom(data);
+  if (!info?.isValid) return;
+  if (info.type === 'GB' || info.type === 'GBC') {
+    const detected = detectMbcType(info.cartType);
+    if (detected !== selectedMbcType.value) {
+      selectedMbcType.value = detected;
+      log(t('messages.operation.detectedMbcType', { type: detected }), 'info');
+    }
+  }
+});
 
 // 文件处理函数
 function onRomFileSelected(fileInfo: FileInfo | FileInfo[]) {
@@ -468,7 +504,7 @@ async function readCart() {
       return;
     }
 
-    const info = await adapter.getCartInfo();
+    const info = await adapter.getCartInfo(mbcPower5V.value);
     if (info) {
       cfiInfo.value = info;
       // 从CFI信息中获取Flash ID
@@ -510,7 +546,12 @@ async function eraseChip() {
     }
 
     const sectorInfo = calcSectorUsage(cfiInfo.value.eraseSectorBlocks, cfiInfo.value.deviceSize, 0x00);
-    const response = await adapter.eraseSectors(sectorInfo, abortSignal);
+    const options: CommandOptions = {
+      cfiInfo: cfiInfo.value,
+      mbcType: selectedMbcType.value,
+      enable5V: mbcPower5V.value,
+    };
+    const response = await adapter.eraseSectors(sectorInfo, options, abortSignal);
     showToast(response.message, response.success ? 'success' : 'error');
     await adapter.resetCommandBuffer();
   } catch (e) {
@@ -559,6 +600,8 @@ async function writeRom() {
       baseAddress: parseInt(selectedBaseAddress.value, 16),
       cfiInfo: cfiInfo.value,
       size: romSize,
+      mbcType: selectedMbcType.value,
+      enable5V: mbcPower5V.value,
     };
     if (arraysEqual(chipId.value, getFlashId('S29GL256N'))) {
       option.romPageSize = 512;
@@ -595,7 +638,12 @@ async function readRom() {
       return;
     }
 
-    const option: CommandOptions = { baseAddress: parseInt(selectedBaseAddress.value, 16), cfiInfo: cfiInfo.value };
+    const option: CommandOptions = {
+      baseAddress: parseInt(selectedBaseAddress.value, 16),
+      cfiInfo: cfiInfo.value,
+      mbcType: selectedMbcType.value,
+      enable5V: mbcPower5V.value,
+    };
     if (arraysEqual(chipId.value, getFlashId('S29GL256N'))) {
       option.romPageSize = 512;
     }
@@ -656,7 +704,13 @@ async function verifyRom() {
     }
 
     const size = Math.min(parseInt(selectedRomSize.value, 16), romFileData.value.byteLength);
-    const response = await adapter.verifyROM(romFileData.value, { baseAddress: parseInt(selectedBaseAddress.value, 16), cfiInfo: cfiInfo.value, size }, abortSignal);
+    const response = await adapter.verifyROM(romFileData.value, {
+      baseAddress: parseInt(selectedBaseAddress.value, 16),
+      cfiInfo: cfiInfo.value,
+      size,
+      mbcType: selectedMbcType.value,
+      enable5V: mbcPower5V.value,
+    }, abortSignal);
     showToast(response.message, response.success ? 'success' : 'error');
     await adapter.resetCommandBuffer();
   } catch (e) {
@@ -687,6 +741,8 @@ async function writeRam() {
       ramType: selectedRamType.value as RamType,
       baseAddress: parseInt(selectedRamBaseAddress.value, 16),
       cfiInfo: cfiInfo.value,
+      mbcType: selectedMbcType.value,
+      enable5V: mbcPower5V.value,
     });
     showToast(response.message, response.success ? 'success' : 'error');
     if (response.success) {
@@ -723,6 +779,8 @@ async function readRam() {
       ramType: selectedRamType.value as RamType,
       baseAddress: parseInt(selectedRamBaseAddress.value, 16),
       cfiInfo: cfiInfo.value,
+      mbcType: selectedMbcType.value,
+      enable5V: mbcPower5V.value,
     });
     if (response.success) {
       showToast(response.message, 'success');
@@ -772,6 +830,8 @@ async function verifyRam() {
       baseAddress: parseInt(selectedRamBaseAddress.value, 16),
       cfiInfo: cfiInfo.value,
       size,
+      mbcType: selectedMbcType.value,
+      enable5V: mbcPower5V.value,
     });
     showToast(response.message, response.success ? 'success' : 'error');
     if (response.success) {
@@ -921,7 +981,12 @@ async function readMBC5MultiCartRoms(adapter: CartridgeAdapter, deviceSize: numb
     if (range.from >= deviceSize) break; // 超出芯片容量
 
     // 解析完整ROM信息
-    const fullHeaderResult = await adapter.readROM(0x150, { baseAddress: range.from, cfiInfo: cfi }, undefined, false);
+    const fullHeaderResult = await adapter.readROM(0x150, {
+      baseAddress: range.from,
+      cfiInfo: cfi,
+      mbcType: selectedMbcType.value,
+      enable5V: mbcPower5V.value,
+    }, undefined, false);
     if (fullHeaderResult.success && fullHeaderResult.data) {
       const romInfo = parseRom(fullHeaderResult.data);
       if (romInfo.isValid) {

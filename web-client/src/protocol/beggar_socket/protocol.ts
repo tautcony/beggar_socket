@@ -158,6 +158,19 @@ export async function ram_erase_flash(device: DeviceInfo): Promise<void> {
 }
 
 /**
+ * CART: 控制供电 (0xa0)
+ */
+export type CartPowerMode = 0 | 1 | 2;
+
+export async function cart_power(device: DeviceInfo, mode: CartPowerMode): Promise<void> {
+  const payload = createCommandPayload(GBCCommand.CART_POWER)
+    .addBytes(new Uint8Array([mode]))
+    .build();
+
+  await sendPackage(device, payload);
+}
+
+/**
  * GBC: FRAM Write with latency (0xea)
  */
 export async function gbc_write_fram(device: DeviceInfo, data: Uint8Array, baseAddress = 0, latency = 25): Promise<void> {

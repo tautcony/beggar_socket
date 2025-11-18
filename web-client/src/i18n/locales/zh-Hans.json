@@ -56,6 +56,11 @@
       "mbc5": "MBC5",
       "title": "操作模式"
     },
+    "mbc": {
+      "typeLabel": "映射芯片",
+      "power5vLabel": "强制输出5V",
+      "power5vTooltip": "仅在卡带确实需要5V供电时开启，平时请保持关闭"
+    },
     "menu": {
       "tools": "工具",
       "romAssembly": "ROM合并",
@@ -570,6 +575,9 @@
       "startVerifyBatterylessSave": "开始校验免电存档 - 数据大小: {fileSize} 字节, 基址: {baseAddress}",
       "getCartInfoFailed": "获取卡带信息失败",
       "startGetCartInfo": "开始获取卡带信息",
+      "detectedMbcType": "检测到映射类型 {type}",
+      "enable5V": "输出5V",
+      "disable5V": "切换回3.3V",
       "eraseChip": "正在擦除芯片...",
       "eraseSuccess": "擦除成功",
       "eraseFailed": "擦除失败",

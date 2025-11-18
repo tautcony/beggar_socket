@@ -42,7 +42,7 @@ export class MockAdapter extends CartridgeAdapter {
    * 模拟擦除芯片
    * @param signal - 取消信号，用于中止操作
    */
-  override async eraseChip(signal?: AbortSignal): Promise<CommandResult> {
+  override async eraseChip(options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     this.log(this.t('messages.operation.eraseChip'), 'info');
 
     const startTime = Date.now();
@@ -131,6 +131,7 @@ export class MockAdapter extends CartridgeAdapter {
    */
   override async eraseSectors(
     sectorInfo: { startAddress: number; endAddress: number; sectorSize: number; sectorCount: number }[],
+    options: CommandOptions,
     signal?: AbortSignal,
   ): Promise<CommandResult> {
     this.log('模拟擦除扇区', 'info');
@@ -267,7 +268,7 @@ export class MockAdapter extends CartridgeAdapter {
 
         // 模拟擦除
         this.log(this.t('messages.operation.eraseChip'), 'info');
-        const eraseResult = await this.eraseChip(signal);
+        const eraseResult = await this.eraseChip(options, signal);
         if (!eraseResult.success) {
           return eraseResult;
         }

@@ -56,6 +56,11 @@
       "mbc5": "MBC5",
       "title": "動作モード"
     },
+    "mbc": {
+      "typeLabel": "カートリッジマッパー",
+      "power5vLabel": "5V電源を強制",
+      "power5vTooltip": "カートリッジが5V電源を必要とする場合のみ有効にしてください"
+    },
     "menu": {
       "tools": "ツール",
       "romAssembly": "ROM組み立て",
@@ -565,6 +570,9 @@
       "startVerifyBatterylessSave": "バッテリーレスセーブ検証を開始 - データサイズ: {fileSize} バイト, ベースアドレス: {baseAddress}",
       "getCartInfoFailed": "カートリッジ情報取得失敗",
       "startGetCartInfo": "カートリッジ情報の取得を開始",
+      "detectedMbcType": "マッパー種別 {type} を検出しました",
+      "enable5V": "5V出力を有効化しています",
+      "disable5V": "3.3Vへ戻しています",
       "eraseChip": "チップを消去中...",
       "eraseSuccess": "消去成功",
       "eraseFailed": "消去失敗",

@@ -467,3 +467,41 @@ export function parseRom(data: Uint8Array): RomInfo {
       return INVALID_ROM_INFO(data.length);
   }
 }
+
+/**
+ * 从 ROM 数据检测 MBC 类型
+ * 基于 GB/GBC ROM header 0x147 字节的卡带类型
+ * @param romData - ROM 数据（至少需要 0x148 字节）
+ * @returns MBC 类型字符串，如果无法检测则返回 'MBC5'（默认值）
+ */
+export function detectMbcType(romData: Uint8Array): 'MBC1' | 'MBC2' | 'MBC3' | 'MBC5' {
+  // 确保数据足够长
+  if (romData.length < 0x148) {
+    return 'MBC5'; // 默认值
+  }
+
+  // 读取卡带类型字节（偏移 0x147）
+  const cartType = romData[0x147];
+
+  // MBC1 类型 ID
+  const MBC1_IDS = [0x01, 0x02, 0x03];
+  // MBC2 类型 ID
+  const MBC2_IDS = [0x05, 0x06];
+  // MBC3 类型 ID
+  const MBC3_IDS = [0x0f, 0x10, 0x11, 0x12, 0x13];
+  // MBC5 类型 ID
+  const MBC5_IDS = [0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e];
+
+  if (MBC5_IDS.includes(cartType)) {
+    return 'MBC5';
+  } else if (MBC3_IDS.includes(cartType)) {
+    return 'MBC3';
+  } else if (MBC2_IDS.includes(cartType)) {
+    return 'MBC2';
+  } else if (MBC1_IDS.includes(cartType)) {
+    return 'MBC1';
+  }
+
+  // 默认返回 MBC5
+  return 'MBC5';
+}

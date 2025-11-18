@@ -51,7 +51,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态和消息的对象
    */
-  override async eraseChip(signal?: AbortSignal) : Promise<CommandResult> {
+  override async eraseChip(options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
     return PerformanceTracker.trackAsyncOperation(
       'gba.eraseChip',
       async () => {
@@ -128,6 +128,7 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   override async eraseSectors(
     sectorInfo: SectorBlock[],
+    options: CommandOptions,
     signal?: AbortSignal,
   ): Promise<CommandResult> {
     return PerformanceTracker.trackAsyncOperation(
@@ -312,7 +313,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
           const blank = await this.isBlank(baseAddress, 0x100);
           if (!blank) {
-            await this.eraseSectors(sectorInfo, signal);
+            await this.eraseSectors(sectorInfo, options, signal);
           }
 
           // 重置扇区状态为pending，准备开始写入阶段
@@ -1401,7 +1402,7 @@ export class GBAAdapter extends CartridgeAdapter {
           }), 'info');
 
           const sectorInfo = calcSectorUsage(cfiInfo.eraseSectorBlocks, writeSize, saveInfo.offset);
-          const eraseResult = await this.eraseSectors(sectorInfo, signal);
+          const eraseResult = await this.eraseSectors(sectorInfo, options, signal);
           if (!eraseResult.success) {
             return eraseResult;
           }

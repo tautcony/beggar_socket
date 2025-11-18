@@ -53,18 +53,20 @@ export class CartridgeAdapter {
    * @param signal - 取消信号，用于中止操作
    * @returns - 包含成功状态和消息的对象
    */
-  async eraseChip(signal?: AbortSignal): Promise<CommandResult> {
+  async eraseChip(options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     throw new NotImplementedError();
   }
 
   /**
    * 擦除ROM扇区
    * @param sectorInfo - 扇区信息数组
+   * @param options - 命令选项
    * @param signal - 取消信号，用于中止操作
    * @returns - 操作结果
    */
   async eraseSectors(
     sectorInfo: SectorBlock[],
+    options: CommandOptions,
     signal?: AbortSignal,
   ): Promise<CommandResult> {
     throw new NotImplementedError();
@@ -137,7 +139,7 @@ export class CartridgeAdapter {
   /**
    * 获取卡带信息
    */
-  async getCartInfo(): Promise<CFIInfo | false> {
+  async getCartInfo(enable5V?: boolean): Promise<CFIInfo | false> {
     throw new NotImplementedError();
   }
 

@@ -14,6 +14,8 @@ export enum GBACommand {
 }
 
 export enum GBCCommand {
+  CART_POWER = 0xa0,
+  CART_PHI_DIV = 0xa1,
   DIRECT_WRITE = 0xfa,
   READ = 0xfb,
   ROM_PROGRAM = 0xfc,

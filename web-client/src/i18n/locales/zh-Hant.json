@@ -56,6 +56,11 @@
       "mbc5": "MBC5",
       "title": "操作模式"
     },
+    "mbc": {
+      "typeLabel": "映射晶片",
+      "power5vLabel": "強制輸出5V",
+      "power5vTooltip": "僅在卡帶確實需要 5V 供電時啟用，平時請保持關閉"
+    },
     "menu": {
       "tools": "工具",
       "romAssembly": "ROM合併",
@@ -565,6 +570,9 @@
       "startVerifyBatterylessSave": "開始校驗免電存檔 - 資料大小: {fileSize} 位元組, 基址: {baseAddress}",
       "getCartInfoFailed": "獲取卡帶資訊失敗",
       "startGetCartInfo": "開始獲取卡帶資訊",
+      "detectedMbcType": "偵測到映射類型 {type}",
+      "enable5V": "輸出5V",
+      "disable5V": "切換回3.3V",
       "eraseChip": "正在擦除晶片...",
       "eraseSuccess": "擦除成功",
       "eraseFailed": "擦除失敗",

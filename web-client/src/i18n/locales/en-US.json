@@ -56,6 +56,11 @@
       "mbc5": "MBC5",
       "title": "Operation Mode"
     },
+    "mbc": {
+      "typeLabel": "Cartridge mapper",
+      "power5vLabel": "Force 5V power",
+      "power5vTooltip": "Enable only when the cartridge requires a 5V supply"
+    },
     "menu": {
       "tools": "Tools",
       "romAssembly": "ROM Assembly",
@@ -570,6 +575,9 @@
       "startVerifyBatterylessSave": "Starting batteryless save verify - Data size: {fileSize} bytes, Base address: {baseAddress}",
       "getCartInfoFailed": "Failed to get cartridge information",
       "startGetCartInfo": "Starting to get cartridge information",
+      "detectedMbcType": "Detected mapper type {type}",
+      "enable5V": "Enabling 5V output",
+      "disable5V": "Switching back to 3.3V",
       "eraseChip": "Erasing chip...",
       "eraseSuccess": "Erase successful",
       "eraseFailed": "Erase failed",

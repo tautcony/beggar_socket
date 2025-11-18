@@ -162,7 +162,7 @@ function bitswap(byte: number, swaps: [number, number][]): number {
  */
 export class CFIParser {
   /**
-   * 检测Flash特性（基于C++逻辑）
+   * 检测Flash特性
    * @param buffer - CFI查询返回的数据缓冲区
    * @param info - 要填充检测信息的CFI信息对象
    */

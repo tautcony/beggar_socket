@@ -56,6 +56,11 @@
       "mbc5": "MBC5",
       "title": "Режим работы"
     },
+    "mbc": {
+      "typeLabel": "Тип маппера",
+      "power5vLabel": "Принудительно 5 В",
+      "power5vTooltip": "Включайте только если картриджу требуется питание 5 В"
+    },
     "menu": {
       "tools": "Инструменты",
       "romAssembly": "Сборка ROM",
@@ -563,6 +568,9 @@
       "startVerifyBatterylessSave": "Начало проверки бесс батарейного сохранения - размер данных: {fileSize} байт, базовый адрес: {baseAddress}",
       "getCartInfoFailed": "Не удалось получить информацию о картридже",
       "startGetCartInfo": "Начало получения информации о картридже",
+      "detectedMbcType": "Обнаружен тип маппера {type}",
+      "enable5V": "Включаю подачу 5 В",
+      "disable5V": "Возвращаю питание к 3.3 В",
       "eraseChip": "Стирание чипа...",
       "eraseSuccess": "Стирание успешно",
       "eraseFailed": "Ошибка стирания",
