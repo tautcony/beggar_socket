@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, shell } = require('electron');
 const path = require('path');
 const { setupIpcHandlers, cleanupSerialPorts } = require('./ipc-handlers');
+const { isAppNavigationUrl, isSafeExternalUrl } = require('./security-utils');
 
 // 串口支持检查（移到 ipc-handlers.js 中）
 
@@ -85,17 +86,24 @@ function createWindow() {
 
   // 在新窗口中打开外部链接
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (isSafeExternalUrl(url)) {
+      void shell.openExternal(url);
+    } else {
+      console.warn('[Security] Blocked unsafe window.open URL:', url);
+    }
     return { action: 'deny' };
   });
 
   // 阻止导航到外部链接
   mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
-    const parsedUrl = new URL(navigationUrl);
-    
-    if (parsedUrl.origin !== 'http://localhost:5173' && parsedUrl.origin !== 'file://') {
+    if (!isAppNavigationUrl(navigationUrl, isDev)) {
       event.preventDefault();
-      shell.openExternal(navigationUrl);
+
+      if (isSafeExternalUrl(navigationUrl)) {
+        void shell.openExternal(navigationUrl);
+      } else {
+        console.warn('[Security] Blocked unsafe navigation URL:', navigationUrl);
+      }
     }
   });
 }
