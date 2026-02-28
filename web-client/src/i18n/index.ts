@@ -19,15 +19,27 @@ export const messages = {
   'ru-RU': ruRU,
 };
 
+function readSavedLocale(): string | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    return window.localStorage.getItem('locale');
+  } catch {
+    return null;
+  }
+}
+
 export function getLanguage() {
   // 首先检查本地存储
-  const savedLocale = localStorage.getItem('locale');
+  const savedLocale = readSavedLocale();
   if (savedLocale && Object.keys(messages).includes(savedLocale)) {
     return savedLocale;
   }
 
   // 然后检查浏览器语言
-  const language = navigator.language;
+  const language = typeof navigator === 'undefined' ? '' : navigator.language;
   const locales = Object.keys(messages);
 
   // 完全匹配

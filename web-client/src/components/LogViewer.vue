@@ -43,6 +43,8 @@
 import { chevronDownOutline } from 'ionicons/icons';
 import { nextTick, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 
+import { resolveAutoScrollEnabled } from '@/utils/log-viewer';
+
 import BaseButton from './common/BaseButton.vue';
 
 type LogLevelType = 'info' | 'success' | 'warn' | 'error';
@@ -66,6 +68,7 @@ const logBox = useTemplateRef<HTMLDivElement>('logBox');
 const scrollTimeout = ref<ReturnType<typeof setTimeout>>();
 const isUserScrolling = ref(false);
 const autoScrollEnabled = ref(false); // 将由detectAutoScrollState()决定初始状态
+const hasUserAutoScrollOverride = ref(false);
 
 function clearLog() {
   emit('clear-logs');
@@ -125,6 +128,7 @@ function handleButtonClick() {
 // 处理按钮双击事件
 function handleButtonDoubleClick() {
   // 双击：切换持续自动下滚
+  hasUserAutoScrollOverride.value = true;
   autoScrollEnabled.value = !autoScrollEnabled.value;
 
   // 如果启用了自动滚动，立即滚动到底部
@@ -135,14 +139,15 @@ function handleButtonDoubleClick() {
 
 // 智能检测是否需要启用自动滚动
 function detectAutoScrollState() {
-  // 如果日志数量较少，默认启用自动滚动
-  // 如果日志数量较多，默认禁用，让用户手动控制
-  const logCountThreshold = 50;
-  autoScrollEnabled.value = props.logs.length <= logCountThreshold;
+  autoScrollEnabled.value = resolveAutoScrollEnabled(
+    autoScrollEnabled.value,
+    props.logs.length,
+    hasUserAutoScrollOverride.value,
+  );
 }
 
 // 自动滚动到底部
-watch(() => props.logs, async () => {
+watch(() => props.logs.length, async () => {
   // 检测是否需要调整自动滚动状态
   detectAutoScrollState();
 
@@ -154,7 +159,7 @@ watch(() => props.logs, async () => {
   await nextTick(); // 双重nextTick确保DOM完全更新
 
   scrollToBottom();
-}, { deep: true, flush: 'post' });
+}, { flush: 'post' });
 
 // 组件挂载后设置滚动监听和初始滚动
 watch(logBox, (newLogBox, oldLogBox) => {

@@ -62,6 +62,22 @@ describe('i18n', () => {
       const { getLanguage } = await import('../src/i18n/index');
       expect(getLanguage()).toBe('en-US');
     });
+
+    it('应该在localStorage不可访问时回退到浏览器语言', async () => {
+      Object.defineProperty(window, 'localStorage', {
+        value: {
+          getItem: vi.fn(() => {
+            throw new Error('Access denied');
+          }),
+          setItem: vi.fn(),
+        },
+        writable: true,
+      });
+      navigatorLanguageMock = 'ja-JP';
+
+      const { getLanguage } = await import('../src/i18n/index');
+      expect(getLanguage()).toBe('ja-JP');
+    });
   });
 
   describe('i18n configuration', () => {
