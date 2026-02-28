@@ -1,4 +1,4 @@
-import { ProgressInfo, SectorProgressInfo } from '@/types/progress-info';
+import { ProgressInfo, type SectorSizeClass } from '@/types/progress-info';
 
 /**
  * ProgressInfo Builder - 解决参数地狱问题
@@ -91,16 +91,24 @@ export class ProgressInfoBuilder {
   /**
    * 设置扇区进度信息
    */
-  sectors(
-    sectors: SectorProgressInfo[],
+  sectorProgress(
+    meta: {
+      addresses: number[];
+      sizes: number[];
+      sizeClasses: SectorSizeClass[];
+      stateBuffer: Uint8Array;
+    },
     completedCount: number,
     currentIndex: number,
   ): this {
     this.info.sectorProgress = {
-      sectors,
-      totalSectors: sectors.length,
+      totalSectors: meta.addresses.length,
       completedSectors: completedCount,
       currentSectorIndex: currentIndex,
+      addresses: meta.addresses,
+      sizes: meta.sizes,
+      sizeClasses: meta.sizeClasses,
+      stateBuffer: meta.stateBuffer,
     };
     return this;
   }

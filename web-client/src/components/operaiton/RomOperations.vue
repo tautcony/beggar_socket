@@ -372,7 +372,7 @@ function onRomAssembled(assembled: AssembledRom) {
 function useAssembledRom() {
   const result = romAssemblyResultStore.consumeResult();
 
-  if (result && result.romType === props.mode) {
+  if (result?.romType === props.mode) {
     const fileInfo: FileInfo = {
       name: `assembled_${props.mode.toLowerCase()}_${Date.now()}.rom`,
       data: result.rom.data,

@@ -49,7 +49,8 @@
         "connect": "接続",
         "cancel": "キャンセル",
         "serialNumber": "シリアル番号"
-      }
+      },
+      "resetConnection": "リセット"
     },
     "mode": {
       "gba": "GBA",
@@ -379,7 +380,7 @@
         "setCurrentTime": "現在時刻に設定",
         "sunday": "日曜日",
         "monday": "月曜日",
-        "tuesday": "火曜日", 
+        "tuesday": "火曜日",
         "wednesday": "水曜日",
         "thursday": "木曜日",
         "friday": "金曜日",
@@ -490,7 +491,8 @@
         "processing": "処理中",
         "completed": "完了",
         "error": "エラー"
-      }
+      },
+      "rendererCanvas": "キャンバス"
     },
     "common": {
       "yes": "はい",

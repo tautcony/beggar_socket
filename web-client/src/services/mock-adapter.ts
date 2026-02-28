@@ -177,7 +177,14 @@ export class MockAdapter extends CartridgeAdapter {
         }
 
         // 更新当前扇区状态为"正在处理"
-        const sectorIndex = progressReporter.updateSectorProgress(sector.address, 'processing');
+        const speedBeforeErase = speedCalculator.getCurrentSpeed();
+        progressReporter.markSectorState(sector.address, 'processing');
+        progressReporter.emitProgress(
+          (eraseCount * totalBytes) / sectors.length,
+          speedBeforeErase,
+          this.t('messages.progress.eraseSpeed', { speed: formatSpeed(speedBeforeErase) }),
+          sector.address,
+        );
 
         // 模拟扇区擦除延迟
         await DebugSettings.delay(100 + Math.random() * 200); // 100-300ms 每个扇区
@@ -187,18 +194,17 @@ export class MockAdapter extends CartridgeAdapter {
         speedCalculator.addDataPoint(sector.size, Date.now());
 
         // 更新当前扇区状态为"已完成"
-        progressReporter.updateSectorProgress(sector.address, 'completed');
+        progressReporter.markSectorState(sector.address, 'completed');
         eraseCount++;
 
         const erasedBytes = (eraseCount * totalBytes) / sectors.length;
 
         // 报告进度
-        progressReporter.reportProgress(
+        progressReporter.emitProgress(
           erasedBytes,
           currentSpeed,
           this.t('messages.progress.eraseSpeed', { speed: formatSpeed(currentSpeed) }),
-          eraseCount,
-          sectorIndex,
+          sector.address,
         );
       }
 
@@ -320,7 +326,14 @@ export class MockAdapter extends CartridgeAdapter {
         }
 
         // 更新当前扇区状态为"正在处理"
-        const sectorIndex = progressReporter.updateSectorProgress(sector.address, 'processing');
+        const speedBeforeWrite = speedCalculator.getCurrentSpeed();
+        progressReporter.markSectorState(sector.address, 'processing');
+        progressReporter.emitProgress(
+          (writeCount * total) / sectors.length,
+          speedBeforeWrite,
+          this.t('messages.progress.writeSpeed', { speed: formatSpeed(speedBeforeWrite) }),
+          sector.address,
+        );
 
         // 模拟扇区写入延迟
         await DebugSettings.delay(200 + Math.random() * 300); // 200-500ms 每个扇区
@@ -330,18 +343,17 @@ export class MockAdapter extends CartridgeAdapter {
         speedCalculator.addDataPoint(sector.size, Date.now());
 
         // 更新当前扇区状态为"已完成"
-        progressReporter.updateSectorProgress(sector.address, 'completed');
+        progressReporter.markSectorState(sector.address, 'completed');
         writeCount++;
 
         const writtenBytes = (writeCount * total) / sectors.length;
 
         // 报告进度
-        progressReporter.reportProgress(
+        progressReporter.emitProgress(
           writtenBytes,
           currentSpeed,
           this.t('messages.progress.writeSpeed', { speed: formatSpeed(currentSpeed) }),
-          writeCount,
-          sectorIndex,
+          sector.address,
         );
       }
 
@@ -508,7 +520,7 @@ export class MockAdapter extends CartridgeAdapter {
         const sector = sectors[i];
 
         // 更新当前扇区状态为"正在处理"
-        const sectorIndex = progressReporter.updateSectorProgress(sector.address, 'processing');
+        const sectorIndex = progressReporter.markSectorState(sector.address, 'processing');
 
         // 模拟扇区读取延迟
         await DebugSettings.delay(120 + Math.random() * 180); // 120-300ms 每个扇区
@@ -518,7 +530,7 @@ export class MockAdapter extends CartridgeAdapter {
         speedCalculator.addDataPoint(sector.size, Date.now());
 
         // 更新当前扇区状态为"已完成"
-        progressReporter.updateSectorProgress(sector.address, 'completed');
+        progressReporter.markSectorState(sector.address, 'completed');
         readCount++;
 
         // 报告进度
@@ -639,7 +651,7 @@ export class MockAdapter extends CartridgeAdapter {
         const sector = sectors[i];
 
         // 更新当前扇区状态为"正在处理"
-        const sectorIndex = progressReporter.updateSectorProgress(sector.address, 'processing');
+        const sectorIndex = progressReporter.markSectorState(sector.address, 'processing');
 
         // 模拟扇区校验延迟
         await DebugSettings.delay(150 + Math.random() * 250); // 150-400ms 每个扇区
@@ -658,7 +670,7 @@ export class MockAdapter extends CartridgeAdapter {
         );
 
         // 更新当前扇区状态为"已完成"
-        progressReporter.updateSectorProgress(sector.address, 'completed');
+        progressReporter.markSectorState(sector.address, 'completed');
         verifyCount++;
 
         // 最终进度更新

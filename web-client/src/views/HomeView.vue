@@ -125,7 +125,7 @@ function onConnectMockDevice() {
   // 如果当前没有连接设备，则通过 DeviceConnect 组件连接
   if (!deviceReady.value && deviceConnectRef.value) {
     // 通过 DeviceConnect 组件的 connect 方法连接模拟设备
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     deviceConnectRef.value.connect();
   } else {
     console.log('[DEBUG] 设备已连接，无需重复连接');
@@ -140,7 +140,7 @@ function onClearMockData() {
 
   // 1. 断开设备连接
   if (deviceConnectRef.value && deviceReady.value) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     deviceConnectRef.value.disconnect();
   }
 
@@ -151,7 +151,7 @@ function onClearMockData() {
   // 3. 重置 FlashBurner 组件状态（如果有引用的话）
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   if (cartBurnerRef.value && typeof cartBurnerRef.value.resetState === 'function') {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     cartBurnerRef.value.resetState();
   }
 

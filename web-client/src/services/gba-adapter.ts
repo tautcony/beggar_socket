@@ -186,7 +186,14 @@ export class GBAAdapter extends CartridgeAdapter {
             }
 
             // 更新当前扇区状态为"正在处理"
-            const sectorIndex = progressReporter.updateSectorProgress(sector.address, 'processing');
+            const currentSpeedBeforeErase = speedCalculator.getCurrentSpeed();
+            progressReporter.markSectorState(sector.address, 'processing');
+            progressReporter.emitProgress(
+              eraseCount * sector.size,
+              currentSpeedBeforeErase,
+              this.t('messages.progress.eraseSpeed', { speed: formatSpeed(currentSpeedBeforeErase) }),
+              sector.address,
+            );
 
             this.log(this.t('messages.operation.eraseSector', {
               from: formatHex(sector.address, 4),
@@ -203,7 +210,7 @@ export class GBAAdapter extends CartridgeAdapter {
             const sectorEndTime = Date.now();
 
             // 更新当前扇区状态为"已完成"
-            progressReporter.updateSectorProgress(sector.address, 'completed');
+            progressReporter.markSectorState(sector.address, 'completed');
 
             eraseCount++;
             const erasedBytes = eraseCount * sector.size;
@@ -215,12 +222,11 @@ export class GBAAdapter extends CartridgeAdapter {
             const currentSpeed = speedCalculator.getCurrentSpeed();
 
             // 报告进度
-            progressReporter.reportProgress(
+            progressReporter.emitProgress(
               erasedBytes,
               currentSpeed,
               this.t('messages.progress.eraseSpeed', { speed: formatSpeed(currentSpeed) }),
-              eraseCount,
-              sectorIndex,
+              sector.address,
             );
           }
 
@@ -360,7 +366,14 @@ export class GBAAdapter extends CartridgeAdapter {
             const currentAddress = baseAddress + written;
 
             // 更新当前扇区状态为"正在处理"
-            progressReporter.updateSectorProgress(currentAddress, 'processing');
+            const currentSpeedBeforeWrite = speedCalculator.getCurrentSpeed();
+            progressReporter.markSectorState(currentAddress, 'processing');
+            progressReporter.emitProgress(
+              written,
+              currentSpeedBeforeWrite,
+              this.t('messages.progress.writeSpeed', { speed: formatSpeed(currentSpeedBeforeWrite) }),
+              currentAddress,
+            );
 
             const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress);
             if (options.cfiInfo.deviceSize > (1 << 25)) {
@@ -377,7 +390,7 @@ export class GBAAdapter extends CartridgeAdapter {
             chunkCount++;
 
             // 更新已写入范围的扇区状态
-            progressReporter.updateSectorRangeProgress(baseAddress, baseAddress + written - 1, 'completed');
+            progressReporter.markSectorRangeState(baseAddress, baseAddress + written - 1, 'completed');
 
             // 添加数据点到速度计算器
             speedCalculator.addDataPoint(chunkSize, chunkEndTime);
@@ -387,18 +400,12 @@ export class GBAAdapter extends CartridgeAdapter {
               // 计算当前速度
               const currentSpeed = speedCalculator.getCurrentSpeed();
 
-              const currentSectorIndex = this.currentSectorProgress.findIndex(s =>
-                currentAddress >= s.address && currentAddress < s.address + s.size,
-              );
-              const completedSectors = this.currentSectorProgress.filter(s => s.state === 'completed').length;
-
               // 报告进度
-              progressReporter.reportProgress(
+              progressReporter.emitProgress(
                 written,
                 currentSpeed,
                 this.t('messages.progress.writeSpeed', { speed: formatSpeed(currentSpeed) }),
-                completedSectors,
-                currentSectorIndex,
+                currentAddress,
               );
             }
 
@@ -698,7 +705,14 @@ export class GBAAdapter extends CartridgeAdapter {
             const currentAddress = baseAddress + verified;
 
             // 更新当前扇区状态为"正在处理"
-            progressReporter.updateSectorProgress(currentAddress, 'processing');
+            const currentSpeedBeforeVerify = speedCalculator.getCurrentSpeed();
+            progressReporter.markSectorState(currentAddress, 'processing');
+            progressReporter.emitProgress(
+              verified,
+              currentSpeedBeforeVerify,
+              this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeedBeforeVerify) }),
+              currentAddress,
+            );
 
             const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress);
             if (options.cfiInfo.deviceSize > (1 << 25)) {
@@ -732,7 +746,7 @@ export class GBAAdapter extends CartridgeAdapter {
             chunkCount++;
 
             // 更新已校验范围的扇区状态
-            progressReporter.updateSectorRangeProgress(baseAddress, baseAddress + verified - 1, 'completed');
+            progressReporter.markSectorRangeState(baseAddress, baseAddress + verified - 1, 'completed');
 
             // 添加数据点到速度计算器
             speedCalculator.addDataPoint(chunkSize, chunkEndTime);
@@ -742,18 +756,12 @@ export class GBAAdapter extends CartridgeAdapter {
               // 计算当前速度
               const currentSpeed = speedCalculator.getCurrentSpeed();
 
-              const currentSectorIndex = this.currentSectorProgress.findIndex(s =>
-                currentAddress >= s.address && currentAddress < s.address + s.size,
-              );
-              const completedSectors = this.currentSectorProgress.filter(s => s.state === 'completed').length;
-
               // 报告进度
-              progressReporter.reportProgress(
+              progressReporter.emitProgress(
                 verified,
                 currentSpeed,
                 this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeed) }),
-                completedSectors,
-                currentSectorIndex,
+                currentAddress,
               );
             }
 

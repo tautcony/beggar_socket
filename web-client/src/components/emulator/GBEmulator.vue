@@ -129,7 +129,7 @@ function initEmulator() {
 
     // 创建新的 GameBoy 实例
     gameboyInstance = new Gameboy();
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     gameboyInstance.apu.disableSound();
 
     // 设置 Canvas
@@ -173,7 +173,7 @@ function initEmulator() {
 
     // 启用音频
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       gameboyInstance.apu.enableSound();
     } catch (audioError: unknown) {
       console.warn('音频启用失败:', audioError);
@@ -209,7 +209,7 @@ function initEmulator() {
   }
 }
 
-/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 function setupKeyboardControls() {
   // 使用 keyboardManager 配置按键映射
   if (gameboyInstance?.keyboardManager) {
@@ -230,7 +230,7 @@ function setupKeyboardControls() {
     });
   }
 }
-/* eslint-enable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
+/* eslint-enable @typescript-eslint/no-unsafe-member-access */
 
 function togglePause() {
   if (!gameboyInstance) return;

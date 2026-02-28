@@ -33,6 +33,8 @@ const commonRules = {
   '@typescript-eslint/no-unnecessary-condition': 'off',
   '@typescript-eslint/no-unnecessary-type-arguments': 'off',
   '@typescript-eslint/no-var-requires': 'error',
+  '@typescript-eslint/no-unsafe-assignment': 'off',
+  '@typescript-eslint/no-unsafe-call': 'off',
   'comma-spacing': 'error',
   'eqeqeq': ['error', 'always'],
   'import/first': 'error',

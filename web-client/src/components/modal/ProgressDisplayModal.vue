@@ -64,103 +64,10 @@
         </div>
       </div>
 
-      <!-- Sector Visualization (for erase, write, and verify operations) -->
-      <div
-        v-if="sectorProgress && (type === 'erase' || type === 'write' || type === 'verify')"
-        class="sector-visualization"
-      >
-        <div class="sector-title">
-          {{ $t('ui.progress.sectorMap') }}
-          <span class="sector-counter">
-            {{ sectorProgress.completedSectors }} / {{ sectorProgress.totalSectors }}
-          </span>
-        </div>
-        <div class="sector-grid">
-          <div
-            v-for="sector in sortedSectors"
-            :key="`sector-${sector.address}`"
-            class="sector-block"
-            :class="{
-              'sector-pending': sector.state === 'pending',
-              'sector-processing': sector.state === 'processing',
-              'sector-completed': sector.state === 'completed',
-              'sector-error': sector.state === 'error',
-              'sector-current': sector.state === 'processing',
-              [`sector-size-${getSectorSizeClass(sector.size)}`]: true
-            }"
-            :title="$t('ui.progress.sectorTooltip', {
-              address: formatHex(sector.address, 4),
-              size: formatBytes(sector.size),
-              state: $t(`ui.progress.sectorState.${sector.state}`)
-            })"
-          >
-            <div class="sector-inner">
-              <div
-                v-if="sector.state === 'processing'"
-                class="sector-spinner"
-              />
-            </div>
-          </div>
-        </div>
-        <div class="sector-legend">
-          <!-- 第一排：扇区大小组 -->
-          <div class="legend-row">
-            <!-- Small 扇区组 -->
-            <div
-              v-if="existingSectorSizes.has('small')"
-              class="legend-group"
-            >
-              <span class="legend-size-label">{{ formatBytes(sectorSizeLabels.small) }}:</span>
-              <div class="legend-item">
-                <div class="legend-color sector-pending sector-size-small" />
-                <span>{{ $t('ui.progress.sectorState.pending') }}</span>
-              </div>
-              <div class="legend-item">
-                <div class="legend-color sector-completed sector-size-small" />
-                <span>{{ $t('ui.progress.sectorState.completed') }}</span>
-              </div>
-            </div>
-
-            <!-- Medium 扇区组 -->
-            <div
-              v-if="existingSectorSizes.has('medium')"
-              class="legend-group"
-            >
-              <span class="legend-size-label">{{ formatBytes(sectorSizeLabels.medium) }}:</span>
-              <div class="legend-item">
-                <div class="legend-color sector-pending sector-size-medium" />
-                <span>{{ $t('ui.progress.sectorState.pending') }}</span>
-              </div>
-              <div class="legend-item">
-                <div class="legend-color sector-completed sector-size-medium" />
-                <span>{{ $t('ui.progress.sectorState.completed') }}</span>
-              </div>
-            </div>
-
-            <!-- Large 扇区组 -->
-            <div
-              v-if="existingSectorSizes.has('large')"
-              class="legend-group"
-            >
-              <span class="legend-size-label">{{ formatBytes(sectorSizeLabels.large) }}:</span>
-              <div class="legend-item">
-                <div class="legend-color sector-pending sector-size-large" />
-                <span>{{ $t('ui.progress.sectorState.pending') }}</span>
-              </div>
-              <div class="legend-item">
-                <div class="legend-color sector-completed sector-size-large" />
-                <span>{{ $t('ui.progress.sectorState.completed') }}</span>
-              </div>
-            </div>
-            <div class="legend-group">
-              <div class="legend-item">
-                <div class="legend-color sector-processing" />
-                <span>{{ $t('ui.progress.sectorState.processing') }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <SectorVisualization
+        :type="type"
+        :sector-progress="sectorProgress"
+      />
 
       <!-- Operation Detail -->
       <div
@@ -195,8 +102,9 @@ import { checkmarkOutline } from 'ionicons/icons';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import BaseModal from '@/components/common/BaseModal.vue';
+import SectorVisualization from '@/components/progress/SectorVisualization.vue';
 import { ProgressInfo } from '@/types/progress-info';
-import { formatBytes, formatHex, formatSpeed, formatTimeClock } from '@/utils/formatter-utils';
+import { formatBytes, formatSpeed, formatTimeClock } from '@/utils/formatter-utils';
 
 const props = defineProps<ProgressInfo & {
   modelValue: boolean;
@@ -222,6 +130,7 @@ const isCancelled = ref(false);
 const now = ref(Date.now());
 const lastUpdateTime = ref(Date.now());
 let timer: number | undefined;
+const TIME_REFRESH_INTERVAL_MS = 100;
 
 const isCompleted = computed(() => {
   return props.progress === 100 || props.state === 'completed' || props.state === 'error';
@@ -233,7 +142,7 @@ watch(
     if (active) {
       timer = window.setInterval(() => {
         now.value = Date.now();
-      }, 100);
+      }, TIME_REFRESH_INTERVAL_MS);
     } else if (timer) {
       clearInterval(timer);
     }
@@ -331,48 +240,6 @@ function handleClose() {
   visible.value = false;
   emit('close');
 }
-
-// 根据扇区大小返回样式类名
-function getSectorSizeClass(sectorSize: number): string {
-  if (sectorSize <= 0x1000) { // 4KB or smaller
-    return 'small';
-  } else if (sectorSize <= 0x8000) { // 32KB or smaller
-    return 'medium';
-  } else {
-    return 'large'; // 64KB or larger
-  }
-}
-
-// 按地址排序的扇区列表
-const sortedSectors = computed(() => {
-  if (!props.sectorProgress?.sectors) return [];
-  return [...props.sectorProgress.sectors].sort((a, b) => a.address - b.address);
-});
-
-// 获取实际存在的扇区大小类型
-const existingSectorSizes = computed(() => {
-  if (!props.sectorProgress?.sectors) return new Set();
-
-  const sizes = new Set<string>();
-  props.sectorProgress.sectors.forEach(sector => {
-    sizes.add(getSectorSizeClass(sector.size));
-  });
-  return sizes;
-});
-
-// 获取每种大小的扇区实际字节数
-const sectorSizeLabels = computed(() => {
-  if (!props.sectorProgress?.sectors) return {};
-
-  const sizeMap: Record<string, number> = {};
-  props.sectorProgress.sectors.forEach(sector => {
-    const sizeClass = getSectorSizeClass(sector.size);
-    if (!sizeMap[sizeClass] || sector.size < sizeMap[sizeClass]) {
-      sizeMap[sizeClass] = sector.size;
-    }
-  });
-  return sizeMap;
-});
 
 // Keyboard handling
 function handleKeydown(event: KeyboardEvent) {
@@ -551,220 +418,5 @@ onUnmounted(() => {
 .time-timeout {
   color: #dc2626 !important;
   font-weight: bold !important;
-}
-
-/* 扇区可视化样式 */
-.sector-visualization {
-  margin: spacing-vars.$space-5 0;
-  padding: spacing-vars.$space-4;
-  background: color-vars.$color-bg-secondary;
-  border-radius: radius-vars.$radius-lg;
-  border: 1px solid color-vars.$color-border-light;
-}
-
-.sector-title {
-  @include mixins.flex-between;
-  margin-bottom: spacing-vars.$space-3;
-  font-size: typography-vars.$font-size-sm;
-  font-weight: typography-vars.$font-weight-semibold;
-  color: color-vars.$color-text;
-}
-
-.sector-counter {
-  font-family: monospace;
-  background: color-vars.$color-bg-tertiary;
-  padding: spacing-vars.$space-1 spacing-vars.$space-2;
-  border-radius: radius-vars.$radius-base;
-  font-size: typography-vars.$font-size-xs;
-  color: color-vars.$color-text-secondary;
-}
-
-.sector-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  margin-bottom: spacing-vars.$space-3;
-  max-height: 200px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  justify-content: flex-start;
-  align-content: flex-start;
-}
-
-.sector-block {
-  width: 16px;
-  height: 16px;
-  border-radius: radius-vars.$radius-sm;
-  position: relative;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-
-  &:hover {
-    transform: scale(1.1);
-    z-index: 10;
-  }
-}
-
-.sector-inner {
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  @include mixins.flex-center;
-}
-
-/* 扇区状态颜色 */
-.sector-pending {
-  border: 1px solid color-vars.$color-border;
-
-  &.sector-size-small {
-    background: #ddd6fe; /* 浅紫色 - 4KB */
-  }
-
-  &.sector-size-medium {
-    background: #bfdbfe; /* 浅蓝色 - 32KB */
-  }
-
-  &.sector-size-large {
-    background: color-vars.$color-bg-tertiary; /* 浅灰色 - 64KB+ */
-  }
-}
-
-.sector-processing {
-  background: color-vars.$color-warning;
-  border: 1px solid #f59e0b;
-  animation: sectorPulse 1s infinite;
-}
-
-.sector-completed {
-  border: 1px solid #15803d;
-
-  &.sector-size-small {
-    background: #a855f7; /* 紫色 - 4KB 完成 */
-  }
-
-  &.sector-size-medium {
-    background: color-vars.$color-primary; /* 蓝色 - 32KB 完成 */
-  }
-
-  &.sector-size-large {
-    background: color-vars.$color-success; /* 绿色 - 64KB+ 完成 */
-  }
-}
-
-.sector-error {
-  background: color-vars.$color-error;
-  border: 1px solid #dc2626;
-}
-
-.sector-current {
-  box-shadow: 0 0 0 2px color-vars.$color-primary;
-  z-index: 5;
-}
-
-/* 擦除动画 */
-@keyframes sectorPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-}
-
-.sector-spinner {
-  width: 8px;
-  height: 8px;
-  border: 1px solid #ffffff;
-  border-top: 1px solid transparent;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* 图例 */
-.sector-legend {
-  @include mixins.flex-column;
-  gap: spacing-vars.$space-2;
-  font-size: typography-vars.$font-size-xs;
-  color: color-vars.$color-text-secondary;
-}
-
-.legend-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: spacing-vars.$space-3;
-  align-items: center;
-  justify-content: center;
-}
-
-.legend-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: spacing-vars.$space-2;
-  align-items: center;
-  padding: spacing-vars.$space-1 spacing-vars.$space-2;
-  background: rgba(0, 0, 0, 0.02);
-  border-radius: radius-vars.$radius-base;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  min-width: 0;
-  flex-shrink: 1;
-}
-
-.legend-size-label {
-  font-weight: typography-vars.$font-weight-semibold;
-  color: color-vars.$color-text;
-  font-size: typography-vars.$font-size-xs;
-  margin-right: spacing-vars.$space-1;
-  white-space: nowrap;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: spacing-vars.$space-1;
-  font-size: typography-vars.$font-size-xs;
-  flex-shrink: 0;
-  min-width: 0;
-
-  span {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    min-width: 0;
-  }
-}
-
-.legend-color {
-  width: 12px;
-  height: 12px;
-  border-radius: radius-vars.$radius-sm;
-  border: 1px solid;
-
-  &.sector-pending {
-    border-color: color-vars.$color-border;
-
-    &.sector-size-small {
-      background: #ddd6fe;
-    }
-
-    &.sector-size-medium {
-      background: #bfdbfe;
-    }
-
-    &.sector-size-large {
-      background: color-vars.$color-bg-tertiary;
-    }
-  }
-
-  &.sector-processing {
-    background: color-vars.$color-warning;
-    border-color: #f59e0b;
-  }
-
-  &.sector-completed.sector-size-small {
-    background: #a855f7;
-    border-color: #15803d;
-  }
 }
 </style>

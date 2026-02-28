@@ -137,21 +137,32 @@ describe('ProgressInfoBuilder', () => {
 
   describe('sectors functionality', () => {
     it('should set sector progress information', () => {
-      const sectors = [
-        { address: 0x0000, size: 4096, state: 'completed' as const },
-        { address: 0x1000, size: 4096, state: 'processing' as const },
-        { address: 0x2000, size: 4096, state: 'pending' as const },
-      ];
+      const addresses = [0x0000, 0x1000, 0x2000];
+      const sizes = [4096, 4096, 4096];
+      const sizeClasses = ['small', 'small', 'small'] as const;
+      const stateBuffer = new Uint8Array([2, 1, 0]);
 
       const info = ProgressInfoBuilder.create()
-        .sectors(sectors, 1, 1)
+        .sectorProgress(
+          {
+            addresses,
+            sizes,
+            sizeClasses: [...sizeClasses],
+            stateBuffer,
+          },
+          1,
+          1,
+        )
         .build();
 
       expect(info.sectorProgress).toEqual({
-        sectors,
         totalSectors: 3,
         completedSectors: 1,
         currentSectorIndex: 1,
+        addresses,
+        sizes,
+        sizeClasses: ['small', 'small', 'small'],
+        stateBuffer,
       });
     });
   });

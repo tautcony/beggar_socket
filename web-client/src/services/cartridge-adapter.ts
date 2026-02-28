@@ -2,7 +2,7 @@
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
-import { ProgressInfo, SectorProgressInfo } from '@/types/progress-info';
+import { ProgressInfo, SectorProgressInfo, type SectorSizeClass } from '@/types/progress-info';
 import { timeout } from '@/utils/async-utils';
 import NotImplementedError from '@/utils/errors/NotImplementedError';
 import { CFIInfo, SectorBlock } from '@/utils/parsers/cfi-parser';
@@ -166,10 +166,13 @@ export class CartridgeAdapter {
     allowCancel: boolean,
     state: 'idle' | 'running' | 'paused' | 'completed' | 'error' = 'running',
     sectorProgress?: {
-      sectors: SectorProgressInfo[];
       totalSectors: number;
       completedSectors: number;
       currentSectorIndex: number;
+      addresses: number[];
+      sizes: number[];
+      sizeClasses: SectorSizeClass[];
+      stateBuffer: Uint8Array;
     },
   ) {
     const builder = ProgressInfoBuilder.create()
@@ -183,8 +186,13 @@ export class CartridgeAdapter {
       .state(state);
 
     if (sectorProgress) {
-      builder.sectors(
-        sectorProgress.sectors,
+      builder.sectorProgress(
+        {
+          addresses: sectorProgress.addresses,
+          sizes: sectorProgress.sizes,
+          sizeClasses: sectorProgress.sizeClasses,
+          stateBuffer: sectorProgress.stateBuffer,
+        },
         sectorProgress.completedSectors,
         sectorProgress.currentSectorIndex,
       );

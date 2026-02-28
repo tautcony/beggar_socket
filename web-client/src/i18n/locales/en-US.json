@@ -49,7 +49,8 @@
         "connect": "Connect",
         "cancel": "Cancel",
         "serialNumber": "Serial Number"
-      }
+      },
+      "resetConnection": "Reset"
     },
     "mode": {
       "gba": "GBA",
@@ -301,7 +302,7 @@
       "aButton": "A Button",
       "bButton": "B Button",
       "start": "Start",
-      "select": "Select", 
+      "select": "Select",
       "l": "L Button",
       "r": "R Button",
       "buttons": "A/B Buttons",
@@ -380,7 +381,7 @@
         "setCurrentTime": "Set Current Time",
         "sunday": "Sunday",
         "monday": "Monday",
-        "tuesday": "Tuesday", 
+        "tuesday": "Tuesday",
         "wednesday": "Wednesday",
         "thursday": "Thursday",
         "friday": "Friday",
@@ -492,7 +493,8 @@
         "processing": "Processing",
         "completed": "Completed",
         "error": "Error"
-      }
+      },
+      "rendererCanvas": "Canvas"
     },
     "common": {
       "yes": "Yes",

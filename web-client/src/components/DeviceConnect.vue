@@ -20,7 +20,7 @@
         v-if="connected"
         variant="warning"
         :disabled="isConnecting"
-        text="重置"
+        :text="t('ui.device.resetConnection')"
         @click="() => initializeSerialState(deviceInfo, true)"
       />
       <!--div class="polyfill-toggle">

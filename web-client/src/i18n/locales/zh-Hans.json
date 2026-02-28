@@ -49,7 +49,8 @@
         "connect": "连接",
         "cancel": "取消",
         "serialNumber": "序列号"
-      }
+      },
+      "resetConnection": "重置"
     },
     "mode": {
       "gba": "GBA",
@@ -299,7 +300,7 @@
       "loadFailed": "加载失败",
       "dpad": "方向键",
       "aButton": "A按键",
-      "bButton": "B按键", 
+      "bButton": "B按键",
       "start": "开始",
       "select": "选择",
       "l": "L键",
@@ -380,7 +381,7 @@
         "setCurrentTime": "设为当前时间",
         "sunday": "星期日",
         "monday": "星期一",
-        "tuesday": "星期二", 
+        "tuesday": "星期二",
         "wednesday": "星期三",
         "thursday": "星期四",
         "friday": "星期五",
@@ -492,7 +493,8 @@
         "processing": "处理中",
         "completed": "已完成",
         "error": "错误"
-      }
+      },
+      "rendererCanvas": "画布"
     },
     "common": {
       "yes": "是",

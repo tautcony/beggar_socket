@@ -49,7 +49,8 @@
         "connect": "Подключить",
         "cancel": "Отмена",
         "serialNumber": "Серийный номер"
-      }
+      },
+      "resetConnection": "Сброс"
     },
     "mode": {
       "gba": "GBA",
@@ -299,7 +300,7 @@
       "loadFailed": "Загрузка не удалась",
       "dpad": "Крестовина",
       "aButton": "Кнопка A",
-      "bButton": "Кнопка B", 
+      "bButton": "Кнопка B",
       "start": "Старт",
       "select": "Выбор",
       "l": "Кнопка L",
@@ -379,7 +380,7 @@
         "setCurrentTime": "Установить текущее время",
         "sunday": "Воскресенье",
         "monday": "Понедельник",
-        "tuesday": "Вторник", 
+        "tuesday": "Вторник",
         "wednesday": "Среда",
         "thursday": "Четверг",
         "friday": "Пятница",
@@ -488,7 +489,8 @@
         "processing": "Обработка",
         "completed": "Завершено",
         "error": "Ошибка"
-      }
+      },
+      "rendererCanvas": "Холст"
     },
     "common": {
       "yes": "Да",
