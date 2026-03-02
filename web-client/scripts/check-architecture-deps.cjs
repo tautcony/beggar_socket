@@ -63,6 +63,10 @@ function checkViolation(sourceRel, importRel) {
     return 'types/utils layer must not directly import services layer';
   }
 
+  if (sourceTop === 'protocol' && importRel === 'services/serial-service') {
+    return 'protocol layer must not directly import services/serial-service; use platform/serial transport contracts';
+  }
+
   return null;
 }
 

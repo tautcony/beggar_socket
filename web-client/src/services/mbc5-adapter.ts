@@ -9,8 +9,7 @@ import {
   gbc_write,
   gbc_write_fram,
 } from '@/protocol/beggar_socket/protocol';
-import { ProtocolAdapter } from '@/protocol/beggar_socket/protocol-adapter';
-import { getFlashName } from '@/protocol/beggar_socket/protocol-utils';
+import { getFlashName, setSignals } from '@/protocol/beggar_socket/protocol-utils';
 import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions, MbcType } from '@/types/command-options';
@@ -48,9 +47,9 @@ export class MBC5Adapter extends CartridgeAdapter {
 
   private async pulseSignals(): Promise<void> {
     try {
-      await ProtocolAdapter.setSignals(this.device, { dataTerminalReady: true, requestToSend: true });
+      await setSignals(this.device, { dataTerminalReady: true, requestToSend: true });
       await timeout(10);
-      await ProtocolAdapter.setSignals(this.device, { dataTerminalReady: false, requestToSend: false });
+      await setSignals(this.device, { dataTerminalReady: false, requestToSend: false });
     } catch (e) {
       // 仅输出调试信息，不中断流程
       console.debug('Failed to toggle serial signals after cart_power:', e);
