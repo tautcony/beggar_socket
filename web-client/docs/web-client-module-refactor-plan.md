@@ -50,6 +50,8 @@
 - `protocol-adapter` 不再直接依赖 `SerialService`
 
 ## Phase 3：去重与规则归位（优先级 P1）
+> 状态：已完成（2026-03-02）
+
 ### 动作
 - 删除 `CartBurner.vue` 内部 `detectMbcType`，统一使用 parser 实现
 - 合并重复读包函数，只保留一套
@@ -60,6 +62,19 @@
 
 ### 验收
 - 重复函数仅保留单一实现
+
+### 实现落点
+- `web-client/src/utils/parsers/rom-parser.ts`
+  - 新增结构化入口 `detectMbcTypeFromRom`，`detectMbcType` 退化为兼容包装
+- `web-client/src/components/CartBurner.vue`
+  - MBC 判定改为 parser 统一入口
+  - ROM/RAM/多卡流程统一接入 `runBurnerFlow` 模板
+- `web-client/src/features/burner/application/flow-template.ts`
+  - 新增通用流程模板，收敛 busy/progress/cancel/error 生命周期
+- `web-client/src/protocol/beggar_socket/protocol-utils.ts`
+  - 删除重复的 reader 读包实现，仅保留通过 `ProtocolAdapter` 的统一调用入口
+- `web-client/src/platform/serial/transports.ts`
+  - 保留唯一 reader 实现（协议调用链经 `ProtocolAdapter -> Transport.read` 进入）
 
 ## Phase 4：测试体系补齐（优先级 P0）
 ### 动作

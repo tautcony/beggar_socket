@@ -1,6 +1,5 @@
 import { resolveTransport, type Transport } from '@/platform/serial';
-import { AdvancedSettings } from '@/settings/advanced-settings';
-import { type BYOBReader, type DefaultReader, type DeviceInfo } from '@/types';
+import { type DeviceInfo } from '@/types';
 
 import { ProtocolAdapter } from './protocol-adapter';
 
@@ -44,92 +43,6 @@ export async function getResult(input: ProtocolTransportInput, timeoutMs?: numbe
 
 export async function setSignals(input: ProtocolTransportInput, signals: SerialOutputSignals): Promise<void> {
   return ProtocolAdapter.setSignals(resolveTransport(input), signals);
-}
-
-// 保留原有的读取函数以兼容现有代码
-export async function getPackageWithDefaultReader(reader: DefaultReader, length: number, timeoutMs?: number): Promise<{ data: Uint8Array }> {
-  const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
-  let offset = 0;
-  const accumulatedData = new Uint8Array(length);
-
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    const readOperation = (async () => {
-      while (offset < length) {
-        const { value, done } = await reader.read();
-        if (done || !value) {
-          break;
-        }
-        // 将新读取的数据复制到累积缓冲区中
-        const bytesToCopy = Math.min(value.byteLength, length - offset);
-        accumulatedData.set(value.subarray(0, bytesToCopy), offset);
-        offset += bytesToCopy;
-      }
-    })();
-
-    const timeoutPromise = new Promise((_, reject) => {
-      timer = setTimeout(() => {
-        reader.releaseLock();
-        reject(new Error(`Read package timeout in ${timeout}ms`));
-      }, timeout);
-    });
-
-    await Promise.race([readOperation, timeoutPromise]);
-    return { data: accumulatedData.slice(0, offset) };
-  } catch (e) {
-    if (offset === 0) {
-      throw e;
-    }
-    // 超时但有部分数据，返回累积的数据
-    return { data: accumulatedData.slice(0, offset) };
-  } finally {
-    if (timer) clearTimeout(timer);
-    try { reader.releaseLock(); } catch {}
-  }
-}
-
-export async function getPackageWithBYOBReader(reader: BYOBReader, length: number, timeoutMs?: number): Promise<{ data: Uint8Array }> {
-  const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
-  let buffer = new Uint8Array(length);
-  let offset = 0;
-  const accumulatedData = new Uint8Array(length);
-
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    const readOperation = (async () => {
-      while (offset < length) {
-        const { value, done } = await reader.read(
-          new Uint8Array(buffer as unknown as ArrayBufferLike, offset),
-        );
-        if (done) {
-          break;
-        }
-        // 将新读取的数据复制到累积缓冲区中
-        accumulatedData.set(value, offset);
-        buffer = value.buffer as unknown as Uint8Array<ArrayBuffer>;
-        offset += value.byteLength;
-      }
-    })();
-
-    const timeoutPromise = new Promise((_, reject) => {
-      timer = setTimeout(() => {
-        reader.releaseLock();
-        reject(new Error(`Read package timeout in ${timeout}ms`));
-      }, timeout);
-    });
-
-    await Promise.race([readOperation, timeoutPromise]);
-    return { data: new Uint8Array(buffer) };
-  } catch (e) {
-    if (offset === 0) {
-      throw e;
-    }
-    // 超时但有部分数据，返回累积的数据
-    return { data: accumulatedData.slice(0, offset) };
-  } finally {
-    if (timer) clearTimeout(timer);
-    try { reader.releaseLock(); } catch {}
-  }
 }
 
 // Flash 类型定义和工具函数

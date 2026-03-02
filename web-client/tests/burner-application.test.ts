@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { BurnerSession } from '@/features/burner/application/burner-session';
 import { BurnerUseCaseImpl } from '@/features/burner/application/burner-use-case';
+import { runBurnerFlow } from '@/features/burner/application/flow-template';
 import type { CartridgeAdapter } from '@/services/cartridge-adapter';
 import type { CFIInfo } from '@/utils/parsers/cfi-parser';
 
@@ -70,6 +71,16 @@ describe('BurnerSession', () => {
     expect(session.snapshot.progress.state).toBe('idle');
   });
 
+  it('should support clearing logs explicitly', () => {
+    const session = new BurnerSession();
+    session.addLog('10:00:00', 'log-1', 'info');
+    session.addLog('10:00:01', 'log-2', 'warn');
+
+    session.clearLogs();
+
+    expect(session.snapshot.logs).toEqual([]);
+  });
+
   it('should converge lifecycle state when operation times out', async () => {
     const session = new BurnerSession();
 
@@ -80,6 +91,56 @@ describe('BurnerSession', () => {
 
     expect(session.snapshot.busy).toBe(false);
     expect(session.snapshot.abortController).toBeNull();
+  });
+});
+
+describe('runBurnerFlow', () => {
+  it('should apply shared lifecycle for progress and busy state', async () => {
+    const session = new BurnerSession();
+    const busyStates: boolean[] = [];
+
+    const result = await runBurnerFlow<unknown>({
+      session,
+      cancellable: true,
+      updateProgress: { progress: 0, detail: 'start' },
+      resetProgressOnFinish: true,
+      syncState: (snapshot) => {
+        busyStates.push(snapshot.busy);
+      },
+      execute: ({ signal }) => {
+        expect(signal).toBeDefined();
+        session.updateProgress({ progress: 50, detail: 'halfway' });
+        return Promise.resolve('ok');
+      },
+    });
+
+    expect(result).toBe('ok');
+    expect(busyStates[0]).toBe(true);
+    expect(busyStates[busyStates.length - 1]).toBe(false);
+    expect(session.snapshot.progress.progress).toBeNull();
+    expect(session.snapshot.progress.state).toBe('idle');
+  });
+
+  it('should treat AbortError as cancellation without throwing', async () => {
+    const session = new BurnerSession();
+    const log = vi.fn();
+    const syncState = vi.fn();
+
+    await runBurnerFlow({
+      session,
+      cancellable: true,
+      syncState,
+      log,
+      cancelLogMessage: 'cancelled',
+      execute: () => {
+        const error = new Error('aborted');
+        error.name = 'AbortError';
+        return Promise.reject(error);
+      },
+    });
+
+    expect(log).toHaveBeenCalledWith('cancelled', 'warn');
+    expect(session.snapshot.busy).toBe(false);
   });
 });
 

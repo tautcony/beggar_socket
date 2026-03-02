@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { calculateGBChecksum, GB_NINTENDO_LOGO, GBA_NINTENDO_LOGO, parseRom } from '../src/utils/parsers/rom-parser';
+import {
+  calculateGBChecksum,
+  detectMbcType,
+  detectMbcTypeFromRom,
+  GB_NINTENDO_LOGO,
+  GBA_NINTENDO_LOGO,
+  parseRom,
+} from '../src/utils/parsers/rom-parser';
 
 function createGBARomHeader(dataSize = 0x200): Uint8Array {
   const header = new Uint8Array(dataSize); // 512字节足够测试
@@ -281,6 +288,27 @@ describe('rom-parser', () => {
       expect(result.title).toBe('Unknown ROM');
       expect(result.type).toBe('Unknown');
       expect(result.isValid).toBe(false);
+    });
+  });
+
+  describe('MBC检测', () => {
+    it('应该从header字节检测MBC类型', () => {
+      const romData = createGBRomHeader();
+      romData[0x147] = 0x13;
+
+      const result = detectMbcTypeFromRom(romData);
+      expect(result.mbcType).toBe('MBC3');
+      expect(result.isFallback).toBe(false);
+      expect(detectMbcType(romData)).toBe('MBC3');
+    });
+
+    it('数据不足时应回退到默认MBC5', () => {
+      const romData = new Uint8Array(8);
+
+      const result = detectMbcTypeFromRom(romData);
+      expect(result.mbcType).toBe('MBC5');
+      expect(result.isFallback).toBe(true);
+      expect(detectMbcType(romData)).toBe('MBC5');
     });
   });
 
