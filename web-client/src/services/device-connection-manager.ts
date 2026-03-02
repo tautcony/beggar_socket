@@ -1,7 +1,7 @@
-import { type SerialPortInfo, SerialService } from '@/services/serial-service';
+import { type DeviceSelection, getDeviceGateway, toLegacyDeviceInfo, withPortInfo } from '@/platform/serial';
 import { DebugSettings } from '@/settings/debug-settings';
 import { DeviceInfo } from '@/types/device-info';
-import { timeout } from '@/utils/async-utils';
+import type { SerialPortInfo } from '@/types/serial';
 import { isElectron } from '@/utils/electron';
 import { PortSelectionRequiredError } from '@/utils/errors/PortSelectionRequiredError';
 import { PortFilter } from '@/utils/port-filter';
@@ -12,7 +12,7 @@ import { PortFilter } from '@/utils/port-filter';
  */
 export class DeviceConnectionManager {
   private static instance: DeviceConnectionManager;
-  private serialService = SerialService.getInstance();
+  private readonly gateway = getDeviceGateway();
 
   private constructor() {}
 
@@ -38,8 +38,9 @@ export class DeviceConnectionManager {
       return this.requestElectronDevice(filter);
     }
 
-    // Web 环境：使用 Web Serial API
-    return this.requestWebDevice(filter);
+    const selection = await this.gateway.select(filter);
+    const device = await this.gateway.connect(selection);
+    return toLegacyDeviceInfo(device);
   }
 
   /**
@@ -53,15 +54,9 @@ export class DeviceConnectionManager {
     try {
       console.log('Connecting with selected port:', selectedPort);
 
-      // 打开串口连接
-      const deviceInfo = await this.serialService.openPort(selectedPort.path, {
-        baudRate: 9600,
-        dataBits: 8,
-        parity: 'none',
-        stopBits: 1,
-      });
-
-      return deviceInfo;
+      const selection: DeviceSelection = { portInfo: selectedPort };
+      const device = await this.gateway.connect(selection);
+      return withPortInfo(toLegacyDeviceInfo(device), selectedPort);
     } catch (error) {
       console.error('Failed to connect to selected port:', error);
       throw error;
@@ -73,7 +68,7 @@ export class DeviceConnectionManager {
    */
   private async requestElectronDevice(filter?: PortFilter): Promise<DeviceInfo> {
     try {
-      const serialPortInfos = await this.serialService.listPorts(filter);
+      const serialPortInfos = await this.gateway.list(filter);
 
       if (serialPortInfos.length !== 1) {
         throw new PortSelectionRequiredError(serialPortInfos);
@@ -94,40 +89,6 @@ export class DeviceConnectionManager {
   }
 
   /**
-   * Web 环境下的设备连接
-   */
-  private async requestWebDevice(filter?: PortFilter): Promise<DeviceInfo> {
-    try {
-      const serialPortFilters = filter?.toWebSerialFilters ? filter?.toWebSerialFilters() : [];
-
-      if (!navigator.serial) {
-        throw new Error('Web Serial API is not supported in this browser');
-      }
-
-      const port = await navigator.serial.requestPort({ filters: serialPortFilters });
-      if (!port) {
-        throw new Error('No serial port selected');
-      }
-
-      await port.open({
-        baudRate: 9600,
-        dataBits: 8,
-        parity: 'none',
-        stopBits: 1,
-        flowControl: 'none',
-      });
-
-      return {
-        port,
-        connection: null,
-      };
-    } catch (error) {
-      console.error('Failed to connect to Web device:', error);
-      throw error;
-    }
-  }
-
-  /**
    * 初始化串口状态（设置 DTR/RTS 信号）
    */
   async initializeDevice(device: DeviceInfo): Promise<void> {
@@ -137,49 +98,32 @@ export class DeviceConnectionManager {
       return;
     }
 
-    if (device.port) {
-      // Web Serial API 环境
-      await device.port.setSignals({ dataTerminalReady: false, requestToSend: false });
-      await timeout(200);
-      await device.port.setSignals({ dataTerminalReady: true, requestToSend: true });
-    } else if (device.connection) {
-      // Electron 环境 - 使用统一的 setSignals 方法
-      await device.connection.setSignals({ dataTerminalReady: false, requestToSend: false });
-      await timeout(200);
-      await device.connection.setSignals({ dataTerminalReady: true, requestToSend: true });
-    }
+    const handle = device.serialHandle;
+    if (!handle) return;
+    await this.gateway.init(handle);
+  }
+
+  async listAvailablePorts(filter?: PortFilter): Promise<SerialPortInfo[]> {
+    return this.gateway.list(filter);
   }
 
   /**
    * 断开设备连接
    */
   async disconnectDevice(device: DeviceInfo): Promise<void> {
-    if (device.connection) {
-      try {
-        await device.connection.close();
-      } catch (error) {
-        console.error('Error closing connection:', error);
-      } finally {
-        device.connection = null;
-      }
-    }
-
-    if (device.port) {
-      try {
-        await device.port.close();
-      } catch (error) {
-        console.error('Error closing port:', error);
-      } finally {
-        device.port = null;
-      }
-    }
+    const handle = device.serialHandle;
+    if (!handle) return;
+    await this.gateway.disconnect(handle);
+    device.connection = null;
+    device.port = null;
+    device.transport = null;
   }
 
   /**
    * 检查设备是否已连接
    */
   isDeviceConnected(device: DeviceInfo): boolean {
-    return !!(device.connection ?? device.port);
+    return !!(device.transport ?? device.connection ?? device.port);
   }
 }
 

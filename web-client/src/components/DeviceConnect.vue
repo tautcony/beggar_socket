@@ -52,8 +52,8 @@ import BaseButton from '@/components/common/BaseButton.vue';
 import PortSelectorModal from '@/components/modal/PortSelectorModal.vue';
 import { useToast } from '@/composables/useToast';
 import { DeviceConnectionManager, PortSelectionRequiredError } from '@/services/device-connection-manager';
-import { type SerialPortInfo, SerialService } from '@/services/serial-service';
 import { DeviceInfo } from '@/types/device-info';
+import type { SerialPortInfo } from '@/types/serial';
 import { isElectron } from '@/utils/electron';
 import { PortFilters } from '@/utils/port-filter';
 // import ToggleSwitch from '@/components/common/ToggleSwitch.vue';
@@ -79,7 +79,6 @@ const availablePorts = ref<SerialPortInfo[]>([]);
 
 let deviceInfo: DeviceInfo | null = null;
 const deviceManager = DeviceConnectionManager.getInstance();
-const serialService = SerialService.getInstance();
 
 // 热重载状态恢复 - 在开发模式下处理 HMR
 if (import.meta.hot) {
@@ -207,7 +206,7 @@ async function onRefreshPorts() {
     const filter = PortFilters.device('0483', '0721');
 
     // 重新获取串口列表
-    const portResult = await serialService.listPorts(filter);
+    const portResult = await deviceManager.listAvailablePorts(filter);
 
     if (Array.isArray(portResult)) {
       availablePorts.value = portResult;

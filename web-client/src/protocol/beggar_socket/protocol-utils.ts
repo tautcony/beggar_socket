@@ -1,7 +1,10 @@
+import { resolveTransport, type Transport } from '@/platform/serial';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { type BYOBReader, type DefaultReader, type DeviceInfo } from '@/types';
 
 import { ProtocolAdapter } from './protocol-adapter';
+
+export type ProtocolTransportInput = DeviceInfo | { transport: Transport };
 
 export function toLittleEndian(value: number, byteLength: number): Uint8Array {
   const bytes = new Uint8Array(byteLength);
@@ -22,16 +25,25 @@ export function fromLittleEndian(bytes: Uint8Array): number {
 }
 
 // 使用适配器的统一接口
-export async function sendPackage(device: DeviceInfo, payload: Uint8Array, timeoutMs?: number): Promise<boolean> {
-  return ProtocolAdapter.sendPackage(device, payload, timeoutMs);
+export async function sendPackage(input: ProtocolTransportInput, payload: Uint8Array, timeoutMs?: number): Promise<boolean> {
+  return ProtocolAdapter.sendPackage(resolveTransport(input), payload, timeoutMs);
 }
 
-export async function getPackage(device: DeviceInfo, length: number, timeoutMs?: number, mode: 'byob' | 'default' = 'byob'): Promise<{ data: Uint8Array }> {
-  return ProtocolAdapter.getPackage(device, length, timeoutMs, mode);
+export async function getPackage(
+  input: ProtocolTransportInput,
+  length: number,
+  timeoutMs?: number,
+  mode: 'byob' | 'default' = 'byob',
+): Promise<{ data: Uint8Array }> {
+  return ProtocolAdapter.getPackage(resolveTransport(input), length, timeoutMs, mode);
 }
 
-export async function getResult(device: DeviceInfo, timeoutMs?: number): Promise<boolean> {
-  return ProtocolAdapter.getResult(device, timeoutMs);
+export async function getResult(input: ProtocolTransportInput, timeoutMs?: number): Promise<boolean> {
+  return ProtocolAdapter.getResult(resolveTransport(input), timeoutMs);
+}
+
+export async function setSignals(input: ProtocolTransportInput, signals: SerialOutputSignals): Promise<void> {
+  return ProtocolAdapter.setSignals(resolveTransport(input), signals);
 }
 
 // 保留原有的读取函数以兼容现有代码

@@ -54,6 +54,11 @@ const commonRules = {
         message: 'views 层禁止直接依赖 protocol 层，请改为通过 application/service facade 访问。',
       },
       {
+        target: './src/protocol',
+        from: './src/services/serial-service',
+        message: 'protocol 层禁止直接依赖 services/serial-service，请改为依赖 platform/serial 的 Transport 接口。',
+      },
+      {
         target: './src/types',
         from: './src/services',
         message: 'types 层禁止依赖 services 层，请将共享类型下沉到 shared/platform types。',
