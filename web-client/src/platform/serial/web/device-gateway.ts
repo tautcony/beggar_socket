@@ -1,5 +1,5 @@
-import { timeout } from '@/utils/async-utils';
 import type { SerialPortInfo } from '@/types/serial';
+import { timeout } from '@/utils/async-utils';
 import type { PortFilter } from '@/utils/port-filter';
 
 import { WebSerialTransport } from '../transports';

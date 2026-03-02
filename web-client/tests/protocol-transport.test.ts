@@ -29,6 +29,19 @@ describe('Protocol transport abstraction', () => {
     expect(setSignal).toHaveBeenCalledWith({ dataTerminalReady: true });
   });
 
+  it('ProtocolAdapter normalizes packet result semantics', async () => {
+    const transport: Transport = {
+      send: vi.fn().mockResolvedValue(true),
+      read: vi.fn().mockResolvedValue({ data: new Uint8Array([0x00]) }),
+      setSignals: vi.fn().mockResolvedValue(undefined),
+    };
+
+    await expect(ProtocolAdapter.getPackage(transport, 2, 30, 'default')).resolves.toEqual({ data: new Uint8Array([0x00]) });
+    await expect(ProtocolAdapter.getResult(transport, 30)).resolves.toBe(false);
+    expect(transport.read).toHaveBeenNthCalledWith(1, 2, 30, 'default');
+    expect(transport.read).toHaveBeenNthCalledWith(2, 1, 30, 'byob');
+  });
+
   it('protocol-utils resolves transport from legacy device shape', async () => {
     const send = vi.fn().mockResolvedValue(true);
     const read = vi.fn().mockResolvedValue({ data: new Uint8Array([0xaa]) });

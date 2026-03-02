@@ -41,14 +41,12 @@
   - 运行配置（`AdvancedSettings`）
 - 结果：协议层不是纯通信协议，替换传输或配置来源成本高。
 
-### 5. 重复实现与逻辑分叉
+### 5. 重复实现与逻辑分叉（Phase 3 已收敛）
 - MBC 类型识别逻辑重复：
-  - `utils/parsers/rom-parser.ts`
-  - `components/CartBurner.vue`
+  - 已统一到 `utils/parsers/rom-parser.ts`（组件内重复实现已移除）
 - 读取函数重复：
-  - `protocol-adapter.ts`
-  - `protocol-utils.ts`
-- 结果：修复/优化容易漏改，行为不一致风险高。
+  - 已统一到 `protocol-adapter -> transport.read` 调用链
+- 当前结果：规则与读包路径已收敛，行为一致性风险显著下降。
 
 ### 6. 测试覆盖与架构风险不匹配
 - 当前测试偏 `utils` 单测。

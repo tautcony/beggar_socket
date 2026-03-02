@@ -87,4 +87,8 @@ export class BurnerSession {
   addLog(time: string, message: string, level: LogLevel = 'info') {
     this.appendLog({ time, message, level });
   }
+
+  clearLogs() {
+    this.state.logs = [];
+  }
 }

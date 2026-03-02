@@ -6,4 +6,5 @@ export {
   BurnerUseCaseImpl,
   type GameDetectionResult,
 } from './burner-use-case';
+export { type BurnerFlowContext, type BurnerFlowOptions, runBurnerFlow } from './flow-template';
 export type { BurnerLogEntry, BurnerSessionState, LogLevel } from './types';

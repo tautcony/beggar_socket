@@ -1,3 +1,5 @@
+import type { MbcType } from '@/types/command-options';
+
 /**
  * ROM文件解析工具
  * 支持GBA和GB/GBC ROM格式
@@ -474,10 +476,15 @@ export function parseRom(data: Uint8Array): RomInfo {
  * @param romData - ROM 数据（至少需要 0x148 字节）
  * @returns MBC 类型字符串，如果无法检测则返回 'MBC5'（默认值）
  */
-export function detectMbcType(romData: Uint8Array): 'MBC1' | 'MBC2' | 'MBC3' | 'MBC5' {
+export interface MbcDetectionResult {
+  mbcType: MbcType;
+  isFallback: boolean;
+}
+
+export function detectMbcTypeFromRom(romData: Uint8Array): MbcDetectionResult {
   // 确保数据足够长
   if (romData.length < 0x148) {
-    return 'MBC5'; // 默认值
+    return { mbcType: 'MBC5', isFallback: true };
   }
 
   // 读取卡带类型字节（偏移 0x147）
@@ -493,15 +500,19 @@ export function detectMbcType(romData: Uint8Array): 'MBC1' | 'MBC2' | 'MBC3' | '
   const MBC5_IDS = [0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e];
 
   if (MBC5_IDS.includes(cartType)) {
-    return 'MBC5';
+    return { mbcType: 'MBC5', isFallback: false };
   } else if (MBC3_IDS.includes(cartType)) {
-    return 'MBC3';
+    return { mbcType: 'MBC3', isFallback: false };
   } else if (MBC2_IDS.includes(cartType)) {
-    return 'MBC2';
+    return { mbcType: 'MBC2', isFallback: false };
   } else if (MBC1_IDS.includes(cartType)) {
-    return 'MBC1';
+    return { mbcType: 'MBC1', isFallback: false };
   }
 
   // 默认返回 MBC5
-  return 'MBC5';
+  return { mbcType: 'MBC5', isFallback: true };
+}
+
+export function detectMbcType(romData: Uint8Array): MbcType {
+  return detectMbcTypeFromRom(romData).mbcType;
 }
