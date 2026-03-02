@@ -77,6 +77,8 @@
   - 保留唯一 reader 实现（协议调用链经 `ProtocolAdapter -> Transport.read` 进入）
 
 ## Phase 4：测试体系补齐（优先级 P0）
+> 状态：已完成（2026-03-02）
+
 ### 动作
 - 增加应用层集成测试（mock transport）：
   - 连接成功/失败
@@ -90,6 +92,16 @@
 
 ### 验收
 - 重构后关键路径具备稳定回归保障
+
+### 实现落点
+- `web-client/tests/burner-application.test.ts`
+  - 补充连接失败语义、ROM/RAM 读写契约、取消后状态收敛、错误恢复后可继续执行
+- `web-client/tests/protocol-transport.test.ts`
+  - 补充 `ConnectionTransport` send timeout 与 setSignals 错误传播断言
+- `web-client/tests/device-gateway.test.ts`
+  - 新增 Web/Electron `DeviceGateway` 生命周期成功/失败路径及运行时行为一致性断言
+- `web-client/docs/phase-4-test-system-completion.md`
+  - 固化覆盖矩阵、分层策略与阶段门禁命令
 
 ## 任务拆解建议（可直接建 issue）
 1. 新增分层依赖 lint 规则并修复现有违规导入。

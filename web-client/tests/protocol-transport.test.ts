@@ -99,6 +99,26 @@ describe('Protocol transport abstraction', () => {
     await expect(transport.read(1, 1)).rejects.toThrow('Read package timeout in 1ms');
   });
 
+  it('ConnectionTransport propagates send timeout and signal errors', async () => {
+    const connection: SerialConnection = {
+      id: 'conn-3',
+      isOpen: true,
+      write: vi.fn().mockImplementation(() => new Promise(() => {})),
+      close: vi.fn().mockResolvedValue(undefined),
+      setSignals: vi.fn().mockRejectedValue(new Error('signal failed')),
+      onData: vi.fn(),
+      onError: vi.fn(),
+      onClose: vi.fn(),
+      removeDataListener: vi.fn(),
+      removeErrorListener: vi.fn(),
+      removeCloseListener: vi.fn(),
+    };
+
+    const transport = new ConnectionTransport(connection);
+    await expect(transport.send(new Uint8Array([0x01]), 1)).rejects.toThrow('Send package timeout in 1ms');
+    await expect(transport.setSignals({ dataTerminalReady: true })).rejects.toThrow('signal failed');
+  });
+
   it('resolveTransport falls back to connection transport', async () => {
     const dataCallbacks: ((data: Uint8Array) => void)[] = [];
     const connection: SerialConnection = {
