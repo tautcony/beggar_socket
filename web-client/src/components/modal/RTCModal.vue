@@ -416,9 +416,9 @@ watch([() => gbaDate.year, () => gbaDate.month, () => gbaDate.date], () => {
     });
 
     if (dt.isValid) {
-      // luxon weekday: 1 = Monday, 7 = Sunday
-      // 转换为我们的格式: 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-      gbaDate.day = dt.weekday === 7 ? 0 : dt.weekday;
+      // luxon weekday: 1 = Monday, ..., 6 = Saturday, 7 = Sunday
+      // 转换为 GBA 格式: 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      gbaDate.day = dt.weekday % 7;
     }
   }
 });
