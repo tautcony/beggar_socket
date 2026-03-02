@@ -1,5 +1,4 @@
-// 导入串口连接类型
-import { SerialConnection } from '@/services/serial-service';
+import type { SerialConnection } from '@/types/serial';
 
 export interface DeviceInfo {
   port: SerialPort | null;

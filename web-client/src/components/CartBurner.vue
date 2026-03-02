@@ -114,8 +114,9 @@ import FileNameSelectorModal from '@/components/modal/FileNameSelectorModal.vue'
 import ProgressDisplayModal from '@/components/modal/ProgressDisplayModal.vue';
 import { ChipOperations, RamOperations, RomOperations } from '@/components/operaiton';
 import { useToast } from '@/composables/useToast';
-import { arraysEqual, getFlashId } from '@/protocol/beggar_socket/protocol-utils';
+import { BurnerFacadeImpl, BurnerSession, BurnerUseCaseImpl, type GameDetectionResult } from '@/features/burner/application';
 import { CartridgeAdapter, GBAAdapter, MBC5Adapter, MockAdapter } from '@/services';
+import { shouldUseLargeRomPage } from '@/services/flash-chip';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { DebugSettings } from '@/settings/debug-settings';
 import { useRecentFileNamesStore } from '@/stores/recent-file-names-store';
@@ -123,14 +124,8 @@ import { CommandOptions, DeviceInfo, FileInfo, ProgressInfo } from '@/types';
 import type { MbcType } from '@/types/command-options';
 import { formatBytes, formatHex } from '@/utils/formatter-utils';
 import { CFIInfo } from '@/utils/parsers/cfi-parser';
-import { parseRom, RomInfo } from '@/utils/parsers/rom-parser.ts';
-import { calcSectorUsage } from '@/utils/sector-utils';
+import { detectMbcType, parseRom } from '@/utils/parsers/rom-parser.ts';
 
-interface GameDetectionResult {
-  startAddress: number;
-  desc: string;
-  romInfo: RomInfo;
-}
 type LogLevelType = 'info' | 'success' | 'warn' | 'error';
 type ModeType = 'GBA' | 'MBC5';
 type RamType = 'SRAM' | 'FLASH';
@@ -149,6 +144,8 @@ const busy = ref(false);
 const logs = ref<{ time: string; message: string; level: LogLevelType }[]>([]);
 const selectedMbcType = ref<MbcType>('MBC5');
 const mbcPower5V = ref(false);
+const burnerSession = new BurnerSession();
+const burnerFacade = new BurnerFacadeImpl(new BurnerUseCaseImpl(key => t(key), value => formatHex(value, 4)));
 
 // progress info object
 const progressInfo = ref<ProgressInfo>({
@@ -199,8 +196,6 @@ const sectorCounts = computed(() => {
   }
   return cfiInfo.value.eraseSectorBlocks.map((block) => block.sectorCount);
 });
-
-const currentAbortController = ref<AbortController | null>(null);
 
 // Adapter
 const gbaAdapter = ref<CartridgeAdapter | null>();
@@ -321,10 +316,8 @@ function updateProgress(info: ProgressInfo) {
 
 function handleProgressStop() {
   // 中止当前操作
-  if (currentAbortController.value) {
-    currentAbortController.value.abort();
-    log(t('messages.operation.cancelled'), 'warn');
-  }
+  burnerSession.abortOperation();
+  log(t('messages.operation.cancelled'), 'warn');
 }
 
 function resetProgress() {
@@ -340,29 +333,21 @@ function resetProgress() {
     state: 'idle',
   };
 
-  // 清理取消控制器
-  if (currentAbortController.value) {
-    currentAbortController.value = null;
-  }
+  burnerSession.completeOperation();
 }
 
 // 创建一个新的可取消操作
 function startCancellableOperation(): AbortSignal {
-  // 清理之前的控制器
-  if (currentAbortController.value) {
-    currentAbortController.value.abort();
+  const signal = burnerSession.startOperation(true);
+  if (!signal) {
+    throw new Error('Failed to start cancellable operation');
   }
-
-  // 创建新的控制器
-  currentAbortController.value = new AbortController();
-  return currentAbortController.value.signal;
+  return signal;
 }
 
 // 完成操作时清理控制器
 function finishOperation() {
-  if (currentAbortController.value) {
-    currentAbortController.value = null;
-  }
+  burnerSession.completeOperation();
 }
 
 function log(msg: string, level: LogLevelType = 'info') {
@@ -377,21 +362,12 @@ function clearLog() {
   logs.value = [];
 }
 
-function detectMbcType(cartType?: number): MbcType {
-  if (cartType === undefined) return 'MBC5';
-  if ([0x0f, 0x10, 0x11, 0x12, 0x13].includes(cartType)) return 'MBC3';
-  if ([0x05, 0x06].includes(cartType)) return 'MBC2';
-  if ([0x01, 0x02, 0x03].includes(cartType)) return 'MBC1';
-  if ([0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e].includes(cartType)) return 'MBC5';
-  return 'MBC5';
-}
-
 watch(romFileData, (data) => {
   if (!data) return;
   const info = parseRom(data);
   if (!info?.isValid) return;
   if (info.type === 'GB' || info.type === 'GBC') {
-    const detected = detectMbcType(info.cartType);
+    const detected = detectMbcType(data);
     if (detected !== selectedMbcType.value) {
       selectedMbcType.value = detected;
       log(t('messages.operation.detectedMbcType', { type: detected }), 'info');
@@ -504,21 +480,21 @@ async function readCart() {
       return;
     }
 
-    const info = await adapter.getCartInfo(mbcPower5V.value);
-    if (info) {
-      cfiInfo.value = info;
-      // 从CFI信息中获取Flash ID
-      if (info.flashId) {
-        chipId.value = Array.from(info.flashId);
+    const result = await burnerFacade.readCart(adapter, mbcPower5V.value);
+    if (result.success && result.cfiInfo) {
+      cfiInfo.value = result.cfiInfo;
+      chipId.value = result.chipId;
+      if (result.romSizeHex) {
+        onRomSizeChange(result.romSizeHex);
       }
-      onRomSizeChange(formatHex(info.deviceSize, 4));
-      showToast(t('messages.operation.readCartSuccess'), 'success');
-      log(t('messages.operation.readCartSuccess'), 'success');
+      showToast(result.message, 'success');
+      log(result.message, 'success');
     } else {
-      showToast(t('messages.operation.readCartFailed'), 'error');
-      log(t('messages.operation.readCartFailed'), 'error');
+      showToast(result.message, 'error');
+      log(result.message, 'error');
+      cfiInfo.value = null;
     }
-    await adapter.resetCommandBuffer();
+    await burnerFacade.resetCommandBuffer(adapter);
   } catch (e) {
     showToast(t('messages.operation.readCartFailed'), 'error');
     log(`${t('messages.operation.readCartFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
@@ -545,15 +521,15 @@ async function eraseChip() {
       return;
     }
 
-    const sectorInfo = calcSectorUsage(cfiInfo.value.eraseSectorBlocks, cfiInfo.value.deviceSize, 0x00);
-    const options: CommandOptions = {
-      cfiInfo: cfiInfo.value,
-      mbcType: selectedMbcType.value,
-      enable5V: mbcPower5V.value,
-    };
-    const response = await adapter.eraseSectors(sectorInfo, options, abortSignal);
+    const response = await burnerFacade.eraseChip(
+      adapter,
+      cfiInfo.value,
+      selectedMbcType.value,
+      mbcPower5V.value,
+      abortSignal,
+    );
     showToast(response.message, response.success ? 'success' : 'error');
-    await adapter.resetCommandBuffer();
+    await burnerFacade.resetCommandBuffer(adapter);
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') {
       // 操作被取消，不显示错误消息，因为这是用户主动取消的
@@ -603,13 +579,13 @@ async function writeRom() {
       mbcType: selectedMbcType.value,
       enable5V: mbcPower5V.value,
     };
-    if (arraysEqual(chipId.value, getFlashId('S29GL256N'))) {
+    if (shouldUseLargeRomPage(chipId.value)) {
       option.romPageSize = 512;
     }
 
-    const response = await adapter.writeROM(alignedRomData, option, abortSignal);
+    const response = await burnerFacade.writeRom(adapter, alignedRomData, option, abortSignal);
     showToast(response.message, response.success ? 'success' : 'error');
-    await adapter.resetCommandBuffer();
+    await burnerFacade.resetCommandBuffer(adapter);
   } catch (e) {
     showToast(t('messages.rom.writeFailed'), 'error');
     log(`${t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
@@ -644,12 +620,12 @@ async function readRom() {
       mbcType: selectedMbcType.value,
       enable5V: mbcPower5V.value,
     };
-    if (arraysEqual(chipId.value, getFlashId('S29GL256N'))) {
+    if (shouldUseLargeRomPage(chipId.value)) {
       option.romPageSize = 512;
     }
 
     const romSize = parseInt(selectedRomSize.value, 16);
-    const response = await adapter.readROM(romSize, option, abortSignal);
+    const response = await burnerFacade.readRom(adapter, romSize, option, abortSignal);
     if (response.success) {
       showToast(response.message, 'success');
       if (response.data) {
@@ -670,7 +646,7 @@ async function readRom() {
     } else {
       showToast(response.message, 'error');
     }
-    await adapter.resetCommandBuffer();
+    await burnerFacade.resetCommandBuffer(adapter);
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') {
       // 操作被取消，不显示错误消息，因为这是用户主动取消的
@@ -704,7 +680,7 @@ async function verifyRom() {
     }
 
     const size = Math.min(parseInt(selectedRomSize.value, 16), romFileData.value.byteLength);
-    const response = await adapter.verifyROM(romFileData.value, {
+    const response = await burnerFacade.verifyRom(adapter, romFileData.value, {
       baseAddress: parseInt(selectedBaseAddress.value, 16),
       cfiInfo: cfiInfo.value,
       size,
@@ -712,7 +688,7 @@ async function verifyRom() {
       enable5V: mbcPower5V.value,
     }, abortSignal);
     showToast(response.message, response.success ? 'success' : 'error');
-    await adapter.resetCommandBuffer();
+    await burnerFacade.resetCommandBuffer(adapter);
   } catch (e) {
     showToast(t('messages.rom.verifyFailed'), 'error');
     log(`${t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
@@ -737,7 +713,7 @@ async function writeRam() {
       return;
     }
 
-    const response = await adapter.writeRAM(ramFileData.value, {
+    const response = await burnerFacade.writeRam(adapter, ramFileData.value, {
       ramType: selectedRamType.value as RamType,
       baseAddress: parseInt(selectedRamBaseAddress.value, 16),
       cfiInfo: cfiInfo.value,
@@ -750,7 +726,7 @@ async function writeRam() {
     } else {
       log(t('messages.ram.writeFailed'), 'error');
     }
-    await adapter.resetCommandBuffer();
+    await burnerFacade.resetCommandBuffer(adapter);
   } catch (e) {
     showToast(t('messages.ram.writeFailed'), 'error');
     log(`${t('messages.ram.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
@@ -775,7 +751,7 @@ async function readRam() {
     }
 
     const defaultSize = ramFileData.value ? ramFileData.value.length : parseInt(selectedRamSize.value, 16);
-    const response = await adapter.readRAM(defaultSize, {
+    const response = await burnerFacade.readRam(adapter, defaultSize, {
       ramType: selectedRamType.value as RamType,
       baseAddress: parseInt(selectedRamBaseAddress.value, 16),
       cfiInfo: cfiInfo.value,
@@ -800,7 +776,7 @@ async function readRam() {
     } else {
       showToast(response.message, 'error');
     }
-    await adapter.resetCommandBuffer();
+    await burnerFacade.resetCommandBuffer(adapter);
   } catch (e) {
     showToast(t('messages.ram.readFailed'), 'error');
     log(`${t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
@@ -825,7 +801,7 @@ async function verifyRam() {
     }
 
     const size = Math.min(parseInt(selectedRamSize.value, 16), ramFileData.value.byteLength);
-    const response = await adapter.verifyRAM(ramFileData.value, {
+    const response = await burnerFacade.verifyRam(adapter, ramFileData.value, {
       ramType: selectedRamType.value as RamType,
       baseAddress: parseInt(selectedRamBaseAddress.value, 16),
       cfiInfo: cfiInfo.value,
@@ -839,7 +815,7 @@ async function verifyRam() {
     } else {
       log(t('messages.ram.verifyFailed'), 'error');
     }
-    await adapter.resetCommandBuffer();
+    await burnerFacade.resetCommandBuffer(adapter);
   } catch (e) {
     showToast(t('messages.ram.verifyFailed'), 'error');
     log(`${t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
@@ -911,24 +887,19 @@ async function readRomInfo() {
 
     log(t('ui.operation.startReadingMultiCart'));
 
-    const cfi = cfiInfo.value;
-    const deviceSize = cfi.deviceSize;
-    let gameResults: GameDetectionResult[];
-
-    if (mode.value === 'GBA') {
-      gameResults = await readGBAMultiCartRoms(adapter, deviceSize, cfi);
-    } else if (mode.value === 'MBC5') {
-      gameResults = await readMBC5MultiCartRoms(adapter, deviceSize, cfi);
-    } else {
-      showToast(t('messages.operation.unsupportedMode'), 'error');
-      return;
-    }
+    const gameResults = await burnerFacade.scanMultiCart(
+      adapter,
+      mode.value,
+      cfiInfo.value,
+      selectedMbcType.value,
+      mbcPower5V.value,
+    );
 
     printGameDetectionResults(gameResults);
 
     showToast(t('ui.operation.readMultiCartSuccess'), 'success');
     log(t('ui.operation.readMultiCartSuccess'), 'success');
-    await adapter.resetCommandBuffer();
+    await burnerFacade.resetCommandBuffer(adapter);
   } catch (e) {
     showToast(t('ui.operation.readMultiCartFailed'), 'error');
     log(`${t('ui.operation.readMultiCartFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
@@ -936,71 +907,6 @@ async function readRomInfo() {
     busy.value = false;
     resetProgress();
   }
-}
-
-async function readGBAMultiCartRoms(adapter: CartridgeAdapter, deviceSize: number, cfi: CFIInfo) {
-  const results: GameDetectionResult[] = [];
-
-  const bankCount = Math.floor(deviceSize / 0x400000);
-
-  for (let i = 0; i < bankCount; i++) {
-    const baseAddress = i * 0x400000;
-    const headerResult = await adapter.readROM(0x150, { baseAddress, cfiInfo: cfi }, undefined, false);
-
-    if (headerResult.success && headerResult.data) {
-      const romInfo = parseRom(headerResult.data);
-
-      if (romInfo.isValid) {
-        results.push({
-          startAddress: baseAddress,
-          desc: `Bank ${i.toString().padStart(2, '0')}`,
-          romInfo,
-        });
-        recentFileNamesStore.addFileName(romInfo.fileName);
-      }
-    }
-  }
-
-  return results;
-}
-
-async function readMBC5MultiCartRoms(adapter: CartridgeAdapter, deviceSize: number, cfi: CFIInfo): Promise<GameDetectionResult[]> {
-  const results: GameDetectionResult[] = [];
-
-  // MBC5 N合1卡带的地址范围定义
-  const multiCardRanges = [
-    { from: 0x000000, name: 'Menu/GM' }, // 菜单
-    { from: 0x100000, name: 'Game 01' }, // 游戏1
-  ];
-  for (let i = 1; i < 16; ++i) {
-    multiCardRanges.push({ from: 0x200000 * i, name: `Game ${(i + 1).toString().padStart(2, '0')}` });
-  }
-
-  // 检查每个可能的游戏位置
-  for (const range of multiCardRanges) {
-    if (range.from >= deviceSize) break; // 超出芯片容量
-
-    // 解析完整ROM信息
-    const fullHeaderResult = await adapter.readROM(0x150, {
-      baseAddress: range.from,
-      cfiInfo: cfi,
-      mbcType: selectedMbcType.value,
-      enable5V: mbcPower5V.value,
-    }, undefined, false);
-    if (fullHeaderResult.success && fullHeaderResult.data) {
-      const romInfo = parseRom(fullHeaderResult.data);
-      if (romInfo.isValid) {
-        results.push({
-          startAddress: range.from,
-          desc: range.name,
-          romInfo,
-        });
-        recentFileNamesStore.addFileName(romInfo.fileName);
-      }
-    }
-  }
-
-  return results;
 }
 
 function printGameDetectionResults(gameResults: GameDetectionResult[]) {
@@ -1018,6 +924,7 @@ function printGameDetectionResults(gameResults: GameDetectionResult[]) {
   for (const result of gameResults) {
     const { startAddress, desc, romInfo } = result;
     const addressStr = formatHex(startAddress, 4);
+    recentFileNamesStore.addFileName(romInfo.fileName);
     log(`${addressStr}[${desc}] => ${romInfo.title}`);
   }
 }

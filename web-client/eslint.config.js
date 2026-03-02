@@ -40,6 +40,31 @@ const commonRules = {
   'import/first': 'error',
   'import/newline-after-import': 'error',
   'import/no-duplicates': 'error',
+  'import/no-restricted-paths': ['error', {
+    basePath: import.meta.dirname,
+    zones: [
+      {
+        target: './src/components',
+        from: './src/protocol',
+        message: 'components 层禁止直接依赖 protocol 层，请改为通过 application/service facade 访问。',
+      },
+      {
+        target: './src/views',
+        from: './src/protocol',
+        message: 'views 层禁止直接依赖 protocol 层，请改为通过 application/service facade 访问。',
+      },
+      {
+        target: './src/types',
+        from: './src/services',
+        message: 'types 层禁止依赖 services 层，请将共享类型下沉到 shared/platform types。',
+      },
+      {
+        target: './src/utils',
+        from: './src/services',
+        message: 'utils 层禁止依赖 services 层，请通过类型下沉或接口反转解耦。',
+      },
+    ],
+  }],
   'no-constant-condition': ['error', { checkLoops: false }],
   'no-duplicate-imports': 'error',
   'no-extra-semi': 'off',

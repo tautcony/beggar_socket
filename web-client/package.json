@@ -20,6 +20,7 @@
     "preview": "vite preview",
     "lint": "eslint src/ tests/ electron/",
     "lint:fix": "eslint src/ electron/ --fix",
+    "check:deps": "node scripts/check-architecture-deps.cjs",
     "type-check": "vue-tsc --noEmit",
     "test": "vitest",
     "test:ui": "vitest --ui",

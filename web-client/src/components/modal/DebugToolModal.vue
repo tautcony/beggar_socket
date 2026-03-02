@@ -213,9 +213,12 @@ import { useI18n } from 'vue-i18n';
 import BaseButton from '@/components/common/BaseButton.vue';
 import BaseModal from '@/components/common/BaseModal.vue';
 import { useToast } from '@/composables/useToast';
-import { Command, GBACommand, GBCCommand } from '@/protocol/beggar_socket/command';
-import { createCommandPayload } from '@/protocol/beggar_socket/payload-builder';
-import { getPackage, sendPackage } from '@/protocol/beggar_socket/protocol-utils';
+import {
+  type DebugCommandType,
+  executeDebugCommand,
+  getAvailableDebugCommands,
+  isDuplicatedDebugCommandName,
+} from '@/services/debug-protocol-service';
 import type { DeviceInfo } from '@/types/device-info';
 
 const props = defineProps<{
@@ -239,8 +242,8 @@ const localVisible = computed({
   },
 });
 
-const selectedCommandType = ref<'GBA' | 'GBC' | ''>('');
-const selectedCommand = ref<Command | ''>('');
+const selectedCommandType = ref<DebugCommandType | ''>('');
+const selectedCommand = ref<number | ''>('');
 const address = ref('');
 const length = ref<number | ''>('');
 const data = ref('');
@@ -254,25 +257,7 @@ const executionTime = ref(0);
 const isSending = ref(false);
 
 const availableCommands = computed(() => {
-  const commands: Record<string, number> = {};
-
-  if (selectedCommandType.value === 'GBA') {
-    // 只获取枚举的字符串键
-    Object.keys(GBACommand).forEach(key => {
-      if (isNaN(Number(key))) {
-        commands[key] = GBACommand[key as keyof typeof GBACommand] as number;
-      }
-    });
-  } else if (selectedCommandType.value === 'GBC') {
-    // 只获取枚举的字符串键
-    Object.keys(GBCCommand).forEach(key => {
-      if (isNaN(Number(key))) {
-        commands[key] = GBCCommand[key as keyof typeof GBCCommand] as number;
-      }
-    });
-  }
-
-  return commands;
+  return getAvailableDebugCommands(selectedCommandType.value);
 });
 
 const canSend = computed(() => {
@@ -355,14 +340,8 @@ function clearOutput() {
 function getCommandDisplayName(key: string, value: number): string {
   const hexValue = '0x' + value.toString(16).toUpperCase().padStart(2, '0');
 
-  // 检查是否存在重复的命令名称
-  const gbaKeys = Object.keys(GBACommand).filter(k => isNaN(Number(k)));
-  const gbcKeys = Object.keys(GBCCommand).filter(k => isNaN(Number(k)));
-  const allKeys = [...gbaKeys, ...gbcKeys];
-  const duplicateCount = allKeys.filter(k => k === key).length;
-
   // 如果有重复，添加类型前缀进行区分
-  if (duplicateCount > 1) {
+  if (isDuplicatedDebugCommandName(key)) {
     return `${selectedCommandType.value}_${key} (${hexValue})`;
   }
 
@@ -411,46 +390,33 @@ async function sendCommand() {
   try {
     const startTime = performance.now();
 
-    // 构建命令载荷
-    const payloadBuilder = createCommandPayload(selectedCommand.value as Command);
-
-    // 添加地址（如果有）
     const parsedAddress = parseAddress(address.value);
-    if (parsedAddress !== null) {
-      payloadBuilder.addAddress(parsedAddress);
-    }
-
-    // 添加长度（如果有）
-    if (length.value !== '') {
-      payloadBuilder.addLittleEndian(length.value, 4);
-    }
-
-    // 添加数据（如果有）
+    let dataBytes: Uint8Array | null = null;
     if (data.value.trim()) {
       try {
-        const dataBytes = parseHexString(data.value);
-        payloadBuilder.addBytes(dataBytes);
+        dataBytes = parseHexString(data.value);
       } catch (error) {
         throw new Error(t('ui.debug.tool.errors.invalidHexData'));
       }
     }
 
-    const payload = payloadBuilder.build();
-    requestData.value = payload;
-
-    // 发送命令
-    await sendPackage(device, payload);
-
-    // 接收响应 - 使用用户设置的接收长度
     const maxResponseLength = receiveLength.value !== '' ? receiveLength.value : 4096;
     const timeoutMs = timeout.value !== '' ? timeout.value : undefined;
-    const result = await getPackage(device, maxResponseLength, timeoutMs);
-
-    if (result.data) {
-      responseData.value = result.data;
-    } else {
-      throw new Error(t('ui.debug.tool.errors.noResponse'));
+    if (typeof selectedCommand.value !== 'number') {
+      throw new Error(t('ui.debug.tool.errors.commandFailed'));
     }
+
+    const result = await executeDebugCommand({
+      device,
+      command: selectedCommand.value,
+      address: parsedAddress,
+      length: length.value === '' ? null : length.value,
+      data: dataBytes,
+      receiveLength: maxResponseLength,
+      timeoutMs,
+    });
+    requestData.value = result.requestData;
+    responseData.value = result.responseData;
 
     const endTime = performance.now();
     executionTime.value = Math.round(endTime - startTime);

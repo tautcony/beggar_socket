@@ -2,31 +2,8 @@
  * 统一的串口服务，自动适配 Web Serial API 和 Electron 原生串口
  */
 import { DeviceInfo } from '@/types';
+import type { SerialConnection, SerialPortInfo } from '@/types/serial';
 import { isElectron } from '@/utils/electron';
-
-export interface SerialPortInfo {
-  path: string;
-  manufacturer?: string;
-  serialNumber?: string;
-  pnpId?: string;
-  locationId?: string;
-  productId?: string;
-  vendorId?: string;
-}
-
-export interface SerialConnection {
-  id: string;
-  isOpen: boolean;
-  write: (data: Uint8Array | number[]) => Promise<void>;
-  close: () => Promise<void>;
-  setSignals: (signals: { dataTerminalReady?: boolean; requestToSend?: boolean }) => Promise<void>;
-  onData: (callback: (data: Uint8Array) => void) => void;
-  onError: (callback: (error: string) => void) => void;
-  onClose: (callback: () => void) => void;
-  removeDataListener: (callback: (data: Uint8Array) => void) => void;
-  removeErrorListener: (callback: (error: string) => void) => void;
-  removeCloseListener: (callback: () => void) => void;
-}
 
 export class SerialService {
   private static instance: SerialService;
@@ -318,3 +295,4 @@ export class SerialService {
 
 // 导出单例实例
 export const serialService = SerialService.getInstance();
+export type { SerialConnection, SerialPortInfo } from '@/types/serial';
