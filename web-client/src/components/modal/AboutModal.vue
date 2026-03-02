@@ -37,20 +37,35 @@
           <span>Vue 3</span>
         </div>
         <div class="tech-item">
-          <IonIcon :icon="languageOutline" />
-          <span>Vue I18n</span>
-        </div>
-        <div class="tech-item">
-          <IonIcon :icon="flashOutline" />
-          <span>Ionic Vue</span>
-        </div>
-        <div class="tech-item">
           <IonIcon :icon="codeSlashOutline" />
           <span>TypeScript</span>
         </div>
         <div class="tech-item">
           <IonIcon :icon="globeOutline" />
           <span>Vite</span>
+        </div>
+        <div class="tech-item">
+          <IonIcon :icon="flashOutline" />
+          <span>Ionic Vue</span>
+        </div>
+        <div class="tech-item">
+          <IonIcon :icon="languageOutline" />
+          <span>Vue I18n</span>
+        </div>
+        <div class="tech-item">
+          <IonIcon :icon="gitNetworkOutline" />
+          <span>Vue Router</span>
+        </div>
+        <div class="tech-item">
+          <IonIcon :icon="layersOutline" />
+          <span>Pinia</span>
+        </div>
+        <div
+          v-if="isElectronEnv"
+          class="tech-item"
+        >
+          <IonIcon :icon="desktopOutline" />
+          <span>Electron</span>
         </div>
         <div class="tech-item">
           <IonIcon :icon="linkOutline" />
@@ -128,10 +143,13 @@ import { IonIcon } from '@ionic/vue';
 import {
   bugOutline,
   codeSlashOutline,
+  desktopOutline,
   documentTextOutline,
   flashOutline,
+  gitNetworkOutline,
   globeOutline,
   languageOutline,
+  layersOutline,
   linkOutline,
   logoGithub,
   logoVue,
@@ -140,6 +158,7 @@ import {
 import { computed, ref } from 'vue';
 
 import BaseModal from '@/components/common/BaseModal.vue';
+import { isElectron } from '@/utils/electron';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -158,6 +177,7 @@ const localVisible = computed({
   },
 });
 
+const isElectronEnv = ref(isElectron());
 const appVersion = ref(import.meta.env.VITE_APP_VERSION ?? '1.0.0');
 
 function closeModal() {
