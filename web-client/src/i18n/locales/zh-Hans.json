@@ -315,7 +315,7 @@
         "startGameFailed": "游戏启动失败",
         "error": "模拟器发生错误",
         "crashed": "模拟器已崩溃",
-        "canvasNotAvailable": "画布元素不可用",
+        "canvasNotAvailable": "Canvas元素不可用",
         "romDataNotProvided": "未提供ROM数据",
         "romTooSmall": "ROM数据太小，可能不是有效的ROM文件",
         "webAssemblyNotSupported": "此浏览器不支持WebAssembly",
@@ -494,7 +494,7 @@
         "completed": "已完成",
         "error": "错误"
       },
-      "rendererCanvas": "画布"
+      "rendererCanvas": "Canvas"
     },
     "common": {
       "yes": "是",

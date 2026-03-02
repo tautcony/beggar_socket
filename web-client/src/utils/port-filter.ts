@@ -1,4 +1,4 @@
-import { type SerialPortInfo } from '@/services/serial-service';
+import type { SerialPortInfo } from '@/types/serial';
 
 /**
  * 基础设备标识符（vendorId + productId 组合）

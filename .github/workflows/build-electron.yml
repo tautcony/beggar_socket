@@ -37,6 +37,11 @@ jobs:
           cd web-client
           npm ci
 
+      - name: Check architecture dependencies
+        run: |
+          cd web-client
+          npm run check:deps
+
       - name: Build for Windows
         if: matrix.os == 'windows-latest'
         run: |

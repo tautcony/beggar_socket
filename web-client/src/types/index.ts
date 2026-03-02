@@ -4,3 +4,4 @@ export type { BYOBReader, DefaultReader, DeviceInfo } from './device-info';
 export type { FileInfo } from './file-info';
 export type { ProgressInfo } from './progress-info';
 export type { AssembledRom, RomAssemblyConfig, RomSlot } from './rom-assembly';
+export type { SerialConnection, SerialPortInfo } from './serial';
