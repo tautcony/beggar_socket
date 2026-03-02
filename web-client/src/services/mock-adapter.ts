@@ -710,9 +710,9 @@ export class MockAdapter extends CartridgeAdapter {
       if (isMatch !== false) {
         this.log(this.t('messages.rom.verifySuccess'), 'success');
         this.log(this.t('messages.rom.verifySummary', {
-          totalTime: totalTime.toFixed(2),
-          avgSpeed: avgSpeed.toFixed(1),
-          maxSpeed: maxSpeed.toFixed(1),
+          totalTime: formatTimeDuration(totalTime),
+          avgSpeed: formatSpeed(avgSpeed),
+          maxSpeed: formatSpeed(maxSpeed),
           totalSize: formatBytes(fileData.length),
         }), 'info');
         progressReporter.reportCompleted(this.t('messages.rom.verifySuccess'), avgSpeed);
@@ -843,9 +843,9 @@ export class MockAdapter extends CartridgeAdapter {
 
       this.log(this.t('messages.ram.readSuccess', { size: data.length }), 'success');
       this.log(this.t('messages.ram.readSummary', {
-        totalTime: totalTime.toFixed(2),
-        avgSpeed: avgSpeed.toFixed(1),
-        maxSpeed: maxSpeed.toFixed(1),
+        totalTime: formatTimeDuration(totalTime),
+        avgSpeed: formatSpeed(avgSpeed),
+        maxSpeed: formatSpeed(maxSpeed),
         totalSize: formatBytes(size),
       }), 'info');
 
