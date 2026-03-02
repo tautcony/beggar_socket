@@ -6,7 +6,7 @@
       v-bind="progressInfo"
       :timeout="operationTimeout"
       @stop="handleProgressStop"
-      @close="resetProgress"
+      @close="handleProgressClose"
     />
     <FileNameSelectorModal
       v-model="showFileNameSelector"
@@ -173,8 +173,13 @@ const operationTimeout = computed(() => {
   return AdvancedSettings.defaultTimeout;
 });
 
+const keepProgressModalOpen = ref(false);
+
 // progress modal visibility
 const showProgressModal = computed(() => {
+  if (keepProgressModalOpen.value) {
+    return true;
+  }
   return progressInfo.value.progress !== null && progressInfo.value.progress !== undefined;
 });
 
@@ -316,14 +321,21 @@ onMounted(() => {
 
 function updateProgress(info: ProgressInfo) {
   if (info.showProgress === true) {
+    keepProgressModalOpen.value = false;
     burnerSession.updateProgress(info);
     syncSessionState();
   }
 }
 
 function handleProgressStop() {
+  keepProgressModalOpen.value = true;
   burnerSession.abortOperation();
   syncSessionState();
+}
+
+function handleProgressClose() {
+  keepProgressModalOpen.value = false;
+  resetProgress();
 }
 
 function resetProgress() {

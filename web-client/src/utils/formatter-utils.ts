@@ -5,12 +5,19 @@
  * @param baseUnit - 基础单位（用于零值显示）
  * @returns - 格式化后的字符串
  */
-function formatWithUnits(value: number, sizes: string[], baseUnit: string): string {
+function formatWithUnits(
+  value: number,
+  sizes: string[],
+  baseUnit: string,
+  options?: { fixedOneDecimalForScaled?: boolean },
+): string {
   if (value === 0 || typeof value !== 'number') return `0 ${baseUnit}`;
   const k = 1024;
   const i = Math.min(Math.floor(Math.log(value) / Math.log(k)), sizes.length - 1);
   const scaledValue = value / Math.pow(k, i);
-  const valueStr = Number.isInteger(scaledValue) ? scaledValue.toString() : scaledValue.toFixed(1);
+  const valueStr = (options?.fixedOneDecimalForScaled && i > 0)
+    ? scaledValue.toFixed(1)
+    : (Number.isInteger(scaledValue) ? scaledValue.toString() : scaledValue.toFixed(1));
   return `${valueStr} ${sizes[i]}`;
 }
 
@@ -25,7 +32,7 @@ function formatWithUnits(value: number, sizes: string[], baseUnit: string): stri
  * @returns - 格式化后的字符串
  */
 export function formatBytes(bytes: number): string {
-  return formatWithUnits(bytes, ['B', 'KiB', 'MiB', 'GiB'], 'B');
+  return formatWithUnits(bytes, ['B', 'KiB', 'MiB', 'GiB'], 'B', { fixedOneDecimalForScaled: true });
 }
 
 /**
