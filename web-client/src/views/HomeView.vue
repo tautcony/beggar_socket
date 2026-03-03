@@ -17,12 +17,19 @@
             {{ $t('ui.app.title') }}
           </h1>
           <a
-            href="https://oshwhub.com/linscon/beggar_socket"
+            :href="titleBadgeHref"
             target="_blank"
             class="title-badge"
+            :class="{ 'title-badge--build-info': !isReleaseBuild }"
             rel="noopener noreferrer"
           >
-            for beggar_socket
+            <template v-if="isReleaseBuild">
+              for beggar_socket
+            </template>
+            <template v-else>
+              <span class="branch-name">{{ buildBranchDisplay }}</span>
+              <span v-if="buildCommitDisplay">@{{ buildCommitDisplay }}</span>
+            </template>
           </a>
         </div>
       </div>
@@ -85,6 +92,9 @@ const deviceReady = ref(false);
 const showSettings = ref(false);
 const showDebugPanelModal = ref(false);
 const currentMode = ref<'MBC5' | 'GBA'>('GBA');
+const buildBranch = (import.meta.env.VITE_BUILD_BRANCH ?? '').trim();
+const buildCommit = (import.meta.env.VITE_BUILD_COMMIT ?? '').trim();
+const isReleaseBuild = import.meta.env.VITE_BUILD_IS_RELEASE === 'true';
 
 const deviceConnectRef = useTemplateRef<InstanceType<typeof DeviceConnect>>('deviceConnectRef');
 const cartBurnerRef = useTemplateRef<InstanceType<typeof CartBurner>>('cartBurnerRef');
@@ -95,6 +105,21 @@ provide('setShowDebugPanelModal', (val: boolean) => { showDebugPanelModal.value 
 // 显示调试面板的条件：调试模式启用或者开发环境
 const showDebugPanel = computed((): boolean => {
   return (DebugSettings.showDebugPanel || import.meta.env.DEV);
+});
+
+const githubRepoUrl = 'https://github.com/tautcony/beggar_socket';
+const buildBranchDisplay = computed((): string => buildBranch || 'dev-build');
+const buildCommitDisplay = computed((): string => (buildCommit ? buildCommit.slice(0, 8) : ''));
+const titleBadgeHref = computed((): string => {
+  if (buildCommit) {
+    return `${githubRepoUrl}/commit/${buildCommit}`;
+  }
+
+  if (buildBranch) {
+    return `${githubRepoUrl}/tree/${encodeURIComponent(buildBranch)}`;
+  }
+
+  return githubRepoUrl;
 });
 
 /**
@@ -306,5 +331,21 @@ $title-color: #2c3e50;
     top: -8px;
     right: -120px;
   }
+}
+
+.title-badge--build-info {
+  @include mixins.gradient(135deg, #ff8a00 0%, #ffd54a 100%);
+  box-shadow: 0 4px 12px rgba(255, 138, 0, 0.45);
+  color: #2b1a00;
+  animation-duration: 1.2s;
+
+  &:hover {
+    @include mixins.gradient(135deg, #ffa726 0%, #ffe082 100%);
+    box-shadow: 0 6px 14px rgba(255, 138, 0, 0.55);
+  }
+}
+
+.branch-name {
+  font-weight: typography-vars.$font-weight-bold;
 }
 </style>
