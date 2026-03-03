@@ -136,8 +136,12 @@ const isCompleted = computed(() => {
   return props.progress === 100 || props.state === 'completed' || props.state === 'error';
 });
 
+const isTerminalState = computed(() => {
+  return isCompleted.value || props.state === 'paused';
+});
+
 watch(
-  () => visible.value && !isCompleted.value,
+  () => visible.value && !isTerminalState.value,
   (active) => {
     if (active) {
       timer = window.setInterval(() => {
@@ -244,7 +248,7 @@ function handleClose() {
 // Keyboard handling
 function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && visible.value) {
-    if (isCompleted.value || props.progress === 100) {
+    if (isTerminalState.value || props.progress === 100) {
       // 操作完成时允许ESC关闭
       visible.value = false;
       emit('close');
@@ -340,6 +344,7 @@ onUnmounted(() => {
   font-size: typography-vars.$font-size-sm;
   color: color-vars.$color-text;
   font-weight: typography-vars.$font-weight-semibold;
+  font-variant-numeric: tabular-nums;
   font-family: monospace;
 }
 

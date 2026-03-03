@@ -263,7 +263,7 @@
       "singleRom": "Single ROM"
     },
     "multiCartResult": {
-      "title": "Multi-Cart ROM Layout",
+      "title": "ROM Layout",
       "totalGames": "{count} game(s) detected",
       "startAddress": "Start Address",
       "bankDesc": "Bank / Slot",

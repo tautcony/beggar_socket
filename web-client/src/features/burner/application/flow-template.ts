@@ -48,7 +48,8 @@ export async function runBurnerFlow<TResult>(options: BurnerFlowOptions<TResult>
     return undefined;
   } finally {
     options.session.completeOperation();
-    if (options.resetProgressOnFinish) {
+    const aborted = signal?.aborted === true;
+    if (options.resetProgressOnFinish && !aborted) {
       options.session.resetProgress();
     }
     options.syncState(options.session.snapshot);

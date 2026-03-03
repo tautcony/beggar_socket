@@ -330,7 +330,10 @@ onMounted(() => {
 
 function updateProgress(info: ProgressInfo) {
   if (info.showProgress === true) {
-    keepProgressModalOpen.value = false;
+    // Ignore late progress packets after a user-initiated stop.
+    if (keepProgressModalOpen.value && progressInfo.value.state === 'paused' && info.state === 'running') {
+      return;
+    }
     burnerSession.updateProgress(info);
     syncSessionState();
   }
@@ -338,6 +341,12 @@ function updateProgress(info: ProgressInfo) {
 
 function handleProgressStop() {
   keepProgressModalOpen.value = true;
+  burnerSession.updateProgress({
+    state: 'paused',
+    allowCancel: false,
+    detail: t('messages.operation.cancelled'),
+    showProgress: true,
+  });
   burnerSession.abortOperation();
   syncSessionState();
 }
@@ -379,6 +388,9 @@ async function executeOperation<TResult>(options: {
   operation: (signal?: AbortSignal) => Promise<TResult>;
   onError: (error: unknown) => void | Promise<void>;
 }) {
+  // A new operation should always restore modal visibility control to progress state.
+  // Otherwise a previous "stop" action can keep the modal pinned unexpectedly.
+  keepProgressModalOpen.value = false;
   return runBurnerFlow({
     session: burnerSession,
     cancellable: options.cancellable,
