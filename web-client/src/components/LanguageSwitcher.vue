@@ -37,19 +37,32 @@
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import { chevronDown, globeOutline } from 'ionicons/icons';
-import { onMounted, ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-const { locale } = useI18n();
-const currentLocale = ref(locale.value);
+import { normalizeLocale } from '@/i18n';
 
-onMounted(() => {
-  currentLocale.value = locale.value;
-});
+const { locale } = useI18n();
+const currentLocale = ref(normalizeLocale(locale.value) ?? 'zh-Hans');
+
+watch(locale, (newLocale) => {
+  const normalized = normalizeLocale(newLocale) ?? 'zh-Hans';
+  currentLocale.value = normalized;
+  if (locale.value !== normalized) {
+    locale.value = normalized;
+  }
+}, { immediate: true });
 
 function changeLanguage() {
-  locale.value = currentLocale.value;
-  localStorage.setItem('locale', currentLocale.value);
+  const normalized = normalizeLocale(currentLocale.value) ?? 'zh-Hans';
+  currentLocale.value = normalized;
+  locale.value = normalized;
+
+  try {
+    localStorage.setItem('locale', normalized);
+  } catch {
+    // ignore storage failures in restricted environments
+  }
 }
 </script>
 

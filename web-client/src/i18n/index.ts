@@ -1,4 +1,4 @@
-import { createI18n } from 'vue-i18n';
+﻿import { createI18n } from 'vue-i18n';
 
 import enUS from '@/i18n/locales/en-US.json';
 import jaJP from '@/i18n/locales/ja-JP.json';
@@ -7,7 +7,7 @@ import zhHans from '@/i18n/locales/zh-Hans.json';
 import zhHant from '@/i18n/locales/zh-Hant.json';
 
 export const messages = {
-  'zh': zhHans,
+  zh: zhHans,
   'zh-Hans': zhHans,
   'zh-CN': zhHans,
   'zh-Hant': zhHant,
@@ -18,6 +18,52 @@ export const messages = {
   'ja-JP': jaJP,
   'ru-RU': ruRU,
 };
+
+const UI_LOCALES = ['zh-Hans', 'zh-Hant', 'en-US', 'ja-JP', 'ru-RU'] as const;
+const UI_LOCALE_SET = new Set<string>(UI_LOCALES);
+
+const localeAliasMap: Record<string, (typeof UI_LOCALES)[number]> = {
+  zh: 'zh-Hans',
+  'zh-cn': 'zh-Hans',
+  'zh-hans': 'zh-Hans',
+  'zh-tw': 'zh-Hant',
+  'zh-hk': 'zh-Hant',
+  'zh-mo': 'zh-Hant',
+  'zh-hant': 'zh-Hant',
+  en: 'en-US',
+  'en-us': 'en-US',
+  ja: 'ja-JP',
+  'ja-jp': 'ja-JP',
+  ru: 'ru-RU',
+  'ru-ru': 'ru-RU',
+};
+
+export function normalizeLocale(locale: string | null | undefined): (typeof UI_LOCALES)[number] | null {
+  if (!locale) {
+    return null;
+  }
+
+  const trimmed = locale.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (UI_LOCALE_SET.has(trimmed)) {
+    return trimmed as (typeof UI_LOCALES)[number];
+  }
+
+  const exactAlias = localeAliasMap[trimmed.toLowerCase()];
+  if (exactAlias) {
+    return exactAlias;
+  }
+
+  const base = trimmed.split('-')[0]?.toLowerCase();
+  if (!base) {
+    return null;
+  }
+
+  return localeAliasMap[base] ?? null;
+}
 
 function readSavedLocale(): string | null {
   if (typeof window === 'undefined') {
@@ -31,27 +77,16 @@ function readSavedLocale(): string | null {
   }
 }
 
-export function getLanguage() {
-  // 首先检查本地存储
-  const savedLocale = readSavedLocale();
-  if (savedLocale && Object.keys(messages).includes(savedLocale)) {
+export function getLanguage(): (typeof UI_LOCALES)[number] {
+  const savedLocale = normalizeLocale(readSavedLocale());
+  if (savedLocale) {
     return savedLocale;
   }
 
-  // 然后检查浏览器语言
-  const language = typeof navigator === 'undefined' ? '' : navigator.language;
-  const locales = Object.keys(messages);
-
-  // 完全匹配
-  if (locales.includes(language)) {
-    return language;
-  }
-
-  // 部分匹配 (比如 ja 匹配 ja-JP)
-  for (const locale of locales) {
-    if (language?.startsWith(locale.split('-')[0])) {
-      return locale;
-    }
+  const browserLocale = typeof navigator === 'undefined' ? '' : navigator.language;
+  const normalizedBrowserLocale = normalizeLocale(browserLocale);
+  if (normalizedBrowserLocale) {
+    return normalizedBrowserLocale;
   }
 
   return 'zh-Hans';
