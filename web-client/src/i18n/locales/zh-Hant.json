@@ -263,7 +263,7 @@
       "singleRom": "單個ROM"
     },
     "multiCartResult": {
-      "title": "N合1卡帶ROM布局",
+      "title": "ROM布局",
       "totalGames": "共偵測到 {count} 個遊戲",
       "startAddress": "起始地址",
       "bankDesc": "區塊/插槽",

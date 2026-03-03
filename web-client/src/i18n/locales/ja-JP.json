@@ -263,7 +263,7 @@
       "singleRom": "単一ROM"
     },
     "multiCartResult": {
-      "title": "マルチカートROMレイアウト",
+      "title": "ROMレイアウト",
       "totalGames": "{count} 本のゲームを検出",
       "startAddress": "開始アドレス",
       "bankDesc": "バンク/スロット",

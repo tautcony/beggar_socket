@@ -263,7 +263,7 @@
       "singleRom": "Одиночный ROM"
     },
     "multiCartResult": {
-      "title": "Компоновка ROM мультикартриджа",
+      "title": "Макет ROM",
       "totalGames": "Обнаружено игр: {count}",
       "startAddress": "Начальный адрес",
       "bankDesc": "Банк / Слот",

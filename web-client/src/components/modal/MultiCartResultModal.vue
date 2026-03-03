@@ -14,7 +14,7 @@
       <IonIcon
         :icon="searchOutline"
         class="empty-icon"
-      />x
+      />
       <p>{{ $t('ui.operation.noValidGameFound') }}</p>
     </div>
 
@@ -82,8 +82,8 @@
 </template>
 
 <script setup lang="ts">
-import { layersOutline, searchOutline } from 'ionicons/icons';
 import { IonIcon } from '@ionic/vue';
+import { layersOutline, searchOutline } from 'ionicons/icons';
 import { ref, watch } from 'vue';
 
 import BaseModal from '@/components/common/BaseModal.vue';
@@ -144,10 +144,6 @@ function closeModal() {
   padding: var(--space-1) var(--space-3);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
-}
-
-.summary-badge ion-icon {
-  font-size: 1rem;
 }
 
 /* 表格 */
@@ -235,11 +231,5 @@ function closeModal() {
 
 .title-text {
   font-weight: var(--font-weight-medium, 500);
-}
-
-.size-text {
-  color: var(--color-text-secondary);
-  font-size: 0.9em;
-  font-variant-numeric: tabular-nums;
 }
 </style>
