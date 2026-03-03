@@ -1,5 +1,15 @@
 /// <reference types="vite/client" />
 
+interface ImportMetaEnv {
+  readonly VITE_BUILD_BRANCH?: string;
+  readonly VITE_BUILD_COMMIT?: string;
+  readonly VITE_BUILD_IS_RELEASE?: 'true' | 'false';
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
 /* eslint-disable */
 declare module '*.vue' {
   import type { DefineComponent } from 'vue'
