@@ -262,6 +262,14 @@
       "extractFailed": "抽出失敗",
       "singleRom": "単一ROM"
     },
+    "multiCartResult": {
+      "title": "マルチカートROMレイアウト",
+      "totalGames": "{count} 本のゲームを検出",
+      "startAddress": "開始アドレス",
+      "bankDesc": "バンク/スロット",
+      "romType": "タイプ",
+      "gameTitle": "ゲームタイトル"
+    },
     "romAssembly": {
       "title": "ROM組み立て",
       "romType": "ROMタイプ",

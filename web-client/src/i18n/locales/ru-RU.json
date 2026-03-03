@@ -262,6 +262,14 @@
       "extractFailed": "Извлечение не удалось",
       "singleRom": "Одиночный ROM"
     },
+    "multiCartResult": {
+      "title": "Компоновка ROM мультикартриджа",
+      "totalGames": "Обнаружено игр: {count}",
+      "startAddress": "Начальный адрес",
+      "bankDesc": "Банк / Слот",
+      "romType": "Тип",
+      "gameTitle": "Название игры"
+    },
     "romAssembly": {
       "title": "Сборка ROM",
       "romType": "Тип ROM",

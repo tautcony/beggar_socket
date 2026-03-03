@@ -262,6 +262,14 @@
       "extractFailed": "Extract failed",
       "singleRom": "Single ROM"
     },
+    "multiCartResult": {
+      "title": "Multi-Cart ROM Layout",
+      "totalGames": "{count} game(s) detected",
+      "startAddress": "Start Address",
+      "bankDesc": "Bank / Slot",
+      "romType": "Type",
+      "gameTitle": "Game Title"
+    },
     "romAssembly": {
       "title": "ROM Assembly",
       "romType": "ROM Type",

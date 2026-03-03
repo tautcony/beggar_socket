@@ -12,6 +12,10 @@
       v-model="showFileNameSelector"
       @file-name-selected="onFileNameSelected"
     />
+    <MultiCartResultModal
+      v-model="showMultiCartResultModal"
+      :results="multiCartResults"
+    />
     <div class="mode-tabs-card">
       <BaseButton
         :variant="mode === 'GBA' ? 'primary' : 'secondary'"
@@ -111,6 +115,7 @@ import { useI18n } from 'vue-i18n';
 import BaseButton from '@/components/common/BaseButton.vue';
 import LogViewer from '@/components/LogViewer.vue';
 import FileNameSelectorModal from '@/components/modal/FileNameSelectorModal.vue';
+import MultiCartResultModal from '@/components/modal/MultiCartResultModal.vue';
 import ProgressDisplayModal from '@/components/modal/ProgressDisplayModal.vue';
 import { ChipOperations, RamOperations, RomOperations } from '@/components/operaiton';
 import { useToast } from '@/composables/useToast';
@@ -185,6 +190,10 @@ const showProgressModal = computed(() => {
 
 // file name selector modal visibility
 const showFileNameSelector = ref(false);
+
+// multi-cart result modal
+const showMultiCartResultModal = ref(false);
+const multiCartResults = ref<GameDetectionResult[]>([]);
 
 // chip props
 const chipId = ref<number[] | undefined>(undefined);
@@ -910,6 +919,10 @@ async function readRomInfo() {
       showToast(t('ui.operation.readMultiCartSuccess'), 'success');
       log(t('ui.operation.readMultiCartSuccess'), 'success');
       await burnerFacade.resetCommandBuffer(adapter);
+
+      // 显示多合一结果弹窗
+      multiCartResults.value = gameResults;
+      showMultiCartResultModal.value = true;
     },
     onError: (error) => {
       showToast(t('ui.operation.readMultiCartFailed'), 'error');

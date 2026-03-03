@@ -262,6 +262,14 @@
       "extractFailed": "提取失敗",
       "singleRom": "單個ROM"
     },
+    "multiCartResult": {
+      "title": "N合1卡帶ROM布局",
+      "totalGames": "共偵測到 {count} 個遊戲",
+      "startAddress": "起始地址",
+      "bankDesc": "區塊/插槽",
+      "romType": "類型",
+      "gameTitle": "遊戲標題"
+    },
     "romAssembly": {
       "title": "ROM組裝",
       "romType": "ROM類型",
