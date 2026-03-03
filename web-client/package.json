@@ -16,8 +16,8 @@
   "homepage": "./",
   "scripts": {
     "dev": "vite --force",
-    "build": "vue-tsc && vite build--mode production",
-    "build:dev": "vue-tsc && vite build --mode development ",
+    "build": "vue-tsc && vite build --mode production",
+    "build:dev": "vue-tsc && vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint src/ tests/ electron/",
     "lint:fix": "eslint src/ electron/ --fix",
