@@ -1,9 +1,7 @@
 ## Purpose
 
 Define enforceable dependency boundaries for the web-client architecture and provide a repeatable guardrail workflow that blocks newly introduced layer violations.
-
 ## Requirements
-
 ### Requirement: Dependency boundary enforcement for UI layer
 The system SHALL enforce architecture rules that prevent `components` and `views` from directly depending on `protocol` modules.
 
@@ -59,10 +57,6 @@ The system SHALL enforce architecture rules that prevent modules under `src/prot
 - **WHEN** protocol integration code imports `Transport` contracts from `src/platform/serial`
 - **THEN** dependency guardrail checks pass for protocol-to-transport boundary validation
 
-#### Scenario: Protocol module imports runtime-specific serial implementation
-- **WHEN** a file under `src/protocol` imports runtime-specific serial implementation modules
-- **THEN** dependency checks fail and require protocol communication to use transport abstraction entrypoints
-
 ### Requirement: Protocol public entrypoint dependency enforcement
 The system SHALL enforce architecture rules that prevent application-layer modules from importing protocol-internal implementation files outside protocol public entrypoints.
 
@@ -84,3 +78,15 @@ The system SHALL require Web/Electron serial implementation details to be contai
 #### Scenario: Shared upper-layer access pattern
 - **WHEN** application or protocol layers need serial capabilities
 - **THEN** they consume only shared gateway/transport interfaces and do not branch on runtime-specific APIs
+
+### Requirement: Application-layer domain port dependency enforcement
+The system SHALL enforce architecture rules that prevent Burner application-layer use cases from directly importing runtime-specific serial implementations under `src/platform/serial` or concrete modules under `src/services`.
+
+#### Scenario: Burner use case imports runtime serial implementation
+- **WHEN** a file under `src/features/burner/application` introduces direct import from runtime serial implementation modules
+- **THEN** dependency checks fail and require the dependency to be routed through domain port contracts
+
+#### Scenario: Burner use case imports domain port contracts
+- **WHEN** a Burner application use case depends on domain port interfaces and composition-layer adapters
+- **THEN** dependency checks pass for application-layer boundary validation
+

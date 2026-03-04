@@ -86,6 +86,16 @@ function checkViolation(sourceRel, importRel) {
     return 'application/service layers must consume protocol via @/protocol entrypoint, not protocol internals';
   }
 
+  if (
+    sourceRel.startsWith('features/burner/application/')
+    && (
+      importRel.startsWith('platform/serial/')
+      || importRel.startsWith('services/')
+    )
+  ) {
+    return 'features/burner/application must depend on burner domain ports/adapters, not runtime serial/services implementations';
+  }
+
   return null;
 }
 

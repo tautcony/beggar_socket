@@ -121,7 +121,8 @@ import MultiCartResultModal from '@/components/modal/MultiCartResultModal.vue';
 import ProgressDisplayModal from '@/components/modal/ProgressDisplayModal.vue';
 import { ChipOperations, RamOperations, RomOperations } from '@/components/operaiton';
 import { useToast } from '@/composables/useToast';
-import { BurnerFacadeImpl, BurnerSession, BurnerUseCaseImpl, type GameDetectionResult, runBurnerFlow } from '@/features/burner/application';
+import { createBurnerFacade, BurnerSession, type BurnerProtocolSession, type GameDetectionResult, runBurnerFlow } from '@/features/burner/application';
+import { createCartridgeProtocolSession } from '@/features/burner/adapters';
 import { CartridgeAdapter, GBAAdapter, MBC5Adapter, MockAdapter } from '@/services';
 import { shouldUseLargeRomPage } from '@/services/flash-chip';
 import { AdvancedSettings } from '@/settings/advanced-settings';
@@ -152,7 +153,7 @@ const logs = ref<{ time: string; message: string; level: LogLevelType }[]>([]);
 const selectedMbcType = ref<MbcType>('MBC5');
 const mbcPower5V = ref(false);
 const burnerSession = new BurnerSession();
-const burnerFacade = new BurnerFacadeImpl(new BurnerUseCaseImpl(key => t(key), value => formatHex(value, 4)));
+const burnerFacade = createBurnerFacade({ translate: key => t(key), formatHex: value => formatHex(value, 4) });
 
 const DEFAULT_PROGRESS: ProgressInfo = {
   type: 'other',
@@ -216,8 +217,12 @@ const sectorCounts = computed(() => {
 });
 
 // Adapter
-const gbaAdapter = ref<CartridgeAdapter | null>();
-const mbc5Adapter = ref<CartridgeAdapter | null>();
+const gbaAdapter = ref<BurnerProtocolSession | null>();
+const mbc5Adapter = ref<BurnerProtocolSession | null>();
+
+function createSession(adapter: CartridgeAdapter, modeName: string): BurnerProtocolSession {
+  return createCartridgeProtocolSession(adapter, modeName.toLowerCase());
+}
 
 watch(mode, (newMode) => {
   if (newMode !== 'MBC5') {
@@ -293,23 +298,24 @@ function initializeAdapters() {
         updateProgress,
         t,
       );
-      gbaAdapter.value = adapter;
-      mbc5Adapter.value = adapter;
+      gbaAdapter.value = createSession(adapter, 'mock');
+      mbc5Adapter.value = createSession(adapter, 'mock');
     } else {
       // 正常模式下使用真实适配器
-      gbaAdapter.value = new GBAAdapter(
+      const gbaRuntimeAdapter = new GBAAdapter(
         props.device,
         (msg, level) => { log(msg, level); },
         updateProgress,
         t,
       );
-      const newMbc5Adapter = new MBC5Adapter(
+      gbaAdapter.value = createSession(gbaRuntimeAdapter, 'gba');
+      const mbc5RuntimeAdapter = new MBC5Adapter(
         props.device,
         (msg, level) => { log(msg, level); },
         updateProgress,
         t,
       );
-      mbc5Adapter.value = newMbc5Adapter;
+      mbc5Adapter.value = createSession(mbc5RuntimeAdapter, 'mbc5');
     }
   } else {
     // 设备未连接时清空适配器
@@ -498,7 +504,7 @@ function onModeSwitchRequired(targetMode: string, romType: string) {
 }
 
 function getAdapter() {
-  let adapter: CartridgeAdapter | null | undefined = null;
+  let adapter: BurnerProtocolSession | null | undefined = null;
   if (mode.value === 'GBA') {
     adapter = gbaAdapter.value;
   } else if (mode.value === 'MBC5') {
