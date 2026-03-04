@@ -155,7 +155,7 @@ const chipInfoValid = computed(() => {
   );
 });
 
-defineEmits(CHIP_OPERATION_EVENTS);
+defineEmits([...CHIP_OPERATION_EVENTS]);
 </script>
 
 <style scoped>

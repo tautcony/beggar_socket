@@ -1,6 +1,4 @@
 export { BurnerSession } from './burner-session';
-export { createBurnerFacade, type CreateBurnerFacadeOptions } from './factory';
-export { ConnectionOrchestrationUseCase } from './connection-use-case';
 export {
   type BurnerFacade,
   BurnerFacadeImpl,
@@ -8,7 +6,7 @@ export {
   BurnerUseCaseImpl,
   type GameDetectionResult,
 } from './burner-use-case';
-export { type BurnerFlowContext, type BurnerFlowOptions, runBurnerFlow } from './flow-template';
+export { ConnectionOrchestrationUseCase } from './connection-use-case';
 export type {
   ConnectionCommandResult,
   ConnectionContext,
@@ -36,4 +34,6 @@ export type {
   BurnerErrorCode,
   BurnerErrorStage,
 } from './domain/result';
+export { createBurnerFacade, type CreateBurnerFacadeOptions } from './factory';
+export { type BurnerFlowContext, type BurnerFlowOptions, runBurnerFlow } from './flow-template';
 export type { BurnerLogEntry, BurnerSessionState, LogLevel } from './types';

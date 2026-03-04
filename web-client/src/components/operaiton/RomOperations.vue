@@ -240,7 +240,7 @@ const getBaseAddressOptions = (romType: 'GBA' | 'MBC5') => {
   return options[romType] ?? [];
 };
 
-const emit = defineEmits(ROM_OPERATION_EVENTS);
+const emit = defineEmits([...ROM_OPERATION_EVENTS]);
 
 // 空白检测对话框状态
 const showBlankCheckDialog = ref(false);
