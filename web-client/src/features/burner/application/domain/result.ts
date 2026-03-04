@@ -6,6 +6,12 @@ export type BurnerErrorCode =
   | 'aborted'
   | 'selection_required'
   | 'not_connected'
+  | 'list_failed'
+  | 'select_failed'
+  | 'connect_failed'
+  | 'init_failed'
+  | 'disconnect_failed'
+  | 'stale_context'
   | 'timeout'
   | 'runtime_error'
   | 'unknown';

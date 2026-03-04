@@ -221,7 +221,9 @@ const gbaAdapter = ref<BurnerProtocolSession | null>();
 const mbc5Adapter = ref<BurnerProtocolSession | null>();
 
 function createSession(adapter: CartridgeAdapter, modeName: string): BurnerProtocolSession {
-  return createCartridgeProtocolSession(adapter, modeName.toLowerCase());
+  return createCartridgeProtocolSession(adapter, modeName.toLowerCase(), {
+    isActive: () => props.deviceReady && props.device !== null,
+  });
 }
 
 watch(mode, (newMode) => {
@@ -504,6 +506,11 @@ function onModeSwitchRequired(targetMode: string, romType: string) {
 }
 
 function getAdapter() {
+  if (!props.deviceReady || !props.device) {
+    showToast(t('messages.operation.readCartInfoFirst'), 'error');
+    return null;
+  }
+
   let adapter: BurnerProtocolSession | null | undefined = null;
   if (mode.value === 'GBA') {
     adapter = gbaAdapter.value;

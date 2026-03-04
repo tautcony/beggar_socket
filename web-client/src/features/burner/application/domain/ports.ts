@@ -32,6 +32,7 @@ export interface BurnerConnectionPort {
 
 export interface BurnerProtocolSession {
   readonly id: string;
+  isActive?: () => boolean;
   getCartInfo(enable5V?: boolean): Promise<CFIInfo | false>;
   eraseSectors(sectorInfo: SectorBlock[], options: CommandOptions, signal?: AbortSignal): Promise<CommandResult>;
   writeROM(data: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult>;

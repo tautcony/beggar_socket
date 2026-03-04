@@ -30,6 +30,7 @@ function createFakeCfi(deviceSize = 0x20000): CFIInfo {
 function createSession(overrides: Partial<BurnerProtocolSession> = {}): BurnerProtocolSession {
   const base: BurnerProtocolSession = {
     id: 'session-1',
+    isActive: () => true,
     getCartInfo: async () => createFakeCfi(),
     eraseSectors: async () => ({ success: true, message: 'erase-ok' }),
     writeROM: async () => ({ success: true, message: 'write-rom-ok' }),
@@ -329,5 +330,26 @@ describe('BurnerUseCaseImpl', () => {
     expect(first.message).toBe('first fail');
     expect(second.success).toBe(true);
     expect(second.message).toBe('second ok');
+  });
+
+  it('should block burner operation when connection precondition is not active and recover after reconnect', async () => {
+    const isActive = vi.fn()
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
+    const readROM = vi.fn().mockResolvedValue({ success: true, message: 'read-ok', data: new Uint8Array([0x42]) });
+    const session = createSession({
+      isActive,
+      readROM,
+    });
+    const useCase = createUseCase();
+    const context = createContext(session);
+
+    const first = await useCase.readRom({ ...context, size: 1, showProgress: false });
+    expect(first.success).toBe(false);
+    expect(first.message).toBe('Device not connected');
+
+    const second = await useCase.readRom({ ...context, size: 1, showProgress: false });
+    expect(second.success).toBe(true);
+    expect(second.message).toBe('read-ok');
   });
 });
