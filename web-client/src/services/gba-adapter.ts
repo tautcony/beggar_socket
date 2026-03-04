@@ -1,4 +1,5 @@
 import {
+  getFlashName,
   ram_erase_flash,
   ram_program_flash,
   ram_read,
@@ -11,8 +12,8 @@ import {
   rom_program,
   rom_read,
   rom_write,
-} from '@/protocol/beggar_socket/protocol';
-import { getFlashName, toLittleEndian } from '@/protocol/beggar_socket/protocol-utils';
+  toLittleEndian,
+} from '@/protocol';
 import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions } from '@/types/command-options';

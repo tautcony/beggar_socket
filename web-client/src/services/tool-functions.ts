@@ -1,8 +1,7 @@
 import { DateTime } from 'luxon';
 
 import i18n from '@/i18n';
-import { gbc_read, gbc_write, rom_read, rom_write } from '@/protocol/beggar_socket/protocol';
-import { toLittleEndian } from '@/protocol/beggar_socket/protocol-utils';
+import { gbc_read, gbc_write, rom_read, rom_write, toLittleEndian } from '@/protocol';
 import { LogCallback, ProgressCallback } from '@/services/cartridge-adapter';
 import { DeviceInfo } from '@/types/device-info';
 import { ProgressInfo } from '@/types/progress-info';

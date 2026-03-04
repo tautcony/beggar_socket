@@ -26,6 +26,10 @@ The system SHALL provide a `Transport` contract exposing `send`, `read`, and `se
 - **WHEN** device initialization requires toggling serial control signals
 - **THEN** callers invoke `setSignals` on `Transport` instead of using runtime-specific serial APIs directly
 
+#### Scenario: Protocol layer consumes transport-only contract
+- **WHEN** protocol modules perform communication for Burner flows
+- **THEN** protocol call paths consume only `Transport` contract APIs and do not depend on concrete serial service classes
+
 ### Requirement: Device selection and transport association
 The system SHALL expose a gateway result model where selected/connected device context includes or resolves the associated `Transport` needed by protocol workflows.
 
@@ -36,6 +40,10 @@ The system SHALL expose a gateway result model where selected/connected device c
 #### Scenario: Disconnect invalidates transport usage
 - **WHEN** the caller disconnects a device through `DeviceGateway`
 - **THEN** subsequent operations through the associated transport fail predictably until a new connection is established
+
+#### Scenario: Protocol receives transport through gateway context only
+- **WHEN** Burner orchestration invokes protocol operations
+- **THEN** protocol-facing code receives `Transport` from gateway context and never from direct runtime-specific serial implementation imports
 
 ### Requirement: Device gateway integration contract coverage
 The system SHALL provide integration tests for `DeviceGateway` lifecycle behavior using runtime-appropriate mocks so connect, disconnect, init, list, and select behaviors are verifiable for both success and failure outcomes.

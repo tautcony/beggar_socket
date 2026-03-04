@@ -1,12 +1,9 @@
-import { Command, GBACommand, GBCCommand } from '@/protocol/beggar_socket/command';
-import { createCommandPayload } from '@/protocol/beggar_socket/payload-builder';
-import { getPackage, sendPackage } from '@/protocol/beggar_socket/protocol-utils';
-import type { DeviceInfo } from '@/types/device-info';
+import { Command, createCommandPayload, GBACommand, GBCCommand, getPackage, type ProtocolTransportInput, sendPackage } from '@/protocol';
 
 export type DebugCommandType = 'GBA' | 'GBC';
 
 export interface ExecuteDebugCommandInput {
-  device: DeviceInfo;
+  device: ProtocolTransportInput;
   command: number;
   address?: number | null;
   length?: number | null;

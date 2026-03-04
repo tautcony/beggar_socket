@@ -3,8 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { resolveTransport } from '@/platform/serial';
 import { ConnectionTransport } from '@/platform/serial/transports';
 import type { Transport } from '@/platform/serial/types';
-import { ProtocolAdapter } from '@/protocol/beggar_socket/protocol-adapter';
-import { getResult, sendPackage, setSignals } from '@/protocol/beggar_socket/protocol-utils';
+import { gbc_read, getResult, ProtocolAdapter, ram_read, rom_read, sendPackage, setSignals } from '@/protocol';
 import type { DeviceInfo } from '@/types/device-info';
 import type { SerialConnection } from '@/types/serial';
 
@@ -147,5 +146,30 @@ describe('Protocol transport abstraction', () => {
       dataCallbacks[0](new Uint8Array([0xaa]));
     }
     await expect(readPromise).resolves.toEqual({ data: new Uint8Array([0xaa]) });
+  });
+
+  it('canonical packet-read timeout mapping stays consistent across operations', async () => {
+    const timeoutError = new Error('Read package timeout in 30ms');
+    const transport: Transport = {
+      send: vi.fn().mockResolvedValue(true),
+      read: vi.fn().mockRejectedValue(timeoutError),
+      setSignals: vi.fn().mockResolvedValue(undefined),
+    };
+
+    await expect(rom_read({ transport }, 4, 0x10)).rejects.toThrow('Reason: packet read timeout');
+    await expect(ram_read({ transport }, 4, 0x20)).rejects.toThrow('Reason: packet read timeout');
+    await expect(gbc_read({ transport }, 4, 0x30)).rejects.toThrow('Reason: packet read timeout');
+  });
+
+  it('canonical packet-read invalid-length mapping stays consistent across operations', async () => {
+    const transport: Transport = {
+      send: vi.fn().mockResolvedValue(true),
+      read: vi.fn().mockResolvedValue({ data: new Uint8Array([0xaa, 0xbb, 0xcc]) }),
+      setSignals: vi.fn().mockResolvedValue(undefined),
+    };
+
+    await expect(rom_read({ transport }, 4, 0x10)).rejects.toThrow('Reason: invalid packet length');
+    await expect(ram_read({ transport }, 4, 0x20)).rejects.toThrow('Reason: invalid packet length');
+    await expect(gbc_read({ transport }, 4, 0x30)).rejects.toThrow('Reason: invalid packet length');
   });
 });

@@ -15,6 +15,10 @@ The system SHALL provide a single application-layer orchestration entrypoint for
 - **WHEN** Burner UI code attempts to depend on protocol-level command or transport utilities
 - **THEN** the implementation is rejected by architecture guardrails and the flow remains routed through application-layer orchestration
 
+#### Scenario: Burner use case imports protocol via stable entrypoint
+- **WHEN** burner orchestration integrates protocol behavior
+- **THEN** use cases depend on protocol public entrypoint contracts and do not import protocol-internal helper modules directly
+
 ### Requirement: Burner session lifecycle management
 The system SHALL manage Burner runtime state through a session model that unifies busy state, cancellation token, progress state, and operation logs for all Burner flows.
 
@@ -95,6 +99,10 @@ The system SHALL provide one canonical packet-read implementation for Burner pro
 #### Scenario: Error handling consistency across flows
 - **WHEN** packet read fails due to timeout or transport/runtime error
 - **THEN** Burner flows receive normalized error semantics consistent across read, write, erase, and verify operations
+
+#### Scenario: Refactored protocol layer preserves packet-read semantics
+- **WHEN** protocol-layer rehoming changes module boundaries or call paths
+- **THEN** burner flow timeout and read-error semantics remain consistent with canonical packet-read behavior
 
 ### Requirement: Shared flow template for session concerns
 The Burner application layer SHALL execute operation flows through a shared template that standardizes log emission, progress propagation, cancellation handling, and failure recovery.
