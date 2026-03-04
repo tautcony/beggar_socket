@@ -100,13 +100,36 @@
           @click="$emit('read-rom')"
         />
         <BaseButton
-          :disabled="!deviceReady || !romFileData || busy"
+          :disabled="!deviceReady || busy"
           variant="primary"
           :text="$t('ui.rom.verify')"
-          @click="$emit('verify-rom')"
+          @click="onVerifyClick"
         />
       </div>
     </section>
+
+    <!-- 空白检测模式选择对话框 -->
+    <BaseModal
+      v-model="showBlankCheckDialog"
+      :title="$t('ui.rom.blankCheckTitle')"
+      width="360px"
+    >
+      <div class="blank-check-options">
+        <p class="blank-check-hint">{{ $t('ui.rom.blankCheckHint') }}</p>
+        <div class="blank-check-buttons">
+          <BaseButton
+            variant="primary"
+            :text="$t('ui.rom.blankFillFF')"
+            @click="selectBlankPattern(0xFF)"
+          />
+          <BaseButton
+            variant="secondary"
+            :text="$t('ui.rom.blankFill00')"
+            @click="selectBlankPattern(0x00)"
+          />
+        </div>
+      </div>
+    </BaseModal>
 
     <!-- Game Boy Color Emulator -->
     <Suspense>
@@ -152,6 +175,7 @@ import { computed, defineAsyncComponent, onErrorCaptured, ref, watch } from 'vue
 import { useI18n } from 'vue-i18n';
 
 import BaseButton from '@/components/common/BaseButton.vue';
+import BaseModal from '@/components/common/BaseModal.vue';
 import FileDropZone from '@/components/common/FileDropZone.vue';
 import RomInfoPanel from '@/components/common/RomInfoPanel.vue';
 import { useToast } from '@/composables/useToast';
@@ -230,7 +254,24 @@ const emit = defineEmits<{
   'write-rom': [];
   'read-rom': [];
   'verify-rom': [];
+  'verify-blank': [fillByte: number];
 }>();
+
+// 空白检测对话框状态
+const showBlankCheckDialog = ref(false);
+
+function onVerifyClick() {
+  if (props.romFileData && props.romFileData.length > 0) {
+    emit('verify-rom');
+  } else {
+    showBlankCheckDialog.value = true;
+  }
+}
+
+function selectBlankPattern(fillByte: number) {
+  showBlankCheckDialog.value = false;
+  emit('verify-blank', fillByte);
+}
 
 // 模拟器相关状态
 const currentEmulator = ref<'GB' | 'GBC' | 'GBA' | null>(null); // 当前显示的模拟器类型
@@ -580,6 +621,29 @@ const hasAssembledRom = computed(() => {
 }
 
 .button-row > * {
+  flex: 1 1 auto;
+}
+
+.blank-check-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.blank-check-hint {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.blank-check-buttons {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.blank-check-buttons > * {
   flex: 1 1 auto;
 }
 </style>

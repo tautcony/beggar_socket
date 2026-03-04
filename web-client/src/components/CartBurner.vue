@@ -70,6 +70,7 @@
             @write-rom="writeRom"
             @read-rom="readRom"
             @verify-rom="verifyRom"
+            @verify-blank="verifyBlank"
             @rom-size-change="onRomSizeChange"
             @base-address-change="onRomBaseAddressChange"
             @mode-switch-required="onModeSwitchRequired"
@@ -90,6 +91,7 @@
             @write-ram="writeRam"
             @read-ram="readRam"
             @verify-ram="verifyRam"
+            @verify-blank="verifyRamBlank"
             @ram-size-change="onRamSizeChange"
             @ram-type-change="onRamTypeChange"
             @base-address-change="onRamBaseAddressChange"
@@ -719,8 +721,54 @@ async function verifyRom() {
         throw new Error('verifyRom requires abort signal');
       }
 
-      const size = Math.min(parseInt(selectedRomSize.value, 16), romFileData.value.byteLength);
+      const size = parseInt(selectedRomSize.value, 16);
       const response = await burnerFacade.verifyRom(adapter, romFileData.value, {
+        baseAddress: parseInt(selectedBaseAddress.value, 16),
+        cfiInfo: cfiInfo.value,
+        size,
+        mbcType: selectedMbcType.value,
+        enable5V: mbcPower5V.value,
+      }, signal);
+      showToast(response.message, response.success ? 'success' : 'error');
+      await burnerFacade.resetCommandBuffer(adapter);
+    },
+    onError: (error) => {
+      showToast(t('messages.rom.verifyFailed'), 'error');
+      log(`${t('messages.rom.verifyFailed')}: ${error instanceof Error ? error.message : String(error)}`, 'error');
+    },
+  });
+}
+
+async function verifyBlank(fillByte: number) {
+  await executeOperation({
+    cancellable: true,
+    resetProgressOnFinish: true,
+    updateProgress: {
+      progress: 0,
+    },
+    operation: async (signal) => {
+      const adapter = getAdapter();
+      if (!adapter) {
+        showToast(t('messages.operation.unsupportedMode'), 'error');
+        resetProgress();
+        return;
+      }
+
+      if (!cfiInfo.value) {
+        showToast(t('messages.operation.readCartInfoFirst'), 'error');
+        resetProgress();
+        return;
+      }
+      if (!signal) {
+        throw new Error('verifyBlank requires abort signal');
+      }
+
+      const size = parseInt(selectedRomSize.value, 16);
+      const blankData = new Uint8Array(size).fill(fillByte);
+      const fillLabel = fillByte === 0xFF ? '0xFF' : '0x00';
+      log(t('messages.rom.verifyBlankStart', { size: formatBytes(size), fill: fillLabel }), 'info');
+
+      const response = await burnerFacade.verifyRom(adapter, blankData, {
         baseAddress: parseInt(selectedBaseAddress.value, 16),
         cfiInfo: cfiInfo.value,
         size,
@@ -834,8 +882,50 @@ async function verifyRam() {
         return;
       }
 
-      const size = Math.min(parseInt(selectedRamSize.value, 16), ramFileData.value.byteLength);
+      const size = parseInt(selectedRamSize.value, 16);
       const response = await burnerFacade.verifyRam(adapter, ramFileData.value, {
+        ramType: selectedRamType.value as RamType,
+        baseAddress: parseInt(selectedRamBaseAddress.value, 16),
+        cfiInfo: cfiInfo.value,
+        size,
+        mbcType: selectedMbcType.value,
+        enable5V: mbcPower5V.value,
+      });
+      showToast(response.message, response.success ? 'success' : 'error');
+      if (response.success) {
+        log(t('messages.ram.verifySuccess'), 'success');
+      } else {
+        log(t('messages.ram.verifyFailed'), 'error');
+      }
+      await burnerFacade.resetCommandBuffer(adapter);
+    },
+    onError: (error) => {
+      showToast(t('messages.ram.verifyFailed'), 'error');
+      log(`${t('messages.ram.verifyFailed')}: ${error instanceof Error ? error.message : String(error)}`, 'error');
+    },
+  });
+}
+
+async function verifyRamBlank(fillByte: number) {
+  await executeOperation({
+    operation: async () => {
+      const adapter = getAdapter();
+      if (!adapter) {
+        showToast(t('messages.operation.unsupportedMode'), 'error');
+        return;
+      }
+
+      if (!cfiInfo.value) {
+        showToast(t('messages.operation.readCartInfoFirst'), 'error');
+        return;
+      }
+
+      const size = parseInt(selectedRamSize.value, 16);
+      const blankData = new Uint8Array(size).fill(fillByte);
+      const fillLabel = fillByte === 0xFF ? '0xFF' : '0x00';
+      log(t('messages.ram.verifyBlankStart', { size: formatBytes(size), fill: fillLabel }), 'info');
+
+      const response = await burnerFacade.verifyRam(adapter, blankData, {
         ramType: selectedRamType.value as RamType,
         baseAddress: parseInt(selectedRamBaseAddress.value, 16),
         cfiInfo: cfiInfo.value,

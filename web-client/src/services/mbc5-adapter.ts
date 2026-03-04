@@ -863,7 +863,24 @@ export class MBC5Adapter extends CartridgeAdapter {
         try {
           this.log(this.t('messages.rom.verifying'), 'info');
 
-          const total = fileData.byteLength;
+          const configuredSize = options.size ?? fileData.byteLength;
+          const deviceSize = options.cfiInfo.deviceSize;
+          const fileSize = fileData.byteLength;
+          const total = Math.min(configuredSize, deviceSize, fileSize);
+          if (configuredSize > deviceSize) {
+            this.log(this.t('messages.rom.verifyClampedToDevice', {
+              configured: formatBytes(configuredSize),
+              device: formatBytes(deviceSize),
+              actual: formatBytes(total),
+            }), 'warn');
+          }
+          if (configuredSize > fileSize) {
+            this.log(this.t('messages.rom.verifyClampedToFile', {
+              configured: formatBytes(configuredSize),
+              file: formatBytes(fileSize),
+              actual: formatBytes(total),
+            }), 'warn');
+          }
           let verified = 0;
           let success = true;
           let failedAddress = -1;
@@ -1250,7 +1267,9 @@ export class MBC5Adapter extends CartridgeAdapter {
   override async verifyRAM(fileData: Uint8Array, options: CommandOptions) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
     const ramType = options.ramType ?? 'SRAM';
-    const size = options.size ?? fileData.byteLength;
+    const configuredSize = options.size ?? fileData.byteLength;
+    const fileSize = fileData.byteLength;
+    const size = Math.min(configuredSize, fileSize);
 
     this.log(this.t('messages.operation.startVerifyRAM', {
       fileSize: fileData.byteLength,
@@ -1261,6 +1280,13 @@ export class MBC5Adapter extends CartridgeAdapter {
       'mbc5.verifyRAM',
       async () => {
         try {
+          if (configuredSize > fileSize) {
+            this.log(this.t('messages.ram.verifyClampedToFile', {
+              configured: formatBytes(configuredSize),
+              file: formatBytes(fileSize),
+              actual: formatBytes(size),
+            }), 'warn');
+          }
           this.log(this.t('messages.ram.verifying'), 'info');
           let success = true;
 
