@@ -59,6 +59,26 @@ const commonRules = {
         message: 'protocol 层禁止直接依赖 services/serial-service，请改为依赖 platform/serial 的 Transport 接口。',
       },
       {
+        target: './src/protocol',
+        from: './src/platform/serial/electron',
+        message: 'protocol 层禁止依赖 runtime-specific serial 实现（electron），请改为依赖 platform/serial Transport 合约。',
+      },
+      {
+        target: './src/protocol',
+        from: './src/platform/serial/web',
+        message: 'protocol 层禁止依赖 runtime-specific serial 实现（web），请改为依赖 platform/serial Transport 合约。',
+      },
+      {
+        target: './src/protocol',
+        from: './src/platform/serial/transports',
+        message: 'protocol 层禁止依赖具体 transport 实现，请改为依赖 platform/serial 导出的 Transport 合约。',
+      },
+      {
+        target: ['./src/services', './src/features'],
+        from: './src/protocol/beggar_socket',
+        message: 'application/service 层禁止依赖 protocol 内部路径，请改为从 @/protocol 入口导入。',
+      },
+      {
         target: './src/types',
         from: './src/services',
         message: 'types 层禁止依赖 services 层，请将共享类型下沉到 shared/platform types。',

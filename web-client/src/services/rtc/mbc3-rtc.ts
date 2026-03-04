@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
 
-import { gbc_read, gbc_write } from '@/protocol/beggar_socket/protocol';
+import { gbc_read, gbc_write } from '@/protocol';
 
 import { BaseRTC } from './base-rtc';
 

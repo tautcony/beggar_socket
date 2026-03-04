@@ -8,8 +8,9 @@ import {
   gbc_rom_program,
   gbc_write,
   gbc_write_fram,
-} from '@/protocol/beggar_socket/protocol';
-import { getFlashName, setSignals } from '@/protocol/beggar_socket/protocol-utils';
+  getFlashName,
+  setSignals,
+} from '@/protocol';
 import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions, MbcType } from '@/types/command-options';

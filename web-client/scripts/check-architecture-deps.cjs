@@ -63,8 +63,27 @@ function checkViolation(sourceRel, importRel) {
     return 'types/utils layer must not directly import services layer';
   }
 
-  if (sourceTop === 'protocol' && importRel === 'services/serial-service') {
+  if (sourceTop === 'protocol' && (importRel === 'services/serial-service' || importRel.startsWith('services/serial-service/'))) {
     return 'protocol layer must not directly import services/serial-service; use platform/serial transport contracts';
+  }
+
+  if (
+    sourceTop === 'protocol'
+    && (
+      importRel.startsWith('platform/serial/electron')
+      || importRel.startsWith('platform/serial/web')
+      || importRel.startsWith('platform/serial/transports')
+    )
+  ) {
+    return 'protocol layer must not import runtime-specific serial implementations; use platform/serial transport contracts';
+  }
+
+  if (
+    (sourceTop === 'services' || sourceTop === 'features')
+    && importRel.startsWith('protocol/')
+    && importRel !== 'protocol'
+  ) {
+    return 'application/service layers must consume protocol via @/protocol entrypoint, not protocol internals';
   }
 
   return null;

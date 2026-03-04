@@ -1,7 +1,6 @@
 import { DateTime } from 'luxon';
 
-import { rom_read, rom_write } from '@/protocol/beggar_socket/protocol';
-import { toLittleEndian } from '@/protocol/beggar_socket/protocol-utils';
+import { rom_read, rom_write, toLittleEndian } from '@/protocol';
 
 import { BaseRTC } from './base-rtc';
 
