@@ -3,6 +3,8 @@ import vue from '@vitejs/plugin-vue';
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 function readGitValue(command: string): string {
   try {
     return execSync(command, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
@@ -53,7 +55,7 @@ const isReleaseBuild = buildBranch === 'main';
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), cloudflare()],
   base: './',
   define: {
     __IS_ELECTRON__: 'false',
