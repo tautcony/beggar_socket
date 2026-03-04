@@ -63,6 +63,17 @@ function checkViolation(sourceRel, importRel) {
     return 'types/utils layer must not directly import services layer';
   }
 
+  if (
+    sourceRel.startsWith('components/operaiton/')
+    && (
+      importRel.startsWith('platform/')
+      || importRel.startsWith('services/')
+      || importRel.startsWith('features/burner/application/')
+    )
+  ) {
+    return 'presentational operation components must only consume container-facing contracts, not platform/services/orchestration implementations';
+  }
+
   if (sourceTop === 'protocol' && (importRel === 'services/serial-service' || importRel.startsWith('services/serial-service/'))) {
     return 'protocol layer must not directly import services/serial-service; use platform/serial transport contracts';
   }

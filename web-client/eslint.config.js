@@ -54,6 +54,21 @@ const commonRules = {
         message: 'views 层禁止直接依赖 protocol 层，请改为通过 application/service facade 访问。',
       },
       {
+        target: './src/components/operaiton',
+        from: './src/platform',
+        message: 'operaiton 展示组件禁止依赖 platform 层，请通过 CartBurner 容器或应用层接口注入能力。',
+      },
+      {
+        target: './src/components/operaiton',
+        from: './src/services',
+        message: 'operaiton 展示组件禁止依赖 services 具体实现，请通过 CartBurner 容器事件和状态契约访问。',
+      },
+      {
+        target: './src/components/operaiton',
+        from: './src/features/burner/application',
+        message: 'operaiton 展示组件禁止直接依赖 burner orchestration 实现，请保持容器边界。',
+      },
+      {
         target: './src/protocol',
         from: './src/services/serial-service',
         message: 'protocol 层禁止直接依赖 services/serial-service，请改为依赖 platform/serial 的 Transport 接口。',

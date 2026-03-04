@@ -120,15 +120,16 @@ import FileNameSelectorModal from '@/components/modal/FileNameSelectorModal.vue'
 import MultiCartResultModal from '@/components/modal/MultiCartResultModal.vue';
 import ProgressDisplayModal from '@/components/modal/ProgressDisplayModal.vue';
 import { ChipOperations, RamOperations, RomOperations } from '@/components/operaiton';
+import { useCartBurnerFileState, useCartBurnerSessionState } from '@/composables/cartburner';
 import { useToast } from '@/composables/useToast';
-import { createBurnerFacade, BurnerSession, type BurnerProtocolSession, type GameDetectionResult, runBurnerFlow } from '@/features/burner/application';
 import { createCartridgeProtocolSession } from '@/features/burner/adapters';
+import { type BurnerProtocolSession, createBurnerFacade, type GameDetectionResult } from '@/features/burner/application';
 import { CartridgeAdapter, GBAAdapter, MBC5Adapter, MockAdapter } from '@/services';
 import { shouldUseLargeRomPage } from '@/services/flash-chip';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { DebugSettings } from '@/settings/debug-settings';
 import { useRecentFileNamesStore } from '@/stores/recent-file-names-store';
-import { CommandOptions, DeviceInfo, FileInfo, ProgressInfo } from '@/types';
+import { CommandOptions, DeviceInfo } from '@/types';
 import type { MbcType } from '@/types/command-options';
 import { formatBytes, formatHex } from '@/utils/formatter-utils';
 import { CFIInfo } from '@/utils/parsers/cfi-parser';
@@ -148,27 +149,50 @@ const props = defineProps<{
 }>();
 
 const mode = ref<ModeType>('GBA');
-const busy = ref(false);
-const logs = ref<{ time: string; message: string; level: LogLevelType }[]>([]);
 const selectedMbcType = ref<MbcType>('MBC5');
 const mbcPower5V = ref(false);
-const burnerSession = new BurnerSession();
 const burnerFacade = createBurnerFacade({ translate: key => t(key), formatHex: value => formatHex(value, 4) });
-
-const DEFAULT_PROGRESS: ProgressInfo = {
-  type: 'other',
-  progress: null,
-  detail: '',
-  totalBytes: undefined,
-  transferredBytes: undefined,
-  startTime: undefined,
-  currentSpeed: undefined,
-  allowCancel: true,
-  state: 'idle',
-};
-
-// progress info object
-const progressInfo = ref<ProgressInfo>({ ...DEFAULT_PROGRESS });
+const {
+  burnerSession,
+  busy,
+  logs,
+  progressInfo,
+  showProgressModal,
+  updateProgress,
+  resetProgress,
+  handleProgressClose,
+  handleProgressStop,
+  clearLog,
+  log,
+  syncSessionState,
+  executeOperation,
+} = useCartBurnerSessionState(t);
+const {
+  romFileData,
+  romFileName,
+  selectedRomSize,
+  selectedBaseAddress,
+  ramFileData,
+  ramFileName,
+  selectedRamSize,
+  selectedRamType,
+  selectedRamBaseAddress,
+  showFileNameSelector,
+  pendingRamData,
+  onRomFileSelected,
+  onRomFileCleared,
+  onRamFileSelected,
+  onRamFileCleared,
+  onRomSizeChange,
+  onRomBaseAddressChange,
+  onRamBaseAddressChange,
+  onRamSizeChange,
+  onRamTypeChange,
+  onFileNameSelected,
+  saveAsFile,
+} = useCartBurnerFileState((message) => {
+  log(message);
+}, (key, params) => t(key, params as never));
 
 const operationTimeout = computed(() => {
   if (progressInfo.value.type === 'erase') {
@@ -180,19 +204,6 @@ const operationTimeout = computed(() => {
   }
   return AdvancedSettings.defaultTimeout;
 });
-
-const keepProgressModalOpen = ref(false);
-
-// progress modal visibility
-const showProgressModal = computed(() => {
-  if (keepProgressModalOpen.value) {
-    return true;
-  }
-  return progressInfo.value.progress !== null && progressInfo.value.progress !== undefined;
-});
-
-// file name selector modal visibility
-const showFileNameSelector = ref(false);
 
 // multi-cart result modal
 const showMultiCartResultModal = ref(false);
@@ -270,20 +281,6 @@ if (import.meta.hot) {
   });
 }
 
-// ROM
-const romFileData = ref<Uint8Array | null>(null);
-const romFileName = ref('');
-const selectedRomSize = ref('0x00800000'); // 默认8MB
-const selectedBaseAddress = ref('0x00000000'); // 默认ROM基址0x00000000
-
-// RAM
-const ramFileData = ref<Uint8Array | null>(null);
-const ramFileName = ref('');
-const selectedRamSize = ref('0x08000'); // 默认32KB
-const selectedRamType = ref('SRAM'); // 默认SRAM
-const selectedRamBaseAddress = ref('0x000000'); // 默认RAM基址0x000000
-const pendingRamData = ref<Uint8Array | null>(null); // 等待用户选择文件名的RAM数据
-
 // 设备连接状态改变时，初始化适配器
 function initializeAdapters() {
   if (props.deviceReady && props.device) {
@@ -338,84 +335,6 @@ onMounted(() => {
   initializeAdapters();
 });
 
-function updateProgress(info: ProgressInfo) {
-  if (info.showProgress === true) {
-    // Ignore late progress packets after a user-initiated stop.
-    if (keepProgressModalOpen.value && progressInfo.value.state === 'paused' && info.state === 'running') {
-      return;
-    }
-    burnerSession.updateProgress(info);
-    syncSessionState();
-  }
-}
-
-function handleProgressStop() {
-  keepProgressModalOpen.value = true;
-  burnerSession.updateProgress({
-    state: 'paused',
-    allowCancel: false,
-    detail: t('messages.operation.cancelled'),
-    showProgress: true,
-  });
-  burnerSession.abortOperation();
-  syncSessionState();
-}
-
-function handleProgressClose() {
-  keepProgressModalOpen.value = false;
-  resetProgress();
-}
-
-function resetProgress() {
-  burnerSession.resetProgress();
-  syncSessionState();
-}
-
-function log(msg: string, level: LogLevelType = 'info') {
-  const time = DateTime.now().toLocaleString(DateTime.TIME_24_WITH_SECONDS);
-  const message = msg;
-  burnerSession.addLog(time, message, level);
-  syncSessionState();
-  console.log(`[${time}] [${level}] ${message}`);
-}
-
-function clearLog() {
-  burnerSession.clearLogs();
-  syncSessionState();
-}
-
-function syncSessionState() {
-  const snapshot = burnerSession.snapshot;
-  busy.value = snapshot.busy;
-  progressInfo.value = { ...DEFAULT_PROGRESS, ...snapshot.progress };
-  logs.value = [...snapshot.logs];
-}
-
-async function executeOperation<TResult>(options: {
-  cancellable?: boolean;
-  resetProgressOnFinish?: boolean;
-  updateProgress?: Partial<ProgressInfo>;
-  operation: (signal?: AbortSignal) => Promise<TResult>;
-  onError: (error: unknown) => void | Promise<void>;
-}) {
-  // A new operation should always restore modal visibility control to progress state.
-  // Otherwise a previous "stop" action can keep the modal pinned unexpectedly.
-  keepProgressModalOpen.value = false;
-  return runBurnerFlow({
-    session: burnerSession,
-    cancellable: options.cancellable,
-    resetProgressOnFinish: options.resetProgressOnFinish,
-    updateProgress: options.updateProgress,
-    syncState: () => {
-      syncSessionState();
-    },
-    log,
-    cancelLogMessage: t('messages.operation.cancelled'),
-    execute: ({ signal }) => options.operation(signal),
-    onError: options.onError,
-  });
-}
-
 watch(romFileData, (data) => {
   if (!data) return;
   const info = parseRom(data);
@@ -428,73 +347,6 @@ watch(romFileData, (data) => {
     }
   }
 });
-
-// 文件处理函数
-function onRomFileSelected(fileInfo: FileInfo | FileInfo[]) {
-  if (Array.isArray(fileInfo)) {
-    fileInfo = fileInfo[0];
-  }
-  romFileName.value = fileInfo.name;
-  romFileData.value = fileInfo.data;
-  log(t('messages.file.selectRom', { name: fileInfo.name, size: formatBytes(fileInfo.size) }));
-}
-
-function onRomFileCleared() {
-  romFileData.value = null;
-  romFileName.value = '';
-  log(t('messages.file.clearRom'));
-}
-
-function onRamFileSelected(fileInfo: FileInfo | FileInfo[]) {
-  if (Array.isArray(fileInfo)) {
-    fileInfo = fileInfo[0];
-  }
-  ramFileName.value = fileInfo.name;
-  ramFileData.value = fileInfo.data;
-  log(t('messages.file.selectRam', { name: fileInfo.name, size: formatBytes(fileInfo.size) }));
-}
-
-function onRamFileCleared() {
-  ramFileData.value = null;
-  ramFileName.value = '';
-  log(t('messages.file.clearRam'));
-}
-
-function onFileNameSelected(fileName: string) {
-  if (pendingRamData.value) {
-    // 使用选择的文件名保存RAM数据
-    const fileExtension = fileName.includes('.') ? '' : '.sav';
-    saveAsFile(pendingRamData.value, `${fileName}${fileExtension}`);
-    pendingRamData.value = null;
-    log(t('messages.ram.exportSuccess', { name: `${fileName}${fileExtension}` }), 'success');
-  }
-}
-
-// 大小选择处理函数
-function onRomSizeChange(hexSize: string) {
-  selectedRomSize.value = hexSize;
-  log(t('messages.rom.sizeChanged', { size: formatBytes(parseInt(hexSize, 16)) }));
-}
-
-function onRomBaseAddressChange(hexAddress: string) {
-  selectedBaseAddress.value = hexAddress;
-  log(t('messages.rom.baseAddressChanged', { address: hexAddress }));
-}
-
-function onRamBaseAddressChange(hexAddress: string) {
-  selectedRamBaseAddress.value = hexAddress;
-  log(t('messages.ram.baseAddressChanged', { address: hexAddress }));
-}
-
-function onRamSizeChange(hexSize: string) {
-  selectedRamSize.value = hexSize;
-  log(t('messages.ram.sizeChanged', { size: formatBytes(parseInt(hexSize, 16)) }));
-}
-
-function onRamTypeChange(type: string) {
-  selectedRamType.value = type;
-  log(t('messages.ram.typeChanged', { type }));
-}
 
 // 处理自动模式切换请求
 function onModeSwitchRequired(targetMode: string, romType: string) {
@@ -959,16 +811,6 @@ async function verifyRamBlank(fillByte: number) {
       log(`${t('messages.ram.verifyFailed')}: ${error instanceof Error ? error.message : String(error)}`, 'error');
     },
   });
-}
-
-function saveAsFile(data: Uint8Array, filename: string) {
-  const blob = new Blob([data as BlobPart], { type: 'application/octet-stream' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 // 重置组件状态的方法

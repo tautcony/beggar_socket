@@ -116,7 +116,9 @@
       width="360px"
     >
       <div class="blank-check-options">
-        <p class="blank-check-hint">{{ $t('ui.ram.blankCheckHint') }}</p>
+        <p class="blank-check-hint">
+          {{ $t('ui.ram.blankCheckHint') }}
+        </p>
         <div class="blank-check-buttons">
           <BaseButton
             variant="primary"
@@ -143,22 +145,13 @@ import { useI18n } from 'vue-i18n';
 import BaseButton from '@/components/common/BaseButton.vue';
 import BaseModal from '@/components/common/BaseModal.vue';
 import FileDropZone from '@/components/common/FileDropZone.vue';
-import { FileInfo } from '@/types/file-info.ts';
+import { type OperationFileEventPayload, RAM_OPERATION_EVENTS, type RamOperationsProps } from '@/components/operaiton/contracts';
 import { MBC5_RAM_BASE_ADDRESS } from '@/utils/address-utils';
 import { formatHex } from '@/utils/formatter-utils';
 
 const { t } = useI18n();
 
-const props = withDefaults(defineProps<{
-  mode: string;
-  deviceReady: boolean;
-  busy: boolean;
-  ramFileData?: Uint8Array | null;
-  ramFileName?: string;
-  selectedRamSize?: string;
-  selectedRamType?: string;
-  selectedBaseAddress?: string;
-}>(), {
+const props = withDefaults(defineProps<RamOperationsProps>(), {
   ramFileData: null,
   ramFileName: '',
   selectedRamSize: '0x08000',
@@ -187,17 +180,7 @@ const RAM_BASE_ADDRESS_OPTIONS = computed(() => {
   return options;
 });
 
-const emit = defineEmits<{
-  'file-selected': [file: FileInfo | FileInfo[]];
-  'file-cleared': [];
-  'write-ram': [];
-  'read-ram': [];
-  'verify-ram': [];
-  'verify-blank': [fillByte: number];
-  'ram-size-change': [size: string];
-  'ram-type-change': [type: string];
-  'base-address-change': [address: string];
-}>();
+const emit = defineEmits(RAM_OPERATION_EVENTS);
 
 // 空白检测对话框状态
 const showBlankCheckDialog = ref(false);
@@ -233,7 +216,7 @@ watch(() => props.ramFileData, (newData) => {
   }
 }, { immediate: true });
 
-function onFileSelected(fileInfo: FileInfo | FileInfo[]) {
+function onFileSelected(fileInfo: OperationFileEventPayload) {
   emit('file-selected', fileInfo);
 }
 

@@ -98,21 +98,11 @@ import { computed } from 'vue';
 
 import BaseButton from '@/components/common/BaseButton.vue';
 import ToggleSwitch from '@/components/common/ToggleSwitch.vue';
+import { CHIP_OPERATION_EVENTS, type ChipOperationsProps } from '@/components/operaiton/contracts';
 import type { MbcType } from '@/types/command-options';
 import { formatBytes } from '@/utils/formatter-utils';
 
-const props = withDefaults(defineProps<{
-  deviceReady: boolean;
-  busy: boolean;
-  chipId?: number[];
-  deviceSize?: number;
-  sectorCounts?: number[];
-  sectorSizes?: number[];
-  bufferWriteBytes?: number;
-  mode?: 'GBA' | 'MBC5';
-  selectedMbcType?: MbcType;
-  mbcPower5V?: boolean;
-}>(), {
+const props = withDefaults(defineProps<ChipOperationsProps>(), {
   chipId: undefined,
   deviceSize: undefined,
   sectorCounts: undefined,
@@ -165,13 +155,7 @@ const chipInfoValid = computed(() => {
   );
 });
 
-defineEmits<{
-  'read-id': [];
-  'erase-chip': [];
-  'read-rom-info': [];
-  'mbc-type-change': [value: string];
-  'mbc-power-change': [value: boolean];
-}>();
+defineEmits(CHIP_OPERATION_EVENTS);
 </script>
 
 <style scoped>

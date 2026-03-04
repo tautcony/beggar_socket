@@ -85,4 +85,25 @@ describe('Architecture serial boundary', () => {
 
     expect(violations).toEqual([]);
   });
+
+  it('operation presentation components must not import platform/services/orchestration implementations', () => {
+    const testsDir = path.dirname(fileURLToPath(import.meta.url));
+    const root = path.resolve(testsDir, '../src/components/operaiton');
+    const files = walk(root);
+    const violations: string[] = [];
+    const forbiddenImports = [
+      "from '@/platform/",
+      "from '@/services/",
+      "from '@/features/burner/application/",
+    ];
+
+    for (const file of files) {
+      const content = fs.readFileSync(file, 'utf8');
+      if (forbiddenImports.some(pattern => content.includes(pattern))) {
+        violations.push(path.relative(path.resolve(testsDir, '..'), file));
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
 });
