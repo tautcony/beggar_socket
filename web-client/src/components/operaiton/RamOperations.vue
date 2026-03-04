@@ -100,14 +100,37 @@
             @click="$emit('read-ram')"
           />
           <BaseButton
-            :disabled="!deviceReady || !ramFileData || busy"
+            :disabled="!deviceReady || busy"
             variant="warning"
             :text="$t('ui.ram.verify')"
-            @click="$emit('verify-ram')"
+            @click="onVerifyClick"
           />
         </div>
       </div>
     </section>
+
+    <!-- 空白检测模式选择对话框 -->
+    <BaseModal
+      v-model="showBlankCheckDialog"
+      :title="$t('ui.ram.blankCheckTitle')"
+      width="360px"
+    >
+      <div class="blank-check-options">
+        <p class="blank-check-hint">{{ $t('ui.ram.blankCheckHint') }}</p>
+        <div class="blank-check-buttons">
+          <BaseButton
+            variant="primary"
+            :text="$t('ui.ram.blankFillFF')"
+            @click="selectBlankPattern(0xFF)"
+          />
+          <BaseButton
+            variant="secondary"
+            :text="$t('ui.ram.blankFill00')"
+            @click="selectBlankPattern(0x00)"
+          />
+        </div>
+      </div>
+    </BaseModal>
   </div>
 </template>
 
@@ -118,6 +141,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import BaseButton from '@/components/common/BaseButton.vue';
+import BaseModal from '@/components/common/BaseModal.vue';
 import FileDropZone from '@/components/common/FileDropZone.vue';
 import { FileInfo } from '@/types/file-info.ts';
 import { MBC5_RAM_BASE_ADDRESS } from '@/utils/address-utils';
@@ -169,10 +193,27 @@ const emit = defineEmits<{
   'write-ram': [];
   'read-ram': [];
   'verify-ram': [];
+  'verify-blank': [fillByte: number];
   'ram-size-change': [size: string];
   'ram-type-change': [type: string];
   'base-address-change': [address: string];
 }>();
+
+// 空白检测对话框状态
+const showBlankCheckDialog = ref(false);
+
+function onVerifyClick() {
+  if (props.ramFileData && props.ramFileData.length > 0) {
+    emit('verify-ram');
+  } else {
+    showBlankCheckDialog.value = true;
+  }
+}
+
+function selectBlankPattern(fillByte: number) {
+  showBlankCheckDialog.value = false;
+  emit('verify-blank', fillByte);
+}
 
 const selectedRamSize = ref(props.selectedRamSize);
 const selectedRamType = ref(props.selectedRamType);
@@ -325,6 +366,29 @@ function onBaseAddressChange() {
 }
 
 .button-row > * {
+  flex: 1 1 auto;
+}
+
+.blank-check-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.blank-check-hint {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.blank-check-buttons {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.blank-check-buttons > * {
   flex: 1 1 auto;
 }
 </style>

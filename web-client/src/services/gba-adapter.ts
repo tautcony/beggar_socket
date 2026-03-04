@@ -662,7 +662,24 @@ export class GBAAdapter extends CartridgeAdapter {
         try {
           this.log(this.t('messages.rom.verifying'), 'info');
 
-          const total = options.size ?? fileData.byteLength;
+          const configuredSize = options.size ?? fileData.byteLength;
+          const deviceSize = options.cfiInfo.deviceSize;
+          const fileSize = fileData.byteLength;
+          const total = Math.min(configuredSize, deviceSize, fileSize);
+          if (configuredSize > deviceSize) {
+            this.log(this.t('messages.rom.verifyClampedToDevice', {
+              configured: formatBytes(configuredSize),
+              device: formatBytes(deviceSize),
+              actual: formatBytes(total),
+            }), 'warn');
+          }
+          if (configuredSize > fileSize) {
+            this.log(this.t('messages.rom.verifyClampedToFile', {
+              configured: formatBytes(configuredSize),
+              file: formatBytes(fileSize),
+              actual: formatBytes(total),
+            }), 'warn');
+          }
           let verified = 0;
           let success = true;
           let failedAddress = -1;
