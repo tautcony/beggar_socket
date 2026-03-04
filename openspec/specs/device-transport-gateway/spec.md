@@ -1,9 +1,7 @@
 ## Purpose
 
 Define a unified device and transport gateway contract so protocol and application layers can remain independent from Web/Electron serial implementation details.
-
 ## Requirements
-
 ### Requirement: Unified device gateway contract
 The system SHALL provide a `DeviceGateway` contract that unifies device lifecycle operations across Web and Electron runtimes, including `connect`, `disconnect`, `init`, `list`, and `select`.
 
@@ -14,6 +12,10 @@ The system SHALL provide a `DeviceGateway` contract that unifies device lifecycl
 #### Scenario: Web gateway lifecycle operation
 - **WHEN** the runtime is Web and caller invokes gateway lifecycle methods
 - **THEN** the gateway executes the requested lifecycle operation through Web Serial implementation without exposing Web Serial API details to upper layers
+
+#### Scenario: Gateway mapped to domain connection port
+- **WHEN** application wiring composes Burner domain ports
+- **THEN** `DeviceGateway` is adapted through a connection port implementation instead of being consumed directly by application use cases
 
 ### Requirement: Unified protocol transport contract
 The system SHALL provide a `Transport` contract exposing `send`, `read`, and `setSignals` operations that protocol-layer code can use independent of runtime-specific serial implementations.
@@ -41,9 +43,9 @@ The system SHALL expose a gateway result model where selected/connected device c
 - **WHEN** the caller disconnects a device through `DeviceGateway`
 - **THEN** subsequent operations through the associated transport fail predictably until a new connection is established
 
-#### Scenario: Protocol receives transport through gateway context only
-- **WHEN** Burner orchestration invokes protocol operations
-- **THEN** protocol-facing code receives `Transport` from gateway context and never from direct runtime-specific serial implementation imports
+#### Scenario: Domain protocol port receives transport through adapter
+- **WHEN** Burner orchestration calls protocol operations through domain ports
+- **THEN** the bound port adapter resolves the underlying `Transport` from gateway context without exposing gateway internals to use cases
 
 ### Requirement: Device gateway integration contract coverage
 The system SHALL provide integration tests for `DeviceGateway` lifecycle behavior using runtime-appropriate mocks so connect, disconnect, init, list, and select behaviors are verifiable for both success and failure outcomes.
@@ -73,3 +75,4 @@ The system SHALL verify that Web and Electron gateway/transport implementations 
 #### Scenario: Runtime parity for protocol-facing behavior
 - **WHEN** equivalent gateway/transport test scenarios are executed against Web and Electron implementations
 - **THEN** observed success, failure, timeout, and signal-control semantics remain functionally equivalent for upper layers
+

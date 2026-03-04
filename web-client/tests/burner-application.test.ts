@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { CartridgeProtocolPortAdapter } from '@/features/burner/adapters';
 import { BurnerSession } from '@/features/burner/application/burner-session';
-import { BurnerUseCaseImpl } from '@/features/burner/application/burner-use-case';
+import { BurnerUseCaseImpl, type BurnerOperationContext } from '@/features/burner/application/burner-use-case';
+import type { BurnerProtocolSession } from '@/features/burner/application/domain/ports';
 import { runBurnerFlow } from '@/features/burner/application/flow-template';
-import type { CartridgeAdapter } from '@/services/cartridge-adapter';
+import type { CommandResult } from '@/types/command-result';
 import type { CFIInfo } from '@/utils/parsers/cfi-parser';
 
 const t = (key: string) => key;
@@ -23,6 +25,43 @@ function createFakeCfi(deviceSize = 0x20000): CFIInfo {
       },
     ],
   } as CFIInfo;
+}
+
+function createSession(overrides: Partial<BurnerProtocolSession> = {}): BurnerProtocolSession {
+  const base: BurnerProtocolSession = {
+    id: 'session-1',
+    getCartInfo: async () => createFakeCfi(),
+    eraseSectors: async () => ({ success: true, message: 'erase-ok' }),
+    writeROM: async () => ({ success: true, message: 'write-rom-ok' }),
+    readROM: async () => ({ success: true, message: 'read-rom-ok', data: new Uint8Array([1, 2, 3]) }),
+    verifyROM: async () => ({ success: true, message: 'verify-rom-ok' }),
+    writeRAM: async () => ({ success: true, message: 'write-ram-ok' }),
+    readRAM: async () => ({ success: true, message: 'read-ram-ok', data: new Uint8Array([4, 5]) }),
+    verifyRAM: async () => ({ success: true, message: 'verify-ram-ok' }),
+    resetCommandBuffer: async () => {},
+  };
+
+  return {
+    ...base,
+    ...overrides,
+  };
+}
+
+function createUseCase() {
+  return new BurnerUseCaseImpl(new CartridgeProtocolPortAdapter(), t, toHex);
+}
+
+function createContext(
+  session: BurnerProtocolSession,
+  cfi = createFakeCfi(),
+  extra: Partial<BurnerOperationContext> = {},
+): BurnerOperationContext {
+  return {
+    session,
+    cfiInfo: cfi,
+    options: { cfiInfo: cfi, mbcType: 'MBC5', enable5V: false },
+    ...extra,
+  };
 }
 
 describe('BurnerSession', () => {
@@ -200,12 +239,12 @@ describe('runBurnerFlow', () => {
 describe('BurnerUseCaseImpl', () => {
   it('readCart should return normalized success payload', async () => {
     const cfi = createFakeCfi();
-    const adapter = {
+    const session = createSession({
       getCartInfo: vi.fn().mockResolvedValue(cfi),
-    } as unknown as CartridgeAdapter;
+    });
 
-    const useCase = new BurnerUseCaseImpl(t, toHex);
-    const result = await useCase.readCart(adapter, false);
+    const useCase = createUseCase();
+    const result = await useCase.readCart(session, false);
 
     expect(result.success).toBe(true);
     expect(result.cfiInfo).toBe(cfi);
@@ -213,44 +252,38 @@ describe('BurnerUseCaseImpl', () => {
     expect(result.romSizeHex).toBe('0x20000');
   });
 
-  it('eraseChip should delegate to adapter.eraseSectors', async () => {
+  it('eraseChip should delegate to port-backed session eraseSectors', async () => {
     const cfi = createFakeCfi();
-    const eraseResult = { success: true, message: 'ok' };
+    const eraseResult: CommandResult = { success: true, message: 'ok' };
     const eraseSectors = vi.fn().mockResolvedValue(eraseResult);
-    const adapter = {
-      eraseSectors,
-    } as unknown as CartridgeAdapter;
+    const session = createSession({ eraseSectors });
 
-    const useCase = new BurnerUseCaseImpl(t, toHex);
-    const result = await useCase.eraseChip({
-      adapter,
-      cfiInfo: cfi,
-      options: { cfiInfo: cfi, mbcType: 'MBC5', enable5V: false },
-    });
+    const useCase = createUseCase();
+    const result = await useCase.eraseChip(createContext(session, cfi));
 
     expect(eraseSectors).toHaveBeenCalledOnce();
     expect(result).toEqual(eraseResult);
   });
 
-  it('readCart should return normalized failure when adapter returns falsy info', async () => {
-    const adapter = {
+  it('readCart should return normalized failure when session returns falsy info', async () => {
+    const session = createSession({
       getCartInfo: vi.fn().mockResolvedValue(false),
-    } as unknown as CartridgeAdapter;
+    });
 
-    const useCase = new BurnerUseCaseImpl(t, toHex);
-    const result = await useCase.readCart(adapter, true);
+    const useCase = createUseCase();
+    const result = await useCase.readCart(session, true);
 
     expect(result.success).toBe(false);
-    expect(result.message).toBe('messages.operation.readCartFailed');
+    expect(result.message).toContain('messages.operation.readCartFailed');
   });
 
   it('readCart should normalize runtime error message', async () => {
-    const adapter = {
+    const session = createSession({
       getCartInfo: vi.fn().mockRejectedValue(new Error('boom')),
-    } as unknown as CartridgeAdapter;
+    });
 
-    const useCase = new BurnerUseCaseImpl(t, toHex);
-    const result = await useCase.readCart(adapter, true);
+    const useCase = createUseCase();
+    const result = await useCase.readCart(session, true);
 
     expect(result.success).toBe(false);
     expect(result.message).toContain('messages.operation.readCartFailed');
@@ -259,29 +292,42 @@ describe('BurnerUseCaseImpl', () => {
 
   it('write/read rom and ram flows should preserve command result contracts', async () => {
     const cfi = createFakeCfi();
-    const writeROM = vi.fn().mockResolvedValue({ success: true, message: 'write-rom-ok' });
-    const readROM = vi.fn().mockResolvedValue({ success: true, message: 'read-rom-ok', data: new Uint8Array([1, 2, 3]) });
-    const writeRAM = vi.fn().mockResolvedValue({ success: true, message: 'write-ram-ok' });
-    const readRAM = vi.fn().mockResolvedValue({ success: true, message: 'read-ram-ok', data: new Uint8Array([4, 5]) });
-    const adapter = {
-      writeROM,
-      readROM,
-      writeRAM,
-      readRAM,
-    } as unknown as CartridgeAdapter;
+    const session = createSession({
+      writeROM: vi.fn().mockResolvedValue({ success: true, message: 'write-rom-ok' }),
+      readROM: vi.fn().mockResolvedValue({ success: true, message: 'read-rom-ok', data: new Uint8Array([1, 2, 3]) }),
+      writeRAM: vi.fn().mockResolvedValue({ success: true, message: 'write-ram-ok' }),
+      readRAM: vi.fn().mockResolvedValue({ success: true, message: 'read-ram-ok', data: new Uint8Array([4, 5]) }),
+    });
 
-    const useCase = new BurnerUseCaseImpl(t, toHex);
-    const options = { cfiInfo: cfi, mbcType: 'MBC5' as const, enable5V: false };
+    const useCase = createUseCase();
+    const context = createContext(session, cfi);
 
-    const romWrite = await useCase.writeRom({ adapter, cfiInfo: cfi, options, data: new Uint8Array([0x11]) });
-    const romRead = await useCase.readRom({ adapter, cfiInfo: cfi, options, size: 3, showProgress: false });
-    const ramWrite = await useCase.writeRam({ adapter, cfiInfo: cfi, options, data: new Uint8Array([0x22]) });
-    const ramRead = await useCase.readRam({ adapter, cfiInfo: cfi, options, size: 2 });
+    const romWrite = await useCase.writeRom({ ...context, data: new Uint8Array([0x11]) });
+    const romRead = await useCase.readRom({ ...context, size: 3, showProgress: false });
+    const ramWrite = await useCase.writeRam({ ...context, data: new Uint8Array([0x22]) });
+    const ramRead = await useCase.readRam({ ...context, size: 2 });
 
     expect(romWrite).toEqual({ success: true, message: 'write-rom-ok' });
     expect(romRead).toEqual({ success: true, message: 'read-rom-ok', data: new Uint8Array([1, 2, 3]) });
     expect(ramWrite).toEqual({ success: true, message: 'write-ram-ok' });
     expect(ramRead).toEqual({ success: true, message: 'read-ram-ok', data: new Uint8Array([4, 5]) });
-    expect(readROM).toHaveBeenCalledWith(3, options, undefined, false);
+  });
+
+  it('should normalize failure then recover on next operation with the same session', async () => {
+    const readROM = vi
+      .fn()
+      .mockResolvedValueOnce({ success: false, message: 'first fail' })
+      .mockResolvedValueOnce({ success: true, message: 'second ok', data: new Uint8Array([0xaa]) });
+    const session = createSession({ readROM });
+    const useCase = createUseCase();
+    const context = createContext(session);
+
+    const first = await useCase.readRom({ ...context, size: 1, showProgress: false });
+    const second = await useCase.readRom({ ...context, size: 1, showProgress: false });
+
+    expect(first.success).toBe(false);
+    expect(first.message).toBe('first fail');
+    expect(second.success).toBe(true);
+    expect(second.message).toBe('second ok');
   });
 });

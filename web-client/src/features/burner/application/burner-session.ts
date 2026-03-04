@@ -1,5 +1,6 @@
 import type { ProgressInfo } from '@/types/progress-info';
 
+import type { BurnerSessionPort } from './domain/ports';
 import type { BurnerLogEntry, BurnerSessionState, LogLevel } from './types';
 
 const DEFAULT_PROGRESS: ProgressInfo = {
@@ -14,7 +15,7 @@ const DEFAULT_PROGRESS: ProgressInfo = {
   state: 'idle',
 };
 
-export class BurnerSession {
+export class BurnerSession implements BurnerSessionPort {
   private readonly state: BurnerSessionState = {
     busy: false,
     abortController: null,

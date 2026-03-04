@@ -1,9 +1,7 @@
 ## Purpose
 
 Define the application-layer orchestration contract for Burner operations so UI does not directly depend on protocol or adapter internals and flow behavior remains consistent and testable.
-
 ## Requirements
-
 ### Requirement: Burner orchestration entrypoint
 The system SHALL provide a single application-layer orchestration entrypoint for Burner operations, and UI components SHALL invoke Burner flows only through this entrypoint.
 
@@ -15,9 +13,9 @@ The system SHALL provide a single application-layer orchestration entrypoint for
 - **WHEN** Burner UI code attempts to depend on protocol-level command or transport utilities
 - **THEN** the implementation is rejected by architecture guardrails and the flow remains routed through application-layer orchestration
 
-#### Scenario: Burner use case imports protocol via stable entrypoint
-- **WHEN** burner orchestration integrates protocol behavior
-- **THEN** use cases depend on protocol public entrypoint contracts and do not import protocol-internal helper modules directly
+#### Scenario: Use case orchestration consumes domain ports
+- **WHEN** Burner orchestration executes connection or protocol steps
+- **THEN** orchestration depends on domain port contracts and not on concrete gateway/service implementation classes
 
 ### Requirement: Burner session lifecycle management
 The system SHALL manage Burner runtime state through a session model that unifies busy state, cancellation token, progress state, and operation logs for all Burner flows.
@@ -48,6 +46,10 @@ The system SHALL standardize Burner flow contracts for read, erase, write, verif
 #### Scenario: Progress reporting contract
 - **WHEN** a long-running Burner flow emits progress
 - **THEN** progress events follow a shared structure consumable by existing Burner progress UI without flow-specific parsing branches
+
+#### Scenario: Domain port result normalization
+- **WHEN** multiple ports participate in one Burner flow
+- **THEN** orchestration combines their outputs through one standardized result model without per-port ad hoc mapping branches
 
 ### Requirement: Incremental migration compatibility
 The system SHALL support incremental migration from component-owned Burner logic to application orchestration without changing user-visible Burner behavior.
@@ -144,3 +146,4 @@ The system SHALL maintain regression assertions for burner flow contracts so ref
 #### Scenario: Progress and session lifecycle contract remains stable
 - **WHEN** long-running burner flows emit progress and complete/cancel/fail in tests
 - **THEN** the suite verifies progress payload structure and busy/abort/log lifecycle transitions remain consistent with existing UI consumption expectations
+

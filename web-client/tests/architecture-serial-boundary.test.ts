@@ -65,4 +65,24 @@ describe('Architecture serial boundary', () => {
 
     expect(violations).toEqual([]);
   });
+
+  it('burner application layer must not import runtime serial/services implementations directly', () => {
+    const testsDir = path.dirname(fileURLToPath(import.meta.url));
+    const root = path.resolve(testsDir, '../src/features/burner/application');
+    const files = walk(root);
+    const violations: string[] = [];
+    const forbiddenImports = [
+      "from '@/platform/serial/",
+      "from '@/services/",
+    ];
+
+    for (const file of files) {
+      const content = fs.readFileSync(file, 'utf8');
+      if (forbiddenImports.some(pattern => content.includes(pattern))) {
+        violations.push(path.relative(path.resolve(testsDir, '..'), file));
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
 });

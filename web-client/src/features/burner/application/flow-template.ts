@@ -1,6 +1,6 @@
 import type { ProgressInfo } from '@/types/progress-info';
 
-import type { BurnerSession } from './burner-session';
+import type { BurnerSessionPort } from './domain/ports';
 import type { BurnerSessionState, LogLevel } from './types';
 
 export interface BurnerFlowContext {
@@ -8,7 +8,7 @@ export interface BurnerFlowContext {
 }
 
 export interface BurnerFlowOptions<TResult> {
-  session: BurnerSession;
+  session: BurnerSessionPort;
   cancellable?: boolean;
   syncState: (snapshot: BurnerSessionState) => void;
   updateProgress?: Partial<ProgressInfo>;
