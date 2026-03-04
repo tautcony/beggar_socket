@@ -115,7 +115,9 @@
       width="360px"
     >
       <div class="blank-check-options">
-        <p class="blank-check-hint">{{ $t('ui.rom.blankCheckHint') }}</p>
+        <p class="blank-check-hint">
+          {{ $t('ui.rom.blankCheckHint') }}
+        </p>
         <div class="blank-check-buttons">
           <BaseButton
             variant="primary"
@@ -178,6 +180,7 @@ import BaseButton from '@/components/common/BaseButton.vue';
 import BaseModal from '@/components/common/BaseModal.vue';
 import FileDropZone from '@/components/common/FileDropZone.vue';
 import RomInfoPanel from '@/components/common/RomInfoPanel.vue';
+import { type OperationFileEventPayload, ROM_OPERATION_EVENTS, type RomOperationsProps } from '@/components/operaiton/contracts';
 import { useToast } from '@/composables/useToast';
 import { useRecentFileNamesStore } from '@/stores/recent-file-names-store';
 import { useRomAssemblyResultStore } from '@/stores/rom-assembly-store';
@@ -197,15 +200,7 @@ const { showToast } = useToast();
 const romAssemblyResultStore = useRomAssemblyResultStore();
 const recentFileNamesStore = useRecentFileNamesStore();
 
-const props = withDefaults(defineProps<{
-  mode: 'MBC5' | 'GBA';
-  deviceReady: boolean;
-  busy: boolean;
-  romFileData?: Uint8Array | null;
-  romFileName?: string;
-  selectedRomSize?: string;
-  selectedBaseAddress?: string;
-}>(), {
+const props = withDefaults(defineProps<RomOperationsProps>(), {
   romFileData: null,
   romFileName: '',
   selectedRomSize: '0x00800000',
@@ -245,17 +240,7 @@ const getBaseAddressOptions = (romType: 'GBA' | 'MBC5') => {
   return options[romType] ?? [];
 };
 
-const emit = defineEmits<{
-  'file-selected': [file: FileInfo | FileInfo[]];
-  'file-cleared': [];
-  'mode-switch-required': [newMode: 'MBC5' | 'GBA', romType: string];
-  'rom-size-change': [size: string];
-  'base-address-change': [address: string];
-  'write-rom': [];
-  'read-rom': [];
-  'verify-rom': [];
-  'verify-blank': [fillByte: number];
-}>();
+const emit = defineEmits(ROM_OPERATION_EVENTS);
 
 // 空白检测对话框状态
 const showBlankCheckDialog = ref(false);
@@ -352,7 +337,7 @@ watch(() => props.romFileData, (newData) => {
   }
 }, { immediate: true });
 
-function onFileSelected(fileInfo: FileInfo | FileInfo[]) {
+function onFileSelected(fileInfo: OperationFileEventPayload) {
   emit('file-selected', fileInfo);
 }
 

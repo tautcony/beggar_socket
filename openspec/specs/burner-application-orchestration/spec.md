@@ -17,6 +17,10 @@ The system SHALL provide a single application-layer orchestration entrypoint for
 - **WHEN** Burner orchestration executes connection or protocol steps
 - **THEN** orchestration depends on domain port contracts and not on concrete gateway/service implementation classes
 
+#### Scenario: CartBurner container delegates orchestration
+- **WHEN** `CartBurner` is refactored into container and presentation components
+- **THEN** only the container boundary invokes burner orchestration APIs and presentation components communicate through props/events contracts
+
 ### Requirement: Burner session lifecycle management
 The system SHALL manage Burner runtime state through a session model that unifies busy state, cancellation token, progress state, and operation logs for all Burner flows.
 
@@ -35,6 +39,21 @@ The system SHALL manage Burner runtime state through a session model that unifie
 #### Scenario: Connection precondition is orchestrated by use case
 - **WHEN** a Burner operation requiring active device connection is requested
 - **THEN** Burner orchestration verifies or prepares connection state through connection use case orchestration before executing protocol flow steps
+
+#### Scenario: Containerized UI consumes unified session state
+- **WHEN** chip, ROM, and RAM panels are rendered under CartBurner containerization
+- **THEN** they consume one shared session-derived state model and do not maintain divergent operation lifecycle state machines
+
+### Requirement: Burner orchestration contract compatibility for containerization
+The system SHALL preserve Burner orchestration API contract compatibility while migrating `CartBurner.vue` to a containerized composition model.
+
+#### Scenario: Existing burner flow call signatures remain valid
+- **WHEN** containerization migration is applied
+- **THEN** read/write/erase/verify orchestration call signatures and success/failure result structures remain backward-compatible for current UI integrations
+
+#### Scenario: Containerization does not change user-visible flow semantics
+- **WHEN** users execute burner operations after containerization
+- **THEN** operation progress cadence, cancellation behavior, and final result semantics remain functionally equivalent to pre-containerization behavior
 
 ### Requirement: Standardized Burner flow contract
 The system SHALL standardize Burner flow contracts for read, erase, write, verify, and scan operations so each flow exposes consistent success/error/progress behavior.
