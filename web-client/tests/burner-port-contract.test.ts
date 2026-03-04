@@ -92,7 +92,7 @@ function runConnectionPortContract(
         return;
       }
       expect(connectResult.error.stage).toBe('connection');
-      expect(connectResult.error.code).toBe('runtime_error');
+      expect(connectResult.error.code).toBe('connect_failed');
     });
   });
 }

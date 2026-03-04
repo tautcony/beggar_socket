@@ -5,13 +5,15 @@ import type { CFIInfo, SectorBlock } from '@/utils/parsers/cfi-parser';
 
 import { mapDomainError } from '../application/domain/error-mapping';
 import type { BurnerProtocolPort, BurnerProtocolSession } from '../application/domain/ports';
-import { failureResult, successResult, type BurnerDomainResult } from '../application/domain/result';
+import { type BurnerDomainResult, failureResult, successResult } from '../application/domain/result';
 
 class CartridgeProtocolSessionAdapter implements BurnerProtocolSession {
   readonly id: string;
+  readonly isActive?: () => boolean;
 
-  constructor(private readonly adapter: CartridgeAdapter, idSuffix: string) {
+  constructor(private readonly adapter: CartridgeAdapter, idSuffix: string, isActive?: () => boolean) {
     this.id = `cartridge:${idSuffix}`;
+    this.isActive = isActive;
   }
 
   getCartInfo(enable5V?: boolean): Promise<CFIInfo | false> {
@@ -157,6 +159,9 @@ export class CartridgeProtocolPortAdapter implements BurnerProtocolPort {
 export function createCartridgeProtocolSession(
   adapter: CartridgeAdapter,
   idSuffix = Math.random().toString(36).slice(2),
+  options?: {
+    isActive?: () => boolean;
+  },
 ): BurnerProtocolSession {
-  return new CartridgeProtocolSessionAdapter(adapter, idSuffix);
+  return new CartridgeProtocolSessionAdapter(adapter, idSuffix, options?.isActive);
 }

@@ -17,6 +17,10 @@ The system SHALL provide a `DeviceGateway` contract that unifies device lifecycl
 - **WHEN** application wiring composes Burner domain ports
 - **THEN** `DeviceGateway` is adapted through a connection port implementation instead of being consumed directly by application use cases
 
+#### Scenario: Stage-aware lifecycle failure semantics
+- **WHEN** any gateway lifecycle stage (`list`, `select`, `connect`, `init`, `disconnect`) fails
+- **THEN** the gateway returns normalized stage-aware failure outcomes that connection orchestration can map deterministically
+
 ### Requirement: Unified protocol transport contract
 The system SHALL provide a `Transport` contract exposing `send`, `read`, and `setSignals` operations that protocol-layer code can use independent of runtime-specific serial implementations.
 
@@ -47,6 +51,10 @@ The system SHALL expose a gateway result model where selected/connected device c
 - **WHEN** Burner orchestration calls protocol operations through domain ports
 - **THEN** the bound port adapter resolves the underlying `Transport` from gateway context without exposing gateway internals to use cases
 
+#### Scenario: Reconnect returns fresh connection context
+- **WHEN** a caller reconnects after disconnect or failure
+- **THEN** the gateway exposes a fresh connection context and does not reuse stale transport/session bindings
+
 ### Requirement: Device gateway integration contract coverage
 The system SHALL provide integration tests for `DeviceGateway` lifecycle behavior using runtime-appropriate mocks so connect, disconnect, init, list, and select behaviors are verifiable for both success and failure outcomes.
 
@@ -57,6 +65,10 @@ The system SHALL provide integration tests for `DeviceGateway` lifecycle behavio
 #### Scenario: Gateway lifecycle failure path is covered
 - **WHEN** gateway integration tests inject connection or initialization failures
 - **THEN** the suite verifies failure semantics are deterministic and upper layers receive normalized error outcomes
+
+#### Scenario: Disconnect and reconnect contract is covered
+- **WHEN** gateway integration tests execute disconnect followed by reconnect
+- **THEN** the suite verifies lifecycle contract continuity and fresh transport-context availability for upper layers
 
 ### Requirement: Transport error and timeout contract regression coverage
 The system SHALL provide regression tests for `Transport` send/read/setSignals behavior so timeout and error semantics remain consistent across runtime implementations.
@@ -75,4 +87,3 @@ The system SHALL verify that Web and Electron gateway/transport implementations 
 #### Scenario: Runtime parity for protocol-facing behavior
 - **WHEN** equivalent gateway/transport test scenarios are executed against Web and Electron implementations
 - **THEN** observed success, failure, timeout, and signal-control semantics remain functionally equivalent for upper layers
-

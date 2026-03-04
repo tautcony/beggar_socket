@@ -1,12 +1,12 @@
 import type { DeviceGateway, DeviceHandle, DeviceSelection } from '@/platform/serial';
 
-import { mapDomainError } from '../application/domain/error-mapping';
+import { mapConnectionStageError } from '../application/domain/error-mapping';
 import type { BurnerConnectionHandle, BurnerConnectionPort, BurnerConnectionSelection } from '../application/domain/ports';
-import { failureResult, successResult, type BurnerDomainResult } from '../application/domain/result';
+import { type BurnerDomainResult, failureResult, successResult } from '../application/domain/result';
 
-function toConnectionHandle(handle: DeviceHandle): BurnerConnectionHandle {
+function toConnectionHandle(handle: DeviceHandle, sequence: number): BurnerConnectionHandle {
   return {
-    id: `${handle.platform}:${handle.portInfo?.path ?? 'auto'}`,
+    id: `${handle.platform}:${handle.portInfo?.path ?? 'auto'}:${sequence}`,
     platform: handle.platform,
     portInfo: handle.portInfo,
     context: handle,
@@ -35,37 +35,47 @@ function unwrapSelection(selection?: BurnerConnectionSelection | null): DeviceSe
   return selection.context as DeviceSelection;
 }
 
-async function withConnectionMapping<T>(operation: () => Promise<T>): Promise<BurnerDomainResult<T>> {
+async function withConnectionMapping<T>(
+  lifecycleStage: 'list' | 'select' | 'connect' | 'init' | 'disconnect',
+  operation: () => Promise<T>,
+): Promise<BurnerDomainResult<T>> {
   try {
     return successResult(await operation());
   } catch (error) {
-    return failureResult(mapDomainError('connection', error, 'Device connection operation failed'));
+    return failureResult(mapConnectionStageError(lifecycleStage, error));
   }
 }
 
 export class DeviceGatewayConnectionPortAdapter implements BurnerConnectionPort {
+  private sequence = 0;
+
   constructor(private readonly gateway: DeviceGateway) {}
 
   async list(): Promise<BurnerDomainResult<BurnerConnectionHandle['portInfo'][]>> {
-    const result = await withConnectionMapping(() => this.gateway.list());
+    const result = await withConnectionMapping('list', () => this.gateway.list());
     return result.ok ? successResult(result.data) : result;
   }
 
   async select(): Promise<BurnerDomainResult<BurnerConnectionSelection | null>> {
-    const result = await withConnectionMapping(() => this.gateway.select());
+    const result = await withConnectionMapping('select', () => this.gateway.select());
     return result.ok ? successResult(toSelection(result.data)) : result;
   }
 
   async connect(selection?: BurnerConnectionSelection | null): Promise<BurnerDomainResult<BurnerConnectionHandle>> {
-    const result = await withConnectionMapping(() => this.gateway.connect(unwrapSelection(selection)));
-    return result.ok ? successResult(toConnectionHandle(result.data)) : result;
+    const result = await withConnectionMapping('connect', () => this.gateway.connect(unwrapSelection(selection)));
+    if (!result.ok) {
+      return result;
+    }
+
+    this.sequence += 1;
+    return successResult(toConnectionHandle(result.data, this.sequence));
   }
 
   async init(handle: BurnerConnectionHandle): Promise<BurnerDomainResult<void>> {
-    return withConnectionMapping(() => this.gateway.init(unwrapHandle(handle)));
+    return withConnectionMapping('init', () => this.gateway.init(unwrapHandle(handle)));
   }
 
   async disconnect(handle: BurnerConnectionHandle): Promise<BurnerDomainResult<void>> {
-    return withConnectionMapping(() => this.gateway.disconnect(unwrapHandle(handle)));
+    return withConnectionMapping('disconnect', () => this.gateway.disconnect(unwrapHandle(handle)));
   }
 }

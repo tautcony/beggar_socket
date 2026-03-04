@@ -32,6 +32,10 @@ The system SHALL manage Burner runtime state through a session model that unifie
 - **WHEN** a user requests cancellation during an active operation
 - **THEN** the session aborts the operation, records cancellation outcome, and clears busy state consistently
 
+#### Scenario: Connection precondition is orchestrated by use case
+- **WHEN** a Burner operation requiring active device connection is requested
+- **THEN** Burner orchestration verifies or prepares connection state through connection use case orchestration before executing protocol flow steps
+
 ### Requirement: Standardized Burner flow contract
 The system SHALL standardize Burner flow contracts for read, erase, write, verify, and scan operations so each flow exposes consistent success/error/progress behavior.
 
@@ -136,6 +140,10 @@ The system SHALL provide application-layer integration tests for burner orchestr
 - **WHEN** adapter or transport errors are injected during burner integration tests
 - **THEN** the suite verifies normalized error semantics and confirms subsequent orchestration operations can continue without stale session state
 
+#### Scenario: Connection orchestration recovery path is covered
+- **WHEN** burner integration tests execute failed connection attempts followed by reconnect and operation retry
+- **THEN** the suite verifies orchestration reaches a stable connected session and executes subsequent burner flows without stale connection state
+
 ### Requirement: Burner flow contract regression safety
 The system SHALL maintain regression assertions for burner flow contracts so refactors do not change user-visible semantics for result messages, progress reporting, and session state transitions.
 
@@ -146,4 +154,3 @@ The system SHALL maintain regression assertions for burner flow contracts so ref
 #### Scenario: Progress and session lifecycle contract remains stable
 - **WHEN** long-running burner flows emit progress and complete/cancel/fail in tests
 - **THEN** the suite verifies progress payload structure and busy/abort/log lifecycle transitions remain consistent with existing UI consumption expectations
-

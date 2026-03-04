@@ -1,4 +1,7 @@
-import { type DeviceSelection, getDeviceGateway, toLegacyDeviceInfo, withPortInfo } from '@/platform/serial';
+import { toLegacyDeviceInfo, withPortInfo } from '@/platform/serial';
+import type { DeviceHandle } from '@/platform/serial';
+import { createConnectionOrchestrationUseCase } from '@/features/burner/adapters';
+import type { BurnerConnectionHandle, BurnerConnectionSelection, ConnectionFailure } from '@/features/burner/application';
 import { DebugSettings } from '@/settings/debug-settings';
 import { DeviceInfo } from '@/types/device-info';
 import type { SerialPortInfo } from '@/types/serial';
@@ -12,7 +15,7 @@ import { PortFilter } from '@/utils/port-filter';
  */
 export class DeviceConnectionManager {
   private static instance: DeviceConnectionManager;
-  private readonly gateway = getDeviceGateway();
+  private readonly connectionUseCase = createConnectionOrchestrationUseCase();
 
   private constructor() {}
 
@@ -23,24 +26,56 @@ export class DeviceConnectionManager {
     return DeviceConnectionManager.instance;
   }
 
+  private asError(failure: ConnectionFailure): Error {
+    const message = `[${failure.stage}/${failure.code}] ${failure.message}`;
+    return new Error(message);
+  }
+
+  private toDeviceInfo(handle: BurnerConnectionHandle): DeviceInfo {
+    return toLegacyDeviceInfo(handle.context as DeviceHandle);
+  }
+
   /**
    * 请求串口设备连接
    */
-  async requestDevice(filter?: PortFilter): Promise<DeviceInfo> {
+  async requestDevice(_filter?: PortFilter): Promise<DeviceInfo> {
     // 调试模式：返回模拟设备
     if (DebugSettings.debugMode) {
       console.log('[DEBUG] 调试模式启用，返回模拟设备');
       return DebugSettings.createMockDeviceInfo();
     }
 
-    // Electron 环境：使用原生串口
-    if (isElectron()) {
-      return this.requestElectronDevice(filter);
+    if (isElectron() && _filter) {
+      const availablePorts = await this.listAvailablePorts(_filter);
+      if (availablePorts.length !== 1) {
+        throw new PortSelectionRequiredError(availablePorts);
+      }
+      return this.connectWithSelectedPort(availablePorts[0]);
     }
 
-    const selection = await this.gateway.select(filter);
-    const device = await this.gateway.connect(selection);
-    return toLegacyDeviceInfo(device);
+    const result = await this.connectionUseCase.prepareConnection();
+    if (!result.success || !result.context.handle) {
+      if (result.failure?.code === 'selection_required') {
+        const ports = await this.listAvailablePorts();
+        throw new PortSelectionRequiredError(ports);
+      }
+      throw this.asError(result.failure ?? {
+        stage: 'unknown',
+        code: 'unknown',
+        message: 'Device connection failed',
+      });
+    }
+
+    if (_filter && result.context.handle.portInfo && !_filter(result.context.handle.portInfo)) {
+      await this.connectionUseCase.disconnect();
+      throw this.asError({
+        stage: 'select',
+        code: 'select_failed',
+        message: 'Selected device does not match requested filter',
+      });
+    }
+
+    return this.toDeviceInfo(result.context.handle);
   }
 
   /**
@@ -52,38 +87,25 @@ export class DeviceConnectionManager {
     }
 
     try {
-      console.log('Connecting with selected port:', selectedPort);
+      await this.connectionUseCase.disconnect();
 
-      const selection: DeviceSelection = { portInfo: selectedPort };
-      const device = await this.gateway.connect(selection);
-      return withPortInfo(toLegacyDeviceInfo(device), selectedPort);
+      const selection: BurnerConnectionSelection = {
+        portInfo: selectedPort,
+        context: { portInfo: selectedPort },
+      };
+
+      const result = await this.connectionUseCase.prepareConnectionWithSelection(selection);
+      if (!result.success || !result.context.handle) {
+        throw this.asError(result.failure ?? {
+          stage: 'connect',
+          code: 'connect_failed',
+          message: 'Failed to connect to selected port',
+        });
+      }
+
+      return withPortInfo(this.toDeviceInfo(result.context.handle), selectedPort);
     } catch (error) {
       console.error('Failed to connect to selected port:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Electron 环境下的设备连接
-   */
-  private async requestElectronDevice(filter?: PortFilter): Promise<DeviceInfo> {
-    try {
-      const serialPortInfos = await this.gateway.list(filter);
-
-      if (serialPortInfos.length !== 1) {
-        throw new PortSelectionRequiredError(serialPortInfos);
-      }
-
-      // 只有一个端口，直接使用
-      const selectedPort = serialPortInfos[0];
-      return await this.connectWithSelectedPort(selectedPort);
-    } catch (error) {
-      // 如果是 PortSelectionRequiredError，直接重新抛出，不要包装
-      if (error instanceof PortSelectionRequiredError) {
-        throw error;
-      }
-
-      console.error('Failed to connect to Electron device:', error);
       throw error;
     }
   }
@@ -98,25 +120,52 @@ export class DeviceConnectionManager {
       return;
     }
 
-    const handle = device.serialHandle;
-    if (!handle) return;
-    await this.gateway.init(handle);
+    const ensureResult = await this.connectionUseCase.ensureConnected();
+    if (!ensureResult.success || !ensureResult.context.handle) {
+      throw this.asError(ensureResult.failure ?? {
+        stage: 'init',
+        code: 'init_failed',
+        message: 'Failed to initialize device',
+      });
+    }
+
+    const latestDevice = this.toDeviceInfo(ensureResult.context.handle);
+    device.connection = latestDevice.connection;
+    device.port = latestDevice.port;
+    device.transport = latestDevice.transport;
+    device.serialHandle = latestDevice.serialHandle;
+    device.portInfo = latestDevice.portInfo;
   }
 
   async listAvailablePorts(filter?: PortFilter): Promise<SerialPortInfo[]> {
-    return this.gateway.list(filter);
+    const result = await this.connectionUseCase.listAvailableSelections();
+    if (!result.success) {
+      throw this.asError(result.failure ?? {
+        stage: 'list',
+        code: 'list_failed',
+        message: 'Failed to list ports',
+      });
+    }
+
+    const ports = (result.ports ?? [])
+      .map(port => port?.portInfo)
+      .filter((port): port is SerialPortInfo => Boolean(port?.path));
+    return filter ? ports.filter(filter) : ports;
   }
 
   /**
    * 断开设备连接
    */
   async disconnectDevice(device: DeviceInfo): Promise<void> {
-    const handle = device.serialHandle;
-    if (!handle) return;
-    await this.gateway.disconnect(handle);
+    const result = await this.connectionUseCase.disconnect();
+    if (!result.success) {
+      throw this.asError(result.failure!);
+    }
+
     device.connection = null;
     device.port = null;
     device.transport = null;
+    device.serialHandle = null;
   }
 
   /**
@@ -124,6 +173,10 @@ export class DeviceConnectionManager {
    */
   isDeviceConnected(device: DeviceInfo): boolean {
     return !!(device.transport ?? device.connection ?? device.port);
+  }
+
+  getConnectionSnapshot() {
+    return this.connectionUseCase.snapshot;
   }
 }
 

@@ -78,7 +78,23 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
     private readonly formatHex: (value: number, length?: number) => string,
   ) {}
 
+  private ensureSessionActive(session: BurnerProtocolSession): CommandResult | null {
+    if (session.isActive && !session.isActive()) {
+      return {
+        success: false,
+        message: 'Device not connected',
+      };
+    }
+
+    return null;
+  }
+
   async readCart(session: BurnerProtocolSession, enable5V: boolean): Promise<BurnerReadCartResult> {
+    const inactive = this.ensureSessionActive(session);
+    if (inactive) {
+      return inactive;
+    }
+
     const result = await this.protocolPort.readCartInfo(session, enable5V);
     if (!result.ok) {
       return {
@@ -97,6 +113,11 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
   }
 
   async eraseChip(context: BurnerOperationContext): Promise<CommandResult> {
+    const inactive = this.ensureSessionActive(context.session);
+    if (inactive) {
+      return inactive;
+    }
+
     const { session, cfiInfo, options, signal } = context;
     const sectorInfo = calcSectorUsage(cfiInfo.eraseSectorBlocks, cfiInfo.deviceSize, 0x00);
     const result = await this.protocolPort.eraseSectors(session, sectorInfo, options, signal);
@@ -104,11 +125,21 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
   }
 
   async writeRom(context: BurnerOperationContext & { data: Uint8Array }): Promise<CommandResult> {
+    const inactive = this.ensureSessionActive(context.session);
+    if (inactive) {
+      return inactive;
+    }
+
     const result = await this.protocolPort.writeRom(context.session, context.data, context.options, context.signal);
     return toCommandResult(result, this.translate('messages.rom.writeFailed'));
   }
 
   async readRom(context: BurnerOperationContext & { size: number; showProgress?: boolean }): Promise<CommandResult> {
+    const inactive = this.ensureSessionActive(context.session);
+    if (inactive) {
+      return inactive;
+    }
+
     const result = await this.protocolPort.readRom(
       context.session,
       context.size,
@@ -120,6 +151,11 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
   }
 
   async verifyRom(context: BurnerOperationContext & { data: Uint8Array }): Promise<CommandResult> {
+    const inactive = this.ensureSessionActive(context.session);
+    if (inactive) {
+      return inactive;
+    }
+
     if (!context.signal) {
       throw new Error('verifyRom requires abort signal');
     }
@@ -129,21 +165,41 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
   }
 
   async writeRam(context: BurnerOperationContext & { data: Uint8Array }): Promise<CommandResult> {
+    const inactive = this.ensureSessionActive(context.session);
+    if (inactive) {
+      return inactive;
+    }
+
     const result = await this.protocolPort.writeRam(context.session, context.data, context.options);
     return toCommandResult(result, this.translate('messages.ram.writeFailed'));
   }
 
   async readRam(context: BurnerOperationContext & { size: number }): Promise<CommandResult> {
+    const inactive = this.ensureSessionActive(context.session);
+    if (inactive) {
+      return inactive;
+    }
+
     const result = await this.protocolPort.readRam(context.session, context.size, context.options);
     return toCommandResult(result, this.translate('messages.ram.readFailed'));
   }
 
   async verifyRam(context: BurnerOperationContext & { data: Uint8Array }): Promise<CommandResult> {
+    const inactive = this.ensureSessionActive(context.session);
+    if (inactive) {
+      return inactive;
+    }
+
     const result = await this.protocolPort.verifyRam(context.session, context.data, context.options);
     return toCommandResult(result, this.translate('messages.ram.verifyFailed'));
   }
 
   async resetCommandBuffer(session: BurnerProtocolSession): Promise<void> {
+    const inactive = this.ensureSessionActive(session);
+    if (inactive) {
+      throw new Error(inactive.message);
+    }
+
     const result = await this.protocolPort.resetCommandBuffer(session);
     if (!result.ok) {
       throw new Error(toFailureResult(result, 'Reset command buffer failed').message);
@@ -157,6 +213,11 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
     mbcType: MbcType,
     enable5V: boolean,
   ): Promise<GameDetectionResult[]> {
+    const inactive = this.ensureSessionActive(session);
+    if (inactive) {
+      return [];
+    }
+
     if (mode === 'GBA') {
       return this.readGBAMultiCartRoms(session, cfiInfo.deviceSize, cfiInfo);
     }
