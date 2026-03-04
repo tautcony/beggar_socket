@@ -1,7 +1,6 @@
-import { toLegacyDeviceInfo, withPortInfo } from '@/platform/serial';
-import type { DeviceHandle } from '@/platform/serial';
 import { createConnectionOrchestrationUseCase } from '@/features/burner/adapters';
 import type { BurnerConnectionHandle, BurnerConnectionSelection, ConnectionFailure } from '@/features/burner/application';
+import { type DeviceHandle, toLegacyDeviceInfo, withPortInfo } from '@/platform/serial';
 import { DebugSettings } from '@/settings/debug-settings';
 import { DeviceInfo } from '@/types/device-info';
 import type { SerialPortInfo } from '@/types/serial';
@@ -35,6 +34,18 @@ export class DeviceConnectionManager {
     return toLegacyDeviceInfo(handle.context as DeviceHandle);
   }
 
+  private asSerialPortInfo(portInfo: BurnerConnectionHandle['portInfo']): SerialPortInfo | null {
+    if (!portInfo?.path) {
+      return null;
+    }
+
+    return {
+      path: portInfo.path,
+      vendorId: portInfo.vendorId,
+      productId: portInfo.productId,
+    };
+  }
+
   /**
    * 请求串口设备连接
    */
@@ -66,7 +77,8 @@ export class DeviceConnectionManager {
       });
     }
 
-    if (_filter && result.context.handle.portInfo && !_filter(result.context.handle.portInfo)) {
+    const selectedPortInfo = this.asSerialPortInfo(result.context.handle.portInfo);
+    if (_filter && selectedPortInfo && !_filter(selectedPortInfo)) {
       await this.connectionUseCase.disconnect();
       throw this.asError({
         stage: 'select',
@@ -159,7 +171,11 @@ export class DeviceConnectionManager {
   async disconnectDevice(device: DeviceInfo): Promise<void> {
     const result = await this.connectionUseCase.disconnect();
     if (!result.success) {
-      throw this.asError(result.failure!);
+      throw this.asError(result.failure ?? {
+        stage: 'disconnect',
+        code: 'disconnect_failed',
+        message: 'Failed to disconnect device',
+      });
     }
 
     device.connection = null;

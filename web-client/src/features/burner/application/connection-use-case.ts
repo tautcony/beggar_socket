@@ -1,4 +1,3 @@
-import type { BurnerConnectionPort } from './domain/ports';
 import type {
   ConnectionCommandResult,
   ConnectionContext,
@@ -9,6 +8,7 @@ import type {
   ConnectionState,
   ConnectionUseCaseResult,
 } from './domain/connection';
+import type { BurnerConnectionPort } from './domain/ports';
 
 function normalizeFailure(
   stage: ConnectionFailureStage,
@@ -184,7 +184,7 @@ export class ConnectionOrchestrationUseCase {
       return toFailure(result.state, result.context, failure);
     }
 
-    if (previousHandle && connectResult.data.id === previousHandle.id) {
+    if (connectResult.data.id === previousHandle?.id) {
       const failure: ConnectionFailure = {
         stage: 'connect',
         code: 'stale_context',

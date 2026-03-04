@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ConnectionOrchestrationUseCase } from '@/features/burner/application';
-import type { BurnerConnectionPort, BurnerConnectionSelection } from '@/features/burner/application';
+import { type BurnerConnectionPort, type BurnerConnectionSelection, ConnectionOrchestrationUseCase } from '@/features/burner/application';
 
 function createPortMock(overrides: Partial<BurnerConnectionPort> = {}): BurnerConnectionPort {
   const selection: BurnerConnectionSelection = {
@@ -11,11 +10,11 @@ function createPortMock(overrides: Partial<BurnerConnectionPort> = {}): BurnerCo
 
   let seq = 0;
   const base: BurnerConnectionPort = {
-    list: async () => ({ ok: true, data: [selection.portInfo] }),
-    select: async () => ({ ok: true, data: selection }),
-    connect: async (selected) => {
+    list: () => Promise.resolve({ ok: true, data: [selection.portInfo] }),
+    select: () => Promise.resolve({ ok: true, data: selection }),
+    connect: (selected) => {
       seq += 1;
-      return {
+      return Promise.resolve({
         ok: true,
         data: {
           id: `mock:${selected?.portInfo?.path ?? 'auto'}:${seq}`,
@@ -29,10 +28,10 @@ function createPortMock(overrides: Partial<BurnerConnectionPort> = {}): BurnerCo
             connection: null,
           },
         },
-      };
+      });
     },
-    init: async () => ({ ok: true, data: undefined }),
-    disconnect: async () => ({ ok: true, data: undefined }),
+    init: () => Promise.resolve({ ok: true, data: undefined }),
+    disconnect: () => Promise.resolve({ ok: true, data: undefined }),
   };
 
   return {
@@ -120,7 +119,7 @@ describe('ConnectionOrchestrationUseCase', () => {
 
   it('maps selection-required case to failed output', async () => {
     const useCase = new ConnectionOrchestrationUseCase(createPortMock({
-      select: async () => ({ ok: true, data: null }),
+      select: () => Promise.resolve({ ok: true, data: null }),
     }));
 
     const result = await useCase.prepareConnection();
@@ -132,7 +131,7 @@ describe('ConnectionOrchestrationUseCase', () => {
 
   it('maps list failure to stage-aware normalized output', async () => {
     const useCase = new ConnectionOrchestrationUseCase(createPortMock({
-      list: async () => ({
+      list: () => Promise.resolve({
         ok: false,
         error: {
           stage: 'connection',

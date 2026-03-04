@@ -1,5 +1,4 @@
-import type { MbcType } from '@/types/command-options';
-import type { CommandOptions } from '@/types/command-options';
+import type { CommandOptions, MbcType } from '@/types/command-options';
 import type { CommandResult } from '@/types/command-result';
 import type { CFIInfo } from '@/utils/parsers/cfi-parser';
 import { parseRom, type RomInfo } from '@/utils/parsers/rom-parser';

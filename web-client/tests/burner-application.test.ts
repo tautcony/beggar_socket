@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { CartridgeProtocolPortAdapter } from '@/features/burner/adapters';
 import { BurnerSession } from '@/features/burner/application/burner-session';
-import { BurnerUseCaseImpl, type BurnerOperationContext } from '@/features/burner/application/burner-use-case';
+import { type BurnerOperationContext, BurnerUseCaseImpl } from '@/features/burner/application/burner-use-case';
 import type { BurnerProtocolSession } from '@/features/burner/application/domain/ports';
 import { runBurnerFlow } from '@/features/burner/application/flow-template';
 import type { CommandResult } from '@/types/command-result';
@@ -31,15 +31,15 @@ function createSession(overrides: Partial<BurnerProtocolSession> = {}): BurnerPr
   const base: BurnerProtocolSession = {
     id: 'session-1',
     isActive: () => true,
-    getCartInfo: async () => createFakeCfi(),
-    eraseSectors: async () => ({ success: true, message: 'erase-ok' }),
-    writeROM: async () => ({ success: true, message: 'write-rom-ok' }),
-    readROM: async () => ({ success: true, message: 'read-rom-ok', data: new Uint8Array([1, 2, 3]) }),
-    verifyROM: async () => ({ success: true, message: 'verify-rom-ok' }),
-    writeRAM: async () => ({ success: true, message: 'write-ram-ok' }),
-    readRAM: async () => ({ success: true, message: 'read-ram-ok', data: new Uint8Array([4, 5]) }),
-    verifyRAM: async () => ({ success: true, message: 'verify-ram-ok' }),
-    resetCommandBuffer: async () => {},
+    getCartInfo: () => Promise.resolve(createFakeCfi()),
+    eraseSectors: () => Promise.resolve({ success: true, message: 'erase-ok' }),
+    writeROM: () => Promise.resolve({ success: true, message: 'write-rom-ok' }),
+    readROM: () => Promise.resolve({ success: true, message: 'read-rom-ok', data: new Uint8Array([1, 2, 3]) }),
+    verifyROM: () => Promise.resolve({ success: true, message: 'verify-rom-ok' }),
+    writeRAM: () => Promise.resolve({ success: true, message: 'write-ram-ok' }),
+    readRAM: () => Promise.resolve({ success: true, message: 'read-ram-ok', data: new Uint8Array([4, 5]) }),
+    verifyRAM: () => Promise.resolve({ success: true, message: 'verify-ram-ok' }),
+    resetCommandBuffer: () => Promise.resolve(),
   };
 
   return {

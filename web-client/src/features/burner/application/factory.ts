@@ -1,6 +1,5 @@
 import { CartridgeProtocolPortAdapter } from '../adapters/cartridge-protocol-port';
-
-import { BurnerFacadeImpl, BurnerUseCaseImpl, type BurnerFacade } from './burner-use-case';
+import { type BurnerFacade, BurnerFacadeImpl, BurnerUseCaseImpl } from './burner-use-case';
 
 export interface CreateBurnerFacadeOptions {
   translate: (key: string) => string;

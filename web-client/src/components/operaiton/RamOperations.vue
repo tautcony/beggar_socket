@@ -180,7 +180,7 @@ const RAM_BASE_ADDRESS_OPTIONS = computed(() => {
   return options;
 });
 
-const emit = defineEmits(RAM_OPERATION_EVENTS);
+const emit = defineEmits([...RAM_OPERATION_EVENTS]);
 
 // 空白检测对话框状态
 const showBlankCheckDialog = ref(false);
