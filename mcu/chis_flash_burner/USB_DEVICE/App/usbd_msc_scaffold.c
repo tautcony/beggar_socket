@@ -31,7 +31,7 @@ static int8_t usbd_msc_scaffold_is_ready(uint8_t lun)
 static int8_t usbd_msc_scaffold_is_write_protected(uint8_t lun)
 {
     (void)lun;
-    return 1;
+    return 0;
 }
 
 static int8_t usbd_msc_scaffold_read(uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t blk_len)
@@ -43,10 +43,7 @@ static int8_t usbd_msc_scaffold_read(uint8_t lun, uint8_t *buf, uint32_t blk_add
 static int8_t usbd_msc_scaffold_write(uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t blk_len)
 {
     (void)lun;
-    (void)buf;
-    (void)blk_addr;
-    (void)blk_len;
-    return -1;
+    return virtual_disk_write(blk_addr, buf, blk_len) ? 0 : -1;
 }
 
 static int8_t usbd_msc_scaffold_get_max_lun(void)

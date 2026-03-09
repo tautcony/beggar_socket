@@ -75,6 +75,8 @@ uint32_t fat16_layout_get_data_lba(void)
 
 bool fat16_layout_read_boot_sector(uint8_t *buf)
 {
+    uint32_t total_sectors = FAT16_TOTAL_SECTORS;
+
     if (buf == NULL) {
         return false;
     }
@@ -89,13 +91,13 @@ bool fat16_layout_read_boot_sector(uint8_t *buf)
     fat16_write_le16(buf, 14u, FAT16_RESERVED_SECTORS);
     buf[16] = FAT16_FAT_COUNT;
     fat16_write_le16(buf, 17u, FAT16_ROOT_ENTRY_COUNT);
-    fat16_write_le16(buf, 19u, FAT16_TOTAL_SECTORS);
+    fat16_write_le16(buf, 19u, total_sectors <= 0xFFFFu ? (uint16_t)total_sectors : 0u);
     buf[21] = 0xF8u;
     fat16_write_le16(buf, 22u, FAT16_FAT_SECTORS);
     fat16_write_le16(buf, 24u, 1u);
     fat16_write_le16(buf, 26u, 1u);
     fat16_write_le32(buf, 28u, 0u);
-    fat16_write_le32(buf, 32u, 0u);
+    fat16_write_le32(buf, 32u, total_sectors > 0xFFFFu ? total_sectors : 0u);
     buf[36] = 0x80u;
     buf[38] = 0x29u;
     fat16_write_le32(buf, 39u, 0x46415416u);
@@ -203,6 +205,10 @@ bool fat16_layout_get_view(uint16_t cluster, Fat16ViewInfo *view, uint32_t *clus
             *view = (Fat16ViewInfo){FAT16_CLUSTER_RAM_TYPE_DIR, 1u, FAT16_SECTOR_SIZE, FAT16_VIEW_RAM_TYPE_DIR, true, true};
             *cluster_offset = 0u;
             return true;
+        case FAT16_CLUSTER_ROM_CFI_TXT:
+            *view = (Fat16ViewInfo){FAT16_CLUSTER_ROM_CFI_TXT, 1u, FAT16_SECTOR_SIZE, FAT16_VIEW_ROM_CFI_TXT, false, true};
+            *cluster_offset = 0u;
+            return true;
         case FAT16_CLUSTER_ROM_MODE_READ_TXT:
             *view = (Fat16ViewInfo){FAT16_CLUSTER_ROM_MODE_READ_TXT, 1u, FAT16_SECTOR_SIZE, FAT16_VIEW_ROM_MODE_READ_TXT, false, true};
             *cluster_offset = 0u;
@@ -235,7 +241,7 @@ bool fat16_layout_get_view(uint16_t cluster, Fat16ViewInfo *view, uint32_t *clus
         (cluster < FAT16_CLUSTER_ROM_CURRENT_GBA_START + FAT16_ROM_WINDOW_CLUSTER_COUNT)) {
         *view = (Fat16ViewInfo){FAT16_CLUSTER_ROM_CURRENT_GBA_START,
                                 FAT16_ROM_WINDOW_CLUSTER_COUNT,
-                                CART_SERVICE_ROM_SIZE_BYTES,
+                                cart_service_get_rom_size(),
                                 FAT16_VIEW_ROM_CURRENT_GBA,
                                 false,
                                 true};
