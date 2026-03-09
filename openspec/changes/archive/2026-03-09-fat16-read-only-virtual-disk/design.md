@@ -170,3 +170,25 @@
    - 先使用保守固定值，在编码中写好注说明后续改动点
 - 若主机对只读大文件进行激进预读，当前卡带读取吞吐是否足以支撑可接受体验？
 - 第一阶段验证完成后，是否优先引入 `MSC + CDC` 复合设备，还是继续保持 `MSC-only` 演进？
+
+## Session Update
+
+### 已实现的导出控制文件
+
+- `/ROM/MODE.TXT` 已实现为一个窄写入口控制文件。
+- 支持的键为 `BASE_ADDRESS=<value>` 和 `SIZE=<value>`。
+- `SIZE=0` 表示“从 `BASE_ADDRESS` 一直到检测到的 ROM 末尾”。
+- 主机写入不会改变 FAT 分配、不会创建新文件，也不会修改卡带数据；它只更新 `CURRENT.GBA` 使用的内存态导出窗口。
+
+### 已实现的 CFI 驱动 ROM 尺寸
+
+- `/ROM/CFI.TXT` 已实现，并由卡带 CFI 数据实时生成。
+- CFI 读取改为使用专门的 raw read helper，避免在打开 `INFO.TXT`、`CFI.TXT` 或 `CURRENT.GBA` 时递归进入 `cart_service_get_rom_size()`。
+- FAT16 虚拟盘总大小仍固定为 `255 MiB`；只有 `CURRENT.GBA` 的文件大小会随检测到的 ROM 大小和 `MODE.TXT` 导出窗口变化。
+
+### 在交付过程中记录的兼容性观察
+
+- Windows 显示 TXT 文件时需要 UTF-8 BOM，否则会出现乱码。
+- 子目录必须显式包含 `.` 和 `..`，否则主机打开目录时可能卡死。
+- FAT 短文件名必须是精确的 11 字节 8.3 形式；否则 Windows 会显示成 `CURRENT. GB` / `CURRENT. SA`。
+- `CURRENT.GBA` 在主机复制界面里看到的粗粒度百分比更新，本质上是主机按文件总大小显示的百分比，不是固件里另有一个“每 3% 更新”的节流机制。

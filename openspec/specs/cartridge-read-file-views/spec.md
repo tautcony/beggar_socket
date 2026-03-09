@@ -1,5 +1,7 @@
-## ADDED Requirements
+## Purpose
 
+Define ROM and save file-view semantics for firmware-backed cartridge exports so host-visible files map deterministically onto cartridge address spaces.
+## Requirements
 ### Requirement: ROM content is exposed as a read-only virtual file window
 The system SHALL expose the current cartridge ROM contents through `/ROM/CURRENT.GBA` as a read-only virtual file whose file offsets map deterministically to ROM read addresses.
 
@@ -51,3 +53,11 @@ The system SHALL serve `/ROM/CURRENT.GBA` and `/RAM/CURRENT.SAV` through firmwar
 #### Scenario: SAV file view executes a read
 - **WHEN** firmware handles a host read for `/RAM/CURRENT.SAV`
 - **THEN** the file view invokes a save read-service abstraction that is independent from USB CDC command parsing
+
+#### Scenario: Host updates MODE.TXT and re-reads CURRENT.GBA size
+- **WHEN** the host writes new `BASE_ADDRESS` and `SIZE` values to `/ROM/MODE.TXT` and then reads the directory entry for `/ROM/CURRENT.GBA`
+- **THEN** the reported file size matches the updated ROM export window
+
+#### Scenario: ROM file view uses configured export base address
+- **WHEN** firmware handles a host read for `/ROM/CURRENT.GBA` after `MODE.TXT` configured a non-zero `BASE_ADDRESS`
+- **THEN** the file view invokes the ROM read-service abstraction using `BASE_ADDRESS + file_offset`

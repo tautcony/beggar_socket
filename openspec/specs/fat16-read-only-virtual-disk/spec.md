@@ -1,5 +1,7 @@
-## ADDED Requirements
+## Purpose
 
+Define a fixed-layout FAT16 virtual disk exposed through USB mass storage so host systems can browse stable firmware-defined files and directories.
+## Requirements
 ### Requirement: Device exposes a readable FAT16 removable disk
 The system SHALL enumerate as a removable USB mass-storage device that presents a host-readable FAT16 volume with a valid boot sector, FAT tables, root directory, and data region.
 
@@ -58,3 +60,29 @@ The system SHALL resolve host sector reads through a stable mapping from FAT16 s
 #### Scenario: Host reads a sector belonging to a virtual data window
 - **WHEN** the host reads a sector whose cluster belongs to a virtual data-window file
 - **THEN** the device routes the request through the corresponding file-view handler using the derived file offset
+
+### Requirement: ROM directory exposes metadata and export-control files
+The system SHALL expose ROM metadata and export-control files through fixed entries in the `ROM` directory.
+
+#### Scenario: Host lists ROM directory
+- **WHEN** the host reads the `ROM` directory
+- **THEN** the directory listing includes `CURRENT.GBA`, `CFI.TXT`, and `MODE.TXT` with stable names and types
+
+#### Scenario: Host reads CFI.TXT
+- **WHEN** the host reads `/ROM/CFI.TXT`
+- **THEN** the device returns a readable text payload derived from the cartridge CFI query data
+
+#### Scenario: Host reads MODE.TXT
+- **WHEN** the host reads `/ROM/MODE.TXT`
+- **THEN** the device returns a readable text payload describing the active ROM export `BASE_ADDRESS` and `SIZE`
+
+### Requirement: MODE.TXT is the only writable control file in stage 1
+The system SHALL limit stage-1 host writes to a narrow control surface rather than general FAT file mutation.
+
+#### Scenario: Host writes MODE.TXT with export parameters
+- **WHEN** the host overwrites `/ROM/MODE.TXT` with valid `BASE_ADDRESS` and `SIZE` values
+- **THEN** the device updates the in-memory ROM export window used by `CURRENT.GBA`
+
+#### Scenario: Host writes any other virtual file
+- **WHEN** the host writes `INFO.TXT`, `STATUS.TXT`, `CURRENT.GBA`, `CURRENT.SAV`, or other fixed view files
+- **THEN** the device preserves existing virtual-file semantics and does not mutate cartridge payload data

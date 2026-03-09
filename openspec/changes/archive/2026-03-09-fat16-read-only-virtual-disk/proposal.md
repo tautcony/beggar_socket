@@ -25,3 +25,11 @@
 - MCU 固件将新增 `USB MSC` 基础支持、固定 FAT16 布局层和只读虚拟文件视图层。
 - 现有卡 ROM / 存档读取能力需要抽象为文件窗口可复用接口。
 - 后续参数控制和写入任务将依赖本阶段建立的目录和簇映射骨架。
+
+## Session Update
+
+- 交付实现保持 FAT16 卷容量固定为 `255 MiB`。
+- `/ROM/CURRENT.GBA` 的文件大小由 CFI 检测结果与当前导出窗口共同决定。
+- `ROM/` 目录新增了 `CFI.TXT` 和 `MODE.TXT`。
+- `MODE.TXT` 是本阶段唯一可写的控制文件，支持 `BASE_ADDRESS` 和 `SIZE`，用于更新 `CURRENT.GBA` 的导出窗口，而不是开放任意主机写入。
+- 本次交付还纳入了为主机兼容性必须做的修正：TXT 文件使用 UTF-8 BOM、子目录补齐 `.`/`..`、CFI 读取去递归、`CURRENT.GBA` 与 `CURRENT.SAV` 使用精确 8.3 文件名。
