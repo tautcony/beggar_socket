@@ -51,6 +51,12 @@ function Write-Info {
     Write-Host "$($Colors.Blue)[INFO] $Message$($Colors.Reset)"
 }
 
+function Convert-ToOpenOcdPath {
+    param([string]$Path)
+
+    return $Path -replace '\\', '/'
+}
+
 function Test-CMake {
     try {
         $version = cmake --version | Select-String "cmake version" | ForEach-Object { $_.ToString().Split(' ')[2] }
@@ -105,8 +111,15 @@ function Build-Project {
     # Configure
     Write-Info "Configuring project with CMake..."
     $toolchainFile = "$ProjectDir\arm-cortex-m.cmake"
-    $configureOutput = cmake -B $buildDir -DCMAKE_BUILD_TYPE=$BuildType `
-        -DCMAKE_TOOLCHAIN_FILE="$toolchainFile" -G "Ninja" 2>&1
+    $configureArgs = @(
+        "-B"
+        $buildDir
+        "-DCMAKE_BUILD_TYPE=$BuildType"
+        "-DCMAKE_TOOLCHAIN_FILE=$toolchainFile"
+        "-G"
+        "Ninja"
+    )
+    $configureOutput = (& cmake @configureArgs 2>&1 | Out-String).TrimEnd()
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Failed to configure project"
         Write-Host "Configure output:"
@@ -116,7 +129,7 @@ function Build-Project {
 
     # Build
     Write-Info "Building project with CMake..."
-    $buildOutput = cmake --build $buildDir 2>&1
+    $buildOutput = (& cmake --build $buildDir 2>&1 | Out-String).TrimEnd()
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Failed to build project"
         Write-Host "Build output:"
@@ -247,7 +260,7 @@ function Flash-Project {
         return $false
     }
 
-    $hexFile = "$buildDir\chis_flash_burner.hex"
+    $hexFile = Join-Path $buildDir "chis_flash_burner.hex"
 
     if (-not (Test-Path $hexFile)) {
         Write-Error "Hex file not found: $hexFile"
@@ -274,7 +287,8 @@ function Flash-Project {
 
     # Standard programming
     try {
-        openocd -f interface/stlink.cfg -f target/stm32f1x.cfg -c "program $hexFile verify reset exit"
+        $openOcdHexFile = Convert-ToOpenOcdPath $hexFile
+        openocd -f interface/stlink.cfg -f target/stm32f1x.cfg -c "program $openOcdHexFile verify reset exit"
         if ($LASTEXITCODE -ne 0) { throw "Flash failed" }
         Write-Success "chis_flash_burner flashed successfully"
         Write-Info "Device should now be running the new firmware"

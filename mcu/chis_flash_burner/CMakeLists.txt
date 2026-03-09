@@ -83,6 +83,10 @@ set(HAL_SOURCES
 # USB Device Library sources
 set(USB_SOURCES
     Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc.c
+    Middlewares/ST/STM32_USB_Device_Library/Class/MSC/Src/usbd_msc.c
+    Middlewares/ST/STM32_USB_Device_Library/Class/MSC/Src/usbd_msc_bot.c
+    Middlewares/ST/STM32_USB_Device_Library/Class/MSC/Src/usbd_msc_data.c
+    Middlewares/ST/STM32_USB_Device_Library/Class/MSC/Src/usbd_msc_scsi.c
     Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.c
     Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ctlreq.c
     Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.c
@@ -109,6 +113,7 @@ set(INCLUDE_DIRECTORIES
     Drivers/STM32F1xx_HAL_Driver/Inc
     Drivers/STM32F1xx_HAL_Driver/Inc/Legacy
     Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc
+    Middlewares/ST/STM32_USB_Device_Library/Class/MSC/Inc
     Middlewares/ST/STM32_USB_Device_Library/Core/Inc
     USB_DEVICE/App
     USB_DEVICE/Target
