@@ -1,0 +1,85 @@
+#ifndef __FAT16_LAYOUT_H__
+#define __FAT16_LAYOUT_H__
+
+#include <stdbool.h>
+#include <stdint.h>
+
+#include "cart_service.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define FAT16_SECTOR_SIZE 512u
+#define FAT16_SECTORS_PER_CLUSTER 1u
+#define FAT16_RESERVED_SECTORS 1u
+#define FAT16_FAT_COUNT 2u
+#define FAT16_ROOT_ENTRY_COUNT 64u
+#define FAT16_ROOT_DIR_SECTORS ((FAT16_ROOT_ENTRY_COUNT * 32u) / FAT16_SECTOR_SIZE)
+
+#define FAT16_ROM_WINDOW_CLUSTER_COUNT (CART_SERVICE_ROM_SIZE_BYTES / FAT16_SECTOR_SIZE)
+#define FAT16_SAVE_WINDOW_CLUSTER_COUNT (CART_SERVICE_SAVE_SIZE_BYTES / FAT16_SECTOR_SIZE)
+
+typedef enum {
+    FAT16_VIEW_NONE = 0,
+    FAT16_VIEW_INFO_TXT,
+    FAT16_VIEW_STATUS_TXT,
+    FAT16_VIEW_ROM_DIR,
+    FAT16_VIEW_RAM_DIR,
+    FAT16_VIEW_ROM_MODE_DIR,
+    FAT16_VIEW_RAM_TYPE_DIR,
+    FAT16_VIEW_ROM_MODE_READ_TXT,
+    FAT16_VIEW_RAM_TYPE_AUTO_TXT,
+    FAT16_VIEW_RAM_TYPE_SRAM_TXT,
+    FAT16_VIEW_RAM_TYPE_FRAM_TXT,
+    FAT16_VIEW_RAM_TYPE_FLASH64_TXT,
+    FAT16_VIEW_RAM_TYPE_FLASH128_TXT,
+    FAT16_VIEW_ROM_CURRENT_GBA,
+    FAT16_VIEW_RAM_CURRENT_SAV,
+} Fat16ViewId;
+
+typedef struct {
+    uint16_t first_cluster;
+    uint16_t cluster_count;
+    uint32_t size_bytes;
+    Fat16ViewId view_id;
+    bool is_directory;
+    bool is_read_only;
+} Fat16ViewInfo;
+
+enum {
+    FAT16_CLUSTER_INFO_TXT = 2,
+    FAT16_CLUSTER_STATUS_TXT = 3,
+    FAT16_CLUSTER_ROM_DIR = 4,
+    FAT16_CLUSTER_RAM_DIR = 5,
+    FAT16_CLUSTER_ROM_MODE_DIR = 6,
+    FAT16_CLUSTER_RAM_TYPE_DIR = 7,
+    FAT16_CLUSTER_ROM_MODE_READ_TXT = 8,
+    FAT16_CLUSTER_RAM_TYPE_AUTO_TXT = 9,
+    FAT16_CLUSTER_RAM_TYPE_SRAM_TXT = 10,
+    FAT16_CLUSTER_RAM_TYPE_FRAM_TXT = 11,
+    FAT16_CLUSTER_RAM_TYPE_FLASH64_TXT = 12,
+    FAT16_CLUSTER_RAM_TYPE_FLASH128_TXT = 13,
+    FAT16_CLUSTER_ROM_CURRENT_GBA_START = 32,
+    FAT16_CLUSTER_RAM_CURRENT_SAV_START =
+        FAT16_CLUSTER_ROM_CURRENT_GBA_START + FAT16_ROM_WINDOW_CLUSTER_COUNT,
+};
+
+#define FAT16_TOTAL_CLUSTERS (FAT16_CLUSTER_RAM_CURRENT_SAV_START + FAT16_SAVE_WINDOW_CLUSTER_COUNT)
+#define FAT16_FAT_SECTORS (((FAT16_TOTAL_CLUSTERS + 2u) * 2u + (FAT16_SECTOR_SIZE - 1u)) / FAT16_SECTOR_SIZE)
+#define FAT16_DATA_LBA (FAT16_RESERVED_SECTORS + (FAT16_FAT_SECTORS * FAT16_FAT_COUNT) + FAT16_ROOT_DIR_SECTORS)
+#define FAT16_TOTAL_SECTORS (FAT16_DATA_LBA + FAT16_TOTAL_CLUSTERS - 2u)
+
+uint32_t fat16_layout_get_total_sectors(void);
+uint32_t fat16_layout_get_data_lba(void);
+bool fat16_layout_read_boot_sector(uint8_t *buf);
+bool fat16_layout_read_fat_sector(uint32_t fat_index, uint32_t sector_offset, uint8_t *buf);
+bool fat16_layout_read_root_sector(uint32_t sector_offset, uint8_t *buf);
+bool fat16_layout_cluster_from_lba(uint32_t lba, uint16_t *cluster, uint32_t *sector_in_cluster);
+bool fat16_layout_get_view(uint16_t cluster, Fat16ViewInfo *view, uint32_t *cluster_offset);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

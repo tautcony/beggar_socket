@@ -51,6 +51,9 @@ set(CPU_PARAMETERS
 set(PROJECT_SOURCES
     Core/Src/main.c
     Core/Src/cart_adapter.c
+    Core/Src/cart_service.c
+    Core/Src/fat16_layout.c
+    Core/Src/virtual_disk.c
     Core/Src/uart.c
     Core/Src/stm32f1xx_hal_msp.c
     Core/Src/stm32f1xx_it.c
@@ -86,6 +89,7 @@ set(USB_SOURCES
     USB_DEVICE/App/usb_device.c
     USB_DEVICE/App/usbd_cdc_if.c
     USB_DEVICE/App/usbd_desc.c
+    USB_DEVICE/App/usbd_msc_scaffold.c
     USB_DEVICE/Target/usbd_conf.c
 )
 
