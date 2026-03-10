@@ -1505,8 +1505,14 @@ bool cart_service_write_save(uint32_t offset, const uint8_t *buf, uint32_t len)
         return false;
     }
 
-    /* Transition from IDLE to COMMITTING on first write (streaming mode) */
-    if (g_cart_service_ram_job.state == CART_SERVICE_RAM_JOB_STATE_IDLE) {
+    /* Transition from IDLE/SUCCESS/ERROR to COMMITTING on first write (streaming mode)
+     * - IDLE: Fresh start of upload session
+     * - SUCCESS: Starting new upload after successful previous commit
+     * - ERROR: Retrying after previous upload/commit failure
+     */
+    if (g_cart_service_ram_job.state == CART_SERVICE_RAM_JOB_STATE_IDLE ||
+        g_cart_service_ram_job.state == CART_SERVICE_RAM_JOB_STATE_SUCCESS ||
+        g_cart_service_ram_job.state == CART_SERVICE_RAM_JOB_STATE_ERROR) {
         g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_COMMITTING;
         g_cart_service_ram_job.bytes_written = 0u;
         g_cart_service_ram_job.total_bytes = 0u;

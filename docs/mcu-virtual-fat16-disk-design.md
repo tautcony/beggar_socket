@@ -464,22 +464,24 @@ FRAM_LATENCY=3
 
 **状态**: ✅ **已实现** (2026-03-10)
 
-- 可写数据窗口
-- 大小: 32KB (CART_SERVICE_UPLOAD_BUFFER_SIZE)
+- 流式写入窗口
+- 大小: 32KB (CART_SERVICE_SAVE_SIZE_BYTES)
 - 主机把待写入存档复制进来
-- MCU 按 offset 接收数据并累积到上传缓冲区 (`g_cart_service_ram_job.upload_buffer`)
-- **重要**: 写入此文件时数据仅保存在 MCU 内存中，**不会自动写入卡带**
-- 必须用户再写 `/RAM/COMMIT.TXT` 才会触发实际的卡带写入
+- **流式架构**: MCU 收到数据后**立即流式写入卡带硬件**，无需缓冲整个文件
+- **内存占用**: 仅使用 512 字节扇区缓冲 + 约 108 字节状态结构（总计 ~620 字节）
+- **必须显式 COMMIT**: 写完后用户必须写 `/RAM/COMMIT.TXT` 触发**完整性验证**
 
 **工作流程**:
 1. 用户复制文件到 `/RAM/UPLOAD.SAV`
-2. 状态从 `IDLE` 变为 `UPLOADING`
-3. `bytes_written` 字段记录已接收的数据量
-4. 数据保持在内存缓冲区，等待 COMMIT 命令
+2. 状态从 `IDLE` 直接变为 `COMMITTING`（首次写入时）
+3. 数据以 1KB 块为单位**实时流式写入卡带硬件**（SRAM/FRAM/FLASH）
+4. `bytes_written` 字段记录已写入卡带的数据量
+5. 数据已在卡带中，等待用户触发完整性验证
 
 **技术细节**:
-- 实现位置: `cart_service_write_save()` in `cart_service.c:1415-1441`
-- 缓冲区: `g_cart_service_ram_job.upload_buffer[32768]`
+- 实现位置: `cart_service_write_save()` in `cart_service.c:1492-1573`
+- 分块大小: `CART_SERVICE_RAM_WRITE_CHUNK_SIZE = 1024u`
+- 无 32KB 缓冲区（物理不可能：STM32F103C8T6 仅有 20KB RAM）
 - 支持 FAT16 乱序写入，自动跟踪最高写入偏移
 
 详细说明见 [RAM-UPLOAD-WORKFLOW.md](./RAM-UPLOAD-WORKFLOW.md)
@@ -511,7 +513,7 @@ FRAM_LATENCY=3
 
 **状态**: ✅ **已实现** (2026-03-10)
 
-触发将上传到 `/RAM/UPLOAD.SAV` 的数据实际写入卡带 RAM 的操作。
+触发对已流式写入卡带的数据进行**完整性验证**。
 
 **支持的命令格式**:
 
@@ -533,25 +535,25 @@ COMMIT=TRUE
 
 **工作流程**:
 
-1. 验证当前状态为 `UPLOADING`（如果不是则返回 `INVALID_STATE` 错误）
-2. 转换状态为 `COMMITTING`
-3. 以 **1KB (1024字节)** 为单位分块写入卡带
-   - 即使数据小于 1KB 也按块处理
-   - 确保硬件稳定性和类型兼容性
-4. 根据配置的 RAM 类型选择写入方式:
-   - **SRAM**: 直接批量写入 (`cart_service_write_save_sram`)
-   - **FRAM**: 逐字节写入，带延迟周期 (`cart_service_write_save_fram`)
-   - **FLASH**: 逐字节写入，带内存屏障 (`cart_service_write_save_flash`)
-5. 转换状态为 `VERIFYING`
-6. 从卡带读回数据，逐字节比对验证
-7. 完成:
+1. 验证当前状态为 `COMMITTING`（如果不是则返回 `INVALID_STATE` 错误）
+2. 转换状态为 `VERIFYING`
+3. 从卡带读回数据进行**完整性验证**:
+   - 检查数据非全 0xFF（擦除态）
+   - 检查数据非全 0x00（写入失败）
+   - 要求至少 5% 字节差异（基本完整性）
+4. 完成:
    - 验证通过 → 状态变为 `SUCCESS`
    - 验证失败 → 状态变为 `ERROR`
 
+**重要说明**:
+- ✅ **数据已在卡带中**: 上传过程中数据已实时流式写入
+- ✅ **COMMIT 仅做验证**: 不执行延迟写入，仅验证写入的数据完整性
+- ✅ **无源数据缓冲**: MCU 不保留上传数据副本（RAM 限制），故使用读回验证而非字节比对
+
 **技术细节**:
-- 实现位置: `cart_service_commit_ram_upload()` in `cart_service.c:1506-1575`
-- 分块大小: `CART_SERVICE_RAM_WRITE_CHUNK_SIZE = 1024u`
-- 验证实现: `cart_service_verify_save()` in `cart_service.c:1457-1486`
+- 实现位置: `cart_service_commit_ram_upload()` in `cart_service.c:1752-1792`
+- 验证实现: `cart_service_verify_save_streaming()` in `cart_service.c:1632-1680`
+- 验证策略: 完整性检查（非字节比对，因无源数据）
 
 详细说明见 [RAM-UPLOAD-WORKFLOW.md](./RAM-UPLOAD-WORKFLOW.md)
 

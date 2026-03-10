@@ -476,11 +476,12 @@ while (offset < write_size) {
                          [ERROR] <─────────────┘
 ```
 
-**流式模式关键变化**:
+**流式模式关键变化** (2026-03-10 更新):
 - 写入 UPLOAD.SAV 后立即进入 `COMMITTING` 状态（不再有 UPLOADING 状态）
 - 数据在复制过程中实时写入卡带硬件
 - COMMIT 命令仅触发验证流程，不再执行写入
 - ERASE 命令可从任意状态返回 IDLE（重置状态机）
+- **新增**: SUCCESS/ERROR 状态下再次写入 UPLOAD.SAV 会自动重置为 COMMITTING（支持连续多次上传）
 
 ---
 
@@ -501,7 +502,8 @@ while (offset < write_size) {
 2. 如果是 `INVALID_STATE`，确保先上传了数据
 3. 如果是 `WRITE_FAILED`，检查卡带连接和 RAM 类型配置
 4. 如果是 `VERIFY_FAILED`，可能是卡带硬件故障或数据全为擦除状态 (0xFF) / 写入失败 (0x00)
-5. 可以写入 `/RAM/ERASE.TXT` 重置状态后重试
+5. 可以直接重新上传文件重试（状态会自动从 ERROR 重置为 COMMITTING）
+6. 或者使用 `/RAM/ERASE.TXT` 擦除卡带数据并重置状态
 
 ### Q4: 可以中途取消吗？
 
@@ -519,6 +521,24 @@ while (offset < write_size) {
 
 **A**: 这是硬件稳定性和兼容性要求。即使只有 1KB 的数据，也会作为一个完整的 1KB 块来处理。这确保了对所有 RAM 类型的一致行为。
 
+### Q7: 如何在同一会话中上传多个不同的存档文件？
+
+**A** (2026-03-10 更新): **现在支持无需擦除的连续上传**！
+- 成功 COMMIT 后，状态变为 `SUCCESS`
+- 可以直接再次上传新文件到 `/RAM/UPLOAD.SAV`，状态会自动重置为 `COMMITTING`
+- 无需调用 `/RAM/ERASE.TXT`（除非是 Flash 类型需要擦除）
+- 适用于需要连续测试多个存档文件的场景
+
+**工作流程**:
+1. 上传第一个文件 → COMMIT → 状态 `SUCCESS`
+2. 直接上传第二个文件 → 状态自动从 `SUCCESS` 重置为 `COMMITTING`
+3. COMMIT → 状态 `SUCCESS`
+4. 重复...
+
+**注意**:
+- SRAM/FRAM: 新数据直接覆盖旧数据，无需擦除
+- Flash: 如需完全擦除建议先调用 `/RAM/ERASE.TXT`，否则可能出现数据混合
+
 ---
 
 ## 开发者参考 (Developer Reference)
@@ -526,9 +546,10 @@ while (offset < write_size) {
 ### 关键文件位置 (Key File Locations)
 
 - **状态机实现**: `mcu/chis_flash_burner/Core/Src/cart_service.c`
-  - `cart_service_write_save()`: 数据累积 (lines 1415-1441)
-  - `cart_service_commit_ram_upload()`: 提交流程 (lines 1506-1575)
-  - `cart_service_verify_save()`: 验证流程 (lines 1457-1486)
+  - `cart_service_write_save()`: 流式写入 (lines 1492-1573)
+  - `cart_service_commit_ram_upload()`: 验证流程 (lines 1752-1792)
+  - `cart_service_verify_save_streaming()`: 完整性验证 (lines 1632-1680)
+  - `cart_service_erase_ram()`: 擦除并重置 (lines 1794-1810)
 
 - **FAT16 接口**: `mcu/chis_flash_burner/Core/Src/virtual_disk.c`
   - `write_data_sector()`: 处理文件写入 (lines 326-362)
