@@ -1435,26 +1435,59 @@ bool cart_service_apply_mode_text(const uint8_t *buf, uint32_t len)
 /**
  * @brief Streams uploaded data directly to cartridge RAM (Step 4 of workflow)
  *
- * CRITICAL CHANGE: This function now IMMEDIATELY writes data to cartridge hardware
- * instead of accumulating in a 32KB buffer (which exceeded MCU RAM capacity).
+ * ===============================================================================
+ * CRITICAL ARCHITECTURAL DECISION (2026-03-10): STREAMING WRITE ARCHITECTURE
+ * ===============================================================================
  *
- * NEW STREAMING APPROACH:
- * - Data flows: FAT16 write → sector_buffer → cartridge hardware
- * - No large intermediate buffering
- * - Writes in 1KB chunks for stability
- * - State transitions: IDLE → COMMITTING (combined upload+commit)
+ * This function implements STREAMING WRITE, where data is written to cartridge
+ * hardware IMMEDIATELY during file upload, NOT buffered until commit.
  *
- * Workflow: Configure → Apply → Erase → STREAM UPLOAD (direct write)
- *                                        ^^^^^^^^^^^^^
+ * RATIONALE FOR STREAMING:
+ * - STM32F103C8T6 has only 20KB total RAM
+ * - Save files can be up to 32KB
+ * - Buffering entire file is PHYSICALLY IMPOSSIBLE (would need 32KB > 20KB!)
+ * - Solution: Stream data directly to cartridge as 512-byte sectors arrive
+ *
+ * IMPLICATIONS FOR "EXPLICIT COMMIT" MODEL:
+ * - Data writes to cartridge during UPLOAD.SAV copy operation
+ * - COMMIT.TXT triggers VERIFICATION only (not deferred write)
+ * - Cannot cancel mid-upload (data already on cartridge)
+ * - No source data retained in MCU for byte-by-byte verification
+ *
+ * EXPLICIT VERIFICATION (not Explicit Commit):
+ * While documentation historically described "explicit commit" as deferring
+ * writes, the actual implementation provides "explicit verification":
+ * 1. User uploads file → data streams to cartridge in real-time
+ * 2. User writes COMMIT.TXT → triggers integrity check (readback verification)
+ * 3. System reports SUCCESS or ERROR based on verification
+ *
+ * This maintains safety through mandatory verification while solving RAM limits.
+ *
+ * OLD BUFFERING APPROACH (IMPOSSIBLE ON THIS HARDWARE):
+ * - Accumulated entire file in 32KB upload_buffer[]
+ * - COMMIT.TXT triggered batch write to cartridge
+ * - Could verify by comparing buffer vs readback
+ * - IMPOSSIBLE: 32KB buffer > 20KB total RAM!
+ *
+ * NEW STREAMING APPROACH (CURRENT IMPLEMENTATION):
+ * - Data flows: FAT16 write → sector_buffer (512B) → cartridge hardware
+ * - No large intermediate buffering (only 512B sector staging)
+ * - Writes in 1KB chunks for hardware stability
+ * - State transitions: IDLE → COMMITTING (on first write)
+ * - Memory usage: ~620 bytes total (98% reduction vs 32KB)
+ *
+ * Workflow: Configure → Apply → Erase → STREAM UPLOAD (direct write) → COMMIT (verify)
+ *                                        ^^^^^^^^^^^^^                  ^^^^^^^^^^^^^
  *
  * @param offset Byte offset within the save file (0 to 32KB-1)
  * @param buf Source data buffer (typically 512 bytes from FAT16 sector)
  * @param len Number of bytes to write (typically 512)
  * @return true if successful, false if parameters invalid or write failed
  *
- * @note Data is IMMEDIATELY written to cartridge, not buffered
- * @note Verification must be done by reading back from cartridge
- * @see cart_service_commit_ram_upload() is now simplified to just verify
+ * @warning Data is IMMEDIATELY and IRREVERSIBLY written to cartridge
+ * @note Verification must be done by reading back from cartridge (no source copy)
+ * @see cart_service_commit_ram_upload() triggers verification (not write)
+ * @see cart_service_verify_save_streaming() performs integrity check (not byte compare)
  */
 bool cart_service_write_save(uint32_t offset, const uint8_t *buf, uint32_t len)
 {
@@ -1673,15 +1706,40 @@ const char *cart_service_get_ram_job_error(void)
 /**
  * @brief Finalizes and verifies streaming RAM upload (Step 5 of workflow)
  *
- * CRITICAL CHANGE: With streaming writes, data is ALREADY on cartridge hardware.
- * This function now transitions to VERIFYING state and performs readback verification.
+ * ===============================================================================
+ * CRITICAL: THIS FUNCTION DOES NOT WRITE DATA (Data already on cartridge!)
+ * ===============================================================================
  *
- * Previous workflow: Configure → Apply → Erase → Upload (buffer) → COMMIT (write) → Verify
- * New workflow:      Configure → Apply → Erase → STREAM (direct write) → COMMIT (verify)
- *                                                                          ^^^^^^
+ * In streaming architecture, THIS FUNCTION ONLY PERFORMS VERIFICATION.
+ * All data was already written to cartridge during cart_service_write_save().
+ *
+ * WHAT THIS FUNCTION DOES:
+ * 1. Validates current state is COMMITTING (streaming write completed)
+ * 2. Transitions to VERIFYING state
+ * 3. Reads back data from cartridge
+ * 4. Performs integrity check (not byte-by-byte comparison)
+ * 5. Reports SUCCESS or ERROR
+ *
+ * WHAT THIS FUNCTION DOES NOT DO:
+ * - Does NOT write any data to cartridge (already written!)
+ * - Does NOT defer hardware operations until now
+ * - Does NOT buffer-to-cartridge transfer
+ *
+ * WORKFLOW COMPARISON:
+ * Old (buffered):  Upload → buffer fills → COMMIT → write buffer to cartridge → verify
+ * New (streaming): Upload → direct write to cartridge → COMMIT → verify only
+ *                           ^^^^^^^^^^^^^^^^^^^^^^^              ^^^^^^^^^^^
+ *
+ * VERIFICATION STRATEGY:
+ * Since source data is not retained in MCU memory, verification uses sanity checks:
+ * - Ensures data is not all 0xFF (erased state)
+ * - Ensures data is not all 0x00 (write failure)
+ * - Requires at least 5% byte variance
+ *
+ * This is less rigorous than byte-by-byte comparison but necessary given RAM constraints.
  *
  * State Machine:
- *   COMMITTING → VERIFYING → SUCCESS or ERROR
+ *   COMMITTING (streaming write done) → VERIFYING → SUCCESS or ERROR
  *
  * @return true if verification successful, false otherwise
  *

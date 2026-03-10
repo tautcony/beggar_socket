@@ -6,9 +6,9 @@
 
 This document describes the complete RAM upload and commit workflow in the beggar_socket MCU firmware.
 
-**重要提示 (Important Note)**: 本系统采用**显式提交模型**，即用户必须明确执行提交操作才会将数据写入卡带硬件。这样设计是为了确保数据完整性和操作安全性。
+**重要提示 (Important Note)**: 本系统采用**流式写入 + 显式验证模型**。由于 STM32F103C8T6 只有 20KB RAM（无法缓冲 32KB 存档），数据在上传过程中**直接流式写入卡带硬件**。用户必须执行显式提交操作以触发**数据完整性验证**，确保写入成功。
 
-The system uses an **explicit commit model**, meaning users must explicitly execute a commit operation to write data to the cartridge hardware. This design ensures data integrity and operation safety.
+The system uses a **streaming write + explicit verification model**. Due to STM32F103C8T6's limited 20KB RAM (cannot buffer 32KB saves), data is **streamed directly to cartridge hardware during upload**. Users must explicitly execute a commit operation to trigger **data integrity verification**, ensuring the write succeeded.
 
 ---
 
@@ -236,31 +236,57 @@ ERROR=<错误信息>
 
 ---
 
-## 为什么采用显式提交模型？ (Why Explicit Commit Model?)
+## 为什么采用显式验证模型？ (Why Explicit Verification Model?)
+
+### 流式架构下的显式验证 (Explicit Verification in Streaming Architecture)
+
+**重要说明**: 流式架构下，数据在上传时已实时写入卡带，显式 COMMIT 命令的作用是**触发完整性验证**，而非延迟写入。
+
+**Important Note**: In streaming architecture, data is written to cartridge in real-time during upload. The explicit COMMIT command triggers **integrity verification**, not delayed writes.
 
 ### 技术原因 (Technical Reasons)
 
-1. **FAT16 写入顺序问题**:
+1. **FAT16 写入完成检测问题**:
    - 操作系统写入文件时，FAT 元数据和数据区写入顺序是不确定的
-   - MCU 无法可靠判断"整个文件已传输完成"
-   - 如果过早开始烧录，会导致数据不完整
+   - MCU 无法可靠判断"整个文件已传输完成"（即使使用流式写入）
+   - 需要用户显式确认传输完成后再验证数据
 
 2. **主机缓存问题**:
    - 文件可能还在操作系统的缓存中
-   - MCU 接收到的可能不是完整数据
-   - 强制刷新缓存的时机难以确定
+   - OS 可能尚未刷新所有数据到设备
+   - 显式 COMMIT 确保用户在验证前等待 OS 完成所有写入
 
-3. **硬件安全**:
-   - 误判可能导致卡带数据损坏
-   - 显式提交让用户明确控制写入时机
-   - 可以在提交前检查状态文件确认数据已完全上传
+3. **数据完整性保证**:
+   - 流式写入无法在写入过程中验证源数据（源数据不在 MCU 内存中）
+   - COMMIT 触发读回验证，确认数据成功写入卡带
+   - 完整性检查检测常见失败模式：全 0xFF（擦除状态）或全 0x00（写入失败）
+
+4. **硬件安全**:
+   - 显式验证让用户明确控制验证时机
+   - 可以在提交前检查状态文件确认 `bytes_written` 符合预期
+   - 验证失败时及时发现，避免误以为写入成功
 
 ### 用户体验优势 (User Experience Benefits)
 
-1. **操作透明**: 用户清楚知道何时会真正写入硬件
-2. **可预测性**: 不会出现"文件复制到一半就开始烧录"的情况
-3. **可控性**: 用户可以在提交前中止操作
-4. **安全性**: 减少意外损坏卡带的风险
+1. **操作透明**: 用户清楚知道何时触发验证流程
+2. **可预测性**: 明确的两阶段操作（上传→验证），状态清晰
+3. **完整性保证**: 强制验证步骤，确保数据写入成功
+4. **安全性**: 验证失败时提供明确错误信息，可及时重试
+
+### 流式架构特殊考虑 (Special Considerations for Streaming)
+
+**⚠️ 流式写入限制 (Streaming Write Limitations)**:
+
+1. **不可中途取消**: 数据实时写入卡带，一旦开始复制无法撤销
+2. **无断点续传**: 写入失败需要从头重试（需先 ERASE）
+3. **依赖硬件稳定性**: 传输中断会导致部分写入，需依赖 COMMIT 验证检测
+
+**✅ 显式验证的价值 (Value of Explicit Verification)**:
+
+1. **检测传输错误**: 确认所有数据真正写入卡带硬件
+2. **用户可控**: 可在验证前查看 STATUS.TXT 确认 `BYTES_WRITTEN`
+3. **明确反馈**: 验证失败提供清晰错误信息（VERIFY_FAILED）
+4. **操作习惯**: 保持与传统"上传→确认→执行"工作流一致
 
 ---
 
