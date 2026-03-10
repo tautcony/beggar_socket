@@ -13,6 +13,7 @@
 #define CFI_MAX_SECTOR_REGIONS 4u
 #define CART_SERVICE_TEXT_BUFFER_BYTES 512u
 #define CART_SERVICE_FRAM_READ_LATENCY_CYCLES 4u
+#define CART_SERVICE_RAM_WRITE_CHUNK_SIZE 1024u
 
 typedef struct {
     uint32_t sector_size;
@@ -1506,6 +1507,8 @@ bool cart_service_commit_ram_upload(void)
 {
     bool success = true;
     uint32_t write_size;
+    uint32_t offset;
+    uint32_t chunk_size;
 
     cart_service_init_session_state();
 
@@ -1523,27 +1526,37 @@ bool cart_service_commit_ram_upload(void)
         write_size = CART_SERVICE_SAVE_SIZE_BYTES;
     }
 
-    switch (g_cart_service_session.current_config.ram_type) {
-        case CART_SERVICE_RAM_TYPE_SRAM:
-            success = cart_service_write_save_sram(0u, g_cart_service_ram_job.upload_buffer, write_size);
-            break;
-        case CART_SERVICE_RAM_TYPE_FRAM:
-            success = cart_service_write_save_fram(0u, g_cart_service_ram_job.upload_buffer, write_size);
-            break;
-        case CART_SERVICE_RAM_TYPE_FLASH:
-            success = cart_service_write_save_flash(0u, g_cart_service_ram_job.upload_buffer, write_size);
-            break;
-        default:
-            success = false;
-            break;
-    }
+    offset = 0u;
+    while (offset < write_size) {
+        chunk_size = write_size - offset;
+        if (chunk_size > CART_SERVICE_RAM_WRITE_CHUNK_SIZE) {
+            chunk_size = CART_SERVICE_RAM_WRITE_CHUNK_SIZE;
+        }
 
-    if (!success) {
-        snprintf(g_cart_service_ram_job.error_message,
-                 sizeof(g_cart_service_ram_job.error_message),
-                 "WRITE_FAILED");
-        g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_ERROR;
-        return false;
+        switch (g_cart_service_session.current_config.ram_type) {
+            case CART_SERVICE_RAM_TYPE_SRAM:
+                success = cart_service_write_save_sram(offset, &g_cart_service_ram_job.upload_buffer[offset], chunk_size);
+                break;
+            case CART_SERVICE_RAM_TYPE_FRAM:
+                success = cart_service_write_save_fram(offset, &g_cart_service_ram_job.upload_buffer[offset], chunk_size);
+                break;
+            case CART_SERVICE_RAM_TYPE_FLASH:
+                success = cart_service_write_save_flash(offset, &g_cart_service_ram_job.upload_buffer[offset], chunk_size);
+                break;
+            default:
+                success = false;
+                break;
+        }
+
+        if (!success) {
+            snprintf(g_cart_service_ram_job.error_message,
+                     sizeof(g_cart_service_ram_job.error_message),
+                     "WRITE_FAILED");
+            g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_ERROR;
+            return false;
+        }
+
+        offset += chunk_size;
     }
 
     g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_VERIFYING;
