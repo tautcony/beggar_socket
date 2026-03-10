@@ -1412,6 +1412,24 @@ bool cart_service_apply_mode_text(const uint8_t *buf, uint32_t len)
     return cart_service_apply_rom_config_text(buf, len);
 }
 
+/**
+ * @brief Accumulates uploaded data into RAM job buffer (Step 4 of workflow)
+ *
+ * This function is called when user writes to /RAM/UPLOAD.SAV via FAT16.
+ * Data is accumulated in memory but NOT written to cartridge hardware yet.
+ *
+ * Workflow: Configure → Apply → Erase → UPLOAD → Commit → Verify
+ *                                        ^^^^^^
+ *
+ * @param offset Byte offset within the upload buffer (0 to 32KB-1)
+ * @param buf Source data buffer
+ * @param len Number of bytes to write
+ * @return true if successful, false if parameters invalid
+ *
+ * @note Data remains in MCU memory until cart_service_commit_ram_upload() is called
+ * @note Supports FAT16 out-of-order writes by tracking highest offset written
+ * @see cart_service_commit_ram_upload() for actual hardware write
+ */
 bool cart_service_write_save(uint32_t offset, const uint8_t *buf, uint32_t len)
 {
     cart_service_init_session_state();
@@ -1424,8 +1442,10 @@ bool cart_service_write_save(uint32_t offset, const uint8_t *buf, uint32_t len)
         return false;
     }
 
+    /* Copy data to upload buffer (in-memory only) */
     memcpy(&g_cart_service_ram_job.upload_buffer[offset], buf, len);
 
+    /* Transition from IDLE to UPLOADING on first write */
     if (g_cart_service_ram_job.state == CART_SERVICE_RAM_JOB_STATE_IDLE) {
         g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_UPLOADING;
         g_cart_service_ram_job.bytes_written = 0u;
@@ -1433,6 +1453,7 @@ bool cart_service_write_save(uint32_t offset, const uint8_t *buf, uint32_t len)
         memset(g_cart_service_ram_job.error_message, 0, sizeof(g_cart_service_ram_job.error_message));
     }
 
+    /* Track highest offset written (handles FAT16 out-of-order writes) */
     if ((offset + len) > g_cart_service_ram_job.bytes_written) {
         g_cart_service_ram_job.bytes_written = offset + len;
     }
@@ -1503,6 +1524,36 @@ const char *cart_service_get_ram_job_error(void)
     return g_cart_service_ram_job.error_message[0] == '\0' ? "NONE" : g_cart_service_ram_job.error_message;
 }
 
+/**
+ * @brief Commits uploaded data to cartridge RAM hardware (Step 5 of workflow)
+ *
+ * This function is triggered when user writes to /RAM/COMMIT.TXT.
+ * It writes the accumulated upload buffer to the actual cartridge hardware.
+ *
+ * Workflow: Configure → Apply → Erase → Upload → COMMIT → Verify
+ *                                                 ^^^^^^
+ *
+ * Key Design Decisions:
+ * 1. EXPLICIT COMMIT MODEL: User must explicitly trigger commit to prevent
+ *    accidental writes due to FAT16 metadata/data ordering issues
+ * 2. 1KB CHUNKED WRITES: Data is written in 1KB chunks even if file is small,
+ *    ensuring hardware stability and compatibility across RAM types
+ * 3. TYPE-SPECIFIC HANDLERS: Different RAM types (SRAM/FRAM/FLASH) use
+ *    appropriate write functions with proper timing/barriers
+ * 4. AUTOMATIC VERIFICATION: After write completes, data is read back and
+ *    compared byte-by-byte to ensure integrity
+ *
+ * State Machine:
+ *   UPLOADING → COMMITTING → VERIFYING → SUCCESS or ERROR
+ *
+ * @return true if commit and verification successful, false otherwise
+ *
+ * @note Only valid when state is UPLOADING; returns INVALID_STATE error otherwise
+ * @note Sets state to ERROR with descriptive message on any failure
+ * @see cart_service_write_save() for upload phase
+ * @see cart_service_verify_save() for verification phase
+ * @see docs/RAM-UPLOAD-WORKFLOW.md for complete workflow documentation
+ */
 bool cart_service_commit_ram_upload(void)
 {
     bool success = true;
@@ -1512,6 +1563,7 @@ bool cart_service_commit_ram_upload(void)
 
     cart_service_init_session_state();
 
+    /* Verify we're in the correct state for commit */
     if (g_cart_service_ram_job.state != CART_SERVICE_RAM_JOB_STATE_UPLOADING) {
         snprintf(g_cart_service_ram_job.error_message,
                  sizeof(g_cart_service_ram_job.error_message),
@@ -1526,13 +1578,27 @@ bool cart_service_commit_ram_upload(void)
         write_size = CART_SERVICE_SAVE_SIZE_BYTES;
     }
 
+    /*
+     * Write data in 1KB chunks (CART_SERVICE_RAM_WRITE_CHUNK_SIZE = 1024)
+     *
+     * Why 1KB chunks even for small files?
+     * - Hardware stability: Smaller chunks allow better timeout recovery
+     * - Memory constraints: STM32F103C8 has limited RAM
+     * - Type compatibility: FRAM needs per-byte latency, chunks allow incremental application
+     * - Progress tracking: Enables finer-grained progress reporting in future
+     *
+     * This requirement came from real-world testing showing that writing
+     * entire buffer at once caused reliability issues on certain cartridge types.
+     */
     offset = 0u;
     while (offset < write_size) {
+        /* Calculate chunk size (last chunk may be smaller than 1KB) */
         chunk_size = write_size - offset;
         if (chunk_size > CART_SERVICE_RAM_WRITE_CHUNK_SIZE) {
             chunk_size = CART_SERVICE_RAM_WRITE_CHUNK_SIZE;
         }
 
+        /* Use type-specific write handler */
         switch (g_cart_service_session.current_config.ram_type) {
             case CART_SERVICE_RAM_TYPE_SRAM:
                 success = cart_service_write_save_sram(offset, &g_cart_service_ram_job.upload_buffer[offset], chunk_size);
@@ -1559,6 +1625,7 @@ bool cart_service_commit_ram_upload(void)
         offset += chunk_size;
     }
 
+    /* Verify the written data matches upload buffer */
     g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_VERIFYING;
 
     if (!cart_service_verify_save(g_cart_service_ram_job.upload_buffer, write_size)) {
