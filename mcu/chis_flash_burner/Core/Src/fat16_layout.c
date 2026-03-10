@@ -60,6 +60,11 @@ static uint16_t fat16_next_cluster(uint16_t cluster)
         return (uint16_t)(cluster + 1u);
     }
 
+    if ((cluster >= FAT16_CLUSTER_RAM_UPLOAD_SAV_START) &&
+        (cluster < (FAT16_CLUSTER_RAM_UPLOAD_SAV_START + FAT16_SAVE_WINDOW_CLUSTER_COUNT - 1u))) {
+        return (uint16_t)(cluster + 1u);
+    }
+
     return 0xFFF8u;
 }
 
@@ -230,6 +235,18 @@ bool fat16_layout_get_view(uint16_t cluster, Fat16ViewInfo *view, uint32_t *clus
             *view = (Fat16ViewInfo){FAT16_CLUSTER_RAM_TYPE_SELECT_TXT, 1u, FAT16_SECTOR_SIZE, FAT16_VIEW_RAM_TYPE_SELECT_TXT, false, false};
             *cluster_offset = 0u;
             return true;
+        case FAT16_CLUSTER_RAM_STATUS_TXT:
+            *view = (Fat16ViewInfo){FAT16_CLUSTER_RAM_STATUS_TXT, 1u, FAT16_SECTOR_SIZE, FAT16_VIEW_RAM_STATUS_TXT, false, true};
+            *cluster_offset = 0u;
+            return true;
+        case FAT16_CLUSTER_RAM_COMMIT_TXT:
+            *view = (Fat16ViewInfo){FAT16_CLUSTER_RAM_COMMIT_TXT, 1u, FAT16_SECTOR_SIZE, FAT16_VIEW_RAM_COMMIT_TXT, false, false};
+            *cluster_offset = 0u;
+            return true;
+        case FAT16_CLUSTER_RAM_ERASE_TXT:
+            *view = (Fat16ViewInfo){FAT16_CLUSTER_RAM_ERASE_TXT, 1u, FAT16_SECTOR_SIZE, FAT16_VIEW_RAM_ERASE_TXT, false, false};
+            *cluster_offset = 0u;
+            return true;
         default:
             break;
     }
@@ -255,6 +272,18 @@ bool fat16_layout_get_view(uint16_t cluster, Fat16ViewInfo *view, uint32_t *clus
                                 false,
                                 true};
         *cluster_offset = cluster - FAT16_CLUSTER_RAM_CURRENT_SAV_START;
+        return true;
+    }
+
+    if ((cluster >= FAT16_CLUSTER_RAM_UPLOAD_SAV_START) &&
+        (cluster < FAT16_CLUSTER_RAM_UPLOAD_SAV_START + FAT16_SAVE_WINDOW_CLUSTER_COUNT)) {
+        *view = (Fat16ViewInfo){FAT16_CLUSTER_RAM_UPLOAD_SAV_START,
+                                FAT16_SAVE_WINDOW_CLUSTER_COUNT,
+                                CART_SERVICE_UPLOAD_BUFFER_SIZE,
+                                FAT16_VIEW_RAM_UPLOAD_SAV,
+                                false,
+                                false};
+        *cluster_offset = cluster - FAT16_CLUSTER_RAM_UPLOAD_SAV_START;
         return true;
     }
 
