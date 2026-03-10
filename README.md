@@ -3,6 +3,7 @@ A lightweight gba cartridge burner, with limited functionality
 
 ## 📚 文档 / Documentation
 
+- **[STM32F103C8T6 RAM Analysis (RAM 使用分析)](./docs/STM32F103C8T6-RAM-ANALYSIS.md)** - 完整的 RAM 使用分析和内存优化建议
 - **[RAM Upload Workflow Guide (RAM 上传工作流程指南)](./docs/RAM-UPLOAD-WORKFLOW.md)** - 完整的 RAM 上传和提交工作流程说明
 - **[MCU Virtual FAT16 Disk Design (MCU 虚拟 FAT16 磁盘设计)](./docs/mcu-virtual-fat16-disk-design.md)** - FAT16 虚拟磁盘架构设计
 - **[MCU Firmware Wiki (MCU 固件维基)](./docs/mcu-firmware-wiki.md)** - 固件架构概览
