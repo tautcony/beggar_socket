@@ -142,7 +142,37 @@ USB Composite / MSC-only
 
 ## 5. 推荐的虚拟磁盘目录结构
 
-推荐的顶层结构如下：
+这一节需要同时表达两层含义：
+
+- **当前实现**：代码里已经实际暴露出来的目录与文件
+- **未来目标**：后续 ROM/RAM 写入、提交和状态机完成后希望演进到的完整控制面
+
+### 5.1 当前实现
+
+```text
+/INFO.TXT
+/STATUS.TXT
+/ROM/
+  CURRENT.GBA
+  CFI.TXT
+  CONFIG.TXT
+/RAM/
+  CURRENT.SAV
+  TYPE/
+    SRAM.TXT
+    FRAM.TXT
+    FLASH.TXT
+    SELECT.TXT
+```
+
+说明：
+
+- 顶层 `INFO.TXT` 和 `STATUS.TXT` 提供设备级信息
+- `ROM/` 当前负责 ROM 导出、CFI 信息展示和 ROM 窗口配置
+- `RAM/` 当前负责存档导出和 RAM 类型选择
+- 参数目录采用“候选文件 + SELECT.TXT”的模式
+
+### 5.2 未来目标
 
 ```text
 /INFO.TXT
@@ -169,11 +199,9 @@ USB Composite / MSC-only
   COMMIT.TXT
   ERASE.TXT
   TYPE/
-    AUTO.TXT
     SRAM.TXT
     FRAM.TXT
-    FLASH64.TXT
-    FLASH128.TXT
+    FLASH.TXT
     SELECT.TXT
   SIZE/
     AUTO.TXT
@@ -197,10 +225,9 @@ USB Composite / MSC-only
 
 说明：
 
-- 顶层 `INFO.TXT` 和 `STATUS.TXT` 提供设备级信息
-- `ROM/` 负责 ROM 导出、ROM 编程、ROM 模式切换
-- `RAM/` 负责存档导出、存档写入、RAM 类型与其他参数选择
-- 参数目录采用“候选文件 + SELECT.TXT”的模式
+- 未来目标会把当前的只读导出面板扩展成完整的 ROM/RAM 控制平面
+- `UPLOAD.*`、`COMMIT.TXT`、`ERASE.TXT`、局部 `STATUS.TXT`、`SIZE/`、`BANKING/`、`VERIFY/` 目前都还不是已实现行为
+- 阅读后续章节时，应优先看每一节是否标注为“当前实现”或“未来目标”
 
 ## 6. 参数在 FAT16 中的表现方式
 
@@ -232,17 +259,15 @@ USB Composite / MSC-only
 
 ```text
 /RAM/TYPE/
-  AUTO.TXT
   SRAM.TXT
   FRAM.TXT
-  FLASH64.TXT
-  FLASH128.TXT
+  FLASH.TXT
   SELECT.TXT
 ```
 
 其中：
 
-- `AUTO.TXT` / `SRAM.TXT` / `FRAM.TXT` / ...：
+- `SRAM.TXT` / `FRAM.TXT` / `FLASH.TXT`：
   - 只读
   - 展示该选项的说明及当前是否选中
 - `SELECT.TXT`：
@@ -260,12 +285,12 @@ USB Composite / MSC-only
 
 例如当前 `RAM TYPE = FRAM` 时：
 
-`/RAM/TYPE/FRAM.TXT`
+`/RAM/TYPE/FLASH.TXT`
 
 ```text
-NAME=FRAM
+NAME=FLASH
 SELECTED=1
-DESC=FRAM mode with delayed byte access
+DESC=Generic flash save mode
 ```
 
 `/RAM/TYPE/SRAM.TXT`
@@ -287,21 +312,22 @@ DESC=Direct SRAM mode
 写入：
 
 ```text
-FRAM
+FLASH
 ```
 
 MCU 解析成功后：
 
-- `pending_config.ram_type = FRAM`
-- 更新 `/RAM/STATUS.TXT`
-- 后续 `COMMIT.TXT` 才真正触发任务
+- `pending_config.ram_type = FLASH`
+- 更新根目录 `/STATUS.TXT` 中的 pending 状态
+- 当前阶段不会立即改变 `current_config`
+
+未来目标中，这个 pending 状态还会被 `COMMIT.TXT` 类文件消费，驱动真正的 RAM/ROM 操作。
 
 ### 6.5 为什么推荐 `SELECT.TXT` 而不是“直接写候选项文件”
 
 虽然也可以让用户直接写：
 
 - `/RAM/TYPE/FRAM.TXT`
-- `/RAM/VERIFY/ON.TXT`
 
 来表示选择，但相比之下 `SELECT.TXT` 更稳：
 
@@ -324,15 +350,17 @@ MCU 解析成功后：
 
 例如：
 
-- RAM 类型
-- RAM 大小
-- Banking 类型
-- ROM 模式
+- 当前实现：RAM 类型、ROM 导出窗口参数
+- 未来目标：RAM 大小、Banking 类型、ROM 模式
 
 推荐结构：
 
 ```text
+当前实现：
 /RAM/TYPE/* + SELECT.TXT
+/ROM/CONFIG.TXT
+
+未来目标：
 /RAM/SIZE/* + SELECT.TXT
 /RAM/BANKING/* + SELECT.TXT
 /ROM/MODE/* + SELECT.TXT
@@ -341,9 +369,9 @@ MCU 解析成功后：
 写法：
 
 - 向 `SELECT.TXT` 写：`FRAM`
-- 向 `SELECT.TXT` 写：`128K`
-- 向 `SELECT.TXT` 写：`MBC3`
-- 向 `SELECT.TXT` 写：`PROGRAM`
+- 向 `CONFIG.TXT` 写：`BASE_ADDRESS=...`
+- 未来目标还可向 `SELECT.TXT` 写：`MBC3`
+- 未来目标还可向 `SELECT.TXT` 写：`PROGRAM`
 
 ### 7.2 开关型参数
 
@@ -504,6 +532,8 @@ ADDRESS=0x00100000
 
 ## 9. 状态文件设计
 
+本节分为当前实现与未来目标两部分。
+
 ### 9.1 `/STATUS.TXT`
 
 设备级状态，示例：
@@ -517,7 +547,9 @@ LAST_ERROR=NONE
 LAST_ACTION=NONE
 ```
 
-### 9.2 `/ROM/STATUS.TXT`
+当前实现里，根目录 `/STATUS.TXT` 是唯一状态文件入口。
+
+### 9.2 未来目标：`/ROM/STATUS.TXT`
 
 示例：
 
@@ -530,7 +562,7 @@ IMAGE_SIZE=8388608
 LAST_ERROR=NONE
 ```
 
-### 9.3 `/RAM/STATUS.TXT`
+### 9.3 未来目标：`/RAM/STATUS.TXT`
 
 示例：
 
@@ -589,7 +621,29 @@ IMAGE_SIZE=32768
 
 ## 11.2 固定簇映射思路
 
-例如：
+### 当前实现
+
+当前代码中的固定簇映射是：
+
+```text
+Cluster 2   -> /INFO.TXT
+Cluster 3   -> /STATUS.TXT
+Cluster 4   -> /ROM/
+Cluster 5   -> /RAM/
+Cluster 6   -> /RAM/TYPE/
+Cluster 7   -> /ROM/CFI.TXT
+Cluster 8   -> /ROM/CONFIG.TXT
+Cluster 9   -> /RAM/TYPE/SRAM.TXT
+Cluster 10  -> /RAM/TYPE/FRAM.TXT
+Cluster 11  -> /RAM/TYPE/FLASH.TXT
+Cluster 14  -> /RAM/TYPE/SELECT.TXT
+Cluster 32+ -> /ROM/CURRENT.GBA data window
+Cluster N+  -> /RAM/CURRENT.SAV data window
+```
+
+### 未来目标
+
+未来如果扩展到完整控制面，可以演进成更大的固定簇表，例如：
 
 ```text
 Cluster 20  -> /INFO.TXT
@@ -598,12 +652,10 @@ Cluster 30  -> /ROM/STATUS.TXT
 Cluster 31+ -> /ROM/CURRENT.GBA data window
 Cluster 200 -> /ROM/COMMIT.TXT
 Cluster 210 -> /RAM/STATUS.TXT
-Cluster 220 -> /RAM/TYPE/AUTO.TXT
-Cluster 221 -> /RAM/TYPE/SRAM.TXT
-Cluster 222 -> /RAM/TYPE/FRAM.TXT
-Cluster 223 -> /RAM/TYPE/FLASH64.TXT
-Cluster 224 -> /RAM/TYPE/FLASH128.TXT
-Cluster 225 -> /RAM/TYPE/SELECT.TXT
+Cluster 220 -> /RAM/TYPE/SRAM.TXT
+Cluster 221 -> /RAM/TYPE/FRAM.TXT
+Cluster 222 -> /RAM/TYPE/FLASH.TXT
+Cluster 223 -> /RAM/TYPE/SELECT.TXT
 ```
 
 读文件时：
@@ -614,8 +666,8 @@ Cluster 225 -> /RAM/TYPE/SELECT.TXT
 写文件时：
 
 - 根据簇号找到目标文件
-- 如果是 `SELECT.TXT` / `COMMIT.TXT` / `ERASE.TXT` 等控制文件，则解析文本
-- 如果是 `UPLOAD.SAV` / `UPLOAD.GBA` 则映射到上传或编程窗口
+- 当前实现里可写控制文件只有 `/ROM/CONFIG.TXT` 和 `/RAM/TYPE/SELECT.TXT`
+- 未来目标里还会把 `COMMIT.TXT`、`ERASE.TXT`、`UPLOAD.*` 纳入固定簇映射
 
 ## 11.3 目录项处理策略
 
@@ -630,7 +682,7 @@ Cluster 225 -> /RAM/TYPE/SELECT.TXT
 - `STATUS.TXT`、参数展示文件大小可固定为 512B
 - `CURRENT.SAV` 大小可根据配置或当前检测结果返回
 - `CURRENT.GBA` 可以按检测到的 ROM 大小返回
-- `UPLOAD.*` 可以返回预定义最大容量
+- `UPLOAD.*` 是未来目标，不属于当前实现
 
 ## 12. 推荐的内部配置模型
 
@@ -649,15 +701,13 @@ Cluster 225 -> /RAM/TYPE/SELECT.TXT
 ```text
 current_config:
   ram_type = SRAM
-  ram_size = 32K
-  ram_verify = ON
-  rom_mode = READ
+  rom_base_address = 0
+  rom_size = detected_size
 
 pending_config:
   ram_type = FRAM
-  ram_size = 32K
-  ram_verify = ON
-  rom_mode = PROGRAM
+  rom_base_address = 0x00000000
+  rom_size = 0x00100000
 ```
 
 优点：
@@ -665,6 +715,8 @@ pending_config:
 - 参数修改和任务执行解耦
 - 用户可以先改多项参数，再统一提交
 - 状态文件可以同时显示 current 和 pending
+
+未来目标里还可以继续把 `ram_size`、`ram_verify`、`rom_mode` 等字段补进配置对象。
 
 ## 13. 推荐的任务状态机
 
@@ -886,6 +938,8 @@ IDLE
 
 ## 18. 推荐的最终用户交互流程
 
+这一节描述的是未来目标体验，不代表当前固件已经完整支持。
+
 ### 18.1 导出 ROM
 
 1. 插入设备
@@ -939,6 +993,44 @@ IDLE
 本方案不实现“动态 FAT16 分配器”，而是导出一个**固定布局的虚拟 FAT16 磁盘**。主机看到的是标准 FAT16，固件内部则用静态表把 `LBA -> cluster -> file view` 映射到对应行为。
 
 ### 20.1 逻辑分区示意
+
+下面的第一段是当前实现，第二段是未来目标布局草图。
+
+当前实现：
+
+```text
+LBA 0
+┌──────────────────────────────────────────────┐
+│ Boot Sector / BPB                            │
+└──────────────────────────────────────────────┘
+LBA ...
+┌──────────────────────────────────────────────┐
+│ Root Directory                               │
+│ - INFO.TXT                                   │
+│ - STATUS.TXT                                 │
+│ - ROM                                        │
+│ - RAM                                        │
+└──────────────────────────────────────────────┘
+LBA ...
+┌──────────────────────────────────────────────┐
+│ Data Region                                  │
+│ Cluster 2   -> /INFO.TXT                     │
+│ Cluster 3   -> /STATUS.TXT                   │
+│ Cluster 4   -> /ROM/                         │
+│ Cluster 5   -> /RAM/                         │
+│ Cluster 6   -> /RAM/TYPE/                    │
+│ Cluster 7   -> /ROM/CFI.TXT                  │
+│ Cluster 8   -> /ROM/CONFIG.TXT               │
+│ Cluster 9   -> /RAM/TYPE/SRAM.TXT            │
+│ Cluster 10  -> /RAM/TYPE/FRAM.TXT            │
+│ Cluster 11  -> /RAM/TYPE/FLASH.TXT           │
+│ Cluster 14  -> /RAM/TYPE/SELECT.TXT          │
+│ Cluster 32+ -> /ROM/CURRENT.GBA window       │
+│ Cluster N+  -> /RAM/CURRENT.SAV window       │
+└──────────────────────────────────────────────┘
+```
+
+未来目标：
 
 ```text
 LBA 0
@@ -1058,7 +1150,7 @@ LBA R+1..
 | `/ROM` | 目录 | 4 | 0 | DIR | ROM 主目录 |
 | `/RAM` | 目录 | 5 | 0 | DIR | RAM 主目录 |
 
-### 21.3 `/ROM` 目录项示例
+### 21.3 未来目标：`/ROM` 目录项示例
 
 | 路径 | 类型 | 起始簇 | 大小 | 属性 | 说明 |
 | --- | --- | ---: | ---: | --- | --- |
@@ -1070,7 +1162,7 @@ LBA R+1..
 | `/ROM/VERIFY` | 目录 | 6 | 0 | DIR | ROM 校验参数目录 |
 | `/ROM/MODE` | 目录 | 7 | 0 | DIR | ROM 模式参数目录 |
 
-### 21.4 `/RAM` 目录项示例
+### 21.4 未来目标：`/RAM` 目录项示例
 
 | 路径 | 类型 | 起始簇 | 大小 | 属性 | 说明 |
 | --- | --- | ---: | ---: | --- | --- |
@@ -1087,44 +1179,42 @@ LBA R+1..
 
 ### 21.5 参数目录项示例
 
-以 `/RAM/TYPE` 为例：
+以下表格描述的是**当前实现**中 `/RAM/TYPE` 的目录项：
 
 | 路径 | 类型 | 起始簇 | 大小 | 属性 | 说明 |
 | --- | --- | ---: | ---: | --- | --- |
-| `/RAM/TYPE/AUTO.TXT` | 文件 | 40 | 512 | RO | 候选项展示 |
-| `/RAM/TYPE/SRAM.TXT` | 文件 | 41 | 512 | RO | 候选项展示 |
-| `/RAM/TYPE/FRAM.TXT` | 文件 | 42 | 512 | RO | 候选项展示 |
-| `/RAM/TYPE/FLASH64.TXT` | 文件 | 43 | 512 | RO | 候选项展示 |
-| `/RAM/TYPE/FLASH128.TXT` | 文件 | 44 | 512 | RO | 候选项展示 |
-| `/RAM/TYPE/SELECT.TXT` | 文件 | 21 | 512 | RW | 真正写入口 |
+| `/RAM/TYPE/SRAM.TXT` | 文件 | 9 | 512 | RO | 候选项展示 |
+| `/RAM/TYPE/FRAM.TXT` | 文件 | 10 | 512 | RO | 候选项展示 |
+| `/RAM/TYPE/FLASH.TXT` | 文件 | 11 | 512 | RO | 候选项展示 |
+| `/RAM/TYPE/SELECT.TXT` | 文件 | 14 | 512 | RW | 真正写入口 |
 
 ### 21.6 LBA 访问示例
 
 例如：
 
-- `data_lba = 137`
-- `/RAM/TYPE/FRAM.TXT` 起始簇 = `42`
+- `data_lba = FAT16_DATA_LBA`
+- `/RAM/TYPE/FRAM.TXT` 起始簇 = `10`
 
 则该文件对应的首扇区：
 
-- `lba = 137 + (42 - 2) = 177`
+- `lba = FAT16_DATA_LBA + (10 - 2)`
 
-主机读取 `LBA 177` 时，固件行为为：
+主机读取该 LBA 时，固件行为为：
 
-1. `virtual_disk_read(177, ...)`
-2. 识别 `177 -> cluster 42 -> /RAM/TYPE/FRAM.TXT`
+1. `virtual_disk_read(lba, ...)`
+2. 识别 `lba -> cluster 10 -> /RAM/TYPE/FRAM.TXT`
 3. `file_views_render_option_file(group=RAM_TYPE, option=FRAM)`
 4. 动态生成 512B 文本并返回
 
 再例如：
 
-- `/RAM/TYPE/SELECT.TXT` 起始簇 = `21`
-- 对应 `lba = 137 + (21 - 2) = 156`
+- `/RAM/TYPE/SELECT.TXT` 起始簇 = `14`
+- 对应 `lba = FAT16_DATA_LBA + (14 - 2)`
 
-主机写 `LBA 156` 时：
+主机写该 LBA 时：
 
-1. `virtual_disk_write(156, buf, 512)`
-2. 识别 `156 -> cluster 21 -> /RAM/TYPE/SELECT.TXT`
+1. `virtual_disk_write(lba, buf, 512)`
+2. 识别 `lba -> cluster 14 -> /RAM/TYPE/SELECT.TXT`
 3. 调 `file_views_write_select(RAM_TYPE, buf)`
 4. 解析为 `pending_config.ram_type = FRAM`
 5. 返回成功，不要求真正把这 512B 保存到本地存储
@@ -1142,31 +1232,38 @@ LBA R+1..
 
 ### 22.2 ROM 相关文件
 
+下面先列**当前实现**，再列**未来目标**。
+
 | 路径 | 读行为 | 写行为 | 是否持久化 | 备注 |
 | --- | --- | --- | --- | --- |
 | `/ROM/CURRENT.GBA` | 按 offset 从卡 ROM 读 | 拒绝写入 | 否 | 导出窗口 |
-| `/ROM/UPLOAD.GBA` | 可返回空洞数据、最近写入状态或拒绝读取 | 按 offset 映射为 ROM 流式编程写 | 否 | 不是本地缓存文件 |
-| `/ROM/STATUS.TXT` | 动态生成 ROM 状态 | 拒绝写入 | 否 | 只读视图 |
-| `/ROM/COMMIT.TXT` | 返回帮助/最近命令说明 | 解析提交命令并启动或收尾任务 | 否 | 写即命令 |
-| `/ROM/ERASE.TXT` | 返回支持的擦除命令说明 | 解析擦除命令并设置/启动擦除任务 | 否 | 写即命令 |
-| `/ROM/MODE/READ.TXT` | 展示 READ 是否选中 | 拒绝写入 | 否 | 候选项 |
-| `/ROM/MODE/PROGRAM.TXT` | 展示 PROGRAM 是否选中 | 拒绝写入 | 否 | 候选项 |
-| `/ROM/MODE/ERASE_ONLY.TXT` | 展示 ERASE_ONLY 是否选中 | 拒绝写入 | 否 | 候选项 |
-| `/ROM/MODE/SELECT.TXT` | 返回当前/帮助文本 | 解析并更新 `pending_config.rom_mode` | 否 | 写即命令 |
-| `/ROM/VERIFY/ON.TXT` | 展示 ON 是否选中 | 拒绝写入 | 否 | 候选项 |
-| `/ROM/VERIFY/OFF.TXT` | 展示 OFF 是否选中 | 拒绝写入 | 否 | 候选项 |
-| `/ROM/VERIFY/SELECT.TXT` | 返回当前/帮助文本 | 解析并更新 `pending_config.rom_verify` | 否 | 写即命令 |
+| `/ROM/CFI.TXT` | 动态生成 CFI 信息 | 拒绝写入 | 否 | 只读视图 |
+| `/ROM/CONFIG.TXT` | 动态生成当前/待提交 ROM 窗口参数 | 解析 `BASE_ADDRESS` / `SIZE` 并更新 `pending_config` | 否 | 当前 ROM 配置入口 |
+
+未来目标还可继续扩展：
+
+- `/ROM/UPLOAD.GBA`
+- `/ROM/STATUS.TXT`
+- `/ROM/COMMIT.TXT`
+- `/ROM/ERASE.TXT`
+- `/ROM/MODE/*`
+- `/ROM/VERIFY/*`
 
 ### 22.3 RAM 相关文件
+
+下面先列**当前实现**，再列**未来目标**。
 
 | 路径 | 读行为 | 写行为 | 是否持久化 | 备注 |
 | --- | --- | --- | --- | --- |
 | `/RAM/CURRENT.SAV` | 按 offset 从目标存档区读 | 拒绝写入 | 否 | 导出窗口 |
-| `/RAM/UPLOAD.SAV` | 可返回空洞数据、最近写入状态或拒绝读取 | 按 offset 作为存档上传/写入窗口 | 否 | 可做分块 staging 或直写 |
-| `/RAM/STATUS.TXT` | 动态生成 RAM 状态 | 拒绝写入 | 否 | 只读视图 |
-| `/RAM/COMMIT.TXT` | 返回帮助/最近命令说明 | 解析提交命令并启动任务 | 否 | 写即命令 |
-| `/RAM/ERASE.TXT` | 返回支持命令说明 | 解析擦除命令 | 否 | 写即命令 |
-| `/RAM/CONFIG.TXT` | 动态生成当前/待提交配置 | 解析 `key=value` 更新 `pending_config` | 否 | 复合配置入口 |
+
+未来目标还可继续扩展：
+
+- `/RAM/UPLOAD.SAV`
+- `/RAM/STATUS.TXT`
+- `/RAM/COMMIT.TXT`
+- `/RAM/ERASE.TXT`
+- `/RAM/CONFIG.TXT`
 
 ### 22.4 RAM 参数目录文件
 
@@ -1174,12 +1271,11 @@ LBA R+1..
 | --- | --- | --- | --- | --- |
 | `/RAM/TYPE/*.TXT`（候选项） | 展示该选项说明与是否选中 | 拒绝写入 | 否 | 只读展示 |
 | `/RAM/TYPE/SELECT.TXT` | 返回当前值与帮助 | 解析写入，更新 `pending_config.ram_type` | 否 | 真正写入口 |
-| `/RAM/SIZE/*.TXT`（候选项） | 展示大小项说明与是否选中 | 拒绝写入 | 否 | 只读展示 |
-| `/RAM/SIZE/SELECT.TXT` | 返回当前值与帮助 | 解析写入，更新 `pending_config.ram_size` | 否 | 真正写入口 |
-| `/RAM/BANKING/*.TXT`（候选项） | 展示 banking 项说明与是否选中 | 拒绝写入 | 否 | 只读展示 |
-| `/RAM/BANKING/SELECT.TXT` | 返回当前值与帮助 | 解析写入，更新 `pending_config.ram_banking` | 否 | 真正写入口 |
-| `/RAM/VERIFY/*.TXT`（候选项） | 展示开关状态 | 拒绝写入 | 否 | 只读展示 |
-| `/RAM/VERIFY/SELECT.TXT` | 返回当前值与帮助 | 解析写入，更新 `pending_config.ram_verify` | 否 | 真正写入口 |
+未来目标中还可补充：
+
+- `/RAM/SIZE/*.TXT` 和 `/RAM/SIZE/SELECT.TXT`
+- `/RAM/BANKING/*.TXT` 和 `/RAM/BANKING/SELECT.TXT`
+- `/RAM/VERIFY/*.TXT` 和 `/RAM/VERIFY/SELECT.TXT`
 
 ### 22.5 “写即命令 / 写即流 / 写即持久配置”分类
 
@@ -1187,8 +1283,8 @@ LBA R+1..
 
 | 类别 | 代表文件 | 语义 | 存储位置 |
 | --- | --- | --- | --- |
-| 写即命令 | `SELECT.TXT` `COMMIT.TXT` `ERASE.TXT` | 写入后立即解析并更新状态/启动任务 | SRAM 会话态 |
-| 写即流 | `UPLOAD.GBA` `UPLOAD.SAV` | 把主机写入的数据按 offset 映射到目标窗口 | 不要求本地持久保存 |
+| 写即命令 | 当前实现中的 `SELECT.TXT` `CONFIG.TXT`，以及未来目标中的 `COMMIT.TXT` `ERASE.TXT` | 写入后立即解析并更新状态/启动任务 | SRAM 会话态 |
+| 写即流 | 未来目标中的 `UPLOAD.GBA` `UPLOAD.SAV` | 把主机写入的数据按 offset 映射到目标窗口 | 不要求本地持久保存 |
 | 写即持久配置 | 未来 `SAVEDEFAULT.TXT` | 显式把小配置刷入 MCU 内部 Flash | STM32 Internal Flash |
 
 默认第一版只实现前两类。

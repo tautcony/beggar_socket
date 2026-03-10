@@ -63,8 +63,20 @@ typedef struct {
     uint32_t size_bytes;
 } CartServiceRomWindow;
 
+typedef struct {
+    CartServiceRomWindow rom_window;
+    CartServiceRamType ram_type;
+} CartServiceConfig;
+
+typedef struct {
+    CartServiceConfig current_config;
+    CartServiceConfig pending_config;
+    uint32_t dirty_mask;
+    char last_error[96];
+} CartServiceSessionState;
+
 static CartServiceCfiCache g_cart_service_cfi_cache;
-static CartServiceRomWindow g_cart_service_rom_window;
+static CartServiceSessionState g_cart_service_session;
 
 static uint32_t pow2_u32(uint8_t exponent)
 {
@@ -105,6 +117,49 @@ static const char *format_bytes_compact(uint32_t bytes)
     static char byte_buf[16];
     snprintf(byte_buf, sizeof(byte_buf), "%lu B", (unsigned long)bytes);
     return byte_buf;
+}
+
+static const char *cart_service_ram_type_label(CartServiceRamType type)
+{
+    switch (type) {
+        case CART_SERVICE_RAM_TYPE_SRAM:
+            return "SRAM";
+        case CART_SERVICE_RAM_TYPE_FRAM:
+            return "FRAM";
+        case CART_SERVICE_RAM_TYPE_FLASH:
+            return "FLASH";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+static const char *cart_service_ram_type_detail(CartServiceRamType type)
+{
+    switch (type) {
+        case CART_SERVICE_RAM_TYPE_SRAM:
+            return "Static RAM save mode.";
+        case CART_SERVICE_RAM_TYPE_FRAM:
+            return "FRAM save mode.";
+        case CART_SERVICE_RAM_TYPE_FLASH:
+            return "Flash save mode. Capacity-specific handling is resolved later.";
+        default:
+            return "Unknown save-type option.";
+    }
+}
+
+static void cart_service_clear_error(void)
+{
+    g_cart_service_session.last_error[0] = '\0';
+}
+
+static void cart_service_set_error(const char *message)
+{
+    if (message == NULL) {
+        cart_service_clear_error();
+        return;
+    }
+
+    snprintf(g_cart_service_session.last_error, sizeof(g_cart_service_session.last_error), "%s", message);
 }
 
 static bool appendf(char **cursor, uint32_t *remaining, const char *format, ...)
@@ -407,12 +462,37 @@ static uint32_t cart_service_get_detected_rom_size(void)
     return cart_service_get_effective_rom_size(&g_cart_service_cfi_cache.info);
 }
 
-static void cart_service_get_resolved_rom_window(uint32_t *base_address, uint32_t *size_bytes)
+static void cart_service_session_sync_dirty_mask(void)
+{
+    uint32_t dirty_mask = CART_SERVICE_DIRTY_NONE;
+
+    if ((g_cart_service_session.pending_config.rom_window.base_address !=
+         g_cart_service_session.current_config.rom_window.base_address) ||
+        (g_cart_service_session.pending_config.rom_window.size_bytes !=
+         g_cart_service_session.current_config.rom_window.size_bytes)) {
+        dirty_mask |= CART_SERVICE_DIRTY_ROM_WINDOW;
+    }
+
+    if (g_cart_service_session.pending_config.ram_type != g_cart_service_session.current_config.ram_type) {
+        dirty_mask |= CART_SERVICE_DIRTY_RAM_TYPE;
+    }
+
+    g_cart_service_session.dirty_mask = dirty_mask;
+}
+
+static void cart_service_get_resolved_rom_window_from_config(const CartServiceConfig *config,
+                                                             uint32_t *base_address,
+                                                             uint32_t *size_bytes)
 {
     uint32_t device_size = cart_service_get_detected_rom_size();
-    uint32_t resolved_base = g_cart_service_rom_window.base_address;
-    uint32_t resolved_size = g_cart_service_rom_window.size_bytes;
+    uint32_t resolved_base = 0u;
+    uint32_t resolved_size = 0u;
     uint32_t max_window_size = device_size;
+
+    if (config != NULL) {
+        resolved_base = config->rom_window.base_address;
+        resolved_size = config->rom_window.size_bytes;
+    }
 
     if (resolved_base >= device_size) {
         resolved_base = 0u;
@@ -433,6 +513,35 @@ static void cart_service_get_resolved_rom_window(uint32_t *base_address, uint32_
     if (size_bytes != NULL) {
         *size_bytes = resolved_size;
     }
+}
+
+static void cart_service_normalize_session_config(CartServiceConfig *config)
+{
+    if (config == NULL) {
+        return;
+    }
+
+    cart_service_get_resolved_rom_window_from_config(config,
+                                                     &config->rom_window.base_address,
+                                                     &config->rom_window.size_bytes);
+}
+
+static void cart_service_init_session_state(void)
+{
+    static bool initialized = false;
+
+    if (initialized) {
+        return;
+    }
+
+    memset(&g_cart_service_session, 0, sizeof(g_cart_service_session));
+    g_cart_service_session.current_config.ram_type = CART_SERVICE_RAM_TYPE_SRAM;
+    g_cart_service_session.pending_config = g_cart_service_session.current_config;
+    cart_service_normalize_session_config(&g_cart_service_session.current_config);
+    cart_service_normalize_session_config(&g_cart_service_session.pending_config);
+    cart_service_session_sync_dirty_mask();
+    cart_service_clear_error();
+    initialized = true;
 }
 
 static char *trim_left(char *text)
@@ -488,8 +597,28 @@ static bool parse_u32_value(const char *text, uint32_t *value)
     return true;
 }
 
+static bool cart_service_parse_ram_type(const char *text, CartServiceRamType *type)
+{
+    if (text == NULL || type == NULL) {
+        return false;
+    }
+
+    if (key_equals(text, "SRAM")) {
+        *type = CART_SERVICE_RAM_TYPE_SRAM;
+    } else if (key_equals(text, "FRAM")) {
+        *type = CART_SERVICE_RAM_TYPE_FRAM;
+    } else if (key_equals(text, "FLASH")) {
+        *type = CART_SERVICE_RAM_TYPE_FLASH;
+    } else {
+        return false;
+    }
+
+    return true;
+}
+
 uint32_t cart_service_get_rom_device_size(void)
 {
+    cart_service_init_session_state();
     return cart_service_get_detected_rom_size();
 }
 
@@ -497,7 +626,8 @@ uint32_t cart_service_get_rom_size(void)
 {
     uint32_t export_size = 0u;
 
-    cart_service_get_resolved_rom_window(NULL, &export_size);
+    cart_service_init_session_state();
+    cart_service_get_resolved_rom_window_from_config(&g_cart_service_session.current_config, NULL, &export_size);
     return export_size;
 }
 
@@ -505,13 +635,74 @@ uint32_t cart_service_get_rom_base_address(void)
 {
     uint32_t base_address = 0u;
 
-    cart_service_get_resolved_rom_window(&base_address, NULL);
+    cart_service_init_session_state();
+    cart_service_get_resolved_rom_window_from_config(&g_cart_service_session.current_config, &base_address, NULL);
+    return base_address;
+}
+
+uint32_t cart_service_get_pending_rom_size(void)
+{
+    uint32_t export_size = 0u;
+
+    cart_service_init_session_state();
+    cart_service_get_resolved_rom_window_from_config(&g_cart_service_session.pending_config, NULL, &export_size);
+    return export_size;
+}
+
+uint32_t cart_service_get_pending_rom_base_address(void)
+{
+    uint32_t base_address = 0u;
+
+    cart_service_init_session_state();
+    cart_service_get_resolved_rom_window_from_config(&g_cart_service_session.pending_config, &base_address, NULL);
     return base_address;
 }
 
 uint32_t cart_service_get_save_size(void)
 {
     return CART_SERVICE_SAVE_SIZE_BYTES;
+}
+
+CartServiceRamType cart_service_get_current_ram_type(void)
+{
+    cart_service_init_session_state();
+    return g_cart_service_session.current_config.ram_type;
+}
+
+CartServiceRamType cart_service_get_pending_ram_type(void)
+{
+    cart_service_init_session_state();
+    return g_cart_service_session.pending_config.ram_type;
+}
+
+bool cart_service_has_pending_changes(void)
+{
+    cart_service_init_session_state();
+    cart_service_session_sync_dirty_mask();
+    return g_cart_service_session.dirty_mask != CART_SERVICE_DIRTY_NONE;
+}
+
+uint32_t cart_service_get_dirty_mask(void)
+{
+    cart_service_init_session_state();
+    cart_service_session_sync_dirty_mask();
+    return g_cart_service_session.dirty_mask;
+}
+
+const char *cart_service_get_last_error(void)
+{
+    cart_service_init_session_state();
+    return g_cart_service_session.last_error[0] == '\0' ? "NONE" : g_cart_service_session.last_error;
+}
+
+const char *cart_service_get_ram_type_name(CartServiceRamType type)
+{
+    return cart_service_ram_type_label(type);
+}
+
+const char *cart_service_get_ram_type_description(CartServiceRamType type)
+{
+    return cart_service_ram_type_detail(type);
 }
 
 bool cart_service_read_rom(uint32_t offset, uint8_t *buf, uint32_t len)
@@ -523,7 +714,8 @@ bool cart_service_read_rom(uint32_t offset, uint8_t *buf, uint32_t len)
         return false;
     }
 
-    cart_service_get_resolved_rom_window(&base_address, &export_size);
+    cart_service_init_session_state();
+    cart_service_get_resolved_rom_window_from_config(&g_cart_service_session.current_config, &base_address, &export_size);
 
     if (offset > export_size || len > (export_size - offset)) {
         return false;
@@ -686,53 +878,108 @@ bool cart_service_build_cfi_text(char *buf, uint32_t buf_size)
     return true;
 }
 
-bool cart_service_build_mode_text(char *buf, uint32_t buf_size)
+bool cart_service_build_status_text(char *buf, uint32_t buf_size)
 {
     char *cursor = buf;
     uint32_t remaining = buf_size;
-    uint32_t base_address = 0u;
-    uint32_t export_size = 0u;
-    uint32_t device_size = 0u;
-    uint32_t export_end = 0u;
 
     if (buf == NULL || buf_size == 0u) {
         return false;
     }
 
+    cart_service_init_session_state();
+    cart_service_session_sync_dirty_mask();
     memset(buf, 0, buf_size);
-    cart_service_get_resolved_rom_window(&base_address, &export_size);
-    device_size = cart_service_get_rom_device_size();
-    export_end = export_size == 0u ? base_address : (base_address + export_size - 1u);
 
-    appendf(&cursor, &remaining, "ROM MODE\r\n");
-    appendf(&cursor, &remaining, "========\r\n");
-    appendf(&cursor, &remaining, "BASE_ADDRESS=0x%08lX\r\n", (unsigned long)base_address);
-    appendf(&cursor, &remaining, "SIZE=0x%08lX\r\n", (unsigned long)export_size);
+    appendf(&cursor, &remaining, "DEVICE STATUS\r\n");
+    appendf(&cursor, &remaining, "=============\r\n");
+    appendf(&cursor, &remaining, "DEVICE=BEGGAR_SOCKET\r\n");
+    appendf(&cursor, &remaining, "STATE=IDLE\r\n");
+    appendf(&cursor, &remaining, "USB_MODE=MSC_ONLY\r\n");
+    appendf(&cursor, &remaining, "DISK_STATE=READY\r\n");
+    appendf(&cursor, &remaining, "CONTROL_PLANE=PARAMETER_FILES\r\n");
+    appendf(&cursor, &remaining, "CURRENT_ROM_BASE=0x%08lX\r\n", (unsigned long)cart_service_get_rom_base_address());
+    appendf(&cursor, &remaining, "CURRENT_ROM_SIZE=0x%08lX\r\n", (unsigned long)cart_service_get_rom_size());
+    appendf(&cursor,
+            &remaining,
+            "CURRENT_RAM_TYPE=%s\r\n",
+            cart_service_ram_type_label(g_cart_service_session.current_config.ram_type));
+    appendf(&cursor,
+            &remaining,
+            "PENDING_ROM_BASE=0x%08lX\r\n",
+            (unsigned long)cart_service_get_pending_rom_base_address());
+    appendf(&cursor,
+            &remaining,
+            "PENDING_ROM_SIZE=0x%08lX\r\n",
+            (unsigned long)cart_service_get_pending_rom_size());
+    appendf(&cursor,
+            &remaining,
+            "PENDING_RAM_TYPE=%s\r\n",
+            cart_service_ram_type_label(g_cart_service_session.pending_config.ram_type));
+    appendf(&cursor, &remaining, "UNAPPLIED_CHANGES=%u\r\n", cart_service_has_pending_changes() ? 1u : 0u);
+    appendf(&cursor, &remaining, "DIRTY_MASK=0x%02lX\r\n", (unsigned long)g_cart_service_session.dirty_mask);
+    appendf(&cursor, &remaining, "LAST_ERROR=%s\r\n", cart_service_get_last_error());
+    appendf(&cursor, &remaining, "ACTIVE_LAYOUT=FAT16_STAGE_2\r\n");
+    return true;
+}
+
+bool cart_service_build_rom_config_text(char *buf, uint32_t buf_size)
+{
+    char *cursor = buf;
+    uint32_t remaining = buf_size;
+    uint32_t current_base = 0u;
+    uint32_t current_size = 0u;
+    uint32_t pending_base = 0u;
+    uint32_t pending_size = 0u;
+    uint32_t device_size = 0u;
+    uint32_t pending_end = 0u;
+
+    if (buf == NULL || buf_size == 0u) {
+        return false;
+    }
+
+    cart_service_init_session_state();
+    memset(buf, 0, buf_size);
+    current_base = cart_service_get_rom_base_address();
+    current_size = cart_service_get_rom_size();
+    pending_base = cart_service_get_pending_rom_base_address();
+    pending_size = cart_service_get_pending_rom_size();
+    device_size = cart_service_get_rom_device_size();
+    pending_end = pending_size == 0u ? pending_base : (pending_base + pending_size - 1u);
+
+    appendf(&cursor, &remaining, "TYPE=CONFIG\r\n");
+    appendf(&cursor, &remaining, "GROUP=ROM_WINDOW\r\n");
+    appendf(&cursor, &remaining, "PATH=/ROM/CONFIG.TXT\r\n");
+    appendf(&cursor, &remaining, "CURRENT_BASE_ADDRESS=0x%08lX\r\n", (unsigned long)current_base);
+    appendf(&cursor, &remaining, "CURRENT_SIZE=0x%08lX\r\n", (unsigned long)current_size);
+    appendf(&cursor, &remaining, "BASE_ADDRESS=0x%08lX\r\n", (unsigned long)pending_base);
+    appendf(&cursor, &remaining, "SIZE=0x%08lX\r\n", (unsigned long)pending_size);
     appendf(&cursor,
             &remaining,
             "DEVICE_SIZE=0x%08lX (%s)\r\n",
             (unsigned long)device_size,
             format_bytes_compact(device_size));
-    appendf(&cursor, &remaining, "EXPORT_END=0x%08lX\r\n", (unsigned long)export_end);
-    appendf(&cursor, &remaining, "ROM_PATH=/ROM/CURRENT.GBA\r\n");
-    appendf(&cursor, &remaining, "NOTE=Edit BASE_ADDRESS and SIZE, then save MODE.TXT.\r\n");
+    appendf(&cursor, &remaining, "PENDING_EXPORT_END=0x%08lX\r\n", (unsigned long)pending_end);
+    appendf(&cursor, &remaining, "UNAPPLIED=%u\r\n", (g_cart_service_session.dirty_mask & CART_SERVICE_DIRTY_ROM_WINDOW) ? 1u : 0u);
+    appendf(&cursor, &remaining, "NOTE=Edit BASE_ADDRESS and SIZE, then save CONFIG.TXT.\r\n");
     appendf(&cursor, &remaining, "NOTE=SIZE=0 uses the remaining bytes from BASE_ADDRESS.\r\n");
-    appendf(&cursor, &remaining, "NOTE=Values are clamped to the detected ROM size.\r\n");
     return true;
 }
 
-bool cart_service_apply_mode_text(const uint8_t *buf, uint32_t len)
+bool cart_service_apply_rom_config_text(const uint8_t *buf, uint32_t len)
 {
     char text[CART_SERVICE_TEXT_BUFFER_BYTES + 1u];
     char *cursor = text;
-    uint32_t base_address = cart_service_get_rom_base_address();
-    uint32_t export_size = cart_service_get_rom_size();
+    CartServiceConfig candidate;
     uint32_t recognized = 0u;
     uint32_t copy_len = len;
 
     if (buf == NULL) {
         return false;
     }
+
+    cart_service_init_session_state();
+    candidate = g_cart_service_session.pending_config;
 
     if (copy_len > CART_SERVICE_TEXT_BUFFER_BYTES) {
         copy_len = CART_SERVICE_TEXT_BUFFER_BYTES;
@@ -773,15 +1020,17 @@ bool cart_service_apply_mode_text(const uint8_t *buf, uint32_t len)
 
                 if (key_equals(key, "BASE_ADDRESS")) {
                     if (key_equals(value, "AUTO")) {
-                        base_address = 0u;
-                    } else if (!parse_u32_value(value, &base_address)) {
+                        candidate.rom_window.base_address = 0u;
+                    } else if (!parse_u32_value(value, &candidate.rom_window.base_address)) {
+                        cart_service_set_error("INVALID_BASE_ADDRESS");
                         return false;
                     }
                     ++recognized;
                 } else if (key_equals(key, "SIZE")) {
                     if (key_equals(value, "AUTO")) {
-                        export_size = 0u;
-                    } else if (!parse_u32_value(value, &export_size)) {
+                        candidate.rom_window.size_bytes = 0u;
+                    } else if (!parse_u32_value(value, &candidate.rom_window.size_bytes)) {
+                        cart_service_set_error("INVALID_SIZE");
                         return false;
                     }
                     ++recognized;
@@ -800,11 +1049,160 @@ bool cart_service_apply_mode_text(const uint8_t *buf, uint32_t len)
     }
 
     if (recognized == 0u) {
+        cart_service_set_error("NO_SUPPORTED_KEYS");
         return false;
     }
 
-    g_cart_service_rom_window.base_address = base_address;
-    g_cart_service_rom_window.size_bytes = export_size;
-    cart_service_get_resolved_rom_window(&g_cart_service_rom_window.base_address, &g_cart_service_rom_window.size_bytes);
+    cart_service_normalize_session_config(&candidate);
+    g_cart_service_session.pending_config = candidate;
+    cart_service_session_sync_dirty_mask();
+    cart_service_clear_error();
     return true;
+}
+
+bool cart_service_build_ram_type_option_text(char *buf, uint32_t buf_size, CartServiceRamType type)
+{
+    char *cursor = buf;
+    uint32_t remaining = buf_size;
+    bool is_current;
+    bool is_pending;
+
+    if (buf == NULL || buf_size == 0u) {
+        return false;
+    }
+
+    cart_service_init_session_state();
+    memset(buf, 0, buf_size);
+    is_current = g_cart_service_session.current_config.ram_type == type;
+    is_pending = g_cart_service_session.pending_config.ram_type == type;
+
+    appendf(&cursor, &remaining, "TYPE=OPTION\r\n");
+    appendf(&cursor, &remaining, "GROUP=RAM_TYPE\r\n");
+    appendf(&cursor, &remaining, "NAME=%s\r\n", cart_service_ram_type_label(type));
+    appendf(&cursor, &remaining, "CURRENT=%u\r\n", is_current ? 1u : 0u);
+    appendf(&cursor, &remaining, "PENDING=%u\r\n", is_pending ? 1u : 0u);
+    appendf(&cursor, &remaining, "SELECTABLE=1\r\n");
+    appendf(&cursor, &remaining, "DESC=%s\r\n", cart_service_ram_type_detail(type));
+    return true;
+}
+
+bool cart_service_build_ram_type_select_text(char *buf, uint32_t buf_size)
+{
+    char *cursor = buf;
+    uint32_t remaining = buf_size;
+
+    if (buf == NULL || buf_size == 0u) {
+        return false;
+    }
+
+    cart_service_init_session_state();
+    memset(buf, 0, buf_size);
+
+    appendf(&cursor, &remaining, "TYPE=SELECT\r\n");
+    appendf(&cursor, &remaining, "GROUP=RAM_TYPE\r\n");
+    appendf(&cursor, &remaining, "PATH=/RAM/TYPE/SELECT.TXT\r\n");
+    appendf(&cursor,
+            &remaining,
+            "CURRENT=%s\r\n",
+            cart_service_ram_type_label(g_cart_service_session.current_config.ram_type));
+    appendf(&cursor,
+            &remaining,
+            "PENDING=%s\r\n",
+            cart_service_ram_type_label(g_cart_service_session.pending_config.ram_type));
+    appendf(&cursor, &remaining, "VALUE=%s\r\n", cart_service_ram_type_label(g_cart_service_session.pending_config.ram_type));
+    appendf(&cursor, &remaining, "OPTIONS=SRAM,FRAM,FLASH\r\n");
+    appendf(&cursor, &remaining, "NOTE=Write VALUE=<option> and save SELECT.TXT.\r\n");
+    return true;
+}
+
+bool cart_service_apply_ram_type_select_text(const uint8_t *buf, uint32_t len)
+{
+    char text[CART_SERVICE_TEXT_BUFFER_BYTES + 1u];
+    char *cursor = text;
+    CartServiceRamType parsed_type = CART_SERVICE_RAM_TYPE_SRAM;
+    bool recognized = false;
+    uint32_t copy_len = len;
+
+    if (buf == NULL) {
+        return false;
+    }
+
+    cart_service_init_session_state();
+
+    if (copy_len > CART_SERVICE_TEXT_BUFFER_BYTES) {
+        copy_len = CART_SERVICE_TEXT_BUFFER_BYTES;
+    }
+
+    memset(text, 0, sizeof(text));
+    memcpy(text, buf, copy_len);
+
+    if ((uint8_t)cursor[0] == 0xEFu && (uint8_t)cursor[1] == 0xBBu && (uint8_t)cursor[2] == 0xBFu) {
+        cursor += 3;
+    }
+
+    while (*cursor != '\0') {
+        char *line = cursor;
+        char *equals;
+        char *key;
+        char *value;
+        char line_end;
+
+        while (*cursor != '\0' && *cursor != '\r' && *cursor != '\n') {
+            ++cursor;
+        }
+
+        line_end = *cursor;
+        *cursor = '\0';
+
+        line = trim_left(line);
+        trim_right(line);
+
+        if (*line != '\0' && *line != '#' && *line != ';') {
+            equals = strchr(line, '=');
+            if (equals != NULL) {
+                *equals = '\0';
+                key = trim_left(line);
+                trim_right(key);
+                value = trim_left(equals + 1);
+                trim_right(value);
+
+                if (key_equals(key, "VALUE") || key_equals(key, "SELECT")) {
+                    if (!cart_service_parse_ram_type(value, &parsed_type)) {
+                        cart_service_set_error("INVALID_RAM_TYPE");
+                        return false;
+                    }
+                    recognized = true;
+                }
+            }
+        }
+
+        if (line_end == '\0') {
+            break;
+        }
+
+        ++cursor;
+        if (line_end == '\r' && *cursor == '\n') {
+            ++cursor;
+        }
+    }
+
+    if (!recognized) {
+        cart_service_set_error("NO_SELECTION_VALUE");
+        return false;
+    }
+
+    g_cart_service_session.pending_config.ram_type = parsed_type;
+    cart_service_session_sync_dirty_mask();
+    cart_service_clear_error();
+    return true;
+}
+
+bool cart_service_build_mode_text(char *buf, uint32_t buf_size)
+{
+    return cart_service_build_rom_config_text(buf, buf_size);
+}
+
+bool cart_service_apply_mode_text(const uint8_t *buf, uint32_t len)
+{
+    return cart_service_apply_rom_config_text(buf, len);
 }

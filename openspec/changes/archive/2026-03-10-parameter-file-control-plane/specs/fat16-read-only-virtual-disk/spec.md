@@ -1,28 +1,4 @@
-## Purpose
-
-Define a fixed-layout FAT16 virtual disk exposed through USB mass storage so host systems can browse stable firmware-defined files and directories.
-## Requirements
-### Requirement: Device exposes a readable FAT16 removable disk
-The system SHALL enumerate as a removable USB mass-storage device that presents a host-readable FAT16 volume with a valid boot sector, FAT tables, root directory, and data region.
-
-#### Scenario: Host enumerates the device
-- **WHEN** the device is connected to a supported host system
-- **THEN** the host recognizes it as a removable mass-storage device and mounts a readable FAT16 volume
-
-#### Scenario: FAT16 layout is internally consistent
-- **WHEN** the host reads the boot sector, FAT tables, and root directory sectors
-- **THEN** the returned FAT16 structures are mutually consistent and point to the fixed directory and file layout defined by the firmware
-
-### Requirement: Device exposes fixed top-level directory structure
-The system SHALL expose a fixed top-level directory structure containing `INFO.TXT`, `STATUS.TXT`, `ROM`, and `RAM` entries.
-
-#### Scenario: Host lists root directory
-- **WHEN** the host reads the FAT16 root directory
-- **THEN** the directory listing includes `INFO.TXT`, `STATUS.TXT`, `ROM`, and `RAM` with stable names and types
-
-#### Scenario: Directory structure remains stable across mounts
-- **WHEN** the device is disconnected and reconnected without firmware change
-- **THEN** the host observes the same top-level directory names and entry types on the mounted volume
+## MODIFIED Requirements
 
 ### Requirement: Device exposes ROM and RAM subdirectories as fixed virtual directories
 The system SHALL expose `ROM` and `RAM` as fixed subdirectories backed by firmware-defined directory entries rather than host-created filesystem state, and those subdirectories MAY contain additional fixed parameter-group subdirectories used by the control plane.
@@ -57,17 +33,6 @@ The system SHALL present `INFO.TXT` and `STATUS.TXT` as virtual text files whose
 #### Scenario: Host writes STATUS.TXT when it is not declared writable
 - **WHEN** the host writes to `STATUS.TXT` and that file is defined as read-only by the active control-plane design
 - **THEN** the device preserves read-only semantics without mutating device state
-
-### Requirement: Virtual disk routing uses fixed file-view mapping
-The system SHALL resolve host sector reads through a stable mapping from FAT16 sectors to firmware-defined file views and directory views.
-
-#### Scenario: Host reads a directory or small text file sector
-- **WHEN** the host reads a sector belonging to a fixed directory or informational file
-- **THEN** the device returns the sector content through the mapped directory-view or file-view handler
-
-#### Scenario: Host reads a sector belonging to a virtual data window
-- **WHEN** the host reads a sector whose cluster belongs to a virtual data-window file
-- **THEN** the device routes the request through the corresponding file-view handler using the derived file offset
 
 ### Requirement: ROM directory exposes metadata and control-plane files
 The system SHALL expose ROM metadata files and any firmware-defined ROM control-plane files through fixed entries in the `ROM` directory.

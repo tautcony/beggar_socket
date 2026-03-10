@@ -197,10 +197,6 @@ bool fat16_layout_get_view(uint16_t cluster, Fat16ViewInfo *view, uint32_t *clus
             *view = (Fat16ViewInfo){FAT16_CLUSTER_RAM_DIR, 1u, FAT16_SECTOR_SIZE, FAT16_VIEW_RAM_DIR, true, true};
             *cluster_offset = 0u;
             return true;
-        case FAT16_CLUSTER_ROM_MODE_DIR:
-            *view = (Fat16ViewInfo){FAT16_CLUSTER_ROM_MODE_DIR, 1u, FAT16_SECTOR_SIZE, FAT16_VIEW_ROM_MODE_DIR, true, true};
-            *cluster_offset = 0u;
-            return true;
         case FAT16_CLUSTER_RAM_TYPE_DIR:
             *view = (Fat16ViewInfo){FAT16_CLUSTER_RAM_TYPE_DIR, 1u, FAT16_SECTOR_SIZE, FAT16_VIEW_RAM_TYPE_DIR, true, true};
             *cluster_offset = 0u;
@@ -209,12 +205,8 @@ bool fat16_layout_get_view(uint16_t cluster, Fat16ViewInfo *view, uint32_t *clus
             *view = (Fat16ViewInfo){FAT16_CLUSTER_ROM_CFI_TXT, 1u, FAT16_SECTOR_SIZE, FAT16_VIEW_ROM_CFI_TXT, false, true};
             *cluster_offset = 0u;
             return true;
-        case FAT16_CLUSTER_ROM_MODE_READ_TXT:
-            *view = (Fat16ViewInfo){FAT16_CLUSTER_ROM_MODE_READ_TXT, 1u, FAT16_SECTOR_SIZE, FAT16_VIEW_ROM_MODE_READ_TXT, false, true};
-            *cluster_offset = 0u;
-            return true;
-        case FAT16_CLUSTER_RAM_TYPE_AUTO_TXT:
-            *view = (Fat16ViewInfo){FAT16_CLUSTER_RAM_TYPE_AUTO_TXT, 1u, FAT16_SECTOR_SIZE, FAT16_VIEW_RAM_TYPE_AUTO_TXT, false, true};
+        case FAT16_CLUSTER_ROM_CONFIG_TXT:
+            *view = (Fat16ViewInfo){FAT16_CLUSTER_ROM_CONFIG_TXT, 1u, FAT16_SECTOR_SIZE, FAT16_VIEW_ROM_CONFIG_TXT, false, false};
             *cluster_offset = 0u;
             return true;
         case FAT16_CLUSTER_RAM_TYPE_SRAM_TXT:
@@ -225,12 +217,12 @@ bool fat16_layout_get_view(uint16_t cluster, Fat16ViewInfo *view, uint32_t *clus
             *view = (Fat16ViewInfo){FAT16_CLUSTER_RAM_TYPE_FRAM_TXT, 1u, FAT16_SECTOR_SIZE, FAT16_VIEW_RAM_TYPE_FRAM_TXT, false, true};
             *cluster_offset = 0u;
             return true;
-        case FAT16_CLUSTER_RAM_TYPE_FLASH64_TXT:
-            *view = (Fat16ViewInfo){FAT16_CLUSTER_RAM_TYPE_FLASH64_TXT, 1u, FAT16_SECTOR_SIZE, FAT16_VIEW_RAM_TYPE_FLASH64_TXT, false, true};
+        case FAT16_CLUSTER_RAM_TYPE_FLASH_TXT:
+            *view = (Fat16ViewInfo){FAT16_CLUSTER_RAM_TYPE_FLASH_TXT, 1u, FAT16_SECTOR_SIZE, FAT16_VIEW_RAM_TYPE_FLASH_TXT, false, true};
             *cluster_offset = 0u;
             return true;
-        case FAT16_CLUSTER_RAM_TYPE_FLASH128_TXT:
-            *view = (Fat16ViewInfo){FAT16_CLUSTER_RAM_TYPE_FLASH128_TXT, 1u, FAT16_SECTOR_SIZE, FAT16_VIEW_RAM_TYPE_FLASH128_TXT, false, true};
+        case FAT16_CLUSTER_RAM_TYPE_SELECT_TXT:
+            *view = (Fat16ViewInfo){FAT16_CLUSTER_RAM_TYPE_SELECT_TXT, 1u, FAT16_SECTOR_SIZE, FAT16_VIEW_RAM_TYPE_SELECT_TXT, false, false};
             *cluster_offset = 0u;
             return true;
         default:

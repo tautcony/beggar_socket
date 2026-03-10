@@ -41,50 +41,6 @@ static void fill_dot_entry(Fat16DirEntry *entry, bool is_parent, uint16_t first_
     fill_entry(entry, is_parent ? parent_name : self_name, 0x10u, first_cluster, 0u);
 }
 
-static void render_text(uint8_t *buf, const char *text)
-{
-    memset(buf, 0, FAT16_SECTOR_SIZE);
-    if (text != NULL) {
-        buf[0] = 0xEFu;
-        buf[1] = 0xBBu;
-        buf[2] = 0xBFu;
-        snprintf((char *)&buf[UTF8_BOM_SIZE], FAT16_SECTOR_SIZE - UTF8_BOM_SIZE, "%s", text);
-    }
-}
-
-static void render_option_text(uint8_t *buf,
-                               const char *group,
-                               const char *name,
-                               bool selected,
-                               const char *path,
-                               const char *description)
-{
-    render_text(buf,
-                selected ? "TYPE=OPTION\r\n"
-                           "STATE=AVAILABLE\r\n"
-                           "SELECTED=1\r\n"
-                           :
-                           "TYPE=OPTION\r\n"
-                           "STATE=AVAILABLE\r\n"
-                           "SELECTED=0\r\n");
-
-    snprintf((char *)&buf[UTF8_BOM_SIZE],
-             FAT16_SECTOR_SIZE - UTF8_BOM_SIZE,
-             "TYPE=OPTION\r\n"
-             "STATE=AVAILABLE\r\n"
-             "GROUP=%s\r\n"
-             "NAME=%s\r\n"
-             "SELECTED=%u\r\n"
-             "ACCESS=READ_ONLY\r\n"
-             "PATH=%s\r\n"
-             "DESC=%s\r\n",
-             group,
-             name,
-             selected ? 1u : 0u,
-             path,
-             description);
-}
-
 static bool read_info_text(uint8_t *buf)
 {
     memset(buf, 0, FAT16_SECTOR_SIZE);
@@ -100,7 +56,7 @@ static bool read_info_text(uint8_t *buf)
              "FS=FAT16\r\n"
              "TXT_ENCODING=UTF-8\r\n"
              "USB_PROFILE=MSC_ONLY\r\n"
-             "DISK_MODE=CONFIG_WRITABLE_STAGE_1\r\n"
+             "DISK_MODE=PARAMETER_CONTROL_PLANE\r\n"
              "SECTOR_SIZE=%u\r\n"
              "SECTORS_PER_CLUSTER=%u\r\n"
              "MEDIA=VIRTUAL_DISK\r\n"
@@ -111,11 +67,12 @@ static bool read_info_text(uint8_t *buf)
              "SAVE_SIZE=%lu\r\n"
              "ROOT_ENTRIES=INFO.TXT,STATUS.TXT,ROM,RAM\r\n"
              "ROM_PATH=/ROM/CURRENT.GBA\r\n"
-             "MODE_PATH=/ROM/MODE.TXT\r\n"
+             "ROM_CONFIG_PATH=/ROM/CONFIG.TXT\r\n"
+             "RAM_TYPE_PATH=/RAM/TYPE/SELECT.TXT\r\n"
              "SAVE_PATH=/RAM/CURRENT.SAV\r\n"
              "NOTE=TXT files are UTF-8 with BOM for Windows compatibility.\r\n"
              "NOTE=ROM and save views are read-only.\r\n"
-             "NOTE=MODE.TXT is writable and controls CURRENT.GBA export window.\r\n",
+             "NOTE=Writable control files update pending configuration only.\r\n",
              (unsigned int)FAT16_SECTOR_SIZE,
              (unsigned int)FAT16_SECTORS_PER_CLUSTER,
              (unsigned long)cart_service_get_rom_base_address(),
@@ -147,7 +104,7 @@ static bool read_directory_view(Fat16ViewId view_id, uint32_t sector_in_cluster,
             fill_entry(&entries[2], "CURRENT GBA", 0x01u, FAT16_CLUSTER_ROM_CURRENT_GBA_START,
                        cart_service_get_rom_size());
             fill_entry(&entries[3], "CFI     TXT", 0x01u, FAT16_CLUSTER_ROM_CFI_TXT, FAT16_SECTOR_SIZE);
-            fill_entry(&entries[4], "MODE    TXT", 0x01u, FAT16_CLUSTER_ROM_MODE_READ_TXT, FAT16_SECTOR_SIZE);
+            fill_entry(&entries[4], "CONFIG  TXT", 0x01u, FAT16_CLUSTER_ROM_CONFIG_TXT, FAT16_SECTOR_SIZE);
             return true;
         case FAT16_VIEW_RAM_DIR:
             self_cluster = FAT16_CLUSTER_RAM_DIR;
@@ -158,24 +115,15 @@ static bool read_directory_view(Fat16ViewId view_id, uint32_t sector_in_cluster,
                        CART_SERVICE_SAVE_SIZE_BYTES);
             fill_entry(&entries[3], "TYPE       ", 0x10u, FAT16_CLUSTER_RAM_TYPE_DIR, 0u);
             return true;
-        case FAT16_VIEW_ROM_MODE_DIR:
-            self_cluster = FAT16_CLUSTER_ROM_MODE_DIR;
-            parent_cluster = FAT16_CLUSTER_ROM_DIR;
-            fill_dot_entry(&entries[0], false, self_cluster);
-            fill_dot_entry(&entries[1], true, parent_cluster);
-            fill_entry(&entries[2], "READ    TXT", 0x01u, FAT16_CLUSTER_ROM_MODE_READ_TXT, FAT16_SECTOR_SIZE);
-            return true;
         case FAT16_VIEW_RAM_TYPE_DIR:
             self_cluster = FAT16_CLUSTER_RAM_TYPE_DIR;
             parent_cluster = FAT16_CLUSTER_RAM_DIR;
             fill_dot_entry(&entries[0], false, self_cluster);
             fill_dot_entry(&entries[1], true, parent_cluster);
-            fill_entry(&entries[2], "AUTO    TXT", 0x01u, FAT16_CLUSTER_RAM_TYPE_AUTO_TXT, FAT16_SECTOR_SIZE);
-            fill_entry(&entries[3], "SRAM    TXT", 0x01u, FAT16_CLUSTER_RAM_TYPE_SRAM_TXT, FAT16_SECTOR_SIZE);
-            fill_entry(&entries[4], "FRAM    TXT", 0x01u, FAT16_CLUSTER_RAM_TYPE_FRAM_TXT, FAT16_SECTOR_SIZE);
-            fill_entry(&entries[5], "FLASH64 TXT", 0x01u, FAT16_CLUSTER_RAM_TYPE_FLASH64_TXT, FAT16_SECTOR_SIZE);
-            fill_entry(&entries[6], "FLASH128TXT", 0x01u, FAT16_CLUSTER_RAM_TYPE_FLASH128_TXT,
-                       FAT16_SECTOR_SIZE);
+            fill_entry(&entries[2], "SRAM    TXT", 0x01u, FAT16_CLUSTER_RAM_TYPE_SRAM_TXT, FAT16_SECTOR_SIZE);
+            fill_entry(&entries[3], "FRAM    TXT", 0x01u, FAT16_CLUSTER_RAM_TYPE_FRAM_TXT, FAT16_SECTOR_SIZE);
+            fill_entry(&entries[4], "FLASH   TXT", 0x01u, FAT16_CLUSTER_RAM_TYPE_FLASH_TXT, FAT16_SECTOR_SIZE);
+            fill_entry(&entries[5], "SELECT  TXT", 0x01u, FAT16_CLUSTER_RAM_TYPE_SELECT_TXT, FAT16_SECTOR_SIZE);
             return true;
         default:
             return false;
@@ -194,72 +142,51 @@ static bool read_text_view(Fat16ViewId view_id, uint32_t sector_in_cluster, uint
             read_info_text(buf);
             return true;
         case FAT16_VIEW_STATUS_TXT:
-            render_text(buf,
-                        "DEVICE STATUS\r\n"
-                        "=============\r\n"
-                        "DEVICE=BEGGAR_SOCKET\r\n"
-                        "STATE=IDLE\r\n"
-                        "USB_MODE=MSC_ONLY\r\n"
-                        "DISK_STATE=READY\r\n"
-                        "READ_ONLY=0\r\n"
-                        "WRITE_SCOPE=/ROM/MODE.TXT\r\n"
-                        "ROM_VIEW=READY\r\n"
-                        "SAVE_VIEW=READY\r\n"
-                        "LAST_ERROR=NONE\r\n"
-                        "ACTIVE_LAYOUT=FAT16_STAGE_1\r\n");
-            return true;
-        case FAT16_VIEW_ROM_MODE_READ_TXT:
             memset(buf, 0, FAT16_SECTOR_SIZE);
             buf[0] = 0xEFu;
             buf[1] = 0xBBu;
             buf[2] = 0xBFu;
-            return cart_service_build_mode_text((char *)&buf[UTF8_BOM_SIZE], FAT16_SECTOR_SIZE - UTF8_BOM_SIZE);
+            return cart_service_build_status_text((char *)&buf[UTF8_BOM_SIZE], FAT16_SECTOR_SIZE - UTF8_BOM_SIZE);
         case FAT16_VIEW_ROM_CFI_TXT:
             memset(buf, 0, FAT16_SECTOR_SIZE);
             buf[0] = 0xEFu;
             buf[1] = 0xBBu;
             buf[2] = 0xBFu;
             return cart_service_build_cfi_text((char *)&buf[UTF8_BOM_SIZE], FAT16_SECTOR_SIZE - UTF8_BOM_SIZE);
-        case FAT16_VIEW_RAM_TYPE_AUTO_TXT:
-            render_option_text(buf,
-                               "RAM_TYPE",
-                               "AUTO",
-                               true,
-                               "/RAM/TYPE/AUTO.TXT",
-                               "Default stage-1 selection. Detailed detection is deferred.");
-            return true;
+        case FAT16_VIEW_ROM_CONFIG_TXT:
+            memset(buf, 0, FAT16_SECTOR_SIZE);
+            buf[0] = 0xEFu;
+            buf[1] = 0xBBu;
+            buf[2] = 0xBFu;
+            return cart_service_build_rom_config_text((char *)&buf[UTF8_BOM_SIZE], FAT16_SECTOR_SIZE - UTF8_BOM_SIZE);
         case FAT16_VIEW_RAM_TYPE_SRAM_TXT:
-            render_option_text(buf,
-                               "RAM_TYPE",
-                               "SRAM",
-                               false,
-                               "/RAM/TYPE/SRAM.TXT",
-                               "Static RAM save mode.");
-            return true;
+            memset(buf, 0, FAT16_SECTOR_SIZE);
+            buf[0] = 0xEFu;
+            buf[1] = 0xBBu;
+            buf[2] = 0xBFu;
+            return cart_service_build_ram_type_option_text(
+                (char *)&buf[UTF8_BOM_SIZE], FAT16_SECTOR_SIZE - UTF8_BOM_SIZE, CART_SERVICE_RAM_TYPE_SRAM);
         case FAT16_VIEW_RAM_TYPE_FRAM_TXT:
-            render_option_text(buf,
-                               "RAM_TYPE",
-                               "FRAM",
-                               false,
-                               "/RAM/TYPE/FRAM.TXT",
-                               "FRAM save mode.");
-            return true;
-        case FAT16_VIEW_RAM_TYPE_FLASH64_TXT:
-            render_option_text(buf,
-                               "RAM_TYPE",
-                               "FLASH64",
-                               false,
-                               "/RAM/TYPE/FLASH64.TXT",
-                               "64K flash save mode.");
-            return true;
-        case FAT16_VIEW_RAM_TYPE_FLASH128_TXT:
-            render_option_text(buf,
-                               "RAM_TYPE",
-                               "FLASH128",
-                               false,
-                               "/RAM/TYPE/FLASH128.TXT",
-                               "128K flash save mode.");
-            return true;
+            memset(buf, 0, FAT16_SECTOR_SIZE);
+            buf[0] = 0xEFu;
+            buf[1] = 0xBBu;
+            buf[2] = 0xBFu;
+            return cart_service_build_ram_type_option_text(
+                (char *)&buf[UTF8_BOM_SIZE], FAT16_SECTOR_SIZE - UTF8_BOM_SIZE, CART_SERVICE_RAM_TYPE_FRAM);
+        case FAT16_VIEW_RAM_TYPE_FLASH_TXT:
+            memset(buf, 0, FAT16_SECTOR_SIZE);
+            buf[0] = 0xEFu;
+            buf[1] = 0xBBu;
+            buf[2] = 0xBFu;
+            return cart_service_build_ram_type_option_text(
+                (char *)&buf[UTF8_BOM_SIZE], FAT16_SECTOR_SIZE - UTF8_BOM_SIZE, CART_SERVICE_RAM_TYPE_FLASH);
+        case FAT16_VIEW_RAM_TYPE_SELECT_TXT:
+            memset(buf, 0, FAT16_SECTOR_SIZE);
+            buf[0] = 0xEFu;
+            buf[1] = 0xBBu;
+            buf[2] = 0xBFu;
+            return cart_service_build_ram_type_select_text(
+                (char *)&buf[UTF8_BOM_SIZE], FAT16_SECTOR_SIZE - UTF8_BOM_SIZE);
         default:
             return false;
     }
@@ -290,6 +217,23 @@ static bool read_data_view(const Fat16ViewInfo *view, uint32_t cluster_offset, u
     }
 }
 
+static bool is_text_view(Fat16ViewId view_id)
+{
+    switch (view_id) {
+        case FAT16_VIEW_INFO_TXT:
+        case FAT16_VIEW_STATUS_TXT:
+        case FAT16_VIEW_ROM_CFI_TXT:
+        case FAT16_VIEW_ROM_CONFIG_TXT:
+        case FAT16_VIEW_RAM_TYPE_SRAM_TXT:
+        case FAT16_VIEW_RAM_TYPE_FRAM_TXT:
+        case FAT16_VIEW_RAM_TYPE_FLASH_TXT:
+        case FAT16_VIEW_RAM_TYPE_SELECT_TXT:
+            return true;
+        default:
+            return false;
+    }
+}
+
 static bool read_data_sector(uint32_t lba, uint8_t *buf)
 {
     Fat16ViewInfo view;
@@ -309,7 +253,7 @@ static bool read_data_sector(uint32_t lba, uint8_t *buf)
         return read_directory_view(view.view_id, sector_in_cluster, buf);
     }
 
-    if ((view.view_id >= FAT16_VIEW_INFO_TXT) && (view.view_id <= FAT16_VIEW_RAM_TYPE_FLASH128_TXT)) {
+    if (is_text_view(view.view_id)) {
         if (read_text_view(view.view_id, sector_in_cluster, buf)) {
             return true;
         }
@@ -325,8 +269,10 @@ static bool write_text_view(Fat16ViewId view_id, uint32_t sector_in_cluster, con
     }
 
     switch (view_id) {
-        case FAT16_VIEW_ROM_MODE_READ_TXT:
-            return cart_service_apply_mode_text(buf, FAT16_SECTOR_SIZE);
+        case FAT16_VIEW_ROM_CONFIG_TXT:
+            return cart_service_apply_rom_config_text(buf, FAT16_SECTOR_SIZE);
+        case FAT16_VIEW_RAM_TYPE_SELECT_TXT:
+            return cart_service_apply_ram_type_select_text(buf, FAT16_SECTOR_SIZE);
         default:
             return true;
     }
@@ -351,7 +297,7 @@ static bool write_data_sector(uint32_t lba, const uint8_t *buf)
         return true;
     }
 
-    if ((view.view_id >= FAT16_VIEW_INFO_TXT) && (view.view_id <= FAT16_VIEW_RAM_TYPE_FLASH128_TXT)) {
+    if (is_text_view(view.view_id)) {
         return write_text_view(view.view_id, sector_in_cluster, buf);
     }
 
