@@ -77,8 +77,17 @@ typedef struct {
     char last_apply_status[32];
 } CartServiceSessionState;
 
+typedef struct {
+    CartServiceRamJobState state;
+    uint32_t bytes_written;
+    uint32_t total_bytes;
+    char error_message[96];
+    uint8_t upload_buffer[CART_SERVICE_UPLOAD_BUFFER_SIZE];
+} CartServiceRamJob;
+
 static CartServiceCfiCache g_cart_service_cfi_cache;
 static CartServiceSessionState g_cart_service_session;
+static CartServiceRamJob g_cart_service_ram_job;
 
 static uint32_t pow2_u32(uint8_t exponent)
 {
@@ -654,6 +663,39 @@ static bool cart_service_read_save_flash(uint32_t offset, uint8_t *buf, uint32_t
         MEMORY_BARRIER();
     }
 
+    return true;
+}
+
+static bool cart_service_write_save_sram(uint32_t offset, const uint8_t *buf, uint32_t len)
+{
+    cart_ramWrite((uint16_t)offset, buf, (uint16_t)len);
+    return true;
+}
+
+static bool cart_service_write_save_fram(uint32_t offset, const uint8_t *buf, uint32_t len)
+{
+    for (uint32_t i = 0u; i < len; ++i) {
+        cart_ramWrite((uint16_t)(offset + i), buf + i, 1u);
+        for (uint32_t wait = 0u; wait < CART_SERVICE_FRAM_READ_LATENCY_CYCLES; ++wait) {
+            TIMING_DELAY();
+        }
+    }
+
+    return true;
+}
+
+static bool cart_service_write_save_flash(uint32_t offset, const uint8_t *buf, uint32_t len)
+{
+    for (uint32_t i = 0u; i < len; ++i) {
+        cart_ramWrite((uint16_t)(offset + i), buf + i, 1u);
+        MEMORY_BARRIER();
+    }
+
+    return true;
+}
+
+static bool cart_service_erase_flash_save(void)
+{
     return true;
 }
 
@@ -1367,4 +1409,406 @@ bool cart_service_build_mode_text(char *buf, uint32_t buf_size)
 bool cart_service_apply_mode_text(const uint8_t *buf, uint32_t len)
 {
     return cart_service_apply_rom_config_text(buf, len);
+}
+
+bool cart_service_write_save(uint32_t offset, const uint8_t *buf, uint32_t len)
+{
+    cart_service_init_session_state();
+
+    if (buf == NULL) {
+        return false;
+    }
+
+    if (offset > CART_SERVICE_UPLOAD_BUFFER_SIZE || len > (CART_SERVICE_UPLOAD_BUFFER_SIZE - offset)) {
+        return false;
+    }
+
+    memcpy(&g_cart_service_ram_job.upload_buffer[offset], buf, len);
+
+    if (g_cart_service_ram_job.state == CART_SERVICE_RAM_JOB_STATE_IDLE) {
+        g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_UPLOADING;
+        g_cart_service_ram_job.bytes_written = 0u;
+        g_cart_service_ram_job.total_bytes = 0u;
+        memset(g_cart_service_ram_job.error_message, 0, sizeof(g_cart_service_ram_job.error_message));
+    }
+
+    if ((offset + len) > g_cart_service_ram_job.bytes_written) {
+        g_cart_service_ram_job.bytes_written = offset + len;
+    }
+
+    return true;
+}
+
+bool cart_service_erase_save(void)
+{
+    cart_service_init_session_state();
+
+    switch (g_cart_service_session.current_config.ram_type) {
+        case CART_SERVICE_RAM_TYPE_FLASH:
+            return cart_service_erase_flash_save();
+        case CART_SERVICE_RAM_TYPE_SRAM:
+        case CART_SERVICE_RAM_TYPE_FRAM:
+        default:
+            return true;
+    }
+}
+
+bool cart_service_verify_save(const uint8_t *expected_buf, uint32_t len)
+{
+    uint8_t read_buf[256];
+    uint32_t offset = 0u;
+
+    cart_service_init_session_state();
+
+    if (expected_buf == NULL || len == 0u) {
+        return false;
+    }
+
+    while (offset < len) {
+        uint32_t chunk_size = sizeof(read_buf);
+        if ((len - offset) < chunk_size) {
+            chunk_size = len - offset;
+        }
+
+        if (!cart_service_read_save(offset, read_buf, chunk_size)) {
+            return false;
+        }
+
+        if (memcmp(expected_buf + offset, read_buf, chunk_size) != 0) {
+            return false;
+        }
+
+        offset += chunk_size;
+    }
+
+    return true;
+}
+
+CartServiceRamJobState cart_service_get_ram_job_state(void)
+{
+    cart_service_init_session_state();
+    return g_cart_service_ram_job.state;
+}
+
+uint32_t cart_service_get_ram_job_progress(void)
+{
+    cart_service_init_session_state();
+    return g_cart_service_ram_job.bytes_written;
+}
+
+const char *cart_service_get_ram_job_error(void)
+{
+    cart_service_init_session_state();
+    return g_cart_service_ram_job.error_message[0] == '\0' ? "NONE" : g_cart_service_ram_job.error_message;
+}
+
+bool cart_service_commit_ram_upload(void)
+{
+    bool success = true;
+    uint32_t write_size;
+
+    cart_service_init_session_state();
+
+    if (g_cart_service_ram_job.state != CART_SERVICE_RAM_JOB_STATE_UPLOADING) {
+        snprintf(g_cart_service_ram_job.error_message,
+                 sizeof(g_cart_service_ram_job.error_message),
+                 "INVALID_STATE");
+        g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_ERROR;
+        return false;
+    }
+
+    g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_COMMITTING;
+    write_size = g_cart_service_ram_job.bytes_written;
+    if (write_size > CART_SERVICE_SAVE_SIZE_BYTES) {
+        write_size = CART_SERVICE_SAVE_SIZE_BYTES;
+    }
+
+    switch (g_cart_service_session.current_config.ram_type) {
+        case CART_SERVICE_RAM_TYPE_SRAM:
+            success = cart_service_write_save_sram(0u, g_cart_service_ram_job.upload_buffer, write_size);
+            break;
+        case CART_SERVICE_RAM_TYPE_FRAM:
+            success = cart_service_write_save_fram(0u, g_cart_service_ram_job.upload_buffer, write_size);
+            break;
+        case CART_SERVICE_RAM_TYPE_FLASH:
+            success = cart_service_write_save_flash(0u, g_cart_service_ram_job.upload_buffer, write_size);
+            break;
+        default:
+            success = false;
+            break;
+    }
+
+    if (!success) {
+        snprintf(g_cart_service_ram_job.error_message,
+                 sizeof(g_cart_service_ram_job.error_message),
+                 "WRITE_FAILED");
+        g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_ERROR;
+        return false;
+    }
+
+    g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_VERIFYING;
+
+    if (!cart_service_verify_save(g_cart_service_ram_job.upload_buffer, write_size)) {
+        snprintf(g_cart_service_ram_job.error_message,
+                 sizeof(g_cart_service_ram_job.error_message),
+                 "VERIFY_FAILED");
+        g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_ERROR;
+        return false;
+    }
+
+    g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_SUCCESS;
+    g_cart_service_ram_job.total_bytes = write_size;
+    return true;
+}
+
+bool cart_service_erase_ram(void)
+{
+    cart_service_init_session_state();
+
+    memset(&g_cart_service_ram_job, 0, sizeof(g_cart_service_ram_job));
+    g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_IDLE;
+
+    if (!cart_service_erase_save()) {
+        snprintf(g_cart_service_ram_job.error_message,
+                 sizeof(g_cart_service_ram_job.error_message),
+                 "ERASE_FAILED");
+        g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_ERROR;
+        return false;
+    }
+
+    return true;
+}
+
+bool cart_service_build_ram_status_text(char *buf, uint32_t buf_size)
+{
+    char *cursor = buf;
+    uint32_t remaining = buf_size;
+    const char *state_str = "IDLE";
+
+    if (buf == NULL || buf_size == 0u) {
+        return false;
+    }
+
+    cart_service_init_session_state();
+    memset(buf, 0, buf_size);
+
+    switch (g_cart_service_ram_job.state) {
+        case CART_SERVICE_RAM_JOB_STATE_IDLE:
+            state_str = "IDLE";
+            break;
+        case CART_SERVICE_RAM_JOB_STATE_UPLOADING:
+            state_str = "UPLOADING";
+            break;
+        case CART_SERVICE_RAM_JOB_STATE_COMMITTING:
+            state_str = "COMMITTING";
+            break;
+        case CART_SERVICE_RAM_JOB_STATE_VERIFYING:
+            state_str = "VERIFYING";
+            break;
+        case CART_SERVICE_RAM_JOB_STATE_SUCCESS:
+            state_str = "SUCCESS";
+            break;
+        case CART_SERVICE_RAM_JOB_STATE_ERROR:
+            state_str = "ERROR";
+            break;
+        default:
+            state_str = "UNKNOWN";
+            break;
+    }
+
+    appendf(&cursor, &remaining, "RAM JOB STATUS\r\n");
+    appendf(&cursor, &remaining, "==============\r\n");
+    appendf(&cursor, &remaining, "STATE=%s\r\n", state_str);
+    appendf(&cursor, &remaining, "BYTES_WRITTEN=%lu\r\n", (unsigned long)g_cart_service_ram_job.bytes_written);
+    appendf(&cursor, &remaining, "TOTAL_BYTES=%lu\r\n", (unsigned long)g_cart_service_ram_job.total_bytes);
+    appendf(&cursor, &remaining, "RAM_TYPE=%s\r\n",
+            cart_service_ram_type_label(g_cart_service_session.current_config.ram_type));
+    appendf(&cursor, &remaining, "ERROR=%s\r\n", cart_service_get_ram_job_error());
+    return true;
+}
+
+bool cart_service_build_ram_erase_text(char *buf, uint32_t buf_size)
+{
+    char *cursor = buf;
+    uint32_t remaining = buf_size;
+
+    if (buf == NULL || buf_size == 0u) {
+        return false;
+    }
+
+    cart_service_init_session_state();
+    memset(buf, 0, buf_size);
+
+    appendf(&cursor, &remaining, "TYPE=ERASE\r\n");
+    appendf(&cursor, &remaining, "PATH=/RAM/ERASE.TXT\r\n");
+    appendf(&cursor, &remaining, "NOTE=Write ERASE=1 to erase RAM and reset upload state.\r\n");
+    return true;
+}
+
+bool cart_service_apply_ram_erase_text(const uint8_t *buf, uint32_t len)
+{
+    char text[CART_SERVICE_TEXT_BUFFER_BYTES + 1u];
+    char *cursor = text;
+    bool recognized = false;
+    uint32_t copy_len = len;
+
+    if (buf == NULL) {
+        return false;
+    }
+
+    cart_service_init_session_state();
+
+    if (copy_len > CART_SERVICE_TEXT_BUFFER_BYTES) {
+        copy_len = CART_SERVICE_TEXT_BUFFER_BYTES;
+    }
+
+    memset(text, 0, sizeof(text));
+    memcpy(text, buf, copy_len);
+
+    if ((uint8_t)cursor[0] == 0xEFu && (uint8_t)cursor[1] == 0xBBu && (uint8_t)cursor[2] == 0xBFu) {
+        cursor += 3;
+    }
+
+    while (*cursor != '\0') {
+        char *line = cursor;
+        char *equals;
+        char *key;
+        char *value;
+        char line_end;
+
+        while (*cursor != '\0' && *cursor != '\r' && *cursor != '\n') {
+            ++cursor;
+        }
+
+        line_end = *cursor;
+        *cursor = '\0';
+
+        line = trim_left(line);
+        trim_right(line);
+
+        if (*line != '\0' && *line != '#' && *line != ';') {
+            equals = strchr(line, '=');
+            if (equals != NULL) {
+                *equals = '\0';
+                key = trim_left(line);
+                trim_right(key);
+                value = trim_left(equals + 1);
+                trim_right(value);
+
+                if (key_equals(key, "ERASE") && (key_equals(value, "1") || key_equals(value, "YES") || key_equals(value, "TRUE"))) {
+                    recognized = true;
+                }
+            } else if (key_equals(line, "ERASE")) {
+                recognized = true;
+            }
+        }
+
+        if (line_end == '\0') {
+            break;
+        }
+
+        ++cursor;
+        if (line_end == '\r' && *cursor == '\n') {
+            ++cursor;
+        }
+    }
+
+    if (!recognized) {
+        return false;
+    }
+
+    return cart_service_erase_ram();
+}
+
+bool cart_service_build_ram_commit_text(char *buf, uint32_t buf_size)
+{
+    char *cursor = buf;
+    uint32_t remaining = buf_size;
+
+    if (buf == NULL || buf_size == 0u) {
+        return false;
+    }
+
+    cart_service_init_session_state();
+    memset(buf, 0, buf_size);
+
+    appendf(&cursor, &remaining, "TYPE=COMMIT\r\n");
+    appendf(&cursor, &remaining, "PATH=/RAM/COMMIT.TXT\r\n");
+    appendf(&cursor, &remaining, "NOTE=Write COMMIT=1 to commit uploaded data to cartridge.\r\n");
+    return true;
+}
+
+bool cart_service_apply_ram_commit_text(const uint8_t *buf, uint32_t len)
+{
+    char text[CART_SERVICE_TEXT_BUFFER_BYTES + 1u];
+    char *cursor = text;
+    bool recognized = false;
+    uint32_t copy_len = len;
+
+    if (buf == NULL) {
+        return false;
+    }
+
+    cart_service_init_session_state();
+
+    if (copy_len > CART_SERVICE_TEXT_BUFFER_BYTES) {
+        copy_len = CART_SERVICE_TEXT_BUFFER_BYTES;
+    }
+
+    memset(text, 0, sizeof(text));
+    memcpy(text, buf, copy_len);
+
+    if ((uint8_t)cursor[0] == 0xEFu && (uint8_t)cursor[1] == 0xBBu && (uint8_t)cursor[2] == 0xBFu) {
+        cursor += 3;
+    }
+
+    while (*cursor != '\0') {
+        char *line = cursor;
+        char *equals;
+        char *key;
+        char *value;
+        char line_end;
+
+        while (*cursor != '\0' && *cursor != '\r' && *cursor != '\n') {
+            ++cursor;
+        }
+
+        line_end = *cursor;
+        *cursor = '\0';
+
+        line = trim_left(line);
+        trim_right(line);
+
+        if (*line != '\0' && *line != '#' && *line != ';') {
+            equals = strchr(line, '=');
+            if (equals != NULL) {
+                *equals = '\0';
+                key = trim_left(line);
+                trim_right(key);
+                value = trim_left(equals + 1);
+                trim_right(value);
+
+                if (key_equals(key, "COMMIT") && (key_equals(value, "1") || key_equals(value, "YES") || key_equals(value, "TRUE"))) {
+                    recognized = true;
+                }
+            } else if (key_equals(line, "COMMIT")) {
+                recognized = true;
+            }
+        }
+
+        if (line_end == '\0') {
+            break;
+        }
+
+        ++cursor;
+        if (line_end == '\r' && *cursor == '\n') {
+            ++cursor;
+        }
+    }
+
+    if (!recognized) {
+        return false;
+    }
+
+    return cart_service_commit_ram_upload();
 }

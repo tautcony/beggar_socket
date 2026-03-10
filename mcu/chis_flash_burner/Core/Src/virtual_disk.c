@@ -115,6 +115,11 @@ static bool read_directory_view(Fat16ViewId view_id, uint32_t sector_in_cluster,
             fill_entry(&entries[2], "CURRENT SAV", 0x01u, FAT16_CLUSTER_RAM_CURRENT_SAV_START,
                        CART_SERVICE_SAVE_SIZE_BYTES);
             fill_entry(&entries[3], "TYPE       ", 0x10u, FAT16_CLUSTER_RAM_TYPE_DIR, 0u);
+            fill_entry(&entries[4], "UPLOAD  SAV", 0x01u, FAT16_CLUSTER_RAM_UPLOAD_SAV_START,
+                       CART_SERVICE_UPLOAD_BUFFER_SIZE);
+            fill_entry(&entries[5], "STATUS  TXT", 0x01u, FAT16_CLUSTER_RAM_STATUS_TXT, FAT16_SECTOR_SIZE);
+            fill_entry(&entries[6], "COMMIT  TXT", 0x01u, FAT16_CLUSTER_RAM_COMMIT_TXT, FAT16_SECTOR_SIZE);
+            fill_entry(&entries[7], "ERASE   TXT", 0x01u, FAT16_CLUSTER_RAM_ERASE_TXT, FAT16_SECTOR_SIZE);
             return true;
         case FAT16_VIEW_RAM_TYPE_DIR:
             self_cluster = FAT16_CLUSTER_RAM_TYPE_DIR;
@@ -194,6 +199,27 @@ static bool read_text_view(Fat16ViewId view_id, uint32_t sector_in_cluster, uint
             buf[2] = 0xBFu;
             return cart_service_build_ram_type_select_text(
                 (char *)&buf[UTF8_BOM_SIZE], FAT16_SECTOR_SIZE - UTF8_BOM_SIZE);
+        case FAT16_VIEW_RAM_STATUS_TXT:
+            memset(buf, 0, FAT16_SECTOR_SIZE);
+            buf[0] = 0xEFu;
+            buf[1] = 0xBBu;
+            buf[2] = 0xBFu;
+            return cart_service_build_ram_status_text(
+                (char *)&buf[UTF8_BOM_SIZE], FAT16_SECTOR_SIZE - UTF8_BOM_SIZE);
+        case FAT16_VIEW_RAM_COMMIT_TXT:
+            memset(buf, 0, FAT16_SECTOR_SIZE);
+            buf[0] = 0xEFu;
+            buf[1] = 0xBBu;
+            buf[2] = 0xBFu;
+            return cart_service_build_ram_commit_text(
+                (char *)&buf[UTF8_BOM_SIZE], FAT16_SECTOR_SIZE - UTF8_BOM_SIZE);
+        case FAT16_VIEW_RAM_ERASE_TXT:
+            memset(buf, 0, FAT16_SECTOR_SIZE);
+            buf[0] = 0xEFu;
+            buf[1] = 0xBBu;
+            buf[2] = 0xBFu;
+            return cart_service_build_ram_erase_text(
+                (char *)&buf[UTF8_BOM_SIZE], FAT16_SECTOR_SIZE - UTF8_BOM_SIZE);
         default:
             return false;
     }
@@ -219,6 +245,8 @@ static bool read_data_view(const Fat16ViewInfo *view, uint32_t cluster_offset, u
             return cart_service_read_rom(file_offset, buf, bytes_to_read);
         case FAT16_VIEW_RAM_CURRENT_SAV:
             return cart_service_read_save(file_offset, buf, bytes_to_read);
+        case FAT16_VIEW_RAM_UPLOAD_SAV:
+            return true;
         default:
             return false;
     }
@@ -236,6 +264,9 @@ static bool is_text_view(Fat16ViewId view_id)
         case FAT16_VIEW_RAM_TYPE_FRAM_TXT:
         case FAT16_VIEW_RAM_TYPE_FLASH_TXT:
         case FAT16_VIEW_RAM_TYPE_SELECT_TXT:
+        case FAT16_VIEW_RAM_STATUS_TXT:
+        case FAT16_VIEW_RAM_COMMIT_TXT:
+        case FAT16_VIEW_RAM_ERASE_TXT:
             return true;
         default:
             return false;
@@ -283,6 +314,10 @@ static bool write_text_view(Fat16ViewId view_id, uint32_t sector_in_cluster, con
             return cart_service_apply_rom_config_text(buf, FAT16_SECTOR_SIZE);
         case FAT16_VIEW_RAM_TYPE_SELECT_TXT:
             return cart_service_apply_ram_type_select_text(buf, FAT16_SECTOR_SIZE);
+        case FAT16_VIEW_RAM_COMMIT_TXT:
+            return cart_service_apply_ram_commit_text(buf, FAT16_SECTOR_SIZE);
+        case FAT16_VIEW_RAM_ERASE_TXT:
+            return cart_service_apply_ram_erase_text(buf, FAT16_SECTOR_SIZE);
         default:
             return true;
     }
@@ -294,6 +329,7 @@ static bool write_data_sector(uint32_t lba, const uint8_t *buf)
     uint16_t cluster = 0u;
     uint32_t sector_in_cluster = 0u;
     uint32_t cluster_offset = 0u;
+    uint32_t file_offset;
 
     if (!fat16_layout_cluster_from_lba(lba, &cluster, &sector_in_cluster)) {
         return true;
@@ -309,6 +345,17 @@ static bool write_data_sector(uint32_t lba, const uint8_t *buf)
 
     if (is_text_view(view.view_id)) {
         return write_text_view(view.view_id, sector_in_cluster, buf);
+    }
+
+    if (view.view_id == FAT16_VIEW_RAM_UPLOAD_SAV) {
+        file_offset = ((cluster_offset * FAT16_SECTORS_PER_CLUSTER) + sector_in_cluster) * FAT16_SECTOR_SIZE;
+        if (file_offset < CART_SERVICE_UPLOAD_BUFFER_SIZE) {
+            uint32_t bytes_to_write = FAT16_SECTOR_SIZE;
+            if ((CART_SERVICE_UPLOAD_BUFFER_SIZE - file_offset) < bytes_to_write) {
+                bytes_to_write = CART_SERVICE_UPLOAD_BUFFER_SIZE - file_offset;
+            }
+            return cart_service_write_save(file_offset, buf, bytes_to_write);
+        }
     }
 
     return true;
