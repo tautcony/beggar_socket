@@ -12,6 +12,7 @@
 #define CFI_QUERY_BUFFER_SIZE 256u
 #define CFI_MAX_SECTOR_REGIONS 4u
 #define CART_SERVICE_TEXT_BUFFER_BYTES 512u
+#define CART_SERVICE_FRAM_READ_LATENCY_CYCLES 4u
 
 typedef struct {
     uint32_t sector_size;
@@ -73,6 +74,7 @@ typedef struct {
     CartServiceConfig pending_config;
     uint32_t dirty_mask;
     char last_error[96];
+    char last_apply_status[32];
 } CartServiceSessionState;
 
 static CartServiceCfiCache g_cart_service_cfi_cache;
@@ -150,6 +152,16 @@ static const char *cart_service_ram_type_detail(CartServiceRamType type)
 static void cart_service_clear_error(void)
 {
     g_cart_service_session.last_error[0] = '\0';
+}
+
+static void cart_service_set_apply_status(const char *message)
+{
+    if (message == NULL) {
+        g_cart_service_session.last_apply_status[0] = '\0';
+        return;
+    }
+
+    snprintf(g_cart_service_session.last_apply_status, sizeof(g_cart_service_session.last_apply_status), "%s", message);
 }
 
 static void cart_service_set_error(const char *message)
@@ -541,6 +553,7 @@ static void cart_service_init_session_state(void)
     cart_service_normalize_session_config(&g_cart_service_session.pending_config);
     cart_service_session_sync_dirty_mask();
     cart_service_clear_error();
+    cart_service_set_apply_status("NONE");
     initialized = true;
 }
 
@@ -611,6 +624,34 @@ static bool cart_service_parse_ram_type(const char *text, CartServiceRamType *ty
         *type = CART_SERVICE_RAM_TYPE_FLASH;
     } else {
         return false;
+    }
+
+    return true;
+}
+
+static bool cart_service_read_save_sram(uint32_t offset, uint8_t *buf, uint32_t len)
+{
+    cart_ramRead((uint16_t)offset, buf, (uint16_t)len);
+    return true;
+}
+
+static bool cart_service_read_save_fram(uint32_t offset, uint8_t *buf, uint32_t len)
+{
+    for (uint32_t i = 0u; i < len; ++i) {
+        cart_ramRead((uint16_t)(offset + i), buf + i, 1u);
+        for (uint32_t wait = 0u; wait < CART_SERVICE_FRAM_READ_LATENCY_CYCLES; ++wait) {
+            TIMING_DELAY();
+        }
+    }
+
+    return true;
+}
+
+static bool cart_service_read_save_flash(uint32_t offset, uint8_t *buf, uint32_t len)
+{
+    for (uint32_t i = 0u; i < len; ++i) {
+        cart_ramRead((uint16_t)(offset + i), buf + i, 1u);
+        MEMORY_BARRIER();
     }
 
     return true;
@@ -695,6 +736,12 @@ const char *cart_service_get_last_error(void)
     return g_cart_service_session.last_error[0] == '\0' ? "NONE" : g_cart_service_session.last_error;
 }
 
+const char *cart_service_get_last_apply_status(void)
+{
+    cart_service_init_session_state();
+    return g_cart_service_session.last_apply_status[0] == '\0' ? "NONE" : g_cart_service_session.last_apply_status;
+}
+
 const char *cart_service_get_ram_type_name(CartServiceRamType type)
 {
     return cart_service_ram_type_label(type);
@@ -726,6 +773,8 @@ bool cart_service_read_rom(uint32_t offset, uint8_t *buf, uint32_t len)
 
 bool cart_service_read_save(uint32_t offset, uint8_t *buf, uint32_t len)
 {
+    cart_service_init_session_state();
+
     if (buf == NULL) {
         return false;
     }
@@ -734,8 +783,16 @@ bool cart_service_read_save(uint32_t offset, uint8_t *buf, uint32_t len)
         return false;
     }
 
-    cart_ramRead((uint16_t)offset, buf, (uint16_t)len);
-    return true;
+    switch (g_cart_service_session.current_config.ram_type) {
+        case CART_SERVICE_RAM_TYPE_SRAM:
+            return cart_service_read_save_sram(offset, buf, len);
+        case CART_SERVICE_RAM_TYPE_FRAM:
+            return cart_service_read_save_fram(offset, buf, len);
+        case CART_SERVICE_RAM_TYPE_FLASH:
+            return cart_service_read_save_flash(offset, buf, len);
+        default:
+            return false;
+    }
 }
 
 bool cart_service_build_cfi_text(char *buf, uint32_t buf_size)
@@ -918,8 +975,113 @@ bool cart_service_build_status_text(char *buf, uint32_t buf_size)
             cart_service_ram_type_label(g_cart_service_session.pending_config.ram_type));
     appendf(&cursor, &remaining, "UNAPPLIED_CHANGES=%u\r\n", cart_service_has_pending_changes() ? 1u : 0u);
     appendf(&cursor, &remaining, "DIRTY_MASK=0x%02lX\r\n", (unsigned long)g_cart_service_session.dirty_mask);
+    appendf(&cursor, &remaining, "LAST_APPLY=%s\r\n", cart_service_get_last_apply_status());
     appendf(&cursor, &remaining, "LAST_ERROR=%s\r\n", cart_service_get_last_error());
     appendf(&cursor, &remaining, "ACTIVE_LAYOUT=FAT16_STAGE_2\r\n");
+    return true;
+}
+
+bool cart_service_build_apply_text(char *buf, uint32_t buf_size)
+{
+    char *cursor = buf;
+    uint32_t remaining = buf_size;
+
+    if (buf == NULL || buf_size == 0u) {
+        return false;
+    }
+
+    cart_service_init_session_state();
+    cart_service_session_sync_dirty_mask();
+    memset(buf, 0, buf_size);
+
+    appendf(&cursor, &remaining, "TYPE=APPLY\r\n");
+    appendf(&cursor, &remaining, "PATH=/APPLY.TXT\r\n");
+    appendf(&cursor, &remaining, "PENDING_CHANGES=%u\r\n", cart_service_has_pending_changes() ? 1u : 0u);
+    appendf(&cursor, &remaining, "LAST_APPLY=%s\r\n", cart_service_get_last_apply_status());
+    appendf(&cursor, &remaining, "NOTE=Write APPLY=1 to promote pending config into current config.\r\n");
+    return true;
+}
+
+bool cart_service_apply_pending_config_text(const uint8_t *buf, uint32_t len)
+{
+    char text[CART_SERVICE_TEXT_BUFFER_BYTES + 1u];
+    char *cursor = text;
+    bool recognized = false;
+    uint32_t copy_len = len;
+
+    if (buf == NULL) {
+        return false;
+    }
+
+    cart_service_init_session_state();
+
+    if (copy_len > CART_SERVICE_TEXT_BUFFER_BYTES) {
+        copy_len = CART_SERVICE_TEXT_BUFFER_BYTES;
+    }
+
+    memset(text, 0, sizeof(text));
+    memcpy(text, buf, copy_len);
+
+    if ((uint8_t)cursor[0] == 0xEFu && (uint8_t)cursor[1] == 0xBBu && (uint8_t)cursor[2] == 0xBFu) {
+        cursor += 3;
+    }
+
+    while (*cursor != '\0') {
+        char *line = cursor;
+        char *equals;
+        char *key;
+        char *value;
+        char line_end;
+
+        while (*cursor != '\0' && *cursor != '\r' && *cursor != '\n') {
+            ++cursor;
+        }
+
+        line_end = *cursor;
+        *cursor = '\0';
+
+        line = trim_left(line);
+        trim_right(line);
+
+        if (*line != '\0' && *line != '#' && *line != ';') {
+            equals = strchr(line, '=');
+            if (equals != NULL) {
+                *equals = '\0';
+                key = trim_left(line);
+                trim_right(key);
+                value = trim_left(equals + 1);
+                trim_right(value);
+
+                if (key_equals(key, "APPLY") && (key_equals(value, "1") || key_equals(value, "YES") || key_equals(value, "TRUE"))) {
+                    recognized = true;
+                }
+            } else if (key_equals(line, "APPLY")) {
+                recognized = true;
+            }
+        }
+
+        if (line_end == '\0') {
+            break;
+        }
+
+        ++cursor;
+        if (line_end == '\r' && *cursor == '\n') {
+            ++cursor;
+        }
+    }
+
+    if (!recognized) {
+        cart_service_set_error("INVALID_APPLY_REQUEST");
+        cart_service_set_apply_status("REJECTED");
+        return false;
+    }
+
+    g_cart_service_session.current_config = g_cart_service_session.pending_config;
+    cart_service_normalize_session_config(&g_cart_service_session.current_config);
+    g_cart_service_session.pending_config = g_cart_service_session.current_config;
+    cart_service_session_sync_dirty_mask();
+    cart_service_clear_error();
+    cart_service_set_apply_status("SUCCESS");
     return true;
 }
 

@@ -65,9 +65,10 @@ static bool read_info_text(uint8_t *buf)
              "ROM_DEVICE_SIZE=%lu\r\n"
              "ROM_SIZE_MAX=%lu\r\n"
              "SAVE_SIZE=%lu\r\n"
-             "ROOT_ENTRIES=INFO.TXT,STATUS.TXT,ROM,RAM\r\n"
+             "ROOT_ENTRIES=INFO.TXT,STATUS.TXT,APPLY.TXT,ROM,RAM\r\n"
              "ROM_PATH=/ROM/CURRENT.GBA\r\n"
              "ROM_CONFIG_PATH=/ROM/CONFIG.TXT\r\n"
+             "APPLY_PATH=/APPLY.TXT\r\n"
              "RAM_TYPE_PATH=/RAM/TYPE/SELECT.TXT\r\n"
              "SAVE_PATH=/RAM/CURRENT.SAV\r\n"
              "NOTE=TXT files are UTF-8 with BOM for Windows compatibility.\r\n"
@@ -147,6 +148,12 @@ static bool read_text_view(Fat16ViewId view_id, uint32_t sector_in_cluster, uint
             buf[1] = 0xBBu;
             buf[2] = 0xBFu;
             return cart_service_build_status_text((char *)&buf[UTF8_BOM_SIZE], FAT16_SECTOR_SIZE - UTF8_BOM_SIZE);
+        case FAT16_VIEW_APPLY_TXT:
+            memset(buf, 0, FAT16_SECTOR_SIZE);
+            buf[0] = 0xEFu;
+            buf[1] = 0xBBu;
+            buf[2] = 0xBFu;
+            return cart_service_build_apply_text((char *)&buf[UTF8_BOM_SIZE], FAT16_SECTOR_SIZE - UTF8_BOM_SIZE);
         case FAT16_VIEW_ROM_CFI_TXT:
             memset(buf, 0, FAT16_SECTOR_SIZE);
             buf[0] = 0xEFu;
@@ -222,6 +229,7 @@ static bool is_text_view(Fat16ViewId view_id)
     switch (view_id) {
         case FAT16_VIEW_INFO_TXT:
         case FAT16_VIEW_STATUS_TXT:
+        case FAT16_VIEW_APPLY_TXT:
         case FAT16_VIEW_ROM_CFI_TXT:
         case FAT16_VIEW_ROM_CONFIG_TXT:
         case FAT16_VIEW_RAM_TYPE_SRAM_TXT:
@@ -269,6 +277,8 @@ static bool write_text_view(Fat16ViewId view_id, uint32_t sector_in_cluster, con
     }
 
     switch (view_id) {
+        case FAT16_VIEW_APPLY_TXT:
+            return cart_service_apply_pending_config_text(buf, FAT16_SECTOR_SIZE);
         case FAT16_VIEW_ROM_CONFIG_TXT:
             return cart_service_apply_rom_config_text(buf, FAT16_SECTOR_SIZE);
         case FAT16_VIEW_RAM_TYPE_SELECT_TXT:
