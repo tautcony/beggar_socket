@@ -27,7 +27,7 @@ The system SHALL present each candidate option file as a read-only descriptive v
 - **THEN** the device preserves read-only semantics and does not treat that write as a selection command
 
 ### Requirement: SELECT.TXT is the unique group-level selection command file
-The system SHALL expose one `SELECT.TXT` file per selectable parameter group as the only writable file used to choose a candidate value for that group.
+The system SHALL expose one `SELECT.TXT` file per selectable parameter group as the only writable file used to choose a candidate value for that group, and accepted writes SHALL update pending state rather than immediately changing active runtime behavior.
 
 #### Scenario: Host selects a candidate through SELECT.TXT
 - **WHEN** the host overwrites `/RAM/TYPE/SELECT.TXT` with a valid candidate such as `VALUE=SRAM`
@@ -40,6 +40,10 @@ The system SHALL expose one `SELECT.TXT` file per selectable parameter group as 
 #### Scenario: Host writes an invalid candidate through SELECT.TXT
 - **WHEN** the host overwrites a group `SELECT.TXT` with a value that is not defined in that group's candidate set
 - **THEN** the device rejects the change to pending configuration and records a validation error for status reporting
+
+#### Scenario: Host changes selection without applying it
+- **WHEN** the host writes a valid new candidate to `SELECT.TXT` but has not triggered apply
+- **THEN** the active runtime behavior continues to use the previously applied current value
 
 ### Requirement: CONFIG.TXT accepts batch updates for composite parameters
 The system SHALL expose `CONFIG.TXT` for parameter sets that require multiple keyed values to be edited together.
