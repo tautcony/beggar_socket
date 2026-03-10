@@ -1,11 +1,17 @@
 # beggar_socket
 A lightweight gba cartridge burner, with limited functionality
 
-# pcb和原理图
+## 📚 文档 / Documentation
+
+- **[RAM Upload Workflow Guide (RAM 上传工作流程指南)](./docs/RAM-UPLOAD-WORKFLOW.md)** - 完整的 RAM 上传和提交工作流程说明
+- **[MCU Virtual FAT16 Disk Design (MCU 虚拟 FAT16 磁盘设计)](./docs/mcu-virtual-fat16-disk-design.md)** - FAT16 虚拟磁盘架构设计
+- **[MCU Firmware Wiki (MCU 固件维基)](./docs/mcu-firmware-wiki.md)** - 固件架构概览
+
+## PCB和原理图
 
 [sch_pcb](https://oshwhub.com/linscon/beggar_socket)
 
-# 协议&命令
+## 协议&命令
 
 - 单片机的usb虚拟了一个串口，vid: 0x0483 pid: 0x0721
 - 发送dtr置位复位信号可以重置单片机内的命令buffer(其实发rts信号也行，但windows自带<br>

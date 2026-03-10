@@ -226,8 +226,16 @@ USB Composite / MSC-only
 说明：
 
 - 未来目标会把当前的只读导出面板扩展成完整的 ROM/RAM 控制平面
-- `UPLOAD.*`、`COMMIT.TXT`、`ERASE.TXT`、局部 `STATUS.TXT`、`SIZE/`、`BANKING/`、`VERIFY/` 目前都还不是已实现行为
-- 阅读后续章节时，应优先看每一节是否标注为“当前实现”或“未来目标”
+- **已实现** (2026-03-10):
+  - `/RAM/UPLOAD.SAV` - RAM 上传数据窗口
+  - `/RAM/COMMIT.TXT` - RAM 提交命令
+  - `/RAM/ERASE.TXT` - RAM 擦除命令
+  - `/RAM/STATUS.TXT` - RAM 状态查询
+  - `/RAM/TYPE/SELECT.TXT` - RAM 类型选择
+- **未实现**: `/ROM/UPLOAD.GBA`、`SIZE/`、`BANKING/`、`VERIFY/`
+- 阅读后续章节时，应优先看每一节是否标注为"当前实现"或"未来目标"
+
+**重要**: 完整的 RAM 上传工作流程说明请参考 [RAM-UPLOAD-WORKFLOW.md](./RAM-UPLOAD-WORKFLOW.md)
 
 ## 6. 参数在 FAT16 中的表现方式
 
@@ -454,11 +462,27 @@ FRAM_LATENCY=3
 
 #### `/RAM/UPLOAD.SAV`
 
-- 可写
+**状态**: ✅ **已实现** (2026-03-10)
+
+- 可写数据窗口
+- 大小: 32KB (CART_SERVICE_UPLOAD_BUFFER_SIZE)
 - 主机把待写入存档复制进来
-- MCU 按 offset 接收数据并写入任务缓冲或直接映射到写流程
-- 不建议“写入完成即自动执行”
-- 需要用户再写 `/RAM/COMMIT.TXT`
+- MCU 按 offset 接收数据并累积到上传缓冲区 (`g_cart_service_ram_job.upload_buffer`)
+- **重要**: 写入此文件时数据仅保存在 MCU 内存中，**不会自动写入卡带**
+- 必须用户再写 `/RAM/COMMIT.TXT` 才会触发实际的卡带写入
+
+**工作流程**:
+1. 用户复制文件到 `/RAM/UPLOAD.SAV`
+2. 状态从 `IDLE` 变为 `UPLOADING`
+3. `bytes_written` 字段记录已接收的数据量
+4. 数据保持在内存缓冲区，等待 COMMIT 命令
+
+**技术细节**:
+- 实现位置: `cart_service_write_save()` in `cart_service.c:1415-1441`
+- 缓冲区: `g_cart_service_ram_job.upload_buffer[32768]`
+- 支持 FAT16 乱序写入，自动跟踪最高写入偏移
+
+详细说明见 [RAM-UPLOAD-WORKFLOW.md](./RAM-UPLOAD-WORKFLOW.md)
 
 #### `/ROM/UPLOAD.GBA`
 
@@ -483,8 +507,57 @@ FRAM_LATENCY=3
 
 ### 8.3 提交文件
 
-#### `/ROM/COMMIT.TXT`
 #### `/RAM/COMMIT.TXT`
+
+**状态**: ✅ **已实现** (2026-03-10)
+
+触发将上传到 `/RAM/UPLOAD.SAV` 的数据实际写入卡带 RAM 的操作。
+
+**支持的命令格式**:
+
+```text
+COMMIT=1
+```
+
+或：
+
+```text
+COMMIT=YES
+```
+
+或：
+
+```text
+COMMIT=TRUE
+```
+
+**工作流程**:
+
+1. 验证当前状态为 `UPLOADING`（如果不是则返回 `INVALID_STATE` 错误）
+2. 转换状态为 `COMMITTING`
+3. 以 **1KB (1024字节)** 为单位分块写入卡带
+   - 即使数据小于 1KB 也按块处理
+   - 确保硬件稳定性和类型兼容性
+4. 根据配置的 RAM 类型选择写入方式:
+   - **SRAM**: 直接批量写入 (`cart_service_write_save_sram`)
+   - **FRAM**: 逐字节写入，带延迟周期 (`cart_service_write_save_fram`)
+   - **FLASH**: 逐字节写入，带内存屏障 (`cart_service_write_save_flash`)
+5. 转换状态为 `VERIFYING`
+6. 从卡带读回数据，逐字节比对验证
+7. 完成:
+   - 验证通过 → 状态变为 `SUCCESS`
+   - 验证失败 → 状态变为 `ERROR`
+
+**技术细节**:
+- 实现位置: `cart_service_commit_ram_upload()` in `cart_service.c:1506-1575`
+- 分块大小: `CART_SERVICE_RAM_WRITE_CHUNK_SIZE = 1024u`
+- 验证实现: `cart_service_verify_save()` in `cart_service.c:1457-1486`
+
+详细说明见 [RAM-UPLOAD-WORKFLOW.md](./RAM-UPLOAD-WORKFLOW.md)
+
+#### `/ROM/COMMIT.TXT`
+
+**状态**: ❌ **未实现** (计划中)
 
 建议其内容支持简单命令文本，而不是只接受一个固定字节。
 
@@ -509,8 +582,45 @@ PROGRAM
 
 ### 8.4 擦除文件
 
-#### `/ROM/ERASE.TXT`
 #### `/RAM/ERASE.TXT`
+
+**状态**: ✅ **已实现** (2026-03-10)
+
+重置 RAM 上传任务状态并擦除 Flash Save（如果 RAM 类型为 Flash）。
+
+**支持的命令格式**:
+
+```text
+ERASE=1
+```
+
+或：
+
+```text
+ERASE=YES
+```
+
+或：
+
+```text
+ERASE=TRUE
+```
+
+**功能**:
+- 重置 RAM job 状态为 `IDLE`
+- 清空上传缓冲区
+- 如果需要擦除（Flash Save 类型），调用擦除函数
+- 用于在新上传前清空状态
+
+**技术细节**:
+- 实现位置: `cart_service_erase_ram()` in `cart_service.c:1577-1580`
+- 解析函数: `cart_service_apply_ram_erase_text()` in `cart_service.c:1755-1781`
+
+详细说明见 [RAM-UPLOAD-WORKFLOW.md](./RAM-UPLOAD-WORKFLOW.md)
+
+#### `/ROM/ERASE.TXT`
+
+**状态**: ❌ **未实现** (计划中)
 
 写入示例：
 
@@ -562,19 +672,72 @@ IMAGE_SIZE=8388608
 LAST_ERROR=NONE
 ```
 
-### 9.3 未来目标：`/RAM/STATUS.TXT`
+### 9.3 `/RAM/STATUS.TXT`
+
+**状态**: ✅ **已实现** (2026-03-10)
+
+实时显示 RAM 操作的当前状态和进度。
+
+**输出格式示例**:
+
+```text
+STATE=UPLOADING
+RAM_TYPE=FRAM
+BYTES_WRITTEN=8192
+TOTAL_BYTES=0
+ERROR=NONE
+```
+
+或完成后：
+
+```text
+STATE=SUCCESS
+RAM_TYPE=FRAM
+BYTES_WRITTEN=8192
+TOTAL_BYTES=8192
+ERROR=NONE
+```
+
+或错误时：
+
+```text
+STATE=ERROR
+RAM_TYPE=SRAM
+BYTES_WRITTEN=0
+TOTAL_BYTES=0
+ERROR=WRITE_FAILED
+```
+
+**字段说明**:
+
+| 字段 | 说明 | 可能值 |
+|------|------|--------|
+| `STATE` | 当前任务状态 | `IDLE`, `UPLOADING`, `COMMITTING`, `VERIFYING`, `SUCCESS`, `ERROR` |
+| `RAM_TYPE` | 当前配置的 RAM 类型 | `SRAM`, `FRAM`, `FLASH` |
+| `BYTES_WRITTEN` | 已写入/已接收的字节数 | 0 ~ 32768 |
+| `TOTAL_BYTES` | 完成时的总字节数 | 仅在 `SUCCESS` 状态有意义 |
+| `ERROR` | 错误信息 | `NONE`, `INVALID_STATE`, `WRITE_FAILED`, `VERIFY_FAILED` |
+
+**技术细节**:
+- 实现位置: `cart_service_build_ram_status_text()` in `cart_service.c:1582-1650`
+- 状态来源: `g_cart_service_ram_job` 全局状态结构
+
+详细说明见 [RAM-UPLOAD-WORKFLOW.md](./RAM-UPLOAD-WORKFLOW.md)
+
+### 9.4 未来目标：`/ROM/STATUS.TXT`
 
 示例：
 
 ```text
 STATE=IDLE
-TYPE_CURRENT=SRAM
-TYPE_PENDING=FRAM
-SIZE_CURRENT=32K
+MODE=PROGRAM
 VERIFY=ON
+PROGRESS=42
+IMAGE_SIZE=8388608
 LAST_ERROR=NONE
-IMAGE_SIZE=32768
 ```
+
+### 9.5 旧状态文件格式说明
 
 状态文件作用：
 
