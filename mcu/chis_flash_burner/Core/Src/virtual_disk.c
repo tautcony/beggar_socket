@@ -1,3 +1,4 @@
+#include "act_led.h"
 #include "virtual_disk.h"
 
 #include <stdio.h>
@@ -371,6 +372,8 @@ bool virtual_disk_read(uint32_t lba, uint8_t *buf, uint32_t block_count)
         uint32_t current_lba = lba + block;
         uint8_t *current_buf = buf + (block * FAT16_SECTOR_SIZE);
 
+        act_led_signal_activity();
+
         if (current_lba == 0u) {
             if (!fat16_layout_read_boot_sector(current_buf)) {
                 return false;
@@ -418,6 +421,8 @@ bool virtual_disk_write(uint32_t lba, const uint8_t *buf, uint32_t block_count)
     for (uint32_t block = 0u; block < block_count; ++block) {
         uint32_t current_lba = lba + block;
         const uint8_t *current_buf = buf + (block * FAT16_SECTOR_SIZE);
+
+        act_led_signal_activity();
 
         if (current_lba < FAT16_DATA_LBA) {
             continue;

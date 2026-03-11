@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "act_led.h"
 #include "main.h"
 #include "usbd_cdc_if.h"
 
@@ -106,12 +107,7 @@ void uart_setControlLine(uint8_t rts, uint8_t dtr)
         memset(responBuf, 0, sizeof(responBuf));
         busy = 0;
         // 提示重置
-        for (int i = 0; i < 3; i++) {
-            HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);  // LED on
-            for (volatile int j = 0; j < 80000; j++);
-            HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1);  // LED off
-            for (volatile int j = 0; j < 80000; j++);
-        }
+        act_led_blink_blocking(3u, 80000u, 80000u);
     }
 
     currentRts = rts;
@@ -189,7 +185,7 @@ void uart_cmdHandler()
     //     uart_clearRecvBuf();
 
     busy = 1;
-    HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);
+    act_led_force_on();
 
     // execute cmd
     switch (uart_cmd->cmdCode) {
@@ -267,7 +263,7 @@ void uart_cmdHandler()
             break;
     }
 
-    HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1);
+    act_led_force_off();
     return;
 }
 

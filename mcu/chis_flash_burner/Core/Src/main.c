@@ -22,6 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "act_led.h"
 #include "cart_adapter.h"
 #include "uart.h"
 /* USER CODE END Includes */
@@ -87,6 +88,7 @@ int main(void)
 
     /* Initialize all configured peripherals */
     MX_GPIO_Init();
+    act_led_init();
     MX_USB_DEVICE_Init();
     /* USER CODE BEGIN 2 */
 
@@ -101,6 +103,7 @@ int main(void)
         /* USER CODE BEGIN 3 */
 
         uart_cmdHandler();
+        act_led_update();
         __WFI();  // Wait for interrupt
     }
     /* USER CODE END 3 */

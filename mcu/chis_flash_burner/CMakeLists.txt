@@ -50,6 +50,7 @@ set(CPU_PARAMETERS
 # Project sources
 set(PROJECT_SOURCES
     Core/Src/main.c
+    Core/Src/act_led.c
     Core/Src/cart_adapter.c
     Core/Src/cart_service.c
     Core/Src/fat16_layout.c
