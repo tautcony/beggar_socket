@@ -473,6 +473,25 @@
           "range": "タイムアウトは {min} - {max} ミリ秒の間で入力してください"
         }
       },
+      "throttle": {
+        "title": "読み書きスロットル",
+        "romRead": "ROM読み書き間隔",
+        "ramRead": "RAM読み書き間隔",
+        "validation": {
+          "range": "スロットル間隔は {min} - {max} ミリ秒の間で入力してください"
+        }
+      },
+      "retry": {
+        "title": "失敗時の再試行",
+        "romReadCount": "ROM再試行回数",
+        "ramReadCount": "RAM再試行回数",
+        "romReadDelay": "ROM再試行待機",
+        "ramReadDelay": "RAM再試行待機",
+        "validation": {
+          "countRange": "再試行回数は {min} - {max} の間で入力してください",
+          "delayRange": "再試行待機は {min} - {max} ミリ秒の間で入力してください"
+        }
+      },
       "actions": {
         "reset": "デフォルトにリセット",
         "apply": "適用",

@@ -105,9 +105,10 @@ export class ElectronDeviceGateway implements DeviceGateway {
   }
 
   async init(device: DeviceHandle): Promise<void> {
+    await device.transport.setSignals({ dataTerminalReady: true, requestToSend: true });
+    await timeout(10);
     await device.transport.setSignals({ dataTerminalReady: false, requestToSend: false });
     await timeout(200);
-    await device.transport.setSignals({ dataTerminalReady: true, requestToSend: true });
   }
 
   async disconnect(device: DeviceHandle): Promise<void> {
