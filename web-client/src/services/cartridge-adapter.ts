@@ -22,6 +22,9 @@ export type TranslateFunction = (key: string, params?: any) => string;
  * 定义所有适配器必须实现的方法
  */
 export class CartridgeAdapter {
+  private static readonly COMMAND_RESET_PULSE_MS = 10;
+  private static readonly COMMAND_RESET_SETTLE_MS = 200;
+
   protected device: DeviceInfo;
   protected log: LogCallback;
   protected updateProgress: ProgressCallback;
@@ -227,9 +230,15 @@ export class CartridgeAdapter {
   }
 
   async resetCommandBuffer(): Promise<void> {
-    await this.device.port?.setSignals({ dataTerminalReady: false, requestToSend: false });
-    await timeout(200);
     await this.device.port?.setSignals({ dataTerminalReady: true, requestToSend: true });
+    await timeout(CartridgeAdapter.COMMAND_RESET_PULSE_MS);
+    await this.device.port?.setSignals({ dataTerminalReady: false, requestToSend: false });
+    await timeout(CartridgeAdapter.COMMAND_RESET_SETTLE_MS);
+  }
+
+  protected async stabilizeCommandChannel(settleMs = 100): Promise<void> {
+    await this.resetCommandBuffer();
+    await timeout(settleMs);
   }
 }
 

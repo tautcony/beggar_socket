@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { resolveTransport } from '@/platform/serial';
-import { ConnectionTransport } from '@/platform/serial/transports';
+import { ConnectionTransport, WebSerialTransport } from '@/platform/serial/transports';
 import type { Transport } from '@/platform/serial/types';
 import { gbc_read, getResult, ProtocolAdapter, ram_read, rom_read, sendPackage, setSignals } from '@/protocol';
 import type { DeviceInfo } from '@/types/device-info';
@@ -98,6 +98,64 @@ describe('Protocol transport abstraction', () => {
     await expect(transport.read(1, 1)).rejects.toThrow('Read package timeout in 1ms');
   });
 
+  it('ConnectionTransport resets timeout when data continues arriving', async () => {
+    const dataCallbacks: ((data: Uint8Array) => void)[] = [];
+
+    const connection: SerialConnection = {
+      id: 'conn-4',
+      isOpen: true,
+      write: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn().mockResolvedValue(undefined),
+      setSignals: vi.fn().mockResolvedValue(undefined),
+      onData: (callback: (data: Uint8Array) => void) => {
+        dataCallbacks.push(callback);
+      },
+      onError: vi.fn(),
+      onClose: vi.fn(),
+      removeDataListener: vi.fn(),
+      removeErrorListener: vi.fn(),
+      removeCloseListener: vi.fn(),
+    };
+
+    const transport = new ConnectionTransport(connection);
+    const readPromise = transport.read(3, 20);
+
+    await new Promise(resolve => setTimeout(resolve, 10));
+    dataCallbacks[0]?.(new Uint8Array([0xaa]));
+    await new Promise(resolve => setTimeout(resolve, 10));
+    dataCallbacks[0]?.(new Uint8Array([0xbb]));
+    await new Promise(resolve => setTimeout(resolve, 10));
+    dataCallbacks[0]?.(new Uint8Array([0xcc]));
+
+    await expect(readPromise).resolves.toEqual({ data: new Uint8Array([0xaa, 0xbb, 0xcc]) });
+  });
+
+  it('ConnectionTransport rejects incomplete packets instead of returning short data', async () => {
+    const dataCallbacks: ((data: Uint8Array) => void)[] = [];
+
+    const connection: SerialConnection = {
+      id: 'conn-5',
+      isOpen: true,
+      write: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn().mockResolvedValue(undefined),
+      setSignals: vi.fn().mockResolvedValue(undefined),
+      onData: (callback: (data: Uint8Array) => void) => {
+        dataCallbacks.push(callback);
+      },
+      onError: vi.fn(),
+      onClose: vi.fn(),
+      removeDataListener: vi.fn(),
+      removeErrorListener: vi.fn(),
+      removeCloseListener: vi.fn(),
+    };
+
+    const transport = new ConnectionTransport(connection);
+    const readPromise = transport.read(3, 15);
+    dataCallbacks[0]?.(new Uint8Array([0xaa]));
+
+    await expect(readPromise).rejects.toThrow('Read package timeout in 15ms');
+  });
+
   it('ConnectionTransport propagates send timeout and signal errors', async () => {
     const connection: SerialConnection = {
       id: 'conn-3',
@@ -171,5 +229,70 @@ describe('Protocol transport abstraction', () => {
     await expect(rom_read({ transport }, 4, 0x10)).rejects.toThrow('Reason: invalid packet length');
     await expect(ram_read({ transport }, 4, 0x20)).rejects.toThrow('Reason: invalid packet length');
     await expect(gbc_read({ transport }, 4, 0x30)).rejects.toThrow('Reason: invalid packet length');
+  });
+
+  it('WebSerialTransport BYOB reads full packet across multiple chunks', async () => {
+    const releaseLock = vi.fn();
+    const read = vi.fn()
+      .mockResolvedValueOnce({ value: new Uint8Array([0xaa, 0xbb]), done: false })
+      .mockResolvedValueOnce({ value: new Uint8Array([0xcc]), done: false })
+      .mockResolvedValueOnce({ value: undefined, done: true });
+
+    const port = {
+      readable: {
+        getReader: vi.fn().mockReturnValue({
+          read,
+          releaseLock,
+        }),
+      },
+    } as unknown as SerialPort;
+
+    const transport = new WebSerialTransport(port);
+    await expect(transport.read(3, 20, 'byob')).resolves.toEqual({ data: new Uint8Array([0xaa, 0xbb, 0xcc]) });
+    expect(releaseLock).toHaveBeenCalled();
+  });
+
+  it('clears transport timers after successful operations', async () => {
+    vi.useFakeTimers();
+
+    try {
+      const connection: SerialConnection = {
+        id: 'conn-timer',
+        isOpen: true,
+        write: vi.fn().mockResolvedValue(undefined),
+        close: vi.fn().mockResolvedValue(undefined),
+        setSignals: vi.fn().mockResolvedValue(undefined),
+        onData: vi.fn(),
+        onError: vi.fn(),
+        onClose: vi.fn(),
+        removeDataListener: vi.fn(),
+        removeErrorListener: vi.fn(),
+        removeCloseListener: vi.fn(),
+      };
+
+      const sendTransport = new ConnectionTransport(connection);
+      await expect(sendTransport.send(new Uint8Array([0x01]), 50)).resolves.toBe(true);
+
+      const releaseLock = vi.fn();
+      const read = vi.fn()
+        .mockResolvedValueOnce({ value: new Uint8Array([0xaa]), done: false })
+        .mockResolvedValueOnce({ value: undefined, done: true });
+      const port = {
+        readable: {
+          getReader: vi.fn().mockReturnValue({
+            read,
+            releaseLock,
+          }),
+        },
+      } as unknown as SerialPort;
+
+      const readTransport = new WebSerialTransport(port);
+      await expect(readTransport.read(1, 50, 'default')).resolves.toEqual({ data: new Uint8Array([0xaa]) });
+
+      expect(vi.getTimerCount()).toBe(0);
+      expect(releaseLock).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

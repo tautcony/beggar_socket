@@ -1,41 +1,52 @@
-
 export interface AdvancedSettingsConfig {
   size?: {
     romPageSize?: number;
     ramPageSize?: number;
+  };
+  throttle?: {
+    romRead?: number;
+    ramRead?: number;
+  };
+  retry?: {
+    romReadCount?: number;
+    ramReadCount?: number;
+    romReadDelay?: number;
+    ramReadDelay?: number;
   };
   timeout?: {
     default?: number;
     packageSend?: number;
     packageReceive?: number;
     operation?: number;
-  }
-};
+  };
+}
 
-/**
- * 高级设置配置类
- * 用于管理页面大小、超时时间等可配置参数
- */
 export class AdvancedSettings {
-  // 页面大小设置
-  private static _romPageSize = 0x200; // 512B for ROM operations (默认值)
-  private static _ramPageSize = 0x100; // 256B for RAM operations (默认值)
+  private static _romPageSize = 0x200;
+  private static _ramPageSize = 0x100;
+  private static _romReadThrottleMs = 0;
+  private static _ramReadThrottleMs = 0;
+  private static _romReadRetryCount = 0;
+  private static _ramReadRetryCount = 0;
+  private static _romReadRetryDelayMs = 0;
+  private static _ramReadRetryDelayMs = 0;
 
-  // 超时设置（毫秒）
-  private static _defaultTimeout = 3000; // 默认超时时间
-  private static _packageSendTimeout = 3000; // 发送数据包超时
-  private static _packageReceiveTimeout = 3000; // 接收数据包超时
-  private static _operationTimeout = 100000; // 长时间操作超时（如芯片擦除）
+  private static _defaultTimeout = 3000;
+  private static _packageSendTimeout = 3000;
+  private static _packageReceiveTimeout = 3000;
+  private static _operationTimeout = 100000;
 
-  // 页面大小配置的有效范围
-  private static readonly MIN_PAGE_SIZE = 0x40; // 64 bytes
-  private static readonly MAX_PAGE_SIZE = 0x4000; // 16KB
+  private static readonly MIN_PAGE_SIZE = 0x40;
+  private static readonly MAX_PAGE_SIZE = 0x4000;
+  private static readonly MIN_THROTTLE = 0;
+  private static readonly MAX_THROTTLE = 1000;
+  private static readonly MIN_RETRY_COUNT = 0;
+  private static readonly MAX_RETRY_COUNT = 10;
+  private static readonly MIN_RETRY_DELAY = 0;
+  private static readonly MAX_RETRY_DELAY = 5000;
+  private static readonly MIN_TIMEOUT = 1000;
+  private static readonly MAX_TIMEOUT = 300000;
 
-  // 超时配置的有效范围
-  private static readonly MIN_TIMEOUT = 1000; // 1秒
-  private static readonly MAX_TIMEOUT = 300000; // 5分钟
-
-  // 页面大小 getter/setter
   static get romPageSize(): number {
     return this._romPageSize;
   }
@@ -54,7 +65,60 @@ export class AdvancedSettings {
     this.saveSettings();
   }
 
-  // 超时时间 getter/setter
+  static get romReadThrottleMs(): number {
+    return this._romReadThrottleMs;
+  }
+
+  static set romReadThrottleMs(value: number) {
+    this._romReadThrottleMs = this.validateThrottle(value);
+    this.saveSettings();
+  }
+
+  static get ramReadThrottleMs(): number {
+    return this._ramReadThrottleMs;
+  }
+
+  static set ramReadThrottleMs(value: number) {
+    this._ramReadThrottleMs = this.validateThrottle(value);
+    this.saveSettings();
+  }
+
+  static get romReadRetryCount(): number {
+    return this._romReadRetryCount;
+  }
+
+  static set romReadRetryCount(value: number) {
+    this._romReadRetryCount = this.validateRetryCount(value);
+    this.saveSettings();
+  }
+
+  static get ramReadRetryCount(): number {
+    return this._ramReadRetryCount;
+  }
+
+  static set ramReadRetryCount(value: number) {
+    this._ramReadRetryCount = this.validateRetryCount(value);
+    this.saveSettings();
+  }
+
+  static get romReadRetryDelayMs(): number {
+    return this._romReadRetryDelayMs;
+  }
+
+  static set romReadRetryDelayMs(value: number) {
+    this._romReadRetryDelayMs = this.validateRetryDelay(value);
+    this.saveSettings();
+  }
+
+  static get ramReadRetryDelayMs(): number {
+    return this._ramReadRetryDelayMs;
+  }
+
+  static set ramReadRetryDelayMs(value: number) {
+    this._ramReadRetryDelayMs = this.validateRetryDelay(value);
+    this.saveSettings();
+  }
+
   static get defaultTimeout(): number {
     return this._defaultTimeout;
   }
@@ -91,48 +155,87 @@ export class AdvancedSettings {
     this.saveSettings();
   }
 
-  /**
-   * 验证页面大小是否在有效范围内
-   */
   private static validatePageSize(size: number): number {
     if (size < this.MIN_PAGE_SIZE) {
-      console.warn(`页面大小 ${size} 小于最小值 ${this.MIN_PAGE_SIZE}，已调整为最小值`);
+      console.warn(`Page size ${size} is below minimum ${this.MIN_PAGE_SIZE}, clamping to minimum`);
       return this.MIN_PAGE_SIZE;
     }
     if (size > this.MAX_PAGE_SIZE) {
-      console.warn(`页面大小 ${size} 大于最大值 ${this.MAX_PAGE_SIZE}，已调整为最大值`);
+      console.warn(`Page size ${size} is above maximum ${this.MAX_PAGE_SIZE}, clamping to maximum`);
       return this.MAX_PAGE_SIZE;
     }
-    // 检查是否是2的幂
     if ((size & (size - 1)) !== 0) {
-      console.warn(`页面大小 ${size} 不是2的幂，可能会导致性能问题`);
+      console.warn(`Page size ${size} is not a power of two and may reduce performance`);
     }
     return size;
   }
 
-  /**
-   * 验证超时时间是否在有效范围内
-   */
-  private static validateTimeout(timeout: number): number {
-    if (timeout < this.MIN_TIMEOUT) {
-      console.warn(`超时时间 ${timeout}ms 小于最小值 ${this.MIN_TIMEOUT}ms，已调整为最小值`);
-      return this.MIN_TIMEOUT;
+  private static validateThrottle(throttle: number): number {
+    const normalized = Math.trunc(throttle);
+    if (normalized < this.MIN_THROTTLE) {
+      console.warn(`Read throttle ${normalized}ms is below minimum ${this.MIN_THROTTLE}ms, clamping to minimum`);
+      return this.MIN_THROTTLE;
     }
-    if (timeout > this.MAX_TIMEOUT) {
-      console.warn(`超时时间 ${timeout}ms 大于最大值 ${this.MAX_TIMEOUT}ms，已调整为最大值`);
-      return this.MAX_TIMEOUT;
+    if (normalized > this.MAX_THROTTLE) {
+      console.warn(`Read throttle ${normalized}ms is above maximum ${this.MAX_THROTTLE}ms, clamping to maximum`);
+      return this.MAX_THROTTLE;
     }
-    return timeout;
+    return normalized;
   }
 
-  /**
-   * 获取所有设置的配置对象
-   */
+  private static validateTimeout(timeout: number): number {
+    const normalized = Math.trunc(timeout);
+    if (normalized < this.MIN_TIMEOUT) {
+      console.warn(`Timeout ${normalized}ms is below minimum ${this.MIN_TIMEOUT}ms, clamping to minimum`);
+      return this.MIN_TIMEOUT;
+    }
+    if (normalized > this.MAX_TIMEOUT) {
+      console.warn(`Timeout ${normalized}ms is above maximum ${this.MAX_TIMEOUT}ms, clamping to maximum`);
+      return this.MAX_TIMEOUT;
+    }
+    return normalized;
+  }
+
+  private static validateRetryCount(count: number): number {
+    if (count < this.MIN_RETRY_COUNT) {
+      console.warn(`Retry count ${count} is below minimum ${this.MIN_RETRY_COUNT}, clamping to minimum`);
+      return this.MIN_RETRY_COUNT;
+    }
+    if (count > this.MAX_RETRY_COUNT) {
+      console.warn(`Retry count ${count} is above maximum ${this.MAX_RETRY_COUNT}, clamping to maximum`);
+      return this.MAX_RETRY_COUNT;
+    }
+    return Math.trunc(count);
+  }
+
+  private static validateRetryDelay(delay: number): number {
+    const normalized = Math.trunc(delay);
+    if (normalized < this.MIN_RETRY_DELAY) {
+      console.warn(`Retry delay ${normalized}ms is below minimum ${this.MIN_RETRY_DELAY}ms, clamping to minimum`);
+      return this.MIN_RETRY_DELAY;
+    }
+    if (normalized > this.MAX_RETRY_DELAY) {
+      console.warn(`Retry delay ${normalized}ms is above maximum ${this.MAX_RETRY_DELAY}ms, clamping to maximum`);
+      return this.MAX_RETRY_DELAY;
+    }
+    return normalized;
+  }
+
   static getSettings() {
     return {
       size: {
         romPageSize: this._romPageSize,
         ramPageSize: this._ramPageSize,
+      },
+      throttle: {
+        romRead: this._romReadThrottleMs,
+        ramRead: this._ramReadThrottleMs,
+      },
+      retry: {
+        romReadCount: this._romReadRetryCount,
+        ramReadCount: this._ramReadRetryCount,
+        romReadDelay: this._romReadRetryDelayMs,
+        ramReadDelay: this._ramReadRetryDelayMs,
       },
       timeout: {
         default: this._defaultTimeout,
@@ -143,9 +246,6 @@ export class AdvancedSettings {
     };
   }
 
-  /**
-   * 批量设置配置
-   */
   static setSettings(settings: AdvancedSettingsConfig): void {
     if (settings.size) {
       if (settings.size.romPageSize !== undefined) {
@@ -153,6 +253,30 @@ export class AdvancedSettings {
       }
       if (settings.size.ramPageSize !== undefined) {
         this.ramPageSize = settings.size.ramPageSize;
+      }
+    }
+
+    if (settings.throttle) {
+      if (settings.throttle.romRead !== undefined) {
+        this.romReadThrottleMs = settings.throttle.romRead;
+      }
+      if (settings.throttle.ramRead !== undefined) {
+        this.ramReadThrottleMs = settings.throttle.ramRead;
+      }
+    }
+
+    if (settings.retry) {
+      if (settings.retry.romReadCount !== undefined) {
+        this.romReadRetryCount = settings.retry.romReadCount;
+      }
+      if (settings.retry.ramReadCount !== undefined) {
+        this.ramReadRetryCount = settings.retry.ramReadCount;
+      }
+      if (settings.retry.romReadDelay !== undefined) {
+        this.romReadRetryDelayMs = settings.retry.romReadDelay;
+      }
+      if (settings.retry.ramReadDelay !== undefined) {
+        this.ramReadRetryDelayMs = settings.retry.ramReadDelay;
       }
     }
 
@@ -172,22 +296,22 @@ export class AdvancedSettings {
     }
   }
 
-  /**
-   * 重置为默认设置
-   */
   static resetToDefaults(): void {
-    this._romPageSize = 0x200; // 512B
-    this._ramPageSize = 0x100; // 256B
-    this._defaultTimeout = 3000; // 3秒
-    this._packageSendTimeout = 3000; // 3秒
-    this._packageReceiveTimeout = 3000; // 3秒
-    this._operationTimeout = 30000; // 30秒
+    this._romPageSize = 0x200;
+    this._ramPageSize = 0x100;
+    this._romReadThrottleMs = 0;
+    this._ramReadThrottleMs = 0;
+    this._romReadRetryCount = 0;
+    this._ramReadRetryCount = 0;
+    this._romReadRetryDelayMs = 0;
+    this._ramReadRetryDelayMs = 0;
+    this._defaultTimeout = 3000;
+    this._packageSendTimeout = 3000;
+    this._packageReceiveTimeout = 3000;
+    this._operationTimeout = 30000;
     this.saveSettings();
   }
 
-  /**
-   * 从localStorage加载设置
-   */
   static loadSettings(): void {
     try {
       const saved = localStorage.getItem('advanced_settings');
@@ -196,39 +320,42 @@ export class AdvancedSettings {
         this.setSettings(settings);
       }
     } catch (error) {
-      console.warn('加载高级设置失败，使用默认设置:', error);
+      console.warn('Failed to load advanced settings, using defaults', error);
       this.resetToDefaults();
     }
   }
 
-  /**
-   * 保存设置到localStorage
-   */
   public static saveSettings(): void {
     try {
       const settings = this.getSettings();
       localStorage.setItem('advanced_settings', JSON.stringify(settings));
     } catch (error) {
-      console.error('保存高级设置失败:', error);
+      console.error('Failed to save advanced settings:', error);
     }
   }
 
-  /**
-   * 初始化高级设置
-   */
   static init(): void {
     this.loadSettings();
-    console.log('高级设置已初始化:', this.getSettings());
+    console.log('Advanced settings initialized:', this.getSettings());
   }
 
-  /**
-   * 获取设置的限制信息
-   */
   static getLimits() {
     return {
       pageSize: {
         min: this.MIN_PAGE_SIZE,
         max: this.MAX_PAGE_SIZE,
+      },
+      throttle: {
+        min: this.MIN_THROTTLE,
+        max: this.MAX_THROTTLE,
+      },
+      retryCount: {
+        min: this.MIN_RETRY_COUNT,
+        max: this.MAX_RETRY_COUNT,
+      },
+      retryDelay: {
+        min: this.MIN_RETRY_DELAY,
+        max: this.MAX_RETRY_DELAY,
       },
       timeout: {
         min: this.MIN_TIMEOUT,
@@ -237,21 +364,54 @@ export class AdvancedSettings {
     };
   }
 
-  /**
-   * 验证设置是否有效
-   */
   static validateSettings(settings: Partial<ReturnType<typeof AdvancedSettings.getSettings>>): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
 
     if (settings.size) {
       if (settings.size.romPageSize !== undefined) {
         if (settings.size.romPageSize < this.MIN_PAGE_SIZE || settings.size.romPageSize > this.MAX_PAGE_SIZE) {
-          errors.push(`ROM页面大小必须在 ${this.MIN_PAGE_SIZE} - ${this.MAX_PAGE_SIZE} 之间`);
+          errors.push(`ROM page size must be between ${this.MIN_PAGE_SIZE} and ${this.MAX_PAGE_SIZE} bytes`);
         }
       }
       if (settings.size.ramPageSize !== undefined) {
         if (settings.size.ramPageSize < this.MIN_PAGE_SIZE || settings.size.ramPageSize > this.MAX_PAGE_SIZE) {
-          errors.push(`RAM页面大小必须在 ${this.MIN_PAGE_SIZE} - ${this.MAX_PAGE_SIZE} 之间`);
+          errors.push(`RAM page size must be between ${this.MIN_PAGE_SIZE} and ${this.MAX_PAGE_SIZE} bytes`);
+        }
+      }
+    }
+
+    if (settings.throttle) {
+      if (settings.throttle.romRead !== undefined) {
+        if (settings.throttle.romRead < this.MIN_THROTTLE || settings.throttle.romRead > this.MAX_THROTTLE) {
+          errors.push(`ROM read throttle must be between ${this.MIN_THROTTLE}ms and ${this.MAX_THROTTLE}ms`);
+        }
+      }
+      if (settings.throttle.ramRead !== undefined) {
+        if (settings.throttle.ramRead < this.MIN_THROTTLE || settings.throttle.ramRead > this.MAX_THROTTLE) {
+          errors.push(`RAM read throttle must be between ${this.MIN_THROTTLE}ms and ${this.MAX_THROTTLE}ms`);
+        }
+      }
+    }
+
+    if (settings.retry) {
+      if (settings.retry.romReadCount !== undefined) {
+        if (settings.retry.romReadCount < this.MIN_RETRY_COUNT || settings.retry.romReadCount > this.MAX_RETRY_COUNT) {
+          errors.push(`ROM read retry count must be between ${this.MIN_RETRY_COUNT} and ${this.MAX_RETRY_COUNT}`);
+        }
+      }
+      if (settings.retry.ramReadCount !== undefined) {
+        if (settings.retry.ramReadCount < this.MIN_RETRY_COUNT || settings.retry.ramReadCount > this.MAX_RETRY_COUNT) {
+          errors.push(`RAM read retry count must be between ${this.MIN_RETRY_COUNT} and ${this.MAX_RETRY_COUNT}`);
+        }
+      }
+      if (settings.retry.romReadDelay !== undefined) {
+        if (settings.retry.romReadDelay < this.MIN_RETRY_DELAY || settings.retry.romReadDelay > this.MAX_RETRY_DELAY) {
+          errors.push(`ROM read retry delay must be between ${this.MIN_RETRY_DELAY}ms and ${this.MAX_RETRY_DELAY}ms`);
+        }
+      }
+      if (settings.retry.ramReadDelay !== undefined) {
+        if (settings.retry.ramReadDelay < this.MIN_RETRY_DELAY || settings.retry.ramReadDelay > this.MAX_RETRY_DELAY) {
+          errors.push(`RAM read retry delay must be between ${this.MIN_RETRY_DELAY}ms and ${this.MAX_RETRY_DELAY}ms`);
         }
       }
     }
@@ -260,7 +420,7 @@ export class AdvancedSettings {
       Object.entries(settings.timeout).forEach(([key, value]) => {
         if (typeof value === 'number') {
           if (value < this.MIN_TIMEOUT || value > this.MAX_TIMEOUT) {
-            errors.push(`${key}超时时间必须在 ${this.MIN_TIMEOUT}ms - ${this.MAX_TIMEOUT}ms 之间`);
+            errors.push(`${key} timeout must be between ${this.MIN_TIMEOUT}ms and ${this.MAX_TIMEOUT}ms`);
           }
         }
       });

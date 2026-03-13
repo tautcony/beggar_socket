@@ -475,6 +475,25 @@
           "range": "超时时间必须在 {min} - {max} 毫秒之间"
         }
       },
+      "throttle": {
+        "title": "读写节流",
+        "romRead": "ROM读写间隔",
+        "ramRead": "RAM读写间隔",
+        "validation": {
+          "range": "节流间隔必须在 {min} - {max} 毫秒之间"
+        }
+      },
+      "retry": {
+        "title": "失败重试",
+        "romReadCount": "ROM重试次数",
+        "ramReadCount": "RAM重试次数",
+        "romReadDelay": "ROM重试等待",
+        "ramReadDelay": "RAM重试等待",
+        "validation": {
+          "countRange": "重试次数必须在 {min} - {max} 之间",
+          "delayRange": "重试等待必须在 {min} - {max} 毫秒之间"
+        }
+      },
       "actions": {
         "reset": "重置为默认值",
         "apply": "应用",

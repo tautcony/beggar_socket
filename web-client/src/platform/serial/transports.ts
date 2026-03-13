@@ -1,8 +1,33 @@
 import { AdvancedSettings } from '@/settings/advanced-settings';
-import type { BYOBReader, DefaultReader } from '@/types';
+import type { DefaultReader } from '@/types';
 import type { SerialConnection } from '@/types/serial';
 
 import type { Transport, TransportReadMode } from './types';
+
+async function withTimeout<T>(
+  operation: Promise<T>,
+  timeoutMs: number,
+  message: string,
+  onTimeout?: () => void,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => {
+          onTimeout?.();
+          reject(new Error(message));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
 
 export class ConnectionTransport implements Transport {
   constructor(private readonly connection: SerialConnection) {}
@@ -10,12 +35,11 @@ export class ConnectionTransport implements Transport {
   async send(payload: Uint8Array, timeoutMs?: number): Promise<boolean> {
     const timeout = timeoutMs ?? AdvancedSettings.packageSendTimeout;
 
-    await Promise.race([
+    await withTimeout(
       this.connection.write(payload),
-      new Promise((_, reject) => {
-        setTimeout(() => { reject(new Error(`Send package timeout in ${timeout}ms`)); }, timeout);
-      }),
-    ]);
+      timeout,
+      `Send package timeout in ${timeout}ms`,
+    );
 
     return true;
   }
@@ -24,11 +48,20 @@ export class ConnectionTransport implements Transport {
     const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
 
     return new Promise((resolve, reject) => {
+      const { connection } = this;
       const accumulatedData = new Uint8Array(length);
       let offset = 0;
       let settled = false;
+      let timer: ReturnType<typeof setTimeout> | undefined;
 
-      const handleData = (data: Uint8Array) => {
+      const clearActiveTimer = () => {
+        if (timer) {
+          clearTimeout(timer);
+          timer = undefined;
+        }
+      };
+
+      function handleData(data: Uint8Array) {
         if (settled) return;
 
         const bytesToCopy = Math.min(data.byteLength, length - offset);
@@ -37,19 +70,28 @@ export class ConnectionTransport implements Transport {
 
         if (offset >= length) {
           settled = true;
-          this.connection.removeDataListener(handleData);
+          clearActiveTimer();
+          connection.removeDataListener(handleData);
           resolve({ data: accumulatedData });
+          return;
         }
-      };
 
-      const timer = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        this.connection.removeDataListener(handleData);
-        reject(new Error(`Read package timeout in ${timeout}ms`));
-      }, timeout);
+        // Treat timeout as inactivity timeout instead of total packet timeout.
+        armTimeout();
+      }
 
-      this.connection.onData(handleData);
+      function armTimeout() {
+        clearActiveTimer();
+        timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          connection.removeDataListener(handleData);
+          reject(new Error(`Read package timeout in ${timeout}ms`));
+        }, timeout);
+      }
+
+      connection.onData(handleData);
+      armTimeout();
     });
   }
 
@@ -63,6 +105,14 @@ export class ConnectionTransport implements Transport {
 }
 
 export class WebSerialTransport implements Transport {
+  private reader: DefaultReader | null = null;
+  private pumpPromise: Promise<void> | null = null;
+  private readonly bufferedChunks: Uint8Array[] = [];
+  private bufferedLength = 0;
+  private readWaiters = new Set<() => void>();
+  private streamDone = false;
+  private streamError: unknown = null;
+
   constructor(private readonly port: SerialPort) {}
 
   async send(payload: Uint8Array, timeoutMs?: number): Promise<boolean> {
@@ -91,18 +141,13 @@ export class WebSerialTransport implements Transport {
     }
   }
 
-  async read(length: number, timeoutMs?: number, mode: TransportReadMode = 'byob'): Promise<{ data: Uint8Array }> {
+  async read(length: number, timeoutMs?: number, _mode: TransportReadMode = 'byob'): Promise<{ data: Uint8Array }> {
     if (!this.port.readable) {
       throw new Error('Port readable stream is not available');
     }
 
-    if (mode === 'byob') {
-      const reader = this.port.readable.getReader({ mode: 'byob' });
-      return this.getPackageWithBYOBReader(reader, length, timeoutMs);
-    }
-
-    const reader = this.port.readable.getReader();
-    return this.getPackageWithDefaultReader(reader, length, timeoutMs);
+    this.ensurePumpStarted();
+    return this.readFromBuffer(length, timeoutMs);
   }
 
   async setSignals(signals: SerialOutputSignals): Promise<void> {
@@ -110,97 +155,148 @@ export class WebSerialTransport implements Transport {
   }
 
   async close(): Promise<void> {
+    if (this.reader) {
+      try {
+        await this.reader.cancel();
+      } catch {}
+    }
+    if (this.pumpPromise) {
+      try {
+        await this.pumpPromise;
+      } catch {}
+    }
     await this.port.close();
   }
 
-  private async getPackageWithDefaultReader(
-    reader: DefaultReader,
-    length: number,
-    timeoutMs?: number,
-  ): Promise<{ data: Uint8Array }> {
-    const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
-    let offset = 0;
-    const accumulatedData = new Uint8Array(length);
+  private ensurePumpStarted(): void {
+    if (!this.port.readable) {
+      throw new Error('Port readable stream is not available');
+    }
+    if (this.pumpPromise) {
+      return;
+    }
 
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    this.streamDone = false;
+    this.streamError = null;
+    this.reader = this.port.readable.getReader();
+    this.pumpPromise = this.pumpReadable();
+  }
+
+  private async pumpReadable(): Promise<void> {
+    const reader = this.reader;
+    if (!reader) {
+      return;
+    }
+
     try {
-      const readOperation = (async () => {
-        while (offset < length) {
-          const { value, done } = await reader.read();
-          if (done || !value) {
-            break;
-          }
+      while (true) {
+        const { value, done } = await reader.read();
 
-          const bytesToCopy = Math.min(value.byteLength, length - offset);
-          accumulatedData.set(value.subarray(0, bytesToCopy), offset);
-          offset += bytesToCopy;
+        if (done) {
+          this.streamDone = true;
+          this.notifyReadWaiters();
+          return;
         }
-      })();
 
-      const timeoutPromise = new Promise((_, reject) => {
-        timer = setTimeout(() => {
-          reader.releaseLock();
-          reject(new Error(`Read package timeout in ${timeout}ms`));
-        }, timeout);
-      });
-
-      await Promise.race([readOperation, timeoutPromise]);
-      return { data: accumulatedData.slice(0, offset) };
-    } catch (error) {
-      if (offset === 0) {
-        throw error;
+        if (value && value.byteLength > 0) {
+          this.bufferedChunks.push(new Uint8Array(value));
+          this.bufferedLength += value.byteLength;
+          this.notifyReadWaiters();
+        }
       }
-      return { data: accumulatedData.slice(0, offset) };
+    } catch (error) {
+      this.streamError = error;
+      this.notifyReadWaiters();
     } finally {
-      if (timer) clearTimeout(timer);
       try { reader.releaseLock(); } catch {}
+      if (this.reader === reader) {
+        this.reader = null;
+      }
+      this.pumpPromise = null;
     }
   }
 
-  private async getPackageWithBYOBReader(
-    reader: BYOBReader,
+  private notifyReadWaiters(): void {
+    const waiters = [...this.readWaiters];
+    this.readWaiters.clear();
+    waiters.forEach((resolve) => {
+      resolve();
+    });
+  }
+
+  private async waitForData(timeoutMs: number): Promise<void> {
+    if (this.bufferedLength > 0 || this.streamDone || this.streamError) {
+      return;
+    }
+
+    let resolveWaiter: (() => void) | undefined;
+    const waitForReadable = new Promise<void>((resolve) => {
+      resolveWaiter = resolve;
+      this.readWaiters.add(resolve);
+    });
+
+    try {
+      await withTimeout(waitForReadable, timeoutMs, `Read package timeout in ${timeoutMs}ms`);
+    } finally {
+      if (resolveWaiter) {
+        this.readWaiters.delete(resolveWaiter);
+      }
+    }
+  }
+
+  private consumeBufferedData(
+    target: Uint8Array,
+    offset: number,
+  ): number {
+    let nextOffset = offset;
+
+    while (nextOffset < target.byteLength && this.bufferedChunks.length > 0) {
+      const chunk = this.bufferedChunks[0];
+      const bytesToCopy = Math.min(chunk.byteLength, target.byteLength - nextOffset);
+      target.set(chunk.subarray(0, bytesToCopy), nextOffset);
+      nextOffset += bytesToCopy;
+
+      if (bytesToCopy === chunk.byteLength) {
+        this.bufferedChunks.shift();
+      } else {
+        this.bufferedChunks[0] = chunk.subarray(bytesToCopy);
+      }
+
+      this.bufferedLength -= bytesToCopy;
+    }
+
+    return nextOffset;
+  }
+
+  private async readFromBuffer(
     length: number,
     timeoutMs?: number,
   ): Promise<{ data: Uint8Array }> {
     const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
-    let buffer = new Uint8Array(length);
     let offset = 0;
     const accumulatedData = new Uint8Array(length);
 
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      const readOperation = (async () => {
-        while (offset < length) {
-          const { value, done } = await reader.read(
-            new Uint8Array(buffer as unknown as ArrayBufferLike, offset),
-          );
-          if (done) {
-            break;
-          }
-
-          accumulatedData.set(value, offset);
-          buffer = value.buffer as unknown as Uint8Array<ArrayBuffer>;
-          offset += value.byteLength;
-        }
-      })();
-
-      const timeoutPromise = new Promise((_, reject) => {
-        timer = setTimeout(() => {
-          reader.releaseLock();
-          reject(new Error(`Read package timeout in ${timeout}ms`));
-        }, timeout);
-      });
-
-      await Promise.race([readOperation, timeoutPromise]);
-      return { data: new Uint8Array(buffer) };
-    } catch (error) {
-      if (offset === 0) {
-        throw error;
+    while (offset < length) {
+      if (this.streamError) {
+        throw this.streamError instanceof Error ? this.streamError : new Error('Serial read pump failed');
       }
-      return { data: accumulatedData.slice(0, offset) };
-    } finally {
-      if (timer) clearTimeout(timer);
-      try { reader.releaseLock(); } catch {}
+
+      offset = this.consumeBufferedData(accumulatedData, offset);
+      if (offset >= length) {
+        break;
+      }
+
+      if (this.streamDone) {
+        break;
+      }
+
+      await this.waitForData(timeout);
     }
+
+    if (offset < length) {
+      throw new Error(`Incomplete package read: expected ${length} bytes, got ${offset}`);
+    }
+
+    return { data: accumulatedData };
   }
 }

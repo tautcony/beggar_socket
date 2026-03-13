@@ -31,6 +31,12 @@ import { calcSectorUsage } from '@/utils/sector-utils';
  * GBA Adapter - 封装GBA卡带的协议操作
  */
 export class GBAAdapter extends CartridgeAdapter {
+  private static readonly ROM_READ_START_SETTLE_MS = 100;
+  private static readonly ROM_READ_RETRY_RESET_MS = 120;
+  private static readonly RAM_BANK_SWITCH_SETTLE_MS = 100;
+  private static readonly RAM_READ_START_SETTLE_MS = 150;
+  private static readonly RAM_READ_RETRY_RESET_MS = 150;
+
   /**
    * 构造函数
    * @param device - 设备对象
@@ -45,6 +51,39 @@ export class GBAAdapter extends CartridgeAdapter {
     translateFunc: TranslateFunction | null = null,
   ) {
     super(device, logCallback, progressCallback, translateFunc);
+  }
+
+  private async readROMChunkWithRetry(
+    chunkSize: number,
+    baseAddress: number,
+    restoreState?: () => Promise<void>,
+  ): Promise<Uint8Array> {
+    let lastError: unknown;
+    const retries = AdvancedSettings.romReadRetryCount;
+    const attempts = retries + 1;
+    const retryDelayMs = AdvancedSettings.romReadRetryDelayMs;
+
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        return await rom_read(this.device, chunkSize, baseAddress);
+      } catch (error) {
+        lastError = error;
+        this.log(`ROM chunk read retry ${attempt}/${attempts} @ ${formatHex(baseAddress, 4)} (${chunkSize}B): ${error instanceof Error ? error.message : String(error)}`, 'warn');
+
+        if (attempt < attempts) {
+          await this.stabilizeCommandChannel(GBAAdapter.ROM_READ_RETRY_RESET_MS);
+          if (restoreState) {
+            await restoreState();
+          }
+          this.log(`ROM chunk channel resynchronized before retry @ ${formatHex(baseAddress, 4)}`, 'info');
+          if (retryDelayMs > 0) {
+            await timeout(retryDelayMs * attempt);
+          }
+        }
+      }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
   }
 
   /**
@@ -476,6 +515,7 @@ export class GBAAdapter extends CartridgeAdapter {
   override async readROM(size = 0x200000, options: CommandOptions, signal?: AbortSignal, showProgress = true) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
     const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
+    const readThrottleMs = AdvancedSettings.romReadThrottleMs;
 
     this.log(this.t('messages.operation.startReadROM', {
       size,
@@ -502,6 +542,7 @@ export class GBAAdapter extends CartridgeAdapter {
             };
           }
 
+          await this.stabilizeCommandChannel(GBAAdapter.ROM_READ_START_SETTLE_MS);
           this.log(this.t('messages.rom.reading'), 'info');
           let totalRead = 0;
 
@@ -550,7 +591,10 @@ export class GBAAdapter extends CartridgeAdapter {
             }
 
             // 读取数据
-            const chunk = await rom_read(this.device, chunkSize, cartAddress);
+            const restoreState = options.cfiInfo.deviceSize > (1 << 25)
+              ? async () => { await this.switchROMBank(bank); }
+              : undefined;
+            const chunk = await this.readROMChunkWithRetry(chunkSize, cartAddress, restoreState);
             const chunkEndTime = Date.now();
             data.set(chunk, totalRead);
 
@@ -578,6 +622,10 @@ export class GBAAdapter extends CartridgeAdapter {
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
               this.log(this.t('messages.rom.readingAt', { address: formatHex(currentAddress, 4), progress }), 'info');
               lastLoggedProgress = progress;
+            }
+
+            if (totalRead < size && readThrottleMs > 0) {
+              await timeout(readThrottleMs);
             }
           }
 
@@ -637,6 +685,7 @@ export class GBAAdapter extends CartridgeAdapter {
   override async verifyROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0;
     const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
+    const readThrottleMs = AdvancedSettings.romReadThrottleMs;
 
     this.log(this.t('messages.operation.startVerifyROM', {
       fileSize: fileData.byteLength,
@@ -661,6 +710,7 @@ export class GBAAdapter extends CartridgeAdapter {
           };
         }
         try {
+          await this.stabilizeCommandChannel(GBAAdapter.ROM_READ_START_SETTLE_MS);
           this.log(this.t('messages.rom.verifying'), 'info');
 
           const configuredSize = options.size ?? fileData.byteLength;
@@ -741,7 +791,10 @@ export class GBAAdapter extends CartridgeAdapter {
             }
 
             // 读取数据
-            const actualChunk = await rom_read(this.device, chunkSize, cartAddress);
+            const restoreState = options.cfiInfo.deviceSize > (1 << 25)
+              ? async () => { await this.switchROMBank(bank); }
+              : undefined;
+            const actualChunk = await this.readROMChunkWithRetry(chunkSize, cartAddress, restoreState);
             const chunkEndTime = Date.now();
 
             // 逐字节比较
@@ -791,6 +844,10 @@ export class GBAAdapter extends CartridgeAdapter {
                 progress,
               }), 'info');
               lastLoggedProgress = progress;
+            }
+
+            if (verified < total && readThrottleMs > 0) {
+              await timeout(readThrottleMs);
             }
           }
 
@@ -995,6 +1052,7 @@ export class GBAAdapter extends CartridgeAdapter {
     const baseAddress = options.baseAddress ?? 0x00;
     const ramType = options.ramType ?? 'SRAM';
     const pageSize = Math.min(options.ramPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
+    const readThrottleMs = AdvancedSettings.ramReadThrottleMs;
 
     // 如果是免电存档，调用专门的方法
     if (ramType === 'BATLESS') {
@@ -1010,10 +1068,47 @@ export class GBAAdapter extends CartridgeAdapter {
       'gba.readRAM',
       async () => {
         try {
+          await this.stabilizeCommandChannel(GBAAdapter.RAM_READ_START_SETTLE_MS);
+          this.log(`RAM read channel synchronized (${GBAAdapter.RAM_READ_START_SETTLE_MS}ms settle)`, 'info');
           this.log(this.t('messages.ram.reading'), 'info');
 
           const result = new Uint8Array(size);
           let read = 0;
+          const retryAttempts = AdvancedSettings.ramReadRetryCount + 1;
+          const retryDelayMs = AdvancedSettings.ramReadRetryDelayMs;
+          const restoreRAMBankState = async (absoluteAddress: number): Promise<void> => {
+            const bank = absoluteAddress >= 0x10000 ? 1 : 0;
+            if (ramType === 'FLASH') {
+              await this.switchFlashBank(bank);
+            } else {
+              await this.switchSRAMBank(bank);
+            }
+          };
+          const readChunkWithRetry = async (chunkSize: number, baseAddr: number, absoluteAddress: number): Promise<Uint8Array> => {
+            let lastError: unknown;
+
+            for (let attempt = 1; attempt <= retryAttempts; attempt++) {
+              try {
+                return ramType === 'FRAM'
+                  ? await ram_read_fram(this.device, chunkSize, baseAddr, options.framLatency ?? 25)
+                  : await ram_read(this.device, chunkSize, baseAddr);
+              } catch (error) {
+                lastError = error;
+                this.log(`RAM chunk read retry ${attempt}/${retryAttempts} @ ${formatHex(baseAddr, 4)} (${chunkSize}B): ${error instanceof Error ? error.message : String(error)}`, 'warn');
+
+                if (attempt < retryAttempts) {
+                  await this.stabilizeCommandChannel(GBAAdapter.RAM_READ_RETRY_RESET_MS);
+                  await restoreRAMBankState(absoluteAddress);
+                  this.log(`RAM chunk channel resynchronized before retry @ ${formatHex(baseAddr, 4)}`, 'info');
+                  if (retryDelayMs > 0) {
+                    await timeout(retryDelayMs * attempt);
+                  }
+                }
+              }
+            }
+
+            throw lastError instanceof Error ? lastError : new Error(String(lastError));
+          };
 
           // 使用速度计算器
           const speedCalculator = new SpeedCalculator();
@@ -1026,12 +1121,14 @@ export class GBAAdapter extends CartridgeAdapter {
               } else {
                 await this.switchSRAMBank(0);
               }
+              this.log(`RAM bank ready @ ${formatHex(read, 4)}`, 'info');
             } else if (read === 0x10000) {
               if (ramType === 'FLASH') {
                 await this.switchFlashBank(1);
               } else {
                 await this.switchSRAMBank(1);
               }
+              this.log(`RAM bank ready @ ${formatHex(read, 4)}`, 'info');
             }
 
             const baseAddr = read & 0xffff;
@@ -1041,9 +1138,7 @@ export class GBAAdapter extends CartridgeAdapter {
             const chunkSize = Math.min(pageSize, remainingSize);
 
             // 读取数据
-            const chunk = ramType === 'FRAM'
-              ? await ram_read_fram(this.device, chunkSize, baseAddr, options.framLatency ?? 25)
-              : await ram_read(this.device, chunkSize, baseAddr);
+            const chunk = await readChunkWithRetry(chunkSize, baseAddr, read);
             const chunkEndTime = Date.now();
             result.set(chunk, read);
 
@@ -1051,6 +1146,10 @@ export class GBAAdapter extends CartridgeAdapter {
 
             // 添加数据点到速度计算器
             speedCalculator.addDataPoint(chunkSize, chunkEndTime);
+
+            if (read < size && readThrottleMs > 0) {
+              await timeout(readThrottleMs);
+            }
           }
 
           const totalTime = speedCalculator.getTotalTime();
@@ -1243,6 +1342,7 @@ export class GBAAdapter extends CartridgeAdapter {
   async switchSRAMBank(bank: number) : Promise<void> {
     bank = bank === 0 ? 0 : 1;
     await rom_write(this.device, toLittleEndian(bank, 2), 0x800000);
+    await timeout(GBAAdapter.RAM_BANK_SWITCH_SETTLE_MS);
     this.log(this.t('messages.ram.bankSwitchSram', { bank }), 'info');
   }
 
@@ -1257,6 +1357,7 @@ export class GBAAdapter extends CartridgeAdapter {
     await ram_write(this.device, new Uint8Array([0x55]), 0x2aaa);
     await ram_write(this.device, new Uint8Array([0xb0]), 0x5555); // FLASH_COMMAND_SWITCH_BANK
     await ram_write(this.device, new Uint8Array([bank]), 0x0000);
+    await timeout(GBAAdapter.RAM_BANK_SWITCH_SETTLE_MS);
 
     this.log(this.t('messages.gba.bankSwitchFlash', { bank }), 'info');
   }

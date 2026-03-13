@@ -475,6 +475,25 @@
           "range": "Timeout must be between {min} - {max} milliseconds"
         }
       },
+      "throttle": {
+        "title": "Read/Write Throttle",
+        "romRead": "ROM Read/Write Interval",
+        "ramRead": "RAM Read/Write Interval",
+        "validation": {
+          "range": "Throttle must be between {min} - {max} milliseconds"
+        }
+      },
+      "retry": {
+        "title": "Retry on Failure",
+        "romReadCount": "ROM Retry Count",
+        "ramReadCount": "RAM Retry Count",
+        "romReadDelay": "ROM Retry Delay",
+        "ramReadDelay": "RAM Retry Delay",
+        "validation": {
+          "countRange": "Retry count must be between {min} - {max}",
+          "delayRange": "Retry delay must be between {min} - {max} milliseconds"
+        }
+      },
       "actions": {
         "reset": "Reset to Defaults",
         "apply": "Apply",
