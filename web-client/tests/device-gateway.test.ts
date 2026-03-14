@@ -96,8 +96,8 @@ describe('Device gateway integration', () => {
     expect(open).toHaveBeenCalledOnce();
 
     await gateway.init(device);
-    expect(setSignals).toHaveBeenNthCalledWith(1, { dataTerminalReady: false, requestToSend: false });
-    expect(setSignals).toHaveBeenNthCalledWith(2, { dataTerminalReady: true, requestToSend: true });
+    expect(setSignals).toHaveBeenNthCalledWith(1, { dataTerminalReady: true, requestToSend: true });
+    expect(setSignals).toHaveBeenNthCalledWith(2, { dataTerminalReady: false, requestToSend: false });
 
     await gateway.disconnect(device);
     expect(close).toHaveBeenCalledOnce();
@@ -131,8 +131,8 @@ describe('Device gateway integration', () => {
     expect(serial.open).toHaveBeenCalledOnce();
 
     await gateway.init(device);
-    expect(serial.setSignals).toHaveBeenNthCalledWith(1, 'port-1', { dataTerminalReady: false, requestToSend: false });
-    expect(serial.setSignals).toHaveBeenNthCalledWith(2, 'port-1', { dataTerminalReady: true, requestToSend: true });
+    expect(serial.setSignals).toHaveBeenNthCalledWith(1, 'port-1', { dataTerminalReady: true, requestToSend: true });
+    expect(serial.setSignals).toHaveBeenNthCalledWith(2, 'port-1', { dataTerminalReady: false, requestToSend: false });
 
     await gateway.disconnect(device);
     expect(serial.close).toHaveBeenCalledWith('port-1');
@@ -187,9 +187,9 @@ describe('Device gateway integration', () => {
     const electronDevice = await electronGateway.connect({ portInfo: { path: '/dev/tty.usbmodem1', vendorId: '0483', productId: '0721' } });
     await electronGateway.init(electronDevice);
 
-    expect(setSignals).toHaveBeenNthCalledWith(1, { dataTerminalReady: false, requestToSend: false });
-    expect(setSignals).toHaveBeenNthCalledWith(2, { dataTerminalReady: true, requestToSend: true });
-    expect(serial.setSignals).toHaveBeenNthCalledWith(1, 'port-1', { dataTerminalReady: false, requestToSend: false });
-    expect(serial.setSignals).toHaveBeenNthCalledWith(2, 'port-1', { dataTerminalReady: true, requestToSend: true });
+    expect(setSignals).toHaveBeenNthCalledWith(1, { dataTerminalReady: true, requestToSend: true });
+    expect(setSignals).toHaveBeenNthCalledWith(2, { dataTerminalReady: false, requestToSend: false });
+    expect(serial.setSignals).toHaveBeenNthCalledWith(1, 'port-1', { dataTerminalReady: true, requestToSend: true });
+    expect(serial.setSignals).toHaveBeenNthCalledWith(2, 'port-1', { dataTerminalReady: false, requestToSend: false });
   });
 });
