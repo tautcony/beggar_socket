@@ -80,11 +80,26 @@ export default defineConfig({
     cssMinify: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vue: ['vue', 'vue-i18n', 'vue-router'],
-          sentry: ['@sentry/vue', '@sentry/tracing'],
-          luxon: ['luxon'],
-          jimp: ['jimp'],
+        manualChunks(id) {
+          if (!id.includes('node_modules')) {
+            return;
+          }
+
+          if (id.includes('/node_modules/vue/') || id.includes('/node_modules/vue-i18n/') || id.includes('/node_modules/vue-router/')) {
+            return 'vue';
+          }
+
+          if (id.includes('/node_modules/@sentry/vue/') || id.includes('/node_modules/@sentry/tracing/')) {
+            return 'sentry';
+          }
+
+          if (id.includes('/node_modules/luxon/')) {
+            return 'luxon';
+          }
+
+          if (id.includes('/node_modules/jimp/')) {
+            return 'jimp';
+          }
         },
       },
     },
