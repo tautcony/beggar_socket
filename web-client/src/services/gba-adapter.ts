@@ -736,10 +736,13 @@ export class GBAAdapter extends CartridgeAdapter {
           let failedAddress = -1;
           let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
           let currentBank = -1;
+          let activeSectorIndex = -1;
+          let completedSectorIndex = -1;
+          const isMultiCard = options.cfiInfo.deviceSize > (1 << 25);
 
           // 初始化扇区进度信息 (用于显示校验进度可视化)
           const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, total, baseAddress);
-          this.initializeSectorProgress(sectorInfo);
+          const sectors = this.initializeSectorProgress(sectorInfo);
 
           // 使用速度计算器
           const speedCalculator = new SpeedCalculator();
@@ -751,7 +754,7 @@ export class GBAAdapter extends CartridgeAdapter {
             (progressInfo) => { this.updateProgress(progressInfo); },
             (key, params) => this.t(key, params),
           );
-          progressReporter.setSectors(this.currentSectorProgress);
+          progressReporter.setSectors(sectors);
 
           // 报告开始状态
           progressReporter.reportStart(this.t('messages.rom.verifying'));
@@ -769,21 +772,31 @@ export class GBAAdapter extends CartridgeAdapter {
             }
 
             const chunkSize = Math.min(pageSize, total - verified);
-            const expectedChunk = fileData.slice(verified, verified + chunkSize);
             const currentAddress = baseAddress + verified;
 
-            // 更新当前扇区状态为"正在处理"
-            const currentSpeedBeforeVerify = speedCalculator.getCurrentSpeed();
-            progressReporter.markSectorState(currentAddress, 'processing');
-            progressReporter.emitProgress(
-              verified,
-              currentSpeedBeforeVerify,
-              this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeedBeforeVerify) }),
-              currentAddress,
-            );
+            while (
+              activeSectorIndex + 1 < sectors.length
+              && currentAddress >= sectors[activeSectorIndex + 1].address
+            ) {
+              activeSectorIndex++;
+            }
+
+            const enteredNewSector = activeSectorIndex >= 0
+              && progressReporter.markSectorState(sectors[activeSectorIndex].address, 'processing') >= 0
+              && (verified === 0 || verified === sectors[activeSectorIndex].address - baseAddress);
+
+            if (enteredNewSector) {
+              const currentSpeedBeforeVerify = speedCalculator.getCurrentSpeed();
+              progressReporter.emitProgress(
+                verified,
+                currentSpeedBeforeVerify,
+                this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeedBeforeVerify) }),
+                currentAddress,
+              );
+            }
 
             const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress);
-            if (options.cfiInfo.deviceSize > (1 << 25)) {
+            if (isMultiCard) {
               if (bank !== currentBank) {
                 currentBank = bank;
                 await this.switchROMBank(bank);
@@ -791,7 +804,7 @@ export class GBAAdapter extends CartridgeAdapter {
             }
 
             // 读取数据
-            const restoreState = options.cfiInfo.deviceSize > (1 << 25)
+            const restoreState = isMultiCard
               ? async () => { await this.switchROMBank(bank); }
               : undefined;
             const actualChunk = await this.readROMChunkWithRetry(chunkSize, cartAddress, restoreState);
@@ -799,14 +812,19 @@ export class GBAAdapter extends CartridgeAdapter {
 
             // 逐字节比较
             for (let i = 0; i < chunkSize; i++) {
-              if (expectedChunk[i] !== actualChunk[i]) {
+              const expectedByte = fileData[verified + i];
+              const actualByte = actualChunk[i];
+              if (expectedByte !== actualByte) {
                 success = false;
                 failedAddress = verified + i;
                 this.log(this.t('messages.rom.verifyFailedAt', {
                   address: formatHex(failedAddress, 4),
-                  expected: formatHex(expectedChunk[i], 1),
-                  actual: formatHex(actualChunk[i], 1),
+                  expected: formatHex(expectedByte, 1),
+                  actual: formatHex(actualByte, 1),
                 }), 'error');
+                if (activeSectorIndex >= 0) {
+                  progressReporter.markSectorState(sectors[activeSectorIndex].address, 'error');
+                }
                 break;
               }
             }
@@ -816,8 +834,17 @@ export class GBAAdapter extends CartridgeAdapter {
             verified += chunkSize;
             chunkCount++;
 
-            // 更新已校验范围的扇区状态
-            progressReporter.markSectorRangeState(baseAddress, baseAddress + verified - 1, 'completed');
+            const verifiedEndAddress = baseAddress + verified - 1;
+            while (completedSectorIndex + 1 < sectors.length) {
+              const nextSector = sectors[completedSectorIndex + 1];
+              const nextSectorEnd = nextSector.address + nextSector.size - 1;
+              if (nextSectorEnd > verifiedEndAddress) {
+                break;
+              }
+
+              completedSectorIndex++;
+              progressReporter.markSectorState(nextSector.address, 'completed');
+            }
 
             // 添加数据点到速度计算器
             speedCalculator.addDataPoint(chunkSize, chunkEndTime);
@@ -856,6 +883,11 @@ export class GBAAdapter extends CartridgeAdapter {
           const maxSpeed = speedCalculator.getMaxSpeed();
 
           if (success) {
+            while (completedSectorIndex + 1 < sectors.length) {
+              completedSectorIndex++;
+              progressReporter.markSectorState(sectors[completedSectorIndex].address, 'completed');
+            }
+
             this.log(this.t('messages.rom.verifySuccess'), 'success');
             this.log(this.t('messages.rom.verifySummary', {
               totalTime: formatTimeDuration(totalTime),
