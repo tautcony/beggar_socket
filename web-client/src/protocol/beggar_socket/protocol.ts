@@ -6,6 +6,9 @@ import { readProtocolPayload } from './packet-read';
 import { createCommandPayload } from './payload-builder';
 import { getResult, type ProtocolTransportInput, sendPackage, toLittleEndian } from './protocol-utils';
 
+const GBA_SECTOR_ERASE_POLL_INTERVAL_MS = 20;
+const GBA_SECTOR_ERASE_TIMEOUT_MS = 60_000;
+
 // --- GBA Commands ---
 
 /**
@@ -46,6 +49,33 @@ export async function rom_erase_chip(input: ProtocolTransportInput): Promise<voi
  * GBA: ROM Sector Erase (0xf3)
  */
 export async function rom_erase_sector(input: ProtocolTransportInput, sectorAddress: number): Promise<boolean> {
+  const sectorWordAddress = sectorAddress >>> 1;
+  const errorPrefix = `GBA ROM sector erase failed (Address: ${formatHex(sectorAddress, 4)})`;
+  const deadline = Date.now() + GBA_SECTOR_ERASE_TIMEOUT_MS;
+
+  try {
+    await rom_write(input, toLittleEndian(0xaa, 2), 0x555);
+    await rom_write(input, toLittleEndian(0x55, 2), 0x2aa);
+    await rom_write(input, toLittleEndian(0x80, 2), 0x555);
+    await rom_write(input, toLittleEndian(0xaa, 2), 0x555);
+    await rom_write(input, toLittleEndian(0x55, 2), 0x2aa);
+    await rom_write(input, toLittleEndian(0x30, 2), sectorWordAddress);
+
+    while (Date.now() < deadline) {
+      await timeout(GBA_SECTOR_ERASE_POLL_INTERVAL_MS);
+      const status = await rom_read(input, 2, sectorAddress);
+      if (status[0] === 0xff && status[1] === 0xff) {
+        return true;
+      }
+    }
+
+    throw new Error(`erase timeout after ${GBA_SECTOR_ERASE_TIMEOUT_MS}ms`);
+  } catch (error) {
+    throw new Error(`${errorPrefix}, Reason: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+export async function rom_erase_sector_direct(input: ProtocolTransportInput, sectorAddress: number): Promise<boolean> {
   const payload = createCommandPayload(GBACommand.SECTOR_ERASE).addAddress(sectorAddress).build();
   await sendPackage(input, payload);
   const ack = await getResult(input);

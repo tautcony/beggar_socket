@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { resolveTransport } from '@/platform/serial';
 import { ConnectionTransport, WebSerialTransport } from '@/platform/serial/transports';
 import type { Transport } from '@/platform/serial/types';
-import { gbc_read, getResult, ProtocolAdapter, ram_read, rom_read, sendPackage, setSignals } from '@/protocol';
+import { gbc_read, getResult, ProtocolAdapter, ram_read, rom_erase_sector, rom_read, sendPackage, setSignals } from '@/protocol';
 import type { DeviceInfo } from '@/types/device-info';
 import type { SerialConnection } from '@/types/serial';
 
@@ -229,6 +229,50 @@ describe('Protocol transport abstraction', () => {
     await expect(rom_read({ transport }, 4, 0x10)).rejects.toThrow('Reason: invalid packet length');
     await expect(ram_read({ transport }, 4, 0x20)).rejects.toThrow('Reason: invalid packet length');
     await expect(gbc_read({ transport }, 4, 0x30)).rejects.toThrow('Reason: invalid packet length');
+  });
+
+  it('rom_erase_sector uses direct write/read sequence instead of 0xf3', async () => {
+    vi.useFakeTimers();
+
+    const send = vi.fn().mockResolvedValue(true);
+    const read = vi.fn()
+      .mockResolvedValueOnce({ data: new Uint8Array([0xaa]) })
+      .mockResolvedValueOnce({ data: new Uint8Array([0xaa]) })
+      .mockResolvedValueOnce({ data: new Uint8Array([0xaa]) })
+      .mockResolvedValueOnce({ data: new Uint8Array([0xaa]) })
+      .mockResolvedValueOnce({ data: new Uint8Array([0xaa]) })
+      .mockResolvedValueOnce({ data: new Uint8Array([0xaa]) })
+      .mockResolvedValueOnce({ data: new Uint8Array([0x00, 0x00, 0x00, 0x00]) })
+      .mockResolvedValueOnce({ data: new Uint8Array([0x00, 0x00, 0xff, 0xff]) });
+
+    const transport: Transport = {
+      send,
+      read,
+      setSignals: vi.fn().mockResolvedValue(undefined),
+    };
+
+    try {
+      const erasePromise = rom_erase_sector({ transport }, 0x20000);
+      await vi.runAllTimersAsync();
+      await expect(erasePromise).resolves.toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(send).toHaveBeenCalledTimes(8);
+    expect(read).toHaveBeenCalledTimes(8);
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
+    const sentCommands = send.mock.calls.map(([payload]) => payload[2]);
+    expect(sentCommands).toEqual([0xf5, 0xf5, 0xf5, 0xf5, 0xf5, 0xf5, 0xf6, 0xf6]);
+    expect(sentCommands).not.toContain(0xf3);
+
+    const eraseCommand = send.mock.calls[5]?.[0] as Uint8Array;
+    expect(Array.from(eraseCommand.slice(3, 7))).toEqual([0x00, 0x00, 0x01, 0x00]);
+    expect(Array.from(eraseCommand.slice(7, 9))).toEqual([0x30, 0x00]);
+
+    const pollCommand = send.mock.calls[6]?.[0] as Uint8Array;
+    expect(Array.from(pollCommand.slice(3, 7))).toEqual([0x00, 0x00, 0x02, 0x00]);
   });
 
   it('WebSerialTransport BYOB reads full packet across multiple chunks', async () => {
