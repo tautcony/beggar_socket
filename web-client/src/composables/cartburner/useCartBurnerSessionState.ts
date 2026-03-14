@@ -47,13 +47,23 @@ export function useCartBurnerSessionState(translate: (key: string) => string) {
     logs.value = [...snapshot.logs];
   }
 
+  function syncProgressState() {
+    const snapshot = burnerSession.snapshot;
+    busy.value = snapshot.busy;
+    progressInfo.value = { ...DEFAULT_PROGRESS, ...snapshot.progress };
+  }
+
+  function syncLogsState() {
+    logs.value = [...burnerSession.snapshot.logs];
+  }
+
   function updateProgress(info: ProgressInfo) {
     if (info.showProgress === true) {
       if (keepProgressModalOpen.value && progressInfo.value.state === 'paused' && info.state === 'running') {
         return;
       }
       burnerSession.updateProgress(info);
-      syncSessionState();
+      syncProgressState();
     }
   }
 
@@ -82,7 +92,7 @@ export function useCartBurnerSessionState(translate: (key: string) => string) {
   function log(msg: string, level: LogLevelType = 'info') {
     const time = DateTime.now().toLocaleString(DateTime.TIME_24_WITH_SECONDS);
     burnerSession.addLog(time, msg, level);
-    syncSessionState();
+    syncLogsState();
   }
 
   function clearLog() {

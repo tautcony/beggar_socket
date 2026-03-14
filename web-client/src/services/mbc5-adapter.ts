@@ -515,7 +515,7 @@ export class MBC5Adapter extends CartridgeAdapter {
 
             // 初始化扇区进度信息 (用于显示写入进度可视化)
             const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, total, baseAddress);
-            this.initializeSectorProgress(sectorInfo);
+            const sectors = this.initializeSectorProgress(sectorInfo);
 
             const blank = await this.isBlank(baseAddress, 0x100, mbcType);
             if (!blank) {
@@ -547,6 +547,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
             let chunkCount = 0; // 记录已处理的块数
             let currentBank = -1;
+            let completedSectorIndex = -1;
             while (written < total) {
               // 检查是否已被取消
               if (signal?.aborted) {
@@ -558,7 +559,7 @@ export class MBC5Adapter extends CartridgeAdapter {
               }
 
               const chunkSize = Math.min(pageSize, total - written);
-              const chunk = fileData.slice(written, written + chunkSize);
+              const chunk = fileData.subarray(written, written + chunkSize);
               if (chunk.byteLength === 0) {
                 this.log(this.t('messages.rom.writeNoData'), 'warn');
                 break;
@@ -588,7 +589,17 @@ export class MBC5Adapter extends CartridgeAdapter {
               chunkCount++;
 
               // 更新已写入范围的扇区状态
-              progressReporter.markSectorRangeState(baseAddress, baseAddress + written - 1, 'completed');
+              const writtenEndAddress = baseAddress + written - 1;
+              while (completedSectorIndex + 1 < sectors.length) {
+                const nextSector = sectors[completedSectorIndex + 1];
+                const nextSectorEnd = nextSector.address + nextSector.size - 1;
+                if (nextSectorEnd > writtenEndAddress) {
+                  break;
+                }
+
+                completedSectorIndex++;
+                progressReporter.markSectorState(nextSector.address, 'completed');
+              }
 
               // 添加数据点到速度计算器
               speedCalculator.addDataPoint(chunkSize, chunkEndTime);
@@ -1119,7 +1130,7 @@ export class MBC5Adapter extends CartridgeAdapter {
               // 分包
               const remainingSize = total - written;
               const chunkSize = Math.min(pageSize, remainingSize);
-              const chunk = fileData.slice(written, written + chunkSize);
+              const chunk = fileData.subarray(written, written + chunkSize);
 
               // 计算bank和地址
               const { bank, cartAddress } = this.ramBankRelevantAddress(ramAddress, mbcType);
