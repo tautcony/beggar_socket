@@ -18,6 +18,7 @@ export class ProgressReporter {
   private sectorSizes: number[] = [];
   private sectorSizeClasses: SectorSizeClass[] = [];
   private sectorStateBuffer: Uint8Array = new Uint8Array(0);
+  private completedSectorsCount = 0;
   private updateCallback: (progressInfo: ProgressInfo) => void;
   private showProgress: boolean;
 
@@ -45,6 +46,7 @@ export class ProgressReporter {
     this.sectorSizes = this.sectors.map((sector) => sector.size);
     this.sectorSizeClasses = this.sectors.map((sector) => this.getSectorSizeClass(sector.size));
     this.sectorStateBuffer = Uint8Array.from(this.sectors.map((sector) => this.encodeSectorState(sector.state)));
+    this.completedSectorsCount = this.sectors.filter((sector) => sector.state === 'completed').length;
   }
 
   /**
@@ -53,6 +55,7 @@ export class ProgressReporter {
   resetSectorsState(): void {
     this.sectors = this.sectors.map((sector) => ({ ...sector, state: 'pending' as const }));
     this.sectorStateBuffer = new Uint8Array(this.sectorStateBuffer.length);
+    this.completedSectorsCount = 0;
   }
 
   /**
@@ -146,18 +149,10 @@ export class ProgressReporter {
    * 更新扇区状态
    */
   markSectorState(address: number, state: 'pending' | 'processing' | 'completed' | 'error'): number {
-    const sectorIndex = this.sectors.findIndex(s =>
-      address >= s.address && address < s.address + s.size,
-    );
+    const sectorIndex = this.getCurrentSectorIndexByAddress(address);
 
     if (sectorIndex >= 0) {
-      const current = this.sectors[sectorIndex];
-      if (current.state !== state) {
-        const next = [...this.sectors];
-        next[sectorIndex] = { ...current, state };
-        this.sectors = next;
-        this.sectorStateBuffer = this.withStateBufferValue(sectorIndex, this.encodeSectorState(state));
-      }
+      this.setSectorStateAtIndex(sectorIndex, state);
     }
 
     return sectorIndex;
@@ -171,28 +166,37 @@ export class ProgressReporter {
     endAddress: number,
     state: 'pending' | 'processing' | 'completed' | 'error',
   ): void {
-    let changed = false;
-    const next = this.sectors.map((sector) => {
-      if (sector.address >= startAddress && sector.address <= endAddress && sector.state !== state) {
-        changed = true;
-        return { ...sector, state };
+    for (let index = 0; index < this.sectors.length; index++) {
+      const sector = this.sectors[index];
+      if (sector.address >= startAddress && sector.address <= endAddress) {
+        this.setSectorStateAtIndex(index, state);
       }
-      return sector;
-    });
-    if (changed) {
-      this.sectors = next;
-      this.sectorStateBuffer = Uint8Array.from(next.map((sector) => this.encodeSectorState(sector.state)));
     }
   }
 
   getCurrentSectorIndexByAddress(address: number): number {
-    return this.sectors.findIndex(s =>
-      address >= s.address && address < s.address + s.size,
-    );
+    let low = 0;
+    let high = this.sectorAddresses.length - 1;
+
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      const start = this.sectorAddresses[mid];
+      const end = start + this.sectorSizes[mid];
+
+      if (address < start) {
+        high = mid - 1;
+      } else if (address >= end) {
+        low = mid + 1;
+      } else {
+        return mid;
+      }
+    }
+
+    return -1;
   }
 
   getCompletedSectorsCount(): number {
-    return this.sectors.filter(s => s.state === 'completed').length;
+    return this.completedSectorsCount;
   }
 
   private getSectorMetaSnapshot(): {
@@ -222,9 +226,20 @@ export class ProgressReporter {
     return 0;
   }
 
-  private withStateBufferValue(index: number, value: SectorStateCode): Uint8Array {
-    const next = new Uint8Array(this.sectorStateBuffer);
-    next[index] = value;
-    return next;
+  private setSectorStateAtIndex(index: number, state: SectorProgressInfo['state']): void {
+    const current = this.sectors[index];
+    if (!current || current.state === state) {
+      return;
+    }
+
+    if (current.state === 'completed') {
+      this.completedSectorsCount--;
+    }
+    if (state === 'completed') {
+      this.completedSectorsCount++;
+    }
+
+    this.sectors[index] = { ...current, state };
+    this.sectorStateBuffer[index] = this.encodeSectorState(state);
   }
 }
