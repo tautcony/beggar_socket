@@ -119,6 +119,12 @@
       "!node_modules/@rolldown/**/*",
       "!node_modules/esbuild/**/*",
       "!node_modules/@esbuild/**/*",
+      "!node_modules/@serialport/bindings-cpp/prebuilds/android-arm/**/*",
+      "!node_modules/@serialport/bindings-cpp/prebuilds/android-arm64/**/*",
+      "!node_modules/@serialport/bindings-cpp/prebuilds/linux-arm/**/*",
+      "!node_modules/@serialport/bindings-cpp/prebuilds/linux-arm64/**/*",
+      "!node_modules/@serialport/bindings-cpp/prebuilds/win32-arm64/**/*",
+      "!node_modules/@serialport/bindings-cpp/prebuilds/win32-ia32/**/*",
       "!node_modules/serialport/test/**/*",
       "!node_modules/@serialport/test/**/*",
       "!**/*.map",
@@ -157,8 +163,8 @@
       ],
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
+      "entitlements": "electron/entitlements.mac.plist",
+      "entitlementsInherit": "electron/entitlements.mac.plist"
     },
     "win": {
       "signAndEditExecutable": false,
