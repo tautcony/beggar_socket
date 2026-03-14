@@ -1,7 +1,6 @@
 import { ResizeStrategy } from '@jimp/plugin-resize';
 import * as IQ from 'image-q';
 import { Jimp, rgbaToInt } from 'jimp';
-import path from 'path';
 
 type JimpObject = InstanceType<typeof Jimp>;
 
@@ -150,8 +149,7 @@ export async function saveIndexedImageAsPng(indexedImage: {
     }
   }
 
-  const outputPath = path.join(__dirname, filename);
-  await img.write(`${outputPath}.png`);
+  await img.write(`${filename}.png`);
 }
 
 // 将图片转换为RGB555格式的预览图像，并返回base64字符串用于前端显示
