@@ -10,7 +10,13 @@
 
 ## i18n
 - `src/i18n/index.ts`
-- `src/i18n/locales/*.json`
+- `src/i18n/locales/en-US.json`
+- `src/i18n/locales/ja-JP.json`
+- `src/i18n/locales/ru-RU.json`
+- `src/i18n/locales/zh-Hans.json`
+- `src/i18n/locales/zh-Hant.json`
+
+当前支持 5 种语言：英语（en-US）、日语（ja-JP）、俄语（ru-RU）、简体中文（zh-Hans）、繁体中文（zh-Hant）。
 
 ## 职责
 - 提供跨组件共享状态、运行参数和多语言文本。
