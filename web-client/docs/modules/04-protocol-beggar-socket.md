@@ -5,8 +5,10 @@
 - `src/protocol/beggar_socket/protocol-adapter.ts`
 - `src/protocol/beggar_socket/payload-builder.ts`
 - `src/protocol/beggar_socket/protocol-utils.ts`
+- `src/protocol/beggar_socket/packet-read.ts`
 - `src/protocol/beggar_socket/command.ts`
-- `README.md`（协议说明）
+- `src/protocol/beggar_socket/index.ts`
+- README.md（协议说明）
 - `mcu/chis_flash_burner/Core/Src/uart.c`（固件命令解析）
 - `mcu/chis_flash_burner/USB_DEVICE/App/usbd_cdc_if.c`（CDC 控制线与收包入口）
 
@@ -14,8 +16,9 @@
 - `protocol.ts`: 命令函数（`rom_read/rom_program/gbc_*`）
 - `payload-builder.ts`: 命令 payload 构建与 CRC
 - `protocol-adapter.ts`: 基于 `Transport` 的发送/接收封装
-- `protocol-utils.ts`: endian、flash 映射、统一收发入口
-- `command.ts`: 协议命令枚举
+- `protocol-utils.ts`: endian、flash 映射、统一收发入口（`ProtocolTransportInput` 类型定义）
+- `packet-read.ts`: `readProtocolPayload` 封装读取响应、长度校验与超时/传输错误分类
+- `command.ts`: 协议命令枚举（`GBACommand`、`GBCCommand`、`Command`）
 
 ## 职责
 - 定义命令语义与封包格式。

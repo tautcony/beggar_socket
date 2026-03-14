@@ -7,6 +7,10 @@
 - `src/platform/serial/electron/device-gateway.ts`
 - `src/platform/serial/factory.ts`
 - `src/platform/serial/compat.ts`
+- `src/platform/serial/index.ts`
+
+**辅助工具（不属于平台层本身，但被平台层使用）：**
+- `src/utils/electron.ts`: Electron 环境检测与平台能力工具（`isElectron()`、`getPlatform()`、`getAppVersion()` 等）
 
 ## 职责
 - 统一 Web/Electron 的设备连接与串口读写抽象。

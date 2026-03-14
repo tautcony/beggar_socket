@@ -41,7 +41,9 @@ Presentation
   - src/composables
       |
 Application
-  - src/features/burner/application
+  - src/features/burner/application  （用例、会话、流程模板）
+  - src/features/burner/adapters     （端口适配器、工厂）
+  - src/features/burner/application/domain （domain 契约：ports/result/connection/error-mapping）
       |
 Domain/Rules（当前以 utils/types 分散承载）
   - src/utils/parsers
@@ -52,12 +54,13 @@ Domain/Rules（当前以 utils/types 分散承载）
 Infrastructure
   - src/platform/serial
   - src/protocol/beggar_socket
-  - src/services (adapter/device manager)
+  - src/services (adapter/device manager/RTC/LK/system-notice 等)
   - electron/*
 ```
 
 说明：
-- 项目已建立 `Application + Platform Serial + Protocol` 主干，但 `services` 仍承载部分编排/基础设施职责，属于过渡态。
+- `features/burner/application/domain` 定义 BurnerConnectionPort 等接口，`features/burner/adapters` 实现这些接口。
+- `services` 仍承载部分编排/基础设施职责，属于过渡态。
 
 ## 依赖方向
 - `Presentation -> Application -> Infrastructure`
@@ -71,6 +74,7 @@ Infrastructure
   - 禁止 `components/views -> protocol`
   - 禁止 `types/utils -> services`
   - 禁止 `protocol -> services/serial-service`
+  - 禁止 `components/operaiton -> platform/services/orchestration 内部实现`
 - 架构检查脚本：
   - `npm run check:deps`
   - 输出 top-level 依赖矩阵 + 违规边检查
@@ -79,6 +83,8 @@ Infrastructure
 - 主流程：`tests/burner-application.test.ts`
 - 设备网关：`tests/device-gateway.test.ts`
 - 传输契约：`tests/protocol-transport.test.ts`
+- 连接用例：`tests/connection-usecase-orchestration.test.ts`
+- 端口契约：`tests/burner-port-contract.test.ts`
 - 规则工具：parser/progress/formatter/crc 等单测
 
 推荐门禁命令：
