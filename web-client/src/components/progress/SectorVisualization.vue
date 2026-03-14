@@ -2,6 +2,7 @@
   <div
     v-if="shouldShowSectorVisualization"
     class="sector-visualization"
+    :style="sectorVisualizationStyle"
   >
     <div class="sector-title">
       <span>{{ $t('ui.progress.sectorMap') }}</span>
@@ -156,14 +157,23 @@ const hoverSectorIndex = ref<number>(-1);
 const canvasMetrics = ref({ width: 1, height: 1, columns: 1, rows: 1 });
 let canvasResizeObserver: ResizeObserver | null = null;
 
-const CANVAS_BLOCK_SIZE = 18;
-const CANVAS_GAP = 2;
-const CANVAS_STEP = CANVAS_BLOCK_SIZE + CANVAS_GAP;
+const SECTOR_BORDER_WIDTH = 1;
+const SECTOR_BLOCK_SIZE = 18;
+const SECTOR_FILL_SIZE = SECTOR_BLOCK_SIZE - SECTOR_BORDER_WIDTH * 2;
+const SECTOR_GAP = 2;
+const SECTOR_STEP = SECTOR_BLOCK_SIZE + SECTOR_GAP;
+const SECTOR_SPINNER_SIZE = 8;
 const SECTOR_RENDER_THROTTLE_MS = 120;
 let lastSectorRenderAt = 0;
 let pendingSectorRenderTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingRenderStates: SectorProgressInfo['state'][] | null = null;
 // let lastViewLogSignature = '';
+
+const sectorVisualizationStyle = computed(() => ({
+  '--sector-block-size': `${SECTOR_BLOCK_SIZE}px`,
+  '--sector-gap': `${SECTOR_GAP}px`,
+  '--sector-spinner-size': `${SECTOR_SPINNER_SIZE}px`,
+}));
 
 const shouldShowSectorVisualization = computed(() => {
   return Boolean(props.sectorProgress && (props.type === 'erase' || props.type === 'write' || props.type === 'verify'));
@@ -403,10 +413,10 @@ function updateCanvasLayout(): void {
   const count = displaySectors.value.length;
   const containerWidth = canvasContainer.value?.clientWidth ?? 0;
   const safeWidth = Math.max(1, containerWidth);
-  const columns = Math.max(1, Math.floor((safeWidth + CANVAS_GAP) / CANVAS_STEP));
+  const columns = Math.max(1, Math.floor((safeWidth + SECTOR_GAP) / SECTOR_STEP));
   const rows = Math.max(1, Math.ceil(count / columns));
-  const width = Math.max(1, columns * CANVAS_STEP - CANVAS_GAP);
-  const height = Math.max(1, rows * CANVAS_STEP - CANVAS_GAP);
+  const width = Math.max(1, columns * SECTOR_STEP - SECTOR_GAP);
+  const height = Math.max(1, rows * SECTOR_STEP - SECTOR_GAP);
   canvasMetrics.value = { width, height, columns, rows };
 }
 
@@ -429,20 +439,25 @@ function drawCanvas(): void {
     const state = renderedSectorStates.value[index] ?? 'pending';
     const col = index % columns;
     const row = Math.floor(index / columns);
-    const x = col * CANVAS_STEP;
-    const y = row * CANVAS_STEP;
+    const x = col * SECTOR_STEP;
+    const y = row * SECTOR_STEP;
     const { fill, stroke, current } = getCanvasColor(sector.sizeClass, state);
 
     ctx.fillStyle = fill;
     ctx.strokeStyle = stroke;
     ctx.lineWidth = 1;
-    ctx.fillRect(x, y, CANVAS_BLOCK_SIZE, CANVAS_BLOCK_SIZE);
-    ctx.strokeRect(x + 0.5, y + 0.5, CANVAS_BLOCK_SIZE - 1, CANVAS_BLOCK_SIZE - 1);
+    ctx.fillRect(
+      x + SECTOR_BORDER_WIDTH,
+      y + SECTOR_BORDER_WIDTH,
+      SECTOR_FILL_SIZE,
+      SECTOR_FILL_SIZE,
+    );
+    ctx.strokeRect(x + 0.5, y + 0.5, SECTOR_BLOCK_SIZE - 1, SECTOR_BLOCK_SIZE - 1);
 
     if (current) {
       ctx.strokeStyle = '#1976d2';
       ctx.lineWidth = 2;
-      ctx.strokeRect(x + 1, y + 1, CANVAS_BLOCK_SIZE - 2, CANVAS_BLOCK_SIZE - 2);
+      ctx.strokeRect(x + 1, y + 1, SECTOR_BLOCK_SIZE - 2, SECTOR_BLOCK_SIZE - 2);
     }
   }
 }
@@ -453,15 +468,15 @@ function getSectorIndexFromCanvasEvent(event: MouseEvent): number {
   }
   const x = event.offsetX + canvasContainer.value.scrollLeft;
   const y = event.offsetY + canvasContainer.value.scrollTop;
-  const col = Math.floor(x / CANVAS_STEP);
-  const row = Math.floor(y / CANVAS_STEP);
+  const col = Math.floor(x / SECTOR_STEP);
+  const row = Math.floor(y / SECTOR_STEP);
   if (col < 0 || row < 0) {
     return -1;
   }
 
-  const xInCell = x - col * CANVAS_STEP;
-  const yInCell = y - row * CANVAS_STEP;
-  if (xInCell > CANVAS_BLOCK_SIZE || yInCell > CANVAS_BLOCK_SIZE) {
+  const xInCell = x - col * SECTOR_STEP;
+  const yInCell = y - row * SECTOR_STEP;
+  if (xInCell >= SECTOR_BLOCK_SIZE || yInCell >= SECTOR_BLOCK_SIZE) {
     return -1;
   }
 
@@ -576,7 +591,7 @@ function ensureCanvasObserver(): void {
 .sector-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px;
+  gap: var(--sector-gap);
   margin-bottom: spacing-vars.$space-3;
   max-height: 200px;
   overflow-y: auto;
@@ -597,8 +612,9 @@ function ensureCanvasObserver(): void {
 }
 
 .sector-block {
-  width: 16px;
-  height: 16px;
+  box-sizing: border-box;
+  width: var(--sector-block-size);
+  height: var(--sector-block-size);
   border-radius: radius-vars.$radius-sm;
   position: relative;
   cursor: pointer;
@@ -674,8 +690,8 @@ function ensureCanvasObserver(): void {
 }
 
 .sector-spinner {
-  width: 8px;
-  height: 8px;
+  width: var(--sector-spinner-size);
+  height: var(--sector-spinner-size);
   border: 1px solid #ffffff;
   border-top: 1px solid transparent;
   border-radius: 50%;
