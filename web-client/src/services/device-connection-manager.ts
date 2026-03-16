@@ -15,6 +15,7 @@ import { PortFilter } from '@/utils/port-filter';
 export class DeviceConnectionManager {
   private static instance: DeviceConnectionManager;
   private readonly connectionUseCase = createConnectionOrchestrationUseCase();
+  private isConnecting = false;
 
   private constructor() {}
 
@@ -56,6 +57,18 @@ export class DeviceConnectionManager {
       return DebugSettings.createMockDeviceInfo();
     }
 
+    if (this.isConnecting) {
+      throw new Error('Device connection already in progress');
+    }
+    this.isConnecting = true;
+    try {
+      return await this._requestDevice(_filter);
+    } finally {
+      this.isConnecting = false;
+    }
+  }
+
+  private async _requestDevice(_filter?: PortFilter): Promise<DeviceInfo> {
     if (isElectron() && _filter) {
       const availablePorts = await this.listAvailablePorts(_filter);
       if (availablePorts.length !== 1) {

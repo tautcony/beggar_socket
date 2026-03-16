@@ -64,6 +64,8 @@ export class ConnectionOrchestrationUseCase {
     },
   };
 
+  private isConnecting = false;
+
   constructor(private readonly connectionPort: BurnerConnectionPort) {}
 
   get snapshot(): ConnectionSnapshot {
@@ -115,6 +117,22 @@ export class ConnectionOrchestrationUseCase {
   }
 
   async prepareConnection(): Promise<ConnectionCommandResult> {
+    if (this.isConnecting) {
+      return toFailure(this.snapshotState.state, this.snapshotState.context, {
+        stage: 'connect',
+        code: 'connect_failed',
+        message: 'Connection already in progress',
+      });
+    }
+    this.isConnecting = true;
+    try {
+      return await this._prepareConnection();
+    } finally {
+      this.isConnecting = false;
+    }
+  }
+
+  private async _prepareConnection(): Promise<ConnectionCommandResult> {
     const listResult = await this.connectionPort.list();
     if (!listResult.ok) {
       const failure = normalizeFailure('list', listResult.error, 'list_failed');
@@ -144,16 +162,28 @@ export class ConnectionOrchestrationUseCase {
   }
 
   async prepareConnectionWithSelection(selection: ConnectionContext['selection']): Promise<ConnectionCommandResult> {
-    if (!selection) {
-      const failure: ConnectionFailure = {
-        stage: 'select',
-        code: 'selection_required',
-        message: 'Device selection required',
-      };
-      const result = this.markFailure(failure);
-      return toFailure(result.state, result.context, failure);
+    if (this.isConnecting) {
+      return toFailure(this.snapshotState.state, this.snapshotState.context, {
+        stage: 'connect',
+        code: 'connect_failed',
+        message: 'Connection already in progress',
+      });
     }
-    return this.connectAndInit(selection);
+    this.isConnecting = true;
+    try {
+      if (!selection) {
+        const failure: ConnectionFailure = {
+          stage: 'select',
+          code: 'selection_required',
+          message: 'Device selection required',
+        };
+        const result = this.markFailure(failure);
+        return toFailure(result.state, result.context, failure);
+      }
+      return await this.connectAndInit(selection);
+    } finally {
+      this.isConnecting = false;
+    }
   }
 
   async listAvailableSelections(): Promise<ConnectionCommandResult & { ports?: ConnectionContext['selection'][] }> {
