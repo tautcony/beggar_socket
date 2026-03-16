@@ -60,8 +60,8 @@ export class ElectronDeviceGateway implements DeviceGateway {
       id: portId,
       isOpen: true,
       write: async (data: Uint8Array | number[]) => {
-        const dataArray = data instanceof Uint8Array ? Array.from(data) : data;
-        await window.electronAPI.serial.write(portId, dataArray);
+        const payload = data instanceof Uint8Array ? data : new Uint8Array(data);
+        await window.electronAPI.serial.write(portId, payload);
       },
       close: async () => {
         await window.electronAPI.serial.close(portId);

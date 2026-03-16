@@ -39,7 +39,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // 监听串口数据
     onData: (callback) => {
       ipcRenderer.on('serial-data', (event, portId, data) => {
-        callback(portId, new Uint8Array(data));
+        // data arrives as Uint8Array (Buffer from main process via structured clone)
+        callback(portId, data instanceof Uint8Array ? data : new Uint8Array(data));
       });
     },
 

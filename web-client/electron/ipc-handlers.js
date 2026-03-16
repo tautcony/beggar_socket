@@ -126,7 +126,7 @@ function setupIpcHandlers(mainWindow) {
             // 设置数据接收处理
             port.on('data', (data) => {
               if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('serial-data', portId, Array.from(data));
+                mainWindow.webContents.send('serial-data', portId, data);
               }
             });
 
@@ -163,13 +163,14 @@ function setupIpcHandlers(mainWindow) {
     try {
       const buffer = Buffer.from(data);
       return new Promise((resolve, reject) => {
-        port.write(buffer, (error) => {
-          if (error) {
-            reject(error);
-          } else {
-            resolve(true);
-          }
+        const flushed = port.write(buffer, (error) => {
+          if (error) reject(error);
         });
+        if (flushed) {
+          resolve(true);
+        } else {
+          port.once('drain', () => resolve(true));
+        }
       });
     } catch (error) {
       console.error('Failed to write to serial port:', error);
