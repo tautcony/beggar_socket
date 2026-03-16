@@ -32,7 +32,11 @@ export class DeviceConnectionManager {
   }
 
   private toDeviceInfo(handle: BurnerConnectionHandle): DeviceInfo {
-    return toLegacyDeviceInfo(handle.context as DeviceHandle);
+    const ctx = handle.context;
+    if (!ctx || typeof ctx !== 'object' || !('platform' in ctx) || !('transport' in ctx)) {
+      throw new Error('Invalid connection handle: context is not a valid DeviceHandle');
+    }
+    return toLegacyDeviceInfo(ctx as DeviceHandle);
   }
 
   private asSerialPortInfo(portInfo: BurnerConnectionHandle['portInfo']): SerialPortInfo | null {

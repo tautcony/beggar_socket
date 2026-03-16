@@ -95,6 +95,9 @@ export async function rom_erase_sector_direct(input: ProtocolTransportInput, sec
  * GBA: ROM Program (0xf4)
  */
 export async function rom_program(input: ProtocolTransportInput, data: Uint8Array, baseAddress: number, bufferSize: number): Promise<void> {
+  if (data.length > bufferSize) {
+    throw new RangeError(`Data length ${data.length} exceeds buffer size ${bufferSize}`);
+  }
   const payload = createCommandPayload(GBACommand.PROGRAM)
     .addAddress(baseAddress)
     .addLength(bufferSize)
@@ -286,6 +289,9 @@ export async function gbc_read(input: ProtocolTransportInput, size: number, base
  * GBC: ROM Program (0xfc)
  */
 export async function gbc_rom_program(input: ProtocolTransportInput, data: Uint8Array, baseAddress: number, bufferSize: number): Promise<void> {
+  if (data.length > bufferSize) {
+    throw new RangeError(`Data length ${data.length} exceeds buffer size ${bufferSize}`);
+  }
 
   const payload = createCommandPayload(GBCCommand.ROM_PROGRAM)
     .addAddress(baseAddress)
