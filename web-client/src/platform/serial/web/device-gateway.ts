@@ -50,9 +50,10 @@ export class WebDeviceGateway implements DeviceGateway {
   }
 
   async init(device: DeviceHandle): Promise<void> {
-    await device.transport.setSignals({ dataTerminalReady: true, requestToSend: true });
-    await timeout(10);
+    // Assert signals low first so the rising edge triggers the reset sequence
     await device.transport.setSignals({ dataTerminalReady: false, requestToSend: false });
+    await timeout(10);
+    await device.transport.setSignals({ dataTerminalReady: true, requestToSend: true });
     await timeout(200);
   }
 

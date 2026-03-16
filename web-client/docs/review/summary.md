@@ -99,13 +99,13 @@
 
 ---
 
-### 🟡 Group D — device-gateway：init() 信号序列
+### ✅ Group D — device-gateway：init() 信号序列（已修复）
 **优先级**：P1  
 **文件**：`src/platform/serial/web/device-gateway.ts`、`src/platform/serial/electron/device-gateway.ts`
 
 | 优先级 | 问题 |
 |--------|------|
-| P1 | `WebDeviceGateway.init()` 与 `ElectronDeviceGateway.init()` 信号序列（先 true → 再 false）与文档记录（先 false → 再 true）相反，最终电平为非活跃状态 |
+| P1 | `init()` 序列改为先 false → 再 true，最终电平为活跃状态，与文档一致 |
 
 ---
 
