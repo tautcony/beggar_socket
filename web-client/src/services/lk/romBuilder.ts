@@ -1,6 +1,5 @@
 // romBuilder.ts - ROM构建器主逻辑
 
-import { updateBackgroundImage } from './imageUtils';
 import { BuildInput, BuildResult, cartridgeTypes, GameConfig } from './types';
 import { arrayBufferToUint8Array, parsePath, sha1, uint8ArrayToArrayBuffer, updateSectorMap } from './utils';
 
@@ -346,7 +345,8 @@ export async function buildRom(input: BuildInput): Promise<BuildResult> {
   const { flash_size, sector_size, block_size, compilation, sector_map } = prepareCompilation(cartridge_type);
   // 读取Menu ROM
   const { menu_rom } = readMenuRom(menuRom, sector_size, compilation);
-  // 更新背景
+  // 更新背景（按需动态加载）
+  const { updateBackgroundImage } = await import('./imageUtils');
   await updateBackgroundImage(menu_rom, options.bgImage);
 
   // 将更新后的 menu_rom 数据复制回 compilation

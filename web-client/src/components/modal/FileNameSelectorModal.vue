@@ -82,13 +82,15 @@ function makeDefaultFileName(): string {
   return `exported_${ts}.sav`;
 }
 
-const selectedFileName = ref(makeDefaultFileName());
+const defaultFileName = ref(makeDefaultFileName());
+const selectedFileName = ref(defaultFileName.value);
 // 使用 computed 使 recentFileNames 变为响应式
 const recentFileNames = computed(() => recentFileNamesStore.getFileNames());
 
 function closeModal() {
   modelValue.value = false;
-  selectedFileName.value = makeDefaultFileName();
+  defaultFileName.value = makeDefaultFileName();
+  selectedFileName.value = defaultFileName.value;
 }
 
 function getRomBasedSavName(romFileName: string) {
@@ -103,7 +105,8 @@ function selectRomBasedFileName(romFileName: string) {
 }
 
 function resetFileName() {
-  selectedFileName.value = makeDefaultFileName();
+  defaultFileName.value = makeDefaultFileName();
+  selectedFileName.value = defaultFileName.value;
 }
 
 function downloadFile() {
@@ -116,7 +119,8 @@ function downloadFile() {
 // 当模态框打开时刷新默认文件名（确保时间戳反映实际打开时间）
 watch(modelValue, (newValue) => {
   if (newValue) {
-    selectedFileName.value = makeDefaultFileName();
+    defaultFileName.value = makeDefaultFileName();
+    selectedFileName.value = defaultFileName.value;
   }
 });
 </script>
