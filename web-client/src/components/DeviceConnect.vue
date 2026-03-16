@@ -77,7 +77,7 @@ const usePolyfill = ref(false);
 const showPortSelector = ref(false);
 const availablePorts = ref<SerialPortInfo[]>([]);
 
-let deviceInfo: DeviceInfo | null = null;
+const deviceInfo = ref<DeviceInfo | null>(null);
 const deviceManager = DeviceConnectionManager.getInstance();
 
 // 热重载状态恢复 - 在开发模式下处理 HMR
@@ -97,7 +97,7 @@ if (import.meta.hot) {
     // 验证恢复的状态是否完整
     if (data.device && deviceManager.isDeviceConnected(data.device)) {
       connected.value = data.connected;
-      deviceInfo = data.device;
+      deviceInfo.value = data.device;
       console.log('[DeviceConnect] HMR: 成功恢复设备连接状态');
     } else {
       // 状态信息不完整，重置为断开状态
@@ -109,7 +109,7 @@ if (import.meta.hot) {
   // 监听热重载事件，保存当前状态
   import.meta.hot.dispose(() => {
     if (import.meta.hot?.data) {
-      data.device = deviceInfo;
+      data.device = deviceInfo.value;
       data.connected = connected.value;
     }
   });
@@ -117,7 +117,7 @@ if (import.meta.hot) {
   // 热重载后验证连接状态
   import.meta.hot.accept(() => {
     if (connected.value) {
-      if (!deviceInfo || !deviceManager.isDeviceConnected(deviceInfo)) {
+      if (!deviceInfo.value || !deviceManager.isDeviceConnected(deviceInfo.value)) {
         console.warn('[DeviceConnect] HMR: 连接对象丢失，重置连接状态');
         disposeConnection().catch(console.error);
         return;
@@ -130,7 +130,7 @@ if (import.meta.hot) {
 onMounted(async () => {
   // 如果显示已连接但实际连接对象为空，重置状态
   if (connected.value) {
-    if (!deviceInfo || !deviceManager.isDeviceConnected(deviceInfo)) {
+    if (!deviceInfo.value || !deviceManager.isDeviceConnected(deviceInfo.value)) {
       console.warn('[DeviceConnect] 检测到状态不一致，重置连接状态');
       await disposeConnection();
     }
@@ -155,8 +155,8 @@ async function connect() {
     connected.value = true;
     isConnecting.value = false;
     showToast(t('messages.device.connectionSuccess'), 'success');
-    deviceInfo = device;
-    emit('device-ready', deviceInfo);
+    deviceInfo.value = device;
+    emit('device-ready', deviceInfo.value);
   } catch (e) {
     // 检查是否需要用户选择串口
     if (e instanceof PortSelectionRequiredError) {
@@ -186,8 +186,8 @@ async function onPortSelected(selectedPort: SerialPortInfo) {
     connected.value = true;
     isConnecting.value = false;
     showToast(t('messages.device.connectionSuccess'), 'success');
-    deviceInfo = device;
-    emit('device-ready', deviceInfo);
+    deviceInfo.value = device;
+    emit('device-ready', deviceInfo.value);
   } catch (e) {
     showToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
     await disposeConnection();
@@ -221,10 +221,10 @@ async function onRefreshPorts() {
 }
 
 async function disconnect() {
-  if (!deviceInfo) return;
+  if (!deviceInfo.value) return;
   isConnecting.value = true;
   try {
-    await deviceManager.disconnectDevice(deviceInfo);
+    await deviceManager.disconnectDevice(deviceInfo.value);
     showToast(t('messages.device.disconnectionSuccess'), 'success');
   } catch (e) {
     console.error(t('messages.device.disconnectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), e);
@@ -232,7 +232,7 @@ async function disconnect() {
   } finally {
     isConnecting.value = false;
     connected.value = false;
-    deviceInfo = null;
+    deviceInfo.value = null;
     emit('device-disconnected');
   }
 }
@@ -260,14 +260,14 @@ async function disposeConnection() {
   connected.value = false;
   isConnecting.value = false;
 
-  if (deviceInfo !== null) {
+  if (deviceInfo.value !== null) {
     // 安全地清理资源
     try {
-      await deviceManager.disconnectDevice(deviceInfo);
+      await deviceManager.disconnectDevice(deviceInfo.value);
     } catch (error) {
       console.warn('Error during device cleanup:', error);
     }
-    deviceInfo = null;
+    deviceInfo.value = null;
   }
 
   emit('device-disconnected');

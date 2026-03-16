@@ -287,8 +287,13 @@ function closeEmulator() {
 function cleanup() {
   if (gameboyInstance) {
     try {
-      // gameboy-emulator 没有直接的清理方法
-      // 只需要将引用设为 null
+      // Suspend and close AudioContext explicitly - browsers impose a limit on
+      // the number of live AudioContext instances, so we must close rather than
+      // just dropping the reference.
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      gameboyInstance.apu.disableSound();
+      const apuAny = gameboyInstance.apu as unknown as { audioContext?: AudioContext };
+      apuAny.audioContext?.close().catch(() => { /* ignore close errors */ });
     } catch (error: unknown) {
       console.error('Error during cleanup:', error);
     }

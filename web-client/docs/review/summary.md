@@ -184,7 +184,7 @@
 
 ---
 
-### 🟢 Group L — UI 组件细节
+### ✅ Group L — UI 组件细节（已修复）
 **优先级**：P2 × 5  
 **文件**：`src/components/DeviceConnect.vue`、`src/components/common/GlobalToast.vue`、`src/components/emulator/GBEmulator.vue`、`src/components/modal/FileNameSelectorModal.vue`、`src/composables/cartburner/useCartBurnerFileState.ts`
 

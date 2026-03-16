@@ -97,10 +97,16 @@ function handleGlobalToast(event: CustomEvent<{ message: string, type: ToastType
 
 onMounted(() => {
   window.addEventListener('show-toast', handleGlobalToast as EventListener);
+  if (typeof window !== 'undefined') {
+    window.showToast = showToast;
+  }
 });
 
 onUnmounted(() => {
   window.removeEventListener('show-toast', handleGlobalToast as EventListener);
+  if (typeof window !== 'undefined') {
+    window.showToast = undefined;
+  }
 });
 
 function startTimer(toast: Toast) {
@@ -163,7 +169,7 @@ declare global {
 }
 
 if (typeof window !== 'undefined') {
-  window.showToast = showToast;
+  // window.showToast is registered in onMounted and cleared in onUnmounted
 }
 </script>
 

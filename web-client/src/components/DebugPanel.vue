@@ -286,7 +286,9 @@ function generateTestRom() {
   const a = document.createElement('a');
   a.href = url;
   a.download = 'test_rom.gba';
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 
@@ -298,7 +300,9 @@ function generateTestRam() {
   const a = document.createElement('a');
   a.href = url;
   a.download = 'test_ram.sav';
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 

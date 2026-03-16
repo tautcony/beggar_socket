@@ -76,17 +76,19 @@ const emit = defineEmits<{
   'file-name-selected': [fileName: string];
 }>();
 
-// 生成默认文件名
-const now = DateTime.now().toLocal().toFormat('yyyyMMdd-HHmmss');
-const defaultFileName = `exported_${now}.sav`;
+// 生成默认文件名（每次调用都返回当前时间戳，避免模态框复用时时间戳过期）
+function makeDefaultFileName(): string {
+  const ts = DateTime.now().toLocal().toFormat('yyyyMMdd-HHmmss');
+  return `exported_${ts}.sav`;
+}
 
-const selectedFileName = ref(defaultFileName);
+const selectedFileName = ref(makeDefaultFileName());
 // 使用 computed 使 recentFileNames 变为响应式
 const recentFileNames = computed(() => recentFileNamesStore.getFileNames());
 
 function closeModal() {
   modelValue.value = false;
-  selectedFileName.value = defaultFileName;
+  selectedFileName.value = makeDefaultFileName();
 }
 
 function getRomBasedSavName(romFileName: string) {
@@ -101,7 +103,7 @@ function selectRomBasedFileName(romFileName: string) {
 }
 
 function resetFileName() {
-  selectedFileName.value = defaultFileName;
+  selectedFileName.value = makeDefaultFileName();
 }
 
 function downloadFile() {
@@ -111,10 +113,10 @@ function downloadFile() {
   }
 }
 
-// 当模态框打开时重置文件名为默认值
+// 当模态框打开时刷新默认文件名（确保时间戳反映实际打开时间）
 watch(modelValue, (newValue) => {
   if (newValue) {
-    selectedFileName.value = defaultFileName;
+    selectedFileName.value = makeDefaultFileName();
   }
 });
 </script>
