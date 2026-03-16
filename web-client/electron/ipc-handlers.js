@@ -9,11 +9,25 @@ let activeSerialPorts = new Map();
 // 防止重复注册 IPC 处理器
 let ipcHandlersRegistered = false;
 
+// 当前主窗口引用（模块级别，允许在窗口重建后更新）
+let currentMainWindow = null;
+
 /**
- * 初始化 IPC 处理器
+ * 更新当前主窗口引用，确保 IPC handlers 中的数据推送指向正确窗口
+ * @param {BrowserWindow|null} win - 新的主窗口实例，关闭时传 null
+ */
+function updateMainWindow(win) {
+  currentMainWindow = win;
+}
+
+/**
+ * 初始化 IPC 处理器（仅首次调用时注册 handlers，后续调用请使用 updateMainWindow）
  * @param {BrowserWindow} mainWindow - 主窗口实例
  */
 function setupIpcHandlers(mainWindow) {
+  // 更新当前窗口引用
+  currentMainWindow = mainWindow;
+
   // 如果已经注册过处理器，直接返回
   if (ipcHandlersRegistered) {
     return;
@@ -99,6 +113,15 @@ function setupIpcHandlers(mainWindow) {
       throw new Error('SerialPort not available');
     }
 
+    // 验证端口路径：必须是字符串且匹配合法设备路径格式
+    if (typeof portPath !== 'string' || portPath.length === 0) {
+      throw new Error('Invalid port path: must be a non-empty string');
+    }
+    const validPortPattern = /^\/dev\/[\w.-]+$|^COM\d+$|\.\d+$/;
+    if (!validPortPattern.test(portPath)) {
+      throw new Error(`Invalid port path format: ${portPath}`);
+    }
+
     try {
       const defaultOptions = {
         baudRate: 9600,
@@ -125,21 +148,21 @@ function setupIpcHandlers(mainWindow) {
 
             // 设置数据接收处理
             port.on('data', (data) => {
-              if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('serial-data', portId, data);
+              if (currentMainWindow && !currentMainWindow.isDestroyed()) {
+                currentMainWindow.webContents.send('serial-data', portId, data);
               }
             });
 
             port.on('error', (error) => {
-              if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('serial-error', portId, error.message);
+              if (currentMainWindow && !currentMainWindow.isDestroyed()) {
+                currentMainWindow.webContents.send('serial-error', portId, error.message);
               }
             });
 
             port.on('close', () => {
               activeSerialPorts.delete(portId);
-              if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('serial-closed', portId);
+              if (currentMainWindow && !currentMainWindow.isDestroyed()) {
+                currentMainWindow.webContents.send('serial-closed', portId);
               }
             });
 
@@ -160,17 +183,22 @@ function setupIpcHandlers(mainWindow) {
       throw new Error(`Serial port ${portId} not found`);
     }
 
+    // 验证写入数据类型
+    if (!data || (typeof data !== 'string' && !Array.isArray(data) && !(data instanceof ArrayBuffer) && !ArrayBuffer.isView(data))) {
+      throw new Error('Invalid data: must be a string, array, or buffer-compatible type');
+    }
+
     try {
       const buffer = Buffer.from(data);
+      // 仅在写入回调中 resolve，确保写入错误不被静默忽略
       return new Promise((resolve, reject) => {
-        const flushed = port.write(buffer, (error) => {
-          if (error) reject(error);
+        port.write(buffer, (writeError) => {
+          if (writeError) return reject(writeError);
+          port.drain((drainError) => {
+            if (drainError) return reject(drainError);
+            resolve(true);
+          });
         });
-        if (flushed) {
-          resolve(true);
-        } else {
-          port.once('drain', () => resolve(true));
-        }
       });
     } catch (error) {
       console.error('Failed to write to serial port:', error);
@@ -209,6 +237,20 @@ function setupIpcHandlers(mainWindow) {
     const port = activeSerialPorts.get(portId);
     if (!port) {
       throw new Error(`Serial port ${portId} not found`);
+    }
+
+    // 验证 signals 参数
+    if (!signals || typeof signals !== 'object' || Array.isArray(signals)) {
+      throw new Error('Invalid signals: must be a plain object');
+    }
+    const allowedSignalKeys = new Set(['dataTerminalReady', 'requestToSend', 'break']);
+    for (const key of Object.keys(signals)) {
+      if (!allowedSignalKeys.has(key)) {
+        throw new Error(`Invalid signal key: ${key}`);
+      }
+      if (typeof signals[key] !== 'boolean') {
+        throw new Error(`Signal value for ${key} must be a boolean`);
+      }
     }
 
     try {
@@ -255,5 +297,6 @@ function cleanupSerialPorts() {
 
 module.exports = {
   setupIpcHandlers,
+  updateMainWindow,
   cleanupSerialPorts
 };

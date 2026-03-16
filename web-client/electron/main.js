@@ -1,6 +1,6 @@
-const { app, BrowserWindow, Menu, shell } = require('electron');
+const { app, BrowserWindow, Menu, shell, session } = require('electron');
 const path = require('path');
-const { setupIpcHandlers, cleanupSerialPorts } = require('./ipc-handlers');
+const { setupIpcHandlers, updateMainWindow, cleanupSerialPorts } = require('./ipc-handlers');
 const { isAppNavigationUrl, isSafeExternalUrl } = require('./security-utils');
 
 // 串口支持检查（移到 ipc-handlers.js 中）
@@ -57,7 +57,7 @@ function createWindow() {
       mainWindow.focus();
     }
 
-    // 设置 IPC 处理器（防重复注册已在函数内处理）
+  // 设置 IPC 处理器（防重复注册已在函数内处理）
     setupIpcHandlers(mainWindow);
   });
 
@@ -78,9 +78,8 @@ function createWindow() {
 
   // 当 window 被关闭，这个事件会被触发
   mainWindow.on('closed', () => {
-    // 取消引用 window 对象，如果你的应用支持多窗口的话，
-    // 通常会把多个 window 对象存放在一个数组里面，
-    // 与此同时，你应该删除相应的元素。
+    // 清除 IPC handlers 中的窗口引用，避免向已销毁窗口发送消息
+    updateMainWindow(null);
     mainWindow = null;
   });
 
@@ -112,6 +111,18 @@ function createWindow() {
 // 创建浏览器窗口时，调用这个函数。
 // 部分 API 在 ready 事件触发后才能使用。
 app.whenReady().then(() => {
+  // 配置 Content-Security-Policy，防止 XSS 攻击
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data: blob:; font-src 'self' data:;"
+        ],
+      },
+    });
+  });
+
   createWindow();
 
   app.on('activate', () => {
@@ -158,7 +169,7 @@ function createMenu() {
       submenu: [
         { role: 'reload' },
         { role: 'forceReload' },
-        { role: 'toggleDevTools' },
+        ...(isDev ? [{ role: 'toggleDevTools' }] : []),
         { type: 'separator' },
         { role: 'resetZoom' },
         { role: 'zoomIn' },
@@ -191,7 +202,7 @@ function createMenu() {
     });
 
     // Window menu
-    template[4].submenu = [
+    template[3].submenu = [
       { role: 'close' },
       { role: 'minimize' },
       { role: 'zoom' },
