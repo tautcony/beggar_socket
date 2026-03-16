@@ -19,6 +19,22 @@ export class ProtocolAdapter {
     return transport.read(length, timeoutMs ?? AdvancedSettings.packageReceiveTimeout, mode);
   }
 
+  /** Atomic send + receive guarded by a transport-level mutex. */
+  static async sendAndReceive(
+    transport: Transport,
+    payload: Uint8Array,
+    readLength: number,
+    sendTimeoutMs?: number,
+    readTimeoutMs?: number,
+  ): Promise<{ data: Uint8Array }> {
+    return transport.sendAndReceive(
+      payload,
+      readLength,
+      sendTimeoutMs ?? AdvancedSettings.packageSendTimeout,
+      readTimeoutMs ?? AdvancedSettings.packageReceiveTimeout,
+    );
+  }
+
   static async getResult(transport: Transport, timeoutMs?: number): Promise<boolean> {
     const result = await this.getPackage(transport, 1, timeoutMs ?? AdvancedSettings.packageReceiveTimeout);
     return result.data?.byteLength > 0 && result.data[0] === 0xaa;

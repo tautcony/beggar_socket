@@ -2,6 +2,7 @@ import { AdvancedSettings } from '@/settings/advanced-settings';
 import type { DefaultReader } from '@/types';
 import type { SerialConnection } from '@/types/serial';
 
+import { Mutex } from './mutex';
 import type { Transport, TransportReadMode } from './types';
 
 async function withTimeout<T>(
@@ -31,6 +32,7 @@ async function withTimeout<T>(
 
 export class ConnectionTransport implements Transport {
   private readonly overflow: Uint8Array[] = [];
+  private readonly mutex = new Mutex();
 
   constructor(private readonly connection: SerialConnection) {}
 
@@ -120,6 +122,21 @@ export class ConnectionTransport implements Transport {
     });
   }
 
+  async sendAndReceive(
+    payload: Uint8Array,
+    readLength: number,
+    sendTimeoutMs?: number,
+    readTimeoutMs?: number,
+  ): Promise<{ data: Uint8Array }> {
+    const release = await this.mutex.acquire();
+    try {
+      await this.send(payload, sendTimeoutMs);
+      return await this.read(readLength, readTimeoutMs);
+    } finally {
+      release();
+    }
+  }
+
   async setSignals(signals: SerialOutputSignals): Promise<void> {
     await this.connection.setSignals(signals);
   }
@@ -138,6 +155,7 @@ export class WebSerialTransport implements Transport {
   private readWaiters = new Set<() => void>();
   private streamDone = false;
   private streamError: unknown = null;
+  private readonly mutex = new Mutex();
 
   constructor(private readonly port: SerialPort) {}
 
@@ -184,6 +202,21 @@ export class WebSerialTransport implements Transport {
 
     this.ensurePumpStarted();
     return this.readFromBuffer(length, timeoutMs);
+  }
+
+  async sendAndReceive(
+    payload: Uint8Array,
+    readLength: number,
+    sendTimeoutMs?: number,
+    readTimeoutMs?: number,
+  ): Promise<{ data: Uint8Array }> {
+    const release = await this.mutex.acquire();
+    try {
+      await this.send(payload, sendTimeoutMs);
+      return await this.read(readLength, readTimeoutMs);
+    } finally {
+      release();
+    }
   }
 
   async setSignals(signals: SerialOutputSignals): Promise<void> {

@@ -65,6 +65,7 @@ export class ConnectionOrchestrationUseCase {
   };
 
   private isConnecting = false;
+  private isDisconnecting = false;
 
   constructor(private readonly connectionPort: BurnerConnectionPort) {}
 
@@ -245,6 +246,22 @@ export class ConnectionOrchestrationUseCase {
   }
 
   async disconnect(): Promise<ConnectionCommandResult> {
+    if (this.isDisconnecting) {
+      return toFailure(this.snapshotState.state, this.snapshotState.context, {
+        stage: 'disconnect',
+        code: 'disconnect_failed',
+        message: 'Disconnect already in progress',
+      });
+    }
+    this.isDisconnecting = true;
+    try {
+      return await this._disconnect();
+    } finally {
+      this.isDisconnecting = false;
+    }
+  }
+
+  private async _disconnect(): Promise<ConnectionCommandResult> {
     if (!this.snapshotState.context.handle) {
       this.snapshotState = {
         state: 'idle',
