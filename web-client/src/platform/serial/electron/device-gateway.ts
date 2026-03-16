@@ -82,14 +82,20 @@ export class ElectronDeviceGateway implements DeviceGateway {
       onClose: (callback: CloseListener) => {
         this.closeListeners.set(portId, callback);
       },
-      removeDataListener: (_callback: DataListener) => {
-        this.dataListeners.delete(portId);
+      removeDataListener: (callback: DataListener) => {
+        if (this.dataListeners.get(portId) === callback) {
+          this.dataListeners.delete(portId);
+        }
       },
-      removeErrorListener: (_callback: ErrorListener) => {
-        this.errorListeners.delete(portId);
+      removeErrorListener: (callback: ErrorListener) => {
+        if (this.errorListeners.get(portId) === callback) {
+          this.errorListeners.delete(portId);
+        }
       },
-      removeCloseListener: (_callback: CloseListener) => {
-        this.closeListeners.delete(portId);
+      removeCloseListener: (callback: CloseListener) => {
+        if (this.closeListeners.get(portId) === callback) {
+          this.closeListeners.delete(portId);
+        }
       },
     };
 

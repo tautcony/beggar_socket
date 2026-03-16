@@ -85,17 +85,17 @@
 
 ---
 
-### 🟡 Group C — transport 层：超时残留与 pump 恢复
+### ✅ Group C — transport 层：超时残留与 pump 恢复（已修复）
 **优先级**：P1 × 2 + P2 × 3  
 **文件**：`src/platform/serial/transports.ts`、`src/platform/serial/electron/device-gateway.ts`
 
 | 优先级 | 问题 |
 |--------|------|
-| P1 | `withTimeout()` 超时后原始 Promise 仍 pending，超时后的"幽灵写入"可能导致协议帧错位 |
-| P1 | `ensurePumpStarted()` 在 pump 异常退出后重启，若 `port.readable` 已 errored，后续所有读取持续失败无恢复 |
-| P2 | `ConnectionTransport.read()` 的 `handleData` 超出所需字节数时静默丢弃，可能丢失下一消息前缀 |
-| P2 | `ElectronDeviceGateway` `removeDataListener` 等忽略传入的 callback 参数，`delete` 直接移除任意监听 |
-| P2 | `WebSerialTransport.close()` reader cancel 与 pump 的交互顺序可能导致 lock 未释放 |
+| P1 | `WebSerialTransport.send()` 超时时通过 `onTimeout` 调用 `writer.abort()` 取消幽灵写入 |
+| P1 | `ensurePumpStarted()` 在 pump 因错误退出后检查 `streamError`，直接抛出而不是尝试在已损坏的流上重启 |
+| P2 | `ConnectionTransport.read()` 新增 `overflow` 缓冲区，多余字节保留给下次读取而不丢弃 |
+| P2 | `ElectronDeviceGateway.removeDataListener` 等验证 callback 参数匹配后才删除 |
+| P2 | `WebSerialTransport.close()` lock 顺序问题——当前实现已通过 try-catch 处理，不再单独修复 |
 
 ---
 

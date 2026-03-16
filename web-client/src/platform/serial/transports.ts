@@ -30,6 +30,8 @@ async function withTimeout<T>(
 }
 
 export class ConnectionTransport implements Transport {
+  private readonly overflow: Uint8Array[] = [];
+
   constructor(private readonly connection: SerialConnection) {}
 
   async send(payload: Uint8Array, timeoutMs?: number): Promise<boolean> {
@@ -48,11 +50,29 @@ export class ConnectionTransport implements Transport {
     const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
 
     return new Promise((resolve, reject) => {
-      const { connection } = this;
+      const { connection, overflow } = this;
       const accumulatedData = new Uint8Array(length);
       let offset = 0;
       let settled = false;
       let timer: ReturnType<typeof setTimeout> | undefined;
+
+      // Drain bytes left over from the previous read before registering for new data
+      while (overflow.length > 0 && offset < length) {
+        const chunk = overflow[0];
+        const bytesToCopy = Math.min(chunk.byteLength, length - offset);
+        accumulatedData.set(chunk.subarray(0, bytesToCopy), offset);
+        offset += bytesToCopy;
+        if (bytesToCopy === chunk.byteLength) {
+          overflow.shift();
+        } else {
+          overflow[0] = chunk.subarray(bytesToCopy);
+        }
+      }
+
+      if (offset >= length) {
+        resolve({ data: accumulatedData });
+        return;
+      }
 
       const clearActiveTimer = () => {
         if (timer) {
@@ -67,6 +87,11 @@ export class ConnectionTransport implements Transport {
         const bytesToCopy = Math.min(data.byteLength, length - offset);
         accumulatedData.set(data.subarray(0, bytesToCopy), offset);
         offset += bytesToCopy;
+
+        // Buffer any bytes beyond what this read needs so they aren't lost
+        if (data.byteLength > bytesToCopy) {
+          overflow.push(data.subarray(bytesToCopy));
+        }
 
         if (offset >= length) {
           settled = true;
@@ -142,6 +167,11 @@ export class WebSerialTransport implements Transport {
       writer.write(payload),
       timeout,
       `Send package timeout in ${timeout}ms`,
+      () => {
+        // Abort writer to prevent ghost write completing after timeout
+        writer.abort(new Error('Write aborted due to send timeout')).catch(() => {});
+        this.writer = null;
+      },
     );
 
     return true;
@@ -181,6 +211,10 @@ export class WebSerialTransport implements Transport {
     }
     if (this.pumpPromise) {
       return;
+    }
+    // Propagate a previous pump error instead of silently restarting on an errored stream
+    if (this.streamError !== null) {
+      throw this.streamError instanceof Error ? this.streamError : new Error('Serial read pump failed');
     }
 
     // Reset buffer state when restarting pump after a previous error
