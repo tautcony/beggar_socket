@@ -298,6 +298,9 @@ export class GBAAdapter extends CartridgeAdapter {
             };
           }
 
+          // Reset sector progress so stale UI state doesn't persist into the next operation.
+          this.resetSectorsState();
+
           const progressReporter = new ProgressReporter(
             'erase',
             sectorInfo.reduce((sum, info) => sum + (info.endAddress - info.startAddress), 0),

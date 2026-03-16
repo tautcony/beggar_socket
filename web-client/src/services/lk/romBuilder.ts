@@ -4,6 +4,16 @@ import { updateBackgroundImage } from './imageUtils';
 import { BuildInput, BuildResult, cartridgeTypes, GameConfig } from './types';
 import { arrayBufferToUint8Array, parsePath, sha1, uint8ArrayToArrayBuffer, updateSectorMap } from './utils';
 
+// ---- Layout constants ----
+/** Minimum ROM image size required by the menu firmware (4 MiB). */
+const MIN_ROM_SIZE = 0x400000;
+/** Write-buffer / block granularity used to derive sectors_per_block (512 KiB). */
+const BLOCK_GRANULARITY = 0x80000;
+/** Byte alignment boundary for the item-list area (256 KiB). */
+const ITEM_LIST_ALIGNMENT = 0x40000;
+/** Size of the status/config area written into the flash (4 KiB). */
+const STATUS_AREA_SIZE = 0x1000;
+
 let log = '';
 
 export function logp(...args: unknown[]): void {
@@ -22,7 +32,7 @@ export function prepareCompilation(cartridge_type: number) {
   const block_size = cartridgeTypes[cartridge_type].block_size;
   const sector_count = Math.floor(flash_size / sector_size);
   const block_count = Math.floor(flash_size / block_size);
-  const sectors_per_block = 0x80000 / sector_size;
+  const sectors_per_block = BLOCK_GRANULARITY / sector_size;
   const compilation = new Uint8Array(flash_size);
   compilation.fill(0xFF);
   const sector_map = Array(sector_count).fill('.') as string[];
@@ -85,7 +95,7 @@ export function importSaveDataAndAddRom(
       while (x < size) x *= 2;
       size = x;
     }
-    if (size < 0x400000) {
+    if (size < MIN_ROM_SIZE) {
       const buffer = arrayBufferToUint8Array(romData);
       const batterylessText = 'Batteryless mod by Lesserkuma';
       const encoder = new TextEncoder();
@@ -98,7 +108,7 @@ export function importSaveDataAndAddRom(
         }
       }
       if (found) {
-        size = Math.max(0x400000, min_rom_size);
+        size = Math.max(MIN_ROM_SIZE, min_rom_size);
       } else {
         size = Math.max(size, min_rom_size);
       }
@@ -142,7 +152,9 @@ export function importSaveDataAndAddRom(
         // 如果没找到精确匹配，尝试查找任何匹配的存档文件
         if (!saveData) {
           for (const [fileName, data] of saveFiles.entries()) {
-            if (fileName.includes(parsePath(game.file).name)) {
+            // Use case-insensitive exact base-name comparison to avoid accidentally
+        // associating a save file whose name merely contains the game name as a substring.
+        if (parsePath(fileName).name.toLowerCase() === parsePath(game.file).name.toLowerCase()) {
               saveData = data;
               break;
             }
@@ -306,7 +318,7 @@ export async function writeCompilation(
   logp('');
   logp(`Menu ROM:        0x${(0).toString(16).padStart(8, '0').toUpperCase()}–0x${menu_rom.length.toString(16).padStart(8, '0').toUpperCase()}`);
   logp(`Game List:       0x${(item_list_offset * sector_size).toString(16).padStart(8, '0').toUpperCase()}–0x${(item_list_offset * sector_size + item_list.length).toString(16).padStart(8, '0').toUpperCase()}`);
-  logp(`Status Area:     0x${(status_offset * sector_size).toString(16).padStart(8, '0').toUpperCase()}–0x${(status_offset * sector_size + 0x1000).toString(16).padStart(8, '0').toUpperCase()}`);
+  logp(`Status Area:     0x${(status_offset * sector_size).toString(16).padStart(8, '0').toUpperCase()}–0x${(status_offset * sector_size + STATUS_AREA_SIZE).toString(16).padStart(8, '0').toUpperCase()}`);
   logp('');
   logp(`Cartridge Type:  ${cartridge_type} (${cartridgeTypes[cartridge_type].name}) ${battery_present ? 'with battery' : 'without battery'}`);
   logp(`Output ROM Size: ${(rom_size / 1024 / 1024).toFixed(2)} MiB`);
@@ -327,7 +339,7 @@ export async function buildRom(input: BuildInput): Promise<BuildResult> {
     games: config.games,
     cartridge_type: config.cartridge.type,
     battery_present: config.cartridge.battery_present,
-    min_rom_size: config.cartridge.min_rom_size || 0x400000,
+    min_rom_size: config.cartridge.min_rom_size || MIN_ROM_SIZE,
   };
 
   // 编译准备
@@ -347,7 +359,7 @@ export async function buildRom(input: BuildInput): Promise<BuildResult> {
   updateSectorMap(sector_map, 0, menuSectors, 'm');
   // item list 扇区偏移 - 对齐到0x40000边界
   let itemListByteOffset = menu_rom.length;
-  itemListByteOffset = 0x40000 - (itemListByteOffset % 0x40000) + itemListByteOffset;
+  itemListByteOffset = ITEM_LIST_ALIGNMENT - (itemListByteOffset % ITEM_LIST_ALIGNMENT) + itemListByteOffset;
   const item_list_sector = Math.ceil(itemListByteOffset / sector_size);
   updateSectorMap(sector_map, item_list_sector, 1, 'l');
   // status area

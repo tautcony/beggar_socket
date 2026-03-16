@@ -48,6 +48,13 @@ export async function fetchSystemNoticeConfig(): Promise<SystemNoticeMeta[]> {
   }
 }
 
+/**
+ * Fetches the raw Markdown content for a system notice.
+ *
+ * @security The returned string is raw Markdown from a remote source.
+ * Callers MUST sanitize it with `renderMarkdown()` (which applies DOMPurify)
+ * before injecting the result into the DOM (e.g. via `v-html`).
+ */
 export async function fetchSystemNoticeMarkdown(contentPath: string): Promise<string | null> {
   try {
     const response = await fetch(resolvePublicUrl(contentPath), { cache: 'no-store' });

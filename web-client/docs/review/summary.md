@@ -146,7 +146,7 @@
 
 ---
 
-### 🟡 Group I — services 层：进度报告与外部内容安全
+### ✅ Group I — services 层：进度报告与外部内容安全（已修复）
 **优先级**：P1 × 2 + P2 × 3  
 **文件**：`src/services/gba-adapter.ts`、`src/services/mbc5-adapter.ts`、`src/services/system-notice-service.ts`、`src/services/flash-chip.ts`、`src/services/lk/romBuilder.ts`
 
