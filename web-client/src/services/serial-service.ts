@@ -35,7 +35,17 @@ export class SerialService {
   async openPort(portPath: string, _options: SerialOptions): Promise<DeviceInfo> {
     const selection: DeviceSelection = { portInfo: { path: portPath } };
     const handle = await this.gateway.connect(selection);
-    const device = toLegacyDeviceInfo(handle);
+
+    let device: DeviceInfo;
+    try {
+      device = toLegacyDeviceInfo(handle);
+    } catch (e) {
+      // Prevent handle leak when conversion fails
+      if (handle.transport?.close) {
+        await handle.transport.close().catch(() => {});
+      }
+      throw e;
+    }
 
     if (device.connection) {
       this.openConnections.set(device.connection.id, device.connection);
