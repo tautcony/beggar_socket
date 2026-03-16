@@ -120,14 +120,14 @@
 
 ---
 
-### 🟡 Group F — AdvancedSettings：初始值与批量保存
+### ✅ Group F — AdvancedSettings：初始值与批量保存（已修复）
 **优先级**：P1 × 2  
 **文件**：`src/settings/advanced-settings.ts`
 
 | 优先级 | 问题 |
 |--------|------|
-| P1 | `_operationTimeout` 字段初始值 `100000`，但 `resetToDefaults()` 重置为 `30000`——初次加载与重置后行为不一致 |
-| P1 | `setSettings()` 设置 12 个属性时每个 setter 各触发一次 `localStorage.setItem`，应批量保存 |
+| P1 | `_operationTimeout` 初始值改为 `30000`，与 `resetToDefaults()` 一致 |
+| P1 | `setSettings()` 改为直接赋值私有字段，最后统一调用一次 `saveSettings()` |
 
 ---
 

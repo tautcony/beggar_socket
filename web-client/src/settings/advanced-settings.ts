@@ -34,7 +34,7 @@ export class AdvancedSettings {
   private static _defaultTimeout = 3000;
   private static _packageSendTimeout = 3000;
   private static _packageReceiveTimeout = 3000;
-  private static _operationTimeout = 100000;
+  private static _operationTimeout = 30000;
 
   private static readonly MIN_PAGE_SIZE = 0x40;
   private static readonly MAX_PAGE_SIZE = 0x4000;
@@ -249,51 +249,54 @@ export class AdvancedSettings {
   static setSettings(settings: AdvancedSettingsConfig): void {
     if (settings.size) {
       if (settings.size.romPageSize !== undefined) {
-        this.romPageSize = settings.size.romPageSize;
+        this._romPageSize = this.validatePageSize(settings.size.romPageSize);
       }
       if (settings.size.ramPageSize !== undefined) {
-        this.ramPageSize = settings.size.ramPageSize;
+        this._ramPageSize = this.validatePageSize(settings.size.ramPageSize);
       }
     }
 
     if (settings.throttle) {
       if (settings.throttle.romRead !== undefined) {
-        this.romReadThrottleMs = settings.throttle.romRead;
+        this._romReadThrottleMs = this.validateThrottle(settings.throttle.romRead);
       }
       if (settings.throttle.ramRead !== undefined) {
-        this.ramReadThrottleMs = settings.throttle.ramRead;
+        this._ramReadThrottleMs = this.validateThrottle(settings.throttle.ramRead);
       }
     }
 
     if (settings.retry) {
       if (settings.retry.romReadCount !== undefined) {
-        this.romReadRetryCount = settings.retry.romReadCount;
+        this._romReadRetryCount = this.validateRetryCount(settings.retry.romReadCount);
       }
       if (settings.retry.ramReadCount !== undefined) {
-        this.ramReadRetryCount = settings.retry.ramReadCount;
+        this._ramReadRetryCount = this.validateRetryCount(settings.retry.ramReadCount);
       }
       if (settings.retry.romReadDelay !== undefined) {
-        this.romReadRetryDelayMs = settings.retry.romReadDelay;
+        this._romReadRetryDelayMs = this.validateRetryDelay(settings.retry.romReadDelay);
       }
       if (settings.retry.ramReadDelay !== undefined) {
-        this.ramReadRetryDelayMs = settings.retry.ramReadDelay;
+        this._ramReadRetryDelayMs = this.validateRetryDelay(settings.retry.ramReadDelay);
       }
     }
 
     if (settings.timeout) {
       if (settings.timeout.default !== undefined) {
-        this.defaultTimeout = settings.timeout.default;
+        this._defaultTimeout = this.validateTimeout(settings.timeout.default);
       }
       if (settings.timeout.packageSend !== undefined) {
-        this.packageSendTimeout = settings.timeout.packageSend;
+        this._packageSendTimeout = this.validateTimeout(settings.timeout.packageSend);
       }
       if (settings.timeout.packageReceive !== undefined) {
-        this.packageReceiveTimeout = settings.timeout.packageReceive;
+        this._packageReceiveTimeout = this.validateTimeout(settings.timeout.packageReceive);
       }
       if (settings.timeout.operation !== undefined) {
-        this.operationTimeout = settings.timeout.operation;
+        this._operationTimeout = this.validateTimeout(settings.timeout.operation);
       }
     }
+
+    // Batch save once after all fields are updated
+    this.saveSettings();
   }
 
   static resetToDefaults(): void {
