@@ -12,6 +12,9 @@ on:
       - 'mcu/**'
       - '.github/workflows/build-mcu.yml'
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-stm32:
     name: Build STM32F103 Firmware
