@@ -160,7 +160,7 @@
 
 ---
 
-### 🟡 Group J — useEnvironment 重构
+### ✅ Group J — useEnvironment 重构（已修复）
 **优先级**：P1 + P2  
 **文件**：`src/composables/useEnvironment.ts`
 

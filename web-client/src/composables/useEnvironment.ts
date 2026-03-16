@@ -22,14 +22,14 @@ export class Environment {
    * 检查是否为开发环境
    */
   static get isDevelopment(): boolean {
-    return process.env.NODE_ENV === 'development';
+    return import.meta.env.DEV;
   }
 
   /**
    * 检查是否为生产环境
    */
   static get isProduction(): boolean {
-    return process.env.NODE_ENV === 'production';
+    return import.meta.env.PROD;
   }
 
   /**
