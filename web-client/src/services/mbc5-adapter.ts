@@ -263,7 +263,8 @@ export class MBC5Adapter extends CartridgeAdapter {
             let elapsedMilliseconds = 0;
 
             // 验证擦除是否完成
-            while (true) {
+            const eraseDeadline = startTime + Math.max(eraseTimeoutMs * 2, 120_000);
+            while (Date.now() < eraseDeadline) {
               if (signal?.aborted) {
                 this.log(this.t('messages.operation.cancelled'), 'warn');
                 return {
@@ -288,6 +289,9 @@ export class MBC5Adapter extends CartridgeAdapter {
                 }
                 await timeout(1000);
               }
+            }
+            if (Date.now() >= eraseDeadline) {
+              throw new Error(`Chip erase timeout after ${(eraseDeadline - startTime) / 1000}s`);
             }
 
             return {

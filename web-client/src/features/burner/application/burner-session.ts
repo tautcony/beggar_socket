@@ -57,8 +57,10 @@ export class BurnerSession implements BurnerSessionPort {
   async runWithTimeout<T>(operation: () => Promise<T>, timeoutMs: number): Promise<T> {
     this.state.busy = true;
 
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
     const timeoutPromise = new Promise<never>((_resolve, reject) => {
-      setTimeout(() => {
+      timer = setTimeout(() => {
         reject(new Error(`Operation timeout in ${timeoutMs}ms`));
       }, timeoutMs);
     });
@@ -66,6 +68,9 @@ export class BurnerSession implements BurnerSessionPort {
     try {
       return await Promise.race([operation(), timeoutPromise]);
     } finally {
+      if (timer !== undefined) {
+        clearTimeout(timer);
+      }
       this.completeOperation();
     }
   }

@@ -245,9 +245,11 @@ export class WebSerialTransport implements Transport {
     if (this.pumpPromise) {
       return;
     }
-    // Propagate a previous pump error instead of silently restarting on an errored stream
+
+    // If a previous pump errored out, reset state and attempt to restart.
+    // The readable stream may still be usable after certain transient errors.
     if (this.streamError !== null) {
-      throw this.streamError instanceof Error ? this.streamError : new Error('Serial read pump failed');
+      this.resetPumpState();
     }
 
     // Reset buffer state when restarting pump after a previous error
@@ -257,6 +259,22 @@ export class WebSerialTransport implements Transport {
     this.streamError = null;
     this.reader = this.port.readable.getReader();
     this.pumpPromise = this.pumpReadable();
+  }
+
+  /**
+   * Reset pump state so a new pump can be started.
+   * Call this to recover from a stream error if the underlying port is still available.
+   */
+  private resetPumpState(): void {
+    if (this.reader) {
+      try { this.reader.releaseLock(); } catch { /* ignore */ }
+      this.reader = null;
+    }
+    this.pumpPromise = null;
+    this.bufferedChunks.length = 0;
+    this.bufferedLength = 0;
+    this.streamDone = false;
+    this.streamError = null;
   }
 
   private async pumpReadable(): Promise<void> {

@@ -36,6 +36,7 @@ export class GBAAdapter extends CartridgeAdapter {
   private static readonly RAM_BANK_SWITCH_SETTLE_MS = 100;
   private static readonly RAM_READ_START_SETTLE_MS = 150;
   private static readonly RAM_READ_RETRY_RESET_MS = 150;
+  private static readonly CHIP_ERASE_TIMEOUT_MS = 120_000;
 
   /**
    * 构造函数
@@ -112,7 +113,8 @@ export class GBAAdapter extends CartridgeAdapter {
           let elapsedSeconds = 0;
 
           // 验证擦除是否完成
-          while (true) {
+          const eraseDeadline = startTime + GBAAdapter.CHIP_ERASE_TIMEOUT_MS;
+          while (Date.now() < eraseDeadline) {
             // 检查是否已被取消
             if (signal?.aborted) {
               this.log(this.t('messages.operation.cancelled'), 'warn');
@@ -131,6 +133,9 @@ export class GBAAdapter extends CartridgeAdapter {
               this.log(`${this.t('messages.operation.eraseInProgress')} (${(elapsedSeconds / 1000).toFixed(1)}s)`, 'info');
               await timeout(1000);
             }
+          }
+          if (Date.now() >= eraseDeadline) {
+            throw new Error(`Chip erase timeout after ${GBAAdapter.CHIP_ERASE_TIMEOUT_MS / 1000}s`);
           }
 
           return {
