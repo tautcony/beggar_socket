@@ -14,6 +14,9 @@ export function logp(...args: unknown[]): void {
 
 // 编译准备与主流程拆分
 export function prepareCompilation(cartridge_type: number) {
+  if (cartridge_type < 0 || cartridge_type >= cartridgeTypes.length || !cartridgeTypes[cartridge_type]) {
+    throw new Error(`Invalid cartridge type: ${cartridge_type}`);
+  }
   const flash_size = cartridgeTypes[cartridge_type].flash_size;
   const sector_size = cartridgeTypes[cartridge_type].sector_size;
   const block_size = cartridgeTypes[cartridge_type].block_size;
@@ -193,8 +196,12 @@ export async function addRomData(
           const romData = romFiles.get(game.file);
           if (romData) {
             const rom = arrayBufferToUint8Array(romData);
+            const writeOffset = i * sector_size;
+            if (writeOffset + rom.length > compilation.length) {
+              throw new Error(`ROM "${game.file}" exceeds flash size (offset: ${writeOffset}, size: ${rom.length}, capacity: ${compilation.length})`);
+            }
             // 写入ROM数据
-            compilation.set(rom, i * sector_size);
+            compilation.set(rom, writeOffset);
             game.sector_offset = i;
             game.block_offset = Math.floor((game.sector_offset ?? 0) * sector_size / block_size);
             game.block_count = Math.floor((sector_count_map * sector_size) / block_size);
