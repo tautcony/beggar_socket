@@ -8,6 +8,10 @@ export interface RomAssemblyResultState {
   timestamp: number | null;
 }
 
+// Module-level timer so it survives Pinia re-instantiation in tests
+let cleanupTimer: ReturnType<typeof setTimeout> | undefined;
+const RESULT_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 export const useRomAssemblyResultStore = defineStore('romAssemblyResult', {
   state: (): RomAssemblyResultState => ({
     assembledRom: null,
@@ -26,6 +30,9 @@ export const useRomAssemblyResultStore = defineStore('romAssemblyResult', {
       this.assembledRom = rom;
       this.romType = romType;
       this.timestamp = Date.now();
+      // Auto-clear after TTL if the result is never consumed (prevents 32 MiB memory leak)
+      if (cleanupTimer) clearTimeout(cleanupTimer);
+      cleanupTimer = setTimeout(() => this.clearResult(), RESULT_TTL_MS);
     },
 
     // 获取并清除结果（用于主页面消费数据）
@@ -50,6 +57,10 @@ export const useRomAssemblyResultStore = defineStore('romAssemblyResult', {
       this.assembledRom = null;
       this.romType = null;
       this.timestamp = null;
+      if (cleanupTimer) {
+        clearTimeout(cleanupTimer);
+        cleanupTimer = undefined;
+      }
     },
   },
 });

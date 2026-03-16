@@ -586,13 +586,18 @@ async function preloadImageLibrary() {
 
 // 页面初始化
 resetState();
+
+// AbortController used to cancel in-flight init fetches when component unmounts
+const initAbortController = new AbortController();
+
 void loadDefaultBackground();
 void loadDefaultMenuRom();
 void preloadImageLibrary();
 
-// 组件卸载时清理预览URL
+// 组件卸载时清理预览URL，并取消进行中的初始化请求
 onUnmounted(() => {
   cleanupBgImagePreview();
+  initAbortController.abort();
 });
 
 // 加载默认背景图像
@@ -602,7 +607,7 @@ async function loadDefaultBackground() {
     cleanupBgImagePreview();
 
     // 从public目录加载默认背景图像
-    const response = await fetch('bg.png');
+    const response = await fetch('bg.png', { signal: initAbortController.signal });
 
     // 检查成功状态码：200-299 或 304 (Not Modified)
     if (response.ok || response.status === 304) {
@@ -633,6 +638,7 @@ async function loadDefaultBackground() {
       showToast(t('messages.gbaMultiMenu.bgImageLoadFailed', { name: 'bg.png (默认)', status: response.status }), 'error');
     }
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return;
     showToast(t('messages.gbaMultiMenu.bgImageLoadFailed', { name: 'bg.png (默认)', status: (error as Error).message }), 'error');
   }
 }
@@ -642,7 +648,7 @@ async function loadDefaultMenuRom() {
   const defaultMenuRom = 'lk_multimenu_for_chisflash_01_02G.gba';
   try {
     // 从public目录加载默认菜单ROM
-    const response = await fetch(defaultMenuRom);
+    const response = await fetch(defaultMenuRom, { signal: initAbortController.signal });
 
     // 检查成功状态码：200-299 或 304 (Not Modified)
     if (response.ok || response.status === 304) {
@@ -655,6 +661,7 @@ async function loadDefaultMenuRom() {
       showToast(t('messages.gbaMultiMenu.menuRomLoadFailed', { name: defaultMenuRom, status: response.status }), 'error');
     }
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return;
     showToast(t('messages.gbaMultiMenu.menuRomLoadFailed', { name: defaultMenuRom, status: (error as Error).message }), 'error');
   }
 }

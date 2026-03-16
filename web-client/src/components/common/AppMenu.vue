@@ -188,7 +188,7 @@ import {
   settingsOutline,
   terminalOutline,
 } from 'ionicons/icons';
-import { ref } from 'vue';
+import { onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -249,6 +249,13 @@ function incrementClickCount() {
     clickCount.value = 0;
   }, 3000);
 }
+
+onUnmounted(() => {
+  if (clickTimer) {
+    clearTimeout(clickTimer);
+    clickTimer = null;
+  }
+});
 
 function toggleMenu() {
   isMenuOpen.value = !isMenuOpen.value;

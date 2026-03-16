@@ -131,17 +131,17 @@
 
 ---
 
-### 🟡 Group G — composable / store 生命周期清理
+### ✅ Group G — composable / store 生命周期清理（已修复）
 **优先级**：P1 × 2 + P2 × 3  
 **文件**：`src/composables/cartburner/useCartBurnerSessionState.ts`、`src/stores/rom-assembly-store.ts`、`src/components/CartBurner.vue`、`src/views/GBAMultiMenuView.vue`、`src/components/common/AppMenu.vue`
 
 | 优先级 | 问题 |
 |--------|------|
-| P1 | `useCartBurnerSessionState` — `BurnerSession` 无 `onScopeDispose` cleanup，操作中导航离开时 `AbortController` 不触发 |
-| P1 | `romAssemblyResult` store — 最大 32 MiB `Uint8Array` 无自动释放，路由跳转未消费时永久占用内存 |
-| P2 | `CartBurner.vue` — 无 `onUnmounted` 钩子，适配器引用未在卸载时置空 |
-| P2 | `GBAMultiMenuView.vue` — 3 个 fire-and-forget 异步调用无取消机制，导航离开后仍修改响应式状态 |
-| P2 | `AppMenu.vue` — `clickTimer` setTimeout 未在 unmount 时 clearTimeout |
+| P1 | `useCartBurnerSessionState` — 添加 `onScopeDispose` 在 scope 销毁时调用 `burnerSession.abortOperation()` |
+| P1 | `romAssemblyResult` store — `setResult()` 启动 5 分钟 TTL 定时器，`clearResult()` 同时清除定时器 |
+| P2 | `CartBurner.vue` — 添加 `onUnmounted` 将两个 adapter ref 置为 null |
+| P2 | `GBAMultiMenuView.vue` — 使用 `initAbortController` 在 `onUnmounted` 时取消进行中的初始化请求 |
+| P2 | `AppMenu.vue` — 添加 `onUnmounted` 在卸载时 clearTimeout `clickTimer` |
 
 
 ---

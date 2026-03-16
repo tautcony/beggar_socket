@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import { computed, ref } from 'vue';
+import { computed, onScopeDispose, ref } from 'vue';
 
 import { BurnerSession, runBurnerFlow } from '@/features/burner/application';
 import type { ProgressInfo } from '@/types/progress-info';
@@ -32,6 +32,11 @@ export function useCartBurnerSessionState(translate: (key: string) => string) {
   const logs = ref<{ time: string; message: string; level: LogLevelType }[]>([]);
   const progressInfo = ref<ProgressInfo>({ ...DEFAULT_PROGRESS });
   const keepProgressModalOpen = ref(false);
+
+  // Abort any in-progress operation when the component scope is destroyed
+  onScopeDispose(() => {
+    burnerSession.abortOperation();
+  });
 
   const showProgressModal = computed(() => {
     if (keepProgressModalOpen.value) {

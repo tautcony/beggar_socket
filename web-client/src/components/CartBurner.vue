@@ -111,7 +111,7 @@
 <script setup lang="ts">
 import { gameControllerOutline, hardwareChipOutline } from 'ionicons/icons';
 import { DateTime } from 'luxon';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import BaseButton from '@/components/common/BaseButton.vue';
@@ -328,6 +328,11 @@ function initializeAdapters() {
 
 watch(() => props.deviceReady, () => {
   initializeAdapters();
+});
+
+onUnmounted(() => {
+  gbaAdapter.value = null;
+  mbc5Adapter.value = null;
 });
 
 // 组件挂载时初始化适配器
