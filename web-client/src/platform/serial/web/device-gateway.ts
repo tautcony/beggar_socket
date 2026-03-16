@@ -38,6 +38,7 @@ export class WebDeviceGateway implements DeviceGateway {
       parity: 'none',
       stopBits: 1,
       flowControl: 'none',
+      bufferSize: 4096,
     });
 
     return {

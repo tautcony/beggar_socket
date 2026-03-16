@@ -106,6 +106,7 @@ export class ConnectionTransport implements Transport {
 
 export class WebSerialTransport implements Transport {
   private reader: DefaultReader | null = null;
+  private writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
   private pumpPromise: Promise<void> | null = null;
   private readonly bufferedChunks: Uint8Array[] = [];
   private bufferedLength = 0;
@@ -115,30 +116,35 @@ export class WebSerialTransport implements Transport {
 
   constructor(private readonly port: SerialPort) {}
 
+  private acquireWriter(): WritableStreamDefaultWriter<Uint8Array> {
+    if (!this.writer) {
+      const writable = this.port.writable;
+      if (!writable) {
+        throw new Error('Serial port not properly initialized');
+      }
+      this.writer = writable.getWriter();
+    }
+    return this.writer;
+  }
+
+  private releaseWriter(): void {
+    if (this.writer) {
+      try { this.writer.releaseLock(); } catch {}
+      this.writer = null;
+    }
+  }
+
   async send(payload: Uint8Array, timeoutMs?: number): Promise<boolean> {
-    const writer = this.port.writable?.getWriter();
-    if (!writer) {
-      throw new Error('Serial port not properly initialized');
-    }
-
+    const writer = this.acquireWriter();
     const timeout = timeoutMs ?? AdvancedSettings.packageSendTimeout;
-    let timer: ReturnType<typeof setTimeout> | undefined;
 
-    try {
-      const writePromise = writer.write(payload);
-      const timeoutPromise = new Promise((_, reject) => {
-        timer = setTimeout(() => {
-          writer.releaseLock();
-          reject(new Error(`Send package timeout in ${timeout}ms`));
-        }, timeout);
-      });
+    await withTimeout(
+      writer.write(payload),
+      timeout,
+      `Send package timeout in ${timeout}ms`,
+    );
 
-      await Promise.race([writePromise, timeoutPromise]);
-      return true;
-    } finally {
-      if (timer) clearTimeout(timer);
-      try { writer.releaseLock(); } catch {}
-    }
+    return true;
   }
 
   async read(length: number, timeoutMs?: number, _mode: TransportReadMode = 'byob'): Promise<{ data: Uint8Array }> {
@@ -155,6 +161,7 @@ export class WebSerialTransport implements Transport {
   }
 
   async close(): Promise<void> {
+    this.releaseWriter();
     if (this.reader) {
       try {
         await this.reader.cancel();
@@ -176,6 +183,9 @@ export class WebSerialTransport implements Transport {
       return;
     }
 
+    // Reset buffer state when restarting pump after a previous error
+    this.bufferedChunks.length = 0;
+    this.bufferedLength = 0;
     this.streamDone = false;
     this.streamError = null;
     this.reader = this.port.readable.getReader();
