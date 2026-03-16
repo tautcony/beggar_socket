@@ -27,6 +27,7 @@ EndBSPDependencies */
 #include "usbd_msc_scsi.h"
 #include "usbd_msc.h"
 #include "usbd_msc_data.h"
+#include "virtual_disk.h"
 
 
 /** @addtogroup STM32_USB_DEVICE_LIBRARY
@@ -247,6 +248,13 @@ static int8_t SCSI_TestUnitReady(USBD_HandleTypeDef *pdev, uint8_t lun, uint8_t 
     SCSI_SenseCode(pdev, lun, NOT_READY, MEDIUM_NOT_PRESENT);
     hmsc->bot_state = USBD_BOT_NO_DATA;
 
+    return -1;
+  }
+
+  if (virtual_disk_consume_medium_change())
+  {
+    SCSI_SenseCode(pdev, lun, UNIT_ATTENTION, MEDIUM_HAVE_CHANGED);
+    hmsc->bot_state = USBD_BOT_NO_DATA;
     return -1;
   }
   hmsc->bot_data_length = 0U;
@@ -751,6 +759,12 @@ static int8_t SCSI_Read10(USBD_HandleTypeDef *pdev, uint8_t lun, uint8_t *params
       return -1;
     }
 
+    if (virtual_disk_consume_medium_change())
+    {
+      SCSI_SenseCode(pdev, lun, UNIT_ATTENTION, MEDIUM_HAVE_CHANGED);
+      return -1;
+    }
+
     p_scsi_blk->addr = ((uint32_t)params[2] << 24) |
                        ((uint32_t)params[3] << 16) |
                        ((uint32_t)params[4] <<  8) |
@@ -813,6 +827,12 @@ static int8_t SCSI_Read12(USBD_HandleTypeDef *pdev, uint8_t lun, uint8_t *params
     if (((USBD_StorageTypeDef *)pdev->pUserData)->IsReady(lun) != 0)
     {
       SCSI_SenseCode(pdev, lun, NOT_READY, MEDIUM_NOT_PRESENT);
+      return -1;
+    }
+
+    if (virtual_disk_consume_medium_change())
+    {
+      SCSI_SenseCode(pdev, lun, UNIT_ATTENTION, MEDIUM_HAVE_CHANGED);
       return -1;
     }
 
@@ -1320,4 +1340,3 @@ static int8_t SCSI_UpdateBotData(USBD_MSC_BOT_HandleTypeDef *hmsc,
 /**
   * @}
   */
-

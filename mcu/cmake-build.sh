@@ -247,14 +247,24 @@ flash_project() {
         print_info "Flashing chis_flash_burner..."
     fi
 
-    # Standard programming
+    # Standard programming (flash + verify only, reset handled separately)
     if openocd -f interface/stlink.cfg -f target/stm32f1x.cfg \
-        -c "program $hex_file verify reset exit"; then
+        -c "program $hex_file verify exit"; then
         print_success "chis_flash_burner flashed successfully"
-        print_info "Device should now be running the new firmware"
     else
         print_error "Failed to flash firmware"
         return 1
+    fi
+
+    # Explicit chip reset to trigger USB re-enumeration (avoids manual replug)
+    print_info "Resetting chip..."
+    if openocd -f interface/stlink.cfg -f target/stm32f1x.cfg \
+        -c "init" \
+        -c "reset run" \
+        -c "exit"; then
+        print_success "Chip reset complete - device should re-enumerate automatically"
+    else
+        print_warning "Chip reset failed, you may need to replug USB manually"
     fi
 }
 

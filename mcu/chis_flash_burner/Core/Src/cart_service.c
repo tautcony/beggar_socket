@@ -8,6 +8,7 @@
 
 #include "cart_adapter.h"
 #include "fat16_layout.h"
+#include "virtual_disk.h"
 
 #define ROM_READ_CHUNK_WORDS 128u
 #define CFI_QUERY_BUFFER_SIZE 256u
@@ -99,9 +100,8 @@ typedef struct {
  */
 typedef struct {
     CartServiceRamJobState state;
-    uint32_t bytes_written;      /* Total bytes written to cartridge */
+    uint32_t bytes_written;       /* Highest byte offset written in current session */
     uint32_t total_bytes;         /* Final size when complete */
-    uint32_t expected_size;       /* Expected upload size (0 = unknown) */
     char error_message[96];
     uint8_t sector_buffer[FAT16_SECTOR_SIZE];  /* 512 byte staging buffer */
 } CartServiceRamJob;
@@ -109,6 +109,8 @@ typedef struct {
 static CartServiceCfiCache g_cart_service_cfi_cache;
 static CartServiceSessionState g_cart_service_session;
 static CartServiceRamJob g_cart_service_ram_job;
+
+static bool cart_service_verify_save_streaming(uint32_t len);
 
 static uint32_t pow2_u32(uint8_t exponent)
 {
@@ -715,9 +717,49 @@ static bool cart_service_write_save_flash(uint32_t offset, const uint8_t *buf, u
     return true;
 }
 
+static bool cart_service_fill_save(uint8_t fill_value)
+{
+    uint8_t chunk[256];
+    uint32_t offset = 0u;
+
+    memset(chunk, fill_value, sizeof(chunk));
+
+    while (offset < CART_SERVICE_SAVE_SIZE_BYTES) {
+        uint32_t chunk_size = sizeof(chunk);
+
+        if ((CART_SERVICE_SAVE_SIZE_BYTES - offset) < chunk_size) {
+            chunk_size = CART_SERVICE_SAVE_SIZE_BYTES - offset;
+        }
+
+        switch (g_cart_service_session.current_config.ram_type) {
+            case CART_SERVICE_RAM_TYPE_SRAM:
+                if (!cart_service_write_save_sram(offset, chunk, chunk_size)) {
+                    return false;
+                }
+                break;
+            case CART_SERVICE_RAM_TYPE_FRAM:
+                if (!cart_service_write_save_fram(offset, chunk, chunk_size)) {
+                    return false;
+                }
+                break;
+            case CART_SERVICE_RAM_TYPE_FLASH:
+                if (!cart_service_write_save_flash(offset, chunk, chunk_size)) {
+                    return false;
+                }
+                break;
+            default:
+                return false;
+        }
+
+        offset += chunk_size;
+    }
+
+    return true;
+}
+
 static bool cart_service_erase_flash_save(void)
 {
-    return true;
+    return cart_service_fill_save(0xFFu);
 }
 
 uint32_t cart_service_get_rom_device_size(void)
@@ -1448,9 +1490,9 @@ bool cart_service_apply_mode_text(const uint8_t *buf, uint32_t len)
  * - Buffering entire file is PHYSICALLY IMPOSSIBLE (would need 32KB > 20KB!)
  * - Solution: Stream data directly to cartridge as 512-byte sectors arrive
  *
- * IMPLICATIONS FOR "EXPLICIT COMMIT" MODEL:
+ * IMPLICATIONS FOR FILE-DRIVEN RAM CONTROL:
  * - Data writes to cartridge during UPLOAD.SAV copy operation
- * - COMMIT.TXT triggers VERIFICATION only (not deferred write)
+ * - No separate commit file exists for RAM uploads
  * - Cannot cancel mid-upload (data already on cartridge)
  * - No source data retained in MCU for byte-by-byte verification
  *
@@ -1458,14 +1500,14 @@ bool cart_service_apply_mode_text(const uint8_t *buf, uint32_t len)
  * While documentation historically described "explicit commit" as deferring
  * writes, the actual implementation provides "explicit verification":
  * 1. User uploads file → data streams to cartridge in real-time
- * 2. User writes COMMIT.TXT → triggers integrity check (readback verification)
- * 3. System reports SUCCESS or ERROR based on verification
+ * 2. User copies UPLOAD.SAV and data is written directly to cartridge
+ * 3. STATUS.TXT reports progress and final result
  *
  * This maintains safety through mandatory verification while solving RAM limits.
  *
  * OLD BUFFERING APPROACH (IMPOSSIBLE ON THIS HARDWARE):
  * - Accumulated entire file in 32KB upload_buffer[]
- * - COMMIT.TXT triggered batch write to cartridge
+ * - Explicit finalize file triggered batch write to cartridge
  * - Could verify by comparing buffer vs readback
  * - IMPOSSIBLE: 32KB buffer > 20KB total RAM!
  *
@@ -1473,21 +1515,20 @@ bool cart_service_apply_mode_text(const uint8_t *buf, uint32_t len)
  * - Data flows: FAT16 write → sector_buffer (512B) → cartridge hardware
  * - No large intermediate buffering (only 512B sector staging)
  * - Writes in 1KB chunks for hardware stability
- * - State transitions: IDLE → COMMITTING (on first write)
+ * - State transitions: IDLE → UPLOADING → VERIFYING/SUCCESS
  * - Memory usage: ~620 bytes total (98% reduction vs 32KB)
  *
- * Workflow: Configure → Apply → Erase → STREAM UPLOAD (direct write) → COMMIT (verify)
- *                                        ^^^^^^^^^^^^^                  ^^^^^^^^^^^^^
+ * Workflow: Configure → Apply → Erase → STREAM UPLOAD (direct write) → auto-verify on full save
+ *                                        ^^^^^^^^^^^^^                  ^^^^^^^^^^^^^^^^^^^^^^^
  *
  * @param offset Byte offset within the save file (0 to 32KB-1)
  * @param buf Source data buffer (typically 512 bytes from FAT16 sector)
  * @param len Number of bytes to write (typically 512)
  * @return true if successful, false if parameters invalid or write failed
  *
- * @warning Data is IMMEDIATELY and IRREVERSIBLY written to cartridge
- * @note Verification must be done by reading back from cartridge (no source copy)
- * @see cart_service_commit_ram_upload() triggers verification (not write)
- * @see cart_service_verify_save_streaming() performs integrity check (not byte compare)
+ * @warning Data is IMMEDIATELY written to cartridge
+ * @note STATUS.TXT reflects upload progress and final result
+ * @see cart_service_verify_save_streaming() performs integrity check when a full save is written
  */
 bool cart_service_write_save(uint32_t offset, const uint8_t *buf, uint32_t len)
 {
@@ -1505,23 +1546,17 @@ bool cart_service_write_save(uint32_t offset, const uint8_t *buf, uint32_t len)
         return false;
     }
 
-    /* Transition from IDLE/SUCCESS/ERROR to COMMITTING on first write (streaming mode)
-     * - IDLE: Fresh start of upload session
-     * - SUCCESS: Starting new upload after successful previous commit
-     * - ERROR: Retrying after previous upload/commit failure
-     */
-    if (g_cart_service_ram_job.state == CART_SERVICE_RAM_JOB_STATE_IDLE ||
+    if (offset == 0u ||
+        g_cart_service_ram_job.state == CART_SERVICE_RAM_JOB_STATE_IDLE ||
         g_cart_service_ram_job.state == CART_SERVICE_RAM_JOB_STATE_SUCCESS ||
         g_cart_service_ram_job.state == CART_SERVICE_RAM_JOB_STATE_ERROR) {
-        g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_COMMITTING;
+        g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_UPLOADING;
         g_cart_service_ram_job.bytes_written = 0u;
         g_cart_service_ram_job.total_bytes = 0u;
-        g_cart_service_ram_job.expected_size = 0u;
         memset(g_cart_service_ram_job.error_message, 0, sizeof(g_cart_service_ram_job.error_message));
     }
 
-    /* Verify we're in correct state for streaming write */
-    if (g_cart_service_ram_job.state != CART_SERVICE_RAM_JOB_STATE_COMMITTING) {
+    if (g_cart_service_ram_job.state != CART_SERVICE_RAM_JOB_STATE_UPLOADING) {
         snprintf(g_cart_service_ram_job.error_message,
                  sizeof(g_cart_service_ram_job.error_message),
                  "INVALID_STATE");
@@ -1574,6 +1609,21 @@ bool cart_service_write_save(uint32_t offset, const uint8_t *buf, uint32_t len)
     if ((offset + len) > g_cart_service_ram_job.bytes_written) {
         g_cart_service_ram_job.bytes_written = offset + len;
     }
+    g_cart_service_ram_job.total_bytes = g_cart_service_ram_job.bytes_written;
+
+    if (g_cart_service_ram_job.bytes_written >= CART_SERVICE_SAVE_SIZE_BYTES) {
+        g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_VERIFYING;
+        if (!cart_service_verify_save_streaming(CART_SERVICE_SAVE_SIZE_BYTES)) {
+            snprintf(g_cart_service_ram_job.error_message,
+                     sizeof(g_cart_service_ram_job.error_message),
+                     "VERIFY_FAILED");
+            g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_ERROR;
+            return false;
+        }
+
+        g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_SUCCESS;
+        g_cart_service_ram_job.total_bytes = CART_SERVICE_SAVE_SIZE_BYTES;
+    }
 
     return true;
 }
@@ -1587,8 +1637,9 @@ bool cart_service_erase_save(void)
             return cart_service_erase_flash_save();
         case CART_SERVICE_RAM_TYPE_SRAM:
         case CART_SERVICE_RAM_TYPE_FRAM:
+            return cart_service_fill_save(0xFFu);
         default:
-            return true;
+            return false;
     }
 }
 
@@ -1709,94 +1760,6 @@ const char *cart_service_get_ram_job_error(void)
     return g_cart_service_ram_job.error_message[0] == '\0' ? "NONE" : g_cart_service_ram_job.error_message;
 }
 
-/**
- * @brief Finalizes and verifies streaming RAM upload (Step 5 of workflow)
- *
- * ===============================================================================
- * CRITICAL: THIS FUNCTION DOES NOT WRITE DATA (Data already on cartridge!)
- * ===============================================================================
- *
- * In streaming architecture, THIS FUNCTION ONLY PERFORMS VERIFICATION.
- * All data was already written to cartridge during cart_service_write_save().
- *
- * WHAT THIS FUNCTION DOES:
- * 1. Validates current state is COMMITTING (streaming write completed)
- * 2. Transitions to VERIFYING state
- * 3. Reads back data from cartridge
- * 4. Performs integrity check (not byte-by-byte comparison)
- * 5. Reports SUCCESS or ERROR
- *
- * WHAT THIS FUNCTION DOES NOT DO:
- * - Does NOT write any data to cartridge (already written!)
- * - Does NOT defer hardware operations until now
- * - Does NOT buffer-to-cartridge transfer
- *
- * WORKFLOW COMPARISON:
- * Old (buffered):  Upload → buffer fills → COMMIT → write buffer to cartridge → verify
- * New (streaming): Upload → direct write to cartridge → COMMIT → verify only
- *                           ^^^^^^^^^^^^^^^^^^^^^^^              ^^^^^^^^^^^
- *
- * VERIFICATION STRATEGY:
- * Since source data is not retained in MCU memory, verification uses sanity checks:
- * - Ensures data is not all 0xFF (erased state)
- * - Ensures data is not all 0x00 (write failure)
- * - Requires at least 5% byte variance
- *
- * This is less rigorous than byte-by-byte comparison but necessary given RAM constraints.
- *
- * State Machine:
- *   COMMITTING (streaming write done) → VERIFYING → SUCCESS or ERROR
- *
- * @return true if verification successful, false otherwise
- *
- * @note With streaming, data is already on cartridge when this is called
- * @note This function primarily validates the write was successful
- * @see cart_service_write_save() for streaming write phase
- * @see cart_service_verify_save_streaming() for verification implementation
- * @see docs/RAM-UPLOAD-WORKFLOW.md for complete workflow documentation
- */
-bool cart_service_commit_ram_upload(void)
-{
-    uint32_t verify_size;
-
-    cart_service_init_session_state();
-
-    /* Verify we're in the correct state (COMMITTING from streaming writes) */
-    if (g_cart_service_ram_job.state != CART_SERVICE_RAM_JOB_STATE_COMMITTING) {
-        snprintf(g_cart_service_ram_job.error_message,
-                 sizeof(g_cart_service_ram_job.error_message),
-                 "INVALID_STATE");
-        g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_ERROR;
-        return false;
-    }
-
-    /* Transition to verifying state */
-    g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_VERIFYING;
-
-    verify_size = g_cart_service_ram_job.bytes_written;
-    if (verify_size > CART_SERVICE_SAVE_SIZE_BYTES) {
-        verify_size = CART_SERVICE_SAVE_SIZE_BYTES;
-    }
-
-    /*
-     * Verification strategy for streaming writes:
-     * Since we don't have the original data in RAM, we perform a basic
-     * sanity check by reading back data and checking it's not all 0xFF or 0x00
-     */
-    if (!cart_service_verify_save_streaming(verify_size)) {
-        snprintf(g_cart_service_ram_job.error_message,
-                 sizeof(g_cart_service_ram_job.error_message),
-                 "VERIFY_FAILED");
-        g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_ERROR;
-        return false;
-    }
-
-    /* Success! */
-    g_cart_service_ram_job.state = CART_SERVICE_RAM_JOB_STATE_SUCCESS;
-    g_cart_service_ram_job.total_bytes = verify_size;
-    return true;
-}
-
 bool cart_service_erase_ram(void)
 {
     cart_service_init_session_state();
@@ -1820,6 +1783,20 @@ bool cart_service_build_ram_status_text(char *buf, uint32_t buf_size)
     char *cursor = buf;
     uint32_t remaining = buf_size;
     const char *state_str = "IDLE";
+    uint32_t visible_bytes_written = 0u;
+    uint32_t visible_total_bytes = 0u;
+    const char *visible_error = "NONE";
+    uint32_t import_active = 0u;
+    uint32_t import_valid = 0u;
+    uint32_t import_first_cluster = 0u;
+    uint32_t import_cluster_count = 0u;
+    uint32_t import_file_size = 0u;
+    uint32_t import_candidate_count = 0u;
+    uint32_t ram_dir_write_count = 0u;
+    uint32_t fat_write_count = 0u;
+    uint32_t last_fat_cluster = 0u;
+    uint32_t last_fat_value = 0u;
+    bool show_import = false;
 
     if (buf == NULL || buf_size == 0u) {
         return false;
@@ -1835,9 +1812,6 @@ bool cart_service_build_ram_status_text(char *buf, uint32_t buf_size)
         case CART_SERVICE_RAM_JOB_STATE_UPLOADING:
             state_str = "UPLOADING";
             break;
-        case CART_SERVICE_RAM_JOB_STATE_COMMITTING:
-            state_str = "COMMITTING";
-            break;
         case CART_SERVICE_RAM_JOB_STATE_VERIFYING:
             state_str = "VERIFYING";
             break;
@@ -1852,14 +1826,56 @@ bool cart_service_build_ram_status_text(char *buf, uint32_t buf_size)
             break;
     }
 
+    virtual_disk_get_ram_import_debug(&import_active,
+                                      &import_valid,
+                                      &import_first_cluster,
+                                      &import_cluster_count,
+                                      &import_file_size,
+                                      &import_candidate_count,
+                                      &ram_dir_write_count,
+                                      &fat_write_count,
+                                      &last_fat_cluster,
+                                      &last_fat_value);
+
+    show_import = (import_active != 0u) && (import_valid != 0u) &&
+                  ((import_file_size >= CART_SERVICE_SAVE_SIZE_BYTES) ||
+                   (import_cluster_count >= FAT16_SAVE_WINDOW_CLUSTER_COUNT));
+
+    if (show_import) {
+        visible_bytes_written = g_cart_service_ram_job.bytes_written;
+        visible_total_bytes = g_cart_service_ram_job.total_bytes;
+        visible_error = cart_service_get_ram_job_error();
+    } else {
+        state_str = "IDLE";
+        import_active = 0u;
+        import_valid = 0u;
+        import_first_cluster = 0u;
+        import_cluster_count = 0u;
+        import_file_size = 0u;
+        import_candidate_count = 0u;
+    }
+
     appendf(&cursor, &remaining, "RAM JOB STATUS\r\n");
     appendf(&cursor, &remaining, "==============\r\n");
+    appendf(&cursor, &remaining, "PATH=/RAM/STATUS.TXT\r\n");
     appendf(&cursor, &remaining, "STATE=%s\r\n", state_str);
-    appendf(&cursor, &remaining, "BYTES_WRITTEN=%lu\r\n", (unsigned long)g_cart_service_ram_job.bytes_written);
-    appendf(&cursor, &remaining, "TOTAL_BYTES=%lu\r\n", (unsigned long)g_cart_service_ram_job.total_bytes);
+    appendf(&cursor, &remaining, "BYTES_WRITTEN=%lu\r\n", (unsigned long)visible_bytes_written);
+    appendf(&cursor, &remaining, "TOTAL_BYTES=%lu\r\n", (unsigned long)visible_total_bytes);
     appendf(&cursor, &remaining, "RAM_TYPE=%s\r\n",
             cart_service_ram_type_label(g_cart_service_session.current_config.ram_type));
-    appendf(&cursor, &remaining, "ERROR=%s\r\n", cart_service_get_ram_job_error());
+    appendf(&cursor, &remaining, "ERROR=%s\r\n", visible_error);
+    appendf(&cursor, &remaining, "IMPORT_ACTIVE=%lu\r\n", (unsigned long)import_active);
+    appendf(&cursor, &remaining, "IMPORT_VALID=%lu\r\n", (unsigned long)import_valid);
+    appendf(&cursor, &remaining, "IMPORT_FIRST_CLUSTER=%lu\r\n", (unsigned long)import_first_cluster);
+    appendf(&cursor, &remaining, "IMPORT_CLUSTER_COUNT=%lu\r\n", (unsigned long)import_cluster_count);
+    appendf(&cursor, &remaining, "IMPORT_FILE_SIZE=%lu\r\n", (unsigned long)import_file_size);
+    appendf(&cursor, &remaining, "IMPORT_CANDIDATE_COUNT=%lu\r\n", (unsigned long)import_candidate_count);
+    appendf(&cursor, &remaining, "RAM_DIR_WRITES=%lu\r\n", (unsigned long)ram_dir_write_count);
+    appendf(&cursor, &remaining, "FAT_WRITES=%lu\r\n", (unsigned long)fat_write_count);
+    appendf(&cursor, &remaining, "LAST_FAT_CLUSTER=%lu\r\n", (unsigned long)last_fat_cluster);
+    appendf(&cursor, &remaining, "LAST_FAT_VALUE=%lu\r\n", (unsigned long)last_fat_value);
+    appendf(&cursor, &remaining, "ERASE_CONTROL=/RAM/ERASE.TXT\r\n");
+    appendf(&cursor, &remaining, "NOTE=Add one new save file under /RAM to import data into CURRENT.SAV.\r\n");
     return true;
 }
 
@@ -1875,9 +1891,11 @@ bool cart_service_build_ram_erase_text(char *buf, uint32_t buf_size)
     cart_service_init_session_state();
     memset(buf, 0, buf_size);
 
-    appendf(&cursor, &remaining, "TYPE=ERASE\r\n");
+    appendf(&cursor, &remaining, "TYPE=CONTROL\r\n");
+    appendf(&cursor, &remaining, "ACTION=ERASE_RAM\r\n");
     appendf(&cursor, &remaining, "PATH=/RAM/ERASE.TXT\r\n");
-    appendf(&cursor, &remaining, "NOTE=Write ERASE=1 to erase RAM and reset upload state.\r\n");
+    appendf(&cursor, &remaining, "ERASE=0\r\n");
+    appendf(&cursor, &remaining, "NOTE=Change ERASE to 1 and save to erase RAM and reset upload state.\r\n");
     return true;
 }
 
@@ -1950,101 +1968,10 @@ bool cart_service_apply_ram_erase_text(const uint8_t *buf, uint32_t len)
     }
 
     if (!recognized) {
+        cart_service_set_error("INVALID_ERASE_REQUEST");
         return false;
     }
 
+    cart_service_clear_error();
     return cart_service_erase_ram();
-}
-
-bool cart_service_build_ram_commit_text(char *buf, uint32_t buf_size)
-{
-    char *cursor = buf;
-    uint32_t remaining = buf_size;
-
-    if (buf == NULL || buf_size == 0u) {
-        return false;
-    }
-
-    cart_service_init_session_state();
-    memset(buf, 0, buf_size);
-
-    appendf(&cursor, &remaining, "TYPE=COMMIT\r\n");
-    appendf(&cursor, &remaining, "PATH=/RAM/COMMIT.TXT\r\n");
-    appendf(&cursor, &remaining, "NOTE=Write COMMIT=1 to commit uploaded data to cartridge.\r\n");
-    return true;
-}
-
-bool cart_service_apply_ram_commit_text(const uint8_t *buf, uint32_t len)
-{
-    char text[CART_SERVICE_TEXT_BUFFER_BYTES + 1u];
-    char *cursor = text;
-    bool recognized = false;
-    uint32_t copy_len = len;
-
-    if (buf == NULL) {
-        return false;
-    }
-
-    cart_service_init_session_state();
-
-    if (copy_len > CART_SERVICE_TEXT_BUFFER_BYTES) {
-        copy_len = CART_SERVICE_TEXT_BUFFER_BYTES;
-    }
-
-    memset(text, 0, sizeof(text));
-    memcpy(text, buf, copy_len);
-
-    if ((uint8_t)cursor[0] == 0xEFu && (uint8_t)cursor[1] == 0xBBu && (uint8_t)cursor[2] == 0xBFu) {
-        cursor += 3;
-    }
-
-    while (*cursor != '\0') {
-        char *line = cursor;
-        char *equals;
-        char *key;
-        char *value;
-        char line_end;
-
-        while (*cursor != '\0' && *cursor != '\r' && *cursor != '\n') {
-            ++cursor;
-        }
-
-        line_end = *cursor;
-        *cursor = '\0';
-
-        line = trim_left(line);
-        trim_right(line);
-
-        if (*line != '\0' && *line != '#' && *line != ';') {
-            equals = strchr(line, '=');
-            if (equals != NULL) {
-                *equals = '\0';
-                key = trim_left(line);
-                trim_right(key);
-                value = trim_left(equals + 1);
-                trim_right(value);
-
-                if (key_equals(key, "COMMIT") && (key_equals(value, "1") || key_equals(value, "YES") || key_equals(value, "TRUE"))) {
-                    recognized = true;
-                }
-            } else if (key_equals(line, "COMMIT")) {
-                recognized = true;
-            }
-        }
-
-        if (line_end == '\0') {
-            break;
-        }
-
-        ++cursor;
-        if (line_end == '\r' && *cursor == '\n') {
-            ++cursor;
-        }
-    }
-
-    if (!recognized) {
-        return false;
-    }
-
-    return cart_service_commit_ram_upload();
 }
