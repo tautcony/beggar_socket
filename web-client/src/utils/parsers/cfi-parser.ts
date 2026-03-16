@@ -219,6 +219,13 @@ export class CFIParser {
 
     // 创建缓冲区副本
     const workBuffer = new Uint8Array(buffer);
+
+    // 固定偏移量最大值（支持 4 个扇区区域时）为 0x78；至少需要 0x79 字节
+    const MIN_CFI_BUFFER_SIZE = 0x79;
+    if (workBuffer.length < MIN_CFI_BUFFER_SIZE) {
+      console.error(`CFI data too short: ${workBuffer.length} bytes, expected at least ${MIN_CFI_BUFFER_SIZE}`);
+      return false;
+    }
     const info: Partial<CFIInfo> = {};
 
     // 检测Flash特性
@@ -262,7 +269,8 @@ export class CFIParser {
 
       // 获取主要地址
       let priAddress = (workBuffer[0x2A] | (workBuffer[0x2C] << 8)) * 2;
-      if ((priAddress + 0x3C) >= 0x400) {
+      // 同时检查固定阈值和实际缓冲区边界（最大 priAddress 偏移为 0x1E）
+      if ((priAddress + 0x3C) >= 0x400 || (priAddress + 0x1F) >= workBuffer.length) {
         priAddress = 0x80;
       }
 

@@ -109,14 +109,14 @@
 
 ---
 
-### 🟡 Group E — parser 输入校验
+### ✅ Group E — parser 输入校验（已修复）
 **优先级**：P1 × 2  
 **文件**：`src/utils/parsers/cfi-parser.ts`、`src/utils/parsers/rom-parser.ts`
 
 | 优先级 | 问题 |
 |--------|------|
-| P1 | `cfi-parser.ts` — `priAddress`（由设备数据计算）越界后访问 `workBuffer[priAddress + ...]` 返回 `undefined`，导致 NaN 传播到扇区擦除地址 |
-| P1 | `rom-parser.ts` — 缺少最小长度前置检查（GBA < 0xC0 / GB < 0x150），小文件返回含乱码的 `RomInfo` 且 `isValid` 为 true |
+| P1 | `cfi-parser.ts` — 新增最小缓冲区长度检查（< 0x79 字节则拒绝）；`priAddress` 在越界时同时对照 `workBuffer.length` 检查，防止 `undefined` 导致 NaN 传播 |
+| P1 | `rom-parser.ts` — 最小长度检查（GBA < 0xC0 / GB < 0x150）在之前的修改中已存在，此次确认无需再修复 |
 
 ---
 
