@@ -149,6 +149,9 @@ export class DebugSettings {
    * 创建模拟的 SerialPort 设备
    */
   static createMockSerialPort(): SerialPort {
+    // intervalId 在 start/cancel 闭包间共享，确保定时器可被清除
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+
     // 创建模拟的可读流
     const mockReadableStream = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -159,13 +162,20 @@ export class DebugSettings {
         ];
         let responseIndex = 0;
 
-        // 定期推送模拟数据
-        setInterval(() => {
+        // 定期推送模拟数据，发送完毕或 stream 取消时清除定时器
+        intervalId = setInterval(() => {
           if (responseIndex < mockResponses.length) {
             controller.enqueue(mockResponses[responseIndex]);
             responseIndex++;
+          } else {
+            clearInterval(intervalId);
+            intervalId = undefined;
           }
         }, 100);
+      },
+      cancel() {
+        clearInterval(intervalId);
+        intervalId = undefined;
       },
     });
 
@@ -235,5 +245,4 @@ export class DebugSettings {
   }
 }
 
-// 初始化调试配置
-DebugSettings.init();
+// 注意：DebugSettings.init() 由应用引导代码（main.ts）显式调用，不在模块加载时自动执行
