@@ -138,11 +138,14 @@ export class ProgressReporter {
    * 报告错误状态
    */
   reportError(message: string): void {
-    const progress = ProgressInfoBuilder.error(this.operationType, message)
-      .showProgress(this.showProgress)
-      .build();
+    const builder = ProgressInfoBuilder.error(this.operationType, message)
+      .showProgress(this.showProgress);
 
-    this.updateCallback(progress);
+    if (this.sectors.length > 0) {
+      builder.sectorProgress(this.getSectorMetaSnapshot(), this.getCompletedSectorsCount(), -1);
+    }
+
+    this.updateCallback(builder.build());
   }
 
   /**

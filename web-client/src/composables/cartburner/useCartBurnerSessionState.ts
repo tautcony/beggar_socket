@@ -114,11 +114,19 @@ export function useCartBurnerSessionState(translate: (key: string) => string) {
       updateProgress: options.updateProgress,
       syncState: () => {
         syncSessionState();
+        // 操作因错误结束时（不论是抛出异常还是返回失败结果），保持弹窗打开
+        if (progressInfo.value.state === 'error') {
+          keepProgressModalOpen.value = true;
+        }
       },
       log,
       cancelLogMessage: translate('messages.operation.cancelled'),
       execute: ({ signal }) => options.operation(signal),
-      onError: options.onError,
+      onError: async (error) => {
+        // 抛出异常路径：适配器来不及将进度置为 error，在此补充设置
+        burnerSession.updateProgress({ state: 'error', allowCancel: false, showProgress: true } as ProgressInfo);
+        await options.onError(error);
+      },
     });
   }
 

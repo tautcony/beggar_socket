@@ -32,6 +32,7 @@ export async function runBurnerFlow<TResult>(options: BurnerFlowOptions<TResult>
   }
   options.syncState(options.session.snapshot);
 
+  let errorOccurred = false;
   try {
     const result = await options.execute({ signal });
     await options.onSuccess?.(result);
@@ -44,12 +45,14 @@ export async function runBurnerFlow<TResult>(options: BurnerFlowOptions<TResult>
       return undefined;
     }
 
+    errorOccurred = true;
     await options.onError?.(error);
     return undefined;
   } finally {
     options.session.completeOperation();
     const aborted = signal?.aborted === true;
-    if (options.resetProgressOnFinish && !aborted) {
+    const currentProgressState = options.session.snapshot.progress?.state;
+    if (options.resetProgressOnFinish && !aborted && !errorOccurred && currentProgressState !== 'error') {
       options.session.resetProgress();
     }
     options.syncState(options.session.snapshot);

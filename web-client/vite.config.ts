@@ -60,7 +60,7 @@ export default defineConfig({
     global: 'globalThis',
     'import.meta.env.VITE_BUILD_BRANCH': JSON.stringify(buildBranch),
     'import.meta.env.VITE_BUILD_COMMIT': JSON.stringify(buildCommit),
-    'import.meta.env.VITE_BUILD_IS_RELEASE': JSON.stringify(isReleaseBuild),
+    'import.meta.env.VITE_BUILD_IS_RELEASE': JSON.stringify(String(isReleaseBuild)),
   },
   resolve: {
     alias: {
