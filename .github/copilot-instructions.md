@@ -103,5 +103,25 @@ await SerialService.requestPort(filter);
 - Bundle analysis: `npm run build:analyze`
 - Use `--coverage` flag for test performance insights
 
+## 🔍 Code Review
+
+When asked to perform a code review (用户请求代码审查时), invoke the **Code Review Meta-Skill**:
+
+```
+Skill file: .github/skills/code-review/SKILL.md
+```
+
+The skill defines a complete, phase-based review process:
+1. **Explore** codebase structure and existing documentation
+2. **Generate** a dynamic review plan (Phase 0 → Phase N → Cross-cutting)
+3. **Execute** each Phase using parallel `Explore` subagents
+4. **Write** phase reports to `docs/review/phase-N-{name}.md`
+5. **Synthesize** into `docs/review/summary.md`
+6. **Output** actionable `docs/review/fixes-plan.md`
+
+Historical review reports are in `web-client/docs/review/` — use `summary.md` as baseline to avoid re-reporting resolved issues.
+
+**Problem category codes** (C1–C11) and **severity levels** (P0–P2/INFO) are defined in the skill file.
+
 ---
 *Focus on protocol correctness, cross-platform compatibility, and maintainable Vue 3 patterns when contributing.*
