@@ -80,16 +80,13 @@ import DebugLink from '@/components/link/DebugLink.vue';
 import MorseBorder from '@/components/MorseBorder.vue';
 import { useToast } from '@/composables/useToast';
 import { DebugSettings } from '@/settings/debug-settings';
-import { useRomAssemblyResultStore } from '@/stores/rom-assembly-store';
 import { DeviceInfo } from '@/types/device-info';
 
 const { showToast } = useToast();
 const { t } = useI18n();
-const romAssemblyResultStore = useRomAssemblyResultStore();
 
 const device = ref<DeviceInfo | null>(null);
 const deviceReady = ref(false);
-const showSettings = ref(false);
 const showDebugPanelModal = ref(false);
 const currentMode = ref<'MBC5' | 'GBA'>('GBA');
 const buildBranch = (import.meta.env.VITE_BUILD_BRANCH ?? '').trim();

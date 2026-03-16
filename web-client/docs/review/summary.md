@@ -171,7 +171,7 @@
 
 ---
 
-### 🟡 Group K — 死代码与未使用引用清理
+### ✅ Group K — 死代码与未使用引用清理（已修复）
 **优先级**：P1 × 2 + P2 × 2  
 **文件**：`src/views/SerialTestView.vue`、`src/views/HomeView.vue`、`src/components/MorseBorder.vue`、`src/components/common/FloatingLink.vue`
 

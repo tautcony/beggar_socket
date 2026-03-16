@@ -25,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, useAttrs } from 'vue';
+import { computed } from 'vue';
 
 interface StyleOverrides {
   container?: Record<string, string | number>;
