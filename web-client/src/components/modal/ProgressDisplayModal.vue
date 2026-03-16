@@ -76,6 +76,15 @@
       >
         {{ detail }}
       </div>
+
+      <!-- Latest Log Entry -->
+      <div
+        v-if="latestLog"
+        class="latest-log-entry"
+        :class="`log-level-${latestLog.level}`"
+      >
+        {{ latestLog.message }}
+      </div>
     </div>
     <template #footer>
       <button
@@ -109,6 +118,7 @@ import { formatBytes, formatSpeed, formatTimeClock } from '@/utils/formatter-uti
 const props = defineProps<ProgressInfo & {
   modelValue: boolean;
   timeout?: number; // 超时时间（毫秒）
+  latestLog?: { time: string; message: string; level: 'info' | 'success' | 'warn' | 'error' };
 }>();
 
 const emit = defineEmits<{
@@ -357,6 +367,23 @@ onUnmounted(() => {
   border-left: 4px solid color-vars.$color-primary;
   word-break: break-word;
   font-family: monospace;
+}
+
+.latest-log-entry {
+  background: color-vars.$color-bg-secondary;
+  border-radius: radius-vars.$radius-lg;
+  padding: spacing-vars.$space-2 spacing-vars.$space-3;
+  margin-top: spacing-vars.$space-3;
+  font-size: typography-vars.$font-size-sm;
+  font-family: monospace;
+  color: color-vars.$color-text-secondary;
+  border-left: 3px solid color-vars.$color-border;
+  word-break: break-word;
+  white-space: pre-wrap;
+
+  &.log-level-success { border-left-color: color-vars.$color-success; }
+  &.log-level-warn    { border-left-color: color-vars.$color-warning; }
+  &.log-level-error   { border-left-color: color-vars.$color-error; }
 }
 
 @mixin button-base {

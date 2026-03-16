@@ -5,6 +5,7 @@
       v-model="showProgressModal"
       v-bind="progressInfo"
       :timeout="operationTimeout"
+      :latest-log="logs.length > 0 ? logs[logs.length - 1] : undefined"
       @stop="handleProgressStop"
       @close="handleProgressClose"
     />
