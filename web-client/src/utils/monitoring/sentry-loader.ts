@@ -57,7 +57,7 @@ export function loadSentry(app: App, config: SentryConfig = {}) {
       tracesSampleRate: config.tracesSampleRate ?? parseFloat(import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE as string || '0.1'),
       sampleRate: config.sampleRate ?? parseFloat(import.meta.env.VITE_SENTRY_SAMPLE_RATE as string || '1.0'),
       debug: false,
-      sendDefaultPii: true,
+      sendDefaultPii: false,
       // replaysSessionSampleRate: parseFloat(import.meta.env.VITE_SENTRY_REPLAY_SAMPLE_RATE as string || '0.1'),
       // replaysOnErrorSampleRate: parseFloat(import.meta.env.VITE_SENTRY_REPLAY_ERROR_SAMPLE_RATE as string || '1.0'),
       beforeSend(event) {
