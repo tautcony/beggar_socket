@@ -21,6 +21,7 @@ export class SpeedCalculator {
   // 用于整体平均速率计算
   private startTime: number | null = null;
   private lastTimestamp = 0;
+  private prevTimestamp = 0;
 
   /**
    * 构造函数
@@ -28,6 +29,9 @@ export class SpeedCalculator {
    */
   constructor(timeWindowMs = 3000) {
     this.timeWindow = timeWindowMs;
+    // startTime 记录操作开始时刻（含重试等待），使整个操作耗时计入平均速度分母。
+    // 分子（totalBytes）仅通过 addDataPoint 累加成功传输的字节数，
+    // 重试失败的读取不调用 addDataPoint，因此不会贡献字节到分子。
     this.startTime = Date.now();
   }
 
@@ -37,8 +41,10 @@ export class SpeedCalculator {
    * @param timestamp - 时间戳，默认为当前时间
    */
   addDataPoint(bytes: number, timestamp: number = Date.now()): void {
-    // 初始化整体起始时间，并更新最后时间戳
+    // 仅在成功传输后调用，确保失败重试的字节不会计入分子（totalBytes）。
+    // reset() 后 startTime 为 null，此处用首个数据点时间重新锚定起点。
     this.startTime ??= timestamp;
+    this.prevTimestamp = this.lastTimestamp;
     this.lastTimestamp = timestamp;
     this.totalBytes += Math.max(0, bytes);
 
@@ -61,7 +67,20 @@ export class SpeedCalculator {
    * @returns 当前速度，单位为 K/s
    */
   calculateCurrentSpeed(): number {
-    const start = this.speedWindow.length === 1 && this.startTime ? this.startTime : this.speedWindow[0].time;
+    let start: number;
+    if (this.speedWindow.length === 1) {
+      if (this.prevTimestamp === 0) {
+        // 第一个数据点：使用构造器时刻（startTime）作为起始，
+        // 以便将操作建立阶段的耗时纳入当前速度估算。
+        start = this.startTime ?? this.speedWindow[0].time;
+      } else {
+        // 窗口因时间间隔过长（如重试）而滑动到只剩一项：
+        // 使用上一个数据点的时间戳，确保速度反映重试开销，而非从操作开始算起
+        start = this.prevTimestamp;
+      }
+    } else {
+      start = this.speedWindow[0].time;
+    }
     const end = this.speedWindow[this.speedWindow.length - 1].time;
     const elapsedMs = end - start;
 
@@ -136,5 +155,6 @@ export class SpeedCalculator {
     this.totalBytes = 0;
     this.startTime = null;
     this.lastTimestamp = 0;
+    this.prevTimestamp = 0;
   }
 }
