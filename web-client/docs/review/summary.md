@@ -198,7 +198,7 @@
 
 ---
 
-### 🟢 Group M — 其余 P2 杂项
+### ✅ Group M — 其余 P2 杂项（已修复）
 **优先级**：P2  
 **文件**：`src/stores/recent-file-names-store.ts`、`src/composables/useToast.ts`、`src/composables/cartburner/useCartBurnerFileState.ts`、`src/utils/markdown.ts`、`src/utils/progress/speed-calculator.ts`
 

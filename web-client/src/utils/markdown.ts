@@ -83,6 +83,10 @@ export function renderMarkdown(markdown: string): string {
 
   try {
     const rawHtml = marked.parse(markdown) as string;
+    // DOMPurify.sanitize() MUST run before enhanceLinks().
+    // enhanceLinks() uses DOMParser and mutates anchor attributes but does NOT
+    // re-sanitize; running it on unsanitized HTML would allow XSS payloads to
+    // survive. Do not reorder these two calls.
     const sanitized = DOMPurify.sanitize(rawHtml, {
       ADD_ATTR: ['target', 'rel'],
     });

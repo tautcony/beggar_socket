@@ -1,11 +1,18 @@
 // useToast.ts - Composable方式
+
+interface ShowToastEventDetail {
+  message: string;
+  type: 'info' | 'success' | 'error' | 'idle';
+  duration: number;
+}
+
 export function useToast() {
   const showToast = (
     message: string,
     type: 'info' | 'success' | 'error' | 'idle' = 'success',
     duration = 3000,
   ) => {
-    const event = new CustomEvent('show-toast', {
+    const event = new CustomEvent<ShowToastEventDetail>('show-toast', {
       detail: { message, type, duration },
     });
     window.dispatchEvent(event);

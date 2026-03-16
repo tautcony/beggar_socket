@@ -1,14 +1,35 @@
 import { defineStore } from 'pinia';
 
+const STORAGE_KEY = 'recentFileNames';
+const MAX_COUNT = 10;
+
 export interface RecentFileNamesState {
   fileNames: string[];
   maxCount: number;
 }
 
+function loadFromStorage(): string[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? (parsed as string[]).filter(n => typeof n === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveToStorage(fileNames: string[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(fileNames));
+  } catch {
+    // localStorage might be unavailable (e.g. private mode). Ignore silently.
+  }
+}
+
 export const useRecentFileNamesStore = defineStore('recentFileNames', {
   state: (): RecentFileNamesState => ({
-    fileNames: [],
-    maxCount: 10,
+    fileNames: loadFromStorage(),
+    maxCount: MAX_COUNT,
   }),
 
   getters: {
@@ -31,11 +52,14 @@ export const useRecentFileNamesStore = defineStore('recentFileNames', {
       if (this.fileNames.length > this.maxCount) {
         this.fileNames = this.fileNames.slice(0, this.maxCount);
       }
+
+      saveToStorage(this.fileNames);
     },
 
     // 清除所有文件名
     clearFileNames() {
       this.fileNames = [];
+      saveToStorage(this.fileNames);
     },
 
     // 获取文件名列表（返回副本）

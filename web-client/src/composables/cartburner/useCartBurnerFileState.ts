@@ -46,7 +46,8 @@ export function useCartBurnerFileState(log: (message: string) => void, translate
 
   function onRomSizeChange(hexSize: string) {
     selectedRomSize.value = hexSize;
-    log(translate('messages.rom.sizeChanged', { size: formatBytes(parseInt(hexSize, 16)) }));
+    const bytes = parseInt(hexSize, 16);
+    log(translate('messages.rom.sizeChanged', { size: formatBytes(isNaN(bytes) ? 0 : bytes) }));
   }
 
   function onRomBaseAddressChange(hexAddress: string) {
@@ -61,7 +62,8 @@ export function useCartBurnerFileState(log: (message: string) => void, translate
 
   function onRamSizeChange(hexSize: string) {
     selectedRamSize.value = hexSize;
-    log(translate('messages.ram.sizeChanged', { size: formatBytes(parseInt(hexSize, 16)) }));
+    const bytes = parseInt(hexSize, 16);
+    log(translate('messages.ram.sizeChanged', { size: formatBytes(isNaN(bytes) ? 0 : bytes) }));
   }
 
   function onRamTypeChange(type: string) {

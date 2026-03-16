@@ -153,7 +153,9 @@ export class SpeedCalculator {
     this.peakSpeed = 0;
     this.maxSpeed = 0;
     this.totalBytes = 0;
-    this.startTime = null;
+    // Mirror constructor behavior: anchor startTime immediately so that any
+    // pre-transfer wait time is correctly included in getTotalTime().
+    this.startTime = Date.now();
     this.lastTimestamp = 0;
     this.prevTimestamp = 0;
   }
