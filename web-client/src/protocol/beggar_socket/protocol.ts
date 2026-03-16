@@ -9,6 +9,11 @@ import { getResult, type ProtocolTransportInput, sendPackage, toLittleEndian } f
 const GBA_SECTOR_ERASE_POLL_INTERVAL_MS = 20;
 const GBA_SECTOR_ERASE_TIMEOUT_MS = 60_000;
 
+const GBC_SECTOR_ERASE_POLL_INTERVAL_MS = 20;
+const GBC_SECTOR_ERASE_TIMEOUT_MS = 15_000;
+const GBC_CHIP_ERASE_POLL_INTERVAL_MS = 50;
+const GBC_CHIP_ERASE_TIMEOUT_MS = 120_000;
+
 // --- GBA Commands ---
 
 /**
@@ -50,7 +55,9 @@ export async function rom_erase_chip(input: ProtocolTransportInput): Promise<voi
  * GBA: ROM Sector Erase (0xf3)
  */
 export async function rom_erase_sector(input: ProtocolTransportInput, sectorAddress: number): Promise<boolean> {
-  const sectorWordAddress = sectorAddress >>> 1;
+  // Align to word boundary before shifting; matches firmware masking in rom_erase_sector_direct()
+  const alignedSectorAddress = sectorAddress & ~1;
+  const sectorWordAddress = alignedSectorAddress >>> 1;
   const errorPrefix = `GBA ROM sector erase failed (Address: ${formatHex(sectorAddress, 4)})`;
   const deadline = Date.now() + GBA_SECTOR_ERASE_TIMEOUT_MS;
 
@@ -64,7 +71,7 @@ export async function rom_erase_sector(input: ProtocolTransportInput, sectorAddr
 
     while (Date.now() < deadline) {
       await timeout(GBA_SECTOR_ERASE_POLL_INTERVAL_MS);
-      const status = await rom_read(input, 2, sectorAddress);
+      const status = await rom_read(input, 2, alignedSectorAddress);
       if (status[0] === 0xff && status[1] === 0xff) {
         return true;
       }
@@ -314,6 +321,17 @@ export async function gbc_rom_erase_chip(input: ProtocolTransportInput) {
   await gbc_write(input, new Uint8Array([0xaa]), 0xaaa);
   await gbc_write(input, new Uint8Array([0x55]), 0x555);
   await gbc_write(input, new Uint8Array([0x10]), 0xaaa);
+
+  // Poll address 0x00 until erased (0xff); chip erase can take up to 2 minutes
+  const deadline = Date.now() + GBC_CHIP_ERASE_TIMEOUT_MS;
+  let status: Uint8Array;
+  do {
+    if (Date.now() > deadline) {
+      throw new Error(`GBC chip erase timeout after ${GBC_CHIP_ERASE_TIMEOUT_MS}ms`);
+    }
+    await timeout(GBC_CHIP_ERASE_POLL_INTERVAL_MS);
+    status = await gbc_read(input, 1, 0x00);
+  } while (status[0] !== 0xff);
 }
 
 /**
@@ -332,12 +350,16 @@ export async function gbc_rom_erase_sector(input: ProtocolTransportInput, sector
     await gbc_write(input, new Uint8Array([0x55]), 0x555); // Second unlock cycle (erase)
     await gbc_write(input, new Uint8Array([0x30]), sectorAddress); // Sector Erase command
 
-    // Wait for completion by polling the target address
+    // Poll until erased (0xff) or timeout
+    const deadline = Date.now() + GBC_SECTOR_ERASE_TIMEOUT_MS;
     let temp: Uint8Array;
     do {
-      await timeout(20); // 20ms delay
+      if (Date.now() > deadline) {
+        throw new Error(`erase timeout after ${GBC_SECTOR_ERASE_TIMEOUT_MS}ms`);
+      }
+      await timeout(GBC_SECTOR_ERASE_POLL_INTERVAL_MS);
       temp = await gbc_read(input, 1, sectorAddress);
-    } while (temp[0] !== 0xff); // Wait until the byte reads as 0xff (erased)
+    } while (temp[0] !== 0xff);
 
     return true;
   } catch (error) {

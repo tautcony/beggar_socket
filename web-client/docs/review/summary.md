@@ -73,15 +73,15 @@
 
 ---
 
-### 🟡 Group B — protocol：GBC 擦除无超时/无完成检测
+### ✅ Group B — protocol：GBC 擦除无超时/无完成检测（已修复）
 **优先级**：P1 + P2 × 2  
 **文件**：`src/protocol/beggar_socket/protocol.ts`
 
 | 优先级 | 问题 |
 |--------|------|
-| P1 | `rom_erase_sector()` 客户端轮询地址处理（`sectorWordAddress`）与固件 `rom_erase_sector_direct()` 掩码逻辑不一致，非对齐地址可能行为不同 |
-| P2 | `gbc_rom_erase_sector()` 无超时的 `do-while` 轮询，擦除卡住时 UI 永久 loading |
-| P2 | `gbc_rom_erase_chip()` 发送命令后立即返回，不等待擦除完成，调用方紧接编程可能写坏芯片 |
+| P1 | `rom_erase_sector()` 对 `sectorAddress` 先 `& ~1` 对齐再右移，与固件掩码逻辑一致 |
+| P2 | `gbc_rom_erase_sector()` 添加 15s 超时，超时后抛出错误 |
+| P2 | `gbc_rom_erase_chip()` 添加完成轮询（120s 超时），确保擦除结束后才返回 |
 
 ---
 
