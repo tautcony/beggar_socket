@@ -20,20 +20,21 @@ export async function rom_get_id(input: ProtocolTransportInput): Promise<Uint8Ar
   await rom_write(input, toLittleEndian(0x55, 2), 0x2aa);
   await rom_write(input, toLittleEndian(0x90, 2), 0x555);
 
-  // 读取地址0x00-0x01的制造商ID和设备ID (4字节)
-  const idPart1 = await rom_read(input, 4, 0x00);
-  // 读取地址0x0e-0x0f的设备ID (4字节)
-  const idPart2 = await rom_read(input, 4, 0x1c);
+  try {
+    // 读取地址0x00-0x01的制造商ID和设备ID (4字节)
+    const idPart1 = await rom_read(input, 4, 0x00);
+    // 读取地址0x0e-0x0f的设备ID (4字节)
+    const idPart2 = await rom_read(input, 4, 0x1c);
 
-  // 组装完整的8字节ID数据
-  const id = new Uint8Array(8);
-  id.set(idPart1, 0); // 前4字节：制造商ID + 设备ID
-  id.set(idPart2, 4); // 后4字节：设备ID
-
-  // 退出ID读取模式
-  await rom_write(input, toLittleEndian(0xf0, 2), 0x00);
-
-  return id;
+    // 组装完整的8字节ID数据
+    const id = new Uint8Array(8);
+    id.set(idPart1, 0); // 前4字节：制造商ID + 设备ID
+    id.set(idPart2, 4); // 后4字节：设备ID
+    return id;
+  } finally {
+    // 无论读取成功还是失败，始终尝试退出 Autoselect 模式，避免 Flash 停在异常状态
+    await rom_write(input, toLittleEndian(0xf0, 2), 0x00).catch(() => {});
+  }
 }
 
 /**
@@ -297,9 +298,13 @@ export async function gbc_rom_get_id(input: ProtocolTransportInput): Promise<Uin
   await gbc_write(input, new Uint8Array([0xaa]), 0xaaa);
   await gbc_write(input, new Uint8Array([0x55]), 0x555);
   await gbc_write(input, new Uint8Array([0x90]), 0xaaa);
-  const id = await gbc_read(input, 4, 0);
-  await gbc_write(input, new Uint8Array([0xf0]), 0x00);
-  return id;
+  try {
+    const id = await gbc_read(input, 4, 0);
+    return id;
+  } finally {
+    // 无论读取成功还是失败，始终尝试退出 Autoselect 模式
+    await gbc_write(input, new Uint8Array([0xf0]), 0x00).catch(() => {});
+  }
 }
 
 export async function gbc_rom_erase_chip(input: ProtocolTransportInput) {
