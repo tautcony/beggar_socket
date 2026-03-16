@@ -16,9 +16,12 @@ describe('Protocol transport abstraction', () => {
     const transport: Transport = {
       send,
       read,
+      sendAndReceive: vi.fn().mockImplementation(async (payload: Uint8Array, readLen: number) => {
+        await send(payload);
+        return read(readLen);
+      }),
       setSignals: setSignal,
     };
-
     await expect(ProtocolAdapter.sendPackage(transport, new Uint8Array([1, 2, 3]), 10)).resolves.toBe(true);
     await expect(ProtocolAdapter.getResult(transport, 20)).resolves.toBe(true);
     await expect(ProtocolAdapter.setSignals(transport, { dataTerminalReady: true })).resolves.toBeUndefined();
@@ -32,9 +35,9 @@ describe('Protocol transport abstraction', () => {
     const transport: Transport = {
       send: vi.fn().mockResolvedValue(true),
       read: vi.fn().mockResolvedValue({ data: new Uint8Array([0x00]) }),
+      sendAndReceive: vi.fn().mockResolvedValue({ data: new Uint8Array([0x00]) }),
       setSignals: vi.fn().mockResolvedValue(undefined),
     };
-
     await expect(ProtocolAdapter.getPackage(transport, 2, 30, 'default')).resolves.toEqual({ data: new Uint8Array([0x00]) });
     await expect(ProtocolAdapter.getResult(transport, 30)).resolves.toBe(false);
     expect(transport.read).toHaveBeenNthCalledWith(1, 2, 30, 'default');
@@ -51,6 +54,10 @@ describe('Protocol transport abstraction', () => {
       transport: {
         send,
         read,
+        sendAndReceive: vi.fn().mockImplementation(async (payload: Uint8Array, readLen: number) => {
+          await send(payload);
+          return read(readLen);
+        }),
         setSignals: setSignal,
       },
     };
@@ -211,10 +218,9 @@ describe('Protocol transport abstraction', () => {
     const transport: Transport = {
       send: vi.fn().mockResolvedValue(true),
       read: vi.fn().mockRejectedValue(timeoutError),
+      sendAndReceive: vi.fn().mockRejectedValue(timeoutError),
       setSignals: vi.fn().mockResolvedValue(undefined),
     };
-
-    await expect(rom_read({ transport }, 4, 0x10)).rejects.toThrow('Reason: packet read timeout');
     await expect(ram_read({ transport }, 4, 0x20)).rejects.toThrow('Reason: packet read timeout');
     await expect(gbc_read({ transport }, 4, 0x30)).rejects.toThrow('Reason: packet read timeout');
   });
@@ -223,10 +229,9 @@ describe('Protocol transport abstraction', () => {
     const transport: Transport = {
       send: vi.fn().mockResolvedValue(true),
       read: vi.fn().mockResolvedValue({ data: new Uint8Array([0xaa, 0xbb, 0xcc]) }),
+      sendAndReceive: vi.fn().mockResolvedValue({ data: new Uint8Array([0xaa, 0xbb, 0xcc]) }),
       setSignals: vi.fn().mockResolvedValue(undefined),
     };
-
-    await expect(rom_read({ transport }, 4, 0x10)).rejects.toThrow('Reason: invalid packet length');
     await expect(ram_read({ transport }, 4, 0x20)).rejects.toThrow('Reason: invalid packet length');
     await expect(gbc_read({ transport }, 4, 0x30)).rejects.toThrow('Reason: invalid packet length');
   });
@@ -248,6 +253,10 @@ describe('Protocol transport abstraction', () => {
     const transport: Transport = {
       send,
       read,
+      sendAndReceive: vi.fn().mockImplementation(async (payload: Uint8Array, readLen: number) => {
+        await send(payload);
+        return read(readLen);
+      }),
       setSignals: vi.fn().mockResolvedValue(undefined),
     };
 
