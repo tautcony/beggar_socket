@@ -26,8 +26,8 @@ export class AdvancedSettings {
   private static _ramPageSize = 0x100;
   private static _romReadThrottleMs = 0;
   private static _ramReadThrottleMs = 0;
-  private static _romReadRetryCount = 0;
-  private static _ramReadRetryCount = 0;
+  private static _romReadRetryCount = 1;
+  private static _ramReadRetryCount = 1;
   private static _romReadRetryDelayMs = 0;
   private static _ramReadRetryDelayMs = 0;
 
@@ -301,8 +301,8 @@ export class AdvancedSettings {
     this._ramPageSize = 0x100;
     this._romReadThrottleMs = 0;
     this._ramReadThrottleMs = 0;
-    this._romReadRetryCount = 0;
-    this._ramReadRetryCount = 0;
+    this._romReadRetryCount = 1;
+    this._ramReadRetryCount = 1;
     this._romReadRetryDelayMs = 0;
     this._ramReadRetryDelayMs = 0;
     this._defaultTimeout = 3000;
