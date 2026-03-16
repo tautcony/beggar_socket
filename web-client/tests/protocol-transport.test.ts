@@ -18,7 +18,7 @@ describe('Protocol transport abstraction', () => {
       read,
       sendAndReceive: vi.fn().mockImplementation(async (payload: Uint8Array, readLen: number) => {
         await send(payload);
-        return read(readLen);
+        return read(readLen) as Promise<{ data: Uint8Array }>;
       }),
       setSignals: setSignal,
     };
@@ -56,7 +56,7 @@ describe('Protocol transport abstraction', () => {
         read,
         sendAndReceive: vi.fn().mockImplementation(async (payload: Uint8Array, readLen: number) => {
           await send(payload);
-          return read(readLen);
+          return read(readLen) as Promise<{ data: Uint8Array }>;
         }),
         setSignals: setSignal,
       },
@@ -255,7 +255,7 @@ describe('Protocol transport abstraction', () => {
       read,
       sendAndReceive: vi.fn().mockImplementation(async (payload: Uint8Array, readLen: number) => {
         await send(payload);
-        return read(readLen);
+        return read(readLen) as Promise<{ data: Uint8Array }>;
       }),
       setSignals: vi.fn().mockResolvedValue(undefined),
     };

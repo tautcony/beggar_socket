@@ -9,7 +9,7 @@
  * ```
  */
 export class Mutex {
-  private _queue: Array<() => void> = [];
+  private _queue: (() => void)[] = [];
   private _locked = false;
 
   get locked(): boolean {

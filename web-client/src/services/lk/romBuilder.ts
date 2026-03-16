@@ -152,8 +152,8 @@ export function importSaveDataAndAddRom(
         if (!saveData) {
           for (const [fileName, data] of saveFiles.entries()) {
             // Use case-insensitive exact base-name comparison to avoid accidentally
-        // associating a save file whose name merely contains the game name as a substring.
-        if (parsePath(fileName).name.toLowerCase() === parsePath(game.file).name.toLowerCase()) {
+            // associating a save file whose name merely contains the game name as a substring.
+            if (parsePath(fileName).name.toLowerCase() === parsePath(game.file).name.toLowerCase()) {
               saveData = data;
               break;
             }

@@ -32,7 +32,7 @@ export const useRomAssemblyResultStore = defineStore('romAssemblyResult', {
       this.timestamp = Date.now();
       // Auto-clear after TTL if the result is never consumed (prevents 32 MiB memory leak)
       if (cleanupTimer) clearTimeout(cleanupTimer);
-      cleanupTimer = setTimeout(() => this.clearResult(), RESULT_TTL_MS);
+      cleanupTimer = setTimeout(() => { this.clearResult(); }, RESULT_TTL_MS);
     },
 
     // 获取并清除结果（用于主页面消费数据）
