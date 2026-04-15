@@ -214,4 +214,100 @@ describe('Protocol transport abstraction', () => {
     const transport = new WebSerialTransport(port);
     await expect(transport.read(3, 5, 'byob')).rejects.toThrow('expected=3B, received=1B');
   });
+
+  it('WebSerialTransport waits for timed-out writer recovery before next send', async () => {
+    vi.useFakeTimers();
+
+    try {
+      let resolveAbort: (() => void) | undefined;
+      const firstWriter = {
+        write: vi.fn().mockImplementation(() => new Promise(() => {})),
+        abort: vi.fn().mockImplementation(() => new Promise<void>((resolve) => {
+          resolveAbort = resolve;
+        })),
+        releaseLock: vi.fn(),
+      };
+      const secondWriter = {
+        write: vi.fn().mockResolvedValue(undefined),
+        abort: vi.fn().mockResolvedValue(undefined),
+        releaseLock: vi.fn(),
+      };
+      const getWriter = vi.fn()
+        .mockReturnValueOnce(firstWriter)
+        .mockReturnValueOnce(secondWriter);
+
+      const port = {
+        writable: {
+          getWriter,
+        },
+        close: vi.fn().mockResolvedValue(undefined),
+      } as unknown as SerialPort;
+
+      const transport = new WebSerialTransport(port);
+      const firstSend = transport.send(new Uint8Array([0x01]), 5);
+      const firstSendExpectation = expect(firstSend).rejects.toThrow('Send package timeout in 5ms');
+
+      await vi.advanceTimersByTimeAsync(5);
+      await firstSendExpectation;
+
+      const secondSend = transport.send(new Uint8Array([0x02]), 20);
+      await Promise.resolve();
+
+      expect(getWriter).toHaveBeenCalledTimes(1);
+      expect(secondWriter.write).not.toHaveBeenCalled();
+
+      resolveAbort?.();
+      await expect(secondSend).resolves.toBe(true);
+
+      expect(firstWriter.abort).toHaveBeenCalledTimes(1);
+      expect(firstWriter.releaseLock).toHaveBeenCalledTimes(1);
+      expect(getWriter).toHaveBeenCalledTimes(2);
+      expect(secondWriter.write).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('WebSerialTransport close waits for timed-out writer recovery', async () => {
+    vi.useFakeTimers();
+
+    try {
+      let resolveAbort: (() => void) | undefined;
+      const writer = {
+        write: vi.fn().mockImplementation(() => new Promise(() => {})),
+        abort: vi.fn().mockImplementation(() => new Promise<void>((resolve) => {
+          resolveAbort = resolve;
+        })),
+        releaseLock: vi.fn(),
+      };
+      const close = vi.fn().mockResolvedValue(undefined);
+
+      const port = {
+        writable: {
+          getWriter: vi.fn().mockReturnValue(writer),
+        },
+        close,
+      } as unknown as SerialPort;
+
+      const transport = new WebSerialTransport(port);
+      const send = transport.send(new Uint8Array([0x01]), 5);
+      const sendExpectation = expect(send).rejects.toThrow('Send package timeout in 5ms');
+
+      await vi.advanceTimersByTimeAsync(5);
+      await sendExpectation;
+
+      const closePromise = transport.close();
+      await Promise.resolve();
+      expect(close).not.toHaveBeenCalled();
+
+      resolveAbort?.();
+      await closePromise;
+
+      expect(writer.abort).toHaveBeenCalledTimes(1);
+      expect(writer.releaseLock).toHaveBeenCalledTimes(1);
+      expect(close).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

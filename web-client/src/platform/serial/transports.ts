@@ -32,6 +32,7 @@ async function withTimeout<T>(
 export class WebSerialTransport implements Transport {
   private reader: DefaultReader | null = null;
   private writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
+  private writerRecoveryPromise: Promise<void> | null = null;
   private pumpPromise: Promise<void> | null = null;
   private readonly bufferedChunks: Uint8Array[] = [];
   private bufferedLength = 0;
@@ -48,7 +49,9 @@ export class WebSerialTransport implements Transport {
 
   constructor(private readonly port: SerialPort) {}
 
-  private acquireWriter(): WritableStreamDefaultWriter<Uint8Array> {
+  private async acquireWriter(): Promise<WritableStreamDefaultWriter<Uint8Array>> {
+    await this.waitForWriterRecovery();
+
     if (!this.writer) {
       const writable = this.port.writable;
       if (!writable) {
@@ -66,20 +69,67 @@ export class WebSerialTransport implements Transport {
     }
   }
 
-  async send(payload: Uint8Array, timeoutMs?: number): Promise<boolean> {
-    const writer = this.acquireWriter();
-    const timeout = timeoutMs ?? AdvancedSettings.packageSendTimeout;
+  private async waitForWriterRecovery(): Promise<void> {
+    if (this.writerRecoveryPromise) {
+      await this.writerRecoveryPromise;
+    }
+  }
 
-    await withTimeout(
-      writer.write(payload),
-      timeout,
-      `Send package timeout in ${timeout}ms`,
-      () => {
-        // Abort writer to prevent ghost write completing after timeout
-        writer.abort(new Error('Write aborted due to send timeout')).catch(() => {});
-        this.writer = null;
-      },
-    );
+  private startWriterRecovery(writer: WritableStreamDefaultWriter<Uint8Array>, abortReason?: Error): Promise<void> {
+    if (this.writer !== writer) {
+      return this.writerRecoveryPromise ?? Promise.resolve();
+    }
+
+    if (this.writerRecoveryPromise) {
+      return this.writerRecoveryPromise;
+    }
+
+    const recovery = (async () => {
+      if (abortReason) {
+        try {
+          await writer.abort(abortReason);
+        } catch {}
+      }
+
+      if (this.writer === writer) {
+        this.releaseWriter();
+      }
+    })();
+
+    const recoveryPromise = recovery.finally(() => {
+      if (this.writerRecoveryPromise === recoveryPromise) {
+        this.writerRecoveryPromise = null;
+      }
+    });
+
+    this.writerRecoveryPromise = recoveryPromise;
+    return recoveryPromise;
+  }
+
+  async send(payload: Uint8Array, timeoutMs?: number): Promise<boolean> {
+    const writer = await this.acquireWriter();
+    const timeout = timeoutMs ?? AdvancedSettings.packageSendTimeout;
+    let timedOut = false;
+
+    try {
+      await withTimeout(
+        writer.write(payload),
+        timeout,
+        `Send package timeout in ${timeout}ms`,
+        () => {
+          timedOut = true;
+          this.startWriterRecovery(writer, new Error('Write aborted due to send timeout'));
+        },
+      );
+    } catch (error) {
+      if (!timedOut) {
+        const reason = error instanceof Error
+          ? error
+          : new Error('Write aborted due to send failure');
+        this.startWriterRecovery(writer, reason);
+      }
+      throw error;
+    }
 
     this.totalTxPackets += 1;
     this.totalTxBytes += payload.byteLength;
@@ -120,6 +170,7 @@ export class WebSerialTransport implements Transport {
   }
 
   async close(): Promise<void> {
+    await this.waitForWriterRecovery();
     this.releaseWriter();
     this.clearBuffer();
     if (this.reader) {
