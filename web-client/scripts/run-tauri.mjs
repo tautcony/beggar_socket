@@ -1,6 +1,7 @@
 import { accessSync, constants, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { delimiter, join } from 'node:path';
+import { createRequire } from 'node:module';
+import { delimiter, dirname, join } from 'node:path';
 import { spawn } from 'node:child_process';
 
 function canExecute(filePath) {
@@ -40,6 +41,7 @@ if (!command || (command !== 'dev' && command !== 'build')) {
 }
 
 const env = { ...process.env };
+const require = createRequire(import.meta.url);
 const cargoBinDir = resolveCargoBinDir();
 
 if (cargoBinDir) {
@@ -64,15 +66,26 @@ if (!hasCargoOnPath) {
   process.exit(1);
 }
 
-const isWindows = process.platform === 'win32';
+let tauriCliEntrypoint;
+
+try {
+  const tauriPackageJson = require.resolve('@tauri-apps/cli/package.json');
+  tauriCliEntrypoint = join(dirname(tauriPackageJson), 'tauri.js');
+} catch {
+  console.error([
+    'Tauri CLI not found.',
+    'Run npm ci in web-client so @tauri-apps/cli is installed before building.',
+  ].join('\n'));
+  process.exit(1);
+}
+
 const tauriProcess = spawn(
-  isWindows ? 'tauri.cmd' : 'tauri',
-  [command, ...forwardedArgs],
+  process.execPath,
+  [tauriCliEntrypoint, command, ...forwardedArgs],
   {
     env,
     stdio: 'inherit',
-    // Windows npm bin shims are .cmd files and must be launched through a shell.
-    shell: isWindows,
+    shell: false,
   },
 );
 

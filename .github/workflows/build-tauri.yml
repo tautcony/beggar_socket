@@ -22,18 +22,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest
-            artifact_name: tauri-windows
-            artifact_path: |
-              web-client/src-tauri/target/release/bundle/nsis/*.exe
-              web-client/src-tauri/target/release/bundle/nsis/*.exe.zip
+          - os: ubuntu-latest
+            build_linux: true
+            build_windows_on_linux: true
           - os: macos-latest
-            artifact_name: tauri-macos
             tauri_args: --target universal-apple-darwin
-            artifact_path: |
-              web-client/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
-              web-client/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz
-              web-client/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
 
     runs-on: ${{ matrix.os }}
 
@@ -52,9 +45,30 @@ jobs:
           cache: npm
           cache-dependency-path: web-client/package-lock.json
 
+      - name: Install Linux system dependencies
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: .
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            nsis \
+            lld \
+            llvm
+
       - name: Setup Rust toolchain
-        if: matrix.os != 'macos-latest'
+        if: matrix.os == 'ubuntu-latest'
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
 
       - name: Setup Rust toolchain for macOS universal build
         if: matrix.os == 'macos-latest'
@@ -82,18 +96,53 @@ jobs:
       - name: Run unit tests
         run: npm run test:run
 
-      - name: Build Tauri app
-        if: matrix.os != 'macos-latest'
-        run: npm run tauri:build
+      - name: Install cargo-xwin
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo install --locked cargo-xwin
+
+      - name: Build Linux bundles
+        if: matrix.build_linux
+        run: npm run tauri:build -- --bundles appimage deb
+
+      - name: Build Windows NSIS on Linux
+        if: matrix.build_windows_on_linux
+        run: npm run tauri:build -- --runner cargo-xwin --target x86_64-pc-windows-msvc
 
       - name: Build Tauri app for macOS universal target
         if: matrix.os == 'macos-latest'
         run: npm run tauri:build -- ${{ matrix.tauri_args }}
 
-      - name: Upload desktop artifacts
+      - name: Upload Linux artifacts
+        if: matrix.build_linux
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
-          path: ${{ matrix.artifact_path }}
+          name: tauri-linux
+          path: |
+            web-client/src-tauri/target/release/bundle/appimage/*.AppImage
+            web-client/src-tauri/target/release/bundle/appimage/*.AppImage.sig
+            web-client/src-tauri/target/release/bundle/deb/*.deb
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Windows artifacts
+        if: matrix.build_windows_on_linux
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-windows
+          path: |
+            web-client/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            web-client/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload macOS artifacts
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-macos
+          path: |
+            web-client/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            web-client/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz
+            web-client/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
           if-no-files-found: error
           retention-days: 30
