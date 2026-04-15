@@ -1,0 +1,15 @@
+{
+    "files.associations": {
+        "usb.h": "c",
+        "uart.h": "c",
+        "stdint.h": "c",
+        "usb_req_class.h": "c",
+        "main.h": "c",
+        "stc8h.h": "c",
+        "stc8h_def.h": "c",
+        "util.h": "c",
+        "uartstc.h": "c",
+        "compare": "c",
+        "usb_req_std.h": "c"
+    }
+}
