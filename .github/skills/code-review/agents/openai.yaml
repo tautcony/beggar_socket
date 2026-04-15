@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Review"
+  short_description: "Structured code review and risk scan workflow"
+  default_prompt: "Use $code-review to audit this codebase or change set and produce prioritized findings plus a fixes plan."
