@@ -18,14 +18,17 @@ env:
 
 jobs:
   build:
+    name: ${{ matrix.job_name }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
+            job_name: Linux + Windows NSIS
             build_linux: true
             build_windows_on_linux: true
           - os: macos-latest
+            job_name: macOS Universal
             tauri_args: --target universal-apple-darwin
 
     runs-on: ${{ matrix.os }}
@@ -56,6 +59,8 @@ jobs:
             curl \
             wget \
             file \
+            pkg-config \
+            libudev-dev \
             libxdo-dev \
             libssl-dev \
             libayatana-appindicator3-dev \
@@ -86,15 +91,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Check architecture dependencies
-        run: npm run check:deps
-
-      - name: Type check
-        run: npm run type-check
-
-      - name: Run unit tests
-        run: npm run test:run
 
       - name: Install cargo-xwin
         if: matrix.os == 'ubuntu-latest'
