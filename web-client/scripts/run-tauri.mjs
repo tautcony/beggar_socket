@@ -64,13 +64,15 @@ if (!hasCargoOnPath) {
   process.exit(1);
 }
 
+const isWindows = process.platform === 'win32';
 const tauriProcess = spawn(
-  process.platform === 'win32' ? 'tauri.cmd' : 'tauri',
+  isWindows ? 'tauri.cmd' : 'tauri',
   [command, ...forwardedArgs],
   {
     env,
     stdio: 'inherit',
-    shell: false,
+    // Windows npm bin shims are .cmd files and must be launched through a shell.
+    shell: isWindows,
   },
 );
 
