@@ -73,6 +73,7 @@ const emit = defineEmits<{
 
 const connected = ref(false);
 const isConnecting = ref(false);
+const isProcessing = ref(false);
 const usePolyfill = ref(false);
 const showPortSelector = ref(false);
 const availablePorts = ref<SerialPortInfo[]>([]);
@@ -82,13 +83,13 @@ const deviceManager = DeviceConnectionManager.getInstance();
 
 // 热重载状态恢复 - 在开发模式下处理 HMR
 if (import.meta.hot) {
-  const data = import.meta.hot.data as {
-    connected: boolean,
-    device: DeviceInfo | null,
-  };
+  const data = ((import.meta.hot.data as {
+    connected?: boolean,
+    device?: DeviceInfo | null,
+  } | undefined) ?? {});
 
   // 保存当前状态到 HMR 数据
-  data.device = data?.device ?? {
+  data.device ??= {
     port: null,
   };
 
@@ -138,8 +139,9 @@ onMounted(async () => {
 });
 
 async function connect() {
-  if (isConnecting.value || connected.value) return;
+  if (isProcessing.value || connected.value) return;
 
+  isProcessing.value = true;
   isConnecting.value = true;
   showToast(t('messages.device.tryingConnect'), 'idle');
 
@@ -160,19 +162,24 @@ async function connect() {
       console.warn('[DeviceConnect] port selection required', e.availablePorts);
       availablePorts.value = e.availablePorts;
       showPortSelector.value = true;
-      isConnecting.value = false;
       return;
     }
 
     console.error('[DeviceConnect] connect failed', e);
     showToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
     await disposeConnection();
+  } finally {
+    isConnecting.value = false;
+    isProcessing.value = false;
   }
 }
 
 // 处理串口选择
 async function onPortSelected(selectedPort: SerialPortInfo) {
+  if (isProcessing.value) return;
+
   showPortSelector.value = false;
+  isProcessing.value = true;
   isConnecting.value = true;
 
   try {
@@ -191,6 +198,9 @@ async function onPortSelected(selectedPort: SerialPortInfo) {
     });
     showToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
     await disposeConnection();
+  } finally {
+    isConnecting.value = false;
+    isProcessing.value = false;
   }
 }
 
@@ -217,7 +227,8 @@ async function onRefreshPorts() {
 }
 
 async function disconnect() {
-  if (!deviceInfo.value) return;
+  if (isProcessing.value || !deviceInfo.value) return;
+  isProcessing.value = true;
   isConnecting.value = true;
   try {
     await deviceManager.disconnectDevice(deviceInfo.value);
@@ -226,6 +237,7 @@ async function disconnect() {
     console.error(t('messages.device.disconnectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), e);
     showToast(t('messages.device.disconnectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
   } finally {
+    isProcessing.value = false;
     isConnecting.value = false;
     connected.value = false;
     deviceInfo.value = null;
@@ -255,6 +267,7 @@ async function initializeSerialState(device?: DeviceInfo | null, toast = false) 
 async function disposeConnection() {
   connected.value = false;
   isConnecting.value = false;
+  isProcessing.value = false;
 
   if (deviceInfo.value !== null) {
     // 安全地清理资源
@@ -270,6 +283,9 @@ async function disposeConnection() {
 }
 
 async function handleConnectDisconnect() {
+  if (isProcessing.value) {
+    return;
+  }
   if (connected.value) {
     await disconnect();
   } else {
