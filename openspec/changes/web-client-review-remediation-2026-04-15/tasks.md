@@ -18,7 +18,7 @@
 ## 3. Batch B: 本迭代候选修复
 
 - [x] 3.1 `B1` 在 `SerialService.openPort()` 的异常路径中同时关闭 `handle.transport` 与 `handle.port`
-- [ ] 3.2 `B2` 为 `TauriDeviceGateway.connect()` 增加 `open()` 超时保护
+- [x] 3.2 `B2` 为 `TauriDeviceGateway.connect()` 增加 `open()` 超时保护
 - [ ] 3.3 `B3` 在 `TauriDeviceGateway.init()` 失败时回滚 DTR/RTS 到安全基线
 - [ ] 3.4 `B4` 为 `useCartBurnerFileState` 增加空数组保护和 Blob URL 清理保障
 - [ ] 3.5 `B5` 为 `DeviceConnect.vue` 增加统一的连接操作互斥，阻止双击并发

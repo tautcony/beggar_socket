@@ -301,6 +301,22 @@ describe('Device gateway integration', () => {
     await expect(gateway.connect({ portInfo: { path: '/dev/a', vendorId: '0483', productId: '0721' } })).rejects.toThrow('open failed');
   });
 
+  it('TauriDeviceGateway times out stalled open attempts', async () => {
+    vi.useFakeTimers();
+
+    try {
+      serialPluginState.open.mockImplementation(() => new Promise(() => {}));
+      const gateway = new TauriDeviceGateway();
+      const connectPromise = gateway.connect({ portInfo: { path: '/dev/tty.usbmodem1', vendorId: '0483', productId: '0721' } });
+      const connectExpectation = expect(connectPromise).rejects.toThrow('Tauri serial connect failed for /dev/tty.usbmodem1: Tauri serial connect timeout after 5000ms for /dev/tty.usbmodem1');
+
+      await vi.advanceTimersByTimeAsync(5000);
+      await connectExpectation;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('TauriDeviceGateway clears handle state even when disconnect close fails', async () => {
     const gateway = new TauriDeviceGateway();
     const device = await gateway.connect({ portInfo: { path: '/dev/tty.usbmodem1', vendorId: '0483', productId: '0721' } });

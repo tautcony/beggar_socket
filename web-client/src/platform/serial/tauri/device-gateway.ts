@@ -8,6 +8,25 @@ import type { PortFilter } from '@/utils/port-filter';
 import type { DeviceGateway, DeviceHandle, DeviceSelection } from '../types';
 import { TauriSerialTransport } from './tauri-serial-transport';
 
+async function withTimeout<T>(operation: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error(message));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
+
 function normalizeUsbId(value: string | undefined): string | undefined {
   if (!value || value === 'Unknown') {
     return undefined;
@@ -106,6 +125,8 @@ function errorMessage(error: unknown): string {
 }
 
 export class TauriDeviceGateway implements DeviceGateway {
+  private static readonly OPEN_TIMEOUT_MS = 5000;
+
   async list(filter?: PortFilter): Promise<SerialPortInfo[]> {
     const [ports, directPorts] = await Promise.all([
       SerialPort.available_ports(),
@@ -161,7 +182,11 @@ export class TauriDeviceGateway implements DeviceGateway {
 
     try {
       console.info('[TauriDeviceGateway] open', describePort(selectedPort));
-      await tauriPort.open();
+      await withTimeout(
+        tauriPort.open(),
+        TauriDeviceGateway.OPEN_TIMEOUT_MS,
+        `Tauri serial connect timeout after ${TauriDeviceGateway.OPEN_TIMEOUT_MS}ms for ${selectedPort.path}`,
+      );
     } catch (error) {
       throw new Error(`Tauri serial connect failed for ${selectedPort.path}: ${errorMessage(error)}`);
     }
