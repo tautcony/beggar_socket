@@ -150,6 +150,33 @@ describe('Device gateway integration', () => {
     await expect(gateway.connect()).rejects.toThrow('request denied');
   });
 
+  it('WebDeviceGateway clears handle state even when disconnect close fails', async () => {
+    const closeError = new Error('close failed');
+    const open = vi.fn().mockResolvedValue(undefined);
+    const fakePort = {
+      open,
+      close: vi.fn().mockResolvedValue(undefined),
+      setSignals: vi.fn().mockResolvedValue(undefined),
+      readable: null,
+      writable: null,
+    } as unknown as SerialPort;
+    const requestPort = vi.fn().mockResolvedValue(fakePort);
+    Object.defineProperty(window.navigator, 'serial', { value: { requestPort }, configurable: true, writable: true });
+
+    const gateway = new WebDeviceGateway();
+    const device = await gateway.connect();
+    device.connection = {} as never;
+    device.transport.close = vi.fn().mockRejectedValue(closeError);
+
+    await expect(gateway.disconnect(device)).rejects.toThrow('close failed');
+    expect(device.port).toBeNull();
+    expect(device.connection).toBeNull();
+
+    const reconnected = await gateway.connect();
+    expect(reconnected.platform).toBe('web');
+    expect(open).toHaveBeenCalledTimes(2);
+  });
+
   it('TauriDeviceGateway covers lifecycle success path', async () => {
     const gateway = new TauriDeviceGateway();
     const ports = await gateway.list();
@@ -272,6 +299,23 @@ describe('Device gateway integration', () => {
     const gateway = new TauriDeviceGateway();
     await expect(gateway.select()).rejects.toBeInstanceOf(PortSelectionRequiredError);
     await expect(gateway.connect({ portInfo: { path: '/dev/a', vendorId: '0483', productId: '0721' } })).rejects.toThrow('open failed');
+  });
+
+  it('TauriDeviceGateway clears handle state even when disconnect close fails', async () => {
+    const gateway = new TauriDeviceGateway();
+    const device = await gateway.connect({ portInfo: { path: '/dev/tty.usbmodem1', vendorId: '0483', productId: '0721' } });
+    device.connection = {} as never;
+    const closeError = new Error('close failed');
+    device.transport.close = vi.fn().mockRejectedValue(closeError);
+    const openCallsBeforeReconnect = serialPluginState.open.mock.calls.length;
+
+    await expect(gateway.disconnect(device)).rejects.toThrow('close failed');
+    expect(device.port).toBeNull();
+    expect(device.connection).toBeNull();
+
+    const reconnected = await gateway.connect({ portInfo: { path: '/dev/tty.usbmodem1', vendorId: '0483', productId: '0721' } });
+    expect(reconnected.platform).toBe('tauri');
+    expect(serialPluginState.open.mock.calls.length).toBe(openCallsBeforeReconnect + 1);
   });
 
   it('Web and Tauri init behavior is parity-consistent for signal toggling', async () => {

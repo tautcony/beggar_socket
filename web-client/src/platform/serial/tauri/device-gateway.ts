@@ -207,11 +207,21 @@ export class TauriDeviceGateway implements DeviceGateway {
   }
 
   async disconnect(device: DeviceHandle): Promise<void> {
-    if (device.transport.close) {
-      await device.transport.close();
+    let closeError: unknown;
+
+    try {
+      if (device.transport.close) {
+        await device.transport.close();
+      }
+    } catch (error) {
+      closeError = error;
+    } finally {
+      device.port = null;
+      device.connection = null;
     }
 
-    device.port = null;
-    device.connection = null;
+    if (closeError) {
+      throw closeError;
+    }
   }
 }

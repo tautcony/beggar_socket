@@ -12,8 +12,8 @@
 - [ ] 2.4 为 `A2` 增加双重 release 不破坏队列的单元测试
 - [x] 2.5 `A3` 保留 `WebSerialTransport` 的 writer 缓存策略，并为超时后的 abort/释放/重建增加串行恢复状态
 - [x] 2.6 为 `A3` 增加 send 超时后再次 send、close、重连时不会复用 stale writer 的回归测试
-- [ ] 2.7 `A4` 在 Web/Tauri gateway disconnect 中保证 close 失败后仍完成句柄清理
-- [ ] 2.8 为 `A4` 增加 disconnect close failure 后可重连的测试
+- [x] 2.7 `A4` 在 Web/Tauri gateway disconnect 中保证 close 失败后仍完成句柄清理
+- [x] 2.8 为 `A4` 增加 disconnect close failure 后可重连的测试
 
 ## 3. Batch B: 本迭代候选修复
 
