@@ -223,6 +223,15 @@ export class TauriDeviceGateway implements DeviceGateway {
       await timeout(200);
       console.info('[TauriDeviceGateway] init complete', portLabel);
     } catch (error) {
+      try {
+        console.info('[TauriDeviceGateway] init rollback -> low', portLabel);
+        await device.transport.setSignals({ dataTerminalReady: false, requestToSend: false });
+      } catch (rollbackError) {
+        console.debug('[TauriDeviceGateway] init rollback failed', {
+          port: portLabel,
+          rollbackError,
+        });
+      }
       console.error('[TauriDeviceGateway] init failed', {
         port: portLabel,
         error,

@@ -317,6 +317,23 @@ describe('Device gateway integration', () => {
     }
   });
 
+  it('TauriDeviceGateway rolls signals back low when init fails mid-sequence', async () => {
+    serialPluginState.writeDataTerminalReady
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('dtr high failed'))
+      .mockResolvedValueOnce(undefined);
+    serialPluginState.writeRequestToSend
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined);
+
+    const gateway = new TauriDeviceGateway();
+    const device = await gateway.connect({ portInfo: { path: '/dev/tty.usbmodem1', vendorId: '0483', productId: '0721' } });
+
+    await expect(gateway.init(device)).rejects.toThrow('Tauri serial init failed for /dev/tty.usbmodem1: dtr high failed');
+    expect(serialPluginState.writeDataTerminalReady).toHaveBeenLastCalledWith(false);
+    expect(serialPluginState.writeRequestToSend).toHaveBeenLastCalledWith(false);
+  });
+
   it('TauriDeviceGateway clears handle state even when disconnect close fails', async () => {
     const gateway = new TauriDeviceGateway();
     const device = await gateway.connect({ portInfo: { path: '/dev/tty.usbmodem1', vendorId: '0483', productId: '0721' } });
