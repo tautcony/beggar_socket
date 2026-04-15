@@ -106,4 +106,26 @@ describe('DeviceConnectionManager', () => {
     });
     expect(connectionUseCaseState.prepareConnectionWithSelection).not.toHaveBeenCalled();
   });
+
+  it('fails fast when orchestration returns a handle without a valid DeviceHandle context', async () => {
+    connectionUseCaseState.prepareConnection.mockResolvedValue({
+      success: true,
+      context: {
+        handle: {
+          platform: 'tauri',
+          portInfo: { path: '/dev/tty.usbmodem1' },
+          context: {
+            platform: 'tauri',
+            port: null,
+            connection: null,
+          },
+        },
+      },
+    });
+
+    const { DeviceConnectionManager } = await import('@/services/device-connection-manager');
+    const manager = DeviceConnectionManager.getInstance();
+
+    await expect(manager.requestDevice()).rejects.toThrow('Invalid connection handle: context is not a valid DeviceHandle');
+  });
 });

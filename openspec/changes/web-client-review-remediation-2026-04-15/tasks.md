@@ -22,7 +22,7 @@
 - [x] 3.3 `B3` 在 `TauriDeviceGateway.init()` 失败时回滚 DTR/RTS 到安全基线
 - [x] 3.4 `B4` 为 `useCartBurnerFileState` 增加空数组保护和 Blob URL 清理保障
 - [ ] 3.5 `B5` 为 `DeviceConnect.vue` 增加统一的连接操作互斥，阻止双击并发
-- [ ] 3.6 `B6` 在 `DeviceConnectionManager` 中用类型守卫替代不安全断言，并补失败映射测试
+- [x] 3.6 `B6` 在 `DeviceConnectionManager` 中用类型守卫替代不安全断言，并补失败映射测试
 
 ## 4. Batch C: 技术债候选
 

@@ -65,12 +65,21 @@ export class DeviceConnectionManager {
     return error;
   }
 
+  private isDeviceHandle(context: unknown): context is DeviceHandle {
+    return Boolean(
+      context
+      && typeof context === 'object'
+      && 'platform' in context
+      && 'transport' in context,
+    );
+  }
+
   private toDeviceInfo(handle: BurnerConnectionHandle): DeviceInfo {
     const ctx = handle.context;
-    if (!ctx || typeof ctx !== 'object' || !('platform' in ctx) || !('transport' in ctx)) {
+    if (!this.isDeviceHandle(ctx)) {
       throw new Error('Invalid connection handle: context is not a valid DeviceHandle');
     }
-    return toLegacyDeviceInfo(ctx as DeviceHandle);
+    return toLegacyDeviceInfo(ctx);
   }
 
   private asSerialPortInfo(portInfo: BurnerConnectionHandle['portInfo']): SerialPortInfo | null {
