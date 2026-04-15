@@ -20,8 +20,19 @@ export function useCartBurnerFileState(log: (message: string) => void, translate
   const showFileNameSelector = ref(false);
   const pendingRamData = ref<Uint8Array | null>(null);
 
+  function getSelectedFile(fileInfo: FileInfo | FileInfo[]): FileInfo | null {
+    if (Array.isArray(fileInfo)) {
+      return fileInfo[0] ?? null;
+    }
+
+    return fileInfo ?? null;
+  }
+
   function onRomFileSelected(fileInfo: FileInfo | FileInfo[]) {
-    const selected = Array.isArray(fileInfo) ? fileInfo[0] : fileInfo;
+    const selected = getSelectedFile(fileInfo);
+    if (!selected) {
+      return;
+    }
     romFileName.value = selected.name;
     romFileData.value = selected.data;
     log(translate('messages.file.selectRom', { name: selected.name, size: formatBytes(selected.size) }));
@@ -34,7 +45,10 @@ export function useCartBurnerFileState(log: (message: string) => void, translate
   }
 
   function onRamFileSelected(fileInfo: FileInfo | FileInfo[]) {
-    const selected = Array.isArray(fileInfo) ? fileInfo[0] : fileInfo;
+    const selected = getSelectedFile(fileInfo);
+    if (!selected) {
+      return;
+    }
     ramFileName.value = selected.name;
     ramFileData.value = selected.data;
     log(translate('messages.file.selectRam', { name: selected.name, size: formatBytes(selected.size) }));
@@ -85,17 +99,26 @@ export function useCartBurnerFileState(log: (message: string) => void, translate
       };
     }
 
-    const blob = new Blob([data as BlobPart], { type: 'application/octet-stream' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.setTimeout(() => {
-      URL.revokeObjectURL(url);
-    }, 1000);
+    let url: string | null = null;
+    let anchor: HTMLAnchorElement | null = null;
+
+    try {
+      const blob = new Blob([data as BlobPart], { type: 'application/octet-stream' });
+      url = URL.createObjectURL(blob);
+      anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+    } finally {
+      if (anchor && anchor.parentNode) {
+        anchor.parentNode.removeChild(anchor);
+      }
+      if (url) {
+        URL.revokeObjectURL(url);
+      }
+    }
+
     return { saved: true };
   }
 
