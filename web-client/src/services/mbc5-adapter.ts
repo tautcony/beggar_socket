@@ -1079,10 +1079,10 @@ export class MBC5Adapter extends CartridgeAdapter {
               );
             }
 
-            const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress);
+            const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress, mbcType);
             if (bank !== currentBank) {
               currentBank = bank;
-              await this.switchROMBank(bank);
+              await this.switchROMBank(bank, mbcType);
             }
 
             // 读取数据
