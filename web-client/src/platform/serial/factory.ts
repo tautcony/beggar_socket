@@ -1,6 +1,6 @@
-import { isElectron } from '@/utils/electron';
+import { isTauri } from '@/utils/tauri';
 
-import { ElectronDeviceGateway } from './electron/device-gateway';
+import { TauriDeviceGateway } from './tauri/device-gateway';
 import type { DeviceGateway } from './types';
 import { WebDeviceGateway } from './web/device-gateway';
 
@@ -11,8 +11,8 @@ export function getDeviceGateway(): DeviceGateway {
     return cachedGateway;
   }
 
-  cachedGateway = isElectron()
-    ? new ElectronDeviceGateway()
+  cachedGateway = isTauri()
+    ? new TauriDeviceGateway()
     : new WebDeviceGateway();
 
   return cachedGateway;

@@ -8,9 +8,11 @@ import type { BurnerDomainResult } from './result';
 
 export interface BurnerConnectionHandle {
   id: string;
-  platform: 'web' | 'electron';
+  platform: 'web' | 'tauri';
   portInfo?: {
     path?: string;
+    manufacturer?: string;
+    product?: string;
     vendorId?: string;
     productId?: string;
   };

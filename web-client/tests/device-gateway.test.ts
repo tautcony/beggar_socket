@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ElectronDeviceGateway } from '@/platform/serial/electron/device-gateway';
+import { TauriDeviceGateway } from '@/platform/serial/tauri/device-gateway';
 import { PortSelectionRequiredError } from '@/utils/errors/PortSelectionRequiredError';
 import { PortFilters } from '@/utils/port-filter';
 
@@ -10,55 +10,91 @@ vi.mock('@/utils/async-utils', () => ({
   timeout: vi.fn().mockResolvedValue(undefined),
 }));
 
-interface ElectronCallbacks {
-  onData?: (portId: string, data: Uint8Array) => void;
-  onError?: (portId: string, error: string) => void;
-  onClose?: (portId: string) => void;
-}
+const serialPluginState = vi.hoisted(() => ({
+  availablePorts: {
+    '/dev/tty.usbmodem1': {
+      path: '/dev/tty.usbmodem1',
+      manufacturer: 'STMicroelectronics',
+      pid: '0721',
+      product: 'Beggar Socket',
+      serial_number: 'abc123',
+      type: 'USB',
+      vid: '0483',
+    },
+  } as Record<string, {
+    path: string;
+    manufacturer: string;
+    pid: string;
+    product: string;
+    serial_number: string;
+    type: string;
+    vid: string;
+  }>,
+  availablePortsDirect: {} as Record<string, {
+    path: string;
+    manufacturer?: string;
+    pid?: string;
+    product?: string;
+    serial_number?: string;
+    type?: string;
+    vid?: string;
+  }>,
+  open: vi.fn(),
+  close: vi.fn(),
+  readBinary: vi.fn(),
+  clearBuffer: vi.fn(),
+  writeBinary: vi.fn(),
+  writeDataTerminalReady: vi.fn(),
+  writeRequestToSend: vi.fn(),
+}));
 
-function createElectronApiMock() {
-  const callbacks: ElectronCallbacks = {};
+vi.mock('tauri-plugin-serialplugin-api', () => {
+  class MockSerialPort {
+    static available_ports = vi.fn(() => Promise.resolve(serialPluginState.availablePorts));
+    static available_ports_direct = vi.fn(() => Promise.resolve(serialPluginState.availablePortsDirect));
 
-  const serial = {
-    listPorts: vi.fn().mockResolvedValue([
-      { path: '/dev/tty.usbmodem1', vendorId: '0483', productId: '0721' },
-    ]),
-    open: vi.fn().mockResolvedValue('port-1'),
-    write: vi.fn().mockResolvedValue(true),
-    close: vi.fn().mockResolvedValue(true),
-    isOpen: vi.fn().mockResolvedValue(true),
-    setSignals: vi.fn().mockResolvedValue(true),
-    onData: vi.fn((cb: (portId: string, data: Uint8Array) => void) => {
-      callbacks.onData = cb;
-    }),
-    onError: vi.fn((cb: (portId: string, error: string) => void) => {
-      callbacks.onError = cb;
-    }),
-    onClose: vi.fn((cb: (portId: string) => void) => {
-      callbacks.onClose = cb;
-    }),
-    removeAllListeners: vi.fn(),
+    constructor(public readonly options: Record<string, unknown>) {}
+
+    open = serialPluginState.open;
+    close = serialPluginState.close;
+    readBinary = serialPluginState.readBinary;
+    clearBuffer = serialPluginState.clearBuffer;
+    writeBinary = serialPluginState.writeBinary;
+    writeDataTerminalReady = serialPluginState.writeDataTerminalReady;
+    writeRequestToSend = serialPluginState.writeRequestToSend;
+  }
+
+  return {
+    SerialPort: MockSerialPort,
+    DataBits: { Eight: 'Eight' },
+    FlowControl: { None: 'None' },
+    Parity: { None: 'None' },
+    StopBits: { One: 'One' },
   };
-
-  const electronAPI = {
-    getPlatform: vi.fn().mockResolvedValue('darwin'),
-    getAppVersion: vi.fn().mockResolvedValue('1.0.0'),
-    requestSerialPort: vi.fn().mockResolvedValue({ granted: true }),
-    selectSerialPort: vi.fn().mockResolvedValue({
-      ports: [{ path: '/dev/tty.usbmodem1', vendorId: '0483', productId: '0721' }],
-      needsSelection: false,
-    }),
-    serial,
-    isElectron: true,
-    versions: { node: '22', chrome: '128', electron: '33' },
-  };
-
-  return { electronAPI, serial, callbacks };
-}
+});
 
 describe('Device gateway integration', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    serialPluginState.availablePorts = {
+      '/dev/tty.usbmodem1': {
+        path: '/dev/tty.usbmodem1',
+        manufacturer: 'STMicroelectronics',
+        pid: '0721',
+        product: 'Beggar Socket',
+        serial_number: 'abc123',
+        type: 'USB',
+        vid: '0483',
+      },
+    };
+    serialPluginState.availablePortsDirect = {};
+    serialPluginState.open.mockResolvedValue(undefined);
+    serialPluginState.readBinary.mockResolvedValue(new Uint8Array([0xaa]));
+    serialPluginState.clearBuffer.mockResolvedValue(undefined);
+    serialPluginState.close.mockResolvedValue(undefined);
+    serialPluginState.writeBinary.mockResolvedValue(1);
+    serialPluginState.writeDataTerminalReady.mockResolvedValue(undefined);
+    serialPluginState.writeRequestToSend.mockResolvedValue(undefined);
   });
 
   it('WebDeviceGateway covers select/connect/init/disconnect success path', async () => {
@@ -98,6 +134,7 @@ describe('Device gateway integration', () => {
     await gateway.init(device);
     expect(setSignals).toHaveBeenNthCalledWith(1, { dataTerminalReady: false, requestToSend: false });
     expect(setSignals).toHaveBeenNthCalledWith(2, { dataTerminalReady: true, requestToSend: true });
+    expect(setSignals).toHaveBeenNthCalledWith(3, { dataTerminalReady: false, requestToSend: false });
 
     await gateway.disconnect(device);
     expect(close).toHaveBeenCalledOnce();
@@ -113,54 +150,131 @@ describe('Device gateway integration', () => {
     await expect(gateway.connect()).rejects.toThrow('request denied');
   });
 
-  it('ElectronDeviceGateway covers lifecycle success path', async () => {
-    const { electronAPI, serial } = createElectronApiMock();
-    Object.defineProperty(window, 'electronAPI', {
-      value: electronAPI,
-      configurable: true,
-      writable: true,
-    });
-
-    const gateway = new ElectronDeviceGateway();
+  it('TauriDeviceGateway covers lifecycle success path', async () => {
+    const gateway = new TauriDeviceGateway();
     const ports = await gateway.list();
     expect(ports).toHaveLength(1);
+    expect(ports[0]).toEqual({
+      path: '/dev/tty.usbmodem1',
+      manufacturer: 'STMicroelectronics',
+      product: 'Beggar Socket',
+      serialNumber: 'abc123',
+      vendorId: '0483',
+      productId: '0721',
+    });
 
     const selection = await gateway.select();
     const device = await gateway.connect(selection);
-    expect(device.platform).toBe('electron');
-    expect(serial.open).toHaveBeenCalledOnce();
+    expect(device.platform).toBe('tauri');
+    expect(serialPluginState.open).toHaveBeenCalledOnce();
 
     await gateway.init(device);
-    expect(serial.setSignals).toHaveBeenNthCalledWith(1, 'port-1', { dataTerminalReady: false, requestToSend: false });
-    expect(serial.setSignals).toHaveBeenNthCalledWith(2, 'port-1', { dataTerminalReady: true, requestToSend: true });
+    expect(serialPluginState.writeDataTerminalReady).toHaveBeenNthCalledWith(1, false);
+    expect(serialPluginState.writeRequestToSend).toHaveBeenNthCalledWith(1, false);
+    expect(serialPluginState.writeDataTerminalReady).toHaveBeenNthCalledWith(2, true);
+    expect(serialPluginState.writeRequestToSend).toHaveBeenNthCalledWith(2, true);
 
     await gateway.disconnect(device);
-    expect(serial.close).toHaveBeenCalledWith('port-1');
+    expect(serialPluginState.close).toHaveBeenCalled();
   });
 
-  it('ElectronDeviceGateway handles failure semantics for select/connect', async () => {
-    const { electronAPI, serial } = createElectronApiMock();
-    electronAPI.selectSerialPort.mockResolvedValue({
-      ports: [
-        { path: '/dev/a', vendorId: '0483', productId: '0721' },
-        { path: '/dev/b', vendorId: '0483', productId: '0721' },
-      ],
-      needsSelection: true,
-    });
-    serial.open.mockRejectedValue(new Error('open failed'));
+  it('TauriDeviceGateway merges direct port discovery results', async () => {
+    serialPluginState.availablePorts = {};
+    serialPluginState.availablePortsDirect = {
+      '/dev/tty.usbmodem2': {
+        path: '/dev/tty.usbmodem2',
+        manufacturer: 'STMicroelectronics',
+        pid: '0721',
+        serial_number: 'xyz789',
+        type: 'USB',
+        vid: '0483',
+      },
+    };
 
-    Object.defineProperty(window, 'electronAPI', {
-      value: electronAPI,
-      configurable: true,
-      writable: true,
-    });
+    const gateway = new TauriDeviceGateway();
+    const ports = await gateway.list(PortFilters.presets.beggarSocket());
 
-    const gateway = new ElectronDeviceGateway();
+    expect(ports).toEqual([
+      {
+        path: '/dev/tty.usbmodem2',
+        manufacturer: 'STMicroelectronics',
+        product: undefined,
+        serialNumber: 'xyz789',
+        vendorId: '0483',
+        productId: '0721',
+      },
+    ]);
+  });
+
+  it('TauriDeviceGateway dedupes cu/tty aliases and keeps a stable order', async () => {
+    serialPluginState.availablePorts = {
+      '/dev/tty.usbmodem2': {
+        path: '/dev/tty.usbmodem2',
+        manufacturer: 'STMicroelectronics',
+        pid: '0721',
+        product: 'Beggar Socket',
+        serial_number: 'same-device',
+        type: 'USB',
+        vid: '0483',
+      },
+      '/dev/cu.usbmodem2': {
+        path: '/dev/cu.usbmodem2',
+        manufacturer: 'STMicroelectronics',
+        pid: '0721',
+        product: 'Beggar Socket',
+        serial_number: 'same-device',
+        type: 'USB',
+        vid: '0483',
+      },
+      '/dev/cu.usbmodem1': {
+        path: '/dev/cu.usbmodem1',
+        manufacturer: 'STMicroelectronics',
+        pid: '0721',
+        product: 'Beggar Socket',
+        serial_number: 'device-1',
+        type: 'USB',
+        vid: '0483',
+      },
+    };
+
+    const gateway = new TauriDeviceGateway();
+    const ports = await gateway.list();
+
+    expect(ports.map(port => port.path)).toEqual([
+      '/dev/cu.usbmodem1',
+      '/dev/cu.usbmodem2',
+    ]);
+  });
+
+  it('TauriDeviceGateway handles failure semantics for select/connect', async () => {
+    serialPluginState.availablePorts = {
+      '/dev/a': {
+        path: '/dev/a',
+        manufacturer: 'STMicroelectronics',
+        pid: '0721',
+        product: 'Beggar Socket',
+        serial_number: 'a',
+        type: 'USB',
+        vid: '0483',
+      },
+      '/dev/b': {
+        path: '/dev/b',
+        manufacturer: 'STMicroelectronics',
+        pid: '0721',
+        product: 'Beggar Socket',
+        serial_number: 'b',
+        type: 'USB',
+        vid: '0483',
+      },
+    };
+    serialPluginState.open.mockRejectedValue(new Error('open failed'));
+
+    const gateway = new TauriDeviceGateway();
     await expect(gateway.select()).rejects.toBeInstanceOf(PortSelectionRequiredError);
     await expect(gateway.connect({ portInfo: { path: '/dev/a', vendorId: '0483', productId: '0721' } })).rejects.toThrow('open failed');
   });
 
-  it('Web and Electron init behavior is parity-consistent for signal toggling', async () => {
+  it('Web and Tauri init behavior is parity-consistent for signal toggling', async () => {
     const open = vi.fn().mockResolvedValue(undefined);
     const close = vi.fn().mockResolvedValue(undefined);
     const setSignals = vi.fn().mockResolvedValue(undefined);
@@ -177,19 +291,18 @@ describe('Device gateway integration', () => {
     const webDevice = await webGateway.connect();
     await webGateway.init(webDevice);
 
-    const { electronAPI, serial } = createElectronApiMock();
-    Object.defineProperty(window, 'electronAPI', {
-      value: electronAPI,
-      configurable: true,
-      writable: true,
-    });
-    const electronGateway = new ElectronDeviceGateway();
-    const electronDevice = await electronGateway.connect({ portInfo: { path: '/dev/tty.usbmodem1', vendorId: '0483', productId: '0721' } });
-    await electronGateway.init(electronDevice);
+    const tauriGateway = new TauriDeviceGateway();
+    const tauriDevice = await tauriGateway.connect({ portInfo: { path: '/dev/tty.usbmodem1', vendorId: '0483', productId: '0721' } });
+    await tauriGateway.init(tauriDevice);
 
     expect(setSignals).toHaveBeenNthCalledWith(1, { dataTerminalReady: false, requestToSend: false });
     expect(setSignals).toHaveBeenNthCalledWith(2, { dataTerminalReady: true, requestToSend: true });
-    expect(serial.setSignals).toHaveBeenNthCalledWith(1, 'port-1', { dataTerminalReady: false, requestToSend: false });
-    expect(serial.setSignals).toHaveBeenNthCalledWith(2, 'port-1', { dataTerminalReady: true, requestToSend: true });
+    expect(setSignals).toHaveBeenNthCalledWith(3, { dataTerminalReady: false, requestToSend: false });
+    expect(serialPluginState.writeDataTerminalReady).toHaveBeenNthCalledWith(1, false);
+    expect(serialPluginState.writeRequestToSend).toHaveBeenNthCalledWith(1, false);
+    expect(serialPluginState.writeDataTerminalReady).toHaveBeenNthCalledWith(2, true);
+    expect(serialPluginState.writeRequestToSend).toHaveBeenNthCalledWith(2, true);
+    expect(serialPluginState.writeDataTerminalReady).toHaveBeenNthCalledWith(3, false);
+    expect(serialPluginState.writeRequestToSend).toHaveBeenNthCalledWith(3, false);
   });
 });

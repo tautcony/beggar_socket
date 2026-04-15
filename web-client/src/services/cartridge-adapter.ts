@@ -230,10 +230,27 @@ export class CartridgeAdapter {
   }
 
   async resetCommandBuffer(): Promise<void> {
-    await this.device.port?.setSignals({ dataTerminalReady: true, requestToSend: true });
+    const transport = this.device.transport ?? null;
+
+    await transport?.flushInput?.();
+    await transport?.setSignals({ dataTerminalReady: false, requestToSend: false });
+    if (!transport) {
+      await this.device.port?.setSignals({ dataTerminalReady: false, requestToSend: false });
+    }
     await timeout(CartridgeAdapter.COMMAND_RESET_PULSE_MS);
-    await this.device.port?.setSignals({ dataTerminalReady: false, requestToSend: false });
+
+    await transport?.setSignals({ dataTerminalReady: true, requestToSend: true });
+    if (!transport) {
+      await this.device.port?.setSignals({ dataTerminalReady: true, requestToSend: true });
+    }
+    await timeout(CartridgeAdapter.COMMAND_RESET_PULSE_MS);
+
+    await transport?.setSignals({ dataTerminalReady: false, requestToSend: false });
+    if (!transport) {
+      await this.device.port?.setSignals({ dataTerminalReady: false, requestToSend: false });
+    }
     await timeout(CartridgeAdapter.COMMAND_RESET_SETTLE_MS);
+    await transport?.flushInput?.();
   }
 
   protected async stabilizeCommandChannel(settleMs = 100): Promise<void> {

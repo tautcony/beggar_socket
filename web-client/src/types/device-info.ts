@@ -1,9 +1,9 @@
 import type { DeviceHandle, Transport } from '@/platform/serial';
-import type { SerialConnection, SerialPortInfo } from '@/types/serial';
+import type { SerialPortInfo } from '@/types/serial';
 
 export interface DeviceInfo {
   port: SerialPort | null;
-  connection?: SerialConnection | null; // 新增：统一的串口连接对象
+  connection?: null;
   transport?: Transport | null;
   serialHandle?: DeviceHandle | null;
   portInfo?: SerialPortInfo;

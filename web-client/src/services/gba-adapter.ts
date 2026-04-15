@@ -56,27 +56,40 @@ export class GBAAdapter extends CartridgeAdapter {
 
   private async readROMChunkWithRetry(
     chunkSize: number,
-    baseAddress: number,
+    logicalAddress: number,
+    cartAddress: number,
+    chunkIndex: number,
+    bank: number,
     restoreState?: () => Promise<void>,
   ): Promise<Uint8Array> {
     let lastError: unknown;
     const retries = AdvancedSettings.romReadRetryCount;
     const attempts = retries + 1;
     const retryDelayMs = AdvancedSettings.romReadRetryDelayMs;
+    const timeoutMs = AdvancedSettings.packageReceiveTimeout;
 
     for (let attempt = 1; attempt <= attempts; attempt++) {
       try {
-        return await rom_read(this.device, chunkSize, baseAddress);
+        return await rom_read(this.device, chunkSize, cartAddress);
       } catch (error) {
         lastError = error;
-        this.log(`ROM chunk read retry ${attempt}/${attempts} @ ${formatHex(baseAddress, 4)} (${chunkSize}B): ${error instanceof Error ? error.message : String(error)}`, 'warn');
+        this.log(
+          `ROM chunk read retry ${attempt}/${attempts} #${chunkIndex} @ ${formatHex(logicalAddress, 4)} `
+          + `(cart ${formatHex(cartAddress, 4)}, bank ${bank}, ${chunkSize}B, timeout ${timeoutMs}ms): `
+          + (error instanceof Error ? error.message : String(error)),
+          'warn',
+        );
 
         if (attempt < attempts) {
           await this.stabilizeCommandChannel(GBAAdapter.ROM_READ_RETRY_RESET_MS);
           if (restoreState) {
             await restoreState();
           }
-          this.log(`ROM chunk channel resynchronized before retry @ ${formatHex(baseAddress, 4)}`, 'info');
+          this.log(
+            `ROM chunk channel resynchronized before retry #${chunkIndex} @ ${formatHex(logicalAddress, 4)} `
+            + `(cart ${formatHex(cartAddress, 4)}, bank ${bank})`,
+            'info',
+          );
           if (retryDelayMs > 0) {
             await timeout(retryDelayMs * attempt);
           }
@@ -535,11 +548,20 @@ export class GBAAdapter extends CartridgeAdapter {
     const baseAddress = options.baseAddress ?? 0x00;
     const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
     const readThrottleMs = AdvancedSettings.romReadThrottleMs;
+    const retries = AdvancedSettings.romReadRetryCount;
+    const retryDelayMs = AdvancedSettings.romReadRetryDelayMs;
+    const timeoutMs = AdvancedSettings.packageReceiveTimeout;
 
     this.log(this.t('messages.operation.startReadROM', {
       size,
       baseAddress: formatHex(baseAddress, 4),
     }), 'info');
+    this.log(
+      `ROM read session config: page=${formatBytes(pageSize)}, retries=${retries}, `
+      + `retryDelay=${retryDelayMs}ms, timeout=${timeoutMs}ms, throttle=${readThrottleMs}ms, `
+      + `multiBank=${options.cfiInfo.deviceSize > (1 << 25)}`,
+      'info',
+    );
 
     return PerformanceTracker.trackAsyncOperation(
       'gba.readROM',
@@ -613,7 +635,14 @@ export class GBAAdapter extends CartridgeAdapter {
             const restoreState = options.cfiInfo.deviceSize > (1 << 25)
               ? async () => { await this.switchROMBank(bank); }
               : undefined;
-            const chunk = await this.readROMChunkWithRetry(chunkSize, cartAddress, restoreState);
+            const chunk = await this.readROMChunkWithRetry(
+              chunkSize,
+              currentAddress,
+              cartAddress,
+              Math.floor(totalRead / pageSize) + 1,
+              bank,
+              restoreState,
+            );
             const chunkEndTime = Date.now();
             data.set(chunk, totalRead);
 
@@ -826,7 +855,14 @@ export class GBAAdapter extends CartridgeAdapter {
             const restoreState = isMultiCard
               ? async () => { await this.switchROMBank(bank); }
               : undefined;
-            const actualChunk = await this.readROMChunkWithRetry(chunkSize, cartAddress, restoreState);
+            const actualChunk = await this.readROMChunkWithRetry(
+              chunkSize,
+              currentAddress,
+              cartAddress,
+              Math.floor(verified / pageSize) + 1,
+              bank,
+              restoreState,
+            );
             const chunkEndTime = Date.now();
 
             // 逐字节比较

@@ -22,6 +22,9 @@
         <p class="app-version">
           {{ $t('ui.about.version') }}: {{ appVersion }}
         </p>
+        <p class="app-version">
+          Runtime: {{ platformInfo }}
+        </p>
         <p class="app-description">
           {{ $t('ui.about.description') }}
         </p>
@@ -61,11 +64,11 @@
           <span>Pinia</span>
         </div>
         <div
-          v-if="isElectronEnv"
+          v-if="isTauriEnv"
           class="tech-item"
         >
           <IonIcon :icon="desktopOutline" />
-          <span>Electron</span>
+          <span>Tauri</span>
         </div>
         <div class="tech-item">
           <IonIcon :icon="linkOutline" />
@@ -155,10 +158,10 @@ import {
   logoVue,
   openOutline,
 } from 'ionicons/icons';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 import BaseModal from '@/components/common/BaseModal.vue';
-import { isElectron } from '@/utils/electron';
+import { getAppVersion, getPlatform, isTauri } from '@/utils/tauri';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -177,8 +180,14 @@ const localVisible = computed({
   },
 });
 
-const isElectronEnv = ref(isElectron());
+const isTauriEnv = ref(isTauri());
 const appVersion = ref(import.meta.env.VITE_APP_VERSION ?? '1.0.0');
+const platformInfo = ref('Web');
+
+onMounted(async () => {
+  appVersion.value = await getAppVersion();
+  platformInfo.value = await getPlatform();
+});
 
 function closeModal() {
   emit('close');

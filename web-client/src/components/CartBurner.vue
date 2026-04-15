@@ -509,7 +509,7 @@ async function writeRom() {
 async function readRom() {
   await executeOperation({
     cancellable: true,
-    resetProgressOnFinish: true,
+    resetProgressOnFinish: false,
     updateProgress: {
       progress: 0,
     },
@@ -554,7 +554,13 @@ async function readRom() {
           if (romInfo.type !== 'Unknown') {
             fileName = romInfo.fileName;
           }
-          saveAsFile(response.data, fileName);
+          const saveResult = await saveAsFile(response.data, fileName);
+          if (saveResult.saved) {
+            log(t('messages.ram.exportSuccess', { name: fileName }), 'success');
+          } else {
+            showToast(t('messages.operation.cancelled'), 'info');
+            log(t('messages.operation.cancelled'), 'warn');
+          }
         }
       } else {
         showToast(response.message, 'error');
@@ -724,7 +730,13 @@ async function readRam() {
             pendingRamData.value = response.data;
             showFileNameSelector.value = true;
           } else {
-            saveAsFile(response.data, defaultFileName);
+            const saveResult = await saveAsFile(response.data, defaultFileName);
+            if (saveResult.saved) {
+              log(t('messages.ram.exportSuccess', { name: defaultFileName }), 'success');
+            } else {
+              showToast(t('messages.operation.cancelled'), 'info');
+              log(t('messages.operation.cancelled'), 'warn');
+            }
           }
         }
       } else {

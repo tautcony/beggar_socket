@@ -1,12 +1,35 @@
 import type { BurnerDomainError, BurnerErrorCode, BurnerErrorStage } from './result';
 
-function inferErrorCode(error: unknown): BurnerErrorCode {
+function extractErrorMessage(error: unknown): string | null {
   if (error instanceof Error) {
-    const message = error.message.toLowerCase();
-    if (error.name === 'AbortError') {
+    return error.message;
+  }
+
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  if (error && typeof error === 'object') {
+    if ('message' in error && typeof error.message === 'string') {
+      return error.message;
+    }
+    if ('error' in error && typeof error.error === 'string') {
+      return error.error;
+    }
+  }
+
+  return null;
+}
+
+function inferErrorCode(error: unknown): BurnerErrorCode {
+  const extractedMessage = extractErrorMessage(error);
+
+  if (error instanceof Error || extractedMessage) {
+    const message = extractedMessage?.toLowerCase() ?? '';
+    if (error instanceof Error && error.name === 'AbortError') {
       return 'aborted';
     }
-    if (error.name === 'PortSelectionRequiredError') {
+    if (error instanceof Error && error.name === 'PortSelectionRequiredError') {
       return 'selection_required';
     }
     if (message.includes('selection')) {
@@ -25,7 +48,7 @@ function inferErrorCode(error: unknown): BurnerErrorCode {
 }
 
 export function mapDomainError(stage: BurnerErrorStage, error: unknown, fallbackMessage: string): BurnerDomainError {
-  const message = error instanceof Error ? error.message : fallbackMessage;
+  const message = extractErrorMessage(error) ?? fallbackMessage;
   const code = inferErrorCode(error);
   const recoverable = code !== 'unknown';
 

@@ -81,7 +81,7 @@ function checkViolation(sourceRel, importRel) {
   if (
     sourceTop === 'protocol'
     && (
-      importRel.startsWith('platform/serial/electron')
+      importRel.startsWith('platform/serial/tauri')
       || importRel.startsWith('platform/serial/web')
       || importRel.startsWith('platform/serial/transports')
     )

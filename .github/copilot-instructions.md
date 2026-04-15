@@ -7,7 +7,7 @@ ChisFlash Burner is a **multi-platform GBA/GBC cartridge programmer** with three
 ### Three-Tier System
 - **MCU (`mcu/`)**: STM32F103C8T6 firmware handling low-level cartridge I/O via custom USB protocol
 - **Desktop Client (`client/`)**: C# WinForms app for Windows users  
-- **Web Client (`web-client/`)**: Vue 3 + Vite app supporting WebSerial API + Electron desktop packaging
+- **Web Client (`web-client/`)**: Vue 3 + Vite app supporting WebSerial API + Tauri desktop packaging
 
 ### Communication Flow
 ```
@@ -24,7 +24,7 @@ Web/Desktop Client → WebSerial/SerialPort → STM32 USB CDC → Hardware Proto
 
 ### Service Layer Architecture (`web-client/src/services/`)
 - **Adapter pattern**: `CartridgeAdapter` base class → `GBAAdapter`, `MBC5Adapter` implementations
-- **Device abstraction**: `DeviceConnectionManager` handles WebSerial/Electron SerialPort differences
+- **Device abstraction**: `DeviceConnectionManager` handles WebSerial/Tauri serial differences
 - **Protocol isolation**: Services call protocol functions, views call services
 
 ### Vue 3 + Composition API Conventions
@@ -46,13 +46,13 @@ Web/Desktop Client → WebSerial/SerialPort → STM32 USB CDC → Hardware Proto
 cd web-client
 npm install        # Install dependencies
 npm run dev       # Start dev server (localhost:5173)
-npm run electron:dev  # Start Electron + dev server concurrently
+npm run tauri:dev  # Start Tauri + dev server
 ```
 
 ### Building & Distribution
 - **Web build**: `npm run build` → `dist/` (for web deployment)
-- **Electron build**: `npm run electron:build:mac:universal` → `dist-electron/` 
-- Uses `electron-builder` with config in `package.json` → `build` section
+- **Tauri build**: `npm run tauri:build` → `src-tauri/target/release/bundle/`
+- Uses Tauri v2 config in `web-client/src-tauri/tauri.conf.json`
 
 ### MCU Development
 ```bash
@@ -82,8 +82,8 @@ await SerialService.requestPort(filter);
 
 ### Cross-Platform Considerations
 - **Web**: WebSerial API (Chrome/Edge only)
-- **Electron**: Native SerialPort with fallback to WebSerial
-- **Device detection**: Use `DeviceConnectionManager.isElectronEnvironment()`
+- **Tauri**: Native serialplugin with fallback to WebSerial
+- **Device detection**: Use `isTauri()` from `web-client/src/utils/tauri.ts`
 
 ## 🎯 Common Tasks & Patterns
 

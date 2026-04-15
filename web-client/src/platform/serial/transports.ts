@@ -1,6 +1,5 @@
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import type { DefaultReader } from '@/types';
-import type { SerialConnection } from '@/types/serial';
 
 import { Mutex } from './mutex';
 import type { Transport, TransportReadMode } from './types';
@@ -30,122 +29,6 @@ async function withTimeout<T>(
   }
 }
 
-export class ConnectionTransport implements Transport {
-  private readonly overflow: Uint8Array[] = [];
-  private readonly mutex = new Mutex();
-
-  constructor(private readonly connection: SerialConnection) {}
-
-  async send(payload: Uint8Array, timeoutMs?: number): Promise<boolean> {
-    const timeout = timeoutMs ?? AdvancedSettings.packageSendTimeout;
-
-    await withTimeout(
-      this.connection.write(payload),
-      timeout,
-      `Send package timeout in ${timeout}ms`,
-    );
-
-    return true;
-  }
-
-  async read(length: number, timeoutMs?: number): Promise<{ data: Uint8Array }> {
-    const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
-
-    return new Promise((resolve, reject) => {
-      const { connection, overflow } = this;
-      const accumulatedData = new Uint8Array(length);
-      let offset = 0;
-      let settled = false;
-      let timer: ReturnType<typeof setTimeout> | undefined;
-
-      // Drain bytes left over from the previous read before registering for new data
-      while (overflow.length > 0 && offset < length) {
-        const chunk = overflow[0];
-        const bytesToCopy = Math.min(chunk.byteLength, length - offset);
-        accumulatedData.set(chunk.subarray(0, bytesToCopy), offset);
-        offset += bytesToCopy;
-        if (bytesToCopy === chunk.byteLength) {
-          overflow.shift();
-        } else {
-          overflow[0] = chunk.subarray(bytesToCopy);
-        }
-      }
-
-      if (offset >= length) {
-        resolve({ data: accumulatedData });
-        return;
-      }
-
-      const clearActiveTimer = () => {
-        if (timer) {
-          clearTimeout(timer);
-          timer = undefined;
-        }
-      };
-
-      function handleData(data: Uint8Array) {
-        if (settled) return;
-
-        const bytesToCopy = Math.min(data.byteLength, length - offset);
-        accumulatedData.set(data.subarray(0, bytesToCopy), offset);
-        offset += bytesToCopy;
-
-        // Buffer any bytes beyond what this read needs so they aren't lost
-        if (data.byteLength > bytesToCopy) {
-          overflow.push(data.subarray(bytesToCopy));
-        }
-
-        if (offset >= length) {
-          settled = true;
-          clearActiveTimer();
-          connection.removeDataListener(handleData);
-          resolve({ data: accumulatedData });
-          return;
-        }
-
-        // Treat timeout as inactivity timeout instead of total packet timeout.
-        armTimeout();
-      }
-
-      function armTimeout() {
-        clearActiveTimer();
-        timer = setTimeout(() => {
-          if (settled) return;
-          settled = true;
-          connection.removeDataListener(handleData);
-          reject(new Error(`Read package timeout in ${timeout}ms`));
-        }, timeout);
-      }
-
-      connection.onData(handleData);
-      armTimeout();
-    });
-  }
-
-  async sendAndReceive(
-    payload: Uint8Array,
-    readLength: number,
-    sendTimeoutMs?: number,
-    readTimeoutMs?: number,
-  ): Promise<{ data: Uint8Array }> {
-    const release = await this.mutex.acquire();
-    try {
-      await this.send(payload, sendTimeoutMs);
-      return await this.read(readLength, readTimeoutMs);
-    } finally {
-      release();
-    }
-  }
-
-  async setSignals(signals: SerialOutputSignals): Promise<void> {
-    await this.connection.setSignals(signals);
-  }
-
-  async close(): Promise<void> {
-    await this.connection.close();
-  }
-}
-
 export class WebSerialTransport implements Transport {
   private reader: DefaultReader | null = null;
   private writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
@@ -156,6 +39,12 @@ export class WebSerialTransport implements Transport {
   private streamDone = false;
   private streamError: unknown = null;
   private readonly mutex = new Mutex();
+  private totalRxBytes = 0;
+  private totalRxChunks = 0;
+  private totalTxBytes = 0;
+  private totalTxPackets = 0;
+  private lastRxAt = 0;
+  private readSequence = 0;
 
   constructor(private readonly port: SerialPort) {}
 
@@ -192,6 +81,8 @@ export class WebSerialTransport implements Transport {
       },
     );
 
+    this.totalTxPackets += 1;
+    this.totalTxBytes += payload.byteLength;
     return true;
   }
 
@@ -223,8 +114,14 @@ export class WebSerialTransport implements Transport {
     await this.port.setSignals(signals);
   }
 
+  flushInput(): Promise<void> {
+    this.clearBuffer();
+    return Promise.resolve();
+  }
+
   async close(): Promise<void> {
     this.releaseWriter();
+    this.clearBuffer();
     if (this.reader) {
       try {
         await this.reader.cancel();
@@ -296,6 +193,9 @@ export class WebSerialTransport implements Transport {
         if (value && value.byteLength > 0) {
           this.bufferedChunks.push(new Uint8Array(value));
           this.bufferedLength += value.byteLength;
+          this.totalRxChunks += 1;
+          this.totalRxBytes += value.byteLength;
+          this.lastRxAt = Date.now();
           this.notifyReadWaiters();
         }
       }
@@ -363,11 +263,58 @@ export class WebSerialTransport implements Transport {
     return nextOffset;
   }
 
+  private clearBuffer(): void {
+    this.bufferedChunks.length = 0;
+    this.bufferedLength = 0;
+  }
+
+  private createReadTimeoutError(params: {
+    timeout: number;
+    expectedLength: number;
+    receivedLength: number;
+    readId: number;
+    startedAt: number;
+    initialBufferedLength: number;
+    startRxBytes: number;
+    startRxChunks: number;
+  }): Error {
+    const {
+      timeout,
+      expectedLength,
+      receivedLength,
+      readId,
+      startedAt,
+      initialBufferedLength,
+      startRxBytes,
+      startRxChunks,
+    } = params;
+    const elapsed = Date.now() - startedAt;
+    const sinceLastRx = this.lastRxAt > 0 ? Date.now() - this.lastRxAt : -1;
+    const sessionRxBytes = this.totalRxBytes - startRxBytes;
+    const sessionRxChunks = this.totalRxChunks - startRxChunks;
+    const sinceLastRxText = sinceLastRx >= 0 ? `, sinceLastRx=${sinceLastRx}ms` : '';
+
+    return new Error(
+      `Read package timeout in ${timeout}ms `
+      + `(read#${readId}, expected=${expectedLength}B, received=${receivedLength}B, `
+      + `buffered=${this.bufferedLength}B, initialBuffered=${initialBufferedLength}B, `
+      + `sessionRx=${sessionRxBytes}B/${sessionRxChunks}chunks, `
+      + `totalRx=${this.totalRxBytes}B/${this.totalRxChunks}chunks, `
+      + `totalTx=${this.totalTxBytes}B/${this.totalTxPackets}packets, `
+      + `elapsed=${elapsed}ms${sinceLastRxText}, streamDone=${this.streamDone})`,
+    );
+  }
+
   private async readFromBuffer(
     length: number,
     timeoutMs?: number,
   ): Promise<{ data: Uint8Array }> {
     const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
+    const readId = ++this.readSequence;
+    const startedAt = Date.now();
+    const initialBufferedLength = this.bufferedLength;
+    const startRxBytes = this.totalRxBytes;
+    const startRxChunks = this.totalRxChunks;
     let offset = 0;
     const accumulatedData = new Uint8Array(length);
 
@@ -385,11 +332,33 @@ export class WebSerialTransport implements Transport {
         break;
       }
 
-      await this.waitForData(timeout);
+      try {
+        await this.waitForData(timeout);
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('Read package timeout')) {
+          throw this.createReadTimeoutError({
+            timeout,
+            expectedLength: length,
+            receivedLength: offset,
+            readId,
+            startedAt,
+            initialBufferedLength,
+            startRxBytes,
+            startRxChunks,
+          });
+        }
+        throw error;
+      }
     }
 
     if (offset < length) {
-      throw new Error(`Incomplete package read: expected ${length} bytes, got ${offset}`);
+      const sessionRxBytes = this.totalRxBytes - startRxBytes;
+      const sessionRxChunks = this.totalRxChunks - startRxChunks;
+      throw new Error(
+        `Incomplete package read: expected ${length} bytes, got ${offset} `
+        + `(read#${readId}, buffered=${this.bufferedLength}B, initialBuffered=${initialBufferedLength}B, `
+        + `sessionRx=${sessionRxBytes}B/${sessionRxChunks}chunks, streamDone=${this.streamDone})`,
+      );
     }
 
     return { data: accumulatedData };

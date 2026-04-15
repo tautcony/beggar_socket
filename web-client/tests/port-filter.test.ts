@@ -9,6 +9,7 @@ describe('重新设计的串口过滤器', () => {
     vendorId: '0483',
     productId: '0721',
     manufacturer: 'STMicroelectronics',
+    product: 'Beggar Socket',
   };
 
   const mockArduinoPort: SerialPortInfo = {
@@ -16,6 +17,7 @@ describe('重新设计的串口过滤器', () => {
     vendorId: '2341',
     productId: 'abcd',
     manufacturer: 'Arduino LLC',
+    product: 'Arduino',
   };
 
   const mockCH340Port: SerialPortInfo = {
@@ -23,6 +25,7 @@ describe('重新设计的串口过滤器', () => {
     vendorId: '1a86',
     productId: '7523',
     manufacturer: 'QinHeng Electronics',
+    product: 'USB-Serial CH340',
   };
 
   describe('单个设备过滤器', () => {
@@ -90,6 +93,20 @@ describe('重新设计的串口过滤器', () => {
       expect(filter(mockSTM32Port)).toBe(true);
       expect(filter(mockArduinoPort)).toBe(true);
       expect(filter(mockCH340Port)).toBe(false);
+    });
+
+    it('应该支持基于产品名的设备过滤', () => {
+      const filter = PortFilters.device(undefined, undefined, 'STMicroelectronics', 'Beggar Socket');
+
+      expect(filter(mockSTM32Port)).toBe(true);
+      expect(filter(mockArduinoPort)).toBe(false);
+      expect(filter.config?.devices?.[0]).toEqual({
+        vendorId: undefined,
+        productId: undefined,
+        manufacturer: 'STMicroelectronics',
+        product: 'Beggar Socket',
+      });
+      expect(filter.toWebSerialFilters?.()).toEqual([]);
     });
   });
 
@@ -190,6 +207,21 @@ describe('重新设计的串口过滤器', () => {
         usbVendorId: 0x0483,
         usbProductId: 0x0721,
       }]);
+    });
+
+    it('Beggar Socket 预设在缺失 VID/PID 时仍可通过 manufacturer/product 命中', () => {
+      const filter = PortFilters.presets.beggarSocket();
+
+      expect(filter({
+        path: '/dev/cu.usbmodem123',
+        manufacturer: 'STMicroelectronics',
+        product: 'Beggar Socket',
+      })).toBe(true);
+      expect(filter({
+        path: '/dev/cu.other',
+        manufacturer: 'STMicroelectronics',
+        product: 'Other Board',
+      })).toBe(false);
     });
   });
 

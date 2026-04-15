@@ -1,0 +1,27 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default desktop capability for the main window with serial plugin access",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "serialplugin:allow-available-ports",
+    "serialplugin:allow-available-ports-direct",
+    "serialplugin:allow-open",
+    "serialplugin:allow-close",
+    "serialplugin:allow-read",
+    "serialplugin:allow-write",
+    "serialplugin:allow-write-binary",
+    "serialplugin:allow-read-binary",
+    "serialplugin:allow-write-data-terminal-ready",
+    "serialplugin:allow-write-dtr",
+    "serialplugin:allow-write-request-to-send",
+    "serialplugin:allow-write-rts",
+    "serialplugin:allow-start-listening",
+    "serialplugin:allow-stop-listening",
+    "serialplugin:allow-cancel-read",
+    "serialplugin:allow-clear-buffer"
+  ]
+}

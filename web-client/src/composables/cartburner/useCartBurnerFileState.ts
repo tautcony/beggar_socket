@@ -1,7 +1,9 @@
+import { invoke } from '@tauri-apps/api/core';
 import { ref } from 'vue';
 
 import type { FileInfo } from '@/types/file-info';
 import { formatBytes } from '@/utils/formatter-utils';
+import { isTauri } from '@/utils/tauri';
 
 export function useCartBurnerFileState(log: (message: string) => void, translate: (key: string, params?: Record<string, unknown>) => string) {
   const romFileData = ref<Uint8Array | null>(null);
@@ -71,7 +73,18 @@ export function useCartBurnerFileState(log: (message: string) => void, translate
     log(translate('messages.ram.typeChanged', { type }));
   }
 
-  function saveAsFile(data: Uint8Array, filename: string) {
+  async function saveAsFile(data: Uint8Array, filename: string): Promise<{ saved: boolean; path?: string }> {
+    if (isTauri()) {
+      const savedPath = await invoke<string | null>('save_binary_file', {
+        suggestedFilename: filename,
+        bytes: Array.from(data),
+      });
+      return {
+        saved: Boolean(savedPath),
+        path: savedPath ?? undefined,
+      };
+    }
+
     const blob = new Blob([data as BlobPart], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -80,16 +93,23 @@ export function useCartBurnerFileState(log: (message: string) => void, translate
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    window.setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 1000);
+    return { saved: true };
   }
 
-  function onFileNameSelected(fileName: string) {
+  async function onFileNameSelected(fileName: string) {
     if (pendingRamData.value) {
       const fileExtension = fileName.includes('.') ? '' : '.sav';
       const outputName = `${fileName}${fileExtension}`;
-      saveAsFile(pendingRamData.value, outputName);
-      pendingRamData.value = null;
-      log(translate('messages.ram.exportSuccess', { name: outputName }));
+      const result = await saveAsFile(pendingRamData.value, outputName);
+      if (result.saved) {
+        pendingRamData.value = null;
+        log(translate('messages.ram.exportSuccess', { name: outputName }));
+      } else {
+        log(translate('messages.operation.cancelled'));
+      }
     }
   }
 

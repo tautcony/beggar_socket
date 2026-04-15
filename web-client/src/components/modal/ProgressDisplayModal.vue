@@ -23,11 +23,12 @@
         <div class="progress-bar-container">
           <div
             class="progress-bar-fill"
-            :style="{ width: `${progress || 0}%` }"
+            :class="{ 'progress-bar-fill--instant': useInstantProgressFill }"
+            :style="progressBarFillStyle"
           />
         </div>
         <div class="progress-percentage">
-          {{ (progress || 0).toFixed(1) }}%
+          {{ normalizedProgress.toFixed(1) }}%
         </div>
       </div>
       <!-- Transfer Statistics -->
@@ -114,6 +115,7 @@ import BaseModal from '@/components/common/BaseModal.vue';
 import SectorVisualization from '@/components/progress/SectorVisualization.vue';
 import { ProgressInfo } from '@/types/progress-info';
 import { formatBytes, formatSpeed, formatTimeClock } from '@/utils/formatter-utils';
+import { isTauri } from '@/utils/tauri';
 
 const props = defineProps<ProgressInfo & {
   modelValue: boolean;
@@ -141,6 +143,17 @@ const now = ref(Date.now());
 const lastUpdateTime = ref(Date.now());
 let timer: number | undefined;
 const TIME_REFRESH_INTERVAL_MS = 100;
+
+const normalizedProgress = computed(() => {
+  const value = typeof props.progress === 'number' ? props.progress : 0;
+  return Math.max(0, Math.min(100, value));
+});
+
+const useInstantProgressFill = computed(() => isTauri());
+
+const progressBarFillStyle = computed(() => ({
+  transform: `scaleX(${normalizedProgress.value / 100})`,
+}));
 
 const isCompleted = computed(() => {
   return props.progress === 100 || props.state === 'completed' || props.state === 'error';
@@ -300,9 +313,13 @@ onUnmounted(() => {
 .progress-bar-fill {
   background: linear-gradient(90deg, color-vars.$color-primary, #1d4ed8);
   height: 100%;
+  width: 100%;
   border-radius: radius-vars.$radius-md;
-  transition: width 0.3s ease;
+  transition: transform 0.08s linear;
   position: relative;
+  transform-origin: left center;
+  will-change: transform;
+  backface-visibility: hidden;
 
   &::after {
     content: '';
@@ -314,6 +331,10 @@ onUnmounted(() => {
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
     animation: progressShimmer 2s infinite;
   }
+}
+
+.progress-bar-fill--instant {
+  transition: none;
 }
 
 @keyframes progressShimmer {

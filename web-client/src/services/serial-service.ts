@@ -4,12 +4,11 @@
  */
 import { type DeviceSelection, getDeviceGateway, toLegacyDeviceInfo } from '@/platform/serial';
 import type { DeviceInfo } from '@/types';
-import type { SerialConnection, SerialPortInfo } from '@/types/serial';
+import type { SerialPortInfo } from '@/types/serial';
 
 export class SerialService {
   private static instance: SerialService;
   private readonly gateway = getDeviceGateway();
-  private readonly openConnections = new Map<string, SerialConnection>();
 
   private constructor() {}
 
@@ -47,10 +46,6 @@ export class SerialService {
       throw e;
     }
 
-    if (device.connection) {
-      this.openConnections.set(device.connection.id, device.connection);
-    }
-
     return device;
   }
 
@@ -62,16 +57,14 @@ export class SerialService {
 
   removeListeners(_portId: string) {}
 
-  getConnection(portId: string): SerialConnection | undefined {
-    return this.openConnections.get(portId);
+  getConnection(_portId: string): undefined {
+    return undefined;
   }
 
   async closeAllConnections(): Promise<void> {
-    const promises = Array.from(this.openConnections.values()).map(conn => conn.close());
-    await Promise.all(promises);
-    this.openConnections.clear();
+    return Promise.resolve();
   }
 }
 
 export const serialService = SerialService.getInstance();
-export type { SerialConnection, SerialPortInfo } from '@/types/serial';
+export type { SerialPortInfo } from '@/types/serial';

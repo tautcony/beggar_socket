@@ -96,6 +96,7 @@ export function useCartBurnerSessionState(translate: (key: string) => string) {
 
   function log(msg: string, level: LogLevelType = 'info') {
     const time = DateTime.now().toLocaleString(DateTime.TIME_24_WITH_SECONDS);
+    console.log(`[CartBurner][${level}][${time}] ${msg}`);
     burnerSession.addLog(time, msg, level);
     syncLogsState();
   }
@@ -107,6 +108,8 @@ export function useCartBurnerSessionState(translate: (key: string) => string) {
 
   async function executeOperation<TResult>(options: ExecuteOperationOptions<TResult>) {
     keepProgressModalOpen.value = false;
+    burnerSession.resetProgress();
+    syncProgressState();
     return runBurnerFlow({
       session: burnerSession,
       cancellable: options.cancellable,

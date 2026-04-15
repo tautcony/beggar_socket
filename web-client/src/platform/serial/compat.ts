@@ -1,16 +1,17 @@
 import type { DeviceInfo } from '@/types/device-info';
 import type { SerialPortInfo } from '@/types/serial';
-import { isElectron } from '@/utils/electron';
+import { isTauri } from '@/utils/tauri';
 
-import { ConnectionTransport, WebSerialTransport } from './transports';
+import { WebSerialTransport } from './transports';
 import type { DeviceHandle, Transport } from './types';
 
 export function toLegacyDeviceInfo(device: DeviceHandle): DeviceInfo {
   return {
     port: device.port,
-    connection: device.connection ?? null,
+    connection: null,
     transport: device.transport,
     serialHandle: device,
+    portInfo: device.portInfo,
   };
 }
 
@@ -20,10 +21,10 @@ export function fromLegacyDeviceInfo(device: DeviceInfo): DeviceHandle {
 
   const transport = resolveTransport(device);
   return {
-    platform: isElectron() ? 'electron' : 'web',
+    platform: isTauri() ? 'tauri' : 'web',
     transport,
     port: device.port,
-    connection: device.connection ?? null,
+    connection: null,
     portInfo: undefined,
   };
 }
@@ -39,10 +40,6 @@ export function withPortInfo(device: DeviceInfo, portInfo?: SerialPortInfo): Dev
 export function resolveTransport(device: DeviceInfo | { transport: Transport }): Transport {
   if ('transport' in device && device.transport) {
     return device.transport;
-  }
-
-  if ('connection' in device && device.connection) {
-    return new ConnectionTransport(device.connection);
   }
 
   if ('port' in device && device.port) {

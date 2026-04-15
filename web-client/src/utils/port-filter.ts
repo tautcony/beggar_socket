@@ -4,9 +4,10 @@ import type { SerialPortInfo } from '@/types/serial';
  * 基础设备标识符（vendorId + productId 组合）
  */
 export interface DeviceIdentifier {
-  vendorId: string | number;
+  vendorId?: string | number;
   productId?: string | number;
   manufacturer?: string;
+  product?: string;
 }
 
 /**
@@ -36,7 +37,7 @@ function deviceIdentifierToWebSerialFilter(device: DeviceIdentifier): SerialPort
   // 处理 vendorId
   if (typeof device.vendorId === 'number') {
     filter.usbVendorId = device.vendorId;
-  } else {
+  } else if (typeof device.vendorId === 'string') {
     filter.usbVendorId = parseInt(device.vendorId, 16);
   }
 
@@ -56,13 +57,14 @@ function deviceIdentifierToWebSerialFilter(device: DeviceIdentifier): SerialPort
  * 工具函数：检查端口是否匹配设备标识符
  */
 function matchesDeviceIdentifier(port: SerialPortInfo, device: DeviceIdentifier): boolean {
-  // 检查 vendorId
-  const normalizedDeviceVendorId = typeof device.vendorId === 'number'
-    ? device.vendorId.toString(16).padStart(4, '0').toLowerCase()
-    : device.vendorId.padStart(4, '0').toLowerCase();
+  if (device.vendorId !== undefined) {
+    const normalizedDeviceVendorId = typeof device.vendorId === 'number'
+      ? device.vendorId.toString(16).padStart(4, '0').toLowerCase()
+      : device.vendorId.padStart(4, '0').toLowerCase();
 
-  const portVendorId = port.vendorId?.toLowerCase();
-  if (portVendorId !== normalizedDeviceVendorId) return false;
+    const portVendorId = port.vendorId?.toLowerCase();
+    if (portVendorId !== normalizedDeviceVendorId) return false;
+  }
 
   if (device.productId !== undefined) {
     const normalizedDeviceProductId = typeof device.productId === 'number'
@@ -79,6 +81,12 @@ function matchesDeviceIdentifier(port: SerialPortInfo, device: DeviceIdentifier)
     if (!portManufacturer?.includes(deviceManufacturer)) return false;
   }
 
+  if (device.product !== undefined) {
+    const portProduct = port.product?.toLowerCase();
+    const deviceProduct = device.product.toLowerCase();
+    if (!portProduct?.includes(deviceProduct)) return false;
+  }
+
   return true;
 }
 
@@ -89,8 +97,8 @@ export const PortFilters = {
   /**
    * 创建单个设备过滤器（vendor + product 组合）
    */
-  device: (vendorId: string | number, productId?: string | number, manufacturer?: string): PortFilter => {
-    const deviceIdentifier: DeviceIdentifier = { vendorId, productId, manufacturer };
+  device: (vendorId?: string | number, productId?: string | number, manufacturer?: string, product?: string): PortFilter => {
+    const deviceIdentifier: DeviceIdentifier = { vendorId, productId, manufacturer, product };
     const config: PortFilterConfig = {
       devices: [deviceIdentifier],
     };
@@ -100,7 +108,9 @@ export const PortFilters = {
     }) as PortFilter;
 
     filter.config = config;
-    filter.toWebSerialFilters = () => [deviceIdentifierToWebSerialFilter(deviceIdentifier)];
+    filter.toWebSerialFilters = () => deviceIdentifier.vendorId === undefined
+      ? []
+      : [deviceIdentifierToWebSerialFilter(deviceIdentifier)];
 
     return filter;
   },
@@ -116,7 +126,9 @@ export const PortFilters = {
     }) as PortFilter;
 
     filter.config = config;
-    filter.toWebSerialFilters = () => devices.map(device => deviceIdentifierToWebSerialFilter(device));
+    filter.toWebSerialFilters = () => devices
+      .filter(device => device.vendorId !== undefined)
+      .map(device => deviceIdentifierToWebSerialFilter(device));
 
     return filter;
   },
@@ -133,6 +145,8 @@ export const PortFilters = {
       return PortFilters.device(
         config.devices[0].vendorId,
         config.devices[0].productId,
+        config.devices[0].manufacturer,
+        config.devices[0].product,
       );
     } else {
       return PortFilters.devices(config.devices);
@@ -169,6 +183,9 @@ export const PortFilters = {
     /**
      * Beggar Socket 设备过滤器
      */
-    beggarSocket: (): PortFilter => PortFilters.device(0x0483, 0x0721),
+    beggarSocket: (): PortFilter => PortFilters.devices([
+      { vendorId: 0x0483, productId: 0x0721 },
+      { manufacturer: 'STMicroelectronics', product: 'Beggar Socket' },
+    ]),
   },
 };

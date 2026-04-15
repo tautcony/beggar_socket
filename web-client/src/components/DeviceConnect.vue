@@ -54,8 +54,8 @@ import { useToast } from '@/composables/useToast';
 import { DeviceConnectionManager, PortSelectionRequiredError } from '@/services/device-connection-manager';
 import { DeviceInfo } from '@/types/device-info';
 import type { SerialPortInfo } from '@/types/serial';
-import { isElectron } from '@/utils/electron';
 import { PortFilters } from '@/utils/port-filter';
+import { isTauri } from '@/utils/tauri';
 // import ToggleSwitch from '@/components/common/ToggleSwitch.vue';
 
 const props = withDefaults(defineProps<{
@@ -145,12 +145,9 @@ async function connect() {
 
   try {
     // 使用统一的设备连接管理器
-    const filter = PortFilters.device('0483', '0721');
+    const filter = PortFilters.presets.beggarSocket();
 
     const device = await deviceManager.requestDevice(filter);
-
-    // 初始化设备状态
-    await deviceManager.initializeDevice(device);
 
     connected.value = true;
     isConnecting.value = false;
@@ -160,12 +157,14 @@ async function connect() {
   } catch (e) {
     // 检查是否需要用户选择串口
     if (e instanceof PortSelectionRequiredError) {
+      console.warn('[DeviceConnect] port selection required', e.availablePorts);
       availablePorts.value = e.availablePorts;
       showPortSelector.value = true;
       isConnecting.value = false;
       return;
     }
 
+    console.error('[DeviceConnect] connect failed', e);
     showToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
     await disposeConnection();
   }
@@ -180,15 +179,16 @@ async function onPortSelected(selectedPort: SerialPortInfo) {
     // 使用选定的串口连接
     const device = await deviceManager.connectWithSelectedPort(selectedPort);
 
-    // 初始化设备状态
-    await deviceManager.initializeDevice(device);
-
     connected.value = true;
     isConnecting.value = false;
     showToast(t('messages.device.connectionSuccess'), 'success');
     deviceInfo.value = device;
     emit('device-ready', deviceInfo.value);
   } catch (e) {
+    console.error('[DeviceConnect] connect with selected port failed', {
+      selectedPort,
+      error: e,
+    });
     showToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
     await disposeConnection();
   }
@@ -203,17 +203,13 @@ function onPortSelectionCanceled() {
 // 刷新串口列表
 async function onRefreshPorts() {
   try {
-    const filter = PortFilters.device('0483', '0721');
+    const filter = PortFilters.presets.beggarSocket();
 
     // 重新获取串口列表
-    const portResult = await deviceManager.listAvailablePorts(filter);
-
-    if (Array.isArray(portResult)) {
-      availablePorts.value = portResult;
-    } else {
-      // 如果只有一个端口，也放入列表中
-      availablePorts.value = portResult ? [portResult] : [];
-    }
+    const filteredPorts = await deviceManager.listAvailablePorts(filter);
+    availablePorts.value = filteredPorts.length > 0
+      ? filteredPorts
+      : await deviceManager.listAvailablePorts();
   } catch (error) {
     console.error('Failed to refresh ports:', error);
     showToast('刷新串口列表失败', 'error');
@@ -298,8 +294,8 @@ const connectionTooltip = computed(() => {
     ? t('ui.device.connected')
     : t('ui.device.connect');
 
-  const envMessage = isElectron()
-    ? 'SerialPort'
+  const envMessage = isTauri()
+    ? 'Tauri Serial'
     : 'Web Serial API';
 
   return `${baseMessage} - ${envMessage}`;

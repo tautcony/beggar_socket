@@ -1,61 +1,78 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DeviceGatewayConnectionPortAdapter } from '@/features/burner/adapters';
-import { ElectronDeviceGateway } from '@/platform/serial/electron/device-gateway';
+import { TauriDeviceGateway } from '@/platform/serial/tauri/device-gateway';
 import { WebDeviceGateway } from '@/platform/serial/web/device-gateway';
 
 vi.mock('@/utils/async-utils', () => ({
   timeout: vi.fn().mockResolvedValue(undefined),
 }));
 
-interface ElectronCallbacks {
-  onData?: (portId: string, data: Uint8Array) => void;
-  onError?: (portId: string, error: string) => void;
-  onClose?: (portId: string) => void;
-}
+const serialPluginState = vi.hoisted(() => ({
+  availablePorts: {
+    '/dev/tty.usbmodem1': {
+      path: '/dev/tty.usbmodem1',
+      manufacturer: 'STMicroelectronics',
+      pid: '0721',
+      product: 'Beggar Socket',
+      serial_number: 'abc123',
+      type: 'USB',
+      vid: '0483',
+    },
+  } as Record<string, {
+    path: string;
+    manufacturer: string;
+    pid: string;
+    product: string;
+    serial_number: string;
+    type: string;
+    vid: string;
+  }>,
+  availablePortsDirect: {} as Record<string, {
+    path: string;
+    manufacturer?: string;
+    pid?: string;
+    product?: string;
+    serial_number?: string;
+    type?: string;
+    vid?: string;
+  }>,
+  open: vi.fn(),
+  close: vi.fn(),
+  readBinary: vi.fn(),
+  clearBuffer: vi.fn(),
+  writeBinary: vi.fn(),
+  writeDataTerminalReady: vi.fn(),
+  writeRequestToSend: vi.fn(),
+}));
 
-function createElectronApiMock() {
-  const callbacks: ElectronCallbacks = {};
+vi.mock('tauri-plugin-serialplugin-api', () => {
+  class MockSerialPort {
+    static available_ports = vi.fn(() => Promise.resolve(serialPluginState.availablePorts));
+    static available_ports_direct = vi.fn(() => Promise.resolve(serialPluginState.availablePortsDirect));
 
-  const serial = {
-    listPorts: vi.fn().mockResolvedValue([
-      { path: '/dev/tty.usbmodem1', vendorId: '0483', productId: '0721' },
-    ]),
-    open: vi.fn().mockResolvedValue('port-1'),
-    write: vi.fn().mockResolvedValue(true),
-    close: vi.fn().mockResolvedValue(true),
-    isOpen: vi.fn().mockResolvedValue(true),
-    setSignals: vi.fn().mockResolvedValue(true),
-    onData: vi.fn((cb: (portId: string, data: Uint8Array) => void) => {
-      callbacks.onData = cb;
-    }),
-    onError: vi.fn((cb: (portId: string, error: string) => void) => {
-      callbacks.onError = cb;
-    }),
-    onClose: vi.fn((cb: (portId: string) => void) => {
-      callbacks.onClose = cb;
-    }),
-    removeAllListeners: vi.fn(),
+    constructor(public readonly options: Record<string, unknown>) {}
+
+    open = serialPluginState.open;
+    close = serialPluginState.close;
+    readBinary = serialPluginState.readBinary;
+    clearBuffer = serialPluginState.clearBuffer;
+    writeBinary = serialPluginState.writeBinary;
+    writeDataTerminalReady = serialPluginState.writeDataTerminalReady;
+    writeRequestToSend = serialPluginState.writeRequestToSend;
+  }
+
+  return {
+    SerialPort: MockSerialPort,
+    DataBits: { Eight: 'Eight' },
+    FlowControl: { None: 'None' },
+    Parity: { None: 'None' },
+    StopBits: { One: 'One' },
   };
-
-  const electronAPI = {
-    getPlatform: vi.fn().mockResolvedValue('darwin'),
-    getAppVersion: vi.fn().mockResolvedValue('1.0.0'),
-    requestSerialPort: vi.fn().mockResolvedValue({ granted: true }),
-    selectSerialPort: vi.fn().mockResolvedValue({
-      ports: [{ path: '/dev/tty.usbmodem1', vendorId: '0483', productId: '0721' }],
-      needsSelection: false,
-    }),
-    serial,
-    isElectron: true,
-    versions: { node: '22', chrome: '128', electron: '33' },
-  };
-
-  return { electronAPI, serial };
-}
+});
 
 function runConnectionPortContract(
-  runtime: 'web' | 'electron',
+  runtime: 'web' | 'tauri',
   createPort: () => DeviceGatewayConnectionPortAdapter,
 ) {
   describe(`${runtime} connection port contract`, () => {
@@ -85,6 +102,10 @@ function runConnectionPortContract(
       const firstConnect = await port.connect();
       expect(firstConnect.ok).toBe(true);
 
+      if (runtime === 'tauri') {
+        serialPluginState.open.mockRejectedValueOnce(new Error('open failed'));
+      }
+
       const connectResult = await port.connect();
 
       expect(connectResult.ok).toBe(false);
@@ -100,6 +121,25 @@ function runConnectionPortContract(
 describe('Burner connection port adapters', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    serialPluginState.availablePorts = {
+      '/dev/tty.usbmodem1': {
+        path: '/dev/tty.usbmodem1',
+        manufacturer: 'STMicroelectronics',
+        pid: '0721',
+        product: 'Beggar Socket',
+        serial_number: 'abc123',
+        type: 'USB',
+        vid: '0483',
+      },
+    };
+    serialPluginState.open.mockResolvedValue(undefined);
+    serialPluginState.availablePortsDirect = {};
+    serialPluginState.close.mockResolvedValue(undefined);
+    serialPluginState.readBinary.mockResolvedValue(new Uint8Array([0xaa]));
+    serialPluginState.clearBuffer.mockResolvedValue(undefined);
+    serialPluginState.writeBinary.mockResolvedValue(1);
+    serialPluginState.writeDataTerminalReady.mockResolvedValue(undefined);
+    serialPluginState.writeRequestToSend.mockResolvedValue(undefined);
   });
 
   runConnectionPortContract('web', () => {
@@ -133,18 +173,13 @@ describe('Burner connection port adapters', () => {
     return new DeviceGatewayConnectionPortAdapter(new WebDeviceGateway());
   });
 
-  runConnectionPortContract('electron', () => {
-    const { electronAPI, serial } = createElectronApiMock();
-    serial.open
-      .mockResolvedValueOnce('port-1')
-      .mockRejectedValueOnce(new Error('open failed'));
-
-    Object.defineProperty(window, 'electronAPI', {
-      value: electronAPI,
+  runConnectionPortContract('tauri', () => {
+    Object.defineProperty(window, '__TAURI_INTERNALS__', {
+      value: {},
       configurable: true,
       writable: true,
     });
 
-    return new DeviceGatewayConnectionPortAdapter(new ElectronDeviceGateway());
+    return new DeviceGatewayConnectionPortAdapter(new TauriDeviceGateway());
   });
 });

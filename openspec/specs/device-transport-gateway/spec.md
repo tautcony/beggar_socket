@@ -1,13 +1,13 @@
 ## Purpose
 
-Define a unified device and transport gateway contract so protocol and application layers can remain independent from Web/Electron serial implementation details.
+Define a unified device and transport gateway contract so protocol and application layers can remain independent from Web/Tauri serial implementation details.
 ## Requirements
 ### Requirement: Unified device gateway contract
-The system SHALL provide a `DeviceGateway` contract that unifies device lifecycle operations across Web and Electron runtimes, including `connect`, `disconnect`, `init`, `list`, and `select`.
+The system SHALL provide a `DeviceGateway` contract that unifies device lifecycle operations across Web and Tauri runtimes, including `connect`, `disconnect`, `init`, `list`, and `select`.
 
-#### Scenario: Electron gateway lifecycle operation
-- **WHEN** the runtime is Electron and caller invokes gateway lifecycle methods
-- **THEN** the gateway executes the requested lifecycle operation through Electron serial implementation without exposing Electron-specific APIs to upper layers
+#### Scenario: Tauri gateway lifecycle operation
+- **WHEN** the runtime is Tauri and caller invokes gateway lifecycle methods
+- **THEN** the gateway executes the requested lifecycle operation through Tauri serialplugin implementation without exposing Tauri-specific APIs to upper layers
 
 #### Scenario: Web gateway lifecycle operation
 - **WHEN** the runtime is Web and caller invokes gateway lifecycle methods
@@ -82,8 +82,30 @@ The system SHALL provide regression tests for `Transport` send/read/setSignals b
 - **THEN** the suite verifies success/error propagation semantics remain consistent for protocol-layer callers
 
 ### Requirement: Runtime parity verification for gateway and transport behavior
-The system SHALL verify that Web and Electron gateway/transport implementations preserve equivalent upper-layer behavior for burner protocol workflows.
+The system SHALL verify that Web and Tauri gateway/transport implementations preserve equivalent upper-layer behavior for burner protocol workflows.
 
 #### Scenario: Runtime parity for protocol-facing behavior
-- **WHEN** equivalent gateway/transport test scenarios are executed against Web and Electron implementations
+- **WHEN** equivalent gateway/transport test scenarios are executed against Web and Tauri implementations
 - **THEN** observed success, failure, timeout, and signal-control semantics remain functionally equivalent for upper layers
+
+### Requirement: DeviceHandle platform type includes Tauri
+The system SHALL update the `DeviceHandle.platform` type from `'web' | 'electron'` to `'web' | 'tauri'` to reflect the replacement of Electron with Tauri as the native desktop runtime.
+
+#### Scenario: Tauri gateway returns tauri platform handle
+- **WHEN** `TauriDeviceGateway.connect()` returns a `DeviceHandle`
+- **THEN** the `platform` field is set to `'tauri'`
+
+#### Scenario: Web gateway continues returning web platform handle
+- **WHEN** `WebDeviceGateway.connect()` returns a `DeviceHandle`
+- **THEN** the `platform` field remains `'web'`
+
+### Requirement: Gateway factory selects Tauri or Web implementation
+The system SHALL update the gateway factory to create a `TauriDeviceGateway` when `isTauri()` returns `true`, and `WebDeviceGateway` otherwise, replacing the previous `isElectron()` branching logic.
+
+#### Scenario: Factory creates TauriDeviceGateway in Tauri runtime
+- **WHEN** `getDeviceGateway()` is called in a Tauri runtime
+- **THEN** it returns an instance of `TauriDeviceGateway`
+
+#### Scenario: Factory creates WebDeviceGateway in browser
+- **WHEN** `getDeviceGateway()` is called in a standard web browser
+- **THEN** it returns an instance of `WebDeviceGateway`

@@ -1,4 +1,4 @@
-import type { SerialConnection, SerialPortInfo } from '@/types/serial';
+import type { SerialPortInfo } from '@/types/serial';
 import type { PortFilter } from '@/utils/port-filter';
 
 export type TransportReadMode = 'byob' | 'default';
@@ -9,6 +9,7 @@ export interface Transport {
   /** Atomic send-then-read guarded by a mutex so concurrent callers are serialised. */
   sendAndReceive: (payload: Uint8Array, readLength: number, sendTimeoutMs?: number, readTimeoutMs?: number) => Promise<{ data: Uint8Array }>;
   setSignals: (signals: SerialOutputSignals) => Promise<void>;
+  flushInput?: () => Promise<void>;
   close?: () => Promise<void>;
 }
 
@@ -19,10 +20,10 @@ export interface DeviceSelection {
 }
 
 export interface DeviceHandle {
-  platform: 'web' | 'electron';
+  platform: 'web' | 'tauri';
   transport: Transport;
   port: SerialPort | null;
-  connection?: SerialConnection | null;
+  connection?: null;
   portInfo?: SerialPortInfo;
 }
 

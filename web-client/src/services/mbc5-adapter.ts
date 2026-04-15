@@ -29,6 +29,10 @@ import { calcSectorUsage } from '@/utils/sector-utils';
  */
 export class MBC5Adapter extends CartridgeAdapter {
   private power5vActive = false;
+  private static readonly ROM_READ_START_SETTLE_MS = 100;
+  private static readonly ROM_READ_RETRY_RESET_MS = 120;
+  private static readonly RAM_READ_START_SETTLE_MS = 150;
+  private static readonly RAM_READ_RETRY_RESET_MS = 150;
 
   /**
    * 构造函数
@@ -92,6 +96,102 @@ export class MBC5Adapter extends CartridgeAdapter {
     } finally {
       await this.restoreDefaultPower();
     }
+  }
+
+  private async readROMChunkWithRetry(
+    chunkSize: number,
+    logicalAddress: number,
+    cartAddress: number,
+    chunkIndex: number,
+    bank: number,
+    restoreState?: () => Promise<void>,
+  ): Promise<Uint8Array> {
+    let lastError: unknown;
+    const retries = AdvancedSettings.romReadRetryCount;
+    const attempts = retries + 1;
+    const retryDelayMs = AdvancedSettings.romReadRetryDelayMs;
+    const timeoutMs = AdvancedSettings.packageReceiveTimeout;
+
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        return await gbc_read(this.device, chunkSize, cartAddress);
+      } catch (error) {
+        lastError = error;
+        this.log(
+          `ROM chunk read retry ${attempt}/${attempts} #${chunkIndex} @ ${formatHex(logicalAddress, 4)} `
+          + `(cart ${formatHex(cartAddress, 4)}, bank ${bank}, ${chunkSize}B, timeout ${timeoutMs}ms): `
+          + (error instanceof Error ? error.message : String(error)),
+          'warn',
+        );
+
+        if (attempt < attempts) {
+          await this.stabilizeCommandChannel(MBC5Adapter.ROM_READ_RETRY_RESET_MS);
+          if (restoreState) {
+            await restoreState();
+          }
+          this.log(
+            `ROM chunk channel resynchronized before retry #${chunkIndex} @ ${formatHex(logicalAddress, 4)} `
+            + `(cart ${formatHex(cartAddress, 4)}, bank ${bank})`,
+            'info',
+          );
+          if (retryDelayMs > 0) {
+            await timeout(retryDelayMs * attempt);
+          }
+        }
+      }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  }
+
+  private async readRAMChunkWithRetry(
+    chunkSize: number,
+    logicalAddress: number,
+    cartAddress: number,
+    chunkIndex: number,
+    bank: number,
+    ramType: 'SRAM' | 'FLASH' | 'FRAM',
+    framLatency: number,
+    restoreState?: () => Promise<void>,
+  ): Promise<Uint8Array> {
+    let lastError: unknown;
+    const retries = AdvancedSettings.ramReadRetryCount;
+    const attempts = retries + 1;
+    const retryDelayMs = AdvancedSettings.ramReadRetryDelayMs;
+    const timeoutMs = AdvancedSettings.packageReceiveTimeout;
+
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        return ramType === 'FRAM'
+          ? await gbc_read_fram(this.device, chunkSize, cartAddress, framLatency)
+          : await gbc_read(this.device, chunkSize, cartAddress);
+      } catch (error) {
+        lastError = error;
+        this.log(
+          `RAM chunk read retry ${attempt}/${attempts} #${chunkIndex} @ ${formatHex(logicalAddress, 4)} `
+          + `(cart ${formatHex(cartAddress, 4)}, bank ${bank}, ${chunkSize}B, timeout ${timeoutMs}ms, type ${ramType}): `
+          + (error instanceof Error ? error.message : String(error)),
+          'warn',
+        );
+
+        if (attempt < attempts) {
+          await this.stabilizeCommandChannel(MBC5Adapter.RAM_READ_RETRY_RESET_MS);
+          if (restoreState) {
+            await restoreState();
+          }
+          this.log(
+            `RAM chunk channel resynchronized before retry #${chunkIndex} @ ${formatHex(logicalAddress, 4)} `
+            + `(cart ${formatHex(cartAddress, 4)}, bank ${bank}, type ${ramType})`,
+            'info',
+          );
+          if (retryDelayMs > 0) {
+            await timeout(retryDelayMs * attempt);
+          }
+        }
+      }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
   }
 
   /**
@@ -694,11 +794,19 @@ export class MBC5Adapter extends CartridgeAdapter {
     const enable5V = options.enable5V ?? false;
     const baseAddress = options.baseAddress ?? 0x00;
     const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
+    const retries = AdvancedSettings.romReadRetryCount;
+    const retryDelayMs = AdvancedSettings.romReadRetryDelayMs;
+    const timeoutMs = AdvancedSettings.packageReceiveTimeout;
 
     this.log(this.t('messages.operation.startReadROM', {
       size,
       baseAddress: formatHex(baseAddress, 4),
     }), 'info');
+    this.log(
+      `ROM read session config: page=${formatBytes(pageSize)}, retries=${retries}, `
+      + `retryDelay=${retryDelayMs}ms, timeout=${timeoutMs}ms, throttle=0ms, mbc=${mbcType}, 5v=${enable5V}`,
+      'info',
+    );
 
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.readROM',
@@ -721,6 +829,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           }
 
           return await this.withOptional5v(enable5V, async () => {
+            await this.stabilizeCommandChannel(MBC5Adapter.ROM_READ_START_SETTLE_MS);
             this.log(this.t('messages.rom.reading'), 'info');
             let totalRead = 0;
 
@@ -767,7 +876,14 @@ export class MBC5Adapter extends CartridgeAdapter {
               }
 
               // 读取数据
-              const chunk = await gbc_read(this.device, chunkSize, cartAddress);
+              const chunk = await this.readROMChunkWithRetry(
+                chunkSize,
+                currentAddress,
+                cartAddress,
+                Math.floor(totalRead / pageSize) + 1,
+                bank,
+                async () => { await this.switchROMBank(bank, mbcType); },
+              );
               const chunkEndTime = Date.now();
               data.set(chunk, totalRead);
 
@@ -1219,18 +1335,29 @@ export class MBC5Adapter extends CartridgeAdapter {
     const enable5V = options.enable5V ?? false;
     const baseAddress = options.baseAddress ?? 0x00;
     const ramType = options.ramType ?? 'SRAM';
+    const effectiveRamType = ramType === 'BATLESS' ? 'SRAM' : ramType;
     const pageSize = Math.min(options.ramPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
+    const retries = AdvancedSettings.ramReadRetryCount;
+    const retryDelayMs = AdvancedSettings.ramReadRetryDelayMs;
+    const timeoutMs = AdvancedSettings.packageReceiveTimeout;
+    const framLatency = options.framLatency ?? 25;
 
     this.log(this.t('messages.operation.startReadRAM', {
       size,
       baseAddress: formatHex(baseAddress, 4),
     }), 'info');
+    this.log(
+      `RAM read session config: page=${formatBytes(pageSize)}, retries=${retries}, `
+      + `retryDelay=${retryDelayMs}ms, timeout=${timeoutMs}ms, type=${ramType}, mbc=${mbcType}, 5v=${enable5V}`,
+      'info',
+    );
 
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.readRAM',
       async () => {
         try {
           return await this.withOptional5v(enable5V, async () => {
+            await this.stabilizeCommandChannel(MBC5Adapter.RAM_READ_START_SETTLE_MS);
             this.log(this.t('messages.ram.reading'), 'info');
 
             // 开启RAM访问权限
@@ -1258,9 +1385,16 @@ export class MBC5Adapter extends CartridgeAdapter {
               const chunkSize = Math.min(pageSize, remainingSize);
 
               // 读取数据
-              const chunk = ramType === 'FRAM'
-                ? await gbc_read_fram(this.device, chunkSize, cartAddress, options.framLatency ?? 25)
-                : await gbc_read(this.device, chunkSize, cartAddress);
+              const chunk = await this.readRAMChunkWithRetry(
+                chunkSize,
+                ramAddress,
+                cartAddress,
+                Math.floor(read / pageSize) + 1,
+                bank,
+                effectiveRamType,
+                framLatency,
+                async () => { await this.switchRAMBank(bank, mbcType); },
+              );
               const chunkEndTime = Date.now();
               result.set(chunk, read);
 

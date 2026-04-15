@@ -1,21 +1,21 @@
-import { isElectron } from '@/utils/electron';
+import { isTauri } from '@/utils/tauri';
 
 /**
  * 环境配置组合
  */
 export class Environment {
   /**
-   * 检查是否为 Electron 环境
+   * 检查是否为 Tauri 环境
    */
-  static get isElectron(): boolean {
-    return isElectron();
+  static get isTauri(): boolean {
+    return isTauri();
   }
 
   /**
    * 检查是否为 Web 环境
    */
   static get isWeb(): boolean {
-    return !isElectron();
+    return !isTauri();
   }
 
   /**
@@ -36,7 +36,7 @@ export class Environment {
    * 获取当前环境描述
    */
   static get description(): string {
-    const platform = this.isElectron ? 'Electron' : 'Web';
+    const platform = this.isTauri ? 'Tauri' : 'Web';
     const env = this.isDevelopment ? 'Development' : 'Production';
     return `${platform} (${env})`;
   }

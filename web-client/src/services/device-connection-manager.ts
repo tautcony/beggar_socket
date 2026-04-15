@@ -4,13 +4,13 @@ import { type DeviceHandle, toLegacyDeviceInfo, withPortInfo } from '@/platform/
 import { DebugSettings } from '@/settings/debug-settings';
 import { DeviceInfo } from '@/types/device-info';
 import type { SerialPortInfo } from '@/types/serial';
-import { isElectron } from '@/utils/electron';
 import { PortSelectionRequiredError } from '@/utils/errors/PortSelectionRequiredError';
 import { PortFilter } from '@/utils/port-filter';
+import { isTauri } from '@/utils/tauri';
 
 /**
  * 设备连接管理器
- * 统一处理 Web Serial API 和 Electron 原生串口的设备连接
+ * 统一处理 Web Serial API 和 Tauri 原生串口的设备连接
  */
 export class DeviceConnectionManager {
   private static instance: DeviceConnectionManager;
@@ -26,9 +26,43 @@ export class DeviceConnectionManager {
     return DeviceConnectionManager.instance;
   }
 
+  private describePort(portInfo?: SerialPortInfo | null): string {
+    if (!portInfo?.path) {
+      return 'unknown-port';
+    }
+
+    const details = [
+      portInfo.vendorId && portInfo.productId ? `${portInfo.vendorId}:${portInfo.productId}` : null,
+      portInfo.manufacturer ?? null,
+      portInfo.product ?? null,
+    ].filter(Boolean);
+
+    return details.length > 0
+      ? `${portInfo.path} (${details.join(', ')})`
+      : portInfo.path;
+  }
+
+  private summarizeCause(cause: unknown): string | null {
+    if (cause instanceof Error) {
+      return cause.message;
+    }
+    if (typeof cause === 'string') {
+      return cause;
+    }
+    if (cause && typeof cause === 'object' && 'message' in cause && typeof cause.message === 'string') {
+      return cause.message;
+    }
+    return null;
+  }
+
   private asError(failure: ConnectionFailure): Error {
-    const message = `[${failure.stage}/${failure.code}] ${failure.message}`;
-    return new Error(message);
+    const causeMessage = this.summarizeCause(failure.cause);
+    const message = causeMessage && causeMessage !== failure.message
+      ? `[${failure.stage}/${failure.code}] ${failure.message}: ${causeMessage}`
+      : `[${failure.stage}/${failure.code}] ${failure.message}`;
+    const error = new Error(message);
+    Object.assign(error, { failure });
+    return error;
   }
 
   private toDeviceInfo(handle: BurnerConnectionHandle): DeviceInfo {
@@ -46,6 +80,8 @@ export class DeviceConnectionManager {
 
     return {
       path: portInfo.path,
+      manufacturer: portInfo.manufacturer,
+      product: portInfo.product,
       vendorId: portInfo.vendorId,
       productId: portInfo.productId,
     };
@@ -65,6 +101,11 @@ export class DeviceConnectionManager {
       throw new Error('Device connection already in progress');
     }
     this.isConnecting = true;
+    console.info('[DeviceConnectionManager] requestDevice start', {
+      isTauri: isTauri(),
+      hasFilter: Boolean(_filter),
+      filterConfig: _filter?.config,
+    });
     try {
       return await this._requestDevice(_filter);
     } finally {
@@ -73,18 +114,26 @@ export class DeviceConnectionManager {
   }
 
   private async _requestDevice(_filter?: PortFilter): Promise<DeviceInfo> {
-    if (isElectron() && _filter) {
+    if (isTauri() && _filter) {
       const availablePorts = await this.listAvailablePorts(_filter);
-      if (availablePorts.length !== 1) {
-        throw new PortSelectionRequiredError(availablePorts);
+      console.info('[DeviceConnectionManager] filtered Tauri ports', availablePorts.map(port => this.describePort(port)));
+      if (availablePorts.length === 1) {
+        return this.connectWithSelectedPort(availablePorts[0]);
       }
-      return this.connectWithSelectedPort(availablePorts[0]);
+
+      const fallbackPorts = availablePorts.length === 0
+        ? await this.listAvailablePorts()
+        : availablePorts;
+      console.warn('[DeviceConnectionManager] user port selection required', fallbackPorts.map(port => this.describePort(port)));
+
+      throw new PortSelectionRequiredError(fallbackPorts);
     }
 
     const result = await this.connectionUseCase.prepareConnection();
     if (!result.success || !result.context.handle) {
       if (result.failure?.code === 'selection_required') {
         const ports = await this.listAvailablePorts();
+        console.warn('[DeviceConnectionManager] selection required after prepareConnection', ports.map(port => this.describePort(port)));
         throw new PortSelectionRequiredError(ports);
       }
       throw this.asError(result.failure ?? {
@@ -96,6 +145,7 @@ export class DeviceConnectionManager {
 
     const selectedPortInfo = this.asSerialPortInfo(result.context.handle.portInfo);
     if (_filter && selectedPortInfo && !_filter(selectedPortInfo)) {
+      console.warn('[DeviceConnectionManager] selected port rejected by filter', this.describePort(selectedPortInfo));
       await this.connectionUseCase.disconnect();
       throw this.asError({
         stage: 'select',
@@ -111,11 +161,12 @@ export class DeviceConnectionManager {
    * 使用指定的串口连接设备
    */
   async connectWithSelectedPort(selectedPort: SerialPortInfo): Promise<DeviceInfo> {
-    if (!isElectron()) {
-      throw new Error('This method is only available in Electron environment');
+    if (!isTauri()) {
+      throw new Error('This method is only available in Tauri environment');
     }
 
     try {
+      console.info('[DeviceConnectionManager] connectWithSelectedPort', this.describePort(selectedPort));
       await this.connectionUseCase.disconnect();
 
       const selection: BurnerConnectionSelection = {
@@ -125,6 +176,10 @@ export class DeviceConnectionManager {
 
       const result = await this.connectionUseCase.prepareConnectionWithSelection(selection);
       if (!result.success || !result.context.handle) {
+        console.error('[DeviceConnectionManager] prepareConnectionWithSelection failed', {
+          selectedPort: this.describePort(selectedPort),
+          failure: result.failure,
+        });
         throw this.asError(result.failure ?? {
           stage: 'connect',
           code: 'connect_failed',
@@ -134,7 +189,10 @@ export class DeviceConnectionManager {
 
       return withPortInfo(this.toDeviceInfo(result.context.handle), selectedPort);
     } catch (error) {
-      console.error('Failed to connect to selected port:', error);
+      console.error('[DeviceConnectionManager] failed to connect to selected port', {
+        selectedPort: this.describePort(selectedPort),
+        error,
+      });
       throw error;
     }
   }
@@ -151,6 +209,10 @@ export class DeviceConnectionManager {
 
     const ensureResult = await this.connectionUseCase.ensureConnected();
     if (!ensureResult.success || !ensureResult.context.handle) {
+      console.error('[DeviceConnectionManager] initializeDevice failed', {
+        device: this.describePort(device.portInfo),
+        failure: ensureResult.failure,
+      });
       throw this.asError(ensureResult.failure ?? {
         stage: 'init',
         code: 'init_failed',
@@ -179,7 +241,14 @@ export class DeviceConnectionManager {
     const ports = (result.ports ?? [])
       .map(port => port?.portInfo)
       .filter((port): port is SerialPortInfo => Boolean(port?.path));
-    return filter ? ports.filter(filter) : ports;
+    const filteredPorts = filter ? ports.filter(filter) : ports;
+    console.info('[DeviceConnectionManager] listAvailablePorts', {
+      total: ports.length,
+      filtered: filteredPorts.length,
+      filterConfig: filter?.config,
+      ports: filteredPorts.map(port => this.describePort(port)),
+    });
+    return filteredPorts;
   }
 
   /**

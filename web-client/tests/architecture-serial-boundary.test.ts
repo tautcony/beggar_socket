@@ -30,7 +30,7 @@ describe('Architecture serial boundary', () => {
     const violations: string[] = [];
     const forbiddenImports = [
       "from '@/services/serial-service'",
-      "from '@/platform/serial/electron",
+      "from '@/platform/serial/tauri",
       "from '@/platform/serial/web",
       "from '@/platform/serial/transports",
     ];
