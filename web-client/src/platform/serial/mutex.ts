@@ -21,7 +21,12 @@ export class Mutex {
       const tryAcquire = () => {
         if (!this._locked) {
           this._locked = true;
+          let released = false;
           resolve(() => {
+            if (released) {
+              return;
+            }
+            released = true;
             this._locked = false;
             const next = this._queue.shift();
             if (next) next();

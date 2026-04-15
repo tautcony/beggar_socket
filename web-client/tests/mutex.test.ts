@@ -73,4 +73,26 @@ describe('Mutex', () => {
     const bBeforeA = bEnd < aStart;
     expect(aBeforeB || bBeforeA).toBe(true);
   });
+
+  it('should ignore duplicate release calls without corrupting queued waiters', async () => {
+    const mutex = new Mutex();
+    const release1 = await mutex.acquire();
+
+    let secondAcquired = false;
+    const secondAcquire = mutex.acquire().then((release2) => {
+      secondAcquired = true;
+      return release2;
+    });
+
+    release1();
+    const release2 = await secondAcquire;
+    expect(secondAcquired).toBe(true);
+    expect(mutex.locked).toBe(true);
+
+    release1();
+    expect(mutex.locked).toBe(true);
+
+    release2();
+    expect(mutex.locked).toBe(false);
+  });
 });

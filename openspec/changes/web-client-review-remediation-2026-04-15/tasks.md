@@ -8,8 +8,8 @@
 
 - [x] 2.1 `A1` 修复 `services/mbc5-adapter.ts` 的 `verifyROM()` bank switching，传递 `mbcType`
 - [x] 2.2 为 `A1` 增加 MBC3/MBC1 验证回归覆盖，防止错误按 MBC5 规则切 bank
-- [ ] 2.3 `A2` 为 `platform/serial/mutex.ts` 增加幂等 release 防护
-- [ ] 2.4 为 `A2` 增加双重 release 不破坏队列的单元测试
+- [x] 2.3 `A2` 为 `platform/serial/mutex.ts` 增加幂等 release 防护
+- [x] 2.4 为 `A2` 增加双重 release 不破坏队列的单元测试
 - [x] 2.5 `A3` 保留 `WebSerialTransport` 的 writer 缓存策略，并为超时后的 abort/释放/重建增加串行恢复状态
 - [x] 2.6 为 `A3` 增加 send 超时后再次 send、close、重连时不会复用 stale writer 的回归测试
 - [x] 2.7 `A4` 在 Web/Tauri gateway disconnect 中保证 close 失败后仍完成句柄清理
