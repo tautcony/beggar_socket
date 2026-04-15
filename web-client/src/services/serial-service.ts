@@ -43,6 +43,9 @@ export class SerialService {
       if (handle.transport?.close) {
         await handle.transport.close().catch(() => {});
       }
+      if (handle.port && typeof handle.port.close === 'function') {
+        await handle.port.close().catch(() => {});
+      }
       throw e;
     }
 
