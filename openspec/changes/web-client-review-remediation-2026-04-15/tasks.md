@@ -1,8 +1,8 @@
 ## 1. Scope Selection
 
-- [ ] 1.1 确认本次实施范围是否至少包含 `A1-A4`
-- [ ] 1.2 确认是否纳入 `B1-B6` 的实现层稳健性补丁
-- [ ] 1.3 确认是否纳入 `C1-C4` 的协议/错误模型技术债
+- [x] 1.1 确认本次实施范围是否至少包含 `A1-A4`
+- [x] 1.2 确认是否纳入 `B1-B6` 的实现层稳健性补丁
+- [x] 1.3 确认是否纳入 `C1-C4` 的协议/错误模型技术债
 
 ## 2. Batch A: 发布前候选修复
 
@@ -35,6 +35,6 @@
 
 ## 5. Verification
 
-- [ ] 5.1 运行 transport/gateway 相关单元测试
-- [ ] 5.2 运行 protocol/service 层回归测试
-- [ ] 5.3 手工验证 MBC3 verify、USB 拔出后 disconnect、send 超时后重试、端口二次连接
+- [x] 5.1 运行 transport/gateway 相关单元测试（结果记录见 `verification.md`）
+- [x] 5.2 运行 protocol/service 层回归测试（结果记录见 `verification.md`）
+- [ ] 5.3 手工验证 MBC3 verify、USB 拔出后 disconnect、send 超时后重试、端口二次连接（执行说明见 `verification.md`）
