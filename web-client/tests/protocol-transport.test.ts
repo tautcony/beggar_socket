@@ -4,6 +4,7 @@ import { resolveTransport } from '@/platform/serial';
 import { WebSerialTransport } from '@/platform/serial/transports';
 import type { Transport } from '@/platform/serial/types';
 import { gbc_read, getResult, ProtocolAdapter, ram_read, rom_erase_sector, rom_read, sendPackage, setSignals } from '@/protocol';
+import { readProtocolPayload } from '@/protocol/beggar_socket/packet-read';
 import type { DeviceInfo } from '@/types/device-info';
 
 describe('Protocol transport abstraction', () => {
@@ -98,6 +99,30 @@ describe('Protocol transport abstraction', () => {
     };
     await expect(ram_read({ transport }, 4, 0x20)).rejects.toThrow('Reason: invalid packet length');
     await expect(gbc_read({ transport }, 4, 0x30)).rejects.toThrow('Reason: invalid packet length');
+  });
+
+  it('canonical packet-read failures expose stable protocol error codes', async () => {
+    const timeoutTransport: Transport = {
+      send: vi.fn().mockResolvedValue(true),
+      read: vi.fn().mockRejectedValue(new Error('Read package timeout in 30ms')),
+      sendAndReceive: vi.fn().mockRejectedValue(new Error('Read package timeout in 30ms')),
+      setSignals: vi.fn().mockResolvedValue(undefined),
+    };
+
+    await expect(ram_read({ transport: timeoutTransport }, 4, 0x20)).rejects.toMatchObject({
+      code: 'PACKET_TIMEOUT',
+    });
+
+    const shortTransport: Transport = {
+      send: vi.fn().mockResolvedValue(true),
+      read: vi.fn().mockResolvedValue({ data: new Uint8Array([0xaa]) }),
+      sendAndReceive: vi.fn().mockResolvedValue({ data: new Uint8Array([0xaa]) }),
+      setSignals: vi.fn().mockResolvedValue(undefined),
+    };
+
+    await expect(readProtocolPayload({ transport: shortTransport }, 'GBC read', 2, 0x10)).rejects.toMatchObject({
+      code: 'LENGTH_MISMATCH',
+    });
   });
 
   it('rom_erase_sector uses direct write/read sequence instead of 0xf3', async () => {

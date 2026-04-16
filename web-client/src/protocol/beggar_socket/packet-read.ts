@@ -2,9 +2,37 @@ import { formatHex } from '@/utils/formatter-utils';
 
 import { getPackage, type ProtocolTransportInput } from './protocol-utils';
 
+export type ProtocolPacketReadErrorCode = 'PACKET_TIMEOUT' | 'LENGTH_MISMATCH' | 'TRANSPORT_FAILURE';
 type PacketReadFailureReason = 'timeout' | 'transport' | 'length';
 
+interface ErrorWithCode {
+  code: string;
+}
+
+function hasErrorCode(error: unknown): error is ErrorWithCode {
+  return Boolean(error && typeof error === 'object' && 'code' in error && typeof error.code === 'string');
+}
+
+export class ProtocolPacketReadError extends Error {
+  readonly code: ProtocolPacketReadErrorCode;
+  readonly detail: string;
+  readonly cause?: unknown;
+
+  constructor(code: ProtocolPacketReadErrorCode, message: string, detail: string, options?: { cause?: unknown }) {
+    super(message);
+    this.name = 'ProtocolPacketReadError';
+    this.code = code;
+    this.detail = detail;
+    this.cause = options?.cause;
+  }
+}
+
 function getFailureReason(error: unknown): PacketReadFailureReason {
+  if (hasErrorCode(error)) {
+    if (error.code === 'PACKET_TIMEOUT') return 'timeout';
+    if (error.code === 'LENGTH_MISMATCH') return 'length';
+    if (error.code === 'TRANSPORT_FAILURE') return 'transport';
+  }
   if (!(error instanceof Error)) return 'transport';
   if (error.message.toLowerCase().includes('timeout')) return 'timeout';
   if (error.message.toLowerCase().includes('expected size')) return 'length';
@@ -40,11 +68,26 @@ export async function readProtocolPayload(
     const detail = getFailureDetail(error);
     const prefix = `${commandName} failed (Address: ${formatHex(baseAddress, 4)})`;
     if (reason === 'timeout') {
-      throw new Error(`${prefix}, Reason: packet read timeout, Detail: ${detail}`);
+      throw new ProtocolPacketReadError(
+        'PACKET_TIMEOUT',
+        `${prefix}, Reason: packet read timeout, Detail: ${detail}`,
+        detail,
+        { cause: error },
+      );
     }
     if (reason === 'length') {
-      throw new Error(`${prefix}, Reason: invalid packet length, Detail: ${detail}`);
+      throw new ProtocolPacketReadError(
+        'LENGTH_MISMATCH',
+        `${prefix}, Reason: invalid packet length, Detail: ${detail}`,
+        detail,
+        { cause: error },
+      );
     }
-    throw new Error(`${prefix}, Reason: packet read transport error, Detail: ${detail}`);
+    throw new ProtocolPacketReadError(
+      'TRANSPORT_FAILURE',
+      `${prefix}, Reason: packet read transport error, Detail: ${detail}`,
+      detail,
+      { cause: error },
+    );
   }
 }

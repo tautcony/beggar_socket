@@ -26,8 +26,8 @@
 
 ## 4. Batch C: 技术债候选
 
-- [ ] 4.1 `C1` 为 packet read / connection mapping 引入稳定 error code 或 error type，替代字符串匹配链
-- [ ] 4.2 `C1` 保持旧消息文本兼容，避免 UI 展示回归
+- [x] 4.1 `C1` 为 packet read / connection mapping 引入稳定 error code 或 error type，替代字符串匹配链
+- [x] 4.2 `C1` 保持旧消息文本兼容，避免 UI 展示回归
 - [ ] 4.3 `C2` 将协议层 request/response 调用迁移到原子 `sendAndReceive()`
 - [ ] 4.4 为 `C2` 增加并发触发下不会错配响应的回归测试
 - [ ] 4.5 `C3` 统一超时工具到共享模块，删除重复实现

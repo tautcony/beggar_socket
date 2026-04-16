@@ -1,5 +1,13 @@
 import type { BurnerDomainError, BurnerErrorCode, BurnerErrorStage } from './result';
 
+function extractErrorCode(error: unknown): string | null {
+  if (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string') {
+    return error.code;
+  }
+
+  return null;
+}
+
 function extractErrorMessage(error: unknown): string | null {
   if (error instanceof Error) {
     return error.message;
@@ -23,6 +31,23 @@ function extractErrorMessage(error: unknown): string | null {
 
 function inferErrorCode(error: unknown): BurnerErrorCode {
   const extractedMessage = extractErrorMessage(error);
+  const extractedCode = extractErrorCode(error)?.toUpperCase();
+
+  if (extractedCode) {
+    if (extractedCode === 'ABORTED') {
+      return 'aborted';
+    }
+    if (extractedCode === 'SELECTION_REQUIRED') {
+      return 'selection_required';
+    }
+    if (extractedCode === 'NOT_CONNECTED' || extractedCode === 'TRANSPORT_NOT_CONNECTED') {
+      return 'not_connected';
+    }
+    if (extractedCode === 'TIMEOUT' || extractedCode === 'PACKET_TIMEOUT' || extractedCode === 'TRANSPORT_TIMEOUT') {
+      return 'timeout';
+    }
+    return 'runtime_error';
+  }
 
   if (error instanceof Error || extractedMessage) {
     const message = extractedMessage?.toLowerCase() ?? '';
