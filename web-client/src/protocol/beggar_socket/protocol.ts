@@ -2,9 +2,9 @@ import { timeout } from '@/utils/async-utils';
 import { formatHex } from '@/utils/formatter-utils';
 
 import { GBACommand, GBCCommand } from './command';
-import { readProtocolPayload } from './packet-read';
+import { sendAndReadProtocolPayload } from './packet-read';
 import { createCommandPayload } from './payload-builder';
-import { getResult, type ProtocolTransportInput, sendPackage, toLittleEndian } from './protocol-utils';
+import { sendAndExpectAck, type ProtocolTransportInput, sendPackage, toLittleEndian } from './protocol-utils';
 
 const GBA_SECTOR_ERASE_POLL_INTERVAL_MS = 20;
 const GBA_SECTOR_ERASE_TIMEOUT_MS = 60_000;
@@ -46,8 +46,7 @@ export async function rom_get_id(input: ProtocolTransportInput): Promise<Uint8Ar
  * GBA: Erase chip (0xf1)
  */
 export async function rom_erase_chip(input: ProtocolTransportInput): Promise<void> {
-  await sendPackage(input, createCommandPayload(GBACommand.ERASE_CHIP).build());
-  const ack = await getResult(input);
+  const ack = await sendAndExpectAck(input, createCommandPayload(GBACommand.ERASE_CHIP).build());
   if (!ack) throw new Error('GBA Erase failed');
 }
 
@@ -85,8 +84,7 @@ export async function rom_erase_sector(input: ProtocolTransportInput, sectorAddr
 
 export async function rom_erase_sector_direct(input: ProtocolTransportInput, sectorAddress: number): Promise<boolean> {
   const payload = createCommandPayload(GBACommand.SECTOR_ERASE).addAddress(sectorAddress).build();
-  await sendPackage(input, payload);
-  const ack = await getResult(input);
+  const ack = await sendAndExpectAck(input, payload);
   if (!ack) throw new Error('GBA ROM sector erase failed');
   return ack;
 }
@@ -104,8 +102,7 @@ export async function rom_program(input: ProtocolTransportInput, data: Uint8Arra
     .addBytes(data)
     .build();
 
-  await sendPackage(input, payload);
-  const ack = await getResult(input);
+  const ack = await sendAndExpectAck(input, payload);
   if (!ack) throw new Error(`GBA ROM programming failed (Address: ${formatHex(baseAddress, 4)})`);
 }
 
@@ -118,8 +115,7 @@ export async function rom_write(input: ProtocolTransportInput, data: Uint8Array,
     .addBytes(data)
     .build();
 
-  await sendPackage(input, payload);
-  const ack = await getResult(input);
+  const ack = await sendAndExpectAck(input, payload);
   if (!ack) throw new Error(`GBA ROM direct write failed (Address: ${formatHex(baseAddress, 4)})`);
 }
 
@@ -131,8 +127,7 @@ export async function rom_read(input: ProtocolTransportInput, size: number, base
     .addAddress(baseAddress)
     .addLength(size)
     .build();
-  await sendPackage(input, payload);
-  return readProtocolPayload(input, 'GBA ROM read', size, baseAddress);
+  return sendAndReadProtocolPayload(input, payload, 'GBA ROM read', size, baseAddress);
 }
 
 /**
@@ -144,8 +139,7 @@ export async function ram_write(input: ProtocolTransportInput, data: Uint8Array,
     .addBytes(data)
     .build();
 
-  await sendPackage(input, payload);
-  const ack = await getResult(input);
+  const ack = await sendAndExpectAck(input, payload);
   if (!ack) throw new Error(`RAM write failed (Address: ${formatHex(baseAddress, 4)})`);
 }
 
@@ -158,8 +152,7 @@ export async function ram_read(input: ProtocolTransportInput, size: number, base
     .addLength(size)
     .build();
 
-  await sendPackage(input, payload);
-  return readProtocolPayload(input, 'GBA RAM read', size, baseAddress);
+  return sendAndReadProtocolPayload(input, payload, 'GBA RAM read', size, baseAddress);
 }
 
 /**
@@ -171,8 +164,7 @@ export async function ram_program_flash(input: ProtocolTransportInput, data: Uin
     .addBytes(data)
     .build();
 
-  await sendPackage(input, payload);
-  const ack = await getResult(input);
+  const ack = await sendAndExpectAck(input, payload);
   if (!ack) throw new Error(`GBA RAM write to FLASH failed (Address: ${formatHex(baseAddress, 4)})`);
 }
 
@@ -208,8 +200,7 @@ export async function gbc_write_fram(input: ProtocolTransportInput, data: Uint8A
     .addBytes(data)
     .build();
 
-  await sendPackage(input, payload);
-  const ack = await getResult(input);
+  const ack = await sendAndExpectAck(input, payload);
   if (!ack) throw new Error(`GBC FRAM write failed (Address: ${formatHex(baseAddress, 4)})`);
 }
 
@@ -223,8 +214,7 @@ export async function gbc_read_fram(input: ProtocolTransportInput, size: number,
     .addBytes(new Uint8Array([latency]))
     .build();
 
-  await sendPackage(input, payload);
-  return readProtocolPayload(input, 'GBC FRAM read', size, baseAddress);
+  return sendAndReadProtocolPayload(input, payload, 'GBC FRAM read', size, baseAddress);
 }
 
 /**
@@ -237,8 +227,7 @@ export async function ram_write_fram(input: ProtocolTransportInput, data: Uint8A
     .addBytes(data)
     .build();
 
-  await sendPackage(input, payload);
-  const ack = await getResult(input);
+  const ack = await sendAndExpectAck(input, payload);
   if (!ack) throw new Error(`GBA FRAM write failed (Address: ${formatHex(baseAddress, 4)})`);
 }
 
@@ -252,8 +241,7 @@ export async function ram_read_fram(input: ProtocolTransportInput, size: number,
     .addBytes(new Uint8Array([latency]))
     .build();
 
-  await sendPackage(input, payload);
-  return readProtocolPayload(input, 'GBA FRAM read', size, baseAddress);
+  return sendAndReadProtocolPayload(input, payload, 'GBA FRAM read', size, baseAddress);
 }
 
 // --- GBC Commands ---
@@ -267,8 +255,7 @@ export async function gbc_write(input: ProtocolTransportInput, data: Uint8Array,
     .addBytes(data)
     .build();
 
-  await sendPackage(input, payload);
-  const ack = await getResult(input);
+  const ack = await sendAndExpectAck(input, payload);
   if (!ack) throw new Error(`GBC direct write failed (Address: ${formatHex(baseAddress, 4)})`);
 }
 
@@ -281,8 +268,7 @@ export async function gbc_read(input: ProtocolTransportInput, size: number, base
     .addLength(size)
     .build();
 
-  await sendPackage(input, payload);
-  return readProtocolPayload(input, 'GBC read', size, baseAddress);
+  return sendAndReadProtocolPayload(input, payload, 'GBC read', size, baseAddress);
 }
 
 /**
@@ -299,8 +285,7 @@ export async function gbc_rom_program(input: ProtocolTransportInput, data: Uint8
     .addBytes(data)
     .build();
 
-  await sendPackage(input, payload);
-  const ack = await getResult(input);
+  const ack = await sendAndExpectAck(input, payload);
   if (!ack) throw new Error(`GBC ROM programming failed (Address: ${formatHex(baseAddress, 4)})`);
 }
 

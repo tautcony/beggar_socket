@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { resolveTransport } from '@/platform/serial';
 import { WebSerialTransport } from '@/platform/serial/transports';
 import type { Transport } from '@/platform/serial/types';
-import { gbc_read, getResult, ProtocolAdapter, ram_read, rom_erase_sector, rom_read, sendPackage, setSignals } from '@/protocol';
+import { gbc_read, gbc_write, getResult, ProtocolAdapter, ram_read, rom_erase_sector, rom_read, sendPackage, setSignals } from '@/protocol';
 import { readProtocolPayload } from '@/protocol/beggar_socket/packet-read';
 import type { DeviceInfo } from '@/types/device-info';
 
@@ -123,6 +123,71 @@ describe('Protocol transport abstraction', () => {
     await expect(readProtocolPayload({ transport: shortTransport }, 'GBC read', 2, 0x10)).rejects.toMatchObject({
       code: 'LENGTH_MISMATCH',
     });
+  });
+
+  it('protocol commands use atomic sendAndReceive for ack and payload responses', async () => {
+    const send = vi.fn().mockRejectedValue(new Error('legacy send should not be used'));
+    const read = vi.fn().mockRejectedValue(new Error('legacy read should not be used'));
+    const sendAndReceive = vi.fn()
+      .mockResolvedValueOnce({ data: new Uint8Array([0xaa]) })
+      .mockResolvedValueOnce({ data: new Uint8Array([0x00, 0x00, 0x42, 0x24]) });
+
+    const transport: Transport = {
+      send,
+      read,
+      sendAndReceive,
+      setSignals: vi.fn().mockResolvedValue(undefined),
+    };
+
+    await expect(gbc_write({ transport }, new Uint8Array([0x99]), 0x1234)).resolves.toBeUndefined();
+    await expect(ram_read({ transport }, 2, 0x20)).resolves.toEqual(new Uint8Array([0x42, 0x24]));
+
+    expect(send).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
+    expect(sendAndReceive).toHaveBeenCalledTimes(2);
+    expect(sendAndReceive.mock.calls[0]?.[1]).toBe(1);
+    expect(sendAndReceive.mock.calls[1]?.[1]).toBe(4);
+  });
+
+  it('concurrent protocol reads keep request-response pairs aligned', async () => {
+    let queue = Promise.resolve();
+    const send = vi.fn().mockRejectedValue(new Error('legacy send should not be used'));
+    const read = vi.fn().mockRejectedValue(new Error('legacy read should not be used'));
+    const sendAndReceive = vi.fn().mockImplementation(async (payload: Uint8Array, readLength: number) => {
+      const previous = queue;
+      let release: (() => void) | undefined;
+      queue = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+
+      await previous;
+      try {
+        await Promise.resolve();
+        const response = new Uint8Array(readLength);
+        response[2] = payload[3] ?? 0;
+        return { data: response };
+      } finally {
+        release?.();
+      }
+    });
+
+    const transport: Transport = {
+      send,
+      read,
+      sendAndReceive,
+      setSignals: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const [first, second] = await Promise.all([
+      ram_read({ transport }, 1, 0x10),
+      ram_read({ transport }, 1, 0x20),
+    ]);
+
+    expect(first).toEqual(new Uint8Array([0x10]));
+    expect(second).toEqual(new Uint8Array([0x20]));
+    expect(send).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
+    expect(sendAndReceive).toHaveBeenCalledTimes(2);
   });
 
   it('rom_erase_sector uses direct write/read sequence instead of 0xf3', async () => {

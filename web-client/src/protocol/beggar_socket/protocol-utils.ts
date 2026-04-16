@@ -41,6 +41,26 @@ export async function getResult(input: ProtocolTransportInput, timeoutMs?: numbe
   return ProtocolAdapter.getResult(resolveTransport(input), timeoutMs);
 }
 
+export async function sendAndReceivePackage(
+  input: ProtocolTransportInput,
+  payload: Uint8Array,
+  readLength: number,
+  sendTimeoutMs?: number,
+  readTimeoutMs?: number,
+): Promise<{ data: Uint8Array }> {
+  return ProtocolAdapter.sendAndReceive(resolveTransport(input), payload, readLength, sendTimeoutMs, readTimeoutMs);
+}
+
+export async function sendAndExpectAck(
+  input: ProtocolTransportInput,
+  payload: Uint8Array,
+  sendTimeoutMs?: number,
+  readTimeoutMs?: number,
+): Promise<boolean> {
+  const result = await sendAndReceivePackage(input, payload, 1, sendTimeoutMs, readTimeoutMs);
+  return result.data?.byteLength > 0 && result.data[0] === 0xaa;
+}
+
 export async function setSignals(input: ProtocolTransportInput, signals: SerialOutputSignals): Promise<void> {
   return ProtocolAdapter.setSignals(resolveTransport(input), signals);
 }

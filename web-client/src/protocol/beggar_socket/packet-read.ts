@@ -1,6 +1,6 @@
 import { formatHex } from '@/utils/formatter-utils';
 
-import { getPackage, type ProtocolTransportInput } from './protocol-utils';
+import { getPackage, sendAndReceivePackage, type ProtocolTransportInput } from './protocol-utils';
 
 export type ProtocolPacketReadErrorCode = 'PACKET_TIMEOUT' | 'LENGTH_MISMATCH' | 'TRANSPORT_FAILURE';
 type PacketReadFailureReason = 'timeout' | 'transport' | 'length';
@@ -47,22 +47,26 @@ function getFailureDetail(error: unknown): string {
   return error.message;
 }
 
-export async function readProtocolPayload(
-  input: ProtocolTransportInput,
+function readPayloadData(response: { data: Uint8Array }, expectedLength: number): Uint8Array {
+  const actualLength = response.data?.byteLength ?? 0;
+  if (!response.data || actualLength < expectedLength) {
+    throw new Error(`Expected size: ${expectedLength}, Actual size: ${actualLength}`);
+  }
+
+  return response.data.slice(2);
+}
+
+async function executeProtocolPayloadRead(
+  readPacket: () => Promise<{ data: Uint8Array }>,
   commandName: string,
   size: number,
   baseAddress: number,
-  timeoutMs?: number,
 ): Promise<Uint8Array> {
   const expectedLength = size + 2;
 
   try {
-    const response = await getPackage(input, expectedLength, timeoutMs);
-    const actualLength = response.data?.byteLength ?? 0;
-    if (!response.data || actualLength < expectedLength) {
-      throw new Error(`Expected size: ${expectedLength}, Actual size: ${actualLength}`);
-    }
-    return response.data.slice(2);
+    const response = await readPacket();
+    return readPayloadData(response, expectedLength);
   } catch (error) {
     const reason = getFailureReason(error);
     const detail = getFailureDetail(error);
@@ -90,4 +94,36 @@ export async function readProtocolPayload(
       { cause: error },
     );
   }
+}
+
+export async function readProtocolPayload(
+  input: ProtocolTransportInput,
+  commandName: string,
+  size: number,
+  baseAddress: number,
+  timeoutMs?: number,
+): Promise<Uint8Array> {
+  return executeProtocolPayloadRead(
+    () => getPackage(input, size + 2, timeoutMs),
+    commandName,
+    size,
+    baseAddress,
+  );
+}
+
+export async function sendAndReadProtocolPayload(
+  input: ProtocolTransportInput,
+  payload: Uint8Array,
+  commandName: string,
+  size: number,
+  baseAddress: number,
+  sendTimeoutMs?: number,
+  readTimeoutMs?: number,
+): Promise<Uint8Array> {
+  return executeProtocolPayloadRead(
+    () => sendAndReceivePackage(input, payload, size + 2, sendTimeoutMs, readTimeoutMs),
+    commandName,
+    size,
+    baseAddress,
+  );
 }
