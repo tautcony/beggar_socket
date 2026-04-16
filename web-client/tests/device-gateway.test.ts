@@ -6,9 +6,14 @@ import { PortFilters } from '@/utils/port-filter';
 
 import { WebDeviceGateway } from '../src/platform/serial/web/device-gateway';
 
-vi.mock('@/utils/async-utils', () => ({
-  timeout: vi.fn().mockResolvedValue(undefined),
-}));
+vi.mock('@/utils/async-utils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/async-utils')>();
+
+  return {
+    ...actual,
+    timeout: vi.fn().mockResolvedValue(undefined),
+  };
+});
 
 const serialPluginState = vi.hoisted(() => ({
   availablePorts: {

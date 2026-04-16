@@ -1,33 +1,9 @@
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import type { DefaultReader } from '@/types';
+import { withTimeout } from '@/utils/async-utils';
 
 import { Mutex } from './mutex';
 import type { Transport, TransportReadMode } from './types';
-
-async function withTimeout<T>(
-  operation: Promise<T>,
-  timeoutMs: number,
-  message: string,
-  onTimeout?: () => void,
-): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-
-  try {
-    return await Promise.race([
-      operation,
-      new Promise<T>((_, reject) => {
-        timer = setTimeout(() => {
-          onTimeout?.();
-          reject(new Error(message));
-        }, timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timer) {
-      clearTimeout(timer);
-    }
-  }
-}
 
 export class WebSerialTransport implements Transport {
   private reader: DefaultReader | null = null;
@@ -116,9 +92,11 @@ export class WebSerialTransport implements Transport {
         writer.write(payload),
         timeout,
         `Send package timeout in ${timeout}ms`,
-        () => {
-          timedOut = true;
-          this.startWriterRecovery(writer, new Error('Write aborted due to send timeout'));
+        {
+          onTimeout: () => {
+            timedOut = true;
+            this.startWriterRecovery(writer, new Error('Write aborted due to send timeout'));
+          },
         },
       );
     } catch (error) {

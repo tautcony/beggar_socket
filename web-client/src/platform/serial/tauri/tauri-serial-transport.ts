@@ -1,32 +1,10 @@
 import { ClearBuffer, SerialPort } from 'tauri-plugin-serialplugin-api';
 
 import { AdvancedSettings } from '@/settings/advanced-settings';
+import { withTimeout } from '@/utils/async-utils';
 
 import { Mutex } from '../mutex';
 import type { Transport, TransportReadMode } from '../types';
-
-async function withTimeout<T>(
-  operation: Promise<T>,
-  timeoutMs: number,
-  message: string,
-): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-
-  try {
-    return await Promise.race([
-      operation,
-      new Promise<T>((_, reject) => {
-        timer = setTimeout(() => {
-          reject(new Error(message));
-        }, timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timer) {
-      clearTimeout(timer);
-    }
-  }
-}
 
 export class TauriSerialTransport implements Transport {
   private readonly mutex = new Mutex();

@@ -1,31 +1,12 @@
 import { DataBits, FlowControl, Parity, type PortInfo, SerialPort, StopBits } from 'tauri-plugin-serialplugin-api';
 
 import type { SerialPortInfo } from '@/types/serial';
-import { timeout } from '@/utils/async-utils';
+import { timeout, withTimeout } from '@/utils/async-utils';
 import { PortSelectionRequiredError } from '@/utils/errors/PortSelectionRequiredError';
 import type { PortFilter } from '@/utils/port-filter';
 
 import type { DeviceGateway, DeviceHandle, DeviceSelection } from '../types';
 import { TauriSerialTransport } from './tauri-serial-transport';
-
-async function withTimeout<T>(operation: Promise<T>, timeoutMs: number, message: string): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-
-  try {
-    return await Promise.race([
-      operation,
-      new Promise<T>((_, reject) => {
-        timer = setTimeout(() => {
-          reject(new Error(message));
-        }, timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timer) {
-      clearTimeout(timer);
-    }
-  }
-}
 
 function normalizeUsbId(value: string | undefined): string | undefined {
   if (!value || value === 'Unknown') {

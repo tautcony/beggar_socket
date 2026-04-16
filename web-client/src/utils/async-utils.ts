@@ -63,6 +63,31 @@ export const macrotask = () => new Promise<void>(r => setTimeout(r));
 export const animationFrame = () =>
   new Promise<void>(r => requestAnimationFrame(() => { r(); }));
 
+export async function withTimeout<T>(
+  operation: Promise<T>,
+  timeoutMs: number,
+  message: string,
+  options?: { onTimeout?: () => void },
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => {
+          options?.onTimeout?.();
+          reject(new Error(message));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
+
 /**
  * Creates a Promise that resolves after a specified duration.
  *
