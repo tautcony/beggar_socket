@@ -5,6 +5,8 @@ import { withTimeout } from '@/utils/async-utils';
 import { Mutex } from './mutex';
 import type { Transport, TransportReadMode } from './types';
 
+const WEB_SERIAL_CLOSE_WAIT_TIMEOUT_MS = 2_000;
+
 export class WebSerialTransport implements Transport {
   private reader: DefaultReader | null = null;
   private writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
@@ -151,17 +153,28 @@ export class WebSerialTransport implements Transport {
     await this.waitForWriterRecovery();
     this.releaseWriter();
     this.clearBuffer();
-    if (this.reader) {
-      try {
-        await this.reader.cancel();
-      } catch {}
+
+    const reader = this.reader;
+    if (reader) {
+      await this.waitForCloseStage(reader.cancel(), 'reader cancel');
     }
-    if (this.pumpPromise) {
-      try {
-        await this.pumpPromise;
-      } catch {}
+
+    const pumpPromise = this.pumpPromise;
+    if (pumpPromise) {
+      await this.waitForCloseStage(pumpPromise, 'pump shutdown');
     }
+
     await this.port.close();
+  }
+
+  private async waitForCloseStage(operation: Promise<unknown>, stage: string): Promise<void> {
+    try {
+      await withTimeout(
+        operation,
+        WEB_SERIAL_CLOSE_WAIT_TIMEOUT_MS,
+        `WebSerial ${stage} timeout after ${WEB_SERIAL_CLOSE_WAIT_TIMEOUT_MS}ms`,
+      );
+    } catch {}
   }
 
   private ensurePumpStarted(): void {

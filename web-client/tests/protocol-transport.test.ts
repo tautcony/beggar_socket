@@ -400,4 +400,57 @@ describe('Protocol transport abstraction', () => {
       vi.useRealTimers();
     }
   });
+
+  it('WebSerialTransport close falls back when reader cancel stalls', async () => {
+    vi.useFakeTimers();
+
+    try {
+      const close = vi.fn().mockResolvedValue(undefined);
+      const transport = new WebSerialTransport({ close } as unknown as SerialPort);
+      const internalTransport = transport as unknown as {
+        reader: { cancel: () => Promise<void> } | null;
+        pumpPromise: Promise<void> | null;
+      };
+
+      internalTransport.reader = {
+        cancel: vi.fn().mockImplementation(() => new Promise<void>(() => {})),
+      };
+      internalTransport.pumpPromise = null;
+
+      const closePromise = transport.close();
+      await vi.advanceTimersByTimeAsync(2000);
+      await expect(closePromise).resolves.toBeUndefined();
+
+      expect(internalTransport.reader?.cancel).toHaveBeenCalledTimes(1);
+      expect(close).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('WebSerialTransport close falls back when pump shutdown stalls', async () => {
+    vi.useFakeTimers();
+
+    try {
+      const cancel = vi.fn().mockResolvedValue(undefined);
+      const close = vi.fn().mockResolvedValue(undefined);
+      const transport = new WebSerialTransport({ close } as unknown as SerialPort);
+      const internalTransport = transport as unknown as {
+        reader: { cancel: () => Promise<void> } | null;
+        pumpPromise: Promise<void> | null;
+      };
+
+      internalTransport.reader = { cancel };
+      internalTransport.pumpPromise = new Promise<void>(() => {});
+
+      const closePromise = transport.close();
+      await vi.advanceTimersByTimeAsync(2000);
+      await expect(closePromise).resolves.toBeUndefined();
+
+      expect(cancel).toHaveBeenCalledTimes(1);
+      expect(close).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

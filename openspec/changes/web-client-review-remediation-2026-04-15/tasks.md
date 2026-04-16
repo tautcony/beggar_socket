@@ -31,7 +31,7 @@
 - [x] 4.3 `C2` 将协议层 request/response 调用迁移到原子 `sendAndReceive()`
 - [x] 4.4 为 `C2` 增加并发触发下不会错配响应的回归测试
 - [x] 4.5 `C3` 统一超时工具到共享模块，删除重复实现
-- [ ] 4.6 `C4` 为 WebSerial close/pump 等待增加超时兜底，避免关闭挂起
+- [x] 4.6 `C4` 为 WebSerial close/pump 等待增加超时兜底，避免关闭挂起
 
 ## 5. Verification
 
