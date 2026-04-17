@@ -1,127 +1,116 @@
-# Beggar Socket - AI Coding Instructions
+# General Instruction
 
-ChisFlash Burner is a **multi-platform GBA/GBC cartridge programmer** with three main components: embedded firmware (STM32), desktop client (C#), and web client (Vue 3 + TypeScript).
+- `REPO-ROOT` refers to the root directory of this repository.
+- Before writing to any source file, read it again and make sure you respect parallel editing.
+- If any `*.prompt.md` file is referenced, take immediate action following the instructions in that file.
+- If user confirmation or clarification is needed, prefer using `askQuestions` before falling back to plain conversational questions.
+- Prefer existing repo workflows, scripts, and architecture over introducing new tooling or ad hoc patterns.
+- Keep changes scoped. Do not modify unrelated files just because they are nearby.
 
-## 🏗️ Architecture Overview
+## Repository Structure
 
-### Three-Tier System
-- **MCU (`mcu/`)**: STM32F103C8T6 firmware handling low-level cartridge I/O via custom USB protocol
-- **Desktop Client (`client/`)**: C# WinForms app for Windows users  
-- **Web Client (`web-client/`)**: Vue 3 + Vite app supporting WebSerial API + Tauri desktop packaging
+- `web-client/`: Vue 3 + TypeScript + Vite application, also used by Tauri desktop packaging.
+- `mcu/`: STM32 firmware and MCU-side tooling.
+- `client/`: legacy desktop client.
+- `openspec/`: spec-driven workflow artifacts, active changes, archived changes, and main specs.
+- `.github/prompts/`: prompt files for OpenSpec-related flows.
+- `.github/skills/` and `.agents/skills/`: repo-local skills and workflows.
 
-### Communication Flow
-```
-Web/Desktop Client → WebSerial/SerialPort → STM32 USB CDC → Hardware Protocol → Cartridge
-```
+## Prompt And Spec Workflow
 
-## 🔧 Key Development Patterns
+- OpenSpec changes live in `REPO-ROOT/openspec/changes/`.
+- Main specs live in `REPO-ROOT/openspec/specs/`.
+- Archived changes live in `REPO-ROOT/openspec/changes/archive/`.
+- If the task is about proposing, applying, exploring, or archiving a change, prefer the corresponding OpenSpec prompt or skill:
+  - `REPO-ROOT/.github/prompts/opsx-propose.prompt.md`
+  - `REPO-ROOT/.github/prompts/opsx-apply.prompt.md`
+  - `REPO-ROOT/.github/prompts/opsx-explore.prompt.md`
+  - `REPO-ROOT/.github/prompts/opsx-archive.prompt.md`
+- Do not guess OpenSpec change names when a user asks to archive or operate on a change. Inspect `openspec` state first.
 
-### Protocol Implementation (`web-client/src/protocol/beggar_socket/`)
-- Commands defined in `command.ts` (GBA: 0xf0-0xf6, GBC: 0xf7-0xfc)
-- All communication uses **little-endian** format with CRC (ignored by firmware)
-- Use `protocol-adapter.ts` for high-level operations, `protocol.ts` for raw commands
-- Example: `rom_get_id()` sends unlock sequence then reads manufacturer/device IDs
+## External Tools Environment And Context
 
-### Service Layer Architecture (`web-client/src/services/`)
-- **Adapter pattern**: `CartridgeAdapter` base class → `GBAAdapter`, `MBC5Adapter` implementations
-- **Device abstraction**: `DeviceConnectionManager` handles WebSerial/Tauri serial differences
-- **Protocol isolation**: Services call protocol functions, views call services
+- Prefer non-interactive commands.
+- Do not start an interactive debugger unless you can interact with it and cleanly stop it.
+- Do not invent alternative build systems or command flows when the repo already defines them.
+- Prefer repo-local commands over global assumptions.
 
-### Vue 3 + Composition API Conventions
-- Use `<script setup lang="ts">` syntax exclusively
-- Store shared state in Pinia stores (`stores/rom-assembly-store.ts`)
-- Composables in `composables/` for reusable logic
-- All text must be i18n-compatible using `$t()` and `i18n/` locale files
+### Web Client Commands
 
-### Testing Strategy (`tests/`)
-- **Vitest** for unit tests with coverage reporting
-- Protocol parsers have comprehensive test suites (see `cfi-parser-improvements.test.ts`)
-- Test file naming: `{feature}.test.ts`
-- Run tests: `npm run test`, coverage: `npm run test:coverage`
+Run these in `REPO-ROOT/web-client` unless otherwise noted:
 
-## 🚀 Development Workflows
+- Development server: `npm run dev`
+- Tauri development: `npm run tauri:dev`
+- Lint: `npm run lint`
+- Type check: `npm run type-check`
+- Unit tests: `npm run test:run`
+- Coverage: `npm run test:coverage`
+- Production build: `npm run build`
+- Tauri build: `npm run tauri:build`
 
-### Web Client Development
-```bash
-cd web-client
-npm install        # Install dependencies
-npm run dev       # Start dev server (localhost:5173)
-npm run tauri:dev  # Start Tauri + dev server
-```
+### MCU And Native Components
 
-### Building & Distribution
-- **Web build**: `npm run build` → `dist/` (for web deployment)
-- **Tauri build**: `npm run tauri:build` → `src-tauri/target/release/bundle/`
-- Uses Tauri v2 config in `web-client/src-tauri/tauri.conf.json`
+- For MCU work, prefer the existing project scripts, workflow files, and checked-in project structure.
+- Do not introduce `cmake`, `make`, compiler, or flashing command changes unless the task explicitly requires build-system work.
+- Treat generated outputs as generated outputs. Modify source inputs instead.
 
-### MCU Development
-```bash
-cd mcu/chis_flash_burner
-./cmake-build.sh   # CMake + ARM GCC toolchain build
-```
+## Coding Guidelines And Tools
 
-## ⚡ Critical Implementation Details
+- Follow the conventions already present in the file you are editing.
+- Keep web-client code aligned with the existing Vue 3 Composition API patterns.
+- Use `<script setup lang="ts">` for Vue SFC logic when working in files that already follow that pattern.
+- Keep user-facing text i18n-compatible. Update locale files under `web-client/src/i18n/locales/` when UI text changes.
+- Prefer existing shared abstractions:
+  - Burner/session state in `web-client/src/composables/cartburner/`
+  - Protocol logic in `web-client/src/protocol/`
+  - Cartridge/device behavior in `web-client/src/services/`
+  - Progress and sector state models in `web-client/src/utils/progress/` and `web-client/src/types/`
+- When changing logging or progress behavior, keep these layers aligned:
+  - service/adapters
+  - burner session/composables
+  - progress modal / log viewer UI
+  - tests
+- Keep cross-platform behavior intact. Do not add web-only or Tauri-only assumptions to shared logic unless explicitly guarded.
 
-### Device Detection Pattern
-```typescript
-// Always filter by STM32 VID/PID: 0x0483/0x0721
-const filter = PortFilters.device(0x0483, 0x0721);
-await SerialService.requestPort(filter);
-```
+## File And Editing Rules
 
-### Error Handling Convention
-- Protocol functions throw descriptive errors
-- Services catch and translate to user-friendly messages via i18n
-- Use `formatHex()` for consistent hex display in logs/errors
+- Do not modify generated artifacts unless the task is specifically about generated output.
+- Do not modify dependency/vendor content unless the user explicitly asks for it.
+- For web-client work, prefer editing:
+  - `web-client/src/`
+  - `web-client/tests/`
+  - related config files only when required
+- For OpenSpec work, update only the relevant change/spec/archive files.
+- When editing Markdown instructions or specs, keep paths, command names, and file references accurate for this repository.
 
-### File Processing Pipeline
-1. **Upload** → Parse ROM headers (see `utils/rom-parser.ts`)
-2. **Validate** → Check size limits, cartridge type detection  
-3. **Process** → Apply patches, compression if needed
-4. **Program** → Chunk into protocol-appropriate sizes (max 5000 bytes)
+## Testing And Validation
 
-### Cross-Platform Considerations
-- **Web**: WebSerial API (Chrome/Edge only)
-- **Tauri**: Native serialplugin with fallback to WebSerial
-- **Device detection**: Use `isTauri()` from `web-client/src/utils/tauri.ts`
+- Validate the smallest relevant surface first, then expand only if needed.
+- For web-client changes:
+  - run focused tests first
+  - run `npm run lint` if code or docs affect linted files
+  - run `npm run type-check` when TypeScript or Vue typing may be affected
+  - run `npm run build` when changes could affect bundling or production output
+- If you could not run a validation step, say so explicitly.
 
-## 🎯 Common Tasks & Patterns
+## Accessing Task Documents
 
-### Adding New Cartridge Support
-1. Create adapter in `services/{type}-adapter.ts` extending `CartridgeAdapter`
-2. Add protocol commands in `protocol/beggar_socket/` if needed
-3. Add UI view in `views/` with i18n translations
-4. Register route in `router/index.ts`
+- If the task is driven by OpenSpec, inspect:
+  - `REPO-ROOT/openspec/changes/`
+  - `REPO-ROOT/openspec/specs/`
+  - `REPO-ROOT/openspec/changes/archive/`
+- If the task mentions repo prompts, inspect:
+  - `REPO-ROOT/.github/prompts/`
 
-### Protocol Debugging
-- Enable advanced settings for detailed logging
-- Use `SerialTestView.vue` for raw protocol testing
-- Check `protocol-utils.ts` for packet debugging utilities
+## Code Review
 
-### Performance Testing
-- ROM processing: `npm run test:performance`  
-- Bundle analysis: `npm run build:analyze`
-- Use `--coverage` flag for test performance insights
+- When asked to perform a code review, use the repo review workflow defined in:
+  - `REPO-ROOT/.github/skills/code-review/SKILL.md`
+- Review output should focus on bugs, risks, regressions, and missing tests before summaries.
 
-## 🔍 Code Review
+## Repo-Specific Notes
 
-When asked to perform a code review (用户请求代码审查时), invoke the **Code Review Meta-Skill**:
-
-```
-Skill file: .github/skills/code-review/SKILL.md
-```
-
-The skill defines a complete, phase-based review process:
-1. **Explore** codebase structure and existing documentation
-2. **Generate** a dynamic review plan (Phase 0 → Phase N → Cross-cutting)
-3. **Execute** each Phase using parallel `Explore` subagents
-4. **Write** phase reports to `docs/review/phase-N-{name}.md`
-5. **Synthesize** into `docs/review/summary.md`
-6. **Output** actionable `docs/review/fixes-plan.md`
-
-Historical review reports are in `web-client/docs/review/` — use `summary.md` as baseline to avoid re-reporting resolved issues.
-
-**Problem category codes** (C1–C11) and **severity levels** (P0–P2/INFO) are defined in the skill file.
-
----
-*Focus on protocol correctness, cross-platform compatibility, and maintainable Vue 3 patterns when contributing.*
+- `CartBurner`-related behavior is shared across multiple UI panels. Avoid introducing per-panel divergence when session/progress/log state should remain unified.
+- ROM/RAM/chip flows often depend on matching changes across adapters, progress visualization, logs, and translations.
+- If you change sector-state semantics, update both the state model and the visualization/tests together.
+- If you change structured logging behavior, update console output, UI rendering, and tests together.
