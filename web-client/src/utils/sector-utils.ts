@@ -1,4 +1,4 @@
-import { SectorProgressInfo } from '@/types/progress-info';
+import { SectorProgressInfo, type SectorProgressState } from '@/types/progress-info';
 import { SectorBlock } from '@/utils/parsers/cfi-parser';
 
 export function calcSectorUsage(
@@ -56,6 +56,7 @@ export function calcSectorUsage(
  */
 export function createSectorProgressInfo(
   sectorInfo: SectorBlock[],
+  initialState: SectorProgressState = 'pending_erase',
 ): SectorProgressInfo[] {
   const sectors: SectorProgressInfo[] = [];
 
@@ -69,7 +70,7 @@ export function createSectorProgressInfo(
       sectors.push({
         address,
         size: sectorSize,
-        state: 'pending',
+        state: initialState,
       });
     }
   }

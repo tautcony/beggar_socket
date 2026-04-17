@@ -1,7 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockGbcRead } = vi.hoisted(() => ({
+import { MBC5Adapter } from '@/services/mbc5-adapter';
+import { AdvancedSettings } from '@/settings/advanced-settings';
+import type { CommandOptions, MbcType } from '@/types/command-options';
+import type { DeviceInfo } from '@/types/device-info';
+import type { CFIInfo } from '@/utils/parsers/cfi-parser';
+
+const { mockGbcRead, mockGbcRomProgram, mockGbcRomEraseSector } = vi.hoisted(() => ({
   mockGbcRead: vi.fn(),
+  mockGbcRomProgram: vi.fn(),
+  mockGbcRomEraseSector: vi.fn(),
 }));
 
 vi.mock('@/protocol', async () => {
@@ -9,6 +17,8 @@ vi.mock('@/protocol', async () => {
   return {
     ...actual,
     gbc_read: mockGbcRead,
+    gbc_rom_program: mockGbcRomProgram,
+    gbc_rom_erase_sector: mockGbcRomEraseSector,
   };
 });
 
@@ -17,11 +27,6 @@ vi.mock('@/utils/monitoring/sentry-tracker', () => ({
     trackAsyncOperation: vi.fn(async (_name: string, operation: () => Promise<unknown>) => operation()),
   },
 }));
-
-import { MBC5Adapter } from '@/services/mbc5-adapter';
-import type { CommandOptions, MbcType } from '@/types/command-options';
-import type { DeviceInfo } from '@/types/device-info';
-import type { CFIInfo } from '@/utils/parsers/cfi-parser';
 
 function createCfiInfo(): CFIInfo {
   return {
@@ -53,13 +58,17 @@ function createCfiInfo(): CFIInfo {
   };
 }
 
-function createOptions(mbcType: MbcType): CommandOptions {
+function createOptions(
+  mbcType: MbcType,
+  overrides: Partial<CommandOptions> = {},
+): CommandOptions {
   return {
     mbcType,
     baseAddress: 0x4000,
     romPageSize: 1,
     cfiInfo: createCfiInfo(),
     size: 1,
+    ...overrides,
   };
 }
 
@@ -67,6 +76,10 @@ describe('MBC5Adapter.verifyROM', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     mockGbcRead.mockReset();
+    mockGbcRomProgram.mockReset();
+    mockGbcRomEraseSector.mockReset();
+    mockGbcRead.mockResolvedValue(new Uint8Array([0xff, 0xff, 0xff, 0xff]));
+    AdvancedSettings.resetToDefaults();
   });
 
   it.each([
@@ -81,5 +94,132 @@ describe('MBC5Adapter.verifyROM', () => {
 
     expect(result.success).toBe(true);
     expect(switchSpy).toHaveBeenCalledWith(1, mbcType);
+  });
+});
+
+describe('MBC5Adapter.writeROM recovery', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockGbcRead.mockReset();
+    mockGbcRomProgram.mockReset();
+    mockGbcRomEraseSector.mockReset();
+    mockGbcRead.mockResolvedValue(new Uint8Array([0xff, 0xff, 0xff, 0xff]));
+    AdvancedSettings.resetToDefaults();
+    AdvancedSettings.romEraseRetryCount = 1;
+    AdvancedSettings.romWriteRetryCount = 1;
+  });
+
+  it('skips the prepare erase when blank sampling passes', async () => {
+    const logs: string[] = [];
+    const adapter = new MBC5Adapter(
+      { port: null, connection: null, transport: null } as DeviceInfo,
+      (message) => { logs.push(typeof message === 'string' ? message : message.message); },
+    );
+    vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+
+    mockGbcRomProgram.mockResolvedValue(undefined);
+
+    const result = await adapter.writeROM(
+      new Uint8Array([0xaa]),
+      createOptions('MBC5'),
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockGbcRomEraseSector).not.toHaveBeenCalled();
+    expect(mockGbcRomProgram).toHaveBeenCalledTimes(1);
+    expect(logs).toContain('ROM erase skipped after blank sample @ 0x00004000-0x00007FFF (samples=4x4B)');
+  });
+
+  it('fully erases the target range before starting to program when sampling finds data', async () => {
+    const logs: string[] = [];
+    const adapter = new MBC5Adapter(
+      { port: null, connection: null, transport: null } as DeviceInfo,
+      (message) => { logs.push(typeof message === 'string' ? message : message.message); },
+    );
+    vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+
+    mockGbcRead.mockResolvedValueOnce(new Uint8Array([0x00, 0xff, 0xff, 0xff]));
+    mockGbcRomEraseSector.mockResolvedValue(undefined);
+    mockGbcRomProgram.mockResolvedValue(undefined);
+
+    const result = await adapter.writeROM(
+      new Uint8Array([0xaa]),
+      createOptions('MBC5'),
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockGbcRomEraseSector).toHaveBeenCalledTimes(1);
+    expect(mockGbcRomProgram).toHaveBeenCalledTimes(1);
+    expect(mockGbcRomEraseSector.mock.invocationCallOrder[0]).toBeLessThan(mockGbcRomProgram.mock.invocationCallOrder[0]);
+    expect(logs.some((entry) => entry.includes('ROM erase sample found programmed data'))).toBe(false);
+    expect(logs.some((entry) => entry.includes('ROM erase skipped after blank sample'))).toBe(false);
+  });
+
+  it('retries the current sector from its start after a program failure', async () => {
+    const adapter = new MBC5Adapter({ port: null, connection: null, transport: null } as DeviceInfo);
+    vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+
+    mockGbcRomEraseSector.mockResolvedValue(undefined);
+    mockGbcRead.mockResolvedValue(new Uint8Array([0xff]));
+    mockGbcRomProgram
+      .mockRejectedValueOnce(new Error('program timeout'))
+      .mockResolvedValueOnce(undefined);
+
+    const result = await adapter.writeROM(
+      new Uint8Array([0xaa]),
+      createOptions('MBC5'),
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockGbcRomEraseSector).toHaveBeenCalledTimes(1);
+    expect(mockGbcRomProgram).toHaveBeenCalledTimes(2);
+  });
+
+  it('rolls back to the sector start after a dirty partial write', async () => {
+    const adapter = new MBC5Adapter({ port: null, connection: null, transport: null } as DeviceInfo);
+    vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+
+    mockGbcRomEraseSector.mockResolvedValue(undefined);
+    mockGbcRead.mockResolvedValue(new Uint8Array([0xff]));
+    mockGbcRomProgram
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('chunk timeout'))
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined);
+
+    const fileData = new Uint8Array([0x11, 0x22, 0x33, 0x44]);
+    const result = await adapter.writeROM(
+      fileData,
+      createOptions('MBC5', { romPageSize: 2, size: 4 }),
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockGbcRomEraseSector).toHaveBeenCalledTimes(1);
+    expect(mockGbcRomProgram).toHaveBeenCalledTimes(4);
+    expect(mockGbcRomProgram.mock.calls.map(([_, chunk]) => Array.from(chunk as Uint8Array))).toEqual([
+      [0x11, 0x22],
+      [0x33, 0x44],
+      [0x11, 0x22],
+      [0x33, 0x44],
+    ]);
+  });
+
+  it('fails deterministically when erase retries are exhausted', async () => {
+    const adapter = new MBC5Adapter({ port: null, connection: null, transport: null } as DeviceInfo);
+    vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+
+    AdvancedSettings.romEraseRetryCount = 1;
+    mockGbcRead.mockResolvedValueOnce(new Uint8Array([0x00, 0xff, 0xff, 0xff]));
+    mockGbcRomEraseSector.mockRejectedValue(new Error('erase timeout'));
+
+    const result = await adapter.writeROM(
+      new Uint8Array([0xaa]),
+      createOptions('MBC5'),
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('retry exhausted');
+    expect(result.message).toContain('erase timeout');
+    expect(mockGbcRomEraseSector).toHaveBeenCalledTimes(2);
   });
 });

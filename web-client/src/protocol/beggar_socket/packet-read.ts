@@ -1,6 +1,6 @@
 import { formatHex } from '@/utils/formatter-utils';
 
-import { getPackage, sendAndReceivePackage, type ProtocolTransportInput } from './protocol-utils';
+import { getPackage, type ProtocolTransportInput, sendAndReceivePackage } from './protocol-utils';
 
 export type ProtocolPacketReadErrorCode = 'PACKET_TIMEOUT' | 'LENGTH_MISMATCH' | 'TRANSPORT_FAILURE';
 type PacketReadFailureReason = 'timeout' | 'transport' | 'length';

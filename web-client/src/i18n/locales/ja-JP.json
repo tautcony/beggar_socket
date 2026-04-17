@@ -483,10 +483,14 @@
       },
       "retry": {
         "title": "失敗時の再試行",
-        "romReadCount": "ROM再試行回数",
+        "romReadCount": "ROM読み取り再試行回数",
         "ramReadCount": "RAM再試行回数",
-        "romReadDelay": "ROM再試行待機",
+        "romReadDelay": "ROM読み取り再試行待機",
         "ramReadDelay": "RAM再試行待機",
+        "romWriteRetryCount": "ROM書き込み再試行回数",
+        "romWriteRetryDelay": "ROM書き込み再試行待機",
+        "romEraseRetryCount": "ROM消去再試行回数",
+        "romEraseRetryDelay": "ROM消去再試行待機",
         "validation": {
           "countRange": "再試行回数は {min} - {max} の間で入力してください",
           "delayRange": "再試行待機は {min} - {max} ミリ秒の間で入力してください"
@@ -526,6 +530,10 @@
         "pending": "待機中",
         "processing": "処理中",
         "completed": "完了",
+        "pendingErase": "消去待ち",
+        "erasing": "消去中",
+        "erased": "消去済み",
+        "skippedErase": "消去スキップ",
         "error": "エラー"
       },
       "rendererCanvas": "キャンバス"
@@ -536,7 +544,10 @@
       "cancel": "キャンセル",
       "save": "保存",
       "confirm": "確認",
-      "close": "閉じる"
+      "close": "閉じる",
+      "details": "詳細",
+      "error": "エラー",
+      "detail": "詳細情報"
     },
     "gbaMultiMenu": {
       "title": "GBA ROMビルダー",

@@ -76,4 +76,33 @@ describe('CartBurner container state', () => {
     expect(state.busy.value).toBe(false);
     expect(lastLog?.message).toBe('next-op');
   });
+
+  it('mirrors structured log details into console output', () => {
+    const state = useCartBurnerSessionState((key) => key);
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+
+    state.log({
+      message: 'ROM write retry 1/2 @ 0x00000000',
+      error: 'Read timeout in 3000ms',
+      details: 'Read package timeout in 3000ms (read#199, expected=1B, received=0B)',
+    }, 'warn');
+
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[CartBurner][warn]'),
+      expect.objectContaining({
+        message: 'ROM write retry 1/2 @ 0x00000000',
+        error: 'Read timeout in 3000ms',
+        details: 'Read package timeout in 3000ms (read#199, expected=1B, received=0B)',
+      }),
+    );
+    expect(debugSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[details]'),
+      expect.objectContaining({
+        message: 'ROM write retry 1/2 @ 0x00000000',
+        error: 'Read timeout in 3000ms',
+        details: 'Read package timeout in 3000ms (read#199, expected=1B, received=0B)',
+      }),
+    );
+  });
 });

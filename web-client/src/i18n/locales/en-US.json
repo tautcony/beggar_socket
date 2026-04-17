@@ -485,10 +485,14 @@
       },
       "retry": {
         "title": "Retry on Failure",
-        "romReadCount": "ROM Retry Count",
+        "romReadCount": "ROM Read Retry Count",
         "ramReadCount": "RAM Retry Count",
-        "romReadDelay": "ROM Retry Delay",
+        "romReadDelay": "ROM Read Retry Delay",
         "ramReadDelay": "RAM Retry Delay",
+        "romWriteRetryCount": "ROM Write Retry Count",
+        "romWriteRetryDelay": "ROM Write Retry Delay",
+        "romEraseRetryCount": "ROM Erase Retry Count",
+        "romEraseRetryDelay": "ROM Erase Retry Delay",
         "validation": {
           "countRange": "Retry count must be between {min} - {max}",
           "delayRange": "Retry delay must be between {min} - {max} milliseconds"
@@ -509,7 +513,7 @@
       }
     },
     "progress": {
-      "title": "Transfer Progress",
+      "title": "Operation Progress",
       "transferred": "Transferred",
       "remaining": "Remaining",
       "speed": "Transfer Speed",
@@ -528,7 +532,17 @@
         "pending": "Pending",
         "processing": "Processing",
         "completed": "Completed",
+        "pendingErase": "Pending Erase",
+        "erasing": "Erasing",
+        "erased": "Erased",
+        "skippedErase": "Erase Skipped",
         "error": "Error"
+      },
+      "status": {
+        "running": "In Progress",
+        "completed": "Completed",
+        "paused": "Stopped",
+        "error": "Failed"
       },
       "rendererCanvas": "Canvas"
     },
@@ -538,7 +552,10 @@
       "cancel": "Cancel",
       "save": "Save",
       "confirm": "Confirm",
-      "close": "Close"
+      "close": "Close",
+      "details": "Details",
+      "error": "Error",
+      "detail": "Detail"
     },
     "gbaMultiMenu": {
       "title": "GBA ROM Builder",

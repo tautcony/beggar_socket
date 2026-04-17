@@ -97,7 +97,7 @@ export class WebSerialTransport implements Transport {
         {
           onTimeout: () => {
             timedOut = true;
-            this.startWriterRecovery(writer, new Error('Write aborted due to send timeout'));
+            void this.startWriterRecovery(writer, new Error('Write aborted due to send timeout'));
           },
         },
       );
@@ -106,7 +106,7 @@ export class WebSerialTransport implements Transport {
         const reason = error instanceof Error
           ? error
           : new Error('Write aborted due to send failure');
-        this.startWriterRecovery(writer, reason);
+        void this.startWriterRecovery(writer, reason);
       }
       throw error;
     }

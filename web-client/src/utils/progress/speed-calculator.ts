@@ -53,20 +53,20 @@ export class SpeedCalculator {
       bytes: bytes,
     });
 
-    // 剔除时间窗口之外的数据点
-    const cutoff = timestamp - this.timeWindow;
-    while (this.speedWindow.length && this.speedWindow[0].time < cutoff) {
-      this.speedWindow.shift();
-    }
-
-    this.calculateCurrentSpeed();
+    this.calculateCurrentSpeed(timestamp);
   }
 
   /**
    * 计算当前速度（基于滑动窗口）
    * @returns 当前速度，单位为 K/s
    */
-  calculateCurrentSpeed(): number {
+  calculateCurrentSpeed(timestamp: number = Date.now()): number {
+    this.trimWindow(timestamp);
+    if (this.speedWindow.length === 0) {
+      this.currentSpeed = 0;
+      return this.currentSpeed;
+    }
+
     let start: number;
     if (this.speedWindow.length === 1) {
       if (this.prevTimestamp === 0) {
@@ -81,7 +81,7 @@ export class SpeedCalculator {
     } else {
       start = this.speedWindow[0].time;
     }
-    const end = this.speedWindow[this.speedWindow.length - 1].time;
+    const end = Math.max(timestamp, this.speedWindow[this.speedWindow.length - 1].time);
     const elapsedMs = end - start;
 
     const windowBytes = this.speedWindow.reduce((sum, item) => sum + item.bytes, 0);
@@ -104,8 +104,11 @@ export class SpeedCalculator {
   /**
    * 获取当前速度，单位 B/s
    */
-  getCurrentSpeed(): number {
-    return this.currentSpeed;
+  getCurrentSpeed(timestamp: number = Date.now()): number {
+    if (timestamp <= this.lastTimestamp) {
+      return this.currentSpeed;
+    }
+    return this.calculateCurrentSpeed(timestamp);
   }
 
   /**
@@ -158,5 +161,12 @@ export class SpeedCalculator {
     this.startTime = Date.now();
     this.lastTimestamp = 0;
     this.prevTimestamp = 0;
+  }
+
+  private trimWindow(timestamp: number): void {
+    const cutoff = timestamp - this.timeWindow;
+    while (this.speedWindow.length && this.speedWindow[0].time < cutoff) {
+      this.speedWindow.shift();
+    }
   }
 }

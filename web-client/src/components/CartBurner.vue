@@ -131,12 +131,12 @@ import { AdvancedSettings } from '@/settings/advanced-settings';
 import { DebugSettings } from '@/settings/debug-settings';
 import { useRecentFileNamesStore } from '@/stores/recent-file-names-store';
 import { CommandOptions, DeviceInfo } from '@/types';
+import type { BurnerLogEntry } from '@/types/burner-log';
 import type { MbcType } from '@/types/command-options';
 import { formatBytes, formatHex } from '@/utils/formatter-utils';
 import { CFIInfo } from '@/utils/parsers/cfi-parser';
 import { detectMbcTypeFromRom, parseRom } from '@/utils/parsers/rom-parser.ts';
 
-type LogLevelType = 'info' | 'success' | 'warn' | 'error';
 type ModeType = 'GBA' | 'MBC5';
 type RamType = 'SRAM' | 'FLASH';
 
@@ -249,7 +249,7 @@ if (import.meta.hot) {
   const hot = import.meta.hot;
   const data = hot.data as {
     cartBurnerState?: {
-      logs: { time: string ; message: string; level: LogLevelType }[];
+      logs: BurnerLogEntry[];
     }
   };
 
@@ -265,7 +265,11 @@ if (import.meta.hot) {
   if (data.cartBurnerState.logs.length > 0) {
     burnerSession.clearLogs();
     for (const entry of data.cartBurnerState.logs) {
-      burnerSession.addLog(entry.time, entry.message, entry.level);
+      burnerSession.addLog(entry.time, {
+        message: entry.message,
+        error: entry.error,
+        details: entry.details,
+      }, entry.level);
     }
     syncSessionState();
     console.log(`[CartBurner] HMR: 恢复 ${logs.value.length} 条日志`);
@@ -952,14 +956,15 @@ defineExpose({
 
 /* 内容区域 */
 .content-area {
-  flex: 1;
-  min-width: 450px;
-  max-width: 450px;
+  flex: 0 0 500px;
+  width: 500px;
+  min-width: 500px;
+  max-width: 500px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-right: var(--space-2);
+  padding-right: 0;
   box-sizing: border-box;
 }
 
@@ -1038,6 +1043,8 @@ defineExpose({
   }
 
   .content-area {
+    flex: 1 1 auto;
+    width: 100%;
     min-width: 320px;
     max-width: 100%;
     overflow-y: visible;

@@ -4,7 +4,7 @@ import { formatHex } from '@/utils/formatter-utils';
 import { GBACommand, GBCCommand } from './command';
 import { sendAndReadProtocolPayload } from './packet-read';
 import { createCommandPayload } from './payload-builder';
-import { sendAndExpectAck, type ProtocolTransportInput, sendPackage, toLittleEndian } from './protocol-utils';
+import { type ProtocolTransportInput, sendAndExpectAck, sendPackage, toLittleEndian } from './protocol-utils';
 
 const GBA_SECTOR_ERASE_POLL_INTERVAL_MS = 20;
 const GBA_SECTOR_ERASE_TIMEOUT_MS = 60_000;

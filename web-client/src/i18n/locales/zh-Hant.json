@@ -483,10 +483,14 @@
       },
       "retry": {
         "title": "失敗重試",
-        "romReadCount": "ROM重試次數",
+        "romReadCount": "ROM讀取重試次數",
         "ramReadCount": "RAM重試次數",
-        "romReadDelay": "ROM重試等待",
+        "romReadDelay": "ROM讀取重試等待",
         "ramReadDelay": "RAM重試等待",
+        "romWriteRetryCount": "ROM寫入重試次數",
+        "romWriteRetryDelay": "ROM寫入重試等待",
+        "romEraseRetryCount": "ROM擦除重試次數",
+        "romEraseRetryDelay": "ROM擦除重試等待",
         "validation": {
           "countRange": "重試次數必須在 {min} - {max} 之間",
           "delayRange": "重試等待必須在 {min} - {max} 毫秒之間"
@@ -526,6 +530,10 @@
         "pending": "等待中",
         "processing": "處理中",
         "completed": "已完成",
+        "pendingErase": "待擦除",
+        "erasing": "擦除中",
+        "erased": "已擦除",
+        "skippedErase": "已跳過擦除",
         "error": "錯誤"
       },
       "rendererCanvas": "畫布"
@@ -536,7 +544,10 @@
       "cancel": "取消",
       "save": "儲存",
       "confirm": "確認",
-      "close": "關閉"
+      "close": "關閉",
+      "details": "詳情",
+      "error": "報錯",
+      "detail": "細節"
     },
     "gbaMultiMenu": {
       "title": "GBA ROM建構器",

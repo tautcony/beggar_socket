@@ -12,6 +12,10 @@ export interface AdvancedSettingsConfig {
     ramReadCount?: number;
     romReadDelay?: number;
     ramReadDelay?: number;
+    romWriteRetryCount?: number;
+    romWriteRetryDelay?: number;
+    romEraseRetryCount?: number;
+    romEraseRetryDelay?: number;
   };
   timeout?: {
     default?: number;
@@ -30,6 +34,10 @@ export class AdvancedSettings {
   private static _ramReadRetryCount = 1;
   private static _romReadRetryDelayMs = 0;
   private static _ramReadRetryDelayMs = 0;
+  private static _romWriteRetryCount = 1;
+  private static _romWriteRetryDelayMs = 0;
+  private static _romEraseRetryCount = 1;
+  private static _romEraseRetryDelayMs = 0;
 
   private static _defaultTimeout = 3000;
   private static _packageSendTimeout = 3000;
@@ -116,6 +124,42 @@ export class AdvancedSettings {
 
   static set ramReadRetryDelayMs(value: number) {
     this._ramReadRetryDelayMs = this.validateRetryDelay(value);
+    this.saveSettings();
+  }
+
+  static get romWriteRetryCount(): number {
+    return this._romWriteRetryCount;
+  }
+
+  static set romWriteRetryCount(value: number) {
+    this._romWriteRetryCount = this.validateRetryCount(value);
+    this.saveSettings();
+  }
+
+  static get romWriteRetryDelayMs(): number {
+    return this._romWriteRetryDelayMs;
+  }
+
+  static set romWriteRetryDelayMs(value: number) {
+    this._romWriteRetryDelayMs = this.validateRetryDelay(value);
+    this.saveSettings();
+  }
+
+  static get romEraseRetryCount(): number {
+    return this._romEraseRetryCount;
+  }
+
+  static set romEraseRetryCount(value: number) {
+    this._romEraseRetryCount = this.validateRetryCount(value);
+    this.saveSettings();
+  }
+
+  static get romEraseRetryDelayMs(): number {
+    return this._romEraseRetryDelayMs;
+  }
+
+  static set romEraseRetryDelayMs(value: number) {
+    this._romEraseRetryDelayMs = this.validateRetryDelay(value);
     this.saveSettings();
   }
 
@@ -236,6 +280,10 @@ export class AdvancedSettings {
         ramReadCount: this._ramReadRetryCount,
         romReadDelay: this._romReadRetryDelayMs,
         ramReadDelay: this._ramReadRetryDelayMs,
+        romWriteRetryCount: this._romWriteRetryCount,
+        romWriteRetryDelay: this._romWriteRetryDelayMs,
+        romEraseRetryCount: this._romEraseRetryCount,
+        romEraseRetryDelay: this._romEraseRetryDelayMs,
       },
       timeout: {
         default: this._defaultTimeout,
@@ -278,6 +326,18 @@ export class AdvancedSettings {
       if (settings.retry.ramReadDelay !== undefined) {
         this._ramReadRetryDelayMs = this.validateRetryDelay(settings.retry.ramReadDelay);
       }
+      if (settings.retry.romWriteRetryCount !== undefined) {
+        this._romWriteRetryCount = this.validateRetryCount(settings.retry.romWriteRetryCount);
+      }
+      if (settings.retry.romWriteRetryDelay !== undefined) {
+        this._romWriteRetryDelayMs = this.validateRetryDelay(settings.retry.romWriteRetryDelay);
+      }
+      if (settings.retry.romEraseRetryCount !== undefined) {
+        this._romEraseRetryCount = this.validateRetryCount(settings.retry.romEraseRetryCount);
+      }
+      if (settings.retry.romEraseRetryDelay !== undefined) {
+        this._romEraseRetryDelayMs = this.validateRetryDelay(settings.retry.romEraseRetryDelay);
+      }
     }
 
     if (settings.timeout) {
@@ -308,6 +368,10 @@ export class AdvancedSettings {
     this._ramReadRetryCount = 1;
     this._romReadRetryDelayMs = 0;
     this._ramReadRetryDelayMs = 0;
+    this._romWriteRetryCount = 1;
+    this._romWriteRetryDelayMs = 0;
+    this._romEraseRetryCount = 1;
+    this._romEraseRetryDelayMs = 0;
     this._defaultTimeout = 3000;
     this._packageSendTimeout = 3000;
     this._packageReceiveTimeout = 3000;
@@ -415,6 +479,26 @@ export class AdvancedSettings {
       if (settings.retry.ramReadDelay !== undefined) {
         if (settings.retry.ramReadDelay < this.MIN_RETRY_DELAY || settings.retry.ramReadDelay > this.MAX_RETRY_DELAY) {
           errors.push(`RAM read retry delay must be between ${this.MIN_RETRY_DELAY}ms and ${this.MAX_RETRY_DELAY}ms`);
+        }
+      }
+      if (settings.retry.romWriteRetryCount !== undefined) {
+        if (settings.retry.romWriteRetryCount < this.MIN_RETRY_COUNT || settings.retry.romWriteRetryCount > this.MAX_RETRY_COUNT) {
+          errors.push(`ROM write retry count must be between ${this.MIN_RETRY_COUNT} and ${this.MAX_RETRY_COUNT}`);
+        }
+      }
+      if (settings.retry.romWriteRetryDelay !== undefined) {
+        if (settings.retry.romWriteRetryDelay < this.MIN_RETRY_DELAY || settings.retry.romWriteRetryDelay > this.MAX_RETRY_DELAY) {
+          errors.push(`ROM write retry delay must be between ${this.MIN_RETRY_DELAY}ms and ${this.MAX_RETRY_DELAY}ms`);
+        }
+      }
+      if (settings.retry.romEraseRetryCount !== undefined) {
+        if (settings.retry.romEraseRetryCount < this.MIN_RETRY_COUNT || settings.retry.romEraseRetryCount > this.MAX_RETRY_COUNT) {
+          errors.push(`ROM erase retry count must be between ${this.MIN_RETRY_COUNT} and ${this.MAX_RETRY_COUNT}`);
+        }
+      }
+      if (settings.retry.romEraseRetryDelay !== undefined) {
+        if (settings.retry.romEraseRetryDelay < this.MIN_RETRY_DELAY || settings.retry.romEraseRetryDelay > this.MAX_RETRY_DELAY) {
+          errors.push(`ROM erase retry delay must be between ${this.MIN_RETRY_DELAY}ms and ${this.MAX_RETRY_DELAY}ms`);
         }
       }
     }

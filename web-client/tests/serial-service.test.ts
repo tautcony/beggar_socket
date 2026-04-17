@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { SerialService } from '@/services/serial-service';
+
 const { mockGateway, mockToLegacyDeviceInfo } = vi.hoisted(() => ({
   mockGateway: {
     connect: vi.fn(),
@@ -12,8 +14,6 @@ vi.mock('@/platform/serial', () => ({
   getDeviceGateway: vi.fn(() => mockGateway),
   toLegacyDeviceInfo: mockToLegacyDeviceInfo,
 }));
-
-import { SerialService } from '@/services/serial-service';
 
 describe('SerialService.openPort', () => {
   beforeEach(() => {

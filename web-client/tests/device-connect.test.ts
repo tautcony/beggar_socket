@@ -1,6 +1,8 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import DeviceConnect from '@/components/DeviceConnect.vue';
+
 const { showToastMock, requestDeviceMock, connectWithSelectedPortMock, disconnectDeviceMock, initializeDeviceMock, listAvailablePortsMock, isDeviceConnectedMock } = vi.hoisted(() => ({
   showToastMock: vi.fn(),
   requestDeviceMock: vi.fn(),
@@ -53,8 +55,6 @@ vi.mock('@/services/device-connection-manager', () => {
   };
 });
 
-import DeviceConnect from '@/components/DeviceConnect.vue';
-
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (reason?: unknown) => void;
@@ -77,7 +77,7 @@ describe('DeviceConnect', () => {
   });
 
   it('serializes repeated connect requests through a single in-flight operation', async () => {
-    const pending = deferred<{ port: null; transport: {}; connection: null }>();
+    const pending = deferred<{ port: null; transport: Record<string, never>; connection: null }>();
     requestDeviceMock.mockReturnValue(pending.promise);
 
     const wrapper = mount(DeviceConnect, {

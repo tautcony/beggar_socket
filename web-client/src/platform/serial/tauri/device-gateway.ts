@@ -236,7 +236,7 @@ export class TauriDeviceGateway implements DeviceGateway {
     }
 
     if (closeError) {
-      throw closeError;
+      throw closeError instanceof Error ? closeError : new Error('Serial close failed');
     }
   }
 }

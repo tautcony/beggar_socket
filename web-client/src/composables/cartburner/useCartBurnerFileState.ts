@@ -111,7 +111,7 @@ export function useCartBurnerFileState(log: (message: string) => void, translate
       document.body.appendChild(anchor);
       anchor.click();
     } finally {
-      if (anchor && anchor.parentNode) {
+      if (anchor?.parentNode) {
         anchor.parentNode.removeChild(anchor);
       }
       if (url) {

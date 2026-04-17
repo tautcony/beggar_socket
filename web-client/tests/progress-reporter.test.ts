@@ -30,8 +30,8 @@ describe('ProgressReporter', () => {
   describe('setSectors', () => {
     it('should set sector information', () => {
       const sectors: SectorProgressInfo[] = [
-        { address: 0x0000, size: 4096, state: 'pending' },
-        { address: 0x1000, size: 4096, state: 'pending' },
+        { address: 0x0000, size: 4096, state: 'pending_erase' },
+        { address: 0x1000, size: 4096, state: 'pending_erase' },
       ];
 
       reporter.setSectors(sectors);
@@ -107,8 +107,8 @@ describe('ProgressReporter', () => {
 
     it('should include sector progress when sectors are set', () => {
       const sectors: SectorProgressInfo[] = [
-        { address: 0x0000, size: 4096, state: 'completed' },
-        { address: 0x1000, size: 4096, state: 'processing' },
+        { address: 0x0000, size: 4096, state: 'erased' },
+        { address: 0x1000, size: 4096, state: 'erasing' },
       ];
 
       reporter.setSectors(sectors);
@@ -129,7 +129,7 @@ describe('ProgressReporter', () => {
       );
 
       const call = mockUpdateCallback.mock.calls[0][0];
-      expect(Array.from(call.sectorProgress?.stateBuffer ?? [])).toEqual([2, 1]);
+      expect(Array.from(call.sectorProgress?.stateBuffer ?? [])).toEqual([6, 5]);
     });
 
     it('should work without sector information', () => {
@@ -164,8 +164,8 @@ describe('ProgressReporter', () => {
 
     it('should include completed sector information when available', () => {
       const sectors: SectorProgressInfo[] = [
-        { address: 0x0000, size: 4096, state: 'completed' },
-        { address: 0x1000, size: 4096, state: 'completed' },
+        { address: 0x0000, size: 4096, state: 'erased' },
+        { address: 0x1000, size: 4096, state: 'erased' },
       ];
 
       reporter.setSectors(sectors);
@@ -186,7 +186,7 @@ describe('ProgressReporter', () => {
       );
 
       const call = mockUpdateCallback.mock.calls[0][0];
-      expect(Array.from(call.sectorProgress?.stateBuffer ?? [])).toEqual([2, 2]);
+      expect(Array.from(call.sectorProgress?.stateBuffer ?? [])).toEqual([6, 6]);
     });
   });
 
@@ -210,9 +210,9 @@ describe('ProgressReporter', () => {
   describe('markSectorState', () => {
     beforeEach(() => {
       const sectors: SectorProgressInfo[] = [
-        { address: 0x0000, size: 4096, state: 'pending' },
-        { address: 0x1000, size: 4096, state: 'pending' },
-        { address: 0x2000, size: 4096, state: 'pending' },
+        { address: 0x0000, size: 4096, state: 'pending_erase' },
+        { address: 0x1000, size: 4096, state: 'pending_erase' },
+        { address: 0x2000, size: 4096, state: 'pending_erase' },
       ];
       reporter.setSectors(sectors);
     });
@@ -249,10 +249,10 @@ describe('ProgressReporter', () => {
   describe('markSectorRangeState', () => {
     beforeEach(() => {
       const sectors: SectorProgressInfo[] = [
-        { address: 0x0000, size: 4096, state: 'pending' },
-        { address: 0x1000, size: 4096, state: 'pending' },
-        { address: 0x2000, size: 4096, state: 'pending' },
-        { address: 0x3000, size: 4096, state: 'pending' },
+        { address: 0x0000, size: 4096, state: 'pending_erase' },
+        { address: 0x1000, size: 4096, state: 'pending_erase' },
+        { address: 0x2000, size: 4096, state: 'pending_erase' },
+        { address: 0x3000, size: 4096, state: 'pending_erase' },
       ];
       reporter.setSectors(sectors);
     });
@@ -265,7 +265,7 @@ describe('ProgressReporter', () => {
       const call = mockUpdateCallback.mock.calls[0][0];
       const stateBuffer = call.sectorProgress?.stateBuffer;
 
-      expect(Array.from(stateBuffer ?? [])).toEqual([0, 2, 2, 0]);
+      expect(Array.from(stateBuffer ?? [])).toEqual([4, 2, 2, 4]);
     });
 
     it('should handle edge cases with exact boundaries', () => {
@@ -275,7 +275,7 @@ describe('ProgressReporter', () => {
       const call = mockUpdateCallback.mock.calls[0][0];
       const stateBuffer = call.sectorProgress?.stateBuffer;
 
-      expect(Array.from(stateBuffer ?? [])).toEqual([0, 3, 3, 0]);
+      expect(Array.from(stateBuffer ?? [])).toEqual([4, 3, 3, 4]);
     });
 
     it('should handle empty range', () => {
@@ -285,7 +285,52 @@ describe('ProgressReporter', () => {
       const call = mockUpdateCallback.mock.calls[0][0];
       const stateBuffer = call.sectorProgress?.stateBuffer;
 
-      expect(Array.from(stateBuffer ?? [])).toEqual([0, 0, 0, 0]);
+      expect(Array.from(stateBuffer ?? [])).toEqual([4, 4, 4, 4]);
+    });
+  });
+
+  describe('erase-aware states', () => {
+    beforeEach(() => {
+      const sectors: SectorProgressInfo[] = [
+        { address: 0x0000, size: 4096, state: 'pending_erase' },
+        { address: 0x1000, size: 4096, state: 'pending_erase' },
+      ];
+      reporter.setSectors(sectors);
+    });
+
+    it('encodes pending_erase, erasing, and erased sector states', () => {
+      reporter.markSectorState(0x0000, 'pending_erase');
+      reporter.markSectorState(0x1000, 'erasing');
+      reporter.reportProgress(0, 0, 'erasing');
+
+      const call = mockUpdateCallback.mock.calls[0][0];
+      expect(Array.from(call.sectorProgress?.stateBuffer ?? [])).toEqual([4, 5]);
+    });
+
+    it('counts erased sectors as completed progress', () => {
+      reporter.markSectorState(0x0000, 'erased');
+      reporter.markSectorState(0x1000, 'erasing');
+
+      expect(reporter.getCompletedSectorsCount()).toBe(1);
+    });
+
+    it('encodes skipped erase sectors and counts them as completed progress', () => {
+      reporter.markSectorState(0x0000, 'skipped_erase');
+      reporter.markSectorState(0x1000, 'erasing');
+      reporter.reportProgress(0, 0, 'skip');
+
+      const call = mockUpdateCallback.mock.calls[0][0];
+      expect(Array.from(call.sectorProgress?.stateBuffer ?? [])).toEqual([7, 5]);
+      expect(reporter.getCompletedSectorsCount()).toBe(1);
+    });
+
+    it('resets sectors back to pending erase state', () => {
+      reporter.markSectorState(0x0000, 'erased');
+      reporter.resetSectorsState();
+      reporter.reportProgress(0, 0, 'reset');
+
+      const call = mockUpdateCallback.mock.calls[0][0];
+      expect(Array.from(call.sectorProgress?.stateBuffer ?? [])).toEqual([4, 4]);
     });
   });
 

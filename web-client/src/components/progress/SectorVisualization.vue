@@ -29,15 +29,15 @@
         v-memo="[renderedSectorStates[index], locale]"
         class="sector-block"
         :class="[
-          sectorStateClassMap[renderedSectorStates[index] ?? 'pending'],
-          { 'sector-current': (renderedSectorStates[index] ?? 'pending') === 'processing' },
+          sectorStateClassMap[renderedSectorStates[index] ?? defaultSectorState],
+          { 'sector-current': currentSectorStates.has(renderedSectorStates[index] ?? defaultSectorState) },
           `sector-size-${sector.sizeClass}`
         ]"
         :title="getSectorTooltip(sector, index)"
       >
         <div class="sector-inner">
           <div
-            v-if="(renderedSectorStates[index] ?? 'pending') === 'processing'"
+            v-if="currentSectorStates.has(renderedSectorStates[index] ?? defaultSectorState)"
             class="sector-spinner"
           />
         </div>
@@ -68,12 +68,18 @@
         >
           <span class="legend-size-label">{{ formatBytes(sectorSizeLabels.small) }}:</span>
           <div class="legend-item">
-            <div class="legend-color sector-pending sector-size-small" />
-            <span>{{ $t('ui.progress.sectorState.pending') }}</span>
+            <div
+              class="legend-color"
+              :class="[pendingSectorLegendStateClass, 'sector-size-small']"
+            />
+            <span>{{ sectorStateLabelMap[pendingSectorLegendState] }}</span>
           </div>
           <div class="legend-item">
-            <div class="legend-color sector-completed sector-size-small" />
-            <span>{{ $t('ui.progress.sectorState.completed') }}</span>
+            <div
+              class="legend-color"
+              :class="[completedSectorLegendStateClass, 'sector-size-small']"
+            />
+            <span>{{ sectorStateLabelMap[completedSectorLegendState] }}</span>
           </div>
         </div>
         <div
@@ -82,12 +88,18 @@
         >
           <span class="legend-size-label">{{ formatBytes(sectorSizeLabels.medium) }}:</span>
           <div class="legend-item">
-            <div class="legend-color sector-pending sector-size-medium" />
-            <span>{{ $t('ui.progress.sectorState.pending') }}</span>
+            <div
+              class="legend-color"
+              :class="[pendingSectorLegendStateClass, 'sector-size-medium']"
+            />
+            <span>{{ sectorStateLabelMap[pendingSectorLegendState] }}</span>
           </div>
           <div class="legend-item">
-            <div class="legend-color sector-completed sector-size-medium" />
-            <span>{{ $t('ui.progress.sectorState.completed') }}</span>
+            <div
+              class="legend-color"
+              :class="[completedSectorLegendStateClass, 'sector-size-medium']"
+            />
+            <span>{{ sectorStateLabelMap[completedSectorLegendState] }}</span>
           </div>
         </div>
         <div
@@ -96,18 +108,54 @@
         >
           <span class="legend-size-label">{{ formatBytes(sectorSizeLabels.large) }}:</span>
           <div class="legend-item">
-            <div class="legend-color sector-pending sector-size-large" />
-            <span>{{ $t('ui.progress.sectorState.pending') }}</span>
+            <div
+              class="legend-color"
+              :class="[pendingSectorLegendStateClass, 'sector-size-large']"
+            />
+            <span>{{ sectorStateLabelMap[pendingSectorLegendState] }}</span>
           </div>
           <div class="legend-item">
-            <div class="legend-color sector-completed sector-size-large" />
-            <span>{{ $t('ui.progress.sectorState.completed') }}</span>
+            <div
+              class="legend-color"
+              :class="[completedSectorLegendStateClass, 'sector-size-large']"
+            />
+            <span>{{ sectorStateLabelMap[completedSectorLegendState] }}</span>
           </div>
         </div>
-        <div class="legend-group">
+        <div
+          v-if="showWriteActiveLegend"
+          class="legend-group"
+        >
           <div class="legend-item">
-            <div class="legend-color sector-processing" />
-            <span>{{ $t('ui.progress.sectorState.processing') }}</span>
+            <div
+              class="legend-color"
+              :class="writeActiveLegendStateClass"
+            />
+            <span>{{ sectorStateLabelMap[writeActiveLegendState] }}</span>
+          </div>
+        </div>
+        <div
+          v-if="showEraseActiveLegend"
+          class="legend-group"
+        >
+          <div class="legend-item">
+            <div
+              class="legend-color"
+              :class="eraseActiveLegendStateClass"
+            />
+            <span>{{ sectorStateLabelMap[eraseActiveLegendState] }}</span>
+          </div>
+        </div>
+        <div
+          v-if="showSkippedEraseLegend"
+          class="legend-group"
+        >
+          <div class="legend-item">
+            <div
+              class="legend-color"
+              :class="skippedEraseLegendStateClass"
+            />
+            <span>{{ sectorStateLabelMap.skipped_erase }}</span>
           </div>
         </div>
       </div>
@@ -134,8 +182,14 @@ const sectorStateClassMap: Record<SectorProgressInfo['state'], string> = {
   pending: 'sector-pending',
   processing: 'sector-processing',
   completed: 'sector-completed',
+  pending_erase: 'sector-pending-erase',
+  erasing: 'sector-erasing',
+  erased: 'sector-erased',
+  skipped_erase: 'sector-skipped-erase',
   error: 'sector-error',
 };
+
+const currentSectorStates = new Set<SectorProgressInfo['state']>(['processing']);
 
 interface SectorDisplayInfo {
   index: number;
@@ -169,6 +223,29 @@ let pendingSectorRenderTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingRenderStates: SectorProgressInfo['state'][] | null = null;
 // let lastViewLogSignature = '';
 
+const useEraseSemantics = computed(() => props.type === 'erase');
+const defaultSectorState = computed<SectorProgressInfo['state']>(() => (useEraseSemantics.value ? 'pending_erase' : 'pending'));
+const pendingSectorLegendState = computed<SectorProgressInfo['state']>(() => (useEraseSemantics.value ? 'pending_erase' : 'pending'));
+const completedSectorLegendState = computed<SectorProgressInfo['state']>(() => (useEraseSemantics.value ? 'erased' : 'completed'));
+const pendingSectorLegendStateClass = computed(() => sectorStateClassMap[pendingSectorLegendState.value]);
+const completedSectorLegendStateClass = computed(() => sectorStateClassMap[completedSectorLegendState.value]);
+const showWriteActiveLegend = computed(() => props.type === 'write' || props.type === 'verify' || props.type === 'read' || props.type === 'other');
+const showEraseActiveLegend = computed(() => {
+  if (props.type === 'erase') {
+    return true;
+  }
+  if (props.type !== 'write') {
+    return false;
+  }
+  return renderedSectorStates.value.some((state) => state === 'erasing');
+});
+const showSkippedEraseLegend = computed(() => renderedSectorStates.value.some((state) => state === 'skipped_erase'));
+const writeActiveLegendState = computed<SectorProgressInfo['state']>(() => 'processing');
+const eraseActiveLegendState = computed<SectorProgressInfo['state']>(() => 'erasing');
+const writeActiveLegendStateClass = computed(() => sectorStateClassMap[writeActiveLegendState.value]);
+const eraseActiveLegendStateClass = computed(() => sectorStateClassMap[eraseActiveLegendState.value]);
+const skippedEraseLegendStateClass = computed(() => sectorStateClassMap.skipped_erase);
+
 const sectorVisualizationStyle = computed(() => ({
   '--sector-block-size': `${SECTOR_BLOCK_SIZE}px`,
   '--sector-gap': `${SECTOR_GAP}px`,
@@ -193,7 +270,11 @@ function decodeSectorState(code: SectorStateCode | undefined): SectorProgressInf
   if (code === 1) return 'processing';
   if (code === 2) return 'completed';
   if (code === 3) return 'error';
-  return 'pending';
+  if (code === 4) return 'pending_erase';
+  if (code === 5) return 'erasing';
+  if (code === 6) return 'erased';
+  if (code === 7) return 'skipped_erase';
+  return defaultSectorState.value;
 }
 
 function resolveSectorStates(sectorProgress: ProgressInfo['sectorProgress']): SectorProgressInfo['state'][] {
@@ -204,8 +285,8 @@ function resolveSectorStates(sectorProgress: ProgressInfo['sectorProgress']): Se
   return displaySectors.value.map((sector) => decodeSectorState(sectorProgress.stateBuffer[sector.index] as SectorStateCode));
 }
 
-function findProcessingIndex(states: SectorProgressInfo['state'][]): number {
-  return states.findIndex((state) => state === 'processing');
+function findCurrentIndex(states: SectorProgressInfo['state'][]): number {
+  return states.findIndex((state) => currentSectorStates.has(state));
 }
 
 function applySectorStates(states: SectorProgressInfo['state'][]): void {
@@ -216,9 +297,9 @@ function applySectorStates(states: SectorProgressInfo['state'][]): void {
   let completed = 0;
   let error = 0;
   for (const state of states) {
-    if (state === 'pending') pending += 1;
-    else if (state === 'processing') processing += 1;
-    else if (state === 'completed') completed += 1;
+    if (state === 'pending' || state === 'pending_erase') pending += 1;
+    else if (state === 'processing' || state === 'erasing') processing += 1;
+    else if (state === 'completed' || state === 'erased' || state === 'skipped_erase') completed += 1;
     else error += 1;
   }
   /*
@@ -248,7 +329,7 @@ function scheduleSectorStatesRender(nextStates: SectorProgressInfo['state'][]): 
   }
 
   // Processing change should render immediately.
-  if (findProcessingIndex(currentStates) !== findProcessingIndex(nextStates)) {
+  if (findCurrentIndex(currentStates) !== findCurrentIndex(nextStates)) {
     if (pendingSectorRenderTimer) {
       clearTimeout(pendingSectorRenderTimer);
       pendingSectorRenderTimer = null;
@@ -359,11 +440,15 @@ const sectorStateLabelMap = computed<Record<SectorProgressInfo['state'], string>
   pending: t('ui.progress.sectorState.pending'),
   processing: t('ui.progress.sectorState.processing'),
   completed: t('ui.progress.sectorState.completed'),
+  pending_erase: t('ui.progress.sectorState.pendingErase'),
+  erasing: t('ui.progress.sectorState.erasing'),
+  erased: t('ui.progress.sectorState.erased'),
+  skipped_erase: t('ui.progress.sectorState.skippedErase'),
   error: t('ui.progress.sectorState.error'),
 }));
 
 function getSectorTooltip(sector: SectorDisplayInfo, index: number): string {
-  const state = renderedSectorStates.value[index] ?? 'pending';
+  const state = renderedSectorStates.value[index] ?? defaultSectorState.value;
   return t('ui.progress.sectorTooltip', {
     address: sector.formattedAddress,
     size: sector.formattedSize,
@@ -379,16 +464,30 @@ const canvasHoverTitle = computed(() => {
 });
 
 function getCanvasColor(sizeClass: SectorSizeClass, state: SectorProgressInfo['state']): { fill: string; stroke: string; current: boolean } {
-  // Keep Canvas colors aligned with DIV/CSS definitions:
-  // pending: small #ddd6fe, medium #bfdbfe, large color-bg-tertiary(#e9ecef), border color-border(#cccccc)
-  // processing: fill color-warning(#fbc02d), border #f59e0b
-  // completed: small #a855f7, medium color-primary(#1976d2), large color-success(#388e3c), border #15803d
-  // error: fill color-error(#d32f2f), border #dc2626
+  // Keep Canvas colors aligned with DIV/CSS definitions.
   if (state === 'error') {
     return { fill: '#d32f2f', stroke: '#dc2626', current: false };
   }
+  if (state === 'erasing') {
+    return { fill: '#f59e0b', stroke: '#d97706', current: false };
+  }
+  if (state === 'erased') {
+    if (sizeClass === 'small') {
+      return { fill: '#bbf7d0', stroke: '#15803d', current: false };
+    }
+    if (sizeClass === 'medium') {
+      return { fill: '#86efac', stroke: '#15803d', current: false };
+    }
+    return { fill: '#4ade80', stroke: '#15803d', current: false };
+  }
+  if (state === 'skipped_erase') {
+    return { fill: '#5eead4', stroke: '#0f766e', current: false };
+  }
+  if (state === 'pending_erase') {
+    return { fill: '#e9ecef', stroke: '#cccccc', current: false };
+  }
   if (state === 'processing') {
-    return { fill: '#fbc02d', stroke: '#f59e0b', current: true };
+    return { fill: '#2563eb', stroke: '#1d4ed8', current: true };
   }
   if (state === 'completed') {
     if (sizeClass === 'small') {
@@ -436,7 +535,7 @@ function drawCanvas(): void {
 
   for (let index = 0; index < displaySectors.value.length; index += 1) {
     const sector = displaySectors.value[index];
-    const state = renderedSectorStates.value[index] ?? 'pending';
+    const state = renderedSectorStates.value[index] ?? defaultSectorState.value;
     const col = index % columns;
     const row = Math.floor(index / columns);
     const x = col * SECTOR_STEP;
@@ -635,8 +734,12 @@ function ensureCanvasObserver(): void {
 }
 
 /* 扇区状态颜色 */
-.sector-pending {
+.sector-pending,
+.sector-pending-erase {
   border: 1px solid color-vars.$color-border;
+}
+
+.sector-pending {
 
   &.sector-size-small {
     background: #ddd6fe; /* 浅紫色 - 4KB */
@@ -651,9 +754,20 @@ function ensureCanvasObserver(): void {
   }
 }
 
+.sector-pending-erase {
+  border-color: color-vars.$color-border;
+  background: color-vars.$color-bg-tertiary;
+}
+
 .sector-processing {
-  background: color-vars.$color-warning;
-  border: 1px solid #f59e0b;
+  background: #2563eb;
+  border: 1px solid #1d4ed8;
+  animation: sectorPulse 1s infinite;
+}
+
+.sector-erasing {
+  background: #f59e0b;
+  border: 1px solid #d97706;
   animation: sectorPulse 1s infinite;
 }
 
@@ -671,6 +785,27 @@ function ensureCanvasObserver(): void {
   &.sector-size-large {
     background: color-vars.$color-success; /* 绿色 - 64KB+ 完成 */
   }
+}
+
+.sector-erased {
+  border: 1px solid #15803d;
+
+  &.sector-size-small {
+    background: #bbf7d0;
+  }
+
+  &.sector-size-medium {
+    background: #86efac;
+  }
+
+  &.sector-size-large {
+    background: #4ade80;
+  }
+}
+
+.sector-skipped-erase {
+  background: #5eead4;
+  border: 1px solid #0f766e;
 }
 
 .sector-error {
@@ -778,9 +913,19 @@ function ensureCanvasObserver(): void {
     }
   }
 
+  &.sector-pending-erase {
+    border-color: color-vars.$color-border;
+    background: color-vars.$color-bg-tertiary;
+  }
+
   &.sector-processing {
-    background: color-vars.$color-warning;
-    border-color: #f59e0b;
+    background: #2563eb;
+    border-color: #1d4ed8;
+  }
+
+  &.sector-erasing {
+    background: #f59e0b;
+    border-color: #d97706;
   }
 
   &.sector-completed.sector-size-small {
@@ -796,6 +941,26 @@ function ensureCanvasObserver(): void {
   &.sector-completed.sector-size-large {
     background: #508c46;
     border-color: #15803d;
+  }
+
+  &.sector-erased.sector-size-small {
+    background: #bbf7d0;
+    border-color: #15803d;
+  }
+
+  &.sector-erased.sector-size-medium {
+    background: #86efac;
+    border-color: #15803d;
+  }
+
+  &.sector-erased.sector-size-large {
+    background: #4ade80;
+    border-color: #15803d;
+  }
+
+  &.sector-skipped-erase {
+    background: #5eead4;
+    border-color: #0f766e;
   }
 }
 

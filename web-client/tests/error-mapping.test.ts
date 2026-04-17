@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { ProtocolPacketReadError } from '@/protocol/beggar_socket/packet-read';
 import { mapDomainError } from '@/features/burner/application/domain/error-mapping';
+import { ProtocolPacketReadError } from '@/protocol/beggar_socket/packet-read';
 
 describe('error-mapping', () => {
   it('prefers stable error codes over message substrings', () => {

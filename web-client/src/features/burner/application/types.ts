@@ -1,12 +1,8 @@
+import type { BurnerLogEntry, BurnerLogLevel } from '@/types/burner-log';
 import type { ProgressInfo } from '@/types/progress-info';
 
-export type LogLevel = 'info' | 'success' | 'warn' | 'error';
-
-export interface BurnerLogEntry {
-  time: string;
-  message: string;
-  level: LogLevel;
-}
+export type LogLevel = BurnerLogLevel;
+export type { BurnerLogEntry };
 
 export interface BurnerSessionState {
   busy: boolean;

@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { useCartBurnerFileState } from '@/composables/cartburner/useCartBurnerFileState';
+import type { FileInfo } from '@/types/file-info';
+
 const { isTauriMock } = vi.hoisted(() => ({
   isTauriMock: vi.fn(() => false),
 }));
@@ -11,9 +14,6 @@ vi.mock('@/utils/tauri', () => ({
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
 }));
-
-import { useCartBurnerFileState } from '@/composables/cartburner/useCartBurnerFileState';
-import type { FileInfo } from '@/types/file-info';
 
 describe('useCartBurnerFileState', () => {
   beforeEach(() => {
@@ -40,8 +40,8 @@ describe('useCartBurnerFileState', () => {
     const revokeObjectURL = vi.fn();
     const appendChild = vi.spyOn(document.body, 'appendChild');
     const removeChild = vi.spyOn(document.body, 'removeChild');
-    const originalCreateObjectURL = URL.createObjectURL;
-    const originalRevokeObjectURL = URL.revokeObjectURL;
+    const originalCreateObjectURL = URL.createObjectURL.bind(URL);
+    const originalRevokeObjectURL = URL.revokeObjectURL.bind(URL);
 
     URL.createObjectURL = createObjectURL;
     URL.revokeObjectURL = revokeObjectURL;
@@ -67,7 +67,10 @@ describe('useCartBurnerFileState', () => {
 
   it('stores selected rom and ram files when present', () => {
     const log = vi.fn();
-    const state = useCartBurnerFileState(log, (key, params) => `${key}:${String(params?.name ?? '')}`);
+    const state = useCartBurnerFileState(
+      log,
+      (key, params) => `${key}:${typeof params?.name === 'string' ? params.name : ''}`,
+    );
     const romFile: FileInfo = {
       name: 'game.gb',
       size: 3,

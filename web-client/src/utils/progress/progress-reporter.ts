@@ -1,6 +1,7 @@
 import {
   ProgressInfo,
   SectorProgressInfo,
+  type SectorProgressState,
   type SectorSizeClass,
   type SectorStateCode,
 } from '@/types/progress-info';
@@ -46,15 +47,17 @@ export class ProgressReporter {
     this.sectorSizes = this.sectors.map((sector) => sector.size);
     this.sectorSizeClasses = this.sectors.map((sector) => this.getSectorSizeClass(sector.size));
     this.sectorStateBuffer = Uint8Array.from(this.sectors.map((sector) => this.encodeSectorState(sector.state)));
-    this.completedSectorsCount = this.sectors.filter((sector) => sector.state === 'completed').length;
+    this.completedSectorsCount = this.sectors.filter((sector) => this.isCompletedSectorState(sector.state)).length;
   }
 
   /**
    * 重置所有扇区状态为pending
    */
   resetSectorsState(): void {
-    this.sectors = this.sectors.map((sector) => ({ ...sector, state: 'pending' as const }));
-    this.sectorStateBuffer = new Uint8Array(this.sectorStateBuffer.length);
+    this.sectors = this.sectors.map((sector) => ({ ...sector, state: 'pending_erase' as const }));
+    this.sectorStateBuffer = Uint8Array.from(
+      this.sectors.map((sector) => this.encodeSectorState(sector.state)),
+    );
     this.completedSectorsCount = 0;
   }
 
@@ -151,7 +154,7 @@ export class ProgressReporter {
   /**
    * 更新扇区状态
    */
-  markSectorState(address: number, state: 'pending' | 'processing' | 'completed' | 'error'): number {
+  markSectorState(address: number, state: SectorProgressState): number {
     const sectorIndex = this.getCurrentSectorIndexByAddress(address);
 
     if (sectorIndex >= 0) {
@@ -167,7 +170,7 @@ export class ProgressReporter {
   markSectorRangeState(
     startAddress: number,
     endAddress: number,
-    state: 'pending' | 'processing' | 'completed' | 'error',
+    state: SectorProgressState,
   ): void {
     for (let index = 0; index < this.sectors.length; index++) {
       const sector = this.sectors[index];
@@ -226,6 +229,10 @@ export class ProgressReporter {
     if (state === 'processing') return 1;
     if (state === 'completed') return 2;
     if (state === 'error') return 3;
+    if (state === 'pending_erase') return 4;
+    if (state === 'erasing') return 5;
+    if (state === 'erased') return 6;
+    if (state === 'skipped_erase') return 7;
     return 0;
   }
 
@@ -235,14 +242,18 @@ export class ProgressReporter {
       return;
     }
 
-    if (current.state === 'completed') {
+    if (this.isCompletedSectorState(current.state)) {
       this.completedSectorsCount--;
     }
-    if (state === 'completed') {
+    if (this.isCompletedSectorState(state)) {
       this.completedSectorsCount++;
     }
 
     this.sectors[index] = { ...current, state };
     this.sectorStateBuffer[index] = this.encodeSectorState(state);
+  }
+
+  private isCompletedSectorState(state: SectorProgressInfo['state']): boolean {
+    return state === 'completed' || state === 'erased' || state === 'skipped_erase';
   }
 }

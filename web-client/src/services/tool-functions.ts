@@ -5,6 +5,7 @@ import { gbc_read, gbc_write, rom_read, rom_write, toLittleEndian } from '@/prot
 import { LogCallback, ProgressCallback } from '@/services/cartridge-adapter';
 import { DeviceInfo } from '@/types/device-info';
 import { ProgressInfo } from '@/types/progress-info';
+import { type BurnerLogInput, formatBurnerLogMessage } from '@/utils/burner-log';
 
 import { GBAAdapter } from './gba-adapter';
 import { MBC5Adapter } from './mbc5-adapter';
@@ -23,8 +24,9 @@ export interface PPBProgress {
  * 创建日志回调函数
  */
 function createLogCallback(onProgress?: (progress: PPBProgress) => void): LogCallback {
-  return (message: string, type: 'info' | 'success' | 'warn' | 'error') => {
-    onProgress?.({ message, type });
+  return (message: BurnerLogInput, type: 'info' | 'success' | 'warn' | 'error') => {
+    const entry = typeof message === 'string' ? { message } : message;
+    onProgress?.({ message: formatBurnerLogMessage(entry), type });
   };
 }
 

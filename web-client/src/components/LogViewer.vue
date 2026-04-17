@@ -30,10 +30,41 @@
         class="log-line"
       >
         <span class="log-time">{{ line.time }}</span>
-        <span
-          class="log-message"
-          :class="'log-' + line.level"
-        >{{ line.message }}</span>
+        <div class="log-entry-body">
+          <details
+            v-if="line.error || line.details"
+            class="log-disclosure"
+          >
+            <summary class="log-summary">
+              <span
+                class="log-message"
+                :class="'log-' + line.level"
+              >{{ line.message }}</span>
+              <span class="log-expand-button">{{ $t('ui.common.details') }}</span>
+            </summary>
+            <div class="log-subitems">
+              <div
+                v-if="line.error"
+                class="log-subitem"
+              >
+                <span class="log-subitem-label">{{ $t('ui.common.error') }}</span>
+                <pre class="log-subitem-content log-subitem-content--error">{{ line.error }}</pre>
+              </div>
+              <div
+                v-if="line.details"
+                class="log-subitem"
+              >
+                <span class="log-subitem-label">{{ $t('ui.common.detail') }}</span>
+                <pre class="log-subitem-content">{{ line.details }}</pre>
+              </div>
+            </div>
+          </details>
+          <span
+            v-else
+            class="log-message"
+            :class="'log-' + line.level"
+          >{{ line.message }}</span>
+        </div>
       </div>
     </div>
   </div>
@@ -43,15 +74,14 @@
 import { chevronDownOutline } from 'ionicons/icons';
 import { nextTick, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 
+import type { BurnerLogEntry } from '@/types/burner-log';
 import { resolveAutoScrollEnabled } from '@/utils/log-viewer';
 
 import BaseButton from './common/BaseButton.vue';
 
-type LogLevelType = 'info' | 'success' | 'warn' | 'error';
-
 const props = withDefaults(defineProps<{
   title?: string;
-  logs: { time: string; message: string; level: LogLevelType }[];
+  logs: BurnerLogEntry[];
   maxHeight?: string;
   autoScroll?: boolean;
 }>(), {
@@ -195,11 +225,13 @@ onUnmounted(() => {
 
 <style scoped>
 .log-section {
-  width: 450px;
-  flex-shrink: 0;
+  width: 500px;
+  flex: 0 0 500px;
+  max-width: 500px;
   display: flex;
   flex-direction: column;
   height: 820px;
+  box-sizing: border-box;
 }
 
 .log-header {
@@ -291,9 +323,13 @@ onUnmounted(() => {
   line-height: var(--line-height-relaxed);
 }
 
+.log-entry-body {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .log-message {
   color: var(--color-text);
-  flex: 1 1 0;
   white-space: pre-wrap;
   word-break: break-all;
   line-height: var(--line-height-relaxed);
@@ -309,5 +345,85 @@ onUnmounted(() => {
 
 .log-message.log-error {
   color: var(--color-error);
+}
+
+.log-disclosure {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.log-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  cursor: pointer;
+  list-style: none;
+}
+
+.log-summary::-webkit-details-marker {
+  display: none;
+}
+
+.log-expand-button {
+  flex-shrink: 0;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 20px;
+}
+
+.log-disclosure[open] .log-expand-button {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.log-subitems {
+  margin-top: var(--space-2);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.log-subitem {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: var(--space-2);
+  align-items: start;
+}
+
+.log-subitem-label {
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-relaxed);
+}
+
+.log-subitem-content {
+  margin: 0;
+  padding: var(--space-2);
+  background: color-mix(in srgb, var(--color-bg-tertiary) 85%, transparent);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: var(--font-size-xs);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.log-subitem-content--error {
+  color: var(--color-error);
+  border-color: color-mix(in srgb, var(--color-error) 35%, var(--color-border));
+}
+
+@media (max-width: 1024px) {
+  .log-section {
+    width: 100%;
+    max-width: 100%;
+    flex: 1 1 auto;
+    height: 420px;
+  }
 }
 </style>

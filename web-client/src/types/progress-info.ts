@@ -1,12 +1,23 @@
+export type SectorProgressState =
+  | 'pending'
+  | 'processing'
+  | 'completed'
+  | 'pending_erase'
+  | 'erasing'
+  | 'erased'
+  | 'skipped_erase'
+  | 'error';
+
 export interface SectorProgressInfo {
   address: number
   size: number
-  state: 'pending' | 'processing' | 'completed' | 'error'
+  state: SectorProgressState
 }
 
 export type SectorSizeClass = 'small' | 'medium' | 'large';
 
-export type SectorStateCode = 0 | 1 | 2 | 3; // 0=pending,1=processing,2=completed,3=error
+export type SectorStateCode = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+// 0=pending,1=processing,2=completed,3=error,4=pending_erase,5=erasing,6=erased,7=skipped_erase
 
 export interface ProgressInfo {
   type?: 'erase' | 'write' | 'read' | 'verify' | 'other'

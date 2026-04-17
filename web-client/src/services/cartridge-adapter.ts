@@ -4,13 +4,14 @@ import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { ProgressInfo, SectorProgressInfo, type SectorSizeClass } from '@/types/progress-info';
 import { timeout } from '@/utils/async-utils';
+import { type BurnerLogInput, formatBurnerLogMessage } from '@/utils/burner-log';
 import NotImplementedError from '@/utils/errors/NotImplementedError';
 import { CFIInfo, SectorBlock } from '@/utils/parsers/cfi-parser';
 import { ProgressInfoBuilder } from '@/utils/progress/progress-builder';
 import { createSectorProgressInfo } from '@/utils/sector-utils';
 
 // 定义日志和进度回调函数类型
-export type LogCallback = (message: string, type: 'info' | 'success' | 'warn' | 'error' ) => void;
+export type LogCallback = (message: BurnerLogInput, type: 'info' | 'success' | 'warn' | 'error' ) => void;
 
 export type ProgressCallback = (progressInfo: ProgressInfo) => void;
 
@@ -225,7 +226,7 @@ export class CartridgeAdapter {
   protected resetSectorsState(): void {
     this.currentSectorProgress = this.currentSectorProgress.map(sector => ({
       ...sector,
-      state: 'pending' as const,
+      state: 'pending_erase' as const,
     }));
   }
 
@@ -256,6 +257,10 @@ export class CartridgeAdapter {
   protected async stabilizeCommandChannel(settleMs = 100): Promise<void> {
     await this.resetCommandBuffer();
     await timeout(settleMs);
+  }
+
+  protected summarizeLogMessage(message: BurnerLogInput): string {
+    return typeof message === 'string' ? message : formatBurnerLogMessage(message);
   }
 }
 

@@ -19,6 +19,7 @@ import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
+import type { SectorProgressInfo } from '@/types/progress-info';
 import { timeout } from '@/utils/async-utils';
 import { formatBytes, formatHex, formatSpeed, formatTimeDuration } from '@/utils/formatter-utils';
 import { PerformanceTracker } from '@/utils/monitoring/sentry-tracker';
@@ -31,8 +32,13 @@ import { calcSectorUsage } from '@/utils/sector-utils';
  * GBA Adapter - 封装GBA卡带的协议操作
  */
 export class GBAAdapter extends CartridgeAdapter {
+  private static readonly ROM_BANK_SIZE = 1 << 25;
   private static readonly ROM_READ_START_SETTLE_MS = 100;
   private static readonly ROM_READ_RETRY_RESET_MS = 120;
+  private static readonly ROM_WRITE_RETRY_RESET_MS = 150;
+  private static readonly ROM_ERASE_RETRY_RESET_MS = 150;
+  private static readonly ROM_WRITE_SAMPLE_COUNT = 4;
+  private static readonly ROM_WRITE_SAMPLE_BYTES = 4;
   private static readonly RAM_BANK_SWITCH_SETTLE_MS = 100;
   private static readonly RAM_READ_START_SETTLE_MS = 150;
   private static readonly RAM_READ_RETRY_RESET_MS = 150;
@@ -58,15 +64,14 @@ export class GBAAdapter extends CartridgeAdapter {
     chunkSize: number,
     logicalAddress: number,
     cartAddress: number,
-    chunkIndex: number,
-    bank: number,
+    _chunkIndex: number,
+    _bank: number,
     restoreState?: () => Promise<void>,
   ): Promise<Uint8Array> {
     let lastError: unknown;
     const retries = AdvancedSettings.romReadRetryCount;
     const attempts = retries + 1;
     const retryDelayMs = AdvancedSettings.romReadRetryDelayMs;
-    const timeoutMs = AdvancedSettings.packageReceiveTimeout;
 
     for (let attempt = 1; attempt <= attempts; attempt++) {
       try {
@@ -74,9 +79,8 @@ export class GBAAdapter extends CartridgeAdapter {
       } catch (error) {
         lastError = error;
         this.log(
-          `ROM chunk read retry ${attempt}/${attempts} #${chunkIndex} @ ${formatHex(logicalAddress, 4)} `
-          + `(cart ${formatHex(cartAddress, 4)}, bank ${bank}, ${chunkSize}B, timeout ${timeoutMs}ms): `
-          + (error instanceof Error ? error.message : String(error)),
+          `ROM read retry ${attempt}/${attempts} @ ${formatHex(logicalAddress, 4)} `
+          + `(${chunkSize}B): ${error instanceof Error ? error.message : String(error)}`,
           'warn',
         );
 
@@ -85,11 +89,6 @@ export class GBAAdapter extends CartridgeAdapter {
           if (restoreState) {
             await restoreState();
           }
-          this.log(
-            `ROM chunk channel resynchronized before retry #${chunkIndex} @ ${formatHex(logicalAddress, 4)} `
-            + `(cart ${formatHex(cartAddress, 4)}, bank ${bank})`,
-            'info',
-          );
           if (retryDelayMs > 0) {
             await timeout(retryDelayMs * attempt);
           }
@@ -98,6 +97,104 @@ export class GBAAdapter extends CartridgeAdapter {
     }
 
     throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  }
+
+  private describeError(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+  }
+
+  private buildRomSampleOffsets(logicalAddress: number, regionSize: number, sampleSize: number): number[] {
+    if (regionSize <= 0 || sampleSize <= 0) {
+      return [];
+    }
+
+    const maxOffset = Math.max(0, regionSize - sampleSize);
+    const sampleSlots = maxOffset + 1;
+    const sampleCount = Math.min(GBAAdapter.ROM_WRITE_SAMPLE_COUNT, sampleSlots);
+    const offsets = new Set<number>([0, maxOffset]);
+
+    while (offsets.size < sampleCount) {
+      offsets.add(Math.floor(Math.random() * sampleSlots));
+    }
+
+    return [...offsets].sort((a, b) => a - b);
+  }
+
+  private async sampleRomRegionBlank(
+    logicalAddress: number,
+    regionSize: number,
+    isMultiBank: boolean,
+  ): Promise<boolean> {
+    const sampleSize = Math.min(GBAAdapter.ROM_WRITE_SAMPLE_BYTES, regionSize);
+    const sampleOffsets = this.buildRomSampleOffsets(logicalAddress, regionSize, sampleSize);
+
+    for (const offset of sampleOffsets) {
+      const sampleAddress = logicalAddress + offset;
+      const { bank, cartAddress } = this.romBankRelevantAddress(sampleAddress);
+      const bankWindowRemaining = isMultiBank
+        ? GBAAdapter.ROM_BANK_SIZE - (sampleAddress & (GBAAdapter.ROM_BANK_SIZE - 1))
+        : sampleSize;
+      const readSize = Math.min(sampleSize, regionSize - offset, bankWindowRemaining);
+      const sample = await this.readROMChunkWithRetry(
+        readSize,
+        sampleAddress,
+        cartAddress,
+        offset + 1,
+        bank,
+        isMultiBank ? async () => { await this.switchROMBank(bank); } : undefined,
+      );
+      if (!sample.every(byte => byte === 0xff)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private async eraseRomSectorWithRetry(
+    sector: SectorProgressInfo,
+    isMultiBank: boolean,
+    reason: 'prepare' | 'recover',
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const retries = AdvancedSettings.romEraseRetryCount;
+    const attempts = retries + 1;
+    const retryDelayMs = AdvancedSettings.romEraseRetryDelayMs;
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      if (signal?.aborted) {
+        throw new Error(this.t('messages.operation.cancelled'));
+      }
+
+      try {
+        const { bank } = this.romBankRelevantAddress(sector.address);
+        if (isMultiBank) {
+          await this.switchROMBank(bank);
+        }
+        await rom_erase_sector(this.device, sector.address);
+        return;
+      } catch (error) {
+        lastError = error;
+        this.log(
+          `ROM sector erase retry ${attempt}/${attempts} @ ${formatHex(sector.address, 4)} `
+          + `(${reason}): ${this.describeError(error)}`,
+          'warn',
+        );
+
+        if (attempt < attempts) {
+          await this.stabilizeCommandChannel(GBAAdapter.ROM_ERASE_RETRY_RESET_MS);
+          if (retryDelayMs > 0) {
+            await timeout(retryDelayMs * attempt);
+          }
+        }
+      }
+    }
+
+    throw new Error(
+      `ROM sector erase retry exhausted at ${formatHex(sector.address, 4)} `
+      + `(${reason}): ${this.describeError(lastError)}`,
+    );
   }
 
   /**
@@ -188,6 +285,7 @@ export class GBAAdapter extends CartridgeAdapter {
     sectorInfo: SectorBlock[],
     options: CommandOptions,
     signal?: AbortSignal,
+    allowSampleSkip = false,
   ): Promise<CommandResult> {
     return PerformanceTracker.trackAsyncOperation(
       'gba.eraseSectors',
@@ -206,6 +304,7 @@ export class GBAAdapter extends CartridgeAdapter {
           endAddress: formatHex(maxEndAddress - 1, 4),
           sectorSize: sectorSizeStr,
         }), 'info');
+        const isMultiBank = options.cfiInfo.deviceSize > GBAAdapter.ROM_BANK_SIZE;
 
         try {
           let currentBank = -1;
@@ -245,7 +344,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
             // 更新当前扇区状态为"正在处理"
             const currentSpeedBeforeErase = speedCalculator.getCurrentSpeed();
-            progressReporter.markSectorState(sector.address, 'processing');
+            progressReporter.markSectorState(sector.address, 'erasing');
             progressReporter.emitProgress(
               eraseCount * sector.size,
               currentSpeedBeforeErase,
@@ -264,11 +363,26 @@ export class GBAAdapter extends CartridgeAdapter {
               await this.switchROMBank(bank);
             }
 
-            await rom_erase_sector(this.device, sector.address);
+            let skippedBySample = false;
+            if (allowSampleSkip) {
+              const sampleBlank = await this.sampleRomRegionBlank(sector.address, sector.size, isMultiBank);
+              if (sampleBlank) {
+                skippedBySample = true;
+                this.log(
+                  `ROM erase skipped after blank sample @ ${formatHex(sector.address, 4)}-${formatHex(sector.address + sector.size - 1, 4)} `
+                  + `(samples=${GBAAdapter.ROM_WRITE_SAMPLE_COUNT}x${GBAAdapter.ROM_WRITE_SAMPLE_BYTES}B)`,
+                  'info',
+                );
+              }
+            }
+
+            if (!skippedBySample) {
+              await this.eraseRomSectorWithRetry(sector, isMultiBank, 'prepare', signal);
+            }
             const sectorEndTime = Date.now();
 
-            // 更新当前扇区状态为"已完成"
-            progressReporter.markSectorState(sector.address, 'completed');
+            // 更新当前扇区状态为"已完成"或"已跳过擦除"
+            progressReporter.markSectorState(sector.address, skippedBySample ? 'skipped_erase' : 'erased');
 
             eraseCount++;
             const erasedBytes = eraseCount * sector.size;
@@ -325,11 +439,12 @@ export class GBAAdapter extends CartridgeAdapter {
             (progressInfo) => { this.updateProgress(progressInfo); },
             (key, params) => this.t(key, params),
           );
-          progressReporter.reportError(this.t('messages.operation.eraseSectorFailed'));
-          this.log(`${this.t('messages.operation.eraseSectorFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+          const errorMessage = `${this.t('messages.operation.eraseSectorFailed')}: ${this.describeError(e)}`;
+          progressReporter.reportError(errorMessage);
+          this.log(errorMessage, 'error');
           return {
             success: false,
-            message: this.t('messages.operation.eraseSectorFailed'),
+            message: errorMessage,
           };
         }
       },
@@ -351,6 +466,7 @@ export class GBAAdapter extends CartridgeAdapter {
     const baseAddress = options.baseAddress ?? 0x00;
     const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
     const bufferSize = options.cfiInfo.bufferSize ?? 0;
+    const isMultiBank = options.cfiInfo.deviceSize > GBAAdapter.ROM_BANK_SIZE;
 
     this.log(this.t('messages.operation.startWriteROM', {
       fileSize: fileData.byteLength,
@@ -367,29 +483,18 @@ export class GBAAdapter extends CartridgeAdapter {
           let written = 0;
           this.log(this.t('messages.rom.writing', { size: total }), 'info');
 
-          // 初始化扇区进度信息 (用于显示写入进度可视化)
           const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, total, baseAddress);
-          const sectors = this.initializeSectorProgress(sectorInfo);
-
-          {
-            const { bank } = this.romBankRelevantAddress(baseAddress);
-            if (options.cfiInfo.deviceSize > (1 << 25)) {
-              await this.switchROMBank(bank);
-            }
+          const eraseResult = await this.eraseSectors(sectorInfo, options, signal, true);
+          if (!eraseResult.success) {
+            return eraseResult;
           }
 
-          const blank = await this.isBlank(baseAddress, 0x100);
-          if (!blank) {
-            await this.eraseSectors(sectorInfo, options, signal);
-          }
-
-          // 重置扇区状态为pending，准备开始写入阶段
-          this.resetSectorsState();
-
-          // 使用速度计算器
+          this.currentSectorProgress = this.currentSectorProgress.map((sector) => ({
+            ...sector,
+            state: 'pending' as const,
+          }));
+          const sectors = this.currentSectorProgress;
           const speedCalculator = new SpeedCalculator();
-
-          // 创建进度报告器
           const progressReporter = new ProgressReporter(
             'write',
             total,
@@ -397,20 +502,61 @@ export class GBAAdapter extends CartridgeAdapter {
             (key, params) => this.t(key, params),
           );
           progressReporter.setSectors(this.currentSectorProgress);
-
-          // 重置 progressReporter 的扇区状态为pending（因为要开始写入阶段）
-          progressReporter.resetSectorsState();
-
-          // 报告开始状态
           progressReporter.reportStart(this.t('messages.rom.writing', { size: total }));
 
-          // 分块写入并更新进度
-          let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
-          let chunkCount = 0; // 记录已处理的块数
+          let lastLoggedProgress = -1;
+          let chunkCount = 0;
           let currentBank = -1;
-          let completedSectorIndex = -1;
+          const sectorWriteRetryCounts = new Map<number, number>();
+          const writeEndAddressExclusive = baseAddress + total;
+
+          const recoverSectorWrite = async (sectorIndex: number, reason: unknown): Promise<void> => {
+            const sector = sectors[sectorIndex];
+            const retriesUsed = sectorWriteRetryCounts.get(sector.address) ?? 0;
+            const maxRetries = AdvancedSettings.romWriteRetryCount;
+            const reasonText = this.describeError(reason);
+            const rawRetryMessage = `ROM write retry ${retriesUsed + 1}/${maxRetries + 1} @ ${formatHex(sector.address, 4)}: ${reasonText}`;
+            const writeFailureMessage = this.summarizeLogMessage(
+              `${this.t('messages.rom.writeFailed')}: ${reasonText}`,
+            );
+
+            if (retriesUsed >= maxRetries) {
+              throw new Error(`ROM write retries exhausted @ ${formatHex(sector.address, 4)}: ${reasonText}`);
+            }
+
+            const nextRetry = retriesUsed + 1;
+            sectorWriteRetryCounts.set(sector.address, nextRetry);
+            this.log(rawRetryMessage, 'warn');
+
+            progressReporter.emitProgress(
+              written,
+              speedCalculator.getCurrentSpeed(),
+              writeFailureMessage,
+              sector.address,
+            );
+
+            await this.stabilizeCommandChannel(GBAAdapter.ROM_WRITE_RETRY_RESET_MS);
+            if (AdvancedSettings.romWriteRetryDelayMs > 0) {
+              await timeout(AdvancedSettings.romWriteRetryDelayMs * nextRetry);
+            }
+            progressReporter.markSectorState(sector.address, 'erasing');
+            progressReporter.emitProgress(
+              written,
+              speedCalculator.getCurrentSpeed(),
+              this.t('messages.operation.eraseSector', {
+                from: formatHex(sector.address, 4),
+                to: formatHex(sector.address + sector.size - 1, 4),
+              }),
+              sector.address,
+            );
+            await this.eraseRomSectorWithRetry(sector, isMultiBank, 'recover', signal);
+            progressReporter.markSectorState(sector.address, 'pending');
+            written = sector.address - baseAddress;
+            chunkCount = 0;
+            currentBank = -1;
+          };
+
           while (written < total) {
-            // 检查是否已被取消
             if (signal?.aborted) {
               progressReporter.reportError(this.t('messages.operation.cancelled'));
               return {
@@ -419,17 +565,31 @@ export class GBAAdapter extends CartridgeAdapter {
               };
             }
 
-            const chunkSize = Math.min(pageSize, total - written);
+            const currentAddress = baseAddress + written;
+            const currentSectorIndex = progressReporter.getCurrentSectorIndexByAddress(currentAddress);
+            if (currentSectorIndex < 0) {
+              throw new Error(`No sector metadata for write address ${formatHex(currentAddress, 4)}`);
+            }
+            const currentSector = sectors[currentSectorIndex];
+            const sectorWriteEnd = Math.min(writeEndAddressExclusive, currentSector.address + currentSector.size);
+
+            const bankWindowRemaining = isMultiBank
+              ? GBAAdapter.ROM_BANK_SIZE - (currentAddress & (GBAAdapter.ROM_BANK_SIZE - 1))
+              : total - written;
+            const chunkSize = Math.min(
+              pageSize,
+              total - written,
+              sectorWriteEnd - currentAddress,
+              bankWindowRemaining,
+            );
             const chunk = fileData.subarray(written, written + chunkSize);
             if (chunk.byteLength === 0) {
               this.log(this.t('messages.rom.writeNoData'), 'warn');
               break;
             }
-            const currentAddress = baseAddress + written;
 
-            // 更新当前扇区状态为"正在处理"
             const currentSpeedBeforeWrite = speedCalculator.getCurrentSpeed();
-            progressReporter.markSectorState(currentAddress, 'processing');
+            progressReporter.markSectorState(currentSector.address, 'processing');
             progressReporter.emitProgress(
               written,
               currentSpeedBeforeWrite,
@@ -438,41 +598,32 @@ export class GBAAdapter extends CartridgeAdapter {
             );
 
             const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress);
-            if (options.cfiInfo.deviceSize > (1 << 25)) {
+            if (isMultiBank) {
               if (bank !== currentBank) {
                 currentBank = bank;
                 await this.switchROMBank(bank);
               }
             }
 
-            await rom_program(this.device, chunk, cartAddress, bufferSize);
+            try {
+              await rom_program(this.device, chunk, cartAddress, bufferSize);
+            } catch (error) {
+              await recoverSectorWrite(currentSectorIndex, error);
+              continue;
+            }
             const chunkEndTime = Date.now();
 
             written += chunkSize;
             chunkCount++;
 
-            // 更新已写入范围的扇区状态
-            const writtenEndAddress = baseAddress + written - 1;
-            while (completedSectorIndex + 1 < sectors.length) {
-              const nextSector = sectors[completedSectorIndex + 1];
-              const nextSectorEnd = nextSector.address + nextSector.size - 1;
-              if (nextSectorEnd > writtenEndAddress) {
-                break;
-              }
-
-              completedSectorIndex++;
-              progressReporter.markSectorState(nextSector.address, 'completed');
+            if (written + baseAddress >= sectorWriteEnd) {
+              progressReporter.markSectorState(currentSector.address, 'completed');
             }
 
-            // 添加数据点到速度计算器
             speedCalculator.addDataPoint(chunkSize, chunkEndTime);
 
-            // 每10次操作或最后一次更新进度
-            if (chunkCount % 10 === 0 || written >= total) {
-              // 计算当前速度
+            if (chunkCount % 10 === 0 || written >= total || written + baseAddress >= sectorWriteEnd) {
               const currentSpeed = speedCalculator.getCurrentSpeed();
-
-              // 报告进度
               progressReporter.emitProgress(
                 written,
                 currentSpeed,
@@ -481,7 +632,6 @@ export class GBAAdapter extends CartridgeAdapter {
               );
             }
 
-            // 每5个百分比记录一次日志
             const progress = Math.floor((written / total) * 100);
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
               this.log(this.t('messages.rom.writingAt', { address: formatHex(currentAddress, 4), progress }), 'info');
@@ -515,11 +665,15 @@ export class GBAAdapter extends CartridgeAdapter {
             (progressInfo) => { this.updateProgress(progressInfo); },
             (key, params) => this.t(key, params),
           );
-          progressReporter.reportError(this.t('messages.rom.writeFailed'));
-          this.log(`${this.t('messages.rom.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+          const rawErrorMessage = `${this.t('messages.rom.writeFailed')}: ${this.describeError(e)}`;
+          const errorMessage = this.summarizeLogMessage(
+            rawErrorMessage,
+          );
+          progressReporter.reportError(errorMessage);
+          this.log(rawErrorMessage, 'error');
           return {
             success: false,
-            message: this.t('messages.rom.writeFailed'),
+            message: errorMessage,
           };
         }
       },
@@ -556,12 +710,6 @@ export class GBAAdapter extends CartridgeAdapter {
       size,
       baseAddress: formatHex(baseAddress, 4),
     }), 'info');
-    this.log(
-      `ROM read session config: page=${formatBytes(pageSize)}, retries=${retries}, `
-      + `retryDelay=${retryDelayMs}ms, timeout=${timeoutMs}ms, throttle=${readThrottleMs}ms, `
-      + `multiBank=${options.cfiInfo.deviceSize > (1 << 25)}`,
-      'info',
-    );
 
     return PerformanceTracker.trackAsyncOperation(
       'gba.readROM',

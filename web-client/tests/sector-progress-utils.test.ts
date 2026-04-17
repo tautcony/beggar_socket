@@ -21,7 +21,7 @@ describe('sector-progress-utils', () => {
       expect(result[0]).toEqual({
         address: 0x00,
         size: 1024,
-        state: 'pending',
+        state: 'pending_erase',
       });
     });
 
@@ -43,17 +43,17 @@ describe('sector-progress-utils', () => {
       expect(result[0]).toEqual({
         address: 0x00, // 0 * 1024
         size: 1024,
-        state: 'pending',
+        state: 'pending_erase',
       });
       expect(result[1]).toEqual({
         address: 0x400, // 1 * 1024
         size: 1024,
-        state: 'pending',
+        state: 'pending_erase',
       });
       expect(result[2]).toEqual({
         address: 0x800, // 2 * 1024
         size: 1024,
-        state: 'pending',
+        state: 'pending_erase',
       });
     });
 
@@ -83,20 +83,20 @@ describe('sector-progress-utils', () => {
       expect(result[0]).toEqual({
         address: 0x00,
         size: 4096,
-        state: 'pending',
+        state: 'pending_erase',
       });
 
       expect(result[1]).toEqual({
         address: 0x1000,
         size: 4096,
-        state: 'pending',
+        state: 'pending_erase',
       });
 
       // 然后是高地址扇区块（32KB扇区）
       expect(result[2]).toEqual({
         address: 0x2000,
         size: 32768,
-        state: 'pending',
+        state: 'pending_erase',
       });
     });
 
@@ -133,36 +133,36 @@ describe('sector-progress-utils', () => {
       expect(result[0]).toEqual({
         address: 0, // 0 * 16384
         size: 16384,
-        state: 'pending',
+        state: 'pending_erase',
       });
       expect(result[1]).toEqual({
         address: 16384, // 1 * 16384
         size: 16384,
-        state: 'pending',
+        state: 'pending_erase',
       });
       expect(result[2]).toEqual({
         address: 32768, // 2 * 16384
         size: 16384,
-        state: 'pending',
+        state: 'pending_erase',
       });
       expect(result[3]).toEqual({
         address: 49152, // 3 * 16384
         size: 16384,
-        state: 'pending',
+        state: 'pending_erase',
       });
 
       // 然后是64KB扇区
       expect(result[4]).toEqual({
         address: 65536,
         size: 65536,
-        state: 'pending',
+        state: 'pending_erase',
       });
 
       // 最后是128KB扇区
       expect(result[5]).toEqual({
         address: 131072,
         size: 131072,
-        state: 'pending',
+        state: 'pending_erase',
       });
     });
 
@@ -184,6 +184,22 @@ describe('sector-progress-utils', () => {
 
       const result = createSectorProgressInfo(sectorInfo);
       expect(result).toHaveLength(0);
+    });
+
+    it('应该允许显式指定旧的待处理状态', () => {
+      const sectorInfo = [
+        {
+          startAddress: 0x00,
+          endAddress: 0x3FF,
+          sectorSize: 1024,
+          sectorCount: 1,
+          totalSize: 1024,
+        },
+      ];
+
+      const result = createSectorProgressInfo(sectorInfo, 'pending');
+
+      expect(result[0]?.state).toBe('pending');
     });
   });
 });

@@ -21,6 +21,10 @@ The system SHALL provide a `DeviceGateway` contract that unifies device lifecycl
 - **WHEN** any gateway lifecycle stage (`list`, `select`, `connect`, `init`, `disconnect`) fails
 - **THEN** the gateway returns normalized stage-aware failure outcomes that connection orchestration can map deterministically
 
+#### Scenario: Disconnect cleanup survives close failure
+- **WHEN** runtime-specific `transport.close()` throws during `disconnect`
+- **THEN** the gateway still clears the in-memory device handle references needed to prevent stale connected state and allow a subsequent reconnect attempt
+
 ### Requirement: Unified protocol transport contract
 The system SHALL provide a `Transport` contract exposing `send`, `read`, and `setSignals` operations that protocol-layer code can use independent of runtime-specific serial implementations.
 
@@ -35,6 +39,14 @@ The system SHALL provide a `Transport` contract exposing `send`, `read`, and `se
 #### Scenario: Protocol layer consumes transport-only contract
 - **WHEN** protocol modules perform communication for Burner flows
 - **THEN** protocol call paths consume only `Transport` contract APIs and do not depend on concrete serial service classes
+
+#### Scenario: Send timeout leaves transport reusable
+- **WHEN** a transport `send()` call times out or aborts midway
+- **THEN** the transport resets any writer or lock state needed so the next send or close attempt fails predictably or succeeds without inheriting stale write state
+
+#### Scenario: Synchronization primitive release is idempotent
+- **WHEN** a transport-internal release callback is invoked more than once
+- **THEN** only the first invocation changes lock state and queued waiters are not skipped or reordered
 
 ### Requirement: Device selection and transport association
 The system SHALL expose a gateway result model where selected/connected device context includes or resolves the associated `Transport` needed by protocol workflows.
@@ -109,3 +121,15 @@ The system SHALL update the gateway factory to create a `TauriDeviceGateway` whe
 #### Scenario: Factory creates WebDeviceGateway in browser
 - **WHEN** `getDeviceGateway()` is called in a standard web browser
 - **THEN** it returns an instance of `WebDeviceGateway`
+
+### Requirement: Transport lifecycle recovery regression coverage
+The system SHALL provide regression coverage for transport lifecycle recovery paths that previously left runtime-specific serial implementations in stale or unrecoverable states.
+
+#### Scenario: Web transport recovers after send timeout
+- **WHEN** Web transport tests force a timed-out write followed by another send or close
+- **THEN** the suite verifies the transport does not keep a stale writer lock and the follow-up operation completes or fails deterministically
+
+#### Scenario: Disconnect cleanup is covered across runtimes
+- **WHEN** gateway tests inject `close()` failures in Web and Tauri disconnect flows
+- **THEN** the suite verifies caller-visible cleanup semantics remain aligned and reconnect remains possible
+

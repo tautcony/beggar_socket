@@ -485,10 +485,14 @@
       },
       "retry": {
         "title": "失败重试",
-        "romReadCount": "ROM重试次数",
+        "romReadCount": "ROM读取重试次数",
         "ramReadCount": "RAM重试次数",
-        "romReadDelay": "ROM重试等待",
+        "romReadDelay": "ROM读取重试等待",
         "ramReadDelay": "RAM重试等待",
+        "romWriteRetryCount": "ROM写入重试次数",
+        "romWriteRetryDelay": "ROM写入重试等待",
+        "romEraseRetryCount": "ROM擦除重试次数",
+        "romEraseRetryDelay": "ROM擦除重试等待",
         "validation": {
           "countRange": "重试次数必须在 {min} - {max} 之间",
           "delayRange": "重试等待必须在 {min} - {max} 毫秒之间"
@@ -509,7 +513,7 @@
       }
     },
     "progress": {
-      "title": "完成进度",
+      "title": "操作进度",
       "transferred": "已完成",
       "remaining": "剩余",
       "speed": "速度",
@@ -528,7 +532,17 @@
         "pending": "等待中",
         "processing": "处理中",
         "completed": "已完成",
+        "pendingErase": "待擦除",
+        "erasing": "擦除中",
+        "erased": "已擦除",
+        "skippedErase": "已跳过擦除",
         "error": "错误"
+      },
+      "status": {
+        "running": "处理中",
+        "completed": "已完成",
+        "paused": "已停止",
+        "error": "执行失败"
       },
       "rendererCanvas": "Canvas"
     },
@@ -538,7 +552,10 @@
       "cancel": "取消",
       "save": "保存",
       "confirm": "确认",
-      "close": "关闭"
+      "close": "关闭",
+      "details": "详情",
+      "error": "报错",
+      "detail": "细节"
     },
     "gbaMultiMenu": {
       "title": "GBA ROM构建器",

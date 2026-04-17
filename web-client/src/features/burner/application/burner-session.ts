@@ -1,4 +1,5 @@
 import type { ProgressInfo } from '@/types/progress-info';
+import type { BurnerLogInput } from '@/utils/burner-log';
 
 import type { BurnerSessionPort } from './domain/ports';
 import type { BurnerLogEntry, BurnerSessionState, LogLevel } from './types';
@@ -90,8 +91,8 @@ export class BurnerSession implements BurnerSessionPort {
     }
   }
 
-  addLog(time: string, message: string, level: LogLevel = 'info') {
-    this.appendLog({ time, message, level });
+  addLog(time: string, input: BurnerLogInput, level: LogLevel = 'info') {
+    this.appendLog({ time, level, ...(typeof input === 'string' ? { message: input } : input) });
   }
 
   clearLogs() {

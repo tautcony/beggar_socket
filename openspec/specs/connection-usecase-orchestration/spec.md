@@ -1,9 +1,7 @@
 ## Purpose
 
 Define the connection orchestration use case contract for Burner-facing workflows so connection lifecycle behavior is centralized, deterministic, and recoverable.
-
 ## Requirements
-
 ### Requirement: Application-layer connection use case orchestration
 The system SHALL provide a connection orchestration use case that centralizes `list`, `select`, `connect`, `init`, and `disconnect` lifecycle steps for Burner-facing workflows.
 
@@ -37,6 +35,14 @@ The system SHALL normalize connection and initialization failures into stable er
 - **WHEN** user retries after a failed connection attempt
 - **THEN** orchestration starts from a clean connection context and can reach `connected` state without stale failure residue
 
+#### Scenario: Disconnect cleanup failure still clears orchestration state
+- **WHEN** the underlying gateway reports a failure while disconnecting
+- **THEN** orchestration clears its active connection state before surfacing the failure so the next connect attempt does not inherit stale handles
+
+#### Scenario: Invalid connection context fails fast
+- **WHEN** orchestration receives a connection handle whose context cannot be treated as a valid `DeviceHandle`
+- **THEN** it returns a normalized connection failure instead of crashing later through an unchecked type assertion
+
 ### Requirement: Connection orchestration integration coverage
 The system SHALL provide integration tests for connection orchestration covering success, failure, cancellation/interrupt, and reconnect behavior.
 
@@ -47,3 +53,11 @@ The system SHALL provide integration tests for connection orchestration covering
 #### Scenario: Reconnect behavior is covered
 - **WHEN** integration tests perform disconnect and reconnect cycles
 - **THEN** the suite verifies lifecycle consistency and contract-compliant state recovery across repeated attempts
+
+### Requirement: Connection disconnect regression coverage
+The system SHALL provide orchestration-level tests for disconnect cleanup and reconnect after disconnect-path failures.
+
+#### Scenario: Disconnect failure followed by reconnect
+- **WHEN** an orchestration test injects a gateway disconnect failure and then retries connection
+- **THEN** the suite verifies the retry starts from a clean state and can reach `connected` without a manual page reset
+

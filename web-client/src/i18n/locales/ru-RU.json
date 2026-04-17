@@ -481,10 +481,14 @@
       },
       "retry": {
         "title": "Повтор при сбое",
-        "romReadCount": "Число повторов ROM",
+        "romReadCount": "Число повторов чтения ROM",
         "ramReadCount": "Число повторов RAM",
-        "romReadDelay": "Задержка повтора ROM",
+        "romReadDelay": "Задержка повтора чтения ROM",
         "ramReadDelay": "Задержка повтора RAM",
+        "romWriteRetryCount": "Повторы записи ROM",
+        "romWriteRetryDelay": "Задержка повтора записи ROM",
+        "romEraseRetryCount": "Повторы стирания ROM",
+        "romEraseRetryDelay": "Задержка повтора стирания ROM",
         "validation": {
           "countRange": "Число повторов должно быть в диапазоне от {min} до {max}",
           "delayRange": "Задержка повтора должна быть в диапазоне от {min} до {max} мс"
@@ -524,6 +528,10 @@
         "pending": "Ожидание",
         "processing": "Обработка",
         "completed": "Завершено",
+        "pendingErase": "Ожидает стирания",
+        "erasing": "Стирается",
+        "erased": "Стерт",
+        "skippedErase": "Стирание пропущено",
         "error": "Ошибка"
       },
       "rendererCanvas": "Холст"
@@ -534,7 +542,10 @@
       "cancel": "Отмена",
       "save": "Сохранить",
       "confirm": "Подтвердить",
-      "close": "Закрыть"
+      "close": "Закрыть",
+      "details": "Подробнее",
+      "error": "Ошибка",
+      "detail": "Детали"
     },
     "gbaMultiMenu": {
       "title": "Конструктор ROM для GBA",

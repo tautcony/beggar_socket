@@ -2,9 +2,9 @@ import { DateTime } from 'luxon';
 import { computed, onScopeDispose, ref } from 'vue';
 
 import { BurnerSession, runBurnerFlow } from '@/features/burner/application';
+import type { BurnerLogEntry, BurnerLogLevel } from '@/types/burner-log';
 import type { ProgressInfo } from '@/types/progress-info';
-
-type LogLevelType = 'info' | 'success' | 'warn' | 'error';
+import { type BurnerLogInput, formatBurnerLogMessage } from '@/utils/burner-log';
 
 const DEFAULT_PROGRESS: ProgressInfo = {
   type: 'other',
@@ -29,7 +29,7 @@ interface ExecuteOperationOptions<TResult> {
 export function useCartBurnerSessionState(translate: (key: string) => string) {
   const burnerSession = new BurnerSession();
   const busy = ref(false);
-  const logs = ref<{ time: string; message: string; level: LogLevelType }[]>([]);
+  const logs = ref<BurnerLogEntry[]>([]);
   const progressInfo = ref<ProgressInfo>({ ...DEFAULT_PROGRESS });
   const keepProgressModalOpen = ref(false);
 
@@ -94,9 +94,23 @@ export function useCartBurnerSessionState(translate: (key: string) => string) {
     syncSessionState();
   }
 
-  function log(msg: string, level: LogLevelType = 'info') {
+  function log(msg: BurnerLogInput, level: BurnerLogLevel = 'info') {
     const time = DateTime.now().toLocaleString(DateTime.TIME_24_WITH_SECONDS);
-    console.log(`[CartBurner][${level}][${time}] ${msg}`);
+    const entry = typeof msg === 'string' ? { message: msg } : msg;
+    const consolePrefix = `[CartBurner][${level}][${time}]`;
+    const consolePayload = {
+      message: entry.message,
+      error: entry.error,
+      details: entry.details,
+    };
+    if (entry.error || entry.details) {
+      console.log(`${consolePrefix} ${formatBurnerLogMessage(entry)}`, consolePayload);
+    } else {
+      console.log(`${consolePrefix} ${formatBurnerLogMessage(entry)}`);
+    }
+    if (entry.details) {
+      console.debug(`${consolePrefix}[details]`, consolePayload);
+    }
     burnerSession.addLog(time, msg, level);
     syncLogsState();
   }

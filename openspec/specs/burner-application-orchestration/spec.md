@@ -70,6 +70,10 @@ The system SHALL standardize Burner flow contracts for read, erase, write, verif
 - **WHEN** a long-running Burner flow emits progress
 - **THEN** progress events follow a shared structure consumable by existing Burner progress UI without flow-specific parsing branches
 
+#### Scenario: Progress reporting includes recovery stage
+- **WHEN** a ROM write flow enters sector recovery because a chunk write or sector erase failed and retry handling has started
+- **THEN** the shared progress payload still uses the normal burner progress contract while exposing recovery-specific sector state and detail text that UI can render without ad hoc adapter-specific parsing
+
 #### Scenario: Domain port result normalization
 - **WHEN** multiple ports participate in one Burner flow
 - **THEN** orchestration combines their outputs through one standardized result model without per-port ad hoc mapping branches
@@ -113,6 +117,10 @@ The system SHALL use parser-layer MBC detection as the single rule source for Bu
 #### Scenario: Component code path after migration
 - **WHEN** `CartBurner.vue` triggers a flow that depends on MBC type
 - **THEN** the component consumes orchestration/parser results and does not contain an internal `detectMbcType` implementation
+
+#### Scenario: ROM verify uses resolved MBC type for bank switching
+- **WHEN** Burner ROM verification iterates across cartridge banks for an MBC1, MBC3, or MBC5 cartridge
+- **THEN** the verify path passes the resolved MBC type through bank-switch operations so validation reads the intended bank map instead of defaulting to MBC5 behavior
 
 ### Requirement: Single packet-read implementation for burner protocol path
 The system SHALL provide one canonical packet-read implementation for Burner protocol communication, and all Burner protocol call paths SHALL reuse it to keep timeout/error behavior consistent.
@@ -173,3 +181,11 @@ The system SHALL maintain regression assertions for burner flow contracts so ref
 #### Scenario: Progress and session lifecycle contract remains stable
 - **WHEN** long-running burner flows emit progress and complete/cancel/fail in tests
 - **THEN** the suite verifies progress payload structure and busy/abort/log lifecycle transitions remain consistent with existing UI consumption expectations
+
+### Requirement: ROM verification regression coverage across MBC families
+The system SHALL provide regression coverage for ROM verification against cartridge types whose bank-switch rules differ.
+
+#### Scenario: MBC3 verify no longer reports false negative because of MBC5 bank rules
+- **WHEN** regression tests execute ROM verify against an MBC3 cartridge fixture or equivalent adapter mock
+- **THEN** the verification flow reads the expected banks and does not fail solely because the wrong bank-switch routine was selected
+

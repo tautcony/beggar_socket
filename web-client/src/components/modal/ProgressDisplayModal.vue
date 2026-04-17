@@ -1,19 +1,20 @@
 <template>
   <BaseModal
     v-model="localVisible"
-    :title="$t('ui.progress.title')"
+    :title="modalTitle"
     :close-disabled="true"
     :width="500"
     @close="handleClose"
   >
     <template #header>
       <h3 class="modal-title">
-        {{ $t('ui.progress.title') }}
+        {{ modalTitle }}
         <span
-          v-if="isCompleted"
-          class="completion-badge"
+          class="status-badge"
+          :class="statusBadgeClass"
         >
-          <IonIcon :icon="checkmarkOutline" />
+          <IonIcon :icon="statusBadgeIcon" />
+          <span>{{ statusBadgeText }}</span>
         </span>
       </h3>
     </template>
@@ -70,21 +71,51 @@
         :sector-progress="sectorProgress"
       />
 
-      <!-- Operation Detail -->
       <div
-        v-if="detail"
-        class="operation-detail"
+        v-if="supplementaryEntry"
+        class="detail-section"
       >
-        {{ detail }}
-      </div>
-
-      <!-- Latest Log Entry -->
-      <div
-        v-if="latestLog"
-        class="latest-log-entry"
-        :class="`log-level-${latestLog.level}`"
-      >
-        {{ latestLog.message }}
+        <details
+          v-if="supplementaryEntry.error || supplementaryEntry.details"
+          class="supplementary-disclosure"
+        >
+          <summary
+            class="latest-log-entry"
+            :class="[
+              `log-level-${supplementaryEntry.level}`,
+              { 'latest-log-entry--error': supplementaryEntry.level === 'error' },
+            ]"
+          >
+            <span class="latest-log-message">{{ supplementaryEntry.message }}</span>
+            <span class="latest-log-expand-button">{{ $t('ui.common.details') }}</span>
+          </summary>
+          <div class="supplementary-subitems">
+            <div
+              v-if="supplementaryEntry.error"
+              class="supplementary-subitem"
+            >
+              <span class="supplementary-subitem-label">{{ $t('ui.common.error') }}</span>
+              <pre class="supplementary-subitem-content supplementary-subitem-content--error">{{ supplementaryEntry.error }}</pre>
+            </div>
+            <div
+              v-if="supplementaryEntry.details"
+              class="supplementary-subitem"
+            >
+              <span class="supplementary-subitem-label">{{ $t('ui.common.detail') }}</span>
+              <pre class="supplementary-subitem-content">{{ supplementaryEntry.details }}</pre>
+            </div>
+          </div>
+        </details>
+        <div
+          v-else
+          class="latest-log-entry"
+          :class="[
+            `log-level-${supplementaryEntry.level}`,
+            { 'latest-log-entry--error': supplementaryEntry.level === 'error' },
+          ]"
+        >
+          {{ supplementaryEntry.message }}
+        </div>
       </div>
     </div>
     <template #footer>
@@ -108,19 +139,24 @@
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
-import { checkmarkOutline } from 'ionicons/icons';
+import { alertCircleOutline, checkmarkOutline, pauseCircleOutline, syncOutline } from 'ionicons/icons';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import BaseModal from '@/components/common/BaseModal.vue';
 import SectorVisualization from '@/components/progress/SectorVisualization.vue';
+import type { BurnerLogEntry } from '@/types/burner-log';
 import { ProgressInfo } from '@/types/progress-info';
+import { formatBurnerLogMessage } from '@/utils/burner-log';
 import { formatBytes, formatSpeed, formatTimeClock } from '@/utils/formatter-utils';
 import { isTauri } from '@/utils/tauri';
+
+type SupplementaryEntry = Pick<BurnerLogEntry, 'message' | 'error' | 'details' | 'level'>;
 
 const props = defineProps<ProgressInfo & {
   modelValue: boolean;
   timeout?: number; // 超时时间（毫秒）
-  latestLog?: { time: string; message: string; level: 'info' | 'success' | 'warn' | 'error' };
+  latestLog?: BurnerLogEntry;
 }>();
 
 const emit = defineEmits<{
@@ -128,6 +164,8 @@ const emit = defineEmits<{
   stop: []
   close: []
 }>();
+
+const { t } = useI18n();
 
 // 创建一个计算属性来处理 v-model
 const localVisible = computed({
@@ -152,15 +190,83 @@ const normalizedProgress = computed(() => {
 const useInstantProgressFill = computed(() => isTauri());
 
 const progressBarFillStyle = computed(() => ({
-  transform: `scaleX(${normalizedProgress.value / 100})`,
+  width: `${normalizedProgress.value}%`,
 }));
 
 const isCompleted = computed(() => {
-  return props.progress === 100 || props.state === 'completed' || props.state === 'error';
+  return props.progress === 100 || props.state === 'completed';
 });
 
 const isTerminalState = computed(() => {
-  return isCompleted.value || props.state === 'paused';
+  return isCompleted.value || props.state === 'paused' || props.state === 'error';
+});
+
+const modalTitle = computed(() => {
+  return t('ui.progress.title');
+});
+
+function normalizeComparableText(value: string | undefined): string {
+  return (value ?? '').trim().replace(/\s+/g, ' ');
+}
+
+function messagesOverlap(first: string, second: string): boolean {
+  return first === second || first.includes(second) || second.includes(first);
+}
+
+const currentDetail = computed(() => {
+  return props.detail?.trim() ?? '';
+});
+
+const supplementaryEntry = computed<SupplementaryEntry | undefined>(() => {
+  if (props.state !== 'running' && currentDetail.value) {
+    if (props.latestLog) {
+      const detailText = normalizeComparableText(currentDetail.value);
+      const latestLogText = normalizeComparableText(formatBurnerLogMessage(props.latestLog));
+      if (detailText && latestLogText && messagesOverlap(detailText, latestLogText)) {
+        return props.latestLog;
+      }
+    }
+
+    return {
+      message: currentDetail.value,
+      level: props.state === 'error' ? 'error' : 'info',
+      error: undefined,
+      details: undefined,
+    };
+  }
+
+  if (!props.latestLog) {
+    return undefined;
+  }
+
+  const detailText = normalizeComparableText(currentDetail.value);
+  const latestLogText = normalizeComparableText(formatBurnerLogMessage(props.latestLog));
+  if (detailText && latestLogText && messagesOverlap(detailText, latestLogText)) {
+    return undefined;
+  }
+
+  return props.latestLog;
+});
+
+const statusBadgeText = computed(() => {
+  if (props.state === 'error') return t('ui.progress.status.error');
+  if (props.state === 'completed') return t('ui.progress.status.completed');
+  if (props.state === 'paused') return t('ui.progress.status.paused');
+  return t('ui.progress.status.running');
+});
+
+const statusBadgeIcon = computed(() => {
+  if (props.state === 'error') return alertCircleOutline;
+  if (props.state === 'completed') return checkmarkOutline;
+  if (props.state === 'paused') return pauseCircleOutline;
+  return syncOutline;
+});
+
+const statusBadgeClass = computed(() => {
+  if (props.state === 'error') return 'status-badge--error';
+  if (props.state === 'completed') return 'status-badge--completed';
+  if (props.state === 'paused') return 'status-badge--paused';
+  return 'status-badge--running';
 });
 
 watch(
@@ -313,12 +419,11 @@ onUnmounted(() => {
 .progress-bar-fill {
   background: linear-gradient(90deg, color-vars.$color-primary, #1d4ed8);
   height: 100%;
-  width: 100%;
+  width: 0;
   border-radius: radius-vars.$radius-md;
-  transition: transform 0.08s linear;
+  transition: width 0.08s linear;
   position: relative;
-  transform-origin: left center;
-  will-change: transform;
+  will-change: width;
   backface-visibility: hidden;
 
   &::after {
@@ -357,6 +462,58 @@ onUnmounted(() => {
   margin-bottom: spacing-vars.$space-5;
 }
 
+.detail-section {
+  margin-top: spacing-vars.$space-3;
+}
+
+.modal-title {
+  display: flex;
+  align-items: center;
+  gap: spacing-vars.$space-3;
+  line-height: 1.2;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: spacing-vars.$space-1;
+  margin-left: auto;
+  padding: spacing-vars.$space-1 spacing-vars.$space-2;
+  border-radius: radius-vars.$radius-full;
+  font-size: typography-vars.$font-size-xs;
+  font-weight: typography-vars.$font-weight-semibold;
+  line-height: 1;
+  border: 1px solid transparent;
+
+  :deep(svg) {
+    font-size: typography-vars.$font-size-base;
+  }
+}
+
+.status-badge--running {
+  color: color-vars.$color-primary;
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.24);
+}
+
+.status-badge--completed {
+  color: color-vars.$color-success;
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.24);
+}
+
+.status-badge--paused {
+  color: color-vars.$color-warning;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.24);
+}
+
+.status-badge--error {
+  color: color-vars.$color-error;
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.24);
+}
+
 .stat-item {
   @include mixins.flex-between;
   padding: spacing-vars.$space-3;
@@ -379,22 +536,13 @@ onUnmounted(() => {
   font-family: monospace;
 }
 
-.operation-detail {
-  background: color-vars.$color-bg-tertiary;
-  border-radius: radius-vars.$radius-lg;
-  padding: spacing-vars.$space-3;
-  font-size: typography-vars.$font-size-sm;
-  color: color-vars.$color-text-secondary;
-  border-left: 4px solid color-vars.$color-primary;
-  word-break: break-word;
-  font-family: monospace;
-}
-
 .latest-log-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: spacing-vars.$space-2;
   background: color-vars.$color-bg-secondary;
   border-radius: radius-vars.$radius-lg;
   padding: spacing-vars.$space-2 spacing-vars.$space-3;
-  margin-top: spacing-vars.$space-3;
   font-size: typography-vars.$font-size-sm;
   font-family: monospace;
   color: color-vars.$color-text-secondary;
@@ -405,6 +553,82 @@ onUnmounted(() => {
   &.log-level-success { border-left-color: color-vars.$color-success; }
   &.log-level-warn    { border-left-color: color-vars.$color-warning; }
   &.log-level-error   { border-left-color: color-vars.$color-error; }
+}
+
+.latest-log-entry::-webkit-details-marker {
+  display: none;
+}
+
+.supplementary-disclosure {
+  display: block;
+  width: 100%;
+}
+
+.supplementary-disclosure > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.latest-log-entry--error {
+  color: color-vars.$color-error;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.latest-log-message {
+  min-width: 0;
+}
+
+.latest-log-expand-button {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0 spacing-vars.$space-2;
+  border: 1px solid color-vars.$color-border;
+  border-radius: radius-vars.$radius-sm;
+  color: color-vars.$color-text-secondary;
+  font-size: typography-vars.$font-size-xs;
+  line-height: 20px;
+}
+
+.supplementary-disclosure[open] .latest-log-expand-button {
+  color: color-vars.$color-primary;
+  border-color: color-vars.$color-primary;
+}
+
+.supplementary-subitems {
+  margin-top: spacing-vars.$space-2;
+  display: grid;
+  gap: spacing-vars.$space-2;
+}
+
+.supplementary-subitem {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: spacing-vars.$space-2;
+  align-items: start;
+}
+
+.supplementary-subitem-label {
+  color: color-vars.$color-text-tertiary;
+  font-size: typography-vars.$font-size-xs;
+  line-height: 1.6;
+}
+
+.supplementary-subitem-content {
+  margin: 0;
+  padding: spacing-vars.$space-2 spacing-vars.$space-3;
+  background: color-vars.$color-bg-secondary;
+  border: 1px solid color-vars.$color-border-light;
+  border-radius: radius-vars.$radius-md;
+  color: color-vars.$color-text-secondary;
+  font-family: monospace;
+  font-size: typography-vars.$font-size-xs;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.supplementary-subitem-content--error {
+  color: color-vars.$color-error;
+  border-color: rgba(239, 68, 68, 0.24);
 }
 
 @mixin button-base {
@@ -451,12 +675,6 @@ onUnmounted(() => {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
   }
-}
-
-.completion-badge {
-  color: color-vars.$color-success;
-  margin-left: spacing-vars.$space-2;
-  font-size: typography-vars.$font-size-lg;
 }
 
 /* 超时状态颜色样式 */
