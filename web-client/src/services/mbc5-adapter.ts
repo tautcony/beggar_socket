@@ -30,14 +30,6 @@ import { calcSectorUsage } from '@/utils/sector-utils';
  */
 export class MBC5Adapter extends CartridgeAdapter {
   private power5vActive = false;
-  private static readonly ROM_READ_START_SETTLE_MS = 100;
-  private static readonly ROM_READ_RETRY_RESET_MS = 120;
-  private static readonly ROM_WRITE_RETRY_RESET_MS = 150;
-  private static readonly ROM_ERASE_RETRY_RESET_MS = 150;
-  private static readonly ROM_WRITE_SAMPLE_COUNT = 4;
-  private static readonly ROM_WRITE_SAMPLE_BYTES = 4;
-  private static readonly RAM_READ_START_SETTLE_MS = 150;
-  private static readonly RAM_READ_RETRY_RESET_MS = 150;
 
   /**
    * 构造函数

@@ -3,20 +3,8 @@ import { computed, onScopeDispose, ref } from 'vue';
 
 import { BurnerSession, runBurnerFlow } from '@/features/burner/application';
 import type { BurnerLogEntry, BurnerLogLevel } from '@/types/burner-log';
-import type { ProgressInfo } from '@/types/progress-info';
+import { DEFAULT_PROGRESS, type ProgressInfo } from '@/types/progress-info';
 import { type BurnerLogInput, formatBurnerLogMessage } from '@/utils/burner-log';
-
-const DEFAULT_PROGRESS: ProgressInfo = {
-  type: 'other',
-  progress: null,
-  detail: '',
-  totalBytes: undefined,
-  transferredBytes: undefined,
-  startTime: undefined,
-  currentSpeed: undefined,
-  allowCancel: true,
-  state: 'idle',
-};
 
 interface ExecuteOperationOptions<TResult> {
   cancellable?: boolean;

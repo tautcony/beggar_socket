@@ -1,20 +1,8 @@
-import type { ProgressInfo } from '@/types/progress-info';
+import { DEFAULT_PROGRESS, type ProgressInfo } from '@/types/progress-info';
 import type { BurnerLogInput } from '@/utils/burner-log';
 
 import type { BurnerSessionPort } from './domain/ports';
 import type { BurnerLogEntry, BurnerSessionState, LogLevel } from './types';
-
-const DEFAULT_PROGRESS: ProgressInfo = {
-  type: 'other',
-  progress: null,
-  detail: '',
-  totalBytes: undefined,
-  transferredBytes: undefined,
-  startTime: undefined,
-  currentSpeed: undefined,
-  allowCancel: true,
-  state: 'idle',
-};
 
 export class BurnerSession implements BurnerSessionPort {
   private readonly state: BurnerSessionState = {

@@ -1,3 +1,7 @@
+import type { FileInfo } from './file-info';
+
+export type { FileInfo };
+
 export interface RomSlot {
   id: string;
   name: string;
@@ -31,10 +35,4 @@ export interface AssembledRom {
   data: Uint8Array;
   slots: RomSlot[];
   totalSize: number;
-}
-
-export interface FileInfo {
-  name: string;
-  data: Uint8Array;
-  size: number;
 }

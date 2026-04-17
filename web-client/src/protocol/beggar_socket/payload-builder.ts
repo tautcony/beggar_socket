@@ -2,13 +2,15 @@ import { modbusCRC16_lut } from '@/utils/crc-utils';
 
 import { Command } from './command';
 
+const PACKET_HEADER_SIZE = 2;
+
 /**
  * 高效的 Payload 构建器类，减少数据复制操作
  * 预留包装格式：[size:2bytes] + payload + [crc:2bytes]
  */
 export class PayloadBuilder {
   private buffer: Uint8Array;
-  private offset = 2; // 从第2个字节开始写入payload，预留size字段
+  private offset = PACKET_HEADER_SIZE; // 从第2个字节开始写入payload，预留size字段
   private capacity: number;
 
   constructor(initialCapacity = 256) {
@@ -21,7 +23,7 @@ export class PayloadBuilder {
    * 确保缓冲区有足够的容量
    */
   private ensureCapacity(additionalBytes: number): void {
-    const required = this.offset + additionalBytes + 2; // 额外预留2字节给CRC
+    const required = this.offset + additionalBytes + PACKET_HEADER_SIZE; // 额外预留2字节给CRC
     if (required > this.capacity) {
       // 扩容策略：至少翻倍，或者满足需求
       const newCapacity = Math.max(this.capacity * 2, required);
@@ -78,7 +80,7 @@ export class PayloadBuilder {
    */
   build(withCrc = false): Uint8Array {
     const payloadSize = this.offset; // 实际payload大小
-    const totalSize = 2 + payloadSize;
+    const totalSize = PACKET_HEADER_SIZE + payloadSize;
 
     // 写入大小字段（小端序）到预留的前2字节
     this.buffer[0] = totalSize & 0xFF;
@@ -89,17 +91,17 @@ export class PayloadBuilder {
       const crc = modbusCRC16_lut(this.buffer.subarray(0, this.offset));
       this.buffer[this.offset] = crc & 0xFF;
       this.buffer[this.offset + 1] = (crc >> 8) & 0xFF;
-      return this.buffer.subarray(0, this.offset + 2);
+      return this.buffer.subarray(0, this.offset + PACKET_HEADER_SIZE);
     }
 
-    return this.buffer.subarray(0, this.offset + 2);
+    return this.buffer.subarray(0, this.offset + PACKET_HEADER_SIZE);
   }
 
   /**
    * 重置构建器
    */
   reset(): this {
-    this.offset = 2; // 重置到预留位置
+    this.offset = PACKET_HEADER_SIZE; // 重置到预留位置
     return this;
   }
 

@@ -2,6 +2,7 @@ import type { SerialPortInfo } from '@/types/serial';
 import { timeout } from '@/utils/async-utils';
 import type { PortFilter } from '@/utils/port-filter';
 
+import { DEFAULT_SERIAL_CONFIG } from '../constants';
 import { WebSerialTransport } from '../transports';
 import type { DeviceGateway, DeviceHandle, DeviceSelection } from '../types';
 
@@ -33,12 +34,12 @@ export class WebDeviceGateway implements DeviceGateway {
       filters: selection?.webSerialFilters ?? [],
     });
     await port.open({
-      baudRate: 9600,
-      dataBits: 8,
-      parity: 'none',
-      stopBits: 1,
-      flowControl: 'none',
-      bufferSize: 4096,
+      baudRate: DEFAULT_SERIAL_CONFIG.baudRate,
+      dataBits: DEFAULT_SERIAL_CONFIG.dataBits,
+      parity: DEFAULT_SERIAL_CONFIG.parity,
+      stopBits: DEFAULT_SERIAL_CONFIG.stopBits,
+      flowControl: DEFAULT_SERIAL_CONFIG.flowControl,
+      bufferSize: DEFAULT_SERIAL_CONFIG.bufferSize,
     });
 
     return {

@@ -1,6 +1,8 @@
 import type { Transport, TransportReadMode } from '@/platform/serial';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 
+import { PROTOCOL_ACK } from './constants';
+
 export class ProtocolAdapter {
   static async sendPackage(
     transport: Transport,
@@ -37,7 +39,7 @@ export class ProtocolAdapter {
 
   static async getResult(transport: Transport, timeoutMs?: number): Promise<boolean> {
     const result = await this.getPackage(transport, 1, timeoutMs ?? AdvancedSettings.packageReceiveTimeout);
-    return result.data?.byteLength > 0 && result.data[0] === 0xaa;
+    return result.data?.byteLength > 0 && result.data[0] === PROTOCOL_ACK;
   }
 
   static async setSignals(transport: Transport, signals: SerialOutputSignals): Promise<void> {

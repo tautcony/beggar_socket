@@ -5,6 +5,7 @@ import { timeout, withTimeout } from '@/utils/async-utils';
 import { PortSelectionRequiredError } from '@/utils/errors/PortSelectionRequiredError';
 import type { PortFilter } from '@/utils/port-filter';
 
+import { DEFAULT_SERIAL_CONFIG } from '../constants';
 import type { DeviceGateway, DeviceHandle, DeviceSelection } from '../types';
 import { TauriSerialTransport } from './tauri-serial-transport';
 
@@ -152,13 +153,13 @@ export class TauriDeviceGateway implements DeviceGateway {
 
     const tauriPort = new SerialPort({
       path: selectedPort.path,
-      baudRate: 9600,
+      baudRate: DEFAULT_SERIAL_CONFIG.baudRate,
       dataBits: DataBits.Eight,
       flowControl: FlowControl.None,
       parity: Parity.None,
       stopBits: StopBits.One,
       timeout: 1000,
-      size: 4096,
+      size: DEFAULT_SERIAL_CONFIG.bufferSize,
     });
 
     try {

@@ -1,6 +1,7 @@
 import { resolveTransport, type Transport } from '@/platform/serial';
 import { type DeviceInfo } from '@/types';
 
+import { PROTOCOL_ACK } from './constants';
 import { ProtocolAdapter } from './protocol-adapter';
 
 export type ProtocolTransportInput = DeviceInfo | { transport: Transport };
@@ -58,7 +59,7 @@ export async function sendAndExpectAck(
   readTimeoutMs?: number,
 ): Promise<boolean> {
   const result = await sendAndReceivePackage(input, payload, 1, sendTimeoutMs, readTimeoutMs);
-  return result.data?.byteLength > 0 && result.data[0] === 0xaa;
+  return result.data?.byteLength > 0 && result.data[0] === PROTOCOL_ACK;
 }
 
 export async function setSignals(input: ProtocolTransportInput, signals: SerialOutputSignals): Promise<void> {

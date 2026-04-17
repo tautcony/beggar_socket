@@ -3,6 +3,7 @@
  * 用于修改ROM信息并更新校验和
  */
 
+import { GB_HEADER, GBA_HEADER } from '@/utils/parsers/constants';
 import {
   calculateGBAChecksum,
   calculateGBChecksum,
@@ -34,15 +35,15 @@ export function updateGBARom(data: Uint8Array, editData: RomEditData): Uint8Arra
 
   // 如果 logo 不符合要求，也更新 logo 数据
   if (!validateGBALogo(newData)) {
-    newData.set(GBA_NINTENDO_LOGO, 0x04);
+    newData.set(GBA_NINTENDO_LOGO, GBA_HEADER.LOGO_OFFSET);
   }
 
-  // 更新标题 (0xA0-0xAB, 12字节)
+  // 更新标题 (12字节)
   const titleBytes = encodeStringToBytes(editData.title, 12);
-  newData.set(titleBytes, 0xA0);
+  newData.set(titleBytes, GBA_HEADER.TITLE_OFFSET);
 
-  // 更新游戏代码和区域代码 (0xAC-0xAF, 4字节)
-  let gameCode = editData.gameCode || new TextDecoder('ascii').decode(data.slice(0xAC, 0xB0)).replace(/\0/g, '') || '    ';
+  // 更新游戏代码和区域代码 (4字节)
+  let gameCode = editData.gameCode || new TextDecoder('ascii').decode(data.slice(GBA_HEADER.GAME_CODE_OFFSET, GBA_HEADER.GAME_CODE_END)).replace(/\0/g, '') || '    ';
 
   // 如果提供了区域代码，更新gameCode的第4位
   if (editData.region) {
@@ -51,17 +52,17 @@ export function updateGBARom(data: Uint8Array, editData: RomEditData): Uint8Arra
   }
 
   // 写入游戏代码
-  newData.set(encodeStringToBytes(gameCode, 4), 0xAC);
+  newData.set(encodeStringToBytes(gameCode, 4), GBA_HEADER.GAME_CODE_OFFSET);
 
-  // 更新制造商代码 (0xB0-0xB1, 2字节)
-  newData.set(encodeStringToBytes(editData.makerCode, 2), 0xB0);
+  // 更新制造商代码 (2字节)
+  newData.set(encodeStringToBytes(editData.makerCode, 2), GBA_HEADER.MAKER_CODE_OFFSET);
 
-  // 更新版本号 (0xBC)
-  newData[0xBC] = editData.version & 0xFF;
+  // 更新版本号
+  newData[GBA_HEADER.VERSION_OFFSET] = editData.version & 0xFF;
 
-  // 重新计算并更新头部校验和 (0xBD)
+  // 重新计算并更新头部校验和
   const checksum = calculateGBAChecksum(newData);
-  newData[0xBD] = checksum;
+  newData[GBA_HEADER.CHECKSUM_OFFSET] = checksum;
 
   return newData;
 }
@@ -77,42 +78,42 @@ export function updateGBRom(data: Uint8Array, editData: RomEditData): Uint8Array
 
   // 如果 logo 不符合要求，也更新 logo 数据
   if (!validateGBLogo(newData)) {
-    newData.set(GB_NINTENDO_LOGO, 0x104);
+    newData.set(GB_NINTENDO_LOGO, GB_HEADER.LOGO_OFFSET);
   }
 
   // 检查是否为CGB
-  const cgbFlag = data[0x143];
+  const cgbFlag = data[GB_HEADER.CGB_FLAG_OFFSET];
   const isColorGB = cgbFlag === 0x80 || cgbFlag === 0xC0;
 
-  // 更新标题 (0x134-0x142/0x143)
-  const titleEnd = isColorGB ? 0x143 : 0x144;
-  const maxTitleLength = titleEnd - 0x134;
+  // 更新标题
+  const titleEnd = isColorGB ? GB_HEADER.TITLE_END : GB_HEADER.TITLE_END + 1;
+  const maxTitleLength = titleEnd - GB_HEADER.TITLE_OFFSET;
 
   // 清空并写入新标题
-  for (let i = 0x134; i < titleEnd; i++) newData[i] = 0;
-  newData.set(encodeStringToBytes(editData.title, maxTitleLength, '\0'), 0x134);
+  for (let i = GB_HEADER.TITLE_OFFSET; i < titleEnd; i++) newData[i] = 0;
+  newData.set(encodeStringToBytes(editData.title, maxTitleLength, '\0'), GB_HEADER.TITLE_OFFSET);
 
-  // 更新制造商代码 (0x13F-0x142, 新格式)
-  for (let i = 0x13F; i < 0x143; i++) newData[i] = 0;
-  newData.set(encodeStringToBytes(editData.makerCode, 4, '\0'), 0x13F);
+  // 更新制造商代码 (新格式)
+  for (let i = GB_HEADER.MAKER_CODE_OFFSET; i < GB_HEADER.MAKER_CODE_END; i++) newData[i] = 0;
+  newData.set(encodeStringToBytes(editData.makerCode, 4, '\0'), GB_HEADER.MAKER_CODE_OFFSET);
 
-  // 更新版本号 (0x14C)
-  newData[0x14C] = editData.version & 0xFF;
+  // 更新版本号
+  newData[GB_HEADER.VERSION_OFFSET] = editData.version & 0xFF;
 
-  // 更新区域代码 (0x14A)
+  // 更新区域代码
   if (editData.region) {
-    const regionCode = editData.region === 'Japan' ? 0x00 : 0x01; // Japan=0x00, Non-Japan=0x01
-    newData[0x14A] = regionCode;
+    const regionCode = editData.region === 'Japan' ? 0x00 : 0x01;
+    newData[GB_HEADER.REGION_OFFSET] = regionCode;
   }
 
-  // 重新计算并更新头部校验和 (0x14D)
+  // 重新计算并更新头部校验和
   const headerChecksum = calculateGBChecksum(newData);
-  newData[0x14D] = headerChecksum;
+  newData[GB_HEADER.HEADER_CHECKSUM_OFFSET] = headerChecksum;
 
-  // 重新计算并更新全局校验和 (0x14E-0x14F)
+  // 重新计算并更新全局校验和
   const globalChecksum = calculateGBGlobalChecksum(newData);
-  newData[0x14E] = (globalChecksum >> 8) & 0xFF;
-  newData[0x14F] = globalChecksum & 0xFF;
+  newData[GB_HEADER.GLOBAL_CHECKSUM_HIGH] = (globalChecksum >> 8) & 0xFF;
+  newData[GB_HEADER.GLOBAL_CHECKSUM_LOW] = globalChecksum & 0xFF;
 
   return newData;
 }

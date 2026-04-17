@@ -1,5 +1,7 @@
 import type { MbcType } from '@/types/command-options';
 
+import { GB_HEADER, GBA_HEADER } from './constants';
+
 /**
  * ROM文件解析工具
  * 支持GBA和GB/GBC ROM格式
@@ -91,12 +93,12 @@ const INVALID_ROM_INFO = (romSize: number) => ({
  * @returns 是否匹配
  */
 export function validateGBALogo(data: Uint8Array): boolean {
-  if (data.length < 0x04 + GBA_NINTENDO_LOGO.length) {
+  if (data.length < GBA_HEADER.LOGO_OFFSET + GBA_NINTENDO_LOGO.length) {
     return false;
   }
 
   for (let i = 0; i < GBA_NINTENDO_LOGO.length; i++) {
-    if (data[0x04 + i] !== GBA_NINTENDO_LOGO[i]) {
+    if (data[GBA_HEADER.LOGO_OFFSET + i] !== GBA_NINTENDO_LOGO[i]) {
       return false;
     }
   }
@@ -109,12 +111,12 @@ export function validateGBALogo(data: Uint8Array): boolean {
  * @returns 是否匹配
  */
 export function validateGBLogo(data: Uint8Array): boolean {
-  if (data.length < 0x104 + GB_NINTENDO_LOGO.length) {
+  if (data.length < GB_HEADER.LOGO_OFFSET + GB_NINTENDO_LOGO.length) {
     return false;
   }
 
   for (let i = 0; i < GB_NINTENDO_LOGO.length; i++) {
-    if (data[0x104 + i] !== GB_NINTENDO_LOGO[i]) {
+    if (data[GB_HEADER.LOGO_OFFSET + i] !== GB_NINTENDO_LOGO[i]) {
       return false;
     }
   }
@@ -127,30 +129,30 @@ export function validateGBLogo(data: Uint8Array): boolean {
  * @returns GBA ROM信息
  */
 function parseGBARom(data: Uint8Array): RomInfo {
-  if (data.length < 0xC0) {
+  if (data.length < GBA_HEADER.MIN_VALID_SIZE) {
     return INVALID_ROM_INFO(data.length);
   }
 
   // GBA ROM标题位置：0xA0-0xAB (12字节)
-  const titleBytes = data.slice(0xA0, 0xAC);
+  const titleBytes = data.slice(GBA_HEADER.TITLE_OFFSET, GBA_HEADER.TITLE_END);
   const title = new TextDecoder('utf-8').decode(titleBytes).replace(/\0/g, '').trim();
 
   // 游戏代码：0xAC-0xAF (4字节)
-  const gameCodeBytes = data.slice(0xAC, 0xB0);
+  const gameCodeBytes = data.slice(GBA_HEADER.GAME_CODE_OFFSET, GBA_HEADER.GAME_CODE_END);
   const gameCode = new TextDecoder('ascii').decode(gameCodeBytes).replace(/\0/g, '');
 
   // 制造商代码：0xB0-0xB1 (2字节)
-  const makerCodeBytes = data.slice(0xB0, 0xB2);
+  const makerCodeBytes = data.slice(GBA_HEADER.MAKER_CODE_OFFSET, GBA_HEADER.MAKER_CODE_END);
   const makerCode = new TextDecoder('ascii').decode(makerCodeBytes).replace(/\0/g, '');
 
   // 版本号：0xBC
-  const version = data[0xBC];
+  const version = data[GBA_HEADER.VERSION_OFFSET];
 
   // 头部校验和：0xBD
-  const checksumHeader = data[0xBD];
+  const checksumHeader = data[GBA_HEADER.CHECKSUM_OFFSET];
 
   // 验证GBA ROM有效性
-  const hasValidSignature = data[0xB2] === 0x96; // 固定字节0x96
+  const hasValidSignature = data[GBA_HEADER.FIXED_BYTE_OFFSET] === GBA_HEADER.FIXED_BYTE_VALUE;
   const hasValidLogo = validateGBALogo(data);
 
   // 验证头部校验和 (0xA0-0xBC的补码校验和)
@@ -175,8 +177,8 @@ function parseGBARom(data: Uint8Array): RomInfo {
     }
   }
 
-  // 提取Logo数据 (0x04-0x9F, 156字节)
-  const logoData = data.slice(0x04, 0x04 + GBA_NINTENDO_LOGO.length);
+  // 提取Logo数据
+  const logoData = data.slice(GBA_HEADER.LOGO_OFFSET, GBA_HEADER.LOGO_OFFSET + GBA_NINTENDO_LOGO.length);
 
   // 生成文件名
   const sanitizedTitle = sanitizeString(title) || 'UNTITLED';
@@ -204,45 +206,45 @@ function parseGBARom(data: Uint8Array): RomInfo {
  * @returns GB/GBC ROM信息
  */
 function parseGBRom(data: Uint8Array): RomInfo {
-  if (data.length < 0x150) {
+  if (data.length < GB_HEADER.MIN_VALID_SIZE) {
     return INVALID_ROM_INFO(data.length);
   }
 
   // GB ROM标题位置：0x134-0x143 (16字节，但0x143可能是CGB标志)
-  let titleEnd = 0x143;
+  let titleEnd = GB_HEADER.TITLE_END;
 
   // 检查CGB标志
-  const cgbFlag = data[0x143];
+  const cgbFlag = data[GB_HEADER.CGB_FLAG_OFFSET];
   const isColorGB = cgbFlag === 0x80 || cgbFlag === 0xC0;
 
   if (isColorGB) {
-    titleEnd = 0x143; // CGB游戏标题到0x142
+    titleEnd = GB_HEADER.TITLE_END; // CGB游戏标题到0x142
   }
 
-  const titleBytes = data.slice(0x134, titleEnd);
+  const titleBytes = data.slice(GB_HEADER.TITLE_OFFSET, titleEnd);
   const title = new TextDecoder('utf-8').decode(titleBytes).replace(/\0/g, '').trim();
 
   // 制造商代码：0x13F-0x142 (新格式) 或包含在标题中 (旧格式)
   let makerCode = '';
-  if (data[0x13F] !== 0x00 || data[0x140] !== 0x00) {
-    const makerBytes = data.slice(0x13F, 0x143);
+  if (data[GB_HEADER.MAKER_CODE_OFFSET] !== 0x00 || data[GB_HEADER.MAKER_CODE_OFFSET + 1] !== 0x00) {
+    const makerBytes = data.slice(GB_HEADER.MAKER_CODE_OFFSET, GB_HEADER.MAKER_CODE_END);
     makerCode = new TextDecoder('ascii').decode(makerBytes).replace(/\0/g, '');
   }
 
-  // 许可证代码：0x144-0x145
-  const licenseCode = (data[0x144] << 8) | data[0x145];
+  // 许可证代码
+  const licenseCode = (data[GB_HEADER.LICENSE_HIGH_OFFSET] << 8) | data[GB_HEADER.LICENSE_LOW_OFFSET];
 
-  // SGB标志：0x146
-  const sgbFlag = data[0x146];
+  // SGB标志
+  const sgbFlag = data[GB_HEADER.SGB_FLAG_OFFSET];
 
-  // 卡带类型：0x147
-  const cartridgeType = data[0x147];
+  // 卡带类型
+  const cartridgeType = data[GB_HEADER.CART_TYPE_OFFSET];
 
-  // ROM大小：0x148
-  const romSizeCode = data[0x148];
+  // ROM大小
+  const romSizeCode = data[GB_HEADER.ROM_SIZE_OFFSET];
   const romSize = romSizeCode < 8 ? (32 * 1024) << romSizeCode : data.length;
 
-  // RAM大小：0x149
+  // RAM大小
   const ramSizeMapper = {
     0: 0, // No RAM
     1: 0, // Unused
@@ -251,10 +253,10 @@ function parseGBRom(data: Uint8Array): RomInfo {
     4: 128 * 1024, // 128 KiB
     5: 64 * 1024, // 64 KiB
   };
-  const ramSizeCode = data[0x149] as 0 | 1 | 2 | 3 | 4 | 5;
+  const ramSizeCode = data[GB_HEADER.RAM_SIZE_OFFSET] as 0 | 1 | 2 | 3 | 4 | 5;
   const ramSize = ramSizeMapper[ramSizeCode] ?? 0;
 
-  const regionCode = data[0x14A];
+  const regionCode = data[GB_HEADER.REGION_OFFSET];
   let region = 'Unknown';
   switch (regionCode) {
     case 0x00: region = 'Japan'; break;
@@ -262,14 +264,14 @@ function parseGBRom(data: Uint8Array): RomInfo {
     default: region = 'Unknown'; break;
   }
 
-  // 版本号：0x14C
-  const version = data[0x14C];
+  // 版本号
+  const version = data[GB_HEADER.VERSION_OFFSET];
 
-  // 头部校验和：0x14D
-  const checksumHeader = data[0x14D];
+  // 头部校验和
+  const checksumHeader = data[GB_HEADER.HEADER_CHECKSUM_OFFSET];
 
-  // 全局校验和：0x14E-0x14F
-  const checksumGlobal = (data[0x14E] << 8) | data[0x14F];
+  // 全局校验和
+  const checksumGlobal = (data[GB_HEADER.GLOBAL_CHECKSUM_HIGH] << 8) | data[GB_HEADER.GLOBAL_CHECKSUM_LOW];
 
   // 验证Nintendo Logo
   const hasValidLogo = validateGBLogo(data);
@@ -286,8 +288,8 @@ function parseGBRom(data: Uint8Array): RomInfo {
     type = 'GBC';
   }
 
-  // 提取Logo数据 (0x104-0x133, 48字节)
-  const logoData = data.slice(0x104, 0x104 + GB_NINTENDO_LOGO.length);
+  // 提取Logo数据
+  const logoData = data.slice(GB_HEADER.LOGO_OFFSET, GB_HEADER.LOGO_OFFSET + GB_NINTENDO_LOGO.length);
 
   // 生成文件名
   const sanitizedTitle = sanitizeString(title) || 'UNTITLED';
@@ -321,7 +323,7 @@ function detectRomType(data: Uint8Array): 'GBA' | 'GB' | 'Unknown' {
   }
 
   // 首先检查GBA特征
-  if (data.length >= 0xB3 && data[0xB2] === 0x96) {
+  if (data.length >= GBA_HEADER.FIXED_BYTE_OFFSET + 1 && data[GBA_HEADER.FIXED_BYTE_OFFSET] === GBA_HEADER.FIXED_BYTE_VALUE) {
     // 如果有GBA固定签名字节，进一步验证Nintendo Logo
     if (validateGBALogo(data)) {
       return 'GBA';
@@ -329,7 +331,7 @@ function detectRomType(data: Uint8Array): 'GBA' | 'GB' | 'Unknown' {
   }
 
   // 检查GB/GBC特征
-  if (data.length >= 0x150 && validateGBLogo(data)) {
+  if (data.length >= GB_HEADER.MIN_VALID_SIZE && validateGBLogo(data)) {
     return 'GB';
   }
 
@@ -349,7 +351,7 @@ function detectRomType(data: Uint8Array): 'GBA' | 'GB' | 'Unknown' {
  */
 export function calculateGBAChecksum(data: Uint8Array): number {
   let headerSum = 0;
-  for (let i = 0xA0; i <= 0xBC; i++) {
+  for (let i = GBA_HEADER.CHECKSUM_START; i <= GBA_HEADER.CHECKSUM_END; i++) {
     headerSum += data[i];
   }
   return (-(headerSum + 0x19)) & 0xFF;
@@ -362,7 +364,7 @@ export function calculateGBAChecksum(data: Uint8Array): number {
  */
 export function calculateGBChecksum(data: Uint8Array): number {
   let checksum = 0;
-  for (let i = 0x134; i <= 0x14C; i++) {
+  for (let i = GB_HEADER.CHECKSUM_START; i <= GB_HEADER.CHECKSUM_END; i++) {
     checksum = checksum - data[i] - 1;
   }
   return checksum & 0xFF;
@@ -377,7 +379,7 @@ export function calculateGBGlobalChecksum(data: Uint8Array): number {
   let sum = 0;
   for (let i = 0; i < data.length; i++) {
     // 跳过校验和字节
-    if (i !== 0x14E && i !== 0x14F) {
+    if (i !== GB_HEADER.GLOBAL_CHECKSUM_HIGH && i !== GB_HEADER.GLOBAL_CHECKSUM_LOW) {
       sum += data[i];
     }
   }
@@ -483,12 +485,12 @@ export interface MbcDetectionResult {
 
 export function detectMbcTypeFromRom(romData: Uint8Array): MbcDetectionResult {
   // 确保数据足够长
-  if (romData.length < 0x148) {
+  if (romData.length < GB_HEADER.CART_TYPE_OFFSET + 1) {
     return { mbcType: 'MBC5', isFallback: true };
   }
 
-  // 读取卡带类型字节（偏移 0x147）
-  const cartType = romData[0x147];
+  // 读取卡带类型字节
+  const cartType = romData[GB_HEADER.CART_TYPE_OFFSET];
 
   // MBC1 类型 ID
   const MBC1_IDS = [0x01, 0x02, 0x03];

@@ -41,3 +41,15 @@ export interface ProgressInfo {
     stateBuffer: Uint8Array
   }
 }
+
+export const DEFAULT_PROGRESS: ProgressInfo = {
+  type: 'other',
+  progress: null,
+  detail: '',
+  totalBytes: undefined,
+  transferredBytes: undefined,
+  startTime: undefined,
+  currentSpeed: undefined,
+  allowCancel: true,
+  state: 'idle',
+};

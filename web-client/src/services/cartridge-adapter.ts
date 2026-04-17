@@ -26,6 +26,16 @@ export class CartridgeAdapter {
   private static readonly COMMAND_RESET_PULSE_MS = 10;
   private static readonly COMMAND_RESET_SETTLE_MS = 200;
 
+  // 子类共享时序常量
+  protected static readonly ROM_READ_START_SETTLE_MS = 100;
+  protected static readonly ROM_READ_RETRY_RESET_MS = 120;
+  protected static readonly ROM_WRITE_RETRY_RESET_MS = 150;
+  protected static readonly ROM_ERASE_RETRY_RESET_MS = 150;
+  protected static readonly ROM_WRITE_SAMPLE_COUNT = 4;
+  protected static readonly ROM_WRITE_SAMPLE_BYTES = 4;
+  protected static readonly RAM_READ_START_SETTLE_MS = 150;
+  protected static readonly RAM_READ_RETRY_RESET_MS = 150;
+
   protected device: DeviceInfo;
   protected log: LogCallback;
   protected updateProgress: ProgressCallback;
