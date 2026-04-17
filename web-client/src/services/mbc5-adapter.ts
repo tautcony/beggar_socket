@@ -1,5 +1,6 @@
 import {
   cart_power,
+  GBC_FLASH_CMD_SET,
   gbc_read,
   gbc_read_fram,
   gbc_rom_erase_chip,
@@ -25,6 +26,8 @@ import { ProgressReporter } from '@/utils/progress/progress-reporter';
 import { SpeedCalculator } from '@/utils/progress/speed-calculator';
 import { calcSectorUsage } from '@/utils/sector-utils';
 
+import type { PlatformOps } from './platform-ops';
+
 /**
  * MBC5 Adapter - 封装MBC5卡带的协议操作
  */
@@ -45,6 +48,35 @@ export class MBC5Adapter extends CartridgeAdapter {
     translateFunc: TranslateFunction | null = null,
   ) {
     super(device, logCallback, progressCallback, translateFunc);
+  }
+
+  protected override createPlatformOps(): PlatformOps {
+    return {
+      platformId: 'mbc5',
+      flashCmdSet: {
+        ...GBC_FLASH_CMD_SET,
+        read: (...args: Parameters<typeof gbc_read>) => gbc_read(...args),
+        write: (...args: Parameters<typeof gbc_write>) => gbc_write(...args),
+      },
+      cfiEntryAddress: 0xaa,
+      romProgram: (device, data, addr, buf) => gbc_rom_program(device, data, addr, buf),
+      romEraseSector: (device, addr) => gbc_rom_erase_sector(device, addr),
+      cfiGetId: (device) => gbc_rom_get_id(device),
+      toRomBank: (address) => {
+        const bank = Math.max(0, address >> 14);
+        const cartAddress = this.getBaseAddressOfBank('MBC5', bank) + (address & 0x3fff);
+        return { bank, cartAddress };
+      },
+      switchRomBank: async (_device, bank, options) => {
+        const mbcType = (options as CommandOptions | undefined)?.mbcType ?? 'MBC5';
+        await this.switchROMBank(bank, mbcType);
+      },
+      needsRomBankSwitch: () => true,
+    };
+  }
+
+  protected override async withPowerConfig<T>(enable5V: boolean, fn: () => Promise<T>): Promise<T> {
+    return this.withOptional5v(enable5V, fn);
   }
 
   private async pulseSignals(): Promise<void> {
@@ -93,45 +125,6 @@ export class MBC5Adapter extends CartridgeAdapter {
     } finally {
       await this.restoreDefaultPower();
     }
-  }
-
-  private async readROMChunkWithRetry(
-    chunkSize: number,
-    logicalAddress: number,
-    cartAddress: number,
-    _chunkIndex: number,
-    _bank: number,
-    restoreState?: () => Promise<void>,
-  ): Promise<Uint8Array> {
-    let lastError: unknown;
-    const retries = AdvancedSettings.romReadRetryCount;
-    const attempts = retries + 1;
-    const retryDelayMs = AdvancedSettings.romReadRetryDelayMs;
-
-    for (let attempt = 1; attempt <= attempts; attempt++) {
-      try {
-        return await gbc_read(this.device, chunkSize, cartAddress);
-      } catch (error) {
-        lastError = error;
-        this.log(
-          `ROM read retry ${attempt}/${attempts} @ ${formatHex(logicalAddress, 4)} `
-          + `(${chunkSize}B): ${error instanceof Error ? error.message : String(error)}`,
-          'warn',
-        );
-
-        if (attempt < attempts) {
-          await this.stabilizeCommandChannel(MBC5Adapter.ROM_READ_RETRY_RESET_MS);
-          if (restoreState) {
-            await restoreState();
-          }
-          if (retryDelayMs > 0) {
-            await timeout(retryDelayMs * attempt);
-          }
-        }
-      }
-    }
-
-    throw lastError instanceof Error ? lastError : new Error(String(lastError));
   }
 
   private describeError(error: unknown): string {

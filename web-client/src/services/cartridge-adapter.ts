@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/require-await */
+import { getFlashName } from '@/protocol';
+import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
@@ -6,9 +8,15 @@ import { ProgressInfo, SectorProgressInfo, type SectorSizeClass } from '@/types/
 import { timeout } from '@/utils/async-utils';
 import { type BurnerLogInput, formatBurnerLogMessage } from '@/utils/burner-log';
 import NotImplementedError from '@/utils/errors/NotImplementedError';
-import { CFIInfo, SectorBlock } from '@/utils/parsers/cfi-parser';
+import { formatBytes, formatHex, formatSpeed, formatTimeDuration } from '@/utils/formatter-utils';
+import { PerformanceTracker } from '@/utils/monitoring/sentry-tracker';
+import { CFIInfo, parseCFI, SectorBlock } from '@/utils/parsers/cfi-parser';
 import { ProgressInfoBuilder } from '@/utils/progress/progress-builder';
+import { ProgressReporter } from '@/utils/progress/progress-reporter';
+import { SpeedCalculator } from '@/utils/progress/speed-calculator';
 import { createSectorProgressInfo } from '@/utils/sector-utils';
+
+import type { PlatformOps } from './platform-ops';
 
 // 定义日志和进度回调函数类型
 export type LogCallback = (message: BurnerLogInput, type: 'info' | 'success' | 'warn' | 'error' ) => void;
@@ -97,17 +105,7 @@ export class CartridgeAdapter {
     throw new NotImplementedError();
   }
 
-  /**
-   * 读取ROM
-   * @param size - 读取大小
-   * @param options - 选项对象
-   * @param signal - 取消信号，用于中止操作
-   * @param showProgress - 是否显示读取进度面板，默认为true
-   * @returns - 包含成功状态、数据和消息的对象
-   */
-  async readROM(size: number, options: CommandOptions, signal?: AbortSignal, showProgress = true): Promise<CommandResult> {
-    throw new NotImplementedError();
-  }
+  // readROM: see template implementation below
 
   /**
    * 校验ROM
@@ -150,12 +148,7 @@ export class CartridgeAdapter {
     throw new NotImplementedError();
   }
 
-  /**
-   * 获取卡带信息
-   */
-  async getCartInfo(enable5V?: boolean): Promise<CFIInfo | false> {
-    throw new NotImplementedError();
-  }
+  // getCartInfo: see template implementation below
 
   /**
    * 创建进度信息对象的辅助方法
@@ -271,6 +264,205 @@ export class CartridgeAdapter {
 
   protected summarizeLogMessage(message: BurnerLogInput): string {
     return typeof message === 'string' ? message : formatBurnerLogMessage(message);
+  }
+
+  // --- PlatformOps infrastructure ---
+
+  private _ops?: PlatformOps;
+
+  protected get ops(): PlatformOps {
+    this._ops ??= this.createPlatformOps();
+    return this._ops;
+  }
+
+  protected createPlatformOps(): PlatformOps {
+    throw new NotImplementedError();
+  }
+
+  protected async withPowerConfig<T>(_enable5V: boolean, fn: () => Promise<T>): Promise<T> {
+    return fn();
+  }
+
+  // --- Shared helper methods ---
+
+  protected async readROMChunkWithRetry(
+    chunkSize: number,
+    logicalAddress: number,
+    cartAddress: number,
+    _chunkIndex: number,
+    _bank: number,
+    restoreState?: () => Promise<void>,
+  ): Promise<Uint8Array> {
+    const retries = AdvancedSettings.romReadRetryCount;
+    const attempts = retries + 1;
+    const retryDelayMs = AdvancedSettings.romReadRetryDelayMs;
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        return await this.ops.flashCmdSet.read(this.device, chunkSize, cartAddress);
+      } catch (error) {
+        lastError = error;
+        this.log(
+          `ROM read retry ${attempt}/${attempts} @ ${formatHex(logicalAddress, 4)} `
+          + `(${chunkSize}B): ${error instanceof Error ? error.message : String(error)}`,
+          'warn',
+        );
+        if (attempt < attempts) {
+          await this.stabilizeCommandChannel(CartridgeAdapter.ROM_READ_RETRY_RESET_MS);
+          if (restoreState) await restoreState();
+          if (retryDelayMs > 0) await timeout(retryDelayMs * attempt);
+        }
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  }
+
+  // --- Template methods ---
+
+  async readROM(size: number, options: CommandOptions, signal?: AbortSignal, showProgress = true): Promise<CommandResult> {
+    const ops = this.ops;
+    const baseAddress = options.baseAddress ?? 0x00;
+    const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
+    const readThrottleMs = AdvancedSettings.romReadThrottleMs;
+
+    this.log(this.t('messages.operation.startReadROM', { size, baseAddress: formatHex(baseAddress, 4) }), 'info');
+
+    return PerformanceTracker.trackAsyncOperation(
+      `${ops.platformId}.readROM`,
+      async () => {
+        try {
+          if (signal?.aborted) {
+            const pr = new ProgressReporter('read', size, (pi) => { this.updateProgress(pi); }, (k, p) => this.t(k, p), showProgress);
+            pr.reportError(this.t('messages.operation.cancelled'));
+            return { success: false, message: this.t('messages.operation.cancelled') };
+          }
+
+          return await this.withPowerConfig(options.enable5V ?? false, async () => {
+            await this.stabilizeCommandChannel(CartridgeAdapter.ROM_READ_START_SETTLE_MS);
+            this.log(this.t('messages.rom.reading'), 'info');
+
+            const data = new Uint8Array(size);
+            const speedCalculator = new SpeedCalculator();
+            const progressReporter = new ProgressReporter('read', size, (pi) => { this.updateProgress(pi); }, (k, p) => this.t(k, p), showProgress);
+            progressReporter.reportStart(this.t('messages.rom.reading'));
+
+            let totalRead = 0;
+            let lastLoggedProgress = -1;
+            let chunkCount = 0;
+            let currentBank = -1;
+            const needsBankSwitch = ops.needsRomBankSwitch(options.cfiInfo);
+
+            while (totalRead < size) {
+              if (signal?.aborted) {
+                progressReporter.reportError(this.t('messages.operation.cancelled'));
+                return { success: false, message: this.t('messages.operation.cancelled') };
+              }
+
+              const chunkSize = Math.min(pageSize, size - totalRead);
+              const currentAddress = baseAddress + totalRead;
+              const { bank, cartAddress } = ops.toRomBank(currentAddress, options);
+
+              if (needsBankSwitch && bank !== currentBank) {
+                currentBank = bank;
+                await ops.switchRomBank(this.device, bank, options);
+              }
+
+              const restoreState = needsBankSwitch
+                ? async () => { await ops.switchRomBank(this.device, bank, options); }
+                : undefined;
+              const chunk = await this.readROMChunkWithRetry(chunkSize, currentAddress, cartAddress, Math.floor(totalRead / pageSize) + 1, bank, restoreState);
+              const chunkEndTime = Date.now();
+              data.set(chunk, totalRead);
+              totalRead += chunkSize;
+              chunkCount++;
+
+              speedCalculator.addDataPoint(chunkSize, chunkEndTime);
+
+              if (chunkCount % 10 === 0 || totalRead >= size) {
+                const currentSpeed = speedCalculator.getCurrentSpeed();
+                progressReporter.reportProgress(totalRead, currentSpeed, this.t('messages.progress.readSpeed', { speed: formatSpeed(currentSpeed) }));
+              }
+
+              const progress = Math.floor((totalRead / size) * 100);
+              if (progress % 5 === 0 && progress !== lastLoggedProgress) {
+                this.log(this.t('messages.rom.readingAt', { address: formatHex(currentAddress, 4), progress }), 'info');
+                lastLoggedProgress = progress;
+              }
+
+              if (totalRead < size && readThrottleMs > 0) {
+                await timeout(readThrottleMs);
+              }
+            }
+
+            const totalTime = speedCalculator.getTotalTime();
+            const avgSpeed = speedCalculator.getAverageSpeed();
+            const maxSpeed = speedCalculator.getMaxSpeed();
+
+            this.log(this.t('messages.rom.readSuccess', { size: data.length }), 'success');
+            this.log(this.t('messages.rom.readSummary', {
+              totalTime: formatTimeDuration(totalTime),
+              avgSpeed: formatSpeed(avgSpeed),
+              maxSpeed: formatSpeed(maxSpeed),
+              totalSize: formatBytes(size),
+            }), 'info');
+
+            progressReporter.reportCompleted(this.t('messages.rom.readSuccess', { size: data.length }), avgSpeed);
+            return { success: true, data, message: this.t('messages.rom.readSuccess', { size: data.length }) };
+          });
+        } catch (e) {
+          const pr = new ProgressReporter('read', size, (pi) => { this.updateProgress(pi); }, (k, p) => this.t(k, p), showProgress);
+          pr.reportError(this.t('messages.rom.readFailed'));
+          this.log(`${this.t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+          return { success: false, message: this.t('messages.rom.readFailed') };
+        }
+      },
+      { adapter_type: ops.platformId, operation_type: 'read_rom' },
+      { dataSize: size, baseAddress },
+    );
+  }
+
+  async getCartInfo(enable5V?: boolean): Promise<CFIInfo | false> {
+    const ops = this.ops;
+    this.log(this.t('messages.operation.startGetCartInfo'), 'info');
+
+    return PerformanceTracker.trackAsyncOperation(
+      `${ops.platformId}.getCartInfo`,
+      async () => {
+        try {
+          return await this.withPowerConfig(enable5V ?? false, async () => {
+            await ops.flashCmdSet.write(this.device, ops.flashCmdSet.encodeByte(0x98), ops.cfiEntryAddress);
+            const cfiData = await ops.flashCmdSet.read(this.device, 0x100, 0x00);
+            await ops.flashCmdSet.write(this.device, ops.flashCmdSet.encodeByte(0xf0), 0x00);
+
+            const cfiInfo = parseCFI(cfiData);
+
+            if (!cfiInfo) {
+              this.log(this.t('messages.operation.cfiParseFailed'), 'error');
+              return false;
+            }
+
+            try {
+              const flashId = await ops.cfiGetId(this.device);
+              cfiInfo.flashId = flashId;
+              const idStr = Array.from(flashId).map(x => x.toString(16).padStart(2, '0')).join(' ');
+              const flashName = getFlashName([...flashId]);
+              this.log(`Flash ID: ${idStr} (${flashName})`, 'info');
+            } catch (e) {
+              this.log(`${this.t('messages.operation.readIdFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'warn');
+            }
+
+            this.log(this.t('messages.operation.cfiParseSuccess'), 'success');
+            this.log(cfiInfo.info, 'info');
+            return cfiInfo;
+          });
+        } catch (e) {
+          this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+          return false;
+        }
+      },
+      { adapter_type: ops.platformId, operation_type: 'get_cart_info' },
+    );
   }
 }
 

@@ -1,4 +1,5 @@
 import {
+  GBA_ROM_FLASH_CMD_SET,
   getFlashName,
   ram_erase_flash,
   ram_program_flash,
@@ -15,6 +16,7 @@ import {
   toLittleEndian,
 } from '@/protocol';
 import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
+import type { PlatformOps } from '@/services/platform-ops';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
@@ -52,43 +54,27 @@ export class GBAAdapter extends CartridgeAdapter {
     super(device, logCallback, progressCallback, translateFunc);
   }
 
-  private async readROMChunkWithRetry(
-    chunkSize: number,
-    logicalAddress: number,
-    cartAddress: number,
-    _chunkIndex: number,
-    _bank: number,
-    restoreState?: () => Promise<void>,
-  ): Promise<Uint8Array> {
-    let lastError: unknown;
-    const retries = AdvancedSettings.romReadRetryCount;
-    const attempts = retries + 1;
-    const retryDelayMs = AdvancedSettings.romReadRetryDelayMs;
-
-    for (let attempt = 1; attempt <= attempts; attempt++) {
-      try {
-        return await rom_read(this.device, chunkSize, cartAddress);
-      } catch (error) {
-        lastError = error;
-        this.log(
-          `ROM read retry ${attempt}/${attempts} @ ${formatHex(logicalAddress, 4)} `
-          + `(${chunkSize}B): ${error instanceof Error ? error.message : String(error)}`,
-          'warn',
-        );
-
-        if (attempt < attempts) {
-          await this.stabilizeCommandChannel(GBAAdapter.ROM_READ_RETRY_RESET_MS);
-          if (restoreState) {
-            await restoreState();
-          }
-          if (retryDelayMs > 0) {
-            await timeout(retryDelayMs * attempt);
-          }
-        }
-      }
-    }
-
-    throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  protected override createPlatformOps(): PlatformOps {
+    return {
+      platformId: 'gba',
+      flashCmdSet: {
+        ...GBA_ROM_FLASH_CMD_SET,
+        read: (...args: Parameters<typeof rom_read>) => rom_read(...args),
+        write: (...args: Parameters<typeof rom_write>) => rom_write(...args),
+      },
+      cfiEntryAddress: 0x55,
+      romProgram: (device, data, addr, buf) => rom_program(device, data, addr, buf),
+      romEraseSector: (device, addr) => rom_erase_sector(device, addr),
+      cfiGetId: (device) => rom_get_id(device),
+      toRomBank: (address) => {
+        const bank = address >> 25;
+        return { bank, cartAddress: address };
+      },
+      switchRomBank: async (_device, bank) => {
+        await this.switchROMBank(bank);
+      },
+      needsRomBankSwitch: (cfiInfo) => cfiInfo.deviceSize > (1 << 25),
+    };
   }
 
   private describeError(error: unknown): string {

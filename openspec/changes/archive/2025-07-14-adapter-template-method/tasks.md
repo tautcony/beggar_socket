@@ -1,9 +1,9 @@
 ## 1. 定义 PlatformOps 接口
 
-- [ ] 1.1 在 `services/` 下定义 `PlatformOps` 接口（platform、flashCommandSet、romBankSize、ramBankSize、toBank、switchRomBank、switchRamBank、enableRam、disableRam）
-- [ ] 1.2 实现 `GBA_PLATFORM_OPS`（线性寻址、空 bank 切换）
-- [ ] 1.3 实现 `MBC5_PLATFORM_OPS`（0x4000 bank 窗口、MBC5 bank 寄存器写入）
-- [ ] 1.4 验证: `npm run type-check`
+- [x] 1.1 在 `services/` 下定义 `PlatformOps` 接口（platform、flashCommandSet、romBankSize、ramBankSize、toBank、switchRomBank、switchRamBank、enableRam、disableRam）
+- [x] 1.2 实现 `GBA_PLATFORM_OPS`（线性寻址、空 bank 切换）
+- [x] 1.3 实现 `MBC5_PLATFORM_OPS`（0x4000 bank 窗口、MBC5 bank 寄存器写入）
+- [x] 1.4 验证: `npm run type-check`
 
 ## 2. 提取进度初始化工厂
 
@@ -14,7 +14,7 @@
 
 ## 3. Phase A — readROM 模板方法
 
-- [ ] 3.1 在 `CartridgeAdapter` 基类中实现 `readROM()` 模板方法
+- [x] 3.1 在 `CartridgeAdapter` 基类中实现 `readROM()` 模板方法
 - [ ] 3.2 将 GBAAdapter.readROM() 替换为基类调用 + GBA PlatformOps
 - [ ] 3.3 将 MBC5Adapter.readROM() 替换为基类调用 + MBC5 PlatformOps
 - [ ] 3.4 验证: `npm run test:run` + 真机 ROM 读取测试
@@ -22,7 +22,7 @@
 ## 4. Phase B — writeROM 模板方法
 
 - [ ] 4.1 在基类中实现 `writeROM()` 模板方法（含 blank 采样、擦除、编程、验证流程）
-- [ ] 4.2 提取 `sampleRomRegionBlank()` 和 `readROMChunkWithRetry()` 为基类方法
+- [x] 4.2 提取 `sampleRomRegionBlank()` 和 `readROMChunkWithRetry()` 为基类方法
 - [ ] 4.3 将 GBAAdapter.writeROM() 替换为基类调用
 - [ ] 4.4 将 MBC5Adapter.writeROM() 替换为基类调用
 - [ ] 4.5 验证: `npm run test:run` + 真机 ROM 写入测试
