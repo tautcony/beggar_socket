@@ -1,9 +1,14 @@
 export type { Command } from './command';
 export { GBACommand, GBCCommand } from './command';
+export type { FlashCommandSet } from './flash-command-set';
+export { flashEraseCommand, flashEraseSector, flashGetId, flashPollUntilReady, flashUnlockSequence } from './flash-command-set';
 export { createCommandPayload } from './payload-builder';
 export type { CartPowerMode } from './protocol';
 export {
   cart_power,
+  GBA_RAM_FLASH_CMD_SET,
+  GBA_ROM_FLASH_CMD_SET,
+  GBC_FLASH_CMD_SET,
   gbc_read,
   gbc_read_fram,
   gbc_rom_erase_chip,
@@ -25,8 +30,8 @@ export {
   rom_read,
   rom_write,
 } from './protocol';
-export { ProtocolAdapter } from './protocol-adapter';
 export type { FlashType, ProtocolTransportInput } from './protocol-utils';
+export { ProtocolAdapter } from './protocol-utils';
 export {
   arraysEqual,
   fromLittleEndian,

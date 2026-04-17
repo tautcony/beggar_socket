@@ -1,15 +1,8 @@
-import { timeout } from '@/utils/async-utils';
 import { formatHex } from '@/utils/formatter-utils';
 
 import { GBACommand, GBCCommand } from './command';
 import {
-  FLASH_CMD_AUTOSELECT,
   FLASH_CMD_CHIP_ERASE,
-  FLASH_CMD_ERASE_SETUP,
-  FLASH_CMD_RESET,
-  FLASH_CMD_SECTOR_ERASE,
-  FLASH_CMD_UNLOCK_1,
-  FLASH_CMD_UNLOCK_2,
   GBA_FLASH_ADDR_1,
   GBA_FLASH_ADDR_2,
   GBA_RAM_FLASH_ADDR_1,
@@ -17,6 +10,13 @@ import {
   GBC_FLASH_ADDR_1,
   GBC_FLASH_ADDR_2,
 } from './constants';
+import {
+  type FlashCommandSet,
+  flashEraseCommand,
+  flashEraseSector,
+  flashGetId,
+  flashPollUntilReady,
+} from './flash-command-set';
 import { sendAndReadProtocolPayload } from './packet-read';
 import { createCommandPayload } from './payload-builder';
 import { type ProtocolTransportInput, sendAndExpectAck, sendPackage, toLittleEndian } from './protocol-utils';
@@ -29,32 +29,64 @@ const GBC_SECTOR_ERASE_TIMEOUT_MS = 15_000;
 const GBC_CHIP_ERASE_POLL_INTERVAL_MS = 50;
 const GBC_CHIP_ERASE_TIMEOUT_MS = 120_000;
 
+// --- Flash Command Sets ---
+
+export const GBA_ROM_FLASH_CMD_SET: FlashCommandSet = {
+  unlockAddr1: GBA_FLASH_ADDR_1,
+  unlockAddr2: GBA_FLASH_ADDR_2,
+  encodeByte: (value: number) => toLittleEndian(value, 2),
+  write: rom_write,
+  read: rom_read,
+};
+
+export const GBC_FLASH_CMD_SET: FlashCommandSet = {
+  unlockAddr1: GBC_FLASH_ADDR_1,
+  unlockAddr2: GBC_FLASH_ADDR_2,
+  encodeByte: (value: number) => new Uint8Array([value]),
+  write: gbc_write,
+  read: gbc_read,
+};
+
+export const GBA_RAM_FLASH_CMD_SET: FlashCommandSet = {
+  unlockAddr1: GBA_RAM_FLASH_ADDR_1,
+  unlockAddr2: GBA_RAM_FLASH_ADDR_2,
+  encodeByte: (value: number) => new Uint8Array([value]),
+  write: ram_write,
+  read: ram_read,
+};
+
+// --- Internal Helpers ---
+
+async function flashProgramRom(
+  input: ProtocolTransportInput,
+  command: GBACommand | GBCCommand,
+  data: Uint8Array,
+  baseAddress: number,
+  bufferSize: number,
+  errorLabel: string,
+): Promise<void> {
+  if (data.length > bufferSize) {
+    throw new RangeError(`Data length ${data.length} exceeds buffer size ${bufferSize}`);
+  }
+  const payload = createCommandPayload(command)
+    .addAddress(baseAddress)
+    .addLength(bufferSize)
+    .addBytes(data)
+    .build();
+  const ack = await sendAndExpectAck(input, payload);
+  if (!ack) throw new Error(`${errorLabel} failed (Address: ${formatHex(baseAddress, 4)})`);
+}
+
 // --- GBA Commands ---
 
 /**
  * GBA: Read ID (0xf0)
  */
 export async function rom_get_id(input: ProtocolTransportInput): Promise<Uint8Array> {
-  // Flash ID读取序列：写入解锁命令
-  await rom_write(input, toLittleEndian(FLASH_CMD_UNLOCK_1, 2), GBA_FLASH_ADDR_1);
-  await rom_write(input, toLittleEndian(FLASH_CMD_UNLOCK_2, 2), GBA_FLASH_ADDR_2);
-  await rom_write(input, toLittleEndian(FLASH_CMD_AUTOSELECT, 2), GBA_FLASH_ADDR_1);
-
-  try {
-    // 读取地址0x00-0x01的制造商ID和设备ID (4字节)
-    const idPart1 = await rom_read(input, 4, 0x00);
-    // 读取地址0x0e-0x0f的设备ID (4字节)
-    const idPart2 = await rom_read(input, 4, 0x1c);
-
-    // 组装完整的8字节ID数据
-    const id = new Uint8Array(8);
-    id.set(idPart1, 0); // 前4字节：制造商ID + 设备ID
-    id.set(idPart2, 4); // 后4字节：设备ID
-    return id;
-  } finally {
-    // 无论读取成功还是失败，始终尝试退出 Autoselect 模式，避免 Flash 停在异常状态
-    await rom_write(input, toLittleEndian(FLASH_CMD_RESET, 2), 0x00).catch(() => {});
-  }
+  return flashGetId(input, GBA_ROM_FLASH_CMD_SET, [
+    { address: 0x00, size: 4 },
+    { address: 0x1c, size: 4 },
+  ]);
 }
 
 /**
@@ -69,29 +101,15 @@ export async function rom_erase_chip(input: ProtocolTransportInput): Promise<voi
  * GBA: ROM Sector Erase (0xf3)
  */
 export async function rom_erase_sector(input: ProtocolTransportInput, sectorAddress: number): Promise<boolean> {
-  // Align to word boundary before shifting; matches firmware masking in rom_erase_sector_direct()
   const alignedSectorAddress = sectorAddress & ~1;
   const sectorWordAddress = alignedSectorAddress >>> 1;
   const errorPrefix = `GBA ROM sector erase failed (Address: ${formatHex(sectorAddress, 4)})`;
-  const deadline = Date.now() + GBA_SECTOR_ERASE_TIMEOUT_MS;
-
   try {
-    await rom_write(input, toLittleEndian(FLASH_CMD_UNLOCK_1, 2), GBA_FLASH_ADDR_1);
-    await rom_write(input, toLittleEndian(FLASH_CMD_UNLOCK_2, 2), GBA_FLASH_ADDR_2);
-    await rom_write(input, toLittleEndian(FLASH_CMD_ERASE_SETUP, 2), GBA_FLASH_ADDR_1);
-    await rom_write(input, toLittleEndian(FLASH_CMD_UNLOCK_1, 2), GBA_FLASH_ADDR_1);
-    await rom_write(input, toLittleEndian(FLASH_CMD_UNLOCK_2, 2), GBA_FLASH_ADDR_2);
-    await rom_write(input, toLittleEndian(FLASH_CMD_SECTOR_ERASE, 2), sectorWordAddress);
-
-    while (Date.now() < deadline) {
-      await timeout(GBA_SECTOR_ERASE_POLL_INTERVAL_MS);
-      const status = await rom_read(input, 2, alignedSectorAddress);
-      if (status[0] === 0xff && status[1] === 0xff) {
-        return true;
-      }
-    }
-
-    throw new Error(`erase timeout after ${GBA_SECTOR_ERASE_TIMEOUT_MS}ms`);
+    return await flashEraseSector(input, GBA_ROM_FLASH_CMD_SET, sectorWordAddress, alignedSectorAddress, {
+      pollBytes: 2,
+      pollIntervalMs: GBA_SECTOR_ERASE_POLL_INTERVAL_MS,
+      timeoutMs: GBA_SECTOR_ERASE_TIMEOUT_MS,
+    });
   } catch (error) {
     throw new Error(`${errorPrefix}, Reason: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -108,17 +126,7 @@ export async function rom_erase_sector_direct(input: ProtocolTransportInput, sec
  * GBA: ROM Program (0xf4)
  */
 export async function rom_program(input: ProtocolTransportInput, data: Uint8Array, baseAddress: number, bufferSize: number): Promise<void> {
-  if (data.length > bufferSize) {
-    throw new RangeError(`Data length ${data.length} exceeds buffer size ${bufferSize}`);
-  }
-  const payload = createCommandPayload(GBACommand.PROGRAM)
-    .addAddress(baseAddress)
-    .addLength(bufferSize)
-    .addBytes(data)
-    .build();
-
-  const ack = await sendAndExpectAck(input, payload);
-  if (!ack) throw new Error(`GBA ROM programming failed (Address: ${formatHex(baseAddress, 4)})`);
+  return flashProgramRom(input, GBACommand.PROGRAM, data, baseAddress, bufferSize, 'GBA ROM programming');
 }
 
 /**
@@ -183,13 +191,10 @@ export async function ram_program_flash(input: ProtocolTransportInput, data: Uin
   if (!ack) throw new Error(`GBA RAM write to FLASH failed (Address: ${formatHex(baseAddress, 4)})`);
 }
 
+/**
+ */
 export async function ram_erase_flash(input: ProtocolTransportInput): Promise<void> {
-  await ram_write(input, new Uint8Array([FLASH_CMD_UNLOCK_1]), GBA_RAM_FLASH_ADDR_1);
-  await ram_write(input, new Uint8Array([FLASH_CMD_UNLOCK_2]), GBA_RAM_FLASH_ADDR_2);
-  await ram_write(input, new Uint8Array([FLASH_CMD_ERASE_SETUP]), GBA_RAM_FLASH_ADDR_1);
-  await ram_write(input, new Uint8Array([FLASH_CMD_UNLOCK_1]), GBA_RAM_FLASH_ADDR_1);
-  await ram_write(input, new Uint8Array([FLASH_CMD_UNLOCK_2]), GBA_RAM_FLASH_ADDR_2);
-  await ram_write(input, new Uint8Array([FLASH_CMD_CHIP_ERASE]), GBA_RAM_FLASH_ADDR_1); // Chip-Erase
+  await flashEraseCommand(input, GBA_RAM_FLASH_CMD_SET, GBA_RAM_FLASH_ADDR_1, FLASH_CMD_CHIP_ERASE);
 }
 
 /**
@@ -290,84 +295,39 @@ export async function gbc_read(input: ProtocolTransportInput, size: number, base
  * GBC: ROM Program (0xfc)
  */
 export async function gbc_rom_program(input: ProtocolTransportInput, data: Uint8Array, baseAddress: number, bufferSize: number): Promise<void> {
-  if (data.length > bufferSize) {
-    throw new RangeError(`Data length ${data.length} exceeds buffer size ${bufferSize}`);
-  }
-
-  const payload = createCommandPayload(GBCCommand.ROM_PROGRAM)
-    .addAddress(baseAddress)
-    .addLength(bufferSize)
-    .addBytes(data)
-    .build();
-
-  const ack = await sendAndExpectAck(input, payload);
-  if (!ack) throw new Error(`GBC ROM programming failed (Address: ${formatHex(baseAddress, 4)})`);
+  return flashProgramRom(input, GBCCommand.ROM_PROGRAM, data, baseAddress, bufferSize, 'GBC ROM programming');
 }
 
 /**
  * GBC: Read ID
  */
 export async function gbc_rom_get_id(input: ProtocolTransportInput): Promise<Uint8Array> {
-  await gbc_write(input, new Uint8Array([FLASH_CMD_UNLOCK_1]), GBC_FLASH_ADDR_1);
-  await gbc_write(input, new Uint8Array([FLASH_CMD_UNLOCK_2]), GBC_FLASH_ADDR_2);
-  await gbc_write(input, new Uint8Array([FLASH_CMD_AUTOSELECT]), GBC_FLASH_ADDR_1);
-  try {
-    const id = await gbc_read(input, 4, 0);
-    return id;
-  } finally {
-    // 无论读取成功还是失败，始终尝试退出 Autoselect 模式
-    await gbc_write(input, new Uint8Array([FLASH_CMD_RESET]), 0x00).catch(() => {});
-  }
+  return flashGetId(input, GBC_FLASH_CMD_SET, [
+    { address: 0x00, size: 4 },
+  ]);
 }
 
+/**
+ */
 export async function gbc_rom_erase_chip(input: ProtocolTransportInput) {
-  await gbc_write(input, new Uint8Array([FLASH_CMD_UNLOCK_1]), GBC_FLASH_ADDR_1);
-  await gbc_write(input, new Uint8Array([FLASH_CMD_UNLOCK_2]), GBC_FLASH_ADDR_2);
-  await gbc_write(input, new Uint8Array([FLASH_CMD_ERASE_SETUP]), GBC_FLASH_ADDR_1);
-  await gbc_write(input, new Uint8Array([FLASH_CMD_UNLOCK_1]), GBC_FLASH_ADDR_1);
-  await gbc_write(input, new Uint8Array([FLASH_CMD_UNLOCK_2]), GBC_FLASH_ADDR_2);
-  await gbc_write(input, new Uint8Array([FLASH_CMD_CHIP_ERASE]), GBC_FLASH_ADDR_1);
-
-  // Poll address 0x00 until erased (0xff); chip erase can take up to 2 minutes
-  const deadline = Date.now() + GBC_CHIP_ERASE_TIMEOUT_MS;
-  let status: Uint8Array;
-  do {
-    if (Date.now() > deadline) {
-      throw new Error(`GBC chip erase timeout after ${GBC_CHIP_ERASE_TIMEOUT_MS}ms`);
-    }
-    await timeout(GBC_CHIP_ERASE_POLL_INTERVAL_MS);
-    status = await gbc_read(input, 1, 0x00);
-  } while (status[0] !== 0xff);
+  await flashEraseCommand(input, GBC_FLASH_CMD_SET, GBC_FLASH_ADDR_1, FLASH_CMD_CHIP_ERASE);
+  await flashPollUntilReady(input, GBC_FLASH_CMD_SET, 0x00, {
+    pollBytes: 1,
+    pollIntervalMs: GBC_CHIP_ERASE_POLL_INTERVAL_MS,
+    timeoutMs: GBC_CHIP_ERASE_TIMEOUT_MS,
+  });
 }
 
 /**
  * GBC: Erase single ROM sector
- * @param input - Device information
- * @param sectorAddress - Address of the sector to erase
- * @returns Promise indicating success
  */
 export async function gbc_rom_erase_sector(input: ProtocolTransportInput, sectorAddress: number) {
   try {
-    // Sector Erase sequence (AMD/SST Flash command sequence)
-    await gbc_write(input, new Uint8Array([FLASH_CMD_UNLOCK_1]), GBC_FLASH_ADDR_1); // First unlock cycle
-    await gbc_write(input, new Uint8Array([FLASH_CMD_UNLOCK_2]), GBC_FLASH_ADDR_2); // Second unlock cycle
-    await gbc_write(input, new Uint8Array([FLASH_CMD_ERASE_SETUP]), GBC_FLASH_ADDR_1); // Erase setup command
-    await gbc_write(input, new Uint8Array([FLASH_CMD_UNLOCK_1]), GBC_FLASH_ADDR_1); // First unlock cycle (erase)
-    await gbc_write(input, new Uint8Array([FLASH_CMD_UNLOCK_2]), GBC_FLASH_ADDR_2); // Second unlock cycle (erase)
-    await gbc_write(input, new Uint8Array([FLASH_CMD_SECTOR_ERASE]), sectorAddress); // Sector Erase command
-
-    // Poll until erased (0xff) or timeout
-    const deadline = Date.now() + GBC_SECTOR_ERASE_TIMEOUT_MS;
-    let temp: Uint8Array;
-    do {
-      if (Date.now() > deadline) {
-        throw new Error(`erase timeout after ${GBC_SECTOR_ERASE_TIMEOUT_MS}ms`);
-      }
-      await timeout(GBC_SECTOR_ERASE_POLL_INTERVAL_MS);
-      temp = await gbc_read(input, 1, sectorAddress);
-    } while (temp[0] !== 0xff);
-
-    return true;
+    return await flashEraseSector(input, GBC_FLASH_CMD_SET, sectorAddress, sectorAddress, {
+      pollBytes: 1,
+      pollIntervalMs: GBC_SECTOR_ERASE_POLL_INTERVAL_MS,
+      timeoutMs: GBC_SECTOR_ERASE_TIMEOUT_MS,
+    });
   } catch (error) {
     throw new Error(`GBC ROM single sector erase failed (Address: ${formatHex(sectorAddress, 4)})`);
   }

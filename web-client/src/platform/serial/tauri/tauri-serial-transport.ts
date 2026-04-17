@@ -4,6 +4,7 @@ import { AdvancedSettings } from '@/settings/advanced-settings';
 import { withTimeout } from '@/utils/async-utils';
 
 import { Mutex } from '../mutex';
+import { createReadTimeoutError } from '../transport-errors';
 import type { Transport, TransportReadMode } from '../types';
 
 export class TauriSerialTransport implements Transport {
@@ -66,14 +67,17 @@ export class TauriSerialTransport implements Transport {
           const sessionRxBytes = this.totalRxBytes - startRxBytes;
           const sessionRxReads = this.totalRxReads - startRxReads;
           const sinceLastRxText = sinceLastRx >= 0 ? `, sinceLastRx=${sinceLastRx}ms` : '';
-          throw new Error(
-            `Read package timeout in ${timeout}ms `
-            + `(read#${readId}, expected=${length}B, received=${offset}B, `
-            + `sessionRx=${sessionRxBytes}B/${sessionRxReads}reads, `
-            + `totalRx=${this.totalRxBytes}B/${this.totalRxReads}reads, `
-            + `totalTx=${this.totalTxBytes}B/${this.totalTxPackets}packets, `
-            + `elapsed=${elapsed}ms${sinceLastRxText})`,
-          );
+          throw createReadTimeoutError({
+            timeout,
+            readId,
+            expectedLength: length,
+            receivedLength: offset,
+            diagnostics:
+              `sessionRx=${sessionRxBytes}B/${sessionRxReads}reads, `
+              + `totalRx=${this.totalRxBytes}B/${this.totalRxReads}reads, `
+              + `totalTx=${this.totalTxBytes}B/${this.totalTxPackets}packets, `
+              + `elapsed=${elapsed}ms${sinceLastRxText}`,
+          });
         }
         throw error;
       }

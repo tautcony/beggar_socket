@@ -1,8 +1,8 @@
 import type { SerialPortInfo } from '@/types/serial';
-import { timeout } from '@/utils/async-utils';
 import type { PortFilter } from '@/utils/port-filter';
 
 import { DEFAULT_SERIAL_CONFIG } from '../constants';
+import { initDeviceSignals } from '../device-signals';
 import { WebSerialTransport } from '../transports';
 import type { DeviceGateway, DeviceHandle, DeviceSelection } from '../types';
 
@@ -51,12 +51,7 @@ export class WebDeviceGateway implements DeviceGateway {
   }
 
   async init(device: DeviceHandle): Promise<void> {
-    await device.transport.setSignals({ dataTerminalReady: false, requestToSend: false });
-    await timeout(10);
-    await device.transport.setSignals({ dataTerminalReady: true, requestToSend: true });
-    await timeout(10);
-    await device.transport.setSignals({ dataTerminalReady: false, requestToSend: false });
-    await timeout(200);
+    await initDeviceSignals(device.transport);
   }
 
   async disconnect(device: DeviceHandle): Promise<void> {

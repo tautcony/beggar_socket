@@ -6,6 +6,7 @@ import { PortSelectionRequiredError } from '@/utils/errors/PortSelectionRequired
 import type { PortFilter } from '@/utils/port-filter';
 
 import { DEFAULT_SERIAL_CONFIG } from '../constants';
+import { initDeviceSignals } from '../device-signals';
 import type { DeviceGateway, DeviceHandle, DeviceSelection } from '../types';
 import { TauriSerialTransport } from './tauri-serial-transport';
 
@@ -194,15 +195,8 @@ export class TauriDeviceGateway implements DeviceGateway {
     const portLabel = describePort(device.portInfo ?? { path: 'unknown-port' });
 
     try {
-      console.info('[TauriDeviceGateway] init signals -> low', portLabel);
-      await device.transport.setSignals({ dataTerminalReady: false, requestToSend: false });
-      await timeout(10);
-      console.info('[TauriDeviceGateway] init signals -> high', portLabel);
-      await device.transport.setSignals({ dataTerminalReady: true, requestToSend: true });
-      await timeout(10);
-      console.info('[TauriDeviceGateway] init signals -> low reset', portLabel);
-      await device.transport.setSignals({ dataTerminalReady: false, requestToSend: false });
-      await timeout(200);
+      console.info('[TauriDeviceGateway] init signals start', portLabel);
+      await initDeviceSignals(device.transport);
       console.info('[TauriDeviceGateway] init complete', portLabel);
     } catch (error) {
       try {

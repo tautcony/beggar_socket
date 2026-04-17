@@ -3,6 +3,7 @@ import type { DefaultReader } from '@/types';
 import { withTimeout } from '@/utils/async-utils';
 
 import { Mutex } from './mutex';
+import { createReadTimeoutError } from './transport-errors';
 import type { Transport, TransportReadMode } from './types';
 
 const WEB_SERIAL_CLOSE_WAIT_TIMEOUT_MS = 2_000;
@@ -310,7 +311,7 @@ export class WebSerialTransport implements Transport {
     this.bufferedLength = 0;
   }
 
-  private createReadTimeoutError(params: {
+  private buildReadTimeoutError(params: {
     timeout: number;
     expectedLength: number;
     receivedLength: number;
@@ -336,15 +337,18 @@ export class WebSerialTransport implements Transport {
     const sessionRxChunks = this.totalRxChunks - startRxChunks;
     const sinceLastRxText = sinceLastRx >= 0 ? `, sinceLastRx=${sinceLastRx}ms` : '';
 
-    return new Error(
-      `Read package timeout in ${timeout}ms `
-      + `(read#${readId}, expected=${expectedLength}B, received=${receivedLength}B, `
-      + `buffered=${this.bufferedLength}B, initialBuffered=${initialBufferedLength}B, `
-      + `sessionRx=${sessionRxBytes}B/${sessionRxChunks}chunks, `
-      + `totalRx=${this.totalRxBytes}B/${this.totalRxChunks}chunks, `
-      + `totalTx=${this.totalTxBytes}B/${this.totalTxPackets}packets, `
-      + `elapsed=${elapsed}ms${sinceLastRxText}, streamDone=${this.streamDone})`,
-    );
+    return createReadTimeoutError({
+      timeout,
+      readId,
+      expectedLength,
+      receivedLength,
+      diagnostics:
+        `buffered=${this.bufferedLength}B, initialBuffered=${initialBufferedLength}B, `
+        + `sessionRx=${sessionRxBytes}B/${sessionRxChunks}chunks, `
+        + `totalRx=${this.totalRxBytes}B/${this.totalRxChunks}chunks, `
+        + `totalTx=${this.totalTxBytes}B/${this.totalTxPackets}packets, `
+        + `elapsed=${elapsed}ms${sinceLastRxText}, streamDone=${this.streamDone}`,
+    });
   }
 
   private async readFromBuffer(
@@ -378,7 +382,7 @@ export class WebSerialTransport implements Transport {
         await this.waitForData(timeout);
       } catch (error) {
         if (error instanceof Error && error.message.includes('Read package timeout')) {
-          throw this.createReadTimeoutError({
+          throw this.buildReadTimeoutError({
             timeout,
             expectedLength: length,
             receivedLength: offset,
