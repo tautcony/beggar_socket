@@ -1,6 +1,41 @@
 import { formatBytes, formatHex } from '@/utils/formatter-utils';
 
 /**
+ * CFI 数据结构偏移量常量
+ */
+const CFI_OFFSETS = {
+  // QRY identification string
+  QRY_Q: 0x20,
+  QRY_R: 0x22,
+  QRY_Y: 0x24,
+  // Primary algorithm address
+  PRI_ADDR_LOW: 0x2a,
+  PRI_ADDR_HIGH: 0x2c,
+  // Voltage range
+  VDD_MIN: 0x36,
+  VDD_MAX: 0x38,
+  // Timing — average
+  SINGLE_WRITE_AVG: 0x3e,
+  BUFFER_WRITE_AVG: 0x40,
+  SECTOR_ERASE_AVG: 0x42,
+  CHIP_ERASE_AVG: 0x44,
+  // Timing — max factor
+  SINGLE_WRITE_MAX: 0x46,
+  BUFFER_WRITE_MAX: 0x48,
+  SECTOR_ERASE_MAX: 0x4a,
+  CHIP_ERASE_MAX: 0x4c,
+  // Device geometry
+  DEVICE_SIZE: 0x4e,
+  BUFFER_SIZE_LOW: 0x54,
+  BUFFER_SIZE_HIGH: 0x56,
+  ERASE_REGIONS: 0x58,
+  REGION_BASE: 0x5a,
+  REGION_STRIDE: 8,
+  // PRI extended query (relative to priAddress)
+  PRI_BOOT_SECTOR: 0x1e,
+} as const;
+
+/**
  * 擦除扇区块信息接口
  */
 export interface SectorBlock {
@@ -168,9 +203,9 @@ export class CFIParser {
    */
   private detectFlashCharacteristics(buffer: Uint8Array, info: Partial<CFIInfo>): void {
 
-    const qryQ = buffer[0x20]; // 'Q' = 0x51
-    const qryR = buffer[0x22]; // 'R' = 0x52
-    const qryY = buffer[0x24]; // 'Y' = 0x59
+    const qryQ = buffer[CFI_OFFSETS.QRY_Q]; // 'Q' = 0x51
+    const qryR = buffer[CFI_OFFSETS.QRY_R]; // 'R' = 0x52
+    const qryY = buffer[CFI_OFFSETS.QRY_Y]; // 'Y' = 0x59
 
     // 存储原始魔数值
     info.magicValues = { q: qryQ, r: qryR, y: qryY };
@@ -253,160 +288,21 @@ export class CFIParser {
     }
 
     try {
-      // 提取Flash ID
-      // info.flashId = workBuffer.slice(0, 8);
-
       // 重新读取魔数
-      info.magic = String.fromCharCode(workBuffer[0x20]) +
-                   String.fromCharCode(workBuffer[0x22]) +
-                   String.fromCharCode(workBuffer[0x24]);
+      info.magic = String.fromCharCode(workBuffer[CFI_OFFSETS.QRY_Q]) +
+                   String.fromCharCode(workBuffer[CFI_OFFSETS.QRY_R]) +
+                   String.fromCharCode(workBuffer[CFI_OFFSETS.QRY_Y]);
 
-      // 检查电压范围信息
-      if (workBuffer[0x36] === 0xFF && workBuffer[0x48] === 0xFF) {
-        console.error('FAIL: No information about the voltage range found in CFI data.');
+      // 解析系统接口信息（电压、时序）
+      if (!this.parseSystemInterface(workBuffer, info)) {
         return false;
       }
 
-      // 获取主要地址
-      let priAddress = (workBuffer[0x2A] | (workBuffer[0x2C] << 8)) * 2;
-      // 同时检查固定阈值和实际缓冲区边界（最大 priAddress 偏移为 0x1E）
-      if ((priAddress + 0x3C) >= 0x400 || (priAddress + 0x1F) >= workBuffer.length) {
-        priAddress = 0x80;
-      }
+      // 解析 PRI 扩展查询（引导扇区信息）
+      this.parsePriExtended(workBuffer, info);
 
-      // 解析电压范围
-      info.vddMin = (workBuffer[0x36] >> 4) + ((workBuffer[0x36] & 0x0F) / 10);
-      info.vddMax = (workBuffer[0x38] >> 4) + ((workBuffer[0x38] & 0x0F) / 10);
-
-      // 解析写入时间信息
-      if (workBuffer[0x3E] > 0 && workBuffer[0x3E] < 0xFF) {
-        info.singleWrite = true;
-        info.singleWriteTimeAvg = Math.pow(2, workBuffer[0x3E]);
-        info.singleWriteTimeMax = Math.pow(2, workBuffer[0x46]) * info.singleWriteTimeAvg;
-      } else {
-        info.singleWrite = false;
-      }
-
-      // 解析缓冲写入信息
-      if (workBuffer[0x40] > 0 && workBuffer[0x40] < 0xFF) {
-        info.bufferWrite = true;
-        info.bufferWriteTimeAvg = Math.pow(2, workBuffer[0x40]);
-        info.bufferWriteTimeMax = Math.pow(2, workBuffer[0x48]) * info.bufferWriteTimeAvg;
-      } else {
-        info.bufferWrite = false;
-      }
-
-      // 解析扇区擦除时间
-      if (workBuffer[0x42] > 0 && workBuffer[0x42] < 0xFF) {
-        info.sectorErase = true;
-        info.sectorEraseTimeAvg = Math.pow(2, workBuffer[0x42]);
-        info.sectorEraseTimeMax = Math.pow(2, workBuffer[0x4A]) * info.sectorEraseTimeAvg;
-      } else {
-        info.sectorErase = false;
-      }
-
-      // 解析芯片擦除时间
-      if (workBuffer[0x44] > 0 && workBuffer[0x44] < 0xFF) {
-        info.chipErase = true;
-        info.chipEraseTimeAvg = Math.pow(2, workBuffer[0x44]);
-        info.chipEraseTimeMax = Math.pow(2, workBuffer[0x4C]) * info.chipEraseTimeAvg;
-      } else {
-        info.chipErase = false;
-      }
-
-      // 解析引导扇区信息
-      info.tbBootSector = false;
-      info.tbBootSectorRaw = 0;
-      info.reverseSectorRegion = false;
-
-      // 读取PRI字符串
-      function pickAscii(a: number, b: number): number {
-        if (a !== 0x00) return a;
-        if (b !== 0x00) return b;
-        return a; // 都为0x00则返回a
-      }
-
-      const priP = pickAscii(workBuffer[priAddress], workBuffer[priAddress + 1]);
-      const priR = pickAscii(workBuffer[priAddress + 2], workBuffer[priAddress + 3]);
-      const priI = pickAscii(workBuffer[priAddress + 4], workBuffer[priAddress + 5]);
-
-      if (String.fromCharCode(priP) + String.fromCharCode(priR) + String.fromCharCode(priI) === 'PRI') {
-        if (workBuffer[priAddress + 0x1E] !== 0 && workBuffer[priAddress + 0x1E] !== 0xFF) {
-          const bootSectorTypes: Record<number, string> = {
-            0x02: 'As shown',
-            0x03: 'Reversed',
-          };
-          info.tbBootSectorRaw = workBuffer[priAddress + 0x1E];
-          info.tbBootSector = bootSectorTypes[workBuffer[priAddress + 0x1E]] ||
-            formatHex(workBuffer[priAddress + 0x1E], 1);
-          if (bootSectorTypes[workBuffer[priAddress + 0x1E]]) {
-            info.tbBootSector += ` (${formatHex(workBuffer[priAddress + 0x1E], 1)})`;
-          }
-          // 判断是否需要反转扇区区域
-          info.reverseSectorRegion = workBuffer[priAddress + 0x1E] === 0x03;
-        }
-      }
-
-      // 解析设备大小
-      info.deviceSize = Math.pow(2, workBuffer[0x4E]);
-
-      // 解析缓冲区大小
-      const bufferSizeValue = (workBuffer[0x56] << 8) | workBuffer[0x54];
-      if (bufferSizeValue > 1) {
-        info.bufferWrite = true;
-        info.bufferSize = Math.pow(2, bufferSizeValue);
-      } else {
-        info.bufferWrite = false;
-      }
-
-      // 解析擦除扇区区域
-      info.eraseSectorRegions = workBuffer[0x58];
-      info.eraseSectorBlocks = [];
-
-      const regionInfo: { sectorCount: number; sectorSize: number; totalSize: number }[] = [];
-      let totalSize = 0;
-
-      // 首先收集所有区域信息
-      for (let i = 0; i < Math.min(4, info.eraseSectorRegions); i++) {
-        const sectorCount = ((workBuffer[0x5C + (i * 8)] << 8) | workBuffer[0x5A + (i * 8)]) + 1; // 扇区数量
-        const sectorSize = ((workBuffer[0x60 + (i * 8)] << 8) | workBuffer[0x5E + (i * 8)]) * 256; // 扇区大小
-        const regionTotalSize = sectorCount * sectorSize; // 区域总大小
-
-        regionInfo.push({
-          sectorCount,
-          sectorSize,
-          totalSize: regionTotalSize,
-        });
-        totalSize += regionTotalSize;
-      }
-
-      // 根据reverseSectorRegion标志分配扇区区域地址并创建EraseSectorBlock对象
-      const createSectorBlock = (region: typeof regionInfo[0], startAddr: number): SectorBlock => ({
-        sectorSize: region.sectorSize,
-        sectorCount: region.sectorCount,
-        totalSize: region.totalSize,
-        startAddress: startAddr,
-        endAddress: startAddr + region.totalSize - 1,
-      });
-
-      if (info.reverseSectorRegion) {
-        // 从高地址向低地址分配扇区区域（反转模式）
-        let currentAddr = totalSize;
-        for (let i = 0; i < regionInfo.length; i++) {
-          const region = regionInfo[i];
-          currentAddr -= region.totalSize;
-          const reverseIndex = regionInfo.length - 1 - i;
-          info.eraseSectorBlocks[reverseIndex] = createSectorBlock(region, currentAddr);
-        }
-      } else {
-        // 从低地址向高地址分配扇区区域（正常模式）
-        let currentAddr = 0;
-        for (let i = 0; i < regionInfo.length; i++) {
-          const region = regionInfo[i];
-          info.eraseSectorBlocks[i] = createSectorBlock(region, currentAddr);
-          currentAddr += region.totalSize;
-        }
-      }
+      // 解析设备几何信息（大小、擦除区域）
+      this.parseDeviceGeometry(workBuffer, info);
 
       // 生成信息摘要
       info.info = this.generateInfoString(info as CFIInfo);
@@ -416,6 +312,151 @@ export class CFIParser {
     } catch (error) {
       console.error('ERROR: Trying to parse CFI data resulted in an error:', error);
       return false;
+    }
+  }
+
+  private parseSystemInterface(buf: Uint8Array, info: Partial<CFIInfo>): boolean {
+    // 检查电压范围信息
+    if (buf[CFI_OFFSETS.VDD_MIN] === 0xFF && buf[CFI_OFFSETS.BUFFER_WRITE_MAX] === 0xFF) {
+      console.error('FAIL: No information about the voltage range found in CFI data.');
+      return false;
+    }
+
+    // 解析电压范围
+    info.vddMin = (buf[CFI_OFFSETS.VDD_MIN] >> 4) + ((buf[CFI_OFFSETS.VDD_MIN] & 0x0F) / 10);
+    info.vddMax = (buf[CFI_OFFSETS.VDD_MAX] >> 4) + ((buf[CFI_OFFSETS.VDD_MAX] & 0x0F) / 10);
+
+    // 解析写入时间信息
+    if (buf[CFI_OFFSETS.SINGLE_WRITE_AVG] > 0 && buf[CFI_OFFSETS.SINGLE_WRITE_AVG] < 0xFF) {
+      info.singleWrite = true;
+      info.singleWriteTimeAvg = Math.pow(2, buf[CFI_OFFSETS.SINGLE_WRITE_AVG]);
+      info.singleWriteTimeMax = Math.pow(2, buf[CFI_OFFSETS.SINGLE_WRITE_MAX]) * info.singleWriteTimeAvg;
+    } else {
+      info.singleWrite = false;
+    }
+
+    // 解析缓冲写入信息
+    if (buf[CFI_OFFSETS.BUFFER_WRITE_AVG] > 0 && buf[CFI_OFFSETS.BUFFER_WRITE_AVG] < 0xFF) {
+      info.bufferWrite = true;
+      info.bufferWriteTimeAvg = Math.pow(2, buf[CFI_OFFSETS.BUFFER_WRITE_AVG]);
+      info.bufferWriteTimeMax = Math.pow(2, buf[CFI_OFFSETS.BUFFER_WRITE_MAX]) * info.bufferWriteTimeAvg;
+    } else {
+      info.bufferWrite = false;
+    }
+
+    // 解析扇区擦除时间
+    if (buf[CFI_OFFSETS.SECTOR_ERASE_AVG] > 0 && buf[CFI_OFFSETS.SECTOR_ERASE_AVG] < 0xFF) {
+      info.sectorErase = true;
+      info.sectorEraseTimeAvg = Math.pow(2, buf[CFI_OFFSETS.SECTOR_ERASE_AVG]);
+      info.sectorEraseTimeMax = Math.pow(2, buf[CFI_OFFSETS.SECTOR_ERASE_MAX]) * info.sectorEraseTimeAvg;
+    } else {
+      info.sectorErase = false;
+    }
+
+    // 解析芯片擦除时间
+    if (buf[CFI_OFFSETS.CHIP_ERASE_AVG] > 0 && buf[CFI_OFFSETS.CHIP_ERASE_AVG] < 0xFF) {
+      info.chipErase = true;
+      info.chipEraseTimeAvg = Math.pow(2, buf[CFI_OFFSETS.CHIP_ERASE_AVG]);
+      info.chipEraseTimeMax = Math.pow(2, buf[CFI_OFFSETS.CHIP_ERASE_MAX]) * info.chipEraseTimeAvg;
+    } else {
+      info.chipErase = false;
+    }
+
+    return true;
+  }
+
+  private parsePriExtended(buf: Uint8Array, info: Partial<CFIInfo>): void {
+    info.tbBootSector = false;
+    info.tbBootSectorRaw = 0;
+    info.reverseSectorRegion = false;
+
+    // 获取 PRI 地址
+    let priAddress = (buf[CFI_OFFSETS.PRI_ADDR_LOW] | (buf[CFI_OFFSETS.PRI_ADDR_HIGH] << 8)) * 2;
+    if ((priAddress + 0x3C) >= 0x400 || (priAddress + 0x1F) >= buf.length) {
+      priAddress = 0x80;
+    }
+
+    // 读取PRI字符串
+    function pickAscii(a: number, b: number): number {
+      if (a !== 0x00) return a;
+      if (b !== 0x00) return b;
+      return a;
+    }
+
+    const priP = pickAscii(buf[priAddress], buf[priAddress + 1]);
+    const priR = pickAscii(buf[priAddress + 2], buf[priAddress + 3]);
+    const priI = pickAscii(buf[priAddress + 4], buf[priAddress + 5]);
+
+    if (String.fromCharCode(priP) + String.fromCharCode(priR) + String.fromCharCode(priI) === 'PRI') {
+      const bootVal = buf[priAddress + CFI_OFFSETS.PRI_BOOT_SECTOR];
+      if (bootVal !== 0 && bootVal !== 0xFF) {
+        const bootSectorTypes: Record<number, string> = {
+          0x02: 'As shown',
+          0x03: 'Reversed',
+        };
+        info.tbBootSectorRaw = bootVal;
+        info.tbBootSector = bootSectorTypes[bootVal] || formatHex(bootVal, 1);
+        if (bootSectorTypes[bootVal]) {
+          info.tbBootSector += ` (${formatHex(bootVal, 1)})`;
+        }
+        info.reverseSectorRegion = bootVal === 0x03;
+      }
+    }
+  }
+
+  private parseDeviceGeometry(buf: Uint8Array, info: Partial<CFIInfo>): void {
+    // 解析设备大小
+    info.deviceSize = Math.pow(2, buf[CFI_OFFSETS.DEVICE_SIZE]);
+
+    // 解析缓冲区大小
+    const bufferSizeValue = (buf[CFI_OFFSETS.BUFFER_SIZE_HIGH] << 8) | buf[CFI_OFFSETS.BUFFER_SIZE_LOW];
+    if (bufferSizeValue > 1) {
+      info.bufferWrite = true;
+      info.bufferSize = Math.pow(2, bufferSizeValue);
+    } else {
+      info.bufferWrite = false;
+    }
+
+    // 解析擦除扇区区域
+    info.eraseSectorRegions = buf[CFI_OFFSETS.ERASE_REGIONS];
+    info.eraseSectorBlocks = [];
+
+    const regionInfo: { sectorCount: number; sectorSize: number; totalSize: number }[] = [];
+    let totalSize = 0;
+
+    for (let i = 0; i < Math.min(4, info.eraseSectorRegions); i++) {
+      const base = CFI_OFFSETS.REGION_BASE + i * CFI_OFFSETS.REGION_STRIDE;
+      const sectorCount = ((buf[base + 2] << 8) | buf[base]) + 1;
+      const sectorSize = ((buf[base + 6] << 8) | buf[base + 4]) * 256;
+      const regionTotalSize = sectorCount * sectorSize;
+
+      regionInfo.push({ sectorCount, sectorSize, totalSize: regionTotalSize });
+      totalSize += regionTotalSize;
+    }
+
+    const createSectorBlock = (region: typeof regionInfo[0], startAddr: number): SectorBlock => ({
+      sectorSize: region.sectorSize,
+      sectorCount: region.sectorCount,
+      totalSize: region.totalSize,
+      startAddress: startAddr,
+      endAddress: startAddr + region.totalSize - 1,
+    });
+
+    if (info.reverseSectorRegion) {
+      let currentAddr = totalSize;
+      for (let i = 0; i < regionInfo.length; i++) {
+        const region = regionInfo[i];
+        currentAddr -= region.totalSize;
+        const reverseIndex = regionInfo.length - 1 - i;
+        info.eraseSectorBlocks[reverseIndex] = createSectorBlock(region, currentAddr);
+      }
+    } else {
+      let currentAddr = 0;
+      for (let i = 0; i < regionInfo.length; i++) {
+        const region = regionInfo[i];
+        info.eraseSectorBlocks[i] = createSectorBlock(region, currentAddr);
+        currentAddr += region.totalSize;
+      }
     }
   }
 

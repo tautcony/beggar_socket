@@ -238,23 +238,26 @@ export function calculateUsedSpace(slots: RomSlot[]): number {
 }
 
 /**
+ * 生成 HSL 颜色字符串
+ */
+function generateHslColor(hue: number, saturation: number, lightness: number): string {
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+}
+
+/**
  * 生成槽位颜色（更好的区分度和视觉效果）
  */
 export function generateSlotColor(index: number, total: number): string {
-  // 使用黄金比例来确保颜色分布均匀
-  const goldenRatio = 0.618033988749;
-  const hue = (index * goldenRatio * 360) % 360;
-
   // 为前两个特殊槽位使用不同的配色方案
   if (index < 2) {
     // 前两个槽位使用暖色调
     const warmHues = [15, 45]; // 橙色和黄色系
-    return `hsl(${warmHues[index]}, 60%, 85%)`;
+    return generateHslColor(warmHues[index], 60, 85);
   }
 
   // 其他槽位使用冷色调，避免与文件颜色冲突
   const coolHue = 200 + (index * 20) % 120; // 蓝绿色系
-  return `hsl(${coolHue}, 40%, 90%)`;
+  return generateHslColor(coolHue, 40, 90);
 }
 
 /**
@@ -271,12 +274,10 @@ function generateFileColor(fileName: string): string {
 
   // 使用哈希值生成HSL颜色，确保更好的区分度和亮度
   const hue = Math.abs(hash) % 360;
-
-  // 使用更高的饱和度和适中的亮度，避免暗色调
   const saturation = 70 + (Math.abs(hash >> 8) % 20); // 70-90%
   const lightness = 65 + (Math.abs(hash >> 16) % 15); // 65-80%
 
-  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+  return generateHslColor(hue, saturation, lightness);
 }
 
 /**

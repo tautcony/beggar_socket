@@ -88,17 +88,14 @@ const INVALID_ROM_INFO = (romSize: number) => ({
 }) as RomInfo;
 
 /**
- * 验证GBA Nintendo Logo
- * @param data ROM数据
- * @returns 是否匹配
+ * 通用 Logo 验证
  */
-export function validateGBALogo(data: Uint8Array): boolean {
-  if (data.length < GBA_HEADER.LOGO_OFFSET + GBA_NINTENDO_LOGO.length) {
+function validateLogo(data: Uint8Array, expectedLogo: Uint8Array, offset: number): boolean {
+  if (data.length < offset + expectedLogo.length) {
     return false;
   }
-
-  for (let i = 0; i < GBA_NINTENDO_LOGO.length; i++) {
-    if (data[GBA_HEADER.LOGO_OFFSET + i] !== GBA_NINTENDO_LOGO[i]) {
+  for (let i = 0; i < expectedLogo.length; i++) {
+    if (data[offset + i] !== expectedLogo[i]) {
       return false;
     }
   }
@@ -106,21 +103,29 @@ export function validateGBALogo(data: Uint8Array): boolean {
 }
 
 /**
+ * 通用头部校验和计算
+ * GBA: -(sum + 0x19) & 0xFF; GB: equivalent via byte count
+ */
+function calculateHeaderChecksum(data: Uint8Array, start: number, end: number, adjustment: number): number {
+  let sum = 0;
+  for (let i = start; i <= end; i++) {
+    sum += data[i];
+  }
+  return (-(sum + adjustment)) & 0xFF;
+}
+
+/**
+ * 验证GBA Nintendo Logo
+ */
+export function validateGBALogo(data: Uint8Array): boolean {
+  return validateLogo(data, GBA_NINTENDO_LOGO, GBA_HEADER.LOGO_OFFSET);
+}
+
+/**
  * 验证GB/GBC Nintendo Logo
- * @param data ROM数据
- * @returns 是否匹配
  */
 export function validateGBLogo(data: Uint8Array): boolean {
-  if (data.length < GB_HEADER.LOGO_OFFSET + GB_NINTENDO_LOGO.length) {
-    return false;
-  }
-
-  for (let i = 0; i < GB_NINTENDO_LOGO.length; i++) {
-    if (data[GB_HEADER.LOGO_OFFSET + i] !== GB_NINTENDO_LOGO[i]) {
-      return false;
-    }
-  }
-  return true;
+  return validateLogo(data, GB_NINTENDO_LOGO, GB_HEADER.LOGO_OFFSET);
 }
 
 /**
@@ -346,28 +351,17 @@ function detectRomType(data: Uint8Array): 'GBA' | 'GB' | 'Unknown' {
 
 /**
  * 计算GBA头部校验和
- * @param data ROM数据
- * @returns 校验和
  */
 export function calculateGBAChecksum(data: Uint8Array): number {
-  let headerSum = 0;
-  for (let i = GBA_HEADER.CHECKSUM_START; i <= GBA_HEADER.CHECKSUM_END; i++) {
-    headerSum += data[i];
-  }
-  return (-(headerSum + 0x19)) & 0xFF;
+  return calculateHeaderChecksum(data, GBA_HEADER.CHECKSUM_START, GBA_HEADER.CHECKSUM_END, 0x19);
 }
 
 /**
  * 计算GB/GBC头部校验和
- * @param data ROM数据
- * @returns 校验和
  */
 export function calculateGBChecksum(data: Uint8Array): number {
-  let checksum = 0;
-  for (let i = GB_HEADER.CHECKSUM_START; i <= GB_HEADER.CHECKSUM_END; i++) {
-    checksum = checksum - data[i] - 1;
-  }
-  return checksum & 0xFF;
+  // GB range: 0x134–0x14C = 25 bytes; -(sum + 25) & 0xFF ≡ -(sum + 0x19) & 0xFF
+  return calculateHeaderChecksum(data, GB_HEADER.CHECKSUM_START, GB_HEADER.CHECKSUM_END, GB_HEADER.CHECKSUM_END - GB_HEADER.CHECKSUM_START + 1);
 }
 
 /**

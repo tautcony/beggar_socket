@@ -233,7 +233,7 @@ describe('AdvancedSettings', () => {
       const result = AdvancedSettings.validateSettings({
         size: { romPageSize: 512, ramPageSize: 256 },
         throttle: { romRead: 100, ramRead: 50 },
-        timeout: { default: 3000, operation: 30000 },
+        timeout: { default: 3000, packageSend: 3000, packageReceive: 3000, operation: 30000 },
       });
       expect(result.valid).toBe(true);
       expect(result.errors).toHaveLength(0);
@@ -250,7 +250,7 @@ describe('AdvancedSettings', () => {
 
     it('catches out-of-range timeouts', () => {
       const result = AdvancedSettings.validateSettings({
-        timeout: { default: 500, packageSend: 999999 },
+        timeout: { default: 500, packageSend: 999999, packageReceive: 3000, operation: 30000 },
       });
       expect(result.valid).toBe(false);
       expect(result.errors).toContain('default timeout must be between 1000ms and 300000ms');
