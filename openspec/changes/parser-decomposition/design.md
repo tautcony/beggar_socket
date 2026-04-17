@@ -2,7 +2,7 @@
 
 web-client 的解析器层包含两个核心文件：`cfi-parser.ts`（596 行，CFI flash 信息解析）和 `rom-parser.ts`（570 行，ROM 头部解析）。代码审查（review-2026-04-17 Phase 5）发现 `CFIParser.parse()` 约 380 行是单个方法，包含偏移量解析、位操作、状态积累等多种职责。`rom-parser.ts` 中 logo 验证和 checksum 计算有 GBA/GB 两组结构相似的独立实现。`rom-editor.ts` 中的 ROM 更新函数和 `rom-assembly-utils.ts` 中的颜色生成函数也有类似重复。
 
-本变更依赖 `shared-constants-extraction` 已完成的偏移量常量定义（`GBA_HEADER`/`GB_HEADER` 对象）。如果常量提取尚未实施，本变更在提取子方法时可同步定义局部常量。
+本变更依赖的 `shared-constants-extraction` 已完成并归档（`GBA_HEADER`/`GB_HEADER` 偏移量常量对象已在 `utils/parsers/constants.ts` 中定义）。本变更可直接引用这些常量。
 
 ## Goals / Non-Goals
 
