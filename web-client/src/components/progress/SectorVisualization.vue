@@ -189,7 +189,7 @@ const sectorStateClassMap: Record<SectorProgressInfo['state'], string> = {
   error: 'sector-error',
 };
 
-const currentSectorStates = new Set<SectorProgressInfo['state']>(['processing']);
+const currentSectorStates = new Set<SectorProgressInfo['state']>(['processing', 'erasing']);
 
 interface SectorDisplayInfo {
   index: number;

@@ -65,9 +65,11 @@ async function flashProgramRom(
   bufferSize: number,
   errorLabel: string,
 ): Promise<void> {
+  /*
   if (data.length > bufferSize) {
     throw new RangeError(`Data length ${data.length} exceeds buffer size ${bufferSize}`);
   }
+  */
   const payload = createCommandPayload(command)
     .addAddress(baseAddress)
     .addLength(bufferSize)

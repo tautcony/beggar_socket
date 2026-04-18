@@ -6,7 +6,7 @@ import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { ProgressInfo, SectorProgressInfo, type SectorSizeClass } from '@/types/progress-info';
 import { timeout } from '@/utils/async-utils';
-import { type BurnerLogInput, formatBurnerLogMessage } from '@/utils/burner-log';
+import { type BurnerLogInput, errorToBurnerLog, formatBurnerLogMessage } from '@/utils/burner-log';
 import NotImplementedError from '@/utils/errors/NotImplementedError';
 import { formatBytes, formatHex, formatSpeed, formatTimeDuration } from '@/utils/formatter-utils';
 import { PerformanceTracker } from '@/utils/monitoring/sentry-tracker';
@@ -304,8 +304,10 @@ export class CartridgeAdapter {
       } catch (error) {
         lastError = error;
         this.log(
-          `ROM read retry ${attempt}/${attempts} @ ${formatHex(logicalAddress, 4)} `
-          + `(${chunkSize}B): ${error instanceof Error ? error.message : String(error)}`,
+          errorToBurnerLog(
+            `ROM read retry ${attempt}/${attempts} @ ${formatHex(logicalAddress, 4)} (${chunkSize}B)`,
+            error,
+          ),
           'warn',
         );
         if (attempt < attempts) {
@@ -413,7 +415,7 @@ export class CartridgeAdapter {
         } catch (e) {
           const pr = new ProgressReporter('read', size, (pi) => { this.updateProgress(pi); }, (k, p) => this.t(k, p), showProgress);
           pr.reportError(this.t('messages.rom.readFailed'));
-          this.log(`${this.t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+          this.log(errorToBurnerLog(this.t('messages.rom.readFailed'), e), 'error');
           return { success: false, message: this.t('messages.rom.readFailed') };
         }
       },
@@ -449,7 +451,7 @@ export class CartridgeAdapter {
               const flashName = getFlashName([...flashId]);
               this.log(`Flash ID: ${idStr} (${flashName})`, 'info');
             } catch (e) {
-              this.log(`${this.t('messages.operation.readIdFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'warn');
+              this.log(errorToBurnerLog(this.t('messages.operation.readIdFailed'), e), 'warn');
             }
 
             this.log(this.t('messages.operation.cfiParseSuccess'), 'success');
@@ -457,7 +459,7 @@ export class CartridgeAdapter {
             return cfiInfo;
           });
         } catch (e) {
-          this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+          this.log(errorToBurnerLog(this.t('messages.operation.romSizeQueryFailed'), e), 'error');
           return false;
         }
       },

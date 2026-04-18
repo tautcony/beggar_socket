@@ -624,6 +624,7 @@
       "eraseSuccess": "Стирание успешно",
       "eraseFailed": "Ошибка стирания",
       "eraseSector": "Стирание сектора {from} - {to}",
+      "eraseSectorSkipped": "пропущено, пустой образец {samples}",
       "writeSuccess": "Запись успешна",
       "writeFailed": "Ошибка записи",
       "readSuccess": "Чтение успешно",

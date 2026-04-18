@@ -74,7 +74,7 @@ async function executeProtocolPayloadRead(
     if (reason === 'timeout') {
       throw new ProtocolPacketReadError(
         'PACKET_TIMEOUT',
-        `${prefix}, Reason: packet read timeout, Detail: ${detail}`,
+        `${prefix}, Reason: packet read timeout`,
         detail,
         { cause: error },
       );
@@ -82,14 +82,14 @@ async function executeProtocolPayloadRead(
     if (reason === 'length') {
       throw new ProtocolPacketReadError(
         'LENGTH_MISMATCH',
-        `${prefix}, Reason: invalid packet length, Detail: ${detail}`,
+        `${prefix}, Reason: invalid packet length`,
         detail,
         { cause: error },
       );
     }
     throw new ProtocolPacketReadError(
       'TRANSPORT_FAILURE',
-      `${prefix}, Reason: packet read transport error, Detail: ${detail}`,
+      `${prefix}, Reason: packet read transport error`,
       detail,
       { cause: error },
     );

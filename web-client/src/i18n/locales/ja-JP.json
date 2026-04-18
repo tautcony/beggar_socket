@@ -626,6 +626,7 @@
       "eraseSuccess": "消去成功",
       "eraseFailed": "消去失敗",
       "eraseSector": "セクターを消去中 {from} - {to}",
+      "eraseSectorSkipped": "空白サンプルによりスキップ、{samples}",
       "writeSuccess": "書き込み成功",
       "writeFailed": "書き込み失敗",
       "readSuccess": "読み取り成功",

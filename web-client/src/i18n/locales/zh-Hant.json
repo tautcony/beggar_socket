@@ -626,6 +626,7 @@
       "eraseSuccess": "擦除成功",
       "eraseFailed": "擦除失敗",
       "eraseSector": "擦除扇區 {from} - {to}",
+      "eraseSectorSkipped": "空白採樣跳過，{samples}",
       "writeSuccess": "寫入成功",
       "writeFailed": "寫入失敗",
       "readSuccess": "讀取成功",

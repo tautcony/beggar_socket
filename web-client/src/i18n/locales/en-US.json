@@ -637,6 +637,7 @@
       "eraseSuccess": "Erase successful",
       "eraseFailed": "Erase failed",
       "eraseSector": "Erasing sector {from} - {to}",
+      "eraseSectorSkipped": "skipped, blank sample {samples}",
       "writeSuccess": "Write successful",
       "writeFailed": "Write failed",
       "readSuccess": "Read successful",

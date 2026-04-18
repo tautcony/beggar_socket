@@ -179,7 +179,10 @@ const visible = ref(false);
 const isCancelled = ref(false);
 const now = ref(Date.now());
 const lastUpdateTime = ref(Date.now());
+const instantProgressFill = ref(false);
 let timer: number | undefined;
+let instantProgressFrame: number | undefined;
+let releaseProgressFrame: number | undefined;
 const TIME_REFRESH_INTERVAL_MS = 100;
 
 const normalizedProgress = computed(() => {
@@ -187,11 +190,38 @@ const normalizedProgress = computed(() => {
   return Math.max(0, Math.min(100, value));
 });
 
-const useInstantProgressFill = computed(() => isTauri());
+const useInstantProgressFill = computed(() => isTauri() || instantProgressFill.value);
 
 const progressBarFillStyle = computed(() => ({
   width: `${normalizedProgress.value}%`,
 }));
+
+function clearProgressFillFrames() {
+  if (instantProgressFrame !== undefined) {
+    cancelAnimationFrame(instantProgressFrame);
+    instantProgressFrame = undefined;
+  }
+  if (releaseProgressFrame !== undefined) {
+    cancelAnimationFrame(releaseProgressFrame);
+    releaseProgressFrame = undefined;
+  }
+}
+
+function snapProgressFillToCurrentValue() {
+  if (isTauri()) {
+    return;
+  }
+
+  clearProgressFillFrames();
+  instantProgressFill.value = true;
+  instantProgressFrame = requestAnimationFrame(() => {
+    instantProgressFrame = undefined;
+    releaseProgressFrame = requestAnimationFrame(() => {
+      releaseProgressFrame = undefined;
+      instantProgressFill.value = false;
+    });
+  });
+}
 
 const isCompleted = computed(() => {
   return props.progress === 100 || props.state === 'completed';
@@ -290,6 +320,19 @@ watch(() => props.progress, (newProgress) => {
   }
 }, { immediate: true });
 
+watch(
+  [() => props.type, normalizedProgress],
+  ([type, progress], [prevType, prevProgress]) => {
+    if (prevType === undefined || prevProgress === undefined) {
+      return;
+    }
+
+    if (type !== prevType || progress < prevProgress) {
+      snapProgressFillToCurrentValue();
+    }
+  },
+);
+
 // 监听其他可能表示数据更新的属性
 watch([
   () => props.transferredBytes,
@@ -300,6 +343,7 @@ watch([
 });
 
 onUnmounted(() => {
+  clearProgressFillFrames();
   if (timer) clearInterval(timer);
 });
 

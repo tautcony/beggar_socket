@@ -19,6 +19,7 @@ import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import type { SectorProgressInfo } from '@/types/progress-info';
 import { timeout } from '@/utils/async-utils';
+import { errorToBurnerLog } from '@/utils/burner-log';
 import { formatBytes, formatHex, formatSpeed, formatTimeDuration } from '@/utils/formatter-utils';
 import { PerformanceTracker } from '@/utils/monitoring/sentry-tracker';
 import { CFIInfo, parseCFI, SectorBlock } from '@/utils/parsers/cfi-parser';
@@ -201,8 +202,10 @@ export class MBC5Adapter extends CartridgeAdapter {
       } catch (error) {
         lastError = error;
         this.log(
-          `ROM sector erase retry ${attempt}/${attempts} @ ${formatHex(sector.address, 4)} `
-          + `(${reason}): ${this.describeError(error)}`,
+          errorToBurnerLog(
+            `ROM sector erase retry ${attempt}/${attempts} @ ${formatHex(sector.address, 4)} (${reason})`,
+            error,
+          ),
           'warn',
         );
 
@@ -245,9 +248,11 @@ export class MBC5Adapter extends CartridgeAdapter {
       } catch (error) {
         lastError = error;
         this.log(
-          `RAM chunk read retry ${attempt}/${attempts} #${chunkIndex} @ ${formatHex(logicalAddress, 4)} `
-          + `(cart ${formatHex(cartAddress, 4)}, bank ${bank}, ${chunkSize}B, timeout ${timeoutMs}ms, type ${ramType}): `
-          + (error instanceof Error ? error.message : String(error)),
+          errorToBurnerLog(
+            `RAM chunk read retry ${attempt}/${attempts} #${chunkIndex} @ ${formatHex(logicalAddress, 4)} `
+            + `(cart ${formatHex(cartAddress, 4)}, bank ${bank}, ${chunkSize}B, timeout ${timeoutMs}ms, type ${ramType})`,
+            error,
+          ),
           'warn',
         );
 
@@ -401,7 +406,7 @@ export class MBC5Adapter extends CartridgeAdapter {
 
       return 0;
     } catch (e) {
-      this.log(`${this.t('messages.operation.calculateEraseTimeoutFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'warn');
+      this.log(errorToBurnerLog(this.t('messages.operation.calculateEraseTimeoutFailed'), e), 'warn');
       return 0;
     }
   }
@@ -485,7 +490,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             };
           }
 
-          this.log(`${this.t('messages.operation.eraseFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+          this.log(errorToBurnerLog(this.t('messages.operation.eraseFailed'), e), 'error');
           return {
             success: false,
             message: this.t('messages.operation.eraseFailed'),
@@ -580,11 +585,6 @@ export class MBC5Adapter extends CartridgeAdapter {
                 sector.address,
               );
 
-              this.log(this.t('messages.operation.eraseSector', {
-                from: formatHex(sector.address, 4),
-                to: formatHex(sector.address + sector.size - 1, 4),
-              }), 'info');
-
               const { bank } = this.romBankRelevantAddress(sector.address, mbcType);
               if (bank !== currentBank) {
                 currentBank = bank;
@@ -594,17 +594,24 @@ export class MBC5Adapter extends CartridgeAdapter {
               let skippedBySample = false;
               if (allowSampleSkip) {
                 const sampleBlank = await this.sampleRomRegionBlank(sector.address, sector.size, mbcType);
-                if (sampleBlank) {
-                  skippedBySample = true;
-                  this.log(
-                    `ROM erase skipped after blank sample @ ${formatHex(sector.address, 4)}-${formatHex(sector.address + sector.size - 1, 4)} `
-                    + `(samples=${MBC5Adapter.ROM_WRITE_SAMPLE_COUNT}x${MBC5Adapter.ROM_WRITE_SAMPLE_BYTES}B)`,
-                    'info',
-                  );
-                }
+                skippedBySample = sampleBlank;
               }
 
-              if (!skippedBySample) {
+              if (skippedBySample) {
+                this.log({
+                  message: this.t('messages.operation.eraseSector', {
+                    from: formatHex(sector.address, 4),
+                    to: formatHex(sector.address + sector.size - 1, 4),
+                  }),
+                  details: this.t('messages.operation.eraseSectorSkipped', {
+                    samples: `${MBC5Adapter.ROM_WRITE_SAMPLE_COUNT}x${MBC5Adapter.ROM_WRITE_SAMPLE_BYTES}B`,
+                  }),
+                }, 'info');
+              } else {
+                this.log(this.t('messages.operation.eraseSector', {
+                  from: formatHex(sector.address, 4),
+                  to: formatHex(sector.address + sector.size - 1, 4),
+                }), 'info');
                 await this.eraseRomSectorWithRetry(sector, mbcType, 'prepare', signal);
               }
               const sectorEndTime = Date.now();
@@ -668,9 +675,10 @@ export class MBC5Adapter extends CartridgeAdapter {
             (progressInfo) => { this.updateProgress(progressInfo); },
             (key, params) => this.t(key, params),
           );
-          const errorMessage = `${this.t('messages.operation.eraseSectorFailed')}: ${this.describeError(e)}`;
+          const errorLog = errorToBurnerLog(this.t('messages.operation.eraseSectorFailed'), e);
+          const errorMessage = this.summarizeLogMessage(errorLog);
           progressReporter.reportError(errorMessage);
-          this.log(errorMessage, 'error');
+          this.log(errorLog, 'error');
           return {
             success: false,
             message: errorMessage,
@@ -745,19 +753,21 @@ export class MBC5Adapter extends CartridgeAdapter {
               const sector = sectors[sectorIndex];
               const retriesUsed = sectorWriteRetryCounts.get(sector.address) ?? 0;
               const maxRetries = AdvancedSettings.romWriteRetryCount;
-              const reasonText = this.describeError(reason);
-              const rawRetryMessage = `ROM write retry ${retriesUsed + 1}/${maxRetries + 1} @ ${formatHex(sector.address, 4)}: ${reasonText}`;
+              const retryLog = errorToBurnerLog(
+                `ROM write retry ${retriesUsed + 1}/${maxRetries + 1} @ ${formatHex(sector.address, 4)}`,
+                reason,
+              );
               const writeFailureMessage = this.summarizeLogMessage(
-                `${this.t('messages.rom.writeFailed')}: ${reasonText}`,
+                errorToBurnerLog(this.t('messages.rom.writeFailed'), reason),
               );
 
               if (retriesUsed >= maxRetries) {
-                throw new Error(`ROM write retries exhausted @ ${formatHex(sector.address, 4)}: ${reasonText}`);
+                throw new Error(`ROM write retries exhausted @ ${formatHex(sector.address, 4)}: ${this.describeError(reason)}`);
               }
 
               const nextRetry = retriesUsed + 1;
               sectorWriteRetryCounts.set(sector.address, nextRetry);
-              this.log(rawRetryMessage, 'warn');
+              this.log(retryLog, 'warn');
 
               progressReporter.emitProgress(
                 written,
@@ -893,12 +903,10 @@ export class MBC5Adapter extends CartridgeAdapter {
             (progressInfo) => { this.updateProgress(progressInfo); },
             (key, params) => this.t(key, params),
           );
-          const rawErrorMessage = `${this.t('messages.rom.writeFailed')}: ${this.describeError(e)}`;
-          const errorMessage = this.summarizeLogMessage(
-            rawErrorMessage,
-          );
+          const errorLog = errorToBurnerLog(this.t('messages.rom.writeFailed'), e);
+          const errorMessage = this.summarizeLogMessage(errorLog);
           progressReporter.reportError(errorMessage);
-          this.log(rawErrorMessage, 'error');
+          this.log(errorLog, 'error');
           return {
             success: false,
             message: errorMessage,
@@ -1076,7 +1084,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             showProgress,
           );
           progressReporter.reportError(this.t('messages.rom.readFailed'));
-          this.log(`${this.t('messages.rom.readFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+          this.log(errorToBurnerLog(this.t('messages.rom.readFailed'), e), 'error');
           return {
             success: false,
             message: this.t('messages.rom.readFailed'),
@@ -1323,7 +1331,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             (key, params) => this.t(key, params),
           );
           progressReporter.reportError(this.t('messages.rom.verifyFailed'));
-          this.log(`${this.t('messages.rom.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+          this.log(errorToBurnerLog(this.t('messages.rom.verifyFailed'), e), 'error');
           return {
             success: false,
             message: this.t('messages.rom.verifyFailed'),
@@ -1437,7 +1445,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             };
           });
         } catch (e) {
-          this.log(`${this.t('messages.ram.writeFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+          this.log(errorToBurnerLog(this.t('messages.ram.writeFailed'), e), 'error');
           return {
             success: false,
             message: this.t('messages.ram.writeFailed'),
@@ -1555,7 +1563,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             };
           });
         } catch (e) {
-          this.log(`${this.t('messages.ram.readFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+          this.log(errorToBurnerLog(this.t('messages.ram.readFailed'), e), 'error');
           return {
             success: false,
             message: this.t('messages.ram.readFailed'),
@@ -1630,7 +1638,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             message,
           };
         } catch (e) {
-          this.log(`${this.t('messages.ram.verifyFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+          this.log(errorToBurnerLog(this.t('messages.ram.verifyFailed'), e), 'error');
           return {
             success: false,
             message: this.t('messages.ram.verifyFailed'),
@@ -1682,7 +1690,7 @@ export class MBC5Adapter extends CartridgeAdapter {
               const flashName = getFlashName([...flashId]);
               this.log(`Flash ID: ${idStr} (${flashName})`, 'info');
             } catch (e) {
-              this.log(`${this.t('messages.operation.readIdFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'warn');
+              this.log(errorToBurnerLog(this.t('messages.operation.readIdFailed'), e), 'warn');
               // 即使Flash ID读取失败，也继续返回CFI信息
             }
 
@@ -1693,7 +1701,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             return cfiInfo;
           });
         } catch (e) {
-          this.log(`${this.t('messages.operation.romSizeQueryFailed')}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+          this.log(errorToBurnerLog(this.t('messages.operation.romSizeQueryFailed'), e), 'error');
           return false;
         }
       },
