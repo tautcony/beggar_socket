@@ -448,7 +448,7 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   override async writeROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
-    const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
+    const pageSize = this.resolveRomPageSize(options.romPageSize);
     const bufferSize = options.cfiInfo.bufferSize ?? 0;
     const isMultiBank = options.cfiInfo.deviceSize > GBAAdapter.ROM_BANK_SIZE;
 
@@ -464,11 +464,14 @@ export class GBAAdapter extends CartridgeAdapter {
       async () => {
         try {
           const total = options.size ?? fileData.byteLength;
+          const wallClockStartTime = Date.now();
           let written = 0;
           this.log(this.t('messages.rom.writing', { size: total }), 'info');
 
           const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, total, baseAddress);
+          const eraseStartTime = Date.now();
           const eraseResult = await this.eraseSectors(sectorInfo, options, signal, true);
+          const eraseDuration = Date.now() - eraseStartTime;
           if (!eraseResult.success) {
             return eraseResult;
           }
@@ -625,13 +628,17 @@ export class GBAAdapter extends CartridgeAdapter {
             }
           }
 
-          const totalTime = speedCalculator.getTotalTime();
+          const transferTime = speedCalculator.getTotalTime();
+          const totalTime = (Date.now() - wallClockStartTime) / 1000;
+          const eraseTime = eraseDuration / 1000;
           const avgSpeed = speedCalculator.getAverageSpeed();
           const maxSpeed = speedCalculator.getMaxSpeed();
 
           this.log(this.t('messages.rom.writeComplete'), 'success');
           this.log(this.t('messages.rom.writeSummary', {
             totalTime: formatTimeDuration(totalTime),
+            transferTime: formatTimeDuration(transferTime),
+            eraseTime: formatTimeDuration(eraseTime),
             avgSpeed: formatSpeed(avgSpeed),
             maxSpeed: formatSpeed(maxSpeed),
             totalSize: formatBytes(total),
@@ -684,7 +691,7 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   override async readROM(size = 0x200000, options: CommandOptions, signal?: AbortSignal, showProgress = true) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
-    const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
+    const pageSize = this.resolveRomPageSize(options.romPageSize);
     const readThrottleMs = AdvancedSettings.romReadThrottleMs;
     const retries = AdvancedSettings.romReadRetryCount;
     const retryDelayMs = AdvancedSettings.romReadRetryDelayMs;
@@ -864,7 +871,7 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   override async verifyROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0;
-    const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
+    const pageSize = this.resolveRomPageSize(options.romPageSize);
     const readThrottleMs = AdvancedSettings.romReadThrottleMs;
 
     this.log(this.t('messages.operation.startVerifyROM', {
@@ -1130,7 +1137,7 @@ export class GBAAdapter extends CartridgeAdapter {
   override async writeRAM(fileData: Uint8Array, options: CommandOptions): Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
     const ramType = options.ramType ?? 'SRAM';
-    const pageSize = Math.min(options.ramPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
+    const pageSize = this.resolveRamPageSize(options.ramPageSize);
 
     // 如果是免电存档，调用专门的方法
     if (ramType === 'BATLESS') {
@@ -1270,7 +1277,7 @@ export class GBAAdapter extends CartridgeAdapter {
   override async readRAM(size = 0x8000, options: CommandOptions) {
     const baseAddress = options.baseAddress ?? 0x00;
     const ramType = options.ramType ?? 'SRAM';
-    const pageSize = Math.min(options.ramPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
+    const pageSize = this.resolveRamPageSize(options.ramPageSize);
     const readThrottleMs = AdvancedSettings.ramReadThrottleMs;
 
     // 如果是免电存档，调用专门的方法
@@ -1764,7 +1771,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
           let written = 0;
           let currentBank = -1;
-          const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
+          const pageSize = this.resolveRomPageSize(options.romPageSize);
 
           const speedCalculator = new SpeedCalculator();
 
@@ -1880,7 +1887,7 @@ export class GBAAdapter extends CartridgeAdapter {
           const data = new Uint8Array(saveInfo.size);
           let readCount = 0;
           let currentBank = -1;
-          const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
+          const pageSize = this.resolveRomPageSize(options.romPageSize);
 
           const speedCalculator = new SpeedCalculator();
 

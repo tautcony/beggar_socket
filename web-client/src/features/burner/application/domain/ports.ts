@@ -8,7 +8,7 @@ import type { BurnerDomainResult } from './result';
 
 export interface BurnerConnectionHandle {
   id: string;
-  platform: 'web' | 'tauri';
+  platform: 'web' | 'tauri' | 'simulated';
   portInfo?: {
     path?: string;
     manufacturer?: string;

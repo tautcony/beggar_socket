@@ -31,6 +31,9 @@ describe('DebugSettings', () => {
     DebugSettings.showDebugPanel = false;
     DebugSettings.simulatedDelay = 1000;
     DebugSettings.progressUpdateInterval = 100;
+    DebugSettings.simulatedReadSpeed = 512 * 1024;
+    DebugSettings.simulatedWriteSpeed = 512 * 1024;
+    DebugSettings.clearAllSimulatedMemoryImages();
   });
 
   afterEach(() => {
@@ -101,6 +104,24 @@ describe('DebugSettings', () => {
     });
   });
 
+  describe('simulated transfer speed', () => {
+    it('应该可以设置和获取读写速度', () => {
+      DebugSettings.simulatedReadSpeed = 256 * 1024;
+      DebugSettings.simulatedWriteSpeed = 128 * 1024;
+
+      expect(DebugSettings.simulatedReadSpeed).toBe(256 * 1024);
+      expect(DebugSettings.simulatedWriteSpeed).toBe(128 * 1024);
+    });
+
+    it('应该限制最小读写速度', () => {
+      DebugSettings.simulatedReadSpeed = 1;
+      DebugSettings.simulatedWriteSpeed = 1;
+
+      expect(DebugSettings.simulatedReadSpeed).toBe(1024);
+      expect(DebugSettings.simulatedWriteSpeed).toBe(1024);
+    });
+  });
+
   describe('static methods', () => {
     it('delay方法应该返回Promise', async () => {
       DebugSettings.debugMode = true; // 确保调试模式启用
@@ -117,12 +138,9 @@ describe('DebugSettings', () => {
       expect(typeof result).toBe('boolean');
     });
 
-    it('createMockDeviceInfo应该返回设备信息对象', () => {
-      const deviceInfo = DebugSettings.createMockDeviceInfo();
-
-      expect(deviceInfo).toHaveProperty('port');
-      expect(deviceInfo).toHaveProperty('reader');
-      expect(deviceInfo).toHaveProperty('writer');
+    it('simulatedDeviceEnabled应该跟随debugMode', () => {
+      DebugSettings.debugMode = true;
+      expect(DebugSettings.simulatedDeviceEnabled).toBe(true);
     });
 
     it('loadSettings应该从localStorage加载设置', () => {
@@ -173,6 +191,39 @@ describe('DebugSettings', () => {
 
       // 应该不会抛出错误，而是使用默认值
       expect(() => { DebugSettings.init(); }).not.toThrow();
+    });
+  });
+
+  describe('simulated memory images', () => {
+    it('应该保存并返回自定义模拟镜像的副本', () => {
+      const original = new Uint8Array([0x01, 0x02, 0x03]);
+      DebugSettings.setSimulatedMemoryImage('gbaRom', original, 'fixture.gba');
+
+      const image = DebugSettings.getSimulatedMemoryImage('gbaRom');
+      expect(image).not.toBeNull();
+      expect(image?.fileName).toBe('fixture.gba');
+      expect(image?.size).toBe(3);
+      expect(image?.data).toEqual(original);
+
+      original[0] = 0xff;
+      image?.data.set([0xaa], 0);
+
+      const reread = DebugSettings.getSimulatedMemoryImage('gbaRom');
+      expect(reread?.data).toEqual(new Uint8Array([0x01, 0x02, 0x03]));
+    });
+
+    it('应该支持清除单个和全部模拟镜像', () => {
+      DebugSettings.setSimulatedMemoryImage('gbaRom', new Uint8Array([0x01]), 'a.gba');
+      DebugSettings.setSimulatedMemoryImage('gbcRam', new Uint8Array([0x02]), 'b.sav');
+      expect(DebugSettings.countConfiguredSimulatedMemoryImages()).toBe(2);
+
+      DebugSettings.clearSimulatedMemoryImage('gbaRom');
+      expect(DebugSettings.getSimulatedMemoryImage('gbaRom')).toBeNull();
+      expect(DebugSettings.countConfiguredSimulatedMemoryImages()).toBe(1);
+
+      DebugSettings.clearAllSimulatedMemoryImages();
+      expect(DebugSettings.countConfiguredSimulatedMemoryImages()).toBe(0);
+      expect(DebugSettings.getSimulatedMemoryImage('gbcRam')).toBeNull();
     });
   });
 });

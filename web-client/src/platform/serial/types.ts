@@ -20,7 +20,7 @@ export interface DeviceSelection {
 }
 
 export interface DeviceHandle {
-  platform: 'web' | 'tauri';
+  platform: 'web' | 'tauri' | 'simulated';
   transport: Transport;
   port: SerialPort | null;
   connection?: null;

@@ -113,7 +113,16 @@ describe('MBC5Adapter.writeROM recovery', () => {
     const logs: string[] = [];
     const adapter = new MBC5Adapter(
       { port: null, connection: null, transport: null } as DeviceInfo,
-      (message) => { logs.push(typeof message === 'string' ? message : message.message); },
+      (message) => {
+        if (typeof message === 'string') {
+          logs.push(message);
+          return;
+        }
+        logs.push(message.message);
+        if (message.details) {
+          logs.push(message.details);
+        }
+      },
     );
     vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
 
@@ -127,7 +136,8 @@ describe('MBC5Adapter.writeROM recovery', () => {
     expect(result.success).toBe(true);
     expect(mockGbcRomEraseSector).not.toHaveBeenCalled();
     expect(mockGbcRomProgram).toHaveBeenCalledTimes(1);
-    expect(logs).toContain('ROM erase skipped after blank sample @ 0x00004000-0x00007FFF (samples=4x4B)');
+    expect(logs).toContain('messages.operation.eraseSector');
+    expect(logs).toContain('messages.operation.eraseSectorSkipped');
   });
 
   it('fully erases the target range before starting to program when sampling finds data', async () => {

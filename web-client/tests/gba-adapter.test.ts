@@ -85,7 +85,16 @@ describe('GBAAdapter.writeROM recovery', () => {
     const logs: string[] = [];
     const adapter = new GBAAdapter(
       { port: null, connection: null, transport: null } as DeviceInfo,
-      (message) => { logs.push(typeof message === 'string' ? message : message.message); },
+      (message) => {
+        if (typeof message === 'string') {
+          logs.push(message);
+          return;
+        }
+        logs.push(message.message);
+        if (message.details) {
+          logs.push(message.details);
+        }
+      },
     );
     vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
 
@@ -96,7 +105,8 @@ describe('GBAAdapter.writeROM recovery', () => {
     expect(result.success).toBe(true);
     expect(mockRomEraseSector).not.toHaveBeenCalled();
     expect(mockRomProgram).toHaveBeenCalledTimes(1);
-    expect(logs).toContain('ROM erase skipped after blank sample @ 0x00000000-0x00003FFF (samples=4x4B)');
+    expect(logs).toContain('messages.operation.eraseSector');
+    expect(logs).toContain('messages.operation.eraseSectorSkipped');
   });
 
   it('fully erases the target range before starting to program when sampling finds data', async () => {

@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { getDeviceGateway, resetDeviceGatewayForTests } from '@/platform/serial';
 import { TauriDeviceGateway } from '@/platform/serial/tauri/device-gateway';
+import { DebugSettings } from '@/settings/debug-settings';
 import { PortSelectionRequiredError } from '@/utils/errors/PortSelectionRequiredError';
 import { PortFilters } from '@/utils/port-filter';
 
@@ -81,6 +83,8 @@ vi.mock('tauri-plugin-serialplugin-api', () => {
 describe('Device gateway integration', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    resetDeviceGatewayForTests();
+    DebugSettings.debugMode = false;
     serialPluginState.availablePorts = {
       '/dev/tty.usbmodem1': {
         path: '/dev/tty.usbmodem1',
@@ -100,6 +104,28 @@ describe('Device gateway integration', () => {
     serialPluginState.writeBinary.mockResolvedValue(1);
     serialPluginState.writeDataTerminalReady.mockResolvedValue(undefined);
     serialPluginState.writeRequestToSend.mockResolvedValue(undefined);
+  });
+
+  it('gateway factory routes to simulated gateway when debug mode is enabled', async () => {
+    DebugSettings.debugMode = true;
+    const gateway = getDeviceGateway();
+
+    const ports = await gateway.list();
+    expect(ports).toEqual([
+      expect.objectContaining({
+        path: 'simulated://beggar-socket',
+        vendorId: '0483',
+        productId: '0721',
+      }),
+    ]);
+
+    const device = await gateway.connect();
+    expect(device.platform).toBe('simulated');
+
+    DebugSettings.debugMode = false;
+    await gateway.init(device);
+    await gateway.disconnect(device);
+    expect(device.port).toBeNull();
   });
 
   it('WebDeviceGateway covers select/connect/init/disconnect success path', async () => {

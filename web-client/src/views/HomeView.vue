@@ -55,12 +55,15 @@
     />
     <DebugPanel
       v-if="showDebugPanelModal"
+      :device="device"
+      :device-ready="deviceReady"
       @close="showDebugPanelModal = false"
-      @connect-mock-device="onConnectMockDevice"
-      @clear-mock-data="onClearMockData"
+      @connect-simulated-device="onConnectSimulatedDevice"
+      @clear-simulated-data="onClearSimulatedData"
+      @refresh-simulated-device="onRefreshSimulatedDevice"
     />
     <DebugLink
-      v-if="showDebugPanel"
+      v-if="showDebugPanel && !showDebugPanelModal"
       v-model:display="showDebugPanelModal"
     />
   </div>
@@ -68,7 +71,7 @@
 
 <script setup lang="ts">
 // DeviceConnect 组件引用
-import { computed, onMounted, provide, ref, useTemplateRef } from 'vue';
+import { computed, provide, ref, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import CartBurner from '@/components/CartBurner.vue';
@@ -139,7 +142,7 @@ function onDeviceDisconnected() {
 /**
  * 处理连接模拟设备事件
  */
-function onConnectMockDevice() {
+function onConnectSimulatedDevice() {
   // 启用调试模式
   DebugSettings.debugMode = true;
   console.log('[DEBUG] 连接模拟设备请求');
@@ -157,7 +160,25 @@ function onConnectMockDevice() {
 /**
  * 处理清除模拟数据事件
  */
-function onClearMockData() {
+async function onRefreshSimulatedDevice() {
+  if (!deviceConnectRef.value || !deviceReady.value || device.value?.serialHandle?.platform !== 'simulated') {
+    return;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+  await deviceConnectRef.value.disconnect();
+
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+  if (cartBurnerRef.value && typeof cartBurnerRef.value.resetState === 'function') {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    cartBurnerRef.value.resetState();
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+  await deviceConnectRef.value.connect();
+}
+
+function onClearSimulatedData() {
   console.log('[DEBUG] 开始清除所有模拟数据');
 
   // 1. 断开设备连接

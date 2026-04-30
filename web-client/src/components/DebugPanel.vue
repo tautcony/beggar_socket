@@ -1,23 +1,117 @@
 <template>
   <div
     v-if="showDebugPanel"
+    ref="panelRef"
     class="debug-panel"
+    :class="{
+      'debug-panel--collapsed': isCollapsed,
+      'debug-panel--dragging': isDragging,
+      'debug-panel--docked-left': dockSide === 'left',
+      'debug-panel--docked-right': dockSide === 'right',
+    }"
+    :style="panelStyle"
   >
-    <div class="debug-header">
-      <h3>
+    <div
+      class="debug-header"
+      @pointerdown="beginDrag"
+      @dblclick.stop="togglePanelCollapsed"
+    >
+      <div
+        v-if="isCollapsed"
+        class="debug-header__collapsed"
+      >
         <IonIcon
           :icon="constructOutline"
-          style="vertical-align: middle; margin-right: 6px; font-size: 1.2em;"
+          class="debug-header__icon"
         />
-        {{ $t('ui.debug.title') }}
-      </h3>
+        <span class="collapsed-label">{{ $t('ui.debug.panel') }}</span>
+        <span
+          class="collapsed-status"
+          :class="debugEnabled ? 'collapsed-status--active' : 'collapsed-status--idle'"
+        />
+      </div>
+      <div
+        v-else
+        class="debug-header__main"
+      >
+        <h3 class="debug-title">
+          <IonIcon
+            :icon="constructOutline"
+            class="debug-title__icon"
+          />
+          {{ $t('ui.debug.panel') }}
+        </h3>
+        <span
+          class="status-pill"
+          :class="debugEnabled ? 'status-pill--active' : 'status-pill--idle'"
+        >
+          {{ debugEnabled ? $t('ui.debug.enabled') : $t('ui.debug.disabled') }}
+        </span>
+      </div>
+
+      <div class="panel-actions">
+        <button
+          type="button"
+          class="panel-icon-button"
+          :title="collapseActionTitle"
+          @click.stop="togglePanelCollapsed"
+        >
+          <IonIcon :icon="collapseActionIcon" />
+        </button>
+        <button
+          type="button"
+          class="panel-icon-button"
+          :title="$t('ui.common.close')"
+          @click.stop="handleClose"
+        >
+          <IonIcon :icon="closeOutline" />
+        </button>
+      </div>
     </div>
 
     <div
+      v-if="!isCollapsed"
       class="debug-content"
     >
-      <!-- 调试模式开关 -->
-      <div class="debug-section">
+      <section class="debug-section">
+        <div class="section-title-row">
+          <h4>{{ $t('ui.debug.sessionStatus') }}</h4>
+          <BaseButton
+            variant="secondary"
+            size="sm"
+            :text="$t('ui.debug.connectMockDevice')"
+            :disabled="simulatedConnected"
+            @click="connectSimulatedDevice"
+          />
+        </div>
+
+        <div class="status-grid">
+          <div class="status-card">
+            <span class="status-label">{{ $t('ui.debug.debugMode') }}</span>
+            <span :class="['status-value', debugEnabled ? 'active' : 'inactive']">
+              {{ debugEnabled ? $t('ui.debug.enabled') : $t('ui.debug.disabled') }}
+            </span>
+          </div>
+          <div class="status-card">
+            <span class="status-label">{{ $t('ui.debug.currentSession') }}</span>
+            <span :class="['status-value', simulatedConnected ? 'active' : 'inactive']">
+              {{ simulatedConnected ? $t('ui.debug.simulatedConnected') : $t('ui.debug.disconnected') }}
+            </span>
+          </div>
+          <div class="status-card">
+            <span class="status-label">{{ $t('ui.debug.currentPlatform') }}</span>
+            <span class="status-value">{{ currentPlatformLabel }}</span>
+          </div>
+          <div class="status-card">
+            <span class="status-label">{{ $t('ui.debug.customResources') }}</span>
+            <span class="status-value">{{ configuredResourceCountLabel }}</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="debug-section">
+        <h4>{{ $t('ui.debug.behaviorSettings') }}</h4>
+
         <label class="debug-switch">
           <input
             v-model="debugEnabled"
@@ -26,79 +120,178 @@
           >
           <span class="slider">{{ $t('ui.debug.enableDebugMode') }}</span>
         </label>
-      </div>
-
-      <!-- 模拟设置 -->
-      <div
-        v-if="debugEnabled"
-        class="debug-section"
-      >
-        <h4>{{ $t('ui.debug.simulationSettings') }}</h4>
-
-        <div class="debug-control">
-          <label>{{ $t('ui.debug.delayTime') }}:</label>
-          <input
-            v-model.number="simulatedDelay"
-            type="number"
-            min="0"
-            max="5000"
-            step="100"
-            @change="updateDelay"
-          >
-        </div>
-
-        <div class="debug-control">
-          <label>{{ $t('ui.debug.progressInterval') }}:</label>
-          <input
-            v-model.number="progressInterval"
-            type="number"
-            min="50"
-            max="1000"
-            step="50"
-            @change="updateProgressInterval"
-          >
-        </div>
-
-        <div class="debug-control">
-          <label class="debug-switch">
-            <input
-              v-model="simulateErrors"
-              type="checkbox"
-              @change="updateErrorSimulation"
-            >
-            <span class="slider">{{ $t('ui.debug.simulateErrors') }}</span>
-          </label>
-        </div>
 
         <div
-          v-if="simulateErrors"
-          class="debug-control"
+          v-if="debugEnabled"
+          class="control-stack"
         >
-          <label>{{ $t('ui.debug.errorProbability') }}:</label>
-          <input
-            v-model.number="errorProbability"
-            type="range"
-            min="0"
-            max="1"
-            step="0.1"
-            @change="updateErrorProbability"
-          >
-          <span class="debug-value">{{ (errorProbability * 100).toFixed(0) }}%</span>
-        </div>
-      </div>
+          <div class="debug-control">
+            <div class="control-head">
+              <label>{{ $t('ui.debug.delayTime') }}</label>
+              <span class="debug-value">{{ simulatedDelay }}ms</span>
+            </div>
+            <input
+              v-model.number="simulatedDelay"
+              type="range"
+              min="0"
+              max="3000"
+              step="50"
+              @change="updateDelay"
+            >
+            <div class="preset-row">
+              <button
+                v-for="preset in delayPresets"
+                :key="preset"
+                type="button"
+                class="preset-chip"
+                :class="{ 'preset-chip--active': simulatedDelay === preset }"
+                @click="applyDelayPreset(preset)"
+              >
+                {{ preset }}ms
+              </button>
+            </div>
+          </div>
 
-      <!-- 快捷操作 -->
-      <div
-        v-if="debugEnabled"
-        class="debug-section"
-      >
-        <h4>{{ $t('ui.debug.quickActions') }}</h4>
-        <div class="debug-buttons">
+          <div class="debug-control">
+            <div class="control-head">
+              <label>{{ $t('ui.debug.readSpeed') }}</label>
+              <span class="debug-value">{{ simulatedReadSpeedKiB }} KiB/s</span>
+            </div>
+            <input
+              v-model.number="simulatedReadSpeedKiB"
+              type="range"
+              min="32"
+              max="4096"
+              step="32"
+              @change="updateReadSpeed"
+            >
+          </div>
+
+          <div class="debug-control">
+            <div class="control-head">
+              <label>{{ $t('ui.debug.writeSpeed') }}</label>
+              <span class="debug-value">{{ simulatedWriteSpeedKiB }} KiB/s</span>
+            </div>
+            <input
+              v-model.number="simulatedWriteSpeedKiB"
+              type="range"
+              min="32"
+              max="4096"
+              step="32"
+              @change="updateWriteSpeed"
+            >
+          </div>
+
+          <div class="debug-control">
+            <label class="debug-switch">
+              <input
+                v-model="simulateErrors"
+                type="checkbox"
+                @change="updateErrorSimulation"
+              >
+              <span class="slider">{{ $t('ui.debug.simulateErrors') }}</span>
+            </label>
+          </div>
+
+          <div
+            v-if="simulateErrors"
+            class="debug-control"
+          >
+            <div class="control-head">
+              <label>{{ $t('ui.debug.errorProbability') }}</label>
+              <span class="debug-value">{{ (errorProbability * 100).toFixed(0) }}%</span>
+            </div>
+            <input
+              v-model.number="errorProbability"
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              @change="updateErrorProbability"
+            >
+          </div>
+        </div>
+      </section>
+
+      <section class="debug-section">
+        <div class="section-title-row">
+          <h4>{{ $t('ui.debug.simulationData') }}</h4>
+          <span class="section-subtitle">{{ $t('ui.debug.appliesNextSession') }}</span>
+        </div>
+
+        <div class="memory-grid">
+          <article
+            v-for="slot in memorySlots"
+            :key="slot.slot"
+            class="memory-card"
+          >
+            <div class="memory-card__head">
+              <div>
+                <div class="memory-card__title">
+                  {{ $t(slot.label) }}
+                </div>
+                <div class="memory-card__meta">
+                  {{ $t('ui.debug.capacity') }}: {{ slot.capacityLabel }}
+                </div>
+              </div>
+              <span
+                class="memory-badge"
+                :class="slot.image ? 'memory-badge--custom' : 'memory-badge--default'"
+              >
+                {{ slot.image ? $t('ui.debug.customImage') : $t('ui.debug.defaultImage') }}
+              </span>
+            </div>
+
+            <div class="memory-card__body">
+              <template v-if="slot.image">
+                <div class="memory-line">
+                  <span>{{ slot.image.fileName }}</span>
+                </div>
+                <div class="memory-line memory-line--muted">
+                  {{ formatBytes(slot.image.size) }} / {{ slot.capacityLabel }}
+                </div>
+              </template>
+              <template v-else>
+                <div class="memory-line memory-line--muted">
+                  {{ $t('ui.debug.noCustomImage') }}
+                </div>
+              </template>
+            </div>
+
+            <div class="memory-card__actions">
+              <input
+                :ref="el => setFileInputRef(slot.slot, el as HTMLInputElement | null)"
+                type="file"
+                class="hidden-file-input"
+                @change="event => onMemoryFileSelected(slot.slot, event)"
+              >
+              <BaseButton
+                variant="debug"
+                size="sm"
+                :text="$t('ui.debug.uploadImage')"
+                @click="openFilePicker(slot.slot)"
+              />
+              <BaseButton
+                variant="secondary"
+                size="sm"
+                :text="$t('ui.debug.clearImage')"
+                :disabled="!slot.image"
+                @click="clearMemorySlot(slot.slot)"
+              />
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="debug-section">
+        <h4>{{ $t('ui.debug.sessionActions') }}</h4>
+        <div class="debug-buttons debug-buttons--wide">
           <BaseButton
-            variant="debug"
+            variant="secondary"
             size="sm"
-            :text="$t('ui.debug.connectMockDevice')"
-            @click="connectMockDevice"
+            :text="$t('ui.debug.refreshSimulatedSession')"
+            :disabled="!simulatedConnected"
+            @click="refreshSimulatedSession"
           />
           <BaseButton
             variant="debug"
@@ -113,368 +306,724 @@
             @click="generateTestRam"
           />
           <BaseButton
-            variant="debug"
+            variant="secondary"
             size="sm"
-            class="secondary"
             :text="$t('ui.debug.clearMockData')"
-            @click="clearMockData"
+            @click="clearSimulatedData"
           />
         </div>
-      </div>
-
-      <!-- 状态信息 -->
-      <div class="debug-section">
-        <h4>{{ $t('ui.debug.statusInfo') }}</h4>
-        <div class="debug-status">
-          <div class="status-item">
-            <span class="status-label">{{ $t('ui.debug.debugMode') }}:</span>
-            <span :class="['status-value', debugEnabled ? 'active' : 'inactive']">
-              {{ debugEnabled ? $t('ui.debug.enabled') : $t('ui.debug.disabled') }}
-            </span>
-          </div>
-          <div class="status-item">
-            <span class="status-label">{{ $t('ui.debug.simulatedDelay') }}:</span>
-            <span class="status-value">{{ simulatedDelay }}ms</span>
-          </div>
-          <div class="status-item">
-            <span class="status-label">{{ $t('ui.debug.errorSimulation') }}:</span>
-            <span class="status-value">{{ simulateErrors ? `${(errorProbability * 100).toFixed(0)}%` : $t('ui.debug.off') }}</span>
-          </div>
-        </div>
-      </div>
+      </section>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
-import { constructOutline } from 'ionicons/icons';
-import { onMounted, ref } from 'vue';
+import { chevronBackOutline, chevronForwardOutline, closeOutline, constructOutline } from 'ionicons/icons';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import BaseButton from '@/components/common/BaseButton.vue';
-import { DebugSettings } from '@/settings/debug-settings';
+import {
+  DebugSettings,
+  type SimulatedMemorySlot,
+} from '@/settings/debug-settings';
+import type { DeviceInfo } from '@/types/device-info';
+import { formatBytes } from '@/utils/formatter-utils';
 import { GBA_NINTENDO_LOGO } from '@/utils/parsers/rom-parser';
 
-const emit = defineEmits<{
-  'connect-mock-device': [];
-  'generate-test-file': [];
-  'clear-mock-data': [];
-}>();
+const PANEL_MARGIN = 16;
+const PANEL_WIDTH = 420;
+const PANEL_COLLAPSED_WIDTH = 56;
+const PANEL_EDGE_SNAP_THRESHOLD = 72;
+const PANEL_LAYOUT_STORAGE_KEY = 'chisflash:debug-panel-layout:v1';
 
-// 面板状态
-const showDebugPanel = ref(false);
+type DockSide = 'left' | 'right' | null;
+type CollapseReason = 'manual' | 'docked' | null;
 
-// 调试设置
-const debugEnabled = ref(false);
-const simulatedDelay = ref(1000);
-const progressInterval = ref(100);
-const simulateErrors = ref(false);
-const errorProbability = ref(0.1);
-
-onMounted(() => {
-  // 检查是否应该显示调试面板 - 使用 DebugSettings 的统一逻辑
-  showDebugPanel.value = DebugSettings.showDebugPanel || import.meta.env.DEV;
-
-  // 同步调试配置
-  syncConfig();
-});
-
-function syncConfig() {
-  debugEnabled.value = DebugSettings.debugMode;
-  simulatedDelay.value = DebugSettings.simulatedDelay;
-  progressInterval.value = DebugSettings.progressUpdateInterval;
-  simulateErrors.value = DebugSettings.simulateErrors;
-  errorProbability.value = DebugSettings.errorProbability;
+interface PanelLayoutState {
+  x: number;
+  y: number;
+  dockSide: DockSide;
+  collapseReason: CollapseReason;
 }
 
-function onDebugToggle() {
-  DebugSettings.debugMode = debugEnabled.value;
-  if (debugEnabled.value) {
-    console.log('[DEBUG] 调试模式已启用');
+const props = defineProps<{
+  device?: DeviceInfo | null;
+  deviceReady?: boolean;
+}>();
+
+const emit = defineEmits<{
+  close: [];
+  'connect-simulated-device': [];
+  'clear-simulated-data': [];
+  'refresh-simulated-device': [];
+}>();
+
+const { t } = useI18n();
+
+const panelRef = ref<HTMLElement | null>(null);
+const showDebugPanel = ref(false);
+const debugEnabled = ref(false);
+const simulatedDelay = ref(1000);
+const simulateErrors = ref(false);
+const errorProbability = ref(0.1);
+const simulatedReadSpeedKiB = ref(512);
+const simulatedWriteSpeedKiB = ref(512);
+const stateVersion = ref(0);
+const fileInputs = new Map<SimulatedMemorySlot, HTMLInputElement>();
+const viewportWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1440);
+const viewportHeight = ref(typeof window !== 'undefined' ? window.innerHeight : 900);
+const panelPosition = ref({ x: PANEL_MARGIN, y: PANEL_MARGIN });
+const dockSide = ref<DockSide>('left');
+const collapseReason = ref<CollapseReason>(null);
+const isDragging = ref(false);
+
+const dragPointerId = ref<number | null>(null);
+const dragOffset = ref({ x: 0, y: 0 });
+
+const delayPresets = [0, 100, 300, 1000];
+
+const isCollapsed = computed(() => collapseReason.value !== null);
+
+const currentPanelWidth = computed(() => {
+  const targetWidth = isCollapsed.value ? PANEL_COLLAPSED_WIDTH : PANEL_WIDTH;
+  return Math.max(56, Math.min(targetWidth, viewportWidth.value - PANEL_MARGIN * 2));
+});
+
+const panelStyle = computed(() => ({
+  left: `${panelPosition.value.x}px`,
+  top: `${panelPosition.value.y}px`,
+  width: `${currentPanelWidth.value}px`,
+  maxHeight: `${Math.max(120, viewportHeight.value - PANEL_MARGIN * 2)}px`,
+}));
+
+const currentPlatformLabel = computed(() => {
+  if (!props.deviceReady || !props.device?.serialHandle?.platform) {
+    return 'none';
+  }
+
+  return props.device.serialHandle.platform;
+});
+
+const simulatedConnected = computed(() => {
+  return props.deviceReady && props.device?.serialHandle?.platform === 'simulated';
+});
+
+const configuredResourceCountLabel = computed(() => {
+  void stateVersion.value;
+  const count = DebugSettings.countConfiguredSimulatedMemoryImages();
+  return `${count}/${DebugSettings.getSimulatedMemorySlots().length}`;
+});
+
+const memorySlots = computed(() => {
+  void stateVersion.value;
+  return DebugSettings.getSimulatedMemorySlots().map((slot) => {
+    const definition = DebugSettings.getSimulatedMemoryDefinition(slot);
+    const image = DebugSettings.getSimulatedMemoryImageSummary(slot);
+
+    return {
+      slot,
+      label: definition.labelKey,
+      capacityLabel: formatBytes(definition.capacity),
+      image,
+    };
+  });
+});
+
+const collapseActionIcon = computed(() => {
+  const targetSide = dockSide.value ?? inferNearestDockSide();
+  if (isCollapsed.value) {
+    return targetSide === 'right' ? chevronBackOutline : chevronForwardOutline;
+  }
+
+  return targetSide === 'right' ? chevronForwardOutline : chevronBackOutline;
+});
+
+const collapseActionTitle = computed(() => {
+  return isCollapsed.value ? t('ui.debug.expandPanel') : t('ui.debug.collapsePanel');
+});
+
+onMounted(() => {
+  showDebugPanel.value = DebugSettings.showDebugPanel || import.meta.env.DEV;
+  syncConfig();
+  restorePanelLayout();
+  updateViewportSize();
+  window.addEventListener('resize', handleViewportResize);
+  window.addEventListener('pointermove', handlePointerMove);
+  window.addEventListener('pointerup', handlePointerUp);
+  window.addEventListener('pointercancel', handlePointerUp);
+  void nextTick(() => {
+    normalizePanelWithinViewport();
+  });
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleViewportResize);
+  window.removeEventListener('pointermove', handlePointerMove);
+  window.removeEventListener('pointerup', handlePointerUp);
+  window.removeEventListener('pointercancel', handlePointerUp);
+});
+
+function getPanelHeight(): number {
+  return panelRef.value?.offsetHeight ?? (isCollapsed.value ? 180 : 640);
+}
+
+function getPanelWidth(): number {
+  return panelRef.value?.offsetWidth ?? currentPanelWidth.value;
+}
+
+function updateViewportSize(): void {
+  viewportWidth.value = window.innerWidth;
+  viewportHeight.value = window.innerHeight;
+}
+
+function clampPanelPosition(
+  x: number,
+  y: number,
+  width = currentPanelWidth.value,
+  allowEdgeDock = false,
+): { x: number; y: number } {
+  const height = getPanelHeight();
+  const horizontalMargin = allowEdgeDock ? 0 : PANEL_MARGIN;
+  const minX = horizontalMargin;
+  const maxX = Math.max(minX, viewportWidth.value - width - horizontalMargin);
+  const maxY = Math.max(PANEL_MARGIN, viewportHeight.value - height - PANEL_MARGIN);
+
+  return {
+    x: Math.min(Math.max(minX, x), maxX),
+    y: Math.min(Math.max(PANEL_MARGIN, y), maxY),
+  };
+}
+
+function inferNearestDockSide(): Exclude<DockSide, null> {
+  const panelCenter = panelPosition.value.x + (getPanelWidth() / 2);
+  return panelCenter >= viewportWidth.value / 2 ? 'right' : 'left';
+}
+
+function applyDockedPosition(): void {
+  const width = currentPanelWidth.value;
+  if (dockSide.value === 'left') {
+    panelPosition.value = clampPanelPosition(0, panelPosition.value.y, width, true);
+  } else if (dockSide.value === 'right') {
+    panelPosition.value = clampPanelPosition(viewportWidth.value - width, panelPosition.value.y, width, true);
   } else {
-    console.log('[DEBUG] 调试模式已禁用');
+    panelPosition.value = clampPanelPosition(panelPosition.value.x, panelPosition.value.y, width);
   }
 }
 
-function updateDelay() {
+function normalizePanelWithinViewport(): void {
+  applyDockedPosition();
+  persistPanelLayout();
+}
+
+function persistPanelLayout(): void {
+  try {
+    const layout: PanelLayoutState = {
+      x: panelPosition.value.x,
+      y: panelPosition.value.y,
+      dockSide: dockSide.value,
+      collapseReason: collapseReason.value,
+    };
+    window.localStorage.setItem(PANEL_LAYOUT_STORAGE_KEY, JSON.stringify(layout));
+  } catch {
+    // Ignore storage failures in restricted environments.
+  }
+}
+
+function restorePanelLayout(): void {
+  try {
+    const raw = window.localStorage.getItem(PANEL_LAYOUT_STORAGE_KEY);
+    if (!raw) {
+      return;
+    }
+
+    const parsed = JSON.parse(raw) as Partial<PanelLayoutState>;
+    if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
+      panelPosition.value = { x: parsed.x, y: parsed.y };
+    }
+    if (parsed.dockSide === 'left' || parsed.dockSide === 'right') {
+      dockSide.value = parsed.dockSide;
+    } else {
+      dockSide.value = null;
+    }
+    if (parsed.collapseReason === 'manual' || parsed.collapseReason === 'docked') {
+      collapseReason.value = parsed.collapseReason;
+    } else {
+      collapseReason.value = null;
+    }
+  } catch {
+    panelPosition.value = { x: PANEL_MARGIN, y: PANEL_MARGIN };
+    dockSide.value = 'left';
+    collapseReason.value = null;
+  }
+}
+
+function handleViewportResize(): void {
+  updateViewportSize();
+  void nextTick(() => {
+    normalizePanelWithinViewport();
+  });
+}
+
+function beginDrag(event: PointerEvent): void {
+  if (event.button !== 0) {
+    return;
+  }
+
+  const target = event.target as HTMLElement | null;
+  if (target?.closest('.panel-icon-button')) {
+    return;
+  }
+
+  dragPointerId.value = event.pointerId;
+  dragOffset.value = {
+    x: event.clientX - panelPosition.value.x,
+    y: event.clientY - panelPosition.value.y,
+  };
+  isDragging.value = true;
+  dockSide.value = null;
+  event.preventDefault();
+}
+
+function handlePointerMove(event: PointerEvent): void {
+  if (!isDragging.value || dragPointerId.value !== event.pointerId) {
+    return;
+  }
+
+  panelPosition.value = clampPanelPosition(
+    event.clientX - dragOffset.value.x,
+    event.clientY - dragOffset.value.y,
+  );
+}
+
+function handlePointerUp(event: PointerEvent): void {
+  if (!isDragging.value || dragPointerId.value !== event.pointerId) {
+    return;
+  }
+
+  isDragging.value = false;
+  dragPointerId.value = null;
+
+  const width = getPanelWidth();
+  const nearLeftEdge = panelPosition.value.x <= PANEL_MARGIN + PANEL_EDGE_SNAP_THRESHOLD;
+  const nearRightEdge = panelPosition.value.x + width >= viewportWidth.value - PANEL_MARGIN - PANEL_EDGE_SNAP_THRESHOLD;
+
+  if (nearLeftEdge || nearRightEdge) {
+    dockSide.value = nearLeftEdge ? 'left' : 'right';
+    collapseReason.value = 'docked';
+  } else {
+    dockSide.value = null;
+    if (collapseReason.value === 'docked') {
+      collapseReason.value = null;
+    }
+  }
+
+  void nextTick(() => {
+    normalizePanelWithinViewport();
+  });
+}
+
+function togglePanelCollapsed(): void {
+  if (isCollapsed.value) {
+    collapseReason.value = null;
+  } else {
+    collapseReason.value = 'manual';
+    dockSide.value = dockSide.value ?? inferNearestDockSide();
+  }
+
+  void nextTick(() => {
+    normalizePanelWithinViewport();
+  });
+}
+
+function handleClose(): void {
+  emit('close');
+}
+
+function bumpStateVersion(): void {
+  stateVersion.value += 1;
+}
+
+function syncConfig(): void {
+  debugEnabled.value = DebugSettings.debugMode;
+  simulatedDelay.value = DebugSettings.simulatedDelay;
+  simulateErrors.value = DebugSettings.simulateErrors;
+  errorProbability.value = DebugSettings.errorProbability;
+  simulatedReadSpeedKiB.value = Math.round(DebugSettings.simulatedReadSpeed / 1024);
+  simulatedWriteSpeedKiB.value = Math.round(DebugSettings.simulatedWriteSpeed / 1024);
+  bumpStateVersion();
+}
+
+function onDebugToggle(): void {
+  DebugSettings.debugMode = debugEnabled.value;
+  bumpStateVersion();
+}
+
+function updateDelay(): void {
   DebugSettings.simulatedDelay = simulatedDelay.value;
+  bumpStateVersion();
 }
 
-function updateProgressInterval() {
-  DebugSettings.progressUpdateInterval = progressInterval.value;
+function applyDelayPreset(preset: number): void {
+  simulatedDelay.value = preset;
+  updateDelay();
 }
 
-function updateErrorSimulation() {
+function updateErrorSimulation(): void {
   DebugSettings.simulateErrors = simulateErrors.value;
+  bumpStateVersion();
 }
 
-function updateErrorProbability() {
+function updateErrorProbability(): void {
   DebugSettings.errorProbability = errorProbability.value;
+  bumpStateVersion();
 }
 
-function connectMockDevice() {
-  emit('connect-mock-device');
+function updateReadSpeed(): void {
+  DebugSettings.simulatedReadSpeed = simulatedReadSpeedKiB.value * 1024;
+  simulatedReadSpeedKiB.value = Math.round(DebugSettings.simulatedReadSpeed / 1024);
+  bumpStateVersion();
 }
 
-function generateTestRom() {
-  // 生成2MB的测试ROM数据
-  const romSize = 0x200000; // 2MB
+function updateWriteSpeed(): void {
+  DebugSettings.simulatedWriteSpeed = simulatedWriteSpeedKiB.value * 1024;
+  simulatedWriteSpeedKiB.value = Math.round(DebugSettings.simulatedWriteSpeed / 1024);
+  bumpStateVersion();
+}
+
+function setFileInputRef(slot: SimulatedMemorySlot, element: HTMLInputElement | null): void {
+  if (element) {
+    fileInputs.set(slot, element);
+  } else {
+    fileInputs.delete(slot);
+  }
+}
+
+function openFilePicker(slot: SimulatedMemorySlot): void {
+  fileInputs.get(slot)?.click();
+}
+
+async function onMemoryFileSelected(slot: SimulatedMemorySlot, event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement | null;
+  const file = input?.files?.[0];
+  if (!file) {
+    return;
+  }
+
+  const buffer = await file.arrayBuffer();
+  DebugSettings.setSimulatedMemoryImage(slot, new Uint8Array(buffer), file.name);
+  syncConfig();
+  input.value = '';
+
+  if (simulatedConnected.value) {
+    emit('refresh-simulated-device');
+  }
+}
+
+function clearMemorySlot(slot: SimulatedMemorySlot): void {
+  DebugSettings.clearSimulatedMemoryImage(slot);
+  syncConfig();
+
+  if (simulatedConnected.value) {
+    emit('refresh-simulated-device');
+  }
+}
+
+function connectSimulatedDevice(): void {
+  DebugSettings.debugMode = true;
+  syncConfig();
+  emit('connect-simulated-device');
+}
+
+function refreshSimulatedSession(): void {
+  emit('refresh-simulated-device');
+}
+
+function clearSimulatedData(): void {
+  DebugSettings.clearAllSimulatedMemoryImages();
+  syncConfig();
+  emit('clear-simulated-data');
+}
+
+function generateTestRom(): void {
+  const romSize = 0x200000;
   const romData = new Uint8Array(romSize);
-
-  // 首先生成随机数据作为基础
   const randomData = DebugSettings.generateRandomData(romSize);
   romData.set(randomData);
 
-  // 创建GBA ROM标准头部
   const encoder = new TextEncoder();
-
-  // 0x00-0x03: ARM7 入口点 (ARM opcode)
-  romData[0x00] = 0x00; // b #0x08000000 - 跳转到真正的入口点
+  romData[0x00] = 0x00;
   romData[0x01] = 0x00;
   romData[0x02] = 0x00;
   romData[0x03] = 0xEA;
-
-  // 0x04-0x9F: Nintendo Logo (156字节) - 必需的任天堂LOGO
   romData.set(GBA_NINTENDO_LOGO, 0x04);
-
-  // 0xA0-0xAB: 游戏标题 (12字节)
-  const title = 'TEST ROM    '; // 12字符，不足的用空格填充
-  const titleBytes = encoder.encode(title.substring(0, 12));
-  romData.set(titleBytes, 0xA0);
-
-  // 0xAC-0xAF: 游戏代码 (4字节)
-  const gameCode = 'TESJ'; // 4字符
-  const gameCodeBytes = encoder.encode(gameCode);
-  romData.set(gameCodeBytes, 0xAC);
-
-  // 0xB0-0xB1: 制造商代码 (2字节)
-  const makerCode = '01'; // 01 = Nintendo
-  const makerCodeBytes = encoder.encode(makerCode);
-  romData.set(makerCodeBytes, 0xB0);
-
-  // 0xB2: 固定值 (必须是0x96)
+  romData.set(encoder.encode('TEST ROM    '.substring(0, 12)), 0xA0);
+  romData.set(encoder.encode('TESJ'), 0xAC);
+  romData.set(encoder.encode('01'), 0xB0);
   romData[0xB2] = 0x96;
-
-  // 0xB3: 主单元代码 (通常是0x00)
-  romData[0xB3] = 0x00;
-
-  // 0xB4: 设备类型 (通常是0x00)
-  romData[0xB4] = 0x00;
-
-  // 0xB5-0xBB: 保留区域 (7字节，通常是0x00)
-  for (let i = 0xB5; i <= 0xBB; i++) {
-    romData[i] = 0x00;
-  }
-
-  // 0xBC: 软件版本
   romData[0xBC] = 0x01;
 
-  // 0xBD: 头部校验和 (计算0xA0-0xBC的补码校验和)
   let headerSum = 0;
-  for (let i = 0xA0; i <= 0xBC; i++) {
+  for (let i = 0xA0; i <= 0xBC; i += 1) {
     headerSum += romData[i];
   }
   romData[0xBD] = (-(headerSum + 0x19)) & 0xFF;
 
-  // 0xBE-0xBF: 保留区域 (通常是0x00)
-  romData[0xBE] = 0x00;
-  romData[0xBF] = 0x00;
-
-  // 创建下载
   const blob = new Blob([romData], { type: 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'test_rom.gba';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = 'test_rom.gba';
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
   URL.revokeObjectURL(url);
 }
 
-function generateTestRam() {
-  // 生成32KB的测试RAM数据
+function generateTestRam(): void {
   const testData = DebugSettings.generateRandomData(0x8000);
   const blob = new Blob([testData as BlobPart], { type: 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'test_ram.sav';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = 'test_ram.sav';
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
   URL.revokeObjectURL(url);
-}
-
-function clearMockData() {
-  console.log('[DEBUG] 清除模拟数据');
-
-  // 发出清除事件到父组件
-  emit('clear-mock-data');
 }
 </script>
 
 <style scoped>
 .debug-panel {
   position: fixed;
-  top: var(--space-5);
-  left: var(--space-5);
-  width: 320px;
-  max-height: 80vh;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border: 2px solid var(--color-warning);
+  background: rgba(255, 251, 245, 0.96);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(209, 157, 52, 0.35);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 20px 60px rgba(67, 48, 20, 0.18);
   z-index: 1000;
   color: var(--color-text);
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition:
+    width 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.debug-panel--dragging {
+  box-shadow: 0 28px 72px rgba(67, 48, 20, 0.24);
+}
+
+.debug-panel--collapsed {
+  border-color: rgba(180, 97, 25, 0.35);
+}
+
+.debug-panel--collapsed .debug-header {
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px;
+}
+
+.debug-panel--docked-left {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.debug-panel--docked-right {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .debug-header {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.35), transparent 45%),
+    linear-gradient(135deg, #f6b84c 0%, #e47b32 100%);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.debug-panel--dragging .debug-header {
+  cursor: grabbing;
+}
+
+.debug-header__main {
+  display: flex;
   align-items: center;
-  padding: var(--space-3) var(--space-4);
-  background: linear-gradient(135deg, var(--color-warning), var(--color-warning-light));
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  position: relative;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-width: 0;
 }
 
-.debug-header::before {
-  /* content: ''; */
-  position: absolute;
-  left: calc(var(--space-2) * -1);
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: var(--font-size-xl);
-  animation: pulse 2s infinite;
+.debug-header__collapsed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.94);
 }
 
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.debug-header h3 {
+.debug-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 0;
+  min-width: 0;
   font-size: var(--font-size-base);
-  color: #ffffff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  color: #fff;
+}
+
+.debug-title__icon,
+.debug-header__icon {
+  font-size: 1.1em;
+  flex-shrink: 0;
+  color: currentColor;
+}
+
+.collapsed-label {
+  font-size: var(--font-size-xs);
+  color: rgba(255, 255, 255, 0.94);
+  letter-spacing: 0.08em;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+.collapsed-status {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.collapsed-status--active {
+  background: #27ae60;
+}
+
+.collapsed-status--idle {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.status-pill {
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  white-space: nowrap;
+}
+
+.status-pill--active {
+  background: rgba(39, 174, 96, 0.22);
+}
+
+.status-pill--idle {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.debug-panel--collapsed .panel-actions {
+  flex-direction: column;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.panel-icon-button:hover {
+  background: rgba(255, 255, 255, 0.28);
+  transform: translateY(-1px);
 }
 
 .debug-content {
   padding: var(--space-4);
-  max-height: 60vh;
   overflow-y: auto;
-  background: rgba(248, 249, 250, 0.8);
+  max-height: calc(100vh - 140px);
+  background: linear-gradient(180deg, rgba(255, 248, 239, 0.96) 0%, rgba(250, 250, 248, 0.98) 100%);
 }
 
 .debug-section {
   margin-bottom: var(--space-5);
-  padding-bottom: var(--space-3) var(--space-4) 0;
-  border-bottom: 1px solid var(--color-border-light);
 }
 
 .debug-section:last-child {
-  border-bottom: none;
   margin-bottom: 0;
 }
 
+.section-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.section-subtitle {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
 .debug-section h4 {
-  margin: 0 0 var(--space-2) 0;
+  margin: 0;
   font-size: var(--font-size-sm);
   color: var(--color-text);
   font-weight: var(--font-weight-semibold);
 }
 
-.debug-switch {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  margin-bottom: var(--space-2);
-}
-
-.debug-switch input {
-  margin-right: var(--space-2);
-}
-
-.debug-control {
-  margin-bottom: var(--space-3);
-}
-
-.debug-control label {
-  display: block;
-  margin-bottom: var(--space-1);
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  font-weight: var(--font-weight-medium);
-}
-
-.debug-control input[type="number"],
-.debug-control input[type="range"] {
-  width: 80%;
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-base);
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-size: var(--font-size-xs);
-  transition: border-color 0.2s ease;
-}
-
-.debug-control input[type="number"]:focus,
-.debug-control input[type="range"]:focus {
-  outline: none;
-  border-color: var(--color-warning);
-  box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.1);
-}
-
-.debug-control input[type="range"] {
-  padding: 0;
-}
-
-.debug-value {
-  margin-left: var(--space-2);
-  font-size: var(--font-size-xs);
-  color: var(--color-warning);
-  font-weight: var(--font-weight-semibold);
-}
-
-.debug-buttons {
+.status-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
 }
 
-.debug-status {
-  font-size: var(--font-size-xs);
-  background: rgba(248, 249, 250, 0.5);
-  padding: var(--space-2);
-  border-radius: var(--radius-base);
-  border: 1px solid var(--color-border-light);
-}
-
-.status-item {
+.status-card {
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(214, 214, 214, 0.8);
   display: flex;
-  justify-content: space-between;
-  margin-bottom: var(--space-1);
-  padding: var(--space-px) 0;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
 .status-label {
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
-  font-weight: var(--font-weight-medium);
 }
 
 .status-value {
-  color: var(--color-text);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 
 .status-value.active {
@@ -483,5 +1032,161 @@ function clearMockData() {
 
 .status-value.inactive {
   color: var(--color-text-secondary);
+}
+
+.control-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.debug-switch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+.debug-control {
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(214, 214, 214, 0.8);
+}
+
+.control-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.debug-control label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.debug-control input[type='range'] {
+  width: 100%;
+}
+
+.debug-value {
+  font-size: var(--font-size-xs);
+  color: #b46119;
+  font-weight: var(--font-weight-semibold);
+}
+
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.preset-chip {
+  border: 1px solid rgba(180, 97, 25, 0.18);
+  background: rgba(246, 184, 76, 0.12);
+  color: #8d4d17;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.preset-chip--active {
+  background: #e47b32;
+  color: #fff;
+  border-color: #e47b32;
+}
+
+.memory-grid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.memory-card {
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid rgba(214, 214, 214, 0.8);
+}
+
+.memory-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.memory-card__title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.memory-card__meta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+.memory-badge {
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.memory-badge--custom {
+  background: rgba(39, 174, 96, 0.16);
+  color: var(--color-success);
+}
+
+.memory-badge--default {
+  background: rgba(120, 120, 120, 0.12);
+  color: var(--color-text-secondary);
+}
+
+.memory-card__body {
+  margin-bottom: var(--space-3);
+}
+
+.memory-line {
+  font-size: var(--font-size-xs);
+  color: var(--color-text);
+}
+
+.memory-line--muted {
+  color: var(--color-text-secondary);
+}
+
+.memory-card__actions,
+.debug-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.debug-buttons--wide {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.hidden-file-input {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .status-grid,
+  .debug-buttons,
+  .debug-buttons--wide {
+    grid-template-columns: 1fr;
+  }
+
+  .debug-panel:not(.debug-panel--collapsed) {
+    width: calc(100vw - 32px) !important;
+  }
 }
 </style>

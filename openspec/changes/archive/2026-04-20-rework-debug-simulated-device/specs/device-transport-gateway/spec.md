@@ -1,7 +1,5 @@
-## Purpose
+## MODIFIED Requirements
 
-Define a unified device and transport gateway contract so protocol and application layers can remain independent from Web/Tauri serial implementation details.
-## Requirements
 ### Requirement: Unified device gateway contract
 The system SHALL provide a `DeviceGateway` contract that unifies device lifecycle operations across Web, Tauri, and simulated runtimes, including `connect`, `disconnect`, `init`, `list`, and `select`.
 
@@ -29,48 +27,6 @@ The system SHALL provide a `DeviceGateway` contract that unifies device lifecycl
 - **WHEN** runtime-specific `transport.close()` throws during `disconnect`
 - **THEN** the gateway still clears the in-memory device handle references needed to prevent stale connected state and allow a subsequent reconnect attempt
 
-### Requirement: Unified protocol transport contract
-The system SHALL provide a `Transport` contract exposing `send`, `read`, and `setSignals` operations that protocol-layer code can use independent of runtime-specific serial implementations.
-
-#### Scenario: Protocol send/read through transport
-- **WHEN** protocol logic performs packet send and packet read operations
-- **THEN** it uses only `Transport` operations and receives consistent success, error, and timeout behavior regardless of runtime
-
-#### Scenario: Signal initialization through transport
-- **WHEN** device initialization requires toggling serial control signals
-- **THEN** callers invoke `setSignals` on `Transport` instead of using runtime-specific serial APIs directly
-
-#### Scenario: Protocol layer consumes transport-only contract
-- **WHEN** protocol modules perform communication for Burner flows
-- **THEN** protocol call paths consume only `Transport` contract APIs and do not depend on concrete serial service classes
-
-#### Scenario: Send timeout leaves transport reusable
-- **WHEN** a transport `send()` call times out or aborts midway
-- **THEN** the transport resets any writer or lock state needed so the next send or close attempt fails predictably or succeeds without inheriting stale write state
-
-#### Scenario: Synchronization primitive release is idempotent
-- **WHEN** a transport-internal release callback is invoked more than once
-- **THEN** only the first invocation changes lock state and queued waiters are not skipped or reordered
-
-### Requirement: Device selection and transport association
-The system SHALL expose a gateway result model where selected/connected device context includes or resolves the associated `Transport` needed by protocol workflows.
-
-#### Scenario: Connect returns protocol-usable context
-- **WHEN** a caller connects to a selected device through `DeviceGateway`
-- **THEN** the returned context can provide a `Transport` instance required by protocol adapter operations
-
-#### Scenario: Disconnect invalidates transport usage
-- **WHEN** the caller disconnects a device through `DeviceGateway`
-- **THEN** subsequent operations through the associated transport fail predictably until a new connection is established
-
-#### Scenario: Domain protocol port receives transport through adapter
-- **WHEN** Burner orchestration calls protocol operations through domain ports
-- **THEN** the bound port adapter resolves the underlying `Transport` from gateway context without exposing gateway internals to use cases
-
-#### Scenario: Reconnect returns fresh connection context
-- **WHEN** a caller reconnects after disconnect or failure
-- **THEN** the gateway exposes a fresh connection context and does not reuse stale transport/session bindings
-
 ### Requirement: Device gateway integration contract coverage
 The system SHALL provide integration tests for `DeviceGateway` lifecycle behavior using runtime-appropriate mocks or simulated runtimes so connect, disconnect, init, list, and select behaviors are verifiable for Web, Tauri, and simulated implementations.
 
@@ -85,17 +41,6 @@ The system SHALL provide integration tests for `DeviceGateway` lifecycle behavio
 #### Scenario: Disconnect and reconnect contract is covered
 - **WHEN** gateway integration tests execute disconnect followed by reconnect
 - **THEN** the suite verifies lifecycle contract continuity and fresh transport-context availability for upper layers
-
-### Requirement: Transport error and timeout contract regression coverage
-The system SHALL provide regression tests for `Transport` send/read/setSignals behavior so timeout and error semantics remain consistent across runtime implementations.
-
-#### Scenario: Transport read timeout semantics are covered
-- **WHEN** transport read operations exceed configured timeout in tests
-- **THEN** the suite verifies timeout error behavior matches the shared transport contract
-
-#### Scenario: Transport send and signal behavior is covered
-- **WHEN** transport tests execute send and signal-control operations
-- **THEN** the suite verifies success/error propagation semantics remain consistent for protocol-layer callers
 
 ### Requirement: Runtime parity verification for gateway and transport behavior
 The system SHALL verify that Web, Tauri, and simulated gateway/transport implementations preserve equivalent upper-layer behavior for burner protocol workflows.
@@ -133,15 +78,3 @@ The system SHALL update the gateway factory to create a `SimulatedDeviceGateway`
 #### Scenario: Factory creates WebDeviceGateway in browser
 - **WHEN** `getDeviceGateway()` is called in a standard web browser and simulation is disabled
 - **THEN** it returns an instance of `WebDeviceGateway`
-
-### Requirement: Transport lifecycle recovery regression coverage
-The system SHALL provide regression coverage for transport lifecycle recovery paths that previously left runtime-specific serial implementations in stale or unrecoverable states.
-
-#### Scenario: Web transport recovers after send timeout
-- **WHEN** Web transport tests force a timed-out write followed by another send or close
-- **THEN** the suite verifies the transport does not keep a stale writer lock and the follow-up operation completes or fails deterministically
-
-#### Scenario: Disconnect cleanup is covered across runtimes
-- **WHEN** gateway tests inject `close()` failures in Web and Tauri disconnect flows
-- **THEN** the suite verifies caller-visible cleanup semantics remain aligned and reconnect remains possible
-

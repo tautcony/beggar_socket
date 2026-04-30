@@ -125,10 +125,9 @@ import { useCartBurnerFileState, useCartBurnerSessionState } from '@/composables
 import { useToast } from '@/composables/useToast';
 import { createCartridgeProtocolSession } from '@/features/burner/adapters';
 import { type BurnerProtocolSession, createBurnerFacade, type GameDetectionResult } from '@/features/burner/application';
-import { CartridgeAdapter, GBAAdapter, MBC5Adapter, MockAdapter } from '@/services';
+import { CartridgeAdapter, GBAAdapter, MBC5Adapter } from '@/services';
 import { shouldUseLargeRomPage } from '@/services/flash-chip';
 import { AdvancedSettings } from '@/settings/advanced-settings';
-import { DebugSettings } from '@/settings/debug-settings';
 import { useRecentFileNamesStore } from '@/stores/recent-file-names-store';
 import { CommandOptions, DeviceInfo } from '@/types';
 import type { BurnerLogEntry } from '@/types/burner-log';
@@ -294,33 +293,20 @@ function initializeAdapters() {
       return;
     }
 
-    if (DebugSettings.debugMode) {
-      // 调试模式下使用 MockAdapter
-      const adapter = new MockAdapter(
-        undefined,
-        (msg, level) => { log(msg, level); },
-        updateProgress,
-        t,
-      );
-      gbaAdapter.value = createSession(adapter, 'mock');
-      mbc5Adapter.value = createSession(adapter, 'mock');
-    } else {
-      // 正常模式下使用真实适配器
-      const gbaRuntimeAdapter = new GBAAdapter(
-        props.device,
-        (msg, level) => { log(msg, level); },
-        updateProgress,
-        t,
-      );
-      gbaAdapter.value = createSession(gbaRuntimeAdapter, 'gba');
-      const mbc5RuntimeAdapter = new MBC5Adapter(
-        props.device,
-        (msg, level) => { log(msg, level); },
-        updateProgress,
-        t,
-      );
-      mbc5Adapter.value = createSession(mbc5RuntimeAdapter, 'mbc5');
-    }
+    const gbaRuntimeAdapter = new GBAAdapter(
+      props.device,
+      (msg, level) => { log(msg, level); },
+      updateProgress,
+      t,
+    );
+    gbaAdapter.value = createSession(gbaRuntimeAdapter, 'gba');
+    const mbc5RuntimeAdapter = new MBC5Adapter(
+      props.device,
+      (msg, level) => { log(msg, level); },
+      updateProgress,
+      t,
+    );
+    mbc5Adapter.value = createSession(mbc5RuntimeAdapter, 'mbc5');
   } else {
     // 设备未连接时清空适配器
     if (gbaAdapter.value || mbc5Adapter.value) {
@@ -552,15 +538,21 @@ async function readRom() {
             recentFileNamesStore.addFileName(romInfo.fileName);
           }
 
-          const now = DateTime.now().toLocal().toISO();
-
-          let fileName = `exported_${now}.rom`;
-          if (romInfo.type !== 'Unknown') {
+          const now = DateTime.now().toLocal().toFormat('yyyyMMdd-HHmmss');
+          const fallbackExtension = romInfo.type === 'GBA'
+            ? 'gba'
+            : romInfo.type === 'GBC'
+              ? 'gbc'
+              : romInfo.type === 'GB'
+                ? 'gb'
+                : 'rom';
+          let fileName = `exported_${now}.${fallbackExtension}`;
+          if (romInfo.isValid) {
             fileName = romInfo.fileName;
           }
           const saveResult = await saveAsFile(response.data, fileName);
           if (saveResult.saved) {
-            log(t('messages.ram.exportSuccess', { name: fileName }), 'success');
+            log(t('messages.rom.exportSuccess', { name: fileName }), 'success');
           } else {
             showToast(t('messages.operation.cancelled'), 'info');
             log(t('messages.operation.cancelled'), 'warn');

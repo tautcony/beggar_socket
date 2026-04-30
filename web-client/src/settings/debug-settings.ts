@@ -1,5 +1,45 @@
 import { timeout } from '@/utils/async-utils';
 
+export const SIMULATED_MEMORY_SLOTS = ['gbaRom', 'gbaRam', 'gbcRom', 'gbcRam'] as const;
+export type SimulatedMemorySlot = typeof SIMULATED_MEMORY_SLOTS[number];
+
+export interface SimulatedMemoryDefinition {
+  capacity: number;
+  defaultFillByte: number;
+  labelKey: string;
+}
+
+export interface SimulatedMemoryImage {
+  slot: SimulatedMemorySlot;
+  fileName: string;
+  size: number;
+  updatedAt: number;
+  data: Uint8Array;
+}
+
+const SIMULATED_MEMORY_DEFINITIONS: Record<SimulatedMemorySlot, SimulatedMemoryDefinition> = {
+  gbaRom: {
+    capacity: 32 * 1024 * 1024,
+    defaultFillByte: 0xff,
+    labelKey: 'ui.debug.memory.gbaRom',
+  },
+  gbaRam: {
+    capacity: 128 * 1024,
+    defaultFillByte: 0x00,
+    labelKey: 'ui.debug.memory.gbaRam',
+  },
+  gbcRom: {
+    capacity: 8 * 1024 * 1024,
+    defaultFillByte: 0xff,
+    labelKey: 'ui.debug.memory.gbcRom',
+  },
+  gbcRam: {
+    capacity: 128 * 1024,
+    defaultFillByte: 0x00,
+    labelKey: 'ui.debug.memory.gbcRam',
+  },
+};
+
 /**
  * 调试配置类
  * 用于在开发模式下模拟设备行为
@@ -22,6 +62,15 @@ export class DebugSettings {
 
   // 错误模拟概率 (0-1)
   private static _errorProbability = 0.1;
+
+  // 模拟读取速度（字节/秒）
+  private static _simulatedReadSpeed = 512 * 1024;
+
+  // 模拟写入速度（字节/秒）
+  private static _simulatedWriteSpeed = 512 * 1024;
+
+  // 会话级模拟内存镜像配置，不写入 localStorage
+  private static _simulatedMemoryImages: Partial<Record<SimulatedMemorySlot, SimulatedMemoryImage>> = {};
 
   static get debugMode(): boolean {
     return this._debugMode;
@@ -67,6 +116,22 @@ export class DebugSettings {
     this._errorProbability = Math.max(0, Math.min(1, value));
   }
 
+  static get simulatedReadSpeed(): number {
+    return this._simulatedReadSpeed;
+  }
+  static set simulatedReadSpeed(value: number) {
+    this._simulatedReadSpeed = Math.max(1024, Math.floor(value));
+    localStorage.setItem('simulated_read_speed', this._simulatedReadSpeed.toString());
+  }
+
+  static get simulatedWriteSpeed(): number {
+    return this._simulatedWriteSpeed;
+  }
+  static set simulatedWriteSpeed(value: number) {
+    this._simulatedWriteSpeed = Math.max(1024, Math.floor(value));
+    localStorage.setItem('simulated_write_speed', this._simulatedWriteSpeed.toString());
+  }
+
   /**
    * 初始化调试配置
    */
@@ -79,6 +144,20 @@ export class DebugSettings {
     const showPanel = localStorage.getItem('show_debug_panel');
     if (showPanel !== null) {
       this._showDebugPanel = showPanel === 'true';
+    }
+    const readSpeed = localStorage.getItem('simulated_read_speed');
+    if (readSpeed !== null) {
+      const parsed = Number.parseInt(readSpeed, 10);
+      if (!Number.isNaN(parsed)) {
+        this._simulatedReadSpeed = Math.max(1024, parsed);
+      }
+    }
+    const writeSpeed = localStorage.getItem('simulated_write_speed');
+    if (writeSpeed !== null) {
+      const parsed = Number.parseInt(writeSpeed, 10);
+      if (!Number.isNaN(parsed)) {
+        this._simulatedWriteSpeed = Math.max(1024, parsed);
+      }
     }
   }
 
@@ -145,103 +224,68 @@ export class DebugSettings {
     return data;
   }
 
-  /**
-   * 创建模拟的 SerialPort 设备
-   */
-  static createMockSerialPort(): SerialPort {
-    // intervalId 在 start/cancel 闭包间共享，确保定时器可被清除
-    let intervalId: ReturnType<typeof setInterval> | undefined;
-
-    // 创建模拟的可读流
-    const mockReadableStream = new ReadableStream<Uint8Array>({
-      start(controller) {
-        // 模拟设备响应数据
-        const mockResponses = [
-          new Uint8Array([0x01, 0x02, 0x03, 0x04]), // 模拟ID响应
-          new Uint8Array([0x00]), // 模拟成功响应
-        ];
-        let responseIndex = 0;
-
-        // 定期推送模拟数据，发送完毕或 stream 取消时清除定时器
-        intervalId = setInterval(() => {
-          if (responseIndex < mockResponses.length) {
-            controller.enqueue(mockResponses[responseIndex]);
-            responseIndex++;
-          } else {
-            clearInterval(intervalId);
-            intervalId = undefined;
-          }
-        }, 100);
-      },
-      cancel() {
-        clearInterval(intervalId);
-        intervalId = undefined;
-      },
-    });
-
-    // 创建模拟的可写流
-    const mockWritableStream = new WritableStream<Uint8Array>({
-      write(chunk) {
-        console.log('Mock SerialPort: 接收到数据', chunk);
-        return Promise.resolve();
-      },
-    });
-
-    // 创建模拟的 SerialPort
-    return {
-      readable: mockReadableStream,
-      writable: mockWritableStream,
-
-      // 模拟串口信息
-      getInfo: () => ({
-        usbVendorId: 0x0483,
-        usbProductId: 0x0721,
-      }),
-
-      // 模拟信号控制
-      getSignals: () => Promise.resolve({
-        dataCarrierDetect: false,
-        clearToSend: false,
-        ringIndicator: false,
-        dataSetReady: false,
-      }),
-
-      setSignals: (signals: SerialOutputSignals) => {
-        return Promise.resolve();
-      },
-
-      // 模拟打开/关闭
-      open: (options: SerialOptions) => {
-        console.log('Mock SerialPort: 打开端口', options);
-        return Promise.resolve();
-      },
-
-      close: () => {
-        console.log('Mock SerialPort: 关闭端口');
-        return Promise.resolve();
-      },
-
-      // 模拟设备移除事件
-      addEventListener: () => { },
-      removeEventListener: () => { },
-      dispatchEvent: () => false,
-      onconnect: (ev: Event) => {},
-      ondisconnect: (ev: Event) => {},
-      connected: true,
-      forget: () => Promise.resolve(),
-    } as SerialPort;
+  static get simulatedDeviceEnabled(): boolean {
+    return this._debugMode;
   }
 
-  /**
-   * 创建模拟的 DeviceInfo
-   */
-  static createMockDeviceInfo() {
-    const mockPort = this.createMockSerialPort();
-    return {
-      port: mockPort,
-      reader: null,
-      writer: null,
+  static get simulatedMemoryDefinitions(): Record<SimulatedMemorySlot, SimulatedMemoryDefinition> {
+    return SIMULATED_MEMORY_DEFINITIONS;
+  }
+
+  static getSimulatedMemorySlots(): SimulatedMemorySlot[] {
+    return [...SIMULATED_MEMORY_SLOTS];
+  }
+
+  static getSimulatedMemoryDefinition(slot: SimulatedMemorySlot): SimulatedMemoryDefinition {
+    return this.simulatedMemoryDefinitions[slot];
+  }
+
+  static setSimulatedMemoryImage(slot: SimulatedMemorySlot, data: Uint8Array, fileName: string): void {
+    this._simulatedMemoryImages[slot] = {
+      slot,
+      fileName,
+      size: data.byteLength,
+      updatedAt: Date.now(),
+      data: new Uint8Array(data),
     };
+  }
+
+  static getSimulatedMemoryImage(slot: SimulatedMemorySlot): SimulatedMemoryImage | null {
+    const image = this._simulatedMemoryImages[slot];
+    if (!image) {
+      return null;
+    }
+
+    return {
+      ...image,
+      data: new Uint8Array(image.data),
+    };
+  }
+
+  static getSimulatedMemoryImageSummary(slot: SimulatedMemorySlot): Omit<SimulatedMemoryImage, 'data'> | null {
+    const image = this._simulatedMemoryImages[slot];
+    if (!image) {
+      return null;
+    }
+
+    return {
+      slot: image.slot,
+      fileName: image.fileName,
+      size: image.size,
+      updatedAt: image.updatedAt,
+    };
+  }
+
+  static clearSimulatedMemoryImage(slot: SimulatedMemorySlot): void {
+    this._simulatedMemoryImages[slot] = undefined;
+  }
+
+  static clearAllSimulatedMemoryImages(): void {
+    this._simulatedMemoryImages = {};
+  }
+
+  static countConfiguredSimulatedMemoryImages(): number {
+    return this.getSimulatedMemorySlots().filter(slot => Boolean(this._simulatedMemoryImages[slot])).length;
   }
 }
 

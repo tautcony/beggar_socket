@@ -1,7 +1,6 @@
 import { createConnectionOrchestrationUseCase } from '@/features/burner/adapters';
 import type { BurnerConnectionHandle, BurnerConnectionSelection, ConnectionFailure } from '@/features/burner/application';
 import { type DeviceHandle, toLegacyDeviceInfo, withPortInfo } from '@/platform/serial';
-import { DebugSettings } from '@/settings/debug-settings';
 import { DeviceInfo } from '@/types/device-info';
 import type { SerialPortInfo } from '@/types/serial';
 import { PortSelectionRequiredError } from '@/utils/errors/PortSelectionRequiredError';
@@ -100,12 +99,6 @@ export class DeviceConnectionManager {
    * 请求串口设备连接
    */
   async requestDevice(_filter?: PortFilter): Promise<DeviceInfo> {
-    // 调试模式：返回模拟设备
-    if (DebugSettings.debugMode) {
-      console.log('[DEBUG] 调试模式启用，返回模拟设备');
-      return DebugSettings.createMockDeviceInfo();
-    }
-
     if (this.isConnecting) {
       throw new Error('Device connection already in progress');
     }
@@ -210,12 +203,6 @@ export class DeviceConnectionManager {
    * 初始化串口状态（设置 DTR/RTS 信号）
    */
   async initializeDevice(device: DeviceInfo): Promise<void> {
-    // 调试模式：跳过硬件初始化
-    if (DebugSettings.debugMode) {
-      console.log('[DEBUG] 调试模式，跳过设备初始化');
-      return;
-    }
-
     const ensureResult = await this.connectionUseCase.ensureConnected();
     if (!ensureResult.success || !ensureResult.context.handle) {
       console.error('[DeviceConnectionManager] initializeDevice failed', {

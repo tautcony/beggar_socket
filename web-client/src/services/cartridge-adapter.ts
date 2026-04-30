@@ -33,6 +33,7 @@ export type TranslateFunction = (key: string, params?: any) => string;
 export class CartridgeAdapter {
   private static readonly COMMAND_RESET_PULSE_MS = 10;
   private static readonly COMMAND_RESET_SETTLE_MS = 200;
+  private static readonly SIMULATED_TRANSFER_CHUNK_SIZE = 0xfffd;
 
   // 子类共享时序常量
   protected static readonly ROM_READ_START_SETTLE_MS = 100;
@@ -262,6 +263,30 @@ export class CartridgeAdapter {
     await timeout(settleMs);
   }
 
+  protected isSimulatedDevice(): boolean {
+    return this.device.serialHandle?.platform === 'simulated';
+  }
+
+  protected resolveRomPageSize(requestedPageSize?: number): number {
+    const configuredPageSize = Math.min(requestedPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
+    if (!this.isSimulatedDevice()) {
+      return configuredPageSize;
+    }
+
+    // Simulated transports already execute the full protocol path. Use larger logical chunks so
+    // async command overhead does not dwarf the configured throughput controls in debug mode.
+    return Math.max(configuredPageSize, CartridgeAdapter.SIMULATED_TRANSFER_CHUNK_SIZE);
+  }
+
+  protected resolveRamPageSize(requestedPageSize?: number): number {
+    const configuredPageSize = Math.min(requestedPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
+    if (!this.isSimulatedDevice()) {
+      return configuredPageSize;
+    }
+
+    return Math.max(configuredPageSize, CartridgeAdapter.SIMULATED_TRANSFER_CHUNK_SIZE);
+  }
+
   protected summarizeLogMessage(message: BurnerLogInput): string {
     return typeof message === 'string' ? message : formatBurnerLogMessage(message);
   }
@@ -325,7 +350,7 @@ export class CartridgeAdapter {
   async readROM(size: number, options: CommandOptions, signal?: AbortSignal, showProgress = true): Promise<CommandResult> {
     const ops = this.ops;
     const baseAddress = options.baseAddress ?? 0x00;
-    const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
+    const pageSize = this.resolveRomPageSize(options.romPageSize);
     const readThrottleMs = AdvancedSettings.romReadThrottleMs;
 
     this.log(this.t('messages.operation.startReadROM', { size, baseAddress: formatHex(baseAddress, 4) }), 'info');

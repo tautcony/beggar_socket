@@ -703,7 +703,7 @@ export class MBC5Adapter extends CartridgeAdapter {
     const mbcType = options.mbcType ?? 'MBC5';
     const enable5V = options.enable5V ?? false;
     const baseAddress = options.baseAddress ?? 0x00;
-    const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
+    const pageSize = this.resolveRomPageSize(options.romPageSize);
     const bufferSize = options.cfiInfo.bufferSize ?? 0;
 
     this.log(this.t('messages.operation.startWriteROM', {
@@ -719,11 +719,14 @@ export class MBC5Adapter extends CartridgeAdapter {
         try {
           return await this.withOptional5v(enable5V, async () => {
             const total = options.size ?? fileData.byteLength;
+            const wallClockStartTime = Date.now();
             let written = 0;
             this.log(this.t('messages.rom.writing', { size: total }), 'info');
 
             const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, total, baseAddress);
+            const eraseStartTime = Date.now();
             const eraseResult = await this.eraseSectors(sectorInfo, options, signal, true);
+            const eraseDuration = Date.now() - eraseStartTime;
             if (!eraseResult.success) {
               return eraseResult;
             }
@@ -876,13 +879,17 @@ export class MBC5Adapter extends CartridgeAdapter {
               }
             }
 
-            const totalTime = speedCalculator.getTotalTime();
+            const transferTime = speedCalculator.getTotalTime();
+            const totalTime = (Date.now() - wallClockStartTime) / 1000;
+            const eraseTime = eraseDuration / 1000;
             const avgSpeed = speedCalculator.getAverageSpeed();
             const maxSpeed = speedCalculator.getMaxSpeed();
 
             this.log(this.t('messages.rom.writeComplete'), 'success');
             this.log(this.t('messages.rom.writeSummary', {
               totalTime: formatTimeDuration(totalTime),
+              transferTime: formatTimeDuration(transferTime),
+              eraseTime: formatTimeDuration(eraseTime),
               avgSpeed: formatSpeed(avgSpeed),
               maxSpeed: formatSpeed(maxSpeed),
               totalSize: formatBytes(total),
@@ -938,7 +945,7 @@ export class MBC5Adapter extends CartridgeAdapter {
     const mbcType = options.mbcType ?? 'MBC5';
     const enable5V = options.enable5V ?? false;
     const baseAddress = options.baseAddress ?? 0x00;
-    const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
+    const pageSize = this.resolveRomPageSize(options.romPageSize);
     const retries = AdvancedSettings.romReadRetryCount;
     const retryDelayMs = AdvancedSettings.romReadRetryDelayMs;
     const timeoutMs = AdvancedSettings.packageReceiveTimeout;
@@ -1111,7 +1118,7 @@ export class MBC5Adapter extends CartridgeAdapter {
   override async verifyROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     const mbcType = options.mbcType ?? 'MBC5';
     const baseAddress = options.baseAddress ?? 0;
-    const pageSize = Math.min(options.romPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
+    const pageSize = this.resolveRomPageSize(options.romPageSize);
 
     this.log(this.t('messages.operation.startVerifyROM', {
       fileSize: fileData.byteLength,
@@ -1360,7 +1367,7 @@ export class MBC5Adapter extends CartridgeAdapter {
     const enable5V = options.enable5V ?? false;
     const baseAddress = options.baseAddress ?? 0x00;
     const ramType = options.ramType ?? 'SRAM';
-    const pageSize = Math.min(options.ramPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
+    const pageSize = this.resolveRamPageSize(options.ramPageSize);
 
     this.log(this.t('messages.operation.startWriteRAM', {
       fileSize: fileData.byteLength,
@@ -1476,7 +1483,7 @@ export class MBC5Adapter extends CartridgeAdapter {
     const baseAddress = options.baseAddress ?? 0x00;
     const ramType = options.ramType ?? 'SRAM';
     const effectiveRamType = ramType === 'BATLESS' ? 'SRAM' : ramType;
-    const pageSize = Math.min(options.ramPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
+    const pageSize = this.resolveRamPageSize(options.ramPageSize);
     const retries = AdvancedSettings.ramReadRetryCount;
     const retryDelayMs = AdvancedSettings.ramReadRetryDelayMs;
     const timeoutMs = AdvancedSettings.packageReceiveTimeout;
