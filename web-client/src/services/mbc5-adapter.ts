@@ -17,6 +17,7 @@ import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions, MbcType } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
+import { firmwareUnsupportedResult, isRamTypeSupportedByFirmware } from '@/types/firmware-profile';
 import type { SectorProgressInfo } from '@/types/progress-info';
 import { timeout } from '@/utils/async-utils';
 import { errorToBurnerLog } from '@/utils/burner-log';
@@ -78,6 +79,19 @@ export class MBC5Adapter extends CartridgeAdapter {
 
   protected override async withPowerConfig<T>(enable5V: boolean, fn: () => Promise<T>): Promise<T> {
     return this.withOptional5v(enable5V, fn);
+  }
+
+  private getUnsupportedPowerControlResult(): CommandResult | null {
+    return this.firmwareProfile.capabilities.cartPowerControl
+      ? null
+      : firmwareUnsupportedResult('MBC 5V power control', this.firmwareProfile);
+  }
+
+  private getUnsupportedRamTypeResult(ramType: CommandOptions['ramType'], operation: string): CommandResult | null {
+    const resolvedRamType = ramType ?? 'SRAM';
+    return isRamTypeSupportedByFirmware(this.firmwareProfile, 'mbc5', resolvedRamType)
+      ? null
+      : firmwareUnsupportedResult(operation, this.firmwareProfile);
   }
 
   private async pulseSignals(): Promise<void> {
@@ -418,6 +432,11 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @returns - 包含成功状态和消息的对象
    */
   override async eraseChip(options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
+    if (options.enable5V) {
+      const unsupported = this.getUnsupportedPowerControlResult();
+      if (unsupported) return unsupported;
+    }
+
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.eraseChip',
       async () => {
@@ -517,6 +536,11 @@ export class MBC5Adapter extends CartridgeAdapter {
     signal?: AbortSignal,
     allowSampleSkip = false,
   ): Promise<CommandResult> {
+    if (options.enable5V) {
+      const unsupported = this.getUnsupportedPowerControlResult();
+      if (unsupported) return unsupported;
+    }
+
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.eraseSectors',
       async () => {
@@ -700,6 +724,11 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @returns - 操作结果
    */
   override async writeROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
+    if (options.enable5V) {
+      const unsupported = this.getUnsupportedPowerControlResult();
+      if (unsupported) return unsupported;
+    }
+
     const mbcType = options.mbcType ?? 'MBC5';
     const enable5V = options.enable5V ?? false;
     const baseAddress = options.baseAddress ?? 0x00;
@@ -942,6 +971,11 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @returns - 操作结果，包含读取的数据
    */
   override async readROM(size: number, options: CommandOptions, signal?: AbortSignal, showProgress = true) : Promise<CommandResult> {
+    if (options.enable5V) {
+      const unsupported = this.getUnsupportedPowerControlResult();
+      if (unsupported) return unsupported;
+    }
+
     const mbcType = options.mbcType ?? 'MBC5';
     const enable5V = options.enable5V ?? false;
     const baseAddress = options.baseAddress ?? 0x00;
@@ -1116,6 +1150,11 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @returns - 操作结果
    */
   override async verifyROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
+    if (options.enable5V) {
+      const unsupported = this.getUnsupportedPowerControlResult();
+      if (unsupported) return unsupported;
+    }
+
     const mbcType = options.mbcType ?? 'MBC5';
     const baseAddress = options.baseAddress ?? 0;
     const pageSize = this.resolveRomPageSize(options.romPageSize);
@@ -1363,6 +1402,13 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @returns - 操作结果
    */
   override async writeRAM(fileData: Uint8Array, options: CommandOptions) : Promise<CommandResult> {
+    if (options.enable5V) {
+      const unsupported = this.getUnsupportedPowerControlResult();
+      if (unsupported) return unsupported;
+    }
+    const unsupportedRamType = this.getUnsupportedRamTypeResult(options.ramType, 'MBC RAM write');
+    if (unsupportedRamType) return unsupportedRamType;
+
     const mbcType = options.mbcType ?? 'MBC5';
     const enable5V = options.enable5V ?? false;
     const baseAddress = options.baseAddress ?? 0x00;
@@ -1478,6 +1524,13 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @returns - 操作结果，包含读取的数据
    */
   override async readRAM(size: number, options: CommandOptions) : Promise<CommandResult> {
+    if (options.enable5V) {
+      const unsupported = this.getUnsupportedPowerControlResult();
+      if (unsupported) return unsupported;
+    }
+    const unsupportedRamType = this.getUnsupportedRamTypeResult(options.ramType, 'MBC RAM read');
+    if (unsupportedRamType) return unsupportedRamType;
+
     const mbcType = options.mbcType ?? 'MBC5';
     const enable5V = options.enable5V ?? false;
     const baseAddress = options.baseAddress ?? 0x00;
@@ -1596,6 +1649,13 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @returns - 操作结果
    */
   override async verifyRAM(fileData: Uint8Array, options: CommandOptions) : Promise<CommandResult> {
+    if (options.enable5V) {
+      const unsupported = this.getUnsupportedPowerControlResult();
+      if (unsupported) return unsupported;
+    }
+    const unsupportedRamType = this.getUnsupportedRamTypeResult(options.ramType, 'MBC RAM verify');
+    if (unsupportedRamType) return unsupportedRamType;
+
     const baseAddress = options.baseAddress ?? 0x00;
     const ramType = options.ramType ?? 'SRAM';
     const configuredSize = options.size ?? fileData.byteLength;
@@ -1669,6 +1729,11 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @returns 卡带容量相关信息
    */
   override async getCartInfo(enable5V = false): Promise<CFIInfo | false> {
+    if (enable5V && !this.firmwareProfile.capabilities.cartPowerControl) {
+      this.log(firmwareUnsupportedResult('MBC 5V power control', this.firmwareProfile).message, 'error');
+      return false;
+    }
+
     this.log(this.t('messages.operation.startGetCartInfo'), 'info');
 
     return PerformanceTracker.trackAsyncOperation(

@@ -471,6 +471,12 @@
     "settings": {
       "title": "高度な設定",
       "tooltip": "高度なオプションを設定",
+      "firmware": {
+        "title": "ファームウェア種別",
+        "profile": "現在のデバイスファームウェア",
+        "stm": "丐中丐",
+        "stc": "碳酸丐"
+      },
       "size": {
         "title": "読み書き設定",
         "romPageSize": "ROM読み書きページサイズ",

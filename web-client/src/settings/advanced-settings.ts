@@ -1,4 +1,9 @@
+import type { ConfigurableFirmwareProfileId } from '@/types/firmware-profile';
+
 export interface AdvancedSettingsConfig {
+  firmware?: {
+    profile?: ConfigurableFirmwareProfileId;
+  };
   size?: {
     romPageSize?: number;
     ramPageSize?: number;
@@ -76,6 +81,7 @@ const SETTING_DESCRIPTORS: readonly SettingDescriptor[] = [
 const _storage: Record<string, number> = Object.fromEntries(
   SETTING_DESCRIPTORS.map((d) => [d.key, d.default]),
 );
+let _firmwareProfile: ConfigurableFirmwareProfileId = 'stm';
 
 function validateValue(value: number, type: ValidatorType): number {
   const { min, max } = LIMITS[type];
@@ -113,9 +119,19 @@ function formatErrorRange(min: number, max: number, type: ValidatorType): string
   }
 }
 
+function validateFirmwareProfile(value: unknown): ConfigurableFirmwareProfileId {
+  if (value === 'stm' || value === 'stc') {
+    return value;
+  }
+
+  console.warn(`Firmware profile ${String(value)} is not supported, falling back to stm`);
+  return 'stm';
+}
+
 // --- AdvancedSettings class ---
 
 export class AdvancedSettings {
+  declare static firmwareProfile: ConfigurableFirmwareProfileId;
   declare static romPageSize: number;
   declare static ramPageSize: number;
   declare static romReadThrottleMs: number;
@@ -135,6 +151,9 @@ export class AdvancedSettings {
 
   static getSettings() {
     return {
+      firmware: {
+        profile: _firmwareProfile,
+      },
       size: {
         romPageSize: _storage.romPageSize,
         ramPageSize: _storage.ramPageSize,
@@ -163,6 +182,10 @@ export class AdvancedSettings {
   }
 
   static setSettings(settings: AdvancedSettingsConfig): void {
+    if (settings.firmware?.profile !== undefined) {
+      _firmwareProfile = validateFirmwareProfile(settings.firmware.profile);
+    }
+
     for (const desc of SETTING_DESCRIPTORS) {
       const group = settings[desc.group as keyof AdvancedSettingsConfig];
       if (group) {
@@ -176,6 +199,7 @@ export class AdvancedSettings {
   }
 
   static resetToDefaults(): void {
+    _firmwareProfile = 'stm';
     for (const desc of SETTING_DESCRIPTORS) {
       _storage[desc.key] = desc.default;
     }
@@ -240,6 +264,18 @@ export class AdvancedSettings {
     return { valid: errors.length === 0, errors };
   }
 }
+
+Object.defineProperty(AdvancedSettings, 'firmwareProfile', {
+  get(): ConfigurableFirmwareProfileId {
+    return _firmwareProfile;
+  },
+  set(value: ConfigurableFirmwareProfileId) {
+    _firmwareProfile = validateFirmwareProfile(value);
+    AdvancedSettings.saveSettings();
+  },
+  enumerable: true,
+  configurable: true,
+});
 
 // Register getter/setter properties from descriptors
 for (const desc of SETTING_DESCRIPTORS) {

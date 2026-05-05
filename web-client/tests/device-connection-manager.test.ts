@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { AdvancedSettings } from '@/settings/advanced-settings';
 import { PortFilters } from '@/utils/port-filter';
 
 const connectionUseCaseState = vi.hoisted(() => ({
@@ -21,6 +22,7 @@ vi.mock('@/utils/tauri', () => ({
 
 describe('DeviceConnectionManager', () => {
   beforeEach(async () => {
+    AdvancedSettings.resetToDefaults();
     vi.clearAllMocks();
     connectionUseCaseState.listAvailableSelections.mockResolvedValue({
       success: true,
@@ -59,12 +61,23 @@ describe('DeviceConnectionManager', () => {
   });
 
   it('connects immediately when exactly one filtered port is available', async () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
     connectionUseCaseState.listAvailableSelections.mockResolvedValue({
       success: true,
       ports: [
         {
-          portInfo: { path: '/dev/tty.usbmodem1', vendorId: '0483', productId: '0721' },
-          context: { portInfo: { path: '/dev/tty.usbmodem1', vendorId: '0483', productId: '0721' } },
+          portInfo: {
+            path: '/dev/tty.usbmodem6D83538A48851',
+            vendorId: '0483',
+            productId: '0721',
+          },
+          context: {
+            portInfo: {
+              path: '/dev/tty.usbmodem6D83538A48851',
+              vendorId: '0483',
+              productId: '0721',
+            },
+          },
         },
       ],
     });
@@ -74,9 +87,60 @@ describe('DeviceConnectionManager', () => {
     await manager.requestDevice(PortFilters.presets.beggarSocket());
 
     expect(connectionUseCaseState.prepareConnectionWithSelection).toHaveBeenCalledWith({
-      portInfo: { path: '/dev/tty.usbmodem1', vendorId: '0483', productId: '0721' },
-      context: { portInfo: { path: '/dev/tty.usbmodem1', vendorId: '0483', productId: '0721' } },
+      portInfo: {
+        path: '/dev/tty.usbmodem6D83538A48851',
+        vendorId: '0483',
+        productId: '0721',
+      },
+      context: {
+        portInfo: {
+          path: '/dev/tty.usbmodem6D83538A48851',
+          vendorId: '0483',
+          productId: '0721',
+        },
+      },
     });
+    expect(infoSpy).toHaveBeenCalledWith(
+      '[DeviceConnectionManager] firmware profile detected',
+      expect.objectContaining({
+        source: 'connectWithSelectedPort',
+        profile: 'stm',
+        configuredProfile: 'stm',
+        inferredProfile: 'stm',
+        port: expect.objectContaining({
+          path: '/dev/tty.usbmodem6D83538A48851',
+          vendorId: '0483',
+          productId: '0721',
+        }),
+      }),
+    );
+    infoSpy.mockRestore();
+  });
+
+  it('uses configured firmware profile instead of native path inference', async () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+    AdvancedSettings.firmwareProfile = 'stc';
+
+    const { DeviceConnectionManager } = await import('@/services/device-connection-manager');
+    const manager = DeviceConnectionManager.getInstance();
+
+    const device = await manager.connectWithSelectedPort({
+      path: '/dev/tty.usbmodem6D83538A48851',
+      vendorId: '0483',
+      productId: '0721',
+    });
+
+    expect(device.firmwareProfile?.id).toBe('stc');
+    expect(infoSpy).toHaveBeenCalledWith(
+      '[DeviceConnectionManager] firmware profile detected',
+      expect.objectContaining({
+        source: 'connectWithSelectedPort',
+        profile: 'stc',
+        configuredProfile: 'stc',
+        inferredProfile: 'stm',
+      }),
+    );
+    infoSpy.mockRestore();
   });
 
   it('falls back to all visible ports for manual selection when no filtered port matches', async () => {

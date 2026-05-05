@@ -446,6 +446,12 @@
     "settings": {
       "title": "進階設定",
       "tooltip": "配置進階選項",
+      "firmware": {
+        "title": "韌體類型",
+        "profile": "目前插入裝置韌體",
+        "stm": "丐中丐",
+        "stc": "碳酸丐"
+      },
       "size": {
         "title": "讀寫設定",
         "romPageSize": "ROM讀寫分頁大小",

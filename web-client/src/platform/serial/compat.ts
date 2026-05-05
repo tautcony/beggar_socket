@@ -1,4 +1,5 @@
 import type { DeviceInfo } from '@/types/device-info';
+import { inferFirmwareProfileFromPort } from '@/types/firmware-profile';
 import type { SerialPortInfo } from '@/types/serial';
 import { isTauri } from '@/utils/tauri';
 
@@ -6,12 +7,14 @@ import { WebSerialTransport } from './transports';
 import type { DeviceHandle, Transport } from './types';
 
 export function toLegacyDeviceInfo(device: DeviceHandle): DeviceInfo {
+  device.firmwareProfile ??= inferFirmwareProfileFromPort(device.portInfo);
   return {
     port: device.port,
     connection: null,
     transport: device.transport,
     serialHandle: device,
     portInfo: device.portInfo,
+    firmwareProfile: device.firmwareProfile,
   };
 }
 
@@ -26,14 +29,17 @@ export function fromLegacyDeviceInfo(device: DeviceInfo): DeviceHandle {
     port: device.port,
     connection: null,
     portInfo: undefined,
+    firmwareProfile: device.firmwareProfile,
   };
 }
 
 export function withPortInfo(device: DeviceInfo, portInfo?: SerialPortInfo): DeviceInfo {
   if (device.serialHandle) {
     device.serialHandle.portInfo = portInfo;
+    device.serialHandle.firmwareProfile = inferFirmwareProfileFromPort(portInfo);
   }
   device.portInfo = portInfo;
+  device.firmwareProfile = inferFirmwareProfileFromPort(portInfo);
   return device;
 }
 

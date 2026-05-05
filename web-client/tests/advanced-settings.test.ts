@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AdvancedSettings } from '../src/settings/advanced-settings';
+import { AdvancedSettings, type AdvancedSettingsConfig } from '../src/settings/advanced-settings';
 
 describe('AdvancedSettings', () => {
   let localStorageMock: Record<string, string>;
@@ -34,7 +34,8 @@ describe('AdvancedSettings', () => {
   });
 
   describe('defaults', () => {
-    it('returns correct defaults for all 16 properties', () => {
+    it('returns correct defaults for all properties', () => {
+      expect(AdvancedSettings.firmwareProfile).toBe('stm');
       expect(AdvancedSettings.romPageSize).toBe(0x200);
       expect(AdvancedSettings.ramPageSize).toBe(0x100);
       expect(AdvancedSettings.romReadThrottleMs).toBe(0);
@@ -56,6 +57,7 @@ describe('AdvancedSettings', () => {
     it('getSettings returns all defaults in correct structure', () => {
       const s = AdvancedSettings.getSettings();
       expect(s).toEqual({
+        firmware: { profile: 'stm' },
         size: { romPageSize: 0x200, ramPageSize: 0x100 },
         throttle: { romRead: 0, ramRead: 0 },
         retry: {
@@ -137,6 +139,14 @@ describe('AdvancedSettings', () => {
       AdvancedSettings.romPageSize = 1024;
       expect(localStorage.setItem).toHaveBeenCalled();
     });
+
+    it('persists firmware profile from the static setter', () => {
+      AdvancedSettings.firmwareProfile = 'stc';
+      const savedSettings = JSON.parse(localStorageMock.advanced_settings) as AdvancedSettingsConfig;
+
+      expect(AdvancedSettings.firmwareProfile).toBe('stc');
+      expect(savedSettings.firmware).toEqual({ profile: 'stc' });
+    });
   });
 
   describe('setSettings and getSettings roundtrip', () => {
@@ -169,6 +179,14 @@ describe('AdvancedSettings', () => {
       expect(AdvancedSettings.defaultTimeout).toBe(5000);
       expect(AdvancedSettings.packageSendTimeout).toBe(3000);
     });
+
+    it('persists configured firmware profile through getSettings', () => {
+      AdvancedSettings.setSettings({ firmware: { profile: 'stc' } });
+
+      expect(AdvancedSettings.firmwareProfile).toBe('stc');
+      expect(AdvancedSettings.getSettings().firmware).toEqual({ profile: 'stc' });
+      expect(localStorage.setItem).toHaveBeenCalled();
+    });
   });
 
   describe('loadSettings', () => {
@@ -190,6 +208,16 @@ describe('AdvancedSettings', () => {
       expect(AdvancedSettings.romEraseRetryDelayMs).toBe(300);
     });
 
+    it('loads firmware profile from storage', () => {
+      localStorageMock.advanced_settings = JSON.stringify({
+        firmware: { profile: 'stc' },
+      });
+
+      AdvancedSettings.loadSettings();
+
+      expect(AdvancedSettings.firmwareProfile).toBe('stc');
+    });
+
     it('resets to defaults on invalid JSON', () => {
       localStorageMock.advanced_settings = 'not-json';
       AdvancedSettings.loadSettings();
@@ -200,9 +228,11 @@ describe('AdvancedSettings', () => {
   describe('resetToDefaults', () => {
     it('restores all properties to defaults after modification', () => {
       AdvancedSettings.romPageSize = 4096;
+      AdvancedSettings.firmwareProfile = 'stc';
       AdvancedSettings.operationTimeout = 60000;
       AdvancedSettings.resetToDefaults();
       expect(AdvancedSettings.romPageSize).toBe(0x200);
+      expect(AdvancedSettings.firmwareProfile).toBe('stm');
       expect(AdvancedSettings.operationTimeout).toBe(30000);
     });
   });

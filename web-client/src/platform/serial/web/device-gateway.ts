@@ -6,6 +6,19 @@ import { initDeviceSignals } from '../device-signals';
 import { WebSerialTransport } from '../transports';
 import type { DeviceGateway, DeviceHandle, DeviceSelection } from '../types';
 
+function toWebSerialPortInfo(port: SerialPort): SerialPortInfo | undefined {
+  const info = port.getInfo?.();
+  if (!info) {
+    return undefined;
+  }
+
+  return {
+    path: 'web-serial',
+    vendorId: info.usbVendorId?.toString(16).padStart(4, '0'),
+    productId: info.usbProductId?.toString(16).padStart(4, '0'),
+  };
+}
+
 export class WebDeviceGateway implements DeviceGateway {
   list(_filter?: PortFilter): Promise<SerialPortInfo[]> {
     return Promise.resolve([]);
@@ -47,6 +60,7 @@ export class WebDeviceGateway implements DeviceGateway {
       transport: new WebSerialTransport(port),
       port,
       connection: null,
+      portInfo: toWebSerialPortInfo(port),
     };
   }
 

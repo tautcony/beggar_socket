@@ -473,6 +473,12 @@
     "settings": {
       "title": "高级设置",
       "tooltip": "配置高级选项",
+      "firmware": {
+        "title": "固件类型",
+        "profile": "当前插入设备固件",
+        "stm": "丐中丐",
+        "stc": "碳酸丐"
+      },
       "size": {
         "title": "读写设置",
         "romPageSize": "ROM读写分页大小",

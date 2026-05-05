@@ -1,3 +1,4 @@
+import type { FirmwareProfile } from '@/types/firmware-profile';
 import type { SerialPortInfo } from '@/types/serial';
 import type { PortFilter } from '@/utils/port-filter';
 
@@ -25,6 +26,7 @@ export interface DeviceHandle {
   port: SerialPort | null;
   connection?: null;
   portInfo?: SerialPortInfo;
+  firmwareProfile?: FirmwareProfile;
 }
 
 export interface DeviceGateway {

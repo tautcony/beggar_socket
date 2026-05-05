@@ -1,5 +1,6 @@
 import type { MbcType } from '@/types/command-options';
 import type { FileInfo } from '@/types/file-info';
+import type { FirmwareProfile } from '@/types/firmware-profile';
 
 export interface ChipOperationsProps {
   mode?: 'GBA' | 'MBC5';
@@ -12,6 +13,7 @@ export interface ChipOperationsProps {
   bufferWriteBytes?: number;
   selectedMbcType?: MbcType;
   mbcPower5V?: boolean;
+  firmwareProfile?: FirmwareProfile;
 }
 
 export const CHIP_OPERATION_EVENTS = [
@@ -53,6 +55,7 @@ export interface RamOperationsProps {
   selectedRamSize?: string;
   selectedRamType?: string;
   selectedBaseAddress?: string;
+  firmwareProfile?: FirmwareProfile;
 }
 
 export const RAM_OPERATION_EVENTS = [

@@ -50,6 +50,7 @@
             :buffer-write-bytes="cfiInfo?.bufferSize"
             :selected-mbc-type="selectedMbcType"
             :mbc-power5-v="mbcPower5V"
+            :firmware-profile="props.device?.firmwareProfile"
             @read-id="readCart"
             @erase-chip="eraseChip"
             @read-rom-info="readRomInfo"
@@ -87,6 +88,7 @@
             :selected-ram-size="selectedRamSize"
             :selected-ram-type="selectedRamType"
             :selected-base-address="selectedRamBaseAddress"
+            :firmware-profile="props.device?.firmwareProfile"
             @file-selected="onRamFileSelected"
             @file-cleared="onRamFileCleared"
             @write-ram="writeRam"
@@ -132,6 +134,7 @@ import { useRecentFileNamesStore } from '@/stores/recent-file-names-store';
 import { CommandOptions, DeviceInfo } from '@/types';
 import type { BurnerLogEntry } from '@/types/burner-log';
 import type { MbcType } from '@/types/command-options';
+import { getFirmwareProfile, inferFirmwareProfileFromPort } from '@/types/firmware-profile';
 import { formatBytes, formatHex } from '@/utils/formatter-utils';
 import { CFIInfo } from '@/utils/parsers/cfi-parser';
 import { detectMbcTypeFromRom, parseRom } from '@/utils/parsers/rom-parser.ts';
@@ -922,8 +925,32 @@ function printGameDetectionResults(gameResults: GameDetectionResult[]) {
   }
 }
 
+function logDeviceFirmwareProfile(deviceInfo: DeviceInfo) {
+  const profile = getFirmwareProfile(deviceInfo);
+  const inferredProfile = inferFirmwareProfileFromPort(deviceInfo.portInfo);
+  const port = deviceInfo.portInfo;
+  const details = [
+    `profile=${profile.id}`,
+    `label=${profile.label}`,
+    `configured=${AdvancedSettings.firmwareProfile}`,
+    `inferred=${inferredProfile.id}`,
+    `port=${port?.path ?? 'unknown'}`,
+    `vid=${port?.vendorId ?? '--'}`,
+    `pid=${port?.productId ?? '--'}`,
+    `manufacturer=${port?.manufacturer ?? '--'}`,
+    `product=${port?.product ?? '--'}`,
+    `capabilities=${JSON.stringify(profile.capabilities)}`,
+  ].join(', ');
+
+  log({
+    message: `Firmware profile configured: ${profile.label}`,
+    details,
+  }, profile.id === 'unknown' ? 'warn' : 'info');
+}
+
 // 暴露方法供父组件调用
 defineExpose({
+  logDeviceFirmwareProfile,
   resetState,
 });
 </script>
@@ -1024,7 +1051,10 @@ defineExpose({
 /* 移动端响应式 */
 @media (max-width: 1024px) {
   .flashburner-container {
-    margin: var(--space-4);
+    width: min(calc(100vw - var(--space-8)), 540px);
+    max-width: none;
+    box-sizing: border-box;
+    margin: var(--space-4) max(var(--space-4), calc((100vw - 540px) / 2));
     padding: var(--space-4) var(--space-5);
   }
 
@@ -1037,7 +1067,7 @@ defineExpose({
   .content-area {
     flex: 1 1 auto;
     width: 100%;
-    min-width: 320px;
+    min-width: 0;
     max-width: 100%;
     overflow-y: visible;
     padding-right: 0;

@@ -4,6 +4,7 @@ import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
+import { type FirmwareProfile, getFirmwareProfile } from '@/types/firmware-profile';
 import { ProgressInfo, SectorProgressInfo, type SectorSizeClass } from '@/types/progress-info';
 import { timeout } from '@/utils/async-utils';
 import { type BurnerLogInput, errorToBurnerLog, formatBurnerLogMessage } from '@/utils/burner-log';
@@ -302,6 +303,10 @@ export class CartridgeAdapter {
 
   protected createPlatformOps(): PlatformOps {
     throw new NotImplementedError();
+  }
+
+  protected get firmwareProfile(): FirmwareProfile {
+    return getFirmwareProfile(this.device);
   }
 
   protected async withPowerConfig<T>(_enable5V: boolean, fn: () => Promise<T>): Promise<T> {

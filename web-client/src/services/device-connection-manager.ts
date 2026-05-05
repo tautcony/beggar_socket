@@ -1,7 +1,9 @@
 import { createConnectionOrchestrationUseCase } from '@/features/burner/adapters';
 import type { BurnerConnectionHandle, BurnerConnectionSelection, ConnectionFailure } from '@/features/burner/application';
 import { type DeviceHandle, toLegacyDeviceInfo, withPortInfo } from '@/platform/serial';
+import { AdvancedSettings } from '@/settings/advanced-settings';
 import { DeviceInfo } from '@/types/device-info';
+import { attachFirmwareProfile, getFirmwareProfileById, inferFirmwareProfileFromPort } from '@/types/firmware-profile';
 import type { SerialPortInfo } from '@/types/serial';
 import { PortSelectionRequiredError } from '@/utils/errors/PortSelectionRequiredError';
 import { PortFilter } from '@/utils/port-filter';
@@ -78,7 +80,7 @@ export class DeviceConnectionManager {
     if (!this.isDeviceHandle(ctx)) {
       throw new Error('Invalid connection handle: context is not a valid DeviceHandle');
     }
-    return toLegacyDeviceInfo(ctx);
+    return attachFirmwareProfile(toLegacyDeviceInfo(ctx), getFirmwareProfileById(AdvancedSettings.firmwareProfile));
   }
 
   private asSerialPortInfo(portInfo: BurnerConnectionHandle['portInfo']): SerialPortInfo | null {
@@ -93,6 +95,30 @@ export class DeviceConnectionManager {
       vendorId: portInfo.vendorId,
       productId: portInfo.productId,
     };
+  }
+
+  private logFirmwareProfile(device: DeviceInfo, source: string): void {
+    const profile = device.firmwareProfile;
+    const inferredProfile = inferFirmwareProfileFromPort(device.portInfo);
+    console.info('[DeviceConnectionManager] firmware profile detected', {
+      source,
+      profile: profile?.id ?? 'unknown',
+      label: profile?.label ?? 'Unknown',
+      configuredProfile: AdvancedSettings.firmwareProfile,
+      inferredProfile: inferredProfile.id,
+      inferredLabel: inferredProfile.label,
+      capabilities: profile?.capabilities,
+      port: device.portInfo
+        ? {
+          path: device.portInfo.path,
+          vendorId: device.portInfo.vendorId,
+          productId: device.portInfo.productId,
+          manufacturer: device.portInfo.manufacturer,
+          product: device.portInfo.product,
+          serialNumber: device.portInfo.serialNumber,
+        }
+        : null,
+    });
   }
 
   /**
@@ -156,7 +182,9 @@ export class DeviceConnectionManager {
       });
     }
 
-    return this.toDeviceInfo(result.context.handle);
+    const device = this.toDeviceInfo(result.context.handle);
+    this.logFirmwareProfile(device, 'requestDevice');
+    return device;
   }
 
   /**
@@ -189,7 +217,12 @@ export class DeviceConnectionManager {
         });
       }
 
-      return withPortInfo(this.toDeviceInfo(result.context.handle), selectedPort);
+      const device = attachFirmwareProfile(
+        withPortInfo(this.toDeviceInfo(result.context.handle), selectedPort),
+        getFirmwareProfileById(AdvancedSettings.firmwareProfile),
+      );
+      this.logFirmwareProfile(device, 'connectWithSelectedPort');
+      return device;
     } catch (error) {
       console.error('[DeviceConnectionManager] failed to connect to selected port', {
         selectedPort: this.describePort(selectedPort),
@@ -222,6 +255,7 @@ export class DeviceConnectionManager {
     device.transport = latestDevice.transport;
     device.serialHandle = latestDevice.serialHandle;
     device.portInfo = latestDevice.portInfo;
+    device.firmwareProfile = latestDevice.firmwareProfile;
   }
 
   async listAvailablePorts(filter?: PortFilter): Promise<SerialPortInfo[]> {

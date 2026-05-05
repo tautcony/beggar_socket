@@ -135,6 +135,7 @@ describe('Device gateway integration', () => {
     const fakePort = {
       open,
       close,
+      getInfo: vi.fn(() => ({ usbVendorId: 0x0483, usbProductId: 0x0721 })),
       setSignals,
       readable: {
         getReader: vi.fn().mockReturnValue({
@@ -160,6 +161,11 @@ describe('Device gateway integration', () => {
 
     const device = await gateway.connect(selection);
     expect(device.platform).toBe('web');
+    expect(device.portInfo).toEqual({
+      path: 'web-serial',
+      vendorId: '0483',
+      productId: '0721',
+    });
     expect(open).toHaveBeenCalledOnce();
 
     await gateway.init(device);

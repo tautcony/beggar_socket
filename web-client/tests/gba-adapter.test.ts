@@ -4,6 +4,7 @@ import { GBAAdapter } from '@/services/gba-adapter';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import type { CommandOptions } from '@/types/command-options';
 import type { DeviceInfo } from '@/types/device-info';
+import { STC_FIRMWARE_PROFILE } from '@/types/firmware-profile';
 import type { CFIInfo } from '@/utils/parsers/cfi-parser';
 
 const { mockRomRead, mockRomProgram, mockRomEraseSector } = vi.hoisted(() => ({
@@ -197,5 +198,63 @@ describe('GBAAdapter.writeROM recovery', () => {
     expect(result.message).toContain('retry exhausted');
     expect(result.message).toContain('erase timeout');
     expect(mockRomEraseSector).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('GBAAdapter firmware capability gates', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockRomRead.mockReset();
+    mockRomProgram.mockReset();
+    mockRomEraseSector.mockReset();
+    AdvancedSettings.resetToDefaults();
+  });
+
+  it('rejects sector erase on carbon firmware before sending unsupported command', async () => {
+    const adapter = new GBAAdapter({
+      port: null,
+      connection: null,
+      transport: null,
+      firmwareProfile: STC_FIRMWARE_PROFILE,
+    } as DeviceInfo);
+
+    const result = await adapter.eraseSectors(createCfiInfo().eraseSectorBlocks, createOptions());
+
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('碳酸丐 firmware');
+    expect(mockRomEraseSector).not.toHaveBeenCalled();
+  });
+
+  it('rejects GBA FRAM RAM operations on carbon firmware', async () => {
+    const adapter = new GBAAdapter({
+      port: null,
+      connection: null,
+      transport: null,
+      firmwareProfile: STC_FIRMWARE_PROFILE,
+    } as DeviceInfo);
+
+    const result = await adapter.writeRAM(new Uint8Array([0xaa]), createOptions({ ramType: 'FRAM' }));
+
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('GBA FRAM RAM write');
+    expect(result.message).toContain('碳酸丐 firmware');
+  });
+
+  it('allows STC ROM writes when blank sampling can skip unsupported sector erase', async () => {
+    const adapter = new GBAAdapter({
+      port: null,
+      connection: null,
+      transport: null,
+      firmwareProfile: STC_FIRMWARE_PROFILE,
+    } as DeviceInfo);
+    vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+    mockRomRead.mockResolvedValue(new Uint8Array([0xff, 0xff, 0xff, 0xff]));
+    mockRomProgram.mockResolvedValue(undefined);
+
+    const result = await adapter.writeROM(new Uint8Array([0xaa]), createOptions());
+
+    expect(result.success).toBe(true);
+    expect(mockRomEraseSector).not.toHaveBeenCalled();
+    expect(mockRomProgram).toHaveBeenCalledTimes(1);
   });
 });

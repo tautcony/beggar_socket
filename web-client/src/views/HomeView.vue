@@ -99,6 +99,15 @@ const isReleaseBuild = import.meta.env.VITE_BUILD_IS_RELEASE === 'true';
 const deviceConnectRef = useTemplateRef<InstanceType<typeof DeviceConnect>>('deviceConnectRef');
 const cartBurnerRef = useTemplateRef<InstanceType<typeof CartBurner>>('cartBurnerRef');
 
+interface CartBurnerExpose {
+  logDeviceFirmwareProfile: (deviceInfo: DeviceInfo) => void;
+  resetState: () => void;
+}
+
+function getCartBurnerExpose(): CartBurnerExpose | null {
+  return cartBurnerRef.value as CartBurnerExpose | null;
+}
+
 provide('showDebugPanelModal', showDebugPanelModal);
 provide('setShowDebugPanelModal', (val: boolean) => { showDebugPanelModal.value = val; });
 
@@ -129,6 +138,7 @@ const titleBadgeHref = computed((): string => {
 function onDeviceReady(dev: DeviceInfo) {
   device.value = dev;
   deviceReady.value = true;
+  getCartBurnerExpose()?.logDeviceFirmwareProfile(dev);
 }
 
 /**
@@ -168,11 +178,7 @@ async function onRefreshSimulatedDevice() {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   await deviceConnectRef.value.disconnect();
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-  if (cartBurnerRef.value && typeof cartBurnerRef.value.resetState === 'function') {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    cartBurnerRef.value.resetState();
-  }
+  getCartBurnerExpose()?.resetState();
 
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   await deviceConnectRef.value.connect();
@@ -192,11 +198,7 @@ function onClearSimulatedData() {
   deviceReady.value = false;
 
   // 3. 重置 FlashBurner 组件状态（如果有引用的话）
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-  if (cartBurnerRef.value && typeof cartBurnerRef.value.resetState === 'function') {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    cartBurnerRef.value.resetState();
-  }
+  getCartBurnerExpose()?.resetState();
 
   console.log('[DEBUG] 模拟数据清除完成');
 
@@ -249,9 +251,13 @@ $title-color: #2c3e50;
 
   padding: spacing-vars.$space-3 0 spacing-vars.$space-3 0;
   min-height: 60px;
+  flex-wrap: wrap;
+  gap: spacing-vars.$space-2;
+  min-width: 0;
 
   @include mixins.respond-to(lg) {
     padding: spacing-vars.$space-3 spacing-vars.$space-5;
+    flex-wrap: nowrap;
   }
 }
 
@@ -281,6 +287,7 @@ $title-color: #2c3e50;
   @include mixins.flex-center;
 
   gap: spacing-vars.$space-2;
+  min-width: 0;
   flex-shrink: 0;
 
   @include mixins.respond-to(lg) {

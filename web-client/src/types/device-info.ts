@@ -1,4 +1,5 @@
 import type { DeviceHandle, Transport } from '@/platform/serial';
+import type { FirmwareProfile } from '@/types/firmware-profile';
 import type { SerialPortInfo } from '@/types/serial';
 
 export interface DeviceInfo {
@@ -7,6 +8,7 @@ export interface DeviceInfo {
   transport?: Transport | null;
   serialHandle?: DeviceHandle | null;
   portInfo?: SerialPortInfo;
+  firmwareProfile?: FirmwareProfile;
 }
 
 // Reader types for utility functions

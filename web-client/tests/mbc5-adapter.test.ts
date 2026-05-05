@@ -4,9 +4,11 @@ import { MBC5Adapter } from '@/services/mbc5-adapter';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import type { CommandOptions, MbcType } from '@/types/command-options';
 import type { DeviceInfo } from '@/types/device-info';
+import { STC_FIRMWARE_PROFILE, STM_FIRMWARE_PROFILE } from '@/types/firmware-profile';
 import type { CFIInfo } from '@/utils/parsers/cfi-parser';
 
-const { mockGbcRead, mockGbcRomProgram, mockGbcRomEraseSector } = vi.hoisted(() => ({
+const { mockCartPower, mockGbcRead, mockGbcRomProgram, mockGbcRomEraseSector } = vi.hoisted(() => ({
+  mockCartPower: vi.fn(),
   mockGbcRead: vi.fn(),
   mockGbcRomProgram: vi.fn(),
   mockGbcRomEraseSector: vi.fn(),
@@ -16,6 +18,7 @@ vi.mock('@/protocol', async () => {
   const actual = await vi.importActual<typeof import('@/protocol')>('@/protocol');
   return {
     ...actual,
+    cart_power: mockCartPower,
     gbc_read: mockGbcRead,
     gbc_rom_program: mockGbcRomProgram,
     gbc_rom_erase_sector: mockGbcRomEraseSector,
@@ -76,6 +79,7 @@ describe('MBC5Adapter.verifyROM', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     mockGbcRead.mockReset();
+    mockCartPower.mockReset();
     mockGbcRomProgram.mockReset();
     mockGbcRomEraseSector.mockReset();
     mockGbcRead.mockResolvedValue(new Uint8Array([0xff, 0xff, 0xff, 0xff]));
@@ -101,6 +105,7 @@ describe('MBC5Adapter.writeROM recovery', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     mockGbcRead.mockReset();
+    mockCartPower.mockReset();
     mockGbcRomProgram.mockReset();
     mockGbcRomEraseSector.mockReset();
     mockGbcRead.mockResolvedValue(new Uint8Array([0xff, 0xff, 0xff, 0xff]));
@@ -231,5 +236,58 @@ describe('MBC5Adapter.writeROM recovery', () => {
     expect(result.message).toContain('retry exhausted');
     expect(result.message).toContain('erase timeout');
     expect(mockGbcRomEraseSector).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('MBC5Adapter firmware capability gates', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockCartPower.mockReset();
+    mockGbcRead.mockReset();
+    mockGbcRomProgram.mockReset();
+    mockGbcRomEraseSector.mockReset();
+    mockGbcRead.mockResolvedValue(new Uint8Array([0xff, 0xff, 0xff, 0xff]));
+    AdvancedSettings.resetToDefaults();
+  });
+
+  it('rejects 5V power control on STM firmware before cart_power', async () => {
+    const adapter = new MBC5Adapter({
+      port: null,
+      connection: null,
+      transport: null,
+      firmwareProfile: STM_FIRMWARE_PROFILE,
+    } as DeviceInfo);
+
+    const result = await adapter.readROM(1, createOptions('MBC5', { enable5V: true }));
+
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('MBC 5V power control');
+    expect(result.message).toContain('丐中丐 firmware');
+    expect(mockCartPower).not.toHaveBeenCalled();
+  });
+
+  it('allows 5V power control on carbon firmware', async () => {
+    const adapter = new MBC5Adapter({
+      port: null,
+      connection: null,
+      transport: {
+        send: vi.fn(),
+        read: vi.fn(),
+        sendAndReceive: vi.fn(),
+        setSignals: vi.fn(),
+        flushInput: vi.fn(),
+      },
+      firmwareProfile: STC_FIRMWARE_PROFILE,
+    } as unknown as DeviceInfo);
+    vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+    mockCartPower.mockResolvedValue(true);
+    mockGbcRead.mockResolvedValue(new Uint8Array([0xab]));
+
+    const result = await adapter.readROM(1, createOptions('MBC5', { enable5V: true }));
+
+    expect(result.success).toBe(true);
+    expect(mockCartPower).toHaveBeenCalledWith(expect.anything(), 0);
+    expect(mockCartPower).toHaveBeenCalledWith(expect.anything(), 2);
+    expect(mockCartPower).toHaveBeenCalledWith(expect.anything(), 1);
   });
 });

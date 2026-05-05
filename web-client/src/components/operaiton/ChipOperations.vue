@@ -28,7 +28,7 @@
         <div class="mbc-power-selector">
           <ToggleSwitch
             :model-value="props.mbcPower5V"
-            :disabled="!deviceReady || busy"
+            :disabled="!deviceReady || busy || !supportsCartPowerControl"
             :label="$t('ui.mbc.power5vLabel')"
             :tooltip="$t('ui.mbc.power5vTooltip')"
             @update:model-value="$emit('mbc-power-change', $event)"
@@ -133,6 +133,10 @@ const sectorSizeStr = computed(() => {
 
 const bufferWriteBytesStr = computed(() => {
   return props.bufferWriteBytes ? formatBytes(props.bufferWriteBytes) : '--';
+});
+
+const supportsCartPowerControl = computed(() => {
+  return props.firmwareProfile?.capabilities.cartPowerControl ?? true;
 });
 
 // 检查芯片信息是否有效

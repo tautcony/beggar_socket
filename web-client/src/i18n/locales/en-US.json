@@ -473,6 +473,12 @@
     "settings": {
       "title": "Advanced Settings",
       "tooltip": "Configure advanced options",
+      "firmware": {
+        "title": "Firmware Type",
+        "profile": "Current Device Firmware",
+        "stm": "丐中丐",
+        "stc": "碳酸丐"
+      },
       "size": {
         "title": "Read/Write Settings",
         "romPageSize": "ROM Read/Write Page Size",

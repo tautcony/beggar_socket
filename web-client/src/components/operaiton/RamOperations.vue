@@ -20,7 +20,10 @@
               <option value="FLASH">
                 {{ $t('ui.ram.typeFLASH') }}
               </option>
-              <option value="FRAM">
+              <option
+                value="FRAM"
+                :disabled="!supportsFramRam"
+              >
                 {{ $t('ui.ram.typeFRAM') }}
               </option>
               <option
@@ -180,6 +183,15 @@ const RAM_BASE_ADDRESS_OPTIONS = computed(() => {
   return options;
 });
 
+const supportsFramRam = computed(() => {
+  if (!props.firmwareProfile) {
+    return true;
+  }
+  return props.mode === 'GBA'
+    ? props.firmwareProfile.capabilities.gbaFramRam
+    : props.firmwareProfile.capabilities.gbcFramRam;
+});
+
 const emit = defineEmits([...RAM_OPERATION_EVENTS]);
 
 // 空白检测对话框状态
@@ -229,6 +241,9 @@ function onRamSizeChange() {
 }
 
 function onRamTypeChange() {
+  if (selectedRamType.value === 'FRAM' && !supportsFramRam.value) {
+    selectedRamType.value = 'SRAM';
+  }
   emit('ram-type-change', selectedRamType.value);
 }
 

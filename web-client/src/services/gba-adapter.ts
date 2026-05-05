@@ -21,6 +21,7 @@ import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
+import { firmwareUnsupportedResult, isRamTypeSupportedByFirmware } from '@/types/firmware-profile';
 import type { SectorProgressInfo } from '@/types/progress-info';
 import { timeout } from '@/utils/async-utils';
 import { errorToBurnerLog } from '@/utils/burner-log';
@@ -268,6 +269,11 @@ export class GBAAdapter extends CartridgeAdapter {
     signal?: AbortSignal,
     allowSampleSkip = false,
   ): Promise<CommandResult> {
+    const profile = this.firmwareProfile;
+    if (!profile.capabilities.gbaSectorErase && !allowSampleSkip) {
+      return firmwareUnsupportedResult('GBA ROM sector erase', profile);
+    }
+
     return PerformanceTracker.trackAsyncOperation(
       'gba.eraseSectors',
       async () => {
@@ -356,6 +362,12 @@ export class GBAAdapter extends CartridgeAdapter {
                 }),
               }, 'info');
             } else {
+              if (!profile.capabilities.gbaSectorErase) {
+                const unsupported = firmwareUnsupportedResult('GBA ROM sector erase', profile);
+                progressReporter.reportError(unsupported.message);
+                this.log(unsupported.message, 'error');
+                return unsupported;
+              }
               this.log(this.t('messages.operation.eraseSector', {
                 from: formatHex(sector.address, 4),
                 to: formatHex(sector.address + sector.size - 1, 4),
@@ -1139,6 +1151,10 @@ export class GBAAdapter extends CartridgeAdapter {
     const ramType = options.ramType ?? 'SRAM';
     const pageSize = this.resolveRamPageSize(options.ramPageSize);
 
+    if (!isRamTypeSupportedByFirmware(this.firmwareProfile, 'gba', ramType)) {
+      return firmwareUnsupportedResult('GBA FRAM RAM write', this.firmwareProfile);
+    }
+
     // 如果是免电存档，调用专门的方法
     if (ramType === 'BATLESS') {
       return this.writeBatterylessSave(fileData, options);
@@ -1279,6 +1295,10 @@ export class GBAAdapter extends CartridgeAdapter {
     const ramType = options.ramType ?? 'SRAM';
     const pageSize = this.resolveRamPageSize(options.ramPageSize);
     const readThrottleMs = AdvancedSettings.ramReadThrottleMs;
+
+    if (!isRamTypeSupportedByFirmware(this.firmwareProfile, 'gba', ramType)) {
+      return firmwareUnsupportedResult('GBA FRAM RAM read', this.firmwareProfile);
+    }
 
     // 如果是免电存档，调用专门的方法
     if (ramType === 'BATLESS') {
@@ -1431,6 +1451,10 @@ export class GBAAdapter extends CartridgeAdapter {
     const baseAddress = options.baseAddress ?? 0x00;
     const ramType = options.ramType ?? 'SRAM';
     const size = options.size ?? fileData.byteLength;
+
+    if (!isRamTypeSupportedByFirmware(this.firmwareProfile, 'gba', ramType)) {
+      return firmwareUnsupportedResult('GBA FRAM RAM verify', this.firmwareProfile);
+    }
 
     // 如果是免电存档，调用专门的方法
     if (ramType === 'BATLESS') {
