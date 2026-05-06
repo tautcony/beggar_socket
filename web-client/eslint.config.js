@@ -2,7 +2,7 @@ import pluginVue from 'eslint-plugin-vue'
 import tseslint from 'typescript-eslint'
 import stylistic from '@stylistic/eslint-plugin'
 import simpleImportSort from 'eslint-plugin-simple-import-sort'
-import importPlugin from 'eslint-plugin-import';
+import importX from 'eslint-plugin-import-x'
 import globals from 'globals'
 import eslintPluginVueScopedCSS from 'eslint-plugin-vue-scoped-css';
 
@@ -37,10 +37,10 @@ const commonRules = {
   '@typescript-eslint/no-unsafe-call': 'off',
   'comma-spacing': 'error',
   'eqeqeq': ['error', 'always'],
-  'import/first': 'error',
-  'import/newline-after-import': 'error',
-  'import/no-duplicates': 'error',
-  'import/no-restricted-paths': ['error', {
+  'import-x/first': 'error',
+  'import-x/newline-after-import': 'error',
+  'import-x/no-duplicates': 'error',
+  'import-x/no-restricted-paths': ['error', {
     basePath: import.meta.dirname,
     zones: [
       {
@@ -151,13 +151,13 @@ export default tseslint.config(
     plugins: {
       '@stylistic': stylistic,
       'simple-import-sort': simpleImportSort,
-      'import': importPlugin,
+      'import-x': importX,
     },
     rules: {
       ...commonRules,
     },
     settings: {
-      "import/resolver": {
+      'import-x/resolver': {
         typescript: {
           project: './tsconfig.json',
         },
