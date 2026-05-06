@@ -85,7 +85,7 @@ describe('GBAAdapter.writeROM recovery', () => {
   it('skips the prepare erase when blank sampling passes', async () => {
     const logs: string[] = [];
     const adapter = new GBAAdapter(
-      { port: null, connection: null, transport: null } as DeviceInfo,
+      { port: null, connection: null, transport: null },
       (message) => {
         if (typeof message === 'string') {
           logs.push(message);
@@ -113,7 +113,7 @@ describe('GBAAdapter.writeROM recovery', () => {
   it('fully erases the target range before starting to program when sampling finds data', async () => {
     const logs: string[] = [];
     const adapter = new GBAAdapter(
-      { port: null, connection: null, transport: null } as DeviceInfo,
+      { port: null, connection: null, transport: null },
       (message) => { logs.push(typeof message === 'string' ? message : message.message); },
     );
     vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
@@ -133,7 +133,7 @@ describe('GBAAdapter.writeROM recovery', () => {
   });
 
   it('retries the current sector after a program failure on a multi-bank cartridge', async () => {
-    const adapter = new GBAAdapter({ port: null, connection: null, transport: null } as DeviceInfo);
+    const adapter = new GBAAdapter({ port: null, connection: null, transport: null });
     const switchSpy = vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
 
     mockRomEraseSector.mockResolvedValue(undefined);
@@ -157,7 +157,7 @@ describe('GBAAdapter.writeROM recovery', () => {
   });
 
   it('rolls back to the sector start after a dirty partial write', async () => {
-    const adapter = new GBAAdapter({ port: null, connection: null, transport: null } as DeviceInfo);
+    const adapter = new GBAAdapter({ port: null, connection: null, transport: null });
     vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
 
     mockRomEraseSector.mockResolvedValue(undefined);
@@ -186,7 +186,7 @@ describe('GBAAdapter.writeROM recovery', () => {
   });
 
   it('fails deterministically when erase retries are exhausted', async () => {
-    const adapter = new GBAAdapter({ port: null, connection: null, transport: null } as DeviceInfo);
+    const adapter = new GBAAdapter({ port: null, connection: null, transport: null });
     vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
 
     mockRomRead.mockResolvedValueOnce(new Uint8Array([0x00, 0xff, 0xff, 0xff]));
@@ -216,7 +216,7 @@ describe('GBAAdapter firmware capability gates', () => {
       connection: null,
       transport: null,
       firmwareProfile: STC_FIRMWARE_PROFILE,
-    } as DeviceInfo);
+    });
 
     const result = await adapter.eraseSectors(createCfiInfo().eraseSectorBlocks, createOptions());
 
@@ -231,7 +231,7 @@ describe('GBAAdapter firmware capability gates', () => {
       connection: null,
       transport: null,
       firmwareProfile: STC_FIRMWARE_PROFILE,
-    } as DeviceInfo);
+    });
 
     const result = await adapter.writeRAM(new Uint8Array([0xaa]), createOptions({ ramType: 'FRAM' }));
 
@@ -246,7 +246,7 @@ describe('GBAAdapter firmware capability gates', () => {
       connection: null,
       transport: null,
       firmwareProfile: STC_FIRMWARE_PROFILE,
-    } as DeviceInfo);
+    });
     vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
     mockRomRead.mockResolvedValue(new Uint8Array([0xff, 0xff, 0xff, 0xff]));
     mockRomProgram.mockResolvedValue(undefined);

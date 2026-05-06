@@ -365,10 +365,10 @@ async function handleRTCConfirm(data: GBARTCData | MBC3RTCData) {
 
   try {
     if (rtcType.value === 'GBA') {
-      await setRTC(props.device, 'GBA', data as GBARTCData);
+      await setRTC(props.device, 'GBA', data);
       showToast(t('messages.tools.rtc.gbaSuccess'), 'success');
     } else {
-      await setRTC(props.device, 'MBC3', data as MBC3RTCData);
+      await setRTC(props.device, 'MBC3', data);
       showToast(t('messages.tools.rtc.mbc3Success'), 'success');
     }
   } catch (error) {

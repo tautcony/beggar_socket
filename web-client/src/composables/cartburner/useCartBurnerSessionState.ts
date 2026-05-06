@@ -129,7 +129,7 @@ export function useCartBurnerSessionState(translate: (key: string) => string) {
       execute: ({ signal }) => options.operation(signal),
       onError: async (error) => {
         // 抛出异常路径：适配器来不及将进度置为 error，在此补充设置
-        burnerSession.updateProgress({ state: 'error', allowCancel: false, showProgress: true } as ProgressInfo);
+        burnerSession.updateProgress({ state: 'error', allowCancel: false, showProgress: true });
         await options.onError(error);
       },
     });

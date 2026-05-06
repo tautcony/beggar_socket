@@ -24,24 +24,8 @@ const serialPluginState = vi.hoisted(() => ({
       type: 'USB',
       vid: '0483',
     },
-  } as Record<string, {
-    path: string;
-    manufacturer: string;
-    pid: string;
-    product: string;
-    serial_number: string;
-    type: string;
-    vid: string;
-  }>,
-  availablePortsDirect: {} as Record<string, {
-    path: string;
-    manufacturer?: string;
-    pid?: string;
-    product?: string;
-    serial_number?: string;
-    type?: string;
-    vid?: string;
-  }>,
+  },
+  availablePortsDirect: {},
   open: vi.fn(),
   close: vi.fn(),
   readBinary: vi.fn(),

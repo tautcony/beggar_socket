@@ -52,7 +52,7 @@ export class DebugSettings {
   private static _showDebugPanel = false;
 
   // 模拟延迟时间（毫秒）
-  private static _simulatedDelay = 1000;
+  private static _simulatedDelay = 100;
 
   // 模拟进度更新间隔（毫秒）
   private static _progressUpdateInterval = 100;

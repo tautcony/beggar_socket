@@ -113,7 +113,7 @@ export class TauriDeviceGateway implements DeviceGateway {
   async list(filter?: PortFilter): Promise<SerialPortInfo[]> {
     const [ports, directPorts] = await Promise.all([
       SerialPort.available_ports(),
-      SerialPort.available_ports_direct().catch(() => ({} as Record<string, PortInfo>)),
+      SerialPort.available_ports_direct().catch(() => ({})),
     ]);
 
     const mergedPorts = mergePortInfoMaps(ports, directPorts);

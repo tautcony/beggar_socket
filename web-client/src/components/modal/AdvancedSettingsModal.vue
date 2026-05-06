@@ -539,7 +539,7 @@ const limits = AdvancedSettings.getLimits();
 
 const createDefaultSettings = (): ReturnType<typeof AdvancedSettings.getSettings> => ({
   firmware: {
-    profile: 'stm' as ConfigurableFirmwareProfileId,
+    profile: 'stm',
   },
   size: {
     romPageSize: 0x200,

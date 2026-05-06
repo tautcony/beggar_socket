@@ -28,7 +28,7 @@ function isAbortError(error: unknown): boolean {
 export async function runBurnerFlow<TResult>(options: BurnerFlowOptions<TResult>): Promise<TResult | undefined> {
   const signal = options.session.startOperation(options.cancellable ?? false);
   if (options.updateProgress) {
-    options.session.updateProgress(options.updateProgress as ProgressInfo);
+    options.session.updateProgress(options.updateProgress);
   }
   options.syncState(options.session.snapshot);
 

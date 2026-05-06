@@ -23,13 +23,13 @@ export function getAvailableDebugCommands(type: DebugCommandType | ''): Record<s
   if (type === 'GBA') {
     Object.keys(GBACommand).forEach(key => {
       if (isNaN(Number(key))) {
-        commands[key] = GBACommand[key as keyof typeof GBACommand] as number;
+        commands[key] = GBACommand[key as keyof typeof GBACommand];
       }
     });
   } else if (type === 'GBC') {
     Object.keys(GBCCommand).forEach(key => {
       if (isNaN(Number(key))) {
-        commands[key] = GBCCommand[key as keyof typeof GBCCommand] as number;
+        commands[key] = GBCCommand[key as keyof typeof GBCCommand];
       }
     });
   }
@@ -45,7 +45,7 @@ export function isDuplicatedDebugCommandName(key: string): boolean {
 }
 
 export async function executeDebugCommand(input: ExecuteDebugCommandInput): Promise<ExecuteDebugCommandResult> {
-  const payloadBuilder = createCommandPayload(input.command as Command);
+  const payloadBuilder = createCommandPayload(input.command);
 
   if (input.address !== null && input.address !== undefined) {
     payloadBuilder.addAddress(input.address);

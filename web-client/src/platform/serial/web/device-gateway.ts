@@ -25,6 +25,10 @@ export class WebDeviceGateway implements DeviceGateway {
   }
 
   async select(filter?: PortFilter): Promise<DeviceSelection | null> {
+    if (!navigator.serial) {
+      throw new Error('Web Serial API is not supported in this browser');
+    }
+
     const serialPortFilters = filter?.toWebSerialFilters ? filter.toWebSerialFilters() : [];
     const port = await navigator.serial.requestPort({ filters: serialPortFilters });
 
@@ -39,7 +43,7 @@ export class WebDeviceGateway implements DeviceGateway {
   }
 
   async connect(selection?: DeviceSelection | null): Promise<DeviceHandle> {
-    if (!('serial' in navigator)) {
+    if (!navigator.serial) {
       throw new Error('Web Serial API is not supported in this browser');
     }
 

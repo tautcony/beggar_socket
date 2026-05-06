@@ -142,7 +142,7 @@ function processFiles(files: File[]) {
         name: file.name,
         data: data,
         size: data.length,
-      } as FileInfo);
+      });
 
       processedCount++;
       if (processedCount === files.length) {

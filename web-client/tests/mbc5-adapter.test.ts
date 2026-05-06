@@ -90,7 +90,7 @@ describe('MBC5Adapter.verifyROM', () => {
     'MBC3',
     'MBC1',
   ] as const)('passes resolved %s type into bank switching during verify', async (mbcType) => {
-    const adapter = new MBC5Adapter({ port: null, connection: null, transport: null } as DeviceInfo);
+    const adapter = new MBC5Adapter({ port: null, connection: null, transport: null });
     const switchSpy = vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
     mockGbcRead.mockResolvedValue(new Uint8Array([0xab]));
 
@@ -117,7 +117,7 @@ describe('MBC5Adapter.writeROM recovery', () => {
   it('skips the prepare erase when blank sampling passes', async () => {
     const logs: string[] = [];
     const adapter = new MBC5Adapter(
-      { port: null, connection: null, transport: null } as DeviceInfo,
+      { port: null, connection: null, transport: null },
       (message) => {
         if (typeof message === 'string') {
           logs.push(message);
@@ -148,7 +148,7 @@ describe('MBC5Adapter.writeROM recovery', () => {
   it('fully erases the target range before starting to program when sampling finds data', async () => {
     const logs: string[] = [];
     const adapter = new MBC5Adapter(
-      { port: null, connection: null, transport: null } as DeviceInfo,
+      { port: null, connection: null, transport: null },
       (message) => { logs.push(typeof message === 'string' ? message : message.message); },
     );
     vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
@@ -171,7 +171,7 @@ describe('MBC5Adapter.writeROM recovery', () => {
   });
 
   it('retries the current sector from its start after a program failure', async () => {
-    const adapter = new MBC5Adapter({ port: null, connection: null, transport: null } as DeviceInfo);
+    const adapter = new MBC5Adapter({ port: null, connection: null, transport: null });
     vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
 
     mockGbcRomEraseSector.mockResolvedValue(undefined);
@@ -191,7 +191,7 @@ describe('MBC5Adapter.writeROM recovery', () => {
   });
 
   it('rolls back to the sector start after a dirty partial write', async () => {
-    const adapter = new MBC5Adapter({ port: null, connection: null, transport: null } as DeviceInfo);
+    const adapter = new MBC5Adapter({ port: null, connection: null, transport: null });
     vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
 
     mockGbcRomEraseSector.mockResolvedValue(undefined);
@@ -220,7 +220,7 @@ describe('MBC5Adapter.writeROM recovery', () => {
   });
 
   it('fails deterministically when erase retries are exhausted', async () => {
-    const adapter = new MBC5Adapter({ port: null, connection: null, transport: null } as DeviceInfo);
+    const adapter = new MBC5Adapter({ port: null, connection: null, transport: null });
     vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
 
     AdvancedSettings.romEraseRetryCount = 1;
@@ -256,7 +256,7 @@ describe('MBC5Adapter firmware capability gates', () => {
       connection: null,
       transport: null,
       firmwareProfile: STM_FIRMWARE_PROFILE,
-    } as DeviceInfo);
+    });
 
     const result = await adapter.readROM(1, createOptions('MBC5', { enable5V: true }));
 
@@ -278,7 +278,7 @@ describe('MBC5Adapter firmware capability gates', () => {
         flushInput: vi.fn(),
       },
       firmwareProfile: STC_FIRMWARE_PROFILE,
-    } as unknown as DeviceInfo);
+    });
     vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
     mockCartPower.mockResolvedValue(true);
     mockGbcRead.mockResolvedValue(new Uint8Array([0xab]));

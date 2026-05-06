@@ -8,6 +8,28 @@ import { PortFilters } from '@/utils/port-filter';
 
 import { WebDeviceGateway } from '../src/platform/serial/web/device-gateway';
 
+interface MockAvailablePort {
+  path: string;
+  manufacturer: string;
+  pid: string;
+  product?: string;
+  serial_number: string;
+  type: string;
+  vid: string;
+}
+
+interface SerialPluginState {
+  availablePorts: Record<string, MockAvailablePort>;
+  availablePortsDirect: Record<string, MockAvailablePort>;
+  open: ReturnType<typeof vi.fn>;
+  close: ReturnType<typeof vi.fn>;
+  readBinary: ReturnType<typeof vi.fn>;
+  clearBuffer: ReturnType<typeof vi.fn>;
+  writeBinary: ReturnType<typeof vi.fn>;
+  writeDataTerminalReady: ReturnType<typeof vi.fn>;
+  writeRequestToSend: ReturnType<typeof vi.fn>;
+}
+
 vi.mock('@/utils/async-utils', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/utils/async-utils')>();
 
@@ -17,7 +39,7 @@ vi.mock('@/utils/async-utils', async (importOriginal) => {
   };
 });
 
-const serialPluginState = vi.hoisted(() => ({
+const serialPluginState = vi.hoisted<SerialPluginState>(() => ({
   availablePorts: {
     '/dev/tty.usbmodem1': {
       path: '/dev/tty.usbmodem1',
@@ -28,24 +50,8 @@ const serialPluginState = vi.hoisted(() => ({
       type: 'USB',
       vid: '0483',
     },
-  } as Record<string, {
-    path: string;
-    manufacturer: string;
-    pid: string;
-    product: string;
-    serial_number: string;
-    type: string;
-    vid: string;
-  }>,
-  availablePortsDirect: {} as Record<string, {
-    path: string;
-    manufacturer?: string;
-    pid?: string;
-    product?: string;
-    serial_number?: string;
-    type?: string;
-    vid?: string;
-  }>,
+  },
+  availablePortsDirect: {},
   open: vi.fn(),
   close: vi.fn(),
   readBinary: vi.fn(),
@@ -342,7 +348,7 @@ describe('Device gateway integration', () => {
     vi.useFakeTimers();
 
     try {
-      serialPluginState.open.mockImplementation(() => new Promise(() => {}));
+      serialPluginState.open.mockReturnValue(new Promise(() => {}));
       const gateway = new TauriDeviceGateway();
       const connectPromise = gateway.connect({ portInfo: { path: '/dev/tty.usbmodem1', vendorId: '0483', productId: '0721' } });
       const connectExpectation = expect(connectPromise).rejects.toThrow('Tauri serial connect failed for /dev/tty.usbmodem1: Tauri serial connect timeout after 5000ms for /dev/tty.usbmodem1');
