@@ -103,6 +103,7 @@
       </div>
 
       <LogViewer
+        class="log-panel"
         :logs="logs"
         :title="t('ui.log.title')"
         @clear-logs="clearLog"
@@ -957,31 +958,39 @@ defineExpose({
 
 <style scoped>
 .flashburner-container {
-  max-width: 1200px;
+  --burner-max-width: 1520px;
+  --burner-column-gap: var(--space-5);
+  width: min(100%, var(--burner-max-width));
+  max-width: var(--burner-max-width);
   margin: var(--space-4) auto;
-  padding: var(--space-6) var(--space-8);
+  padding: var(--space-6) clamp(var(--space-4), 2vw, var(--space-8));
   background: var(--color-bg);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-sm);
+  box-sizing: border-box;
+  container-type: inline-size;
+  container-name: burner;
 }
 
-/* 响应式主布局 */
+/* 主布局默认单列，避免可用宽度不足时压坏左侧操作区 */
 .main-layout {
-  display: flex;
-  gap: var(--space-6);
-  height: 820px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--burner-column-gap);
+  height: auto;
   align-items: stretch;
+  width: 100%;
+  min-width: 0;
 }
 
 /* 内容区域 */
 .content-area {
-  flex: 0 0 500px;
-  width: 500px;
-  min-width: 500px;
-  max-width: 500px;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  overflow-y: visible;
   overflow-x: hidden;
   padding-right: 0;
   box-sizing: border-box;
@@ -992,6 +1001,11 @@ defineExpose({
   display: flex;
   flex-direction: column;
   position: relative;
+  min-width: 0;
+}
+
+.log-panel {
+  min-width: 0;
 }
 
 /* TransitionGroup 动画 - 面板移动效果 */
@@ -1048,29 +1062,39 @@ defineExpose({
   background: var(--color-scrollbar-thumb-hover);
 }
 
-/* 移动端响应式 */
-@media (max-width: 1024px) {
-  .flashburner-container {
-    width: min(calc(100vw - var(--space-8)), 540px);
-    max-width: none;
-    box-sizing: border-box;
-    margin: var(--space-4) max(var(--space-4), calc((100vw - 540px) / 2));
-    padding: var(--space-4) var(--space-5);
-  }
-
+/* 可用内容宽度足够时，先切换到左侧 520px 保底的双列布局 */
+@container burner (min-width: 860px) {
   .main-layout {
-    flex-direction: column;
-    gap: var(--space-5);
-    height: auto;
+    grid-template-columns: 520px minmax(0, 1fr);
+    gap: var(--burner-column-gap);
+    height: 760px;
   }
 
   .content-area {
-    flex: 1 1 auto;
+    overflow-y: auto;
+  }
+}
+
+/* 当两列都能保持至少 520px 时，再切换到严格等宽 */
+@container burner (min-width: 1064px) {
+  .main-layout {
+    grid-template-columns: minmax(520px, 1fr) minmax(520px, 1fr);
+    gap: var(--burner-column-gap);
+    height: 820px;
+  }
+}
+
+@media (max-width: 1280px) {
+  .flashburner-container {
     width: 100%;
-    min-width: 0;
-    max-width: 100%;
-    overflow-y: visible;
-    padding-right: 0;
+    padding: var(--space-4) var(--space-5);
+  }
+}
+
+@media (max-width: 800px) {
+  .flashburner-container {
+    width: 100%;
+    padding: var(--space-4);
   }
 }
 

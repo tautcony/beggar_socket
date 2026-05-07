@@ -225,13 +225,14 @@ onUnmounted(() => {
 
 <style scoped>
 .log-section {
-  width: 500px;
-  flex: 0 0 500px;
-  max-width: 500px;
+  width: auto;
+  flex: 1 1 auto;
+  max-width: none;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  height: 820px;
+  min-height: 320px;
+  height: min(56vh, 520px);
   box-sizing: border-box;
 }
 
@@ -242,6 +243,8 @@ onUnmounted(() => {
   margin-bottom: var(--space-3);
   flex-shrink: 0;
   height: 32px;
+  min-width: 0;
+  gap: var(--space-2);
 }
 
 .log-header h2 {
@@ -435,12 +438,25 @@ onUnmounted(() => {
   border-color: color-mix(in srgb, var(--color-error) 35%, var(--color-border));
 }
 
-@media (max-width: 1024px) {
+@container burner (min-width: 860px) {
+  .log-section {
+    height: 100%;
+    min-height: 0;
+  }
+}
+
+@container burner (max-width: 859px) {
   .log-section {
     width: 100%;
     max-width: 100%;
     flex: 1 1 auto;
-    height: 420px;
+    height: min(56vh, 520px);
+  }
+}
+
+@container burner (max-width: 719px) {
+  .log-section {
+    height: min(52vh, 420px);
   }
 }
 </style>

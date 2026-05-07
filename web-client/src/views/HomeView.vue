@@ -309,6 +309,7 @@ $title-color: #2c3e50;
     justify-content: flex-start;
     margin-left: spacing-vars.$space-4;
     gap: 0;
+    padding-right: 132px;
   }
 }
 
@@ -354,7 +355,7 @@ $title-color: #2c3e50;
   @include mixins.respond-to(lg) {
     position: absolute;
     top: -8px;
-    right: -120px;
+    right: 0;
   }
 }
 
