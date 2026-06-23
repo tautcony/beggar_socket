@@ -1,6 +1,6 @@
+import { getRuntimeKind } from '@/platform/runtime';
 import { DebugSettings } from '@/settings/debug-settings';
 import type { PortFilter } from '@/utils/port-filter';
-import { isTauri } from '@/utils/tauri';
 
 import { SimulatedDeviceGateway } from './simulated/device-gateway';
 import { TauriDeviceGateway } from './tauri/device-gateway';
@@ -19,7 +19,7 @@ function getPreferredGatewayKind(): GatewayKind {
     return 'simulated';
   }
 
-  return isTauri() ? 'tauri' : 'web';
+  return getRuntimeKind();
 }
 
 function getGatewayForKind(kind: GatewayKind): DeviceGateway {

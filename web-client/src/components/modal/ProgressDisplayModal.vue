@@ -149,7 +149,6 @@ import type { BurnerLogEntry } from '@/types/burner-log';
 import { ProgressInfo } from '@/types/progress-info';
 import { formatBurnerLogMessage } from '@/utils/burner-log';
 import { formatBytes, formatSpeed, formatTimeClock } from '@/utils/formatter-utils';
-import { isTauri } from '@/utils/tauri';
 
 type SupplementaryEntry = Pick<BurnerLogEntry, 'message' | 'error' | 'details' | 'level'>;
 
@@ -190,7 +189,7 @@ const normalizedProgress = computed(() => {
   return Math.max(0, Math.min(100, value));
 });
 
-const useInstantProgressFill = computed(() => isTauri() || instantProgressFill.value);
+const useInstantProgressFill = computed(() => instantProgressFill.value);
 
 const progressBarFillStyle = computed(() => ({
   width: `${normalizedProgress.value}%`,
@@ -208,10 +207,6 @@ function clearProgressFillFrames() {
 }
 
 function snapProgressFillToCurrentValue() {
-  if (isTauri()) {
-    return;
-  }
-
   clearProgressFillFrames();
   instantProgressFill.value = true;
   instantProgressFrame = requestAnimationFrame(() => {

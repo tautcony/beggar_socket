@@ -40,8 +40,6 @@
       "disconnected": "已斷開連接",
       "connectFailed": "連接失敗",
       "disconnectFailed": "斷開連接失敗",
-      "usePolyfill": "使用 SoW",
-      "usePolyfillTooltip": "使用 Web Serial Polyfill 實作，適用於不支援原生 Web Serial API 的瀏覽器",
       "portSelector": {
         "title": "選擇序列埠",
         "description": "請選擇要連接的裝置：",
@@ -100,7 +98,7 @@
     },
     "serialTest": {
       "title": "序列埠測試工具",
-      "description": "測試統一的序列埠服務，支援 Web Serial API 和 Electron 原生序列埠",
+      "description": "????????????? Web Serial API ? Tauri ?????",
       "environment": "執行環境",
       "platform": "平台:",
       "userAgent": "使用者代理:",

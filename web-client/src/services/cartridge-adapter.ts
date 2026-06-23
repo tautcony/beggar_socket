@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/require-await */
+import type { Transport } from '@/platform/serial';
 import { getFlashName } from '@/protocol';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions } from '@/types/command-options';
@@ -309,6 +310,14 @@ export class CartridgeAdapter {
     return getFirmwareProfile(this.device);
   }
 
+  protected get transport(): Transport {
+    const transport = this.device.transport ?? this.device.serialHandle?.transport;
+    if (!transport) {
+      throw new Error('Device transport is not initialized');
+    }
+    return transport;
+  }
+
   protected async withPowerConfig<T>(_enable5V: boolean, fn: () => Promise<T>): Promise<T> {
     return fn();
   }
@@ -330,7 +339,7 @@ export class CartridgeAdapter {
 
     for (let attempt = 1; attempt <= attempts; attempt++) {
       try {
-        return await this.ops.flashCmdSet.read(this.device, chunkSize, cartAddress);
+        return await this.ops.flashCmdSet.read(this.transport, chunkSize, cartAddress);
       } catch (error) {
         lastError = error;
         this.log(
@@ -463,9 +472,9 @@ export class CartridgeAdapter {
       async () => {
         try {
           return await this.withPowerConfig(enable5V ?? false, async () => {
-            await ops.flashCmdSet.write(this.device, ops.flashCmdSet.encodeByte(0x98), ops.cfiEntryAddress);
-            const cfiData = await ops.flashCmdSet.read(this.device, 0x100, 0x00);
-            await ops.flashCmdSet.write(this.device, ops.flashCmdSet.encodeByte(0xf0), 0x00);
+            await ops.flashCmdSet.write(this.transport, ops.flashCmdSet.encodeByte(0x98), ops.cfiEntryAddress);
+            const cfiData = await ops.flashCmdSet.read(this.transport, 0x100, 0x00);
+            await ops.flashCmdSet.write(this.transport, ops.flashCmdSet.encodeByte(0xf0), 0x00);
 
             const cfiInfo = parseCFI(cfiData);
 
@@ -475,7 +484,7 @@ export class CartridgeAdapter {
             }
 
             try {
-              const flashId = await ops.cfiGetId(this.device);
+              const flashId = await ops.cfiGetId(this.transport);
               cfiInfo.flashId = flashId;
               const idStr = Array.from(flashId).map(x => x.toString(16).padStart(2, '0')).join(' ');
               const flashName = getFlashName([...flashId]);

@@ -31,7 +31,6 @@ export {
   rom_write,
 } from './protocol';
 export type { FlashType, ProtocolTransportInput } from './protocol-utils';
-export { ProtocolAdapter } from './protocol-utils';
 export {
   arraysEqual,
   fromLittleEndian,

@@ -161,7 +161,8 @@ import {
 import { computed, onMounted, ref } from 'vue';
 
 import BaseModal from '@/components/common/BaseModal.vue';
-import { getAppVersion, getPlatform, isTauri } from '@/utils/tauri';
+import { getPlatformDescription, getRuntimeAppVersion } from '@/platform/native';
+import { isTauriRuntime } from '@/platform/runtime';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -180,13 +181,13 @@ const localVisible = computed({
   },
 });
 
-const isTauriEnv = ref(isTauri());
+const isTauriEnv = ref(isTauriRuntime());
 const appVersion = ref(import.meta.env.VITE_APP_VERSION ?? '1.0.0');
 const platformInfo = ref('Web');
 
 onMounted(async () => {
-  appVersion.value = await getAppVersion();
-  platformInfo.value = await getPlatform();
+  appVersion.value = await getRuntimeAppVersion();
+  platformInfo.value = await getPlatformDescription();
 });
 
 function closeModal() {

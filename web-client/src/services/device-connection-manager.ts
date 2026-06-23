@@ -1,13 +1,13 @@
 import { createConnectionOrchestrationUseCase } from '@/features/burner/adapters';
 import type { BurnerConnectionHandle, BurnerConnectionSelection, ConnectionFailure } from '@/features/burner/application';
-import { type DeviceHandle, toLegacyDeviceInfo, withPortInfo } from '@/platform/serial';
+import { isTauriRuntime } from '@/platform/runtime';
+import type { DeviceHandle } from '@/platform/serial';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { DeviceInfo } from '@/types/device-info';
 import { attachFirmwareProfile, getFirmwareProfileById, inferFirmwareProfileFromPort } from '@/types/firmware-profile';
 import type { SerialPortInfo } from '@/types/serial';
 import { PortSelectionRequiredError } from '@/utils/errors/PortSelectionRequiredError';
 import { PortFilter } from '@/utils/port-filter';
-import { isTauri } from '@/utils/tauri';
 
 /**
  * 设备连接管理器
@@ -80,7 +80,15 @@ export class DeviceConnectionManager {
     if (!this.isDeviceHandle(ctx)) {
       throw new Error('Invalid connection handle: context is not a valid DeviceHandle');
     }
-    return attachFirmwareProfile(toLegacyDeviceInfo(ctx), getFirmwareProfileById(AdvancedSettings.firmwareProfile));
+    const firmwareProfile = ctx.firmwareProfile ?? inferFirmwareProfileFromPort(ctx.portInfo);
+    return attachFirmwareProfile({
+      port: ctx.port,
+      connection: null,
+      transport: ctx.transport,
+      serialHandle: ctx,
+      portInfo: ctx.portInfo,
+      firmwareProfile,
+    }, getFirmwareProfileById(AdvancedSettings.firmwareProfile));
   }
 
   private asSerialPortInfo(portInfo: BurnerConnectionHandle['portInfo']): SerialPortInfo | null {
@@ -130,7 +138,7 @@ export class DeviceConnectionManager {
     }
     this.isConnecting = true;
     console.info('[DeviceConnectionManager] requestDevice start', {
-      isTauri: isTauri(),
+      isTauri: isTauriRuntime(),
       hasFilter: Boolean(_filter),
       filterConfig: _filter?.config,
     });
@@ -142,7 +150,7 @@ export class DeviceConnectionManager {
   }
 
   private async _requestDevice(_filter?: PortFilter): Promise<DeviceInfo> {
-    if (isTauri() && _filter) {
+    if (isTauriRuntime() && _filter) {
       const availablePorts = await this.listAvailablePorts(_filter);
       console.info('[DeviceConnectionManager] filtered Tauri ports', availablePorts.map(port => this.describePort(port)));
       if (availablePorts.length === 1) {
@@ -191,7 +199,7 @@ export class DeviceConnectionManager {
    * 使用指定的串口连接设备
    */
   async connectWithSelectedPort(selectedPort: SerialPortInfo): Promise<DeviceInfo> {
-    if (!isTauri()) {
+    if (!isTauriRuntime()) {
       throw new Error('This method is only available in Tauri environment');
     }
 
@@ -218,7 +226,7 @@ export class DeviceConnectionManager {
       }
 
       const device = attachFirmwareProfile(
-        withPortInfo(this.toDeviceInfo(result.context.handle), selectedPort),
+        this.withPortInfo(this.toDeviceInfo(result.context.handle), selectedPort),
         getFirmwareProfileById(AdvancedSettings.firmwareProfile),
       );
       this.logFirmwareProfile(device, 'connectWithSelectedPort');
@@ -309,6 +317,16 @@ export class DeviceConnectionManager {
 
   getConnectionSnapshot() {
     return this.connectionUseCase.snapshot;
+  }
+
+  private withPortInfo(device: DeviceInfo, portInfo?: SerialPortInfo): DeviceInfo {
+    if (device.serialHandle) {
+      device.serialHandle.portInfo = portInfo;
+      device.serialHandle.firmwareProfile = inferFirmwareProfileFromPort(portInfo);
+    }
+    device.portInfo = portInfo;
+    device.firmwareProfile = inferFirmwareProfileFromPort(portInfo);
+    return device;
   }
 }
 

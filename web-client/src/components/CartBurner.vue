@@ -967,7 +967,8 @@ defineExpose({
 
 /* 响应式主布局 */
 .main-layout {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-6);
   height: 820px;
   align-items: stretch;
@@ -975,10 +976,8 @@ defineExpose({
 
 /* 内容区域 */
 .content-area {
-  flex: 0 0 500px;
-  width: 500px;
-  min-width: 500px;
-  max-width: 500px;
+  width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -1059,6 +1058,7 @@ defineExpose({
   }
 
   .main-layout {
+    display: flex;
     flex-direction: column;
     gap: var(--space-5);
     height: auto;

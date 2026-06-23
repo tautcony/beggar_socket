@@ -1,21 +1,21 @@
 ## Purpose
 
-Define the Tauri-native serial gateway and transport requirements so burner protocol flows can use `tauri-plugin-serialplugin-api` through the shared device/transport abstractions.
+Define the Tauri-native serial gateway and transport requirements so burner protocol flows use Rust-owned serial sessions through the shared device/transport abstractions.
 ## Requirements
 ### Requirement: TauriDeviceGateway implements DeviceGateway contract
-The system SHALL provide a `TauriDeviceGateway` class in `src/platform/serial/tauri/` that implements the `DeviceGateway` interface using `tauri-plugin-serialplugin-api` as the underlying serial transport.
+The system SHALL provide a `TauriDeviceGateway` class in `src/platform/serial/tauri/` that implements the `DeviceGateway` interface by delegating serial lifecycle operations to the Rust native platform service layer instead of calling `tauri-plugin-serialplugin-api` directly from frontend code.
 
 #### Scenario: List available ports
 - **WHEN** `TauriDeviceGateway.list(filter?)` is called
-- **THEN** it invokes `SerialPort.available_ports()` from the serialplugin API, converts the returned `{[key: string]: PortInfo}` map to `SerialPortInfo[]` format, and applies the optional `PortFilter` predicate
+- **THEN** it invokes the Rust serial service, converts the returned port descriptors to `SerialPortInfo[]`, and applies the optional `PortFilter` predicate
 
 #### Scenario: Select a port
 - **WHEN** `TauriDeviceGateway.select(filter?)` is called
-- **THEN** it lists available ports (applying filter), and if exactly one port matches returns it as a `DeviceSelection`, or if multiple ports match throws `PortSelectionRequiredError` with the matching ports list
+- **THEN** it lists available ports through the Rust service, and if exactly one port matches returns it as a `DeviceSelection`, or if multiple ports match throws `PortSelectionRequiredError` with the matching ports list
 
 #### Scenario: Connect to a selected port
 - **WHEN** `TauriDeviceGateway.connect(selection)` is called with a valid port selection
-- **THEN** it creates a `SerialPort` instance with `{path, baudRate: 9600, dataBits: Eight, parity: None, stopBits: One}`, bounds the native `open()` attempt with an application timeout, attaches the listener only after a successful open, and returns a `DeviceHandle` with `platform: 'tauri'` and a `TauriSerialTransport` instance
+- **THEN** it creates a Rust-backed serial session for the selected path, bounds the native open attempt with an application timeout, and returns a `DeviceHandle` with `platform: 'tauri'` and a `TauriSerialTransport` bound to that session
 
 #### Scenario: Initialize a connected device
 - **WHEN** `TauriDeviceGateway.init(device)` is called
@@ -27,18 +27,18 @@ The system SHALL provide a `TauriDeviceGateway` class in `src/platform/serial/ta
 
 #### Scenario: Connect without prior selection auto-selects single port
 - **WHEN** `TauriDeviceGateway.connect()` is called without a selection argument
-- **THEN** it lists all ports, and if exactly one exists it auto-connects to that port, or if zero/multiple ports exist it throws `PortSelectionRequiredError`
+- **THEN** it lists all ports through the Rust service, and if exactly one exists it auto-connects to that port, or if zero/multiple ports exist it throws `PortSelectionRequiredError`
 
 ### Requirement: TauriSerialTransport implements Transport contract
-The system SHALL provide a `TauriSerialTransport` class that implements the `Transport` interface, wrapping a `SerialPort` instance from `tauri-plugin-serialplugin-api` with an internal receive buffer for accumulated data.
+The system SHALL provide a `TauriSerialTransport` class that implements the `Transport` interface by proxying reads, writes, and signal control to a Rust-owned serial session while preserving the buffering and mutex semantics expected by burner protocol flows.
 
 #### Scenario: Send binary payload
 - **WHEN** `TauriSerialTransport.send(payload, timeoutMs?)` is called with a `Uint8Array`
-- **THEN** it calls `port.writeBinary(payload)` and returns `true` on success; on failure returns `false` or throws if the timeout is exceeded
+- **THEN** it sends the payload through the Rust-backed session and returns `true` on success; on failure returns `false` or throws if the timeout is exceeded
 
-#### Scenario: Read exact byte count from buffer
+#### Scenario: Read exact byte count from session buffer
 - **WHEN** `TauriSerialTransport.read(length, timeoutMs?)` is called
-- **THEN** it waits until at least `length` bytes are available in the internal receive buffer (populated by the serialplugin `listen` callback), returns exactly `length` bytes as `{data: Uint8Array}`, and retains any excess bytes in the buffer for subsequent reads
+- **THEN** it waits until at least `length` bytes are available from the Rust-backed session buffer, returns exactly `length` bytes as `{data: Uint8Array}`, and retains any excess bytes for subsequent reads
 
 #### Scenario: Read timeout when insufficient data
 - **WHEN** `TauriSerialTransport.read(length, timeoutMs)` is called and insufficient data arrives within `timeoutMs`
@@ -46,32 +46,32 @@ The system SHALL provide a `TauriSerialTransport` class that implements the `Tra
 
 #### Scenario: Atomic send-and-receive operation
 - **WHEN** `TauriSerialTransport.sendAndReceive(payload, readLength, sendTimeoutMs?, readTimeoutMs?)` is called
-- **THEN** the operation is guarded by a mutex so concurrent callers are serialized, sends the payload, then reads the specified length, returning `{data: Uint8Array}`
+- **THEN** the operation is guarded by a mutex so concurrent callers are serialized, sends the payload through the Rust-backed session, then reads the specified length, returning `{data: Uint8Array}`
 
 #### Scenario: Set serial control signals
 - **WHEN** `TauriSerialTransport.setSignals({dataTerminalReady, requestToSend})` is called
-- **THEN** it calls `port.writeDataTerminalReady(dtr)` and/or `port.writeRequestToSend(rts)` for each signal specified in the input
+- **THEN** it forwards the signal changes to the Rust-backed session for the specified signals
 
 #### Scenario: Close transport
 - **WHEN** `TauriSerialTransport.close()` is called
-- **THEN** it calls `port.cancelListen()` then `port.close()`, clears the internal receive buffer, and marks the transport as closed so subsequent operations fail predictably
+- **THEN** it closes the Rust-backed session, clears the internal receive buffer, and marks the transport as closed so subsequent operations fail predictably
 
-### Requirement: Serialplugin PortInfo to SerialPortInfo conversion
-The system SHALL convert `tauri-plugin-serialplugin-api`'s `PortInfo` format (map of path -> info with `port_type`, `vid`, `pid`, `manufacturer`, `serial_number`) to the application's `SerialPortInfo` format used by `DeviceGateway.list()`.
+### Requirement: Native port metadata is normalized for the frontend
+The system SHALL convert Rust serial port descriptors into the application's `SerialPortInfo` format used by `DeviceGateway.list()`.
 
 #### Scenario: USB port info mapping
-- **WHEN** serialplugin returns a port with `port_type: "UsbPort"` and `vid`/`pid` fields
+- **WHEN** the Rust serial service returns a USB-capable port descriptor with vendor and product identifiers
 - **THEN** the converted `SerialPortInfo` includes `usbVendorId` and `usbProductId` as numeric values matching the original VID/PID
 
 #### Scenario: Non-USB port info mapping
-- **WHEN** serialplugin returns a port with `port_type: "PciPort"` or `"Unknown"`
+- **WHEN** the Rust serial service returns a non-USB port descriptor
 - **THEN** the converted `SerialPortInfo` includes the `path` but `usbVendorId` and `usbProductId` are `undefined`
 
 ### Requirement: Tauri connection attempts are time-bounded
 The system SHALL prevent Tauri serial connection attempts from hanging indefinitely when the native port open path becomes unresponsive.
 
 #### Scenario: Tauri open timeout
-- **WHEN** `TauriDeviceGateway.connect()` cannot complete `port.open()` within the configured timeout window
+- **WHEN** `TauriDeviceGateway.connect()` cannot complete the native open sequence within the configured timeout window
 - **THEN** the gateway fails the connect stage with a timeout-classified error and does not expose a partially initialized transport to upper layers
 
 ### Requirement: Tauri lifecycle failure recovery coverage
@@ -82,6 +82,6 @@ The system SHALL provide regression tests for Tauri-specific lifecycle failure h
 - **THEN** the suite verifies the gateway attempts to restore the device signals to a low baseline before returning the failure
 
 #### Scenario: Disconnect close failure preserves reconnectability
-- **WHEN** Tauri gateway tests inject a `transport.close()` failure during disconnect
+- **WHEN** Tauri gateway tests inject a session close failure during disconnect
 - **THEN** the suite verifies the in-memory handle is cleared and a subsequent reconnect can proceed with a fresh handle
 

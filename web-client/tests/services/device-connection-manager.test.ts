@@ -1,0 +1,197 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { AdvancedSettings } from '@/settings/advanced-settings';
+import { PortFilters } from '@/utils/port-filter';
+
+const connectionUseCaseState = vi.hoisted(() => ({
+  listAvailableSelections: vi.fn(),
+  prepareConnectionWithSelection: vi.fn(),
+  prepareConnection: vi.fn(),
+  disconnect: vi.fn(),
+  ensureConnected: vi.fn(),
+  snapshot: { state: 'idle', context: {} },
+}));
+
+vi.mock('@/features/burner/adapters', () => ({
+  createConnectionOrchestrationUseCase: () => connectionUseCaseState,
+}));
+
+vi.mock('@/platform/runtime', () => ({
+  getRuntimeKind: vi.fn(() => 'tauri'),
+  isTauriRuntime: vi.fn(() => true),
+  isWebRuntime: vi.fn(() => false),
+}));
+
+describe('DeviceConnectionManager', () => {
+  beforeEach(async () => {
+    AdvancedSettings.resetToDefaults();
+    vi.clearAllMocks();
+    connectionUseCaseState.listAvailableSelections.mockResolvedValue({
+      success: true,
+      ports: [],
+    });
+    connectionUseCaseState.prepareConnectionWithSelection.mockResolvedValue({
+      success: true,
+      context: {
+        handle: {
+          platform: 'tauri',
+          portInfo: { path: '/dev/tty.usbmodem1' },
+          context: {
+            platform: 'tauri',
+            transport: {},
+            port: null,
+            connection: null,
+            portInfo: { path: '/dev/tty.usbmodem1' },
+          },
+        },
+      },
+    });
+    connectionUseCaseState.prepareConnection.mockResolvedValue({
+      success: false,
+      context: {},
+      failure: {
+        stage: 'select',
+        code: 'selection_required',
+        message: 'selection required',
+      },
+    });
+    connectionUseCaseState.disconnect.mockResolvedValue({ success: true });
+    connectionUseCaseState.ensureConnected.mockResolvedValue({ success: true, context: { handle: null } });
+
+    const module = await import('@/services/device-connection-manager');
+    (module.DeviceConnectionManager as unknown as { instance: unknown }).instance = undefined;
+  });
+
+  it('connects immediately when exactly one filtered port is available', async () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+    connectionUseCaseState.listAvailableSelections.mockResolvedValue({
+      success: true,
+      ports: [
+        {
+          portInfo: {
+            path: '/dev/tty.usbmodem6D83538A48851',
+            vendorId: '0483',
+            productId: '0721',
+          },
+          context: {
+            portInfo: {
+              path: '/dev/tty.usbmodem6D83538A48851',
+              vendorId: '0483',
+              productId: '0721',
+            },
+          },
+        },
+      ],
+    });
+
+    const { DeviceConnectionManager } = await import('@/services/device-connection-manager');
+    const manager = DeviceConnectionManager.getInstance();
+    await manager.requestDevice(PortFilters.presets.beggarSocket());
+
+    expect(connectionUseCaseState.prepareConnectionWithSelection).toHaveBeenCalledWith({
+      portInfo: {
+        path: '/dev/tty.usbmodem6D83538A48851',
+        vendorId: '0483',
+        productId: '0721',
+      },
+      context: {
+        portInfo: {
+          path: '/dev/tty.usbmodem6D83538A48851',
+          vendorId: '0483',
+          productId: '0721',
+        },
+      },
+    });
+    expect(infoSpy).toHaveBeenCalledWith(
+      '[DeviceConnectionManager] firmware profile detected',
+      expect.objectContaining({
+        source: 'connectWithSelectedPort',
+        profile: 'stm',
+        configuredProfile: 'stm',
+        inferredProfile: 'stm',
+        port: expect.objectContaining({
+          path: '/dev/tty.usbmodem6D83538A48851',
+          vendorId: '0483',
+          productId: '0721',
+        }),
+      }),
+    );
+    infoSpy.mockRestore();
+  });
+
+  it('uses configured firmware profile instead of native path inference', async () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+    AdvancedSettings.firmwareProfile = 'stc';
+
+    const { DeviceConnectionManager } = await import('@/services/device-connection-manager');
+    const manager = DeviceConnectionManager.getInstance();
+
+    const device = await manager.connectWithSelectedPort({
+      path: '/dev/tty.usbmodem6D83538A48851',
+      vendorId: '0483',
+      productId: '0721',
+    });
+
+    expect(device.firmwareProfile?.id).toBe('stc');
+    expect(infoSpy).toHaveBeenCalledWith(
+      '[DeviceConnectionManager] firmware profile detected',
+      expect.objectContaining({
+        source: 'connectWithSelectedPort',
+        profile: 'stc',
+        configuredProfile: 'stc',
+        inferredProfile: 'stm',
+      }),
+    );
+    infoSpy.mockRestore();
+  });
+
+  it('falls back to all visible ports for manual selection when no filtered port matches', async () => {
+    connectionUseCaseState.listAvailableSelections.mockResolvedValue({
+      success: true,
+      ports: [
+        {
+          portInfo: { path: '/dev/cu.usbmodem1', manufacturer: 'Apple' },
+          context: { portInfo: { path: '/dev/cu.usbmodem1', manufacturer: 'Apple' } },
+        },
+        {
+          portInfo: { path: '/dev/cu.usbmodem2', manufacturer: 'STMicroelectronics' },
+          context: { portInfo: { path: '/dev/cu.usbmodem2', manufacturer: 'STMicroelectronics' } },
+        },
+      ],
+    });
+
+    const { DeviceConnectionManager } = await import('@/services/device-connection-manager');
+    const manager = DeviceConnectionManager.getInstance();
+
+    await expect(manager.requestDevice(PortFilters.presets.beggarSocket())).rejects.toMatchObject({
+      name: 'PortSelectionRequiredError',
+      availablePorts: [
+        { path: '/dev/cu.usbmodem1', manufacturer: 'Apple' },
+        { path: '/dev/cu.usbmodem2', manufacturer: 'STMicroelectronics' },
+      ],
+    });
+    expect(connectionUseCaseState.prepareConnectionWithSelection).not.toHaveBeenCalled();
+  });
+
+  it('fails fast when orchestration returns a handle without a valid DeviceHandle context', async () => {
+    connectionUseCaseState.prepareConnection.mockResolvedValue({
+      success: true,
+      context: {
+        handle: {
+          platform: 'tauri',
+          portInfo: { path: '/dev/tty.usbmodem1' },
+          context: {
+            platform: 'tauri',
+            port: null,
+            connection: null,
+          },
+        },
+      },
+    });
+
+    const { DeviceConnectionManager } = await import('@/services/device-connection-manager');
+    const manager = DeviceConnectionManager.getInstance();
+
+    await expect(manager.requestDevice()).rejects.toThrow('Invalid connection handle: context is not a valid DeviceHandle');
+  });
+});

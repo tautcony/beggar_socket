@@ -1,9 +1,8 @@
-import { invoke } from '@tauri-apps/api/core';
 import { ref } from 'vue';
 
+import { saveBinaryFile } from '@/platform/native';
 import type { FileInfo } from '@/types/file-info';
 import { formatBytes } from '@/utils/formatter-utils';
-import { isTauri } from '@/utils/tauri';
 
 export function useCartBurnerFileState(log: (message: string) => void, translate: (key: string, params?: Record<string, unknown>) => string) {
   const romFileData = ref<Uint8Array | null>(null);
@@ -88,38 +87,7 @@ export function useCartBurnerFileState(log: (message: string) => void, translate
   }
 
   async function saveAsFile(data: Uint8Array, filename: string): Promise<{ saved: boolean; path?: string }> {
-    if (isTauri()) {
-      const savedPath = await invoke<string | null>('save_binary_file', {
-        suggestedFilename: filename,
-        bytes: Array.from(data),
-      });
-      return {
-        saved: Boolean(savedPath),
-        path: savedPath ?? undefined,
-      };
-    }
-
-    let url: string | null = null;
-    let anchor: HTMLAnchorElement | null = null;
-
-    try {
-      const blob = new Blob([data as BlobPart], { type: 'application/octet-stream' });
-      url = URL.createObjectURL(blob);
-      anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = filename;
-      document.body.appendChild(anchor);
-      anchor.click();
-    } finally {
-      if (anchor?.parentNode) {
-        anchor.parentNode.removeChild(anchor);
-      }
-      if (url) {
-        URL.revokeObjectURL(url);
-      }
-    }
-
-    return { saved: true };
+    return saveBinaryFile(data, filename);
   }
 
   async function onFileNameSelected(fileName: string) {

@@ -40,8 +40,6 @@
       "disconnected": "Отключено",
       "connectFailed": "Ошибка подключения",
       "disconnectFailed": "Ошибка отключения",
-      "usePolyfill": "Использовать SoW",
-      "usePolyfillTooltip": "Использовать Web Serial Polyfill для браузеров без поддержки нативного Web Serial API",
       "portSelector": {
         "title": "Выбрать последовательный порт",
         "description": "Пожалуйста, выберите устройство для подключения:",
@@ -100,7 +98,7 @@
     },
     "serialTest": {
       "title": "Инструмент тестирования последовательного порта",
-      "description": "Тестировать унифицированный последовательный порт, поддерживающий Web Serial API и нативный последовательный порт Electron",
+      "description": "??????????? ??????????????? ???????????????? ????, ?????????????? Web Serial API ? ???????? ???????????????? ???? Tauri",
       "environment": "Среда выполнения",
       "platform": "Платформа:",
       "userAgent": "User Agent:",

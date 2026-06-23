@@ -1,4 +1,4 @@
-import {
+﻿import {
   GBA_ROM_FLASH_CMD_SET,
   getFlashName,
   ram_erase_flash,
@@ -33,7 +33,7 @@ import { SpeedCalculator } from '@/utils/progress/speed-calculator';
 import { calcSectorUsage } from '@/utils/sector-utils';
 
 /**
- * GBA Adapter - 封装GBA卡带的协议操作
+ * GBA Adapter - 灏佽GBA鍗″甫鐨勫崗璁搷浣?
  */
 export class GBAAdapter extends CartridgeAdapter {
   private static readonly ROM_BANK_SIZE = 1 << 25;
@@ -41,11 +41,11 @@ export class GBAAdapter extends CartridgeAdapter {
   private static readonly CHIP_ERASE_TIMEOUT_MS = 120_000;
 
   /**
-   * 构造函数
-   * @param device - 设备对象
-   * @param logCallback - 日志回调函数
-   * @param progressCallback - 进度回调函数
-   * @param translateFunc - 国际化翻译函数
+   * 鏋勯€犲嚱鏁?
+   * @param device - 璁惧瀵硅薄
+   * @param logCallback - 鏃ュ織鍥炶皟鍑芥暟
+   * @param progressCallback - 杩涘害鍥炶皟鍑芥暟
+   * @param translateFunc - 鍥介檯鍖栫炕璇戝嚱鏁?
    */
   constructor(
     device: DeviceInfo,
@@ -152,7 +152,7 @@ export class GBAAdapter extends CartridgeAdapter {
         if (isMultiBank) {
           await this.switchROMBank(bank);
         }
-        await rom_erase_sector(this.device, sector.address);
+        await rom_erase_sector(this.transport, sector.address);
         return;
       } catch (error) {
         lastError = error;
@@ -180,9 +180,9 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 全片擦除
-   * @param signal - 取消信号，用于中止操作
-   * @returns - 包含成功状态和消息的对象
+   * 鍏ㄧ墖鎿﹂櫎
+   * @param signal - 鍙栨秷淇″彿锛岀敤浜庝腑姝㈡搷浣?
+   * @returns - 鍖呭惈鎴愬姛鐘舵€佸拰娑堟伅鐨勫璞?
    */
   override async eraseChip(options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
     return PerformanceTracker.trackAsyncOperation(
@@ -191,7 +191,7 @@ export class GBAAdapter extends CartridgeAdapter {
         this.log(this.t('messages.operation.eraseChip'), 'info');
 
         try {
-          // 检查是否已被取消
+          // 妫€鏌ユ槸鍚﹀凡琚彇娑?
           if (signal?.aborted) {
             return {
               success: false,
@@ -199,15 +199,15 @@ export class GBAAdapter extends CartridgeAdapter {
             };
           }
 
-          await rom_erase_chip(this.device);
+          await rom_erase_chip(this.transport);
 
           const startTime = Date.now();
           let elapsedSeconds = 0;
 
-          // 验证擦除是否完成
+          // 楠岃瘉鎿﹂櫎鏄惁瀹屾垚
           const eraseDeadline = startTime + GBAAdapter.CHIP_ERASE_TIMEOUT_MS;
           while (Date.now() < eraseDeadline) {
-            // 检查是否已被取消
+            // 妫€鏌ユ槸鍚﹀凡琚彇娑?
             if (signal?.aborted) {
               this.log(this.t('messages.operation.cancelled'), 'warn');
               return {
@@ -258,10 +258,10 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 擦除ROM扇区
-   * @param sectorInfo - 扇区信息数组
-   * @param signal - 取消信号，用于中止操作
-   * @returns - 操作结果
+   * 鎿﹂櫎ROM鎵囧尯
+   * @param sectorInfo - 鎵囧尯淇℃伅鏁扮粍
+   * @param signal - 鍙栨秷淇″彿锛岀敤浜庝腑姝㈡搷浣?
+   * @returns - 鎿嶄綔缁撴灉
    */
   override async eraseSectors(
     sectorInfo: SectorBlock[],
@@ -277,7 +277,7 @@ export class GBAAdapter extends CartridgeAdapter {
     return PerformanceTracker.trackAsyncOperation(
       'gba.eraseSectors',
       async () => {
-        // 计算擦除范围信息
+        // 璁＄畻鎿﹂櫎鑼冨洿淇℃伅
         const minStartAddress = Math.min(...sectorInfo.map(info => info.startAddress));
         const maxEndAddress = Math.max(...sectorInfo.map(info => info.endAddress));
         const totalSectors = sectorInfo.reduce((sum, info) => sum + info.sectorCount, 0);
@@ -297,16 +297,16 @@ export class GBAAdapter extends CartridgeAdapter {
           let currentBank = -1;
           let eraseCount = 0;
 
-          // 使用速度计算器
+          // 浣跨敤閫熷害璁＄畻鍣?
           const speedCalculator = new SpeedCalculator();
 
-          // 创建扇区进度信息
+          // 鍒涘缓鎵囧尯杩涘害淇℃伅
           const sectors = this.initializeSectorProgress(sectorInfo);
 
-          // 计算总字节数
+          // 璁＄畻鎬诲瓧鑺傛暟
           const totalBytes = sectorInfo.reduce((sum, info) => sum + (info.endAddress - info.startAddress), 0);
 
-          // 创建进度报告器
+          // 鍒涘缓杩涘害鎶ュ憡鍣?
           const progressReporter = new ProgressReporter(
             'erase',
             totalBytes,
@@ -315,12 +315,12 @@ export class GBAAdapter extends CartridgeAdapter {
           );
           progressReporter.setSectors(this.currentSectorProgress);
 
-          // 报告开始状态
+          // 鎶ュ憡寮€濮嬬姸鎬?
           progressReporter.reportStart(this.t('messages.operation.startEraseSectors'));
 
-          // 按照创建的扇区顺序进行擦除（从高地址到低地址）
+          // 鎸夌収鍒涘缓鐨勬墖鍖洪『搴忚繘琛屾摝闄わ紙浠庨珮鍦板潃鍒颁綆鍦板潃锛?
           for (const sector of sectors) {
-            // 检查是否已被取消
+            // 妫€鏌ユ槸鍚﹀凡琚彇娑?
             if (signal?.aborted) {
               progressReporter.reportError(this.t('messages.operation.cancelled'));
               return {
@@ -329,7 +329,7 @@ export class GBAAdapter extends CartridgeAdapter {
               };
             }
 
-            // 更新当前扇区状态为"正在处理"
+            // 鏇存柊褰撳墠鎵囧尯鐘舵€佷负"姝ｅ湪澶勭悊"
             const currentSpeedBeforeErase = speedCalculator.getCurrentSpeed();
             progressReporter.markSectorState(sector.address, 'erasing');
             progressReporter.emitProgress(
@@ -376,19 +376,19 @@ export class GBAAdapter extends CartridgeAdapter {
             }
             const sectorEndTime = Date.now();
 
-            // 更新当前扇区状态为"已完成"或"已跳过擦除"
+            // 鏇存柊褰撳墠鎵囧尯鐘舵€佷负"宸插畬鎴?鎴?宸茶烦杩囨摝闄?
             progressReporter.markSectorState(sector.address, skippedBySample ? 'skipped_erase' : 'erased');
 
             eraseCount++;
             const erasedBytes = eraseCount * sector.size;
 
-            // 添加数据点到速度计算器
+            // 娣诲姞鏁版嵁鐐瑰埌閫熷害璁＄畻鍣?
             speedCalculator.addDataPoint(sector.size, sectorEndTime);
 
-            // 计算当前速度
+            // 璁＄畻褰撳墠閫熷害
             const currentSpeed = speedCalculator.getCurrentSpeed();
 
-            // 报告进度
+            // 鎶ュ憡杩涘害
             progressReporter.emitProgress(
               erasedBytes,
               currentSpeed,
@@ -409,7 +409,7 @@ export class GBAAdapter extends CartridgeAdapter {
             totalSectors: totalSectors,
           }), 'info');
 
-          // 报告完成状态
+          // 鎶ュ憡瀹屾垚鐘舵€?
           progressReporter.reportCompleted(this.t('messages.operation.eraseSuccess'), avgSpeed);
 
           return {
@@ -452,11 +452,11 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 写入ROM
-   * @param fileData - 文件数据
-   * @param options - 写入选项
-   * @param signal - 取消信号，用于中止操作
-   * @returns - 操作结果
+   * 鍐欏叆ROM
+   * @param fileData - 鏂囦欢鏁版嵁
+   * @param options - 鍐欏叆閫夐」
+   * @param signal - 鍙栨秷淇″彿锛岀敤浜庝腑姝㈡搷浣?
+   * @returns - 鎿嶄綔缁撴灉
    */
   override async writeROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
@@ -607,7 +607,7 @@ export class GBAAdapter extends CartridgeAdapter {
             }
 
             try {
-              await rom_program(this.device, chunk, cartAddress, bufferSize);
+              await rom_program(this.transport, chunk, cartAddress, bufferSize);
             } catch (error) {
               await recoverSectorWrite(currentSectorIndex, error);
               continue;
@@ -656,7 +656,7 @@ export class GBAAdapter extends CartridgeAdapter {
             totalSize: formatBytes(total),
           }), 'info');
 
-          // 报告完成状态
+          // 鎶ュ憡瀹屾垚鐘舵€?
           progressReporter.reportCompleted(this.t('messages.rom.writeComplete'), avgSpeed);
 
           return {
@@ -694,12 +694,12 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 读取ROM
-   * @param size - 读取大小
-   * @param baseAddress - 基础地址
-   * @param signal - 取消信号，用于中止操作
-   * @param showProgress - 是否显示读取进度面板，默认为true
-   * @returns - 操作结果，包含读取的数据
+   * 璇诲彇ROM
+   * @param size - 璇诲彇澶у皬
+   * @param baseAddress - 鍩虹鍦板潃
+   * @param signal - 鍙栨秷淇″彿锛岀敤浜庝腑姝㈡搷浣?
+   * @param showProgress - 鏄惁鏄剧ず璇诲彇杩涘害闈㈡澘锛岄粯璁や负true
+   * @returns - 鎿嶄綔缁撴灉锛屽寘鍚鍙栫殑鏁版嵁
    */
   override async readROM(size = 0x200000, options: CommandOptions, signal?: AbortSignal, showProgress = true) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
@@ -718,7 +718,7 @@ export class GBAAdapter extends CartridgeAdapter {
       'gba.readROM',
       async () => {
         try {
-          // 检查是否已被取消
+          // 妫€鏌ユ槸鍚﹀凡琚彇娑?
           if (signal?.aborted) {
             const progressReporter = new ProgressReporter(
               'read',
@@ -740,10 +740,10 @@ export class GBAAdapter extends CartridgeAdapter {
 
           const data = new Uint8Array(size);
 
-          // 使用速度计算器
+          // 浣跨敤閫熷害璁＄畻鍣?
           const speedCalculator = new SpeedCalculator();
 
-          // 创建进度报告器
+          // 鍒涘缓杩涘害鎶ュ憡鍣?
           const progressReporter = new ProgressReporter(
             'read',
             size,
@@ -752,16 +752,16 @@ export class GBAAdapter extends CartridgeAdapter {
             showProgress,
           );
 
-          // 报告开始状态
+          // 鎶ュ憡寮€濮嬬姸鎬?
           progressReporter.reportStart(this.t('messages.rom.reading'));
 
-          // 分块读取以便计算速度统计
-          let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
-          let chunkCount = 0; // 记录已处理的块数
+          // 鍒嗗潡璇诲彇浠ヤ究璁＄畻閫熷害缁熻
+          let lastLoggedProgress = -1; // 鍒濆鍖栦负-1锛岀‘淇濈涓€娆?%浼氳璁板綍
+          let chunkCount = 0; // 璁板綍宸插鐞嗙殑鍧楁暟
           let currentBank = -1;
 
           while (totalRead < size) {
-            // 检查是否已被取消
+            // 妫€鏌ユ槸鍚﹀凡琚彇娑?
             if (signal?.aborted) {
               progressReporter.reportError(this.t('messages.operation.cancelled'));
               return {
@@ -773,7 +773,7 @@ export class GBAAdapter extends CartridgeAdapter {
             const chunkSize = Math.min(pageSize, size - totalRead);
             const currentAddress = baseAddress + totalRead;
 
-            // 计算bank和地址
+            // 璁＄畻bank鍜屽湴鍧€
             const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress);
             if (options.cfiInfo.deviceSize > (1 << 25)) {
               if (bank !== currentBank) {
@@ -782,7 +782,7 @@ export class GBAAdapter extends CartridgeAdapter {
               }
             }
 
-            // 读取数据
+            // 璇诲彇鏁版嵁
             const restoreState = options.cfiInfo.deviceSize > (1 << 25)
               ? async () => { await this.switchROMBank(bank); }
               : undefined;
@@ -800,15 +800,15 @@ export class GBAAdapter extends CartridgeAdapter {
             totalRead += chunkSize;
             chunkCount++;
 
-            // 添加数据点到速度计算器
+            // 娣诲姞鏁版嵁鐐瑰埌閫熷害璁＄畻鍣?
             speedCalculator.addDataPoint(chunkSize, chunkEndTime);
 
-            // 每10次操作或最后一次更新进度
+            // 姣?0娆℃搷浣滄垨鏈€鍚庝竴娆℃洿鏂拌繘搴?
             if (chunkCount % 10 === 0 || totalRead >= size) {
-              // 计算当前速度
+              // 璁＄畻褰撳墠閫熷害
               const currentSpeed = speedCalculator.getCurrentSpeed();
 
-              // 报告进度
+              // 鎶ュ憡杩涘害
               progressReporter.reportProgress(
                 totalRead,
                 currentSpeed,
@@ -816,7 +816,7 @@ export class GBAAdapter extends CartridgeAdapter {
               );
             }
 
-            // 每5个百分比记录一次日志
+            // 姣?涓櫨鍒嗘瘮璁板綍涓€娆℃棩蹇?
             const progress = Math.floor((totalRead / size) * 100);
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
               this.log(this.t('messages.rom.readingAt', { address: formatHex(currentAddress, 4), progress }), 'info');
@@ -840,7 +840,7 @@ export class GBAAdapter extends CartridgeAdapter {
             totalSize: formatBytes(size),
           }), 'info');
 
-          // 报告完成状态
+          // 鎶ュ憡瀹屾垚鐘舵€?
           progressReporter.reportCompleted(this.t('messages.rom.readSuccess', { size: data.length }), avgSpeed);
 
           return {
@@ -876,10 +876,10 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 校验ROM
-   * @param fileData - 文件数据
-   * @param baseAddress - 基础地址
-   * @returns - 操作结果
+   * 鏍￠獙ROM
+   * @param fileData - 鏂囦欢鏁版嵁
+   * @param baseAddress - 鍩虹鍦板潃
+   * @returns - 鎿嶄綔缁撴灉
    */
   override async verifyROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0;
@@ -894,7 +894,7 @@ export class GBAAdapter extends CartridgeAdapter {
     return PerformanceTracker.trackAsyncOperation(
       'gba.verifyROM',
       async () => {
-        // 检查是否已被取消
+        // 妫€鏌ユ槸鍚﹀凡琚彇娑?
         if (signal?.aborted) {
           const progressReporter = new ProgressReporter(
             'verify',
@@ -933,20 +933,20 @@ export class GBAAdapter extends CartridgeAdapter {
           let verified = 0;
           let success = true;
           let failedAddress = -1;
-          let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
+          let lastLoggedProgress = -1; // 鍒濆鍖栦负-1锛岀‘淇濈涓€娆?%浼氳璁板綍
           let currentBank = -1;
           let activeSectorIndex = -1;
           let completedSectorIndex = -1;
           const isMultiCard = options.cfiInfo.deviceSize > (1 << 25);
 
-          // 初始化扇区进度信息 (用于显示校验进度可视化)
+          // 鍒濆鍖栨墖鍖鸿繘搴︿俊鎭?(鐢ㄤ簬鏄剧ず鏍￠獙杩涘害鍙鍖?
           const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, total, baseAddress);
           const sectors = this.initializeSectorProgress(sectorInfo);
 
-          // 使用速度计算器
+          // 浣跨敤閫熷害璁＄畻鍣?
           const speedCalculator = new SpeedCalculator();
 
-          // 创建进度报告器
+          // 鍒涘缓杩涘害鎶ュ憡鍣?
           const progressReporter = new ProgressReporter(
             'verify',
             total,
@@ -955,13 +955,13 @@ export class GBAAdapter extends CartridgeAdapter {
           );
           progressReporter.setSectors(sectors);
 
-          // 报告开始状态
+          // 鎶ュ憡寮€濮嬬姸鎬?
           progressReporter.reportStart(this.t('messages.rom.verifying'));
 
-          // 分块校验并更新进度
-          let chunkCount = 0; // 记录已处理的块数
+          // 鍒嗗潡鏍￠獙骞舵洿鏂拌繘搴?
+          let chunkCount = 0; // 璁板綍宸插鐞嗙殑鍧楁暟
           while (verified < total && success) {
-            // 检查是否已被取消
+            // 妫€鏌ユ槸鍚﹀凡琚彇娑?
             if (signal?.aborted) {
               progressReporter.reportError(this.t('messages.operation.cancelled'));
               return {
@@ -1002,7 +1002,7 @@ export class GBAAdapter extends CartridgeAdapter {
               }
             }
 
-            // 读取数据
+            // 璇诲彇鏁版嵁
             const restoreState = isMultiCard
               ? async () => { await this.switchROMBank(bank); }
               : undefined;
@@ -1016,7 +1016,7 @@ export class GBAAdapter extends CartridgeAdapter {
             );
             const chunkEndTime = Date.now();
 
-            // 逐字节比较
+            // 閫愬瓧鑺傛瘮杈?
             for (let i = 0; i < chunkSize; i++) {
               const expectedByte = fileData[verified + i];
               const actualByte = actualChunk[i];
@@ -1052,15 +1052,15 @@ export class GBAAdapter extends CartridgeAdapter {
               progressReporter.markSectorState(nextSector.address, 'completed');
             }
 
-            // 添加数据点到速度计算器
+            // 娣诲姞鏁版嵁鐐瑰埌閫熷害璁＄畻鍣?
             speedCalculator.addDataPoint(chunkSize, chunkEndTime);
 
-            // 每10次操作或最后一次更新进度
+            // 姣?0娆℃搷浣滄垨鏈€鍚庝竴娆℃洿鏂拌繘搴?
             if (chunkCount % 10 === 0 || verified >= total) {
-              // 计算当前速度
+              // 璁＄畻褰撳墠閫熷害
               const currentSpeed = speedCalculator.getCurrentSpeed();
 
-              // 报告进度
+              // 鎶ュ憡杩涘害
               progressReporter.emitProgress(
                 verified,
                 currentSpeed,
@@ -1069,7 +1069,7 @@ export class GBAAdapter extends CartridgeAdapter {
               );
             }
 
-            // 每5%记录一次日志
+            // 姣?%璁板綍涓€娆℃棩蹇?
             const progress = Math.floor((verified / total) * 100);
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
               this.log(this.t('messages.rom.verifyingAt', {
@@ -1102,7 +1102,7 @@ export class GBAAdapter extends CartridgeAdapter {
               totalSize: formatBytes(total),
             }), 'info');
 
-            // 报告完成状态
+            // 鎶ュ憡瀹屾垚鐘舵€?
             progressReporter.reportCompleted(this.t('messages.rom.verifySuccess'), avgSpeed);
           } else {
             this.log(this.t('messages.rom.verifyFailed'), 'error');
@@ -1141,10 +1141,10 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 写入RAM
-   * @param fileData - 文件数据
-   * @param options - 写入选项
-   * @returns - 操作结果
+   * 鍐欏叆RAM
+   * @param fileData - 鏂囦欢鏁版嵁
+   * @param options - 鍐欏叆閫夐」
+   * @returns - 鎿嶄綔缁撴灉
    */
   override async writeRAM(fileData: Uint8Array, options: CommandOptions): Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
@@ -1155,7 +1155,7 @@ export class GBAAdapter extends CartridgeAdapter {
       return firmwareUnsupportedResult('GBA FRAM RAM write', this.firmwareProfile);
     }
 
-    // 如果是免电存档，调用专门的方法
+    // 濡傛灉鏄厤鐢靛瓨妗ｏ紝璋冪敤涓撻棬鐨勬柟娉?
     if (ramType === 'BATLESS') {
       return this.writeBatterylessSave(fileData, options);
     }
@@ -1175,12 +1175,12 @@ export class GBAAdapter extends CartridgeAdapter {
           let written = 0;
           if (ramType === 'FLASH') {
             this.log(this.t('messages.gba.erasingFlash'), 'info');
-            await ram_erase_flash(this.device);
+            await ram_erase_flash(this.transport);
 
-            // 等待擦除完成
+            // 绛夊緟鎿﹂櫎瀹屾垚
             let erased = false;
             while (!erased) {
-              const result = await ram_read(this.device, 1);
+              const result = await ram_read(this.transport, 1);
               this.log(this.t('messages.gba.eraseStatus', { status: formatHex(result[0], 1) }), 'info');
               if (result[0] === 0xff) {
                 this.log(this.t('messages.gba.eraseComplete'), 'success');
@@ -1191,16 +1191,16 @@ export class GBAAdapter extends CartridgeAdapter {
             }
           }
 
-          // 开始写入
+          // 寮€濮嬪啓鍏?
           const startTime = Date.now();
-          let lastLoggedProgress = -1; // 初始化为-1，确保第一次0%会被记录
-          let chunkCount = 0; // 记录已处理的块数
+          let lastLoggedProgress = -1; // 鍒濆鍖栦负-1锛岀‘淇濈涓€娆?%浼氳璁板綍
+          let chunkCount = 0; // 璁板綍宸插鐞嗙殑鍧楁暟
 
-          // 使用速度计算器
+          // 浣跨敤閫熷害璁＄畻鍣?
           const speedCalculator = new SpeedCalculator();
 
           while (written < total) {
-            // 切bank
+            // 鍒嘼ank
             if (written === 0x00000) {
               if (ramType === 'FLASH') {
                 await this.switchFlashBank(0);
@@ -1217,31 +1217,31 @@ export class GBAAdapter extends CartridgeAdapter {
 
             const baseAddr = written & 0xffff;
 
-            // 分包
+            // 鍒嗗寘
             const remainingSize = total - written;
             const chunkSize = Math.min(pageSize, remainingSize);
             const chunk = fileData.subarray(written, written + chunkSize);
 
-            // 根据RAM类型选择写入方法
+            // 鏍规嵁RAM绫诲瀷閫夋嫨鍐欏叆鏂规硶
             if (ramType === 'FLASH') {
-              await ram_program_flash(this.device, chunk, baseAddr);
+              await ram_program_flash(this.transport, chunk, baseAddr);
             } else if (ramType === 'FRAM') {
               const latency = options.framLatency ?? 25;
-              await ram_write_fram(this.device, chunk, baseAddr, latency);
+              await ram_write_fram(this.transport, chunk, baseAddr, latency);
             } else {
-              await ram_write(this.device, chunk, baseAddr);
+              await ram_write(this.transport, chunk, baseAddr);
             }
             const chunkEndTime = Date.now();
 
             written += chunkSize;
             chunkCount++;
 
-            // 添加数据点到速度计算器
+            // 娣诲姞鏁版嵁鐐瑰埌閫熷害璁＄畻鍣?
             speedCalculator.addDataPoint(chunkSize, chunkEndTime);
 
             const progress = Math.floor((written / total) * 100);
 
-            // 每5个百分比记录一次日志
+            // 姣?涓櫨鍒嗘瘮璁板綍涓€娆℃棩蹇?
             if (progress % 5 === 0 && progress !== lastLoggedProgress) {
               this.log(this.t('messages.ram.writingAt', { address: formatHex(written, 4), progress }), 'info');
               lastLoggedProgress = progress;
@@ -1285,10 +1285,10 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 读取RAM
-   * @param size - 读取大小
-   * @param options - 读取参数
-   * @returns - 操作结果，包含读取的数据
+   * 璇诲彇RAM
+   * @param size - 璇诲彇澶у皬
+   * @param options - 璇诲彇鍙傛暟
+   * @returns - 鎿嶄綔缁撴灉锛屽寘鍚鍙栫殑鏁版嵁
    */
   override async readRAM(size = 0x8000, options: CommandOptions) {
     const baseAddress = options.baseAddress ?? 0x00;
@@ -1300,7 +1300,7 @@ export class GBAAdapter extends CartridgeAdapter {
       return firmwareUnsupportedResult('GBA FRAM RAM read', this.firmwareProfile);
     }
 
-    // 如果是免电存档，调用专门的方法
+    // 濡傛灉鏄厤鐢靛瓨妗ｏ紝璋冪敤涓撻棬鐨勬柟娉?
     if (ramType === 'BATLESS') {
       return this.readBatterylessSave(options);
     }
@@ -1336,8 +1336,8 @@ export class GBAAdapter extends CartridgeAdapter {
             for (let attempt = 1; attempt <= retryAttempts; attempt++) {
               try {
                 return ramType === 'FRAM'
-                  ? await ram_read_fram(this.device, chunkSize, baseAddr, options.framLatency ?? 25)
-                  : await ram_read(this.device, chunkSize, baseAddr);
+                  ? await ram_read_fram(this.transport, chunkSize, baseAddr, options.framLatency ?? 25)
+                  : await ram_read(this.transport, chunkSize, baseAddr);
               } catch (error) {
                 lastError = error;
                 this.log(
@@ -1362,11 +1362,11 @@ export class GBAAdapter extends CartridgeAdapter {
             throw lastError instanceof Error ? lastError : new Error(String(lastError));
           };
 
-          // 使用速度计算器
+          // 浣跨敤閫熷害璁＄畻鍣?
           const speedCalculator = new SpeedCalculator();
 
           while (read < size) {
-            // 切bank
+            // 鍒嘼ank
             if (read === 0x00000) {
               if (ramType === 'FLASH') {
                 await this.switchFlashBank(0);
@@ -1385,18 +1385,18 @@ export class GBAAdapter extends CartridgeAdapter {
 
             const baseAddr = read & 0xffff;
 
-            // 分包
+            // 鍒嗗寘
             const remainingSize = size - read;
             const chunkSize = Math.min(pageSize, remainingSize);
 
-            // 读取数据
+            // 璇诲彇鏁版嵁
             const chunk = await readChunkWithRetry(chunkSize, baseAddr, read);
             const chunkEndTime = Date.now();
             result.set(chunk, read);
 
             read += chunkSize;
 
-            // 添加数据点到速度计算器
+            // 娣诲姞鏁版嵁鐐瑰埌閫熷害璁＄畻鍣?
             speedCalculator.addDataPoint(chunkSize, chunkEndTime);
 
             if (read < size && readThrottleMs > 0) {
@@ -1442,10 +1442,10 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 校验RAM
-   * @param fileData - 文件数据
-   * @param options - 选项对象
-   * @returns - 操作结果
+   * 鏍￠獙RAM
+   * @param fileData - 鏂囦欢鏁版嵁
+   * @param options - 閫夐」瀵硅薄
+   * @returns - 鎿嶄綔缁撴灉
    */
   override async verifyRAM(fileData: Uint8Array, options: CommandOptions) {
     const baseAddress = options.baseAddress ?? 0x00;
@@ -1456,7 +1456,7 @@ export class GBAAdapter extends CartridgeAdapter {
       return firmwareUnsupportedResult('GBA FRAM RAM verify', this.firmwareProfile);
     }
 
-    // 如果是免电存档，调用专门的方法
+    // 濡傛灉鏄厤鐢靛瓨妗ｏ紝璋冪敤涓撻棬鐨勬柟娉?
     if (ramType === 'BATLESS') {
       return this.verifyBatterylessSave(fileData, options);
     }
@@ -1516,8 +1516,8 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 获取卡带信息
-   * @returns 卡带容量相关信息
+   * 鑾峰彇鍗″甫淇℃伅
+   * @returns 鍗″甫瀹归噺鐩稿叧淇℃伅
    */
   override async getCartInfo(): Promise<CFIInfo | false> {
     this.log(this.t('messages.operation.startGetCartInfo'), 'info');
@@ -1527,10 +1527,10 @@ export class GBAAdapter extends CartridgeAdapter {
       async () => {
         try {
           // CFI Query
-          await rom_write(this.device, toLittleEndian(0x98, 2), 0x55);
-          const cfiData = await rom_read(this.device, 0x100, 0x00);
+          await rom_write(this.transport, toLittleEndian(0x98, 2), 0x55);
+          const cfiData = await rom_read(this.transport, 0x100, 0x00);
           // Reset
-          await rom_write(this.device, toLittleEndian(0xf0, 2), 0x00);
+          await rom_write(this.transport, toLittleEndian(0xf0, 2), 0x00);
 
           const cfiInfo = parseCFI(cfiData);
 
@@ -1539,19 +1539,19 @@ export class GBAAdapter extends CartridgeAdapter {
             return false;
           }
 
-          // 读取Flash ID并添加到CFI信息中
+          // 璇诲彇Flash ID骞舵坊鍔犲埌CFI淇℃伅涓?
           try {
-            const flashId = await rom_get_id(this.device);
+            const flashId = await rom_get_id(this.transport);
             cfiInfo.flashId = flashId;
             const idStr = Array.from(flashId).map(x => x.toString(16).padStart(2, '0')).join(' ');
             const flashName = getFlashName([...flashId]);
             this.log(`Flash ID: ${idStr} (${flashName})`, 'info');
           } catch (e) {
             this.log(errorToBurnerLog(this.t('messages.operation.readIdFailed'), e), 'warn');
-            // 即使Flash ID读取失败，也继续返回CFI信息
+            // 鍗充娇Flash ID璇诲彇澶辫触锛屼篃缁х画杩斿洖CFI淇℃伅
           }
 
-          // 记录CFI解析结果
+          // 璁板綍CFI瑙ｆ瀽缁撴灉
           this.log(this.t('messages.operation.cfiParseSuccess'), 'success');
           this.log(cfiInfo.info, 'info');
 
@@ -1569,14 +1569,14 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * ROM Bank 切换
+   * ROM Bank 鍒囨崲
    */
   async switchROMBank(bank: number) : Promise<void> {
     if (bank < 0) return;
     const h = (bank & 0x0f) << 4;
 
-    await ram_write(this.device, new Uint8Array([h]), 0x02);
-    await ram_write(this.device, new Uint8Array([0x40]), 0x03);
+    await ram_write(this.transport, new Uint8Array([h]), 0x02);
+    await ram_write(this.transport, new Uint8Array([0x40]), 0x03);
 
     this.log(this.t('messages.rom.bankSwitch', { bank }), 'info');
   }
@@ -1592,51 +1592,51 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 切换SRAM的Bank
-   * @param bank - Bank编号 (0或1)
+   * 鍒囨崲SRAM鐨凚ank
+   * @param bank - Bank缂栧彿 (0鎴?)
    */
   async switchSRAMBank(bank: number) : Promise<void> {
     bank = bank === 0 ? 0 : 1;
-    await rom_write(this.device, toLittleEndian(bank, 2), 0x800000);
+    await rom_write(this.transport, toLittleEndian(bank, 2), 0x800000);
     await timeout(GBAAdapter.RAM_BANK_SWITCH_SETTLE_MS);
     this.log(this.t('messages.ram.bankSwitchSram', { bank }), 'info');
   }
 
   /**
-   * 切换Flash的Bank
-   * @param bank - Bank编号 (0或1)
+   * 鍒囨崲Flash鐨凚ank
+   * @param bank - Bank缂栧彿 (0鎴?)
    */
   async switchFlashBank(bank: number) : Promise<void> {
     bank = bank === 0 ? 0 : 1;
 
-    await ram_write(this.device, new Uint8Array([0xaa]), 0x5555);
-    await ram_write(this.device, new Uint8Array([0x55]), 0x2aaa);
-    await ram_write(this.device, new Uint8Array([0xb0]), 0x5555); // FLASH_COMMAND_SWITCH_BANK
-    await ram_write(this.device, new Uint8Array([bank]), 0x0000);
+    await ram_write(this.transport, new Uint8Array([0xaa]), 0x5555);
+    await ram_write(this.transport, new Uint8Array([0x55]), 0x2aaa);
+    await ram_write(this.transport, new Uint8Array([0xb0]), 0x5555); // FLASH_COMMAND_SWITCH_BANK
+    await ram_write(this.transport, new Uint8Array([bank]), 0x0000);
     await timeout(GBAAdapter.RAM_BANK_SWITCH_SETTLE_MS);
 
     this.log(this.t('messages.gba.bankSwitchFlash', { bank }), 'info');
   }
 
   /**
-   * 分块读取ROM数据
-   * @param size - 读取大小
-   * @param baseAddress - 基地址
-   * @param chunkSize - 分块大小
-   * @returns 读取的数据
+   * 鍒嗗潡璇诲彇ROM鏁版嵁
+   * @param size - 璇诲彇澶у皬
+   * @param baseAddress - 鍩哄湴鍧€
+   * @param chunkSize - 鍒嗗潡澶у皬
+   * @returns 璇诲彇鐨勬暟鎹?
    */
   private async readROMChunked(size: number, baseAddress: number, chunkSize: number): Promise<Uint8Array> {
     if (size <= chunkSize) {
-      // 单次读取
-      return await rom_read(this.device, size, baseAddress);
+      // 鍗曟璇诲彇
+      return await rom_read(this.transport, size, baseAddress);
     } else {
-      // 分块读取
+      // 鍒嗗潡璇诲彇
       const result = new Uint8Array(size);
       let offset = 0;
 
       while (offset < size) {
         const currentChunkSize = Math.min(chunkSize, size - offset);
-        const chunkData = await rom_read(this.device, currentChunkSize, baseAddress + offset);
+        const chunkData = await rom_read(this.transport, currentChunkSize, baseAddress + offset);
         result.set(chunkData, offset);
         offset += currentChunkSize;
       }
@@ -1646,10 +1646,10 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 搜索免电存档位置和大小
-   * @param baseAddress - 基地址
-   * @param options - 命令选项
-   * @returns 存档信息或false
+   * 鎼滅储鍏嶇數瀛樻。浣嶇疆鍜屽ぇ灏?
+   * @param baseAddress - 鍩哄湴鍧€
+   * @param options - 鍛戒护閫夐」
+   * @returns 瀛樻。淇℃伅鎴杅alse
    */
   async searchBatteryless(baseAddress: number, options: CommandOptions): Promise<{ offset: number; size: number } | false> {
     try {
@@ -1657,34 +1657,34 @@ export class GBAAdapter extends CartridgeAdapter {
       const isMultiCard = cfiInfo.deviceSize > (1 << 25); // 32MB
       const chunkSize = options.romPageSize ?? AdvancedSettings.romPageSize;
 
-      // 切换到相应的bank
+      // 鍒囨崲鍒扮浉搴旂殑bank
       if (isMultiCard) {
         const { bank } = this.romBankRelevantAddress(baseAddress);
         await this.switchROMBank(bank);
       }
 
-      // 读取启动向量
+      // 璇诲彇鍚姩鍚戦噺
       const boot = await this.readROMChunked(4, baseAddress, chunkSize);
-      const bootVector = ((boot[0] | (boot[1] << 8) | (boot[2] << 16) | (boot[3] << 24)) >>> 0); // 使用无符号右移确保为正数
+      const bootVector = ((boot[0] | (boot[1] << 8) | (boot[2] << 16) | (boot[3] << 24)) >>> 0); // 浣跨敤鏃犵鍙峰彸绉荤‘淇濅负姝ｆ暟
       const bootVectorAddr = ((bootVector & 0x00FFFFFF) + 2) << 2;
 
       console.log(baseAddress, [...boot], bootVector, bootVectorAddr);
 
-      // 搜索目标字符串 "<3 from Maniac"
+      // 鎼滅储鐩爣瀛楃涓?"<3 from Maniac"
       const targetBytes = new TextEncoder().encode('<3 from Maniac');
       const searchBuf = new Uint8Array(0x2000);
 
-      // 切换到启动向量对应的bank
+      // 鍒囨崲鍒板惎鍔ㄥ悜閲忓搴旂殑bank
       if (isMultiCard) {
         const { bank } = this.romBankRelevantAddress(baseAddress + bootVectorAddr);
         await this.switchROMBank(bank);
       }
 
-      // 读取8KB数据用于搜索
+      // 璇诲彇8KB鏁版嵁鐢ㄤ簬鎼滅储
       const searchData = await this.readROMChunked(0x2000, baseAddress + bootVectorAddr, chunkSize);
       searchBuf.set(searchData, 0);
 
-      // 搜索目标字符串
+      // 鎼滅储鐩爣瀛楃涓?
       for (let i = 0; i <= searchBuf.length - targetBytes.length; i++) {
         let found = true;
         for (let j = 0; j < targetBytes.length; j++) {
@@ -1695,22 +1695,22 @@ export class GBAAdapter extends CartridgeAdapter {
         }
 
         if (found) {
-          // 找到目标字符串，读取payload大小
+          // 鎵惧埌鐩爣瀛楃涓诧紝璇诲彇payload澶у皬
           let payloadSize = searchBuf[i + 0x0e] | (searchBuf[i + 0x0f] << 8);
           if (payloadSize === 0) {
             payloadSize = 0x414;
           }
 
-          const offset = baseAddress + bootVectorAddr + i + 0x10; // <3 from Maniac后面是payload的大小和数据
+          const offset = baseAddress + bootVectorAddr + i + 0x10; // <3 from Maniac鍚庨潰鏄痯ayload鐨勫ぇ灏忓拰鏁版嵁
           const payloadStart = offset - payloadSize;
 
-          // 切换到payload开始地址对应的bank
+          // 鍒囨崲鍒皃ayload寮€濮嬪湴鍧€瀵瑰簲鐨刡ank
           if (isMultiCard) {
             const { bank } = this.romBankRelevantAddress(payloadStart);
             await this.switchROMBank(bank);
           }
 
-          // 读取payload头部获取存档大小
+          // 璇诲彇payload澶撮儴鑾峰彇瀛樻。澶у皬
           const payloadHeader = await this.readROMChunked(12, payloadStart, chunkSize);
           const size = payloadHeader[8] | (payloadHeader[9] << 8) | (payloadHeader[10] << 16) | (payloadHeader[11] << 24);
 
@@ -1732,11 +1732,11 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 写入免电存档
-   * @param fileData - 存档文件数据
-   * @param options - 写入选项
-   * @param signal - 取消信号
-   * @returns 操作结果
+   * 鍐欏叆鍏嶇數瀛樻。
+   * @param fileData - 瀛樻。鏂囦欢鏁版嵁
+   * @param options - 鍐欏叆閫夐」
+   * @param signal - 鍙栨秷淇″彿
+   * @returns 鎿嶄綔缁撴灉
    */
   async writeBatterylessSave(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
@@ -1750,12 +1750,12 @@ export class GBAAdapter extends CartridgeAdapter {
       'gba.writeBatterylessSave',
       async () => {
         try {
-          // 检查是否已被取消
+          // 妫€鏌ユ槸鍚﹀凡琚彇娑?
           if (signal?.aborted) {
             return { success: false, message: this.t('messages.operation.cancelled') };
           }
 
-          // 获取CFI信息
+          // 鑾峰彇CFI淇℃伅
           const cfiInfo = options.cfiInfo;
           if (!cfiInfo) {
             return { success: false, message: this.t('messages.operation.getCartInfoFailed') };
@@ -1763,13 +1763,13 @@ export class GBAAdapter extends CartridgeAdapter {
 
           const isMultiCard = cfiInfo.deviceSize > (1 << 25); // 32MB
 
-          // 搜索免电存档位置
+          // 鎼滅储鍏嶇數瀛樻。浣嶇疆
           const saveInfo = await this.searchBatteryless(baseAddress, options);
           if (!saveInfo) {
             return { success: false, message: this.t('messages.ram.batteryless.notFound') };
           }
 
-          // 限制写入大小不超过检测到的存档大小
+          // 闄愬埗鍐欏叆澶у皬涓嶈秴杩囨娴嬪埌鐨勫瓨妗ｅぇ灏?
           const writeSize = Math.min(fileData.byteLength, saveInfo.size);
           console.log(writeSize, fileData.byteLength, saveInfo.size);
           this.log(this.t('messages.ram.batteryless.info', {
@@ -1778,7 +1778,7 @@ export class GBAAdapter extends CartridgeAdapter {
             writeSize: formatBytes(writeSize),
           }), 'info');
 
-          // 擦除存档区域
+          // 鎿﹂櫎瀛樻。鍖哄煙
           this.log(this.t('messages.ram.batteryless.erase', {
             startAddress: formatHex(saveInfo.offset, 6),
             endAddress: formatHex(saveInfo.offset + writeSize, 6),
@@ -1790,7 +1790,7 @@ export class GBAAdapter extends CartridgeAdapter {
             return eraseResult;
           }
 
-          // 开始写入
+          // 寮€濮嬪啓鍏?
           this.log(this.t('messages.ram.batteryless.startWrite'), 'info');
 
           let written = 0;
@@ -1800,7 +1800,7 @@ export class GBAAdapter extends CartridgeAdapter {
           const speedCalculator = new SpeedCalculator();
 
           while (written < writeSize) {
-            // 检查是否已被取消
+            // 妫€鏌ユ槸鍚﹀凡琚彇娑?
             if (signal?.aborted) {
               return { success: false, message: this.t('messages.operation.cancelled') };
             }
@@ -1809,7 +1809,7 @@ export class GBAAdapter extends CartridgeAdapter {
             const chunk = fileData.subarray(written, written + chunkSize);
             const currentAddress = saveInfo.offset + written;
 
-            // 切换bank
+            // 鍒囨崲bank
             if (isMultiCard) {
               const { bank } = this.romBankRelevantAddress(currentAddress);
               if (bank !== currentBank) {
@@ -1818,8 +1818,8 @@ export class GBAAdapter extends CartridgeAdapter {
               }
             }
 
-            // 写入数据
-            await rom_program(this.device, chunk, currentAddress, cfiInfo.bufferSize ?? 0);
+            // 鍐欏叆鏁版嵁
+            await rom_program(this.transport, chunk, currentAddress, cfiInfo.bufferSize ?? 0);
             const chunkEndTime = Date.now();
 
             written += chunkSize;
@@ -1865,10 +1865,10 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 读取免电存档
-   * @param options - 读取选项
-   * @param signal - 取消信号
-   * @returns 操作结果，包含读取的数据
+   * 璇诲彇鍏嶇數瀛樻。
+   * @param options - 璇诲彇閫夐」
+   * @param signal - 鍙栨秷淇″彿
+   * @returns 鎿嶄綔缁撴灉锛屽寘鍚鍙栫殑鏁版嵁
    */
   async readBatterylessSave(options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
@@ -1881,12 +1881,12 @@ export class GBAAdapter extends CartridgeAdapter {
       'gba.readBatterylessSave',
       async () => {
         try {
-          // 检查是否已被取消
+          // 妫€鏌ユ槸鍚﹀凡琚彇娑?
           if (signal?.aborted) {
             return { success: false, message: this.t('messages.operation.cancelled') };
           }
 
-          // 获取CFI信息
+          // 鑾峰彇CFI淇℃伅
           const cfiInfo = options.cfiInfo;
           if (!cfiInfo) {
             return { success: false, message: this.t('messages.operation.getCartInfoFailed') };
@@ -1894,7 +1894,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
           const isMultiCard = cfiInfo.deviceSize > (1 << 25); // 32MB
 
-          // 搜索免电存档位置
+          // 鎼滅储鍏嶇數瀛樻。浣嶇疆
           const saveInfo = await this.searchBatteryless(baseAddress, options);
           if (!saveInfo) {
             return { success: false, message: this.t('messages.ram.batteryless.notFound') };
@@ -1905,7 +1905,7 @@ export class GBAAdapter extends CartridgeAdapter {
             size: formatBytes(saveInfo.size),
           }), 'info');
 
-          // 开始读取
+          // 寮€濮嬭鍙?
           this.log(this.t('messages.ram.batteryless.startRead'), 'info');
 
           const data = new Uint8Array(saveInfo.size);
@@ -1916,7 +1916,7 @@ export class GBAAdapter extends CartridgeAdapter {
           const speedCalculator = new SpeedCalculator();
 
           while (readCount < saveInfo.size) {
-            // 检查是否已被取消
+            // 妫€鏌ユ槸鍚﹀凡琚彇娑?
             if (signal?.aborted) {
               return { success: false, message: this.t('messages.operation.cancelled') };
             }
@@ -1924,7 +1924,7 @@ export class GBAAdapter extends CartridgeAdapter {
             const chunkSize = Math.min(pageSize, saveInfo.size - readCount);
             const currentAddress = saveInfo.offset + readCount;
 
-            // 切换bank
+            // 鍒囨崲bank
             if (isMultiCard) {
               const { bank } = this.romBankRelevantAddress(currentAddress);
               if (bank !== currentBank) {
@@ -1933,8 +1933,8 @@ export class GBAAdapter extends CartridgeAdapter {
               }
             }
 
-            // 读取数据
-            const chunk = await rom_read(this.device, chunkSize, currentAddress);
+            // 璇诲彇鏁版嵁
+            const chunk = await rom_read(this.transport, chunkSize, currentAddress);
             const chunkEndTime = Date.now();
             data.set(chunk, readCount);
 
@@ -1979,11 +1979,11 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   /**
-   * 校验免电存档
-   * @param fileData - 存档文件数据
-   * @param options - 校验选项
-   * @param signal - 取消信号
-   * @returns 操作结果
+   * 鏍￠獙鍏嶇數瀛樻。
+   * @param fileData - 瀛樻。鏂囦欢鏁版嵁
+   * @param options - 鏍￠獙閫夐」
+   * @param signal - 鍙栨秷淇″彿
+   * @returns 鎿嶄綔缁撴灉
    */
   async verifyBatterylessSave(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
@@ -2017,7 +2017,7 @@ export class GBAAdapter extends CartridgeAdapter {
               }
             }
           } else {
-            return readResult; // 返回读取失败的结果
+            return readResult; // 杩斿洖璇诲彇澶辫触鐨勭粨鏋?
           }
 
           const message = success ? this.t('messages.ram.batteryless.verifySuccess') : this.t('messages.ram.batteryless.verifyFailed');
@@ -2045,11 +2045,11 @@ export class GBAAdapter extends CartridgeAdapter {
     );
   }
 
-  // 检查区域是否为空
+  // 妫€鏌ュ尯鍩熸槸鍚︿负绌?
   async isBlank(address: number, size = 0x100) : Promise<boolean> {
     this.log(this.t('messages.rom.checkingIfBlank'), 'info');
 
-    const data = await rom_read(this.device, size, address);
+    const data = await rom_read(this.transport, size, address);
     const blank = data.every(byte => byte === 0xff);
 
     if (blank) {
@@ -2062,5 +2062,5 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 }
 
-// 默认导出
+// 榛樿瀵煎嚭
 export default GBAAdapter;

@@ -40,8 +40,6 @@
       "disconnected": "切断済み",
       "connectFailed": "接続失敗",
       "disconnectFailed": "切断失敗",
-      "usePolyfill": "SoWを使用",
-      "usePolyfillTooltip": "Web Serial Polyfill実装を使用します。ネイティブWeb Serial APIをサポートしていないブラウザに適しています",
       "portSelector": {
         "title": "ポートを選択",
         "description": "接続するデバイスを選択してください：",
@@ -100,7 +98,7 @@
     },
     "serialTest": {
       "title": "シリアルテストツール",
-      "description": "統合シリアルサービスをテストし、Web Serial APIとElectronネイティブシリアルをサポートします",
+      "description": "????????????????Web Serial API?Tauri?????????????????",
       "environment": "実行環境",
       "platform": "プラットフォーム:",
       "userAgent": "ユーザーエージェント:",

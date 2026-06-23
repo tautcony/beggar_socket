@@ -23,14 +23,6 @@
         :text="t('ui.device.resetConnection')"
         @click="() => initializeSerialState(deviceInfo, true)"
       />
-      <!--div class="polyfill-toggle">
-        <ToggleSwitch
-          v-model="usePolyfill"
-          :label="t('ui.device.usePolyfill')"
-          :tooltip="t('ui.device.usePolyfillTooltip')"
-          :disabled="connected || isConnecting"
-        />
-      </div-->
     </div>
     <!-- 串口选择模态框 -->
     <PortSelectorModal
@@ -51,12 +43,11 @@ import { useI18n } from 'vue-i18n';
 import BaseButton from '@/components/common/BaseButton.vue';
 import PortSelectorModal from '@/components/modal/PortSelectorModal.vue';
 import { useToast } from '@/composables/useToast';
+import { getRuntimeKind } from '@/platform/runtime';
 import { DeviceConnectionManager, PortSelectionRequiredError } from '@/services/device-connection-manager';
 import { DeviceInfo } from '@/types/device-info';
 import type { SerialPortInfo } from '@/types/serial';
 import { PortFilters } from '@/utils/port-filter';
-import { isTauri } from '@/utils/tauri';
-// import ToggleSwitch from '@/components/common/ToggleSwitch.vue';
 
 const props = withDefaults(defineProps<{
   compact?: boolean
@@ -74,7 +65,6 @@ const emit = defineEmits<{
 const connected = ref(false);
 const isConnecting = ref(false);
 const isProcessing = ref(false);
-const usePolyfill = ref(false);
 const showPortSelector = ref(false);
 const availablePorts = ref<SerialPortInfo[]>([]);
 
@@ -310,9 +300,7 @@ const connectionTooltip = computed(() => {
     ? t('ui.device.connected')
     : t('ui.device.connect');
 
-  const envMessage = isTauri()
-    ? 'Tauri Serial'
-    : 'Web Serial API';
+  const envMessage = getRuntimeKind() === 'tauri' ? 'Tauri Serial' : 'Web Serial API';
 
   return `${baseMessage} - ${envMessage}`;
 });
