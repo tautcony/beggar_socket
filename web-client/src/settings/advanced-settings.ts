@@ -44,7 +44,7 @@ interface SettingDescriptor {
 }
 
 const LIMITS = {
-  pageSize: { min: 0x40, max: 0x4000 },
+  pageSize: { min: 0x40, max: 0x1000 },
   throttle: { min: 0, max: 1000 },
   retryCount: { min: 0, max: 10 },
   retryDelay: { min: 0, max: 5000 },
@@ -60,8 +60,8 @@ const VALIDATOR_META: Record<ValidatorType, { label: string; unit: string }> = {
 };
 
 const SETTING_DESCRIPTORS: readonly SettingDescriptor[] = [
-  { key: 'romPageSize', group: 'size', field: 'romPageSize', default: 0x200, validator: 'pageSize', errorLabel: 'ROM page size' },
-  { key: 'ramPageSize', group: 'size', field: 'ramPageSize', default: 0x100, validator: 'pageSize', errorLabel: 'RAM page size' },
+  { key: 'romPageSize', group: 'size', field: 'romPageSize', default: 0x1000, validator: 'pageSize', errorLabel: 'ROM page size' },
+  { key: 'ramPageSize', group: 'size', field: 'ramPageSize', default: 0x1000, validator: 'pageSize', errorLabel: 'RAM page size' },
   { key: 'romReadThrottleMs', group: 'throttle', field: 'romRead', default: 0, validator: 'throttle', errorLabel: 'ROM read throttle' },
   { key: 'ramReadThrottleMs', group: 'throttle', field: 'ramRead', default: 0, validator: 'throttle', errorLabel: 'RAM read throttle' },
   { key: 'romReadRetryCount', group: 'retry', field: 'romReadCount', default: 1, validator: 'retryCount', errorLabel: 'ROM read retry count' },
@@ -82,6 +82,11 @@ const _storage: Record<string, number> = Object.fromEntries(
   SETTING_DESCRIPTORS.map((d) => [d.key, d.default]),
 );
 let _firmwareProfile: ConfigurableFirmwareProfileId = 'stm';
+
+const LEGACY_DEFAULTS = {
+  romPageSize: 0x200,
+  ramPageSize: 0x100,
+} as const;
 
 function validateValue(value: number, type: ValidatorType): number {
   const { min, max } = LIMITS[type];
@@ -211,6 +216,12 @@ export class AdvancedSettings {
       const saved = localStorage.getItem('advanced_settings');
       if (saved) {
         const settings = JSON.parse(saved) as AdvancedSettingsConfig;
+        if (settings.size?.romPageSize === LEGACY_DEFAULTS.romPageSize) {
+          settings.size.romPageSize = _storage.romPageSize;
+        }
+        if (settings.size?.ramPageSize === LEGACY_DEFAULTS.ramPageSize) {
+          settings.size.ramPageSize = _storage.ramPageSize;
+        }
         this.setSettings(settings);
       }
     } catch (error) {

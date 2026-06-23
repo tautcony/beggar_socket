@@ -36,8 +36,8 @@ describe('AdvancedSettings', () => {
   describe('defaults', () => {
     it('returns correct defaults for all properties', () => {
       expect(AdvancedSettings.firmwareProfile).toBe('stm');
-      expect(AdvancedSettings.romPageSize).toBe(0x200);
-      expect(AdvancedSettings.ramPageSize).toBe(0x100);
+      expect(AdvancedSettings.romPageSize).toBe(0x1000);
+      expect(AdvancedSettings.ramPageSize).toBe(0x1000);
       expect(AdvancedSettings.romReadThrottleMs).toBe(0);
       expect(AdvancedSettings.ramReadThrottleMs).toBe(0);
       expect(AdvancedSettings.romReadRetryCount).toBe(1);
@@ -58,7 +58,7 @@ describe('AdvancedSettings', () => {
       const s = AdvancedSettings.getSettings();
       expect(s).toEqual({
         firmware: { profile: 'stm' },
-        size: { romPageSize: 0x200, ramPageSize: 0x100 },
+        size: { romPageSize: 0x1000, ramPageSize: 0x1000 },
         throttle: { romRead: 0, ramRead: 0 },
         retry: {
           romReadCount: 1, ramReadCount: 1,
@@ -77,7 +77,7 @@ describe('AdvancedSettings', () => {
       expect(AdvancedSettings.romPageSize).toBe(0x40);
 
       AdvancedSettings.romPageSize = 0x10000;
-      expect(AdvancedSettings.romPageSize).toBe(0x4000);
+      expect(AdvancedSettings.romPageSize).toBe(0x1000);
 
       AdvancedSettings.ramPageSize = 0x20;
       expect(AdvancedSettings.ramPageSize).toBe(0x40);
@@ -218,10 +218,24 @@ describe('AdvancedSettings', () => {
       expect(AdvancedSettings.firmwareProfile).toBe('stc');
     });
 
+    it('migrates saved legacy default page sizes to protocol-aligned defaults', () => {
+      localStorageMock.advanced_settings = JSON.stringify({
+        size: {
+          romPageSize: 0x200,
+          ramPageSize: 0x100,
+        },
+      });
+
+      AdvancedSettings.loadSettings();
+
+      expect(AdvancedSettings.romPageSize).toBe(0x1000);
+      expect(AdvancedSettings.ramPageSize).toBe(0x1000);
+    });
+
     it('resets to defaults on invalid JSON', () => {
       localStorageMock.advanced_settings = 'not-json';
       AdvancedSettings.loadSettings();
-      expect(AdvancedSettings.romPageSize).toBe(0x200);
+      expect(AdvancedSettings.romPageSize).toBe(0x1000);
     });
   });
 
@@ -231,7 +245,7 @@ describe('AdvancedSettings', () => {
       AdvancedSettings.firmwareProfile = 'stc';
       AdvancedSettings.operationTimeout = 60000;
       AdvancedSettings.resetToDefaults();
-      expect(AdvancedSettings.romPageSize).toBe(0x200);
+      expect(AdvancedSettings.romPageSize).toBe(0x1000);
       expect(AdvancedSettings.firmwareProfile).toBe('stm');
       expect(AdvancedSettings.operationTimeout).toBe(30000);
     });
@@ -274,8 +288,8 @@ describe('AdvancedSettings', () => {
         size: { romPageSize: 10, ramPageSize: 100000 },
       });
       expect(result.valid).toBe(false);
-      expect(result.errors).toContain('ROM page size must be between 64 and 16384 bytes');
-      expect(result.errors).toContain('RAM page size must be between 64 and 16384 bytes');
+      expect(result.errors).toContain('ROM page size must be between 64 and 4096 bytes');
+      expect(result.errors).toContain('RAM page size must be between 64 and 4096 bytes');
     });
 
     it('catches out-of-range timeouts', () => {
@@ -291,7 +305,7 @@ describe('AdvancedSettings', () => {
   describe('getLimits', () => {
     it('returns correct limit ranges', () => {
       const limits = AdvancedSettings.getLimits();
-      expect(limits.pageSize).toEqual({ min: 0x40, max: 0x4000 });
+      expect(limits.pageSize).toEqual({ min: 0x40, max: 0x1000 });
       expect(limits.throttle).toEqual({ min: 0, max: 1000 });
       expect(limits.retryCount).toEqual({ min: 0, max: 10 });
       expect(limits.retryDelay).toEqual({ min: 0, max: 5000 });
