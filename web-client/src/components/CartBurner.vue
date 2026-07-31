@@ -124,7 +124,7 @@ import FileNameSelectorModal from '@/components/modal/FileNameSelectorModal.vue'
 import MultiCartResultModal from '@/components/modal/MultiCartResultModal.vue';
 import ProgressDisplayModal from '@/components/modal/ProgressDisplayModal.vue';
 import { ChipOperations, RamOperations, RomOperations } from '@/components/operaiton';
-import { useCartBurnerFileState, useCartBurnerSessionState } from '@/composables/cartburner';
+import { runWithCommandBufferReset, useCartBurnerFileState, useCartBurnerSessionState } from '@/composables/cartburner';
 import { useToast } from '@/composables/useToast';
 import { createCartridgeProtocolSession } from '@/features/burner/adapters';
 import { type BurnerProtocolSession, createBurnerFacade, type GameDetectionResult } from '@/features/burner/application';
@@ -380,6 +380,19 @@ function clearChipInfo() {
   cfiInfo.value = null;
 }
 
+async function withCommandBufferReset<T>(adapter: BurnerProtocolSession, operation: () => Promise<T>): Promise<T> {
+  return runWithCommandBufferReset(
+    adapter,
+    operation,
+    currentAdapter => burnerFacade.resetCommandBuffer(currentAdapter),
+    (error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      showToast(t('messages.operation.resetCommandBufferFailed'), 'error');
+      log(`${t('messages.operation.resetCommandBufferFailed')}: ${message}`, 'error');
+    },
+  );
+}
+
 async function readCart() {
   clearChipInfo();
   await executeOperation({
@@ -389,21 +402,22 @@ async function readCart() {
         return;
       }
 
-      const result = await burnerFacade.readCart(adapter, mbcPower5V.value);
-      if (result.success && result.cfiInfo) {
-        cfiInfo.value = result.cfiInfo;
-        chipId.value = result.chipId;
-        if (result.romSizeHex) {
-          onRomSizeChange(result.romSizeHex);
+      await withCommandBufferReset(adapter, async () => {
+        const result = await burnerFacade.readCart(adapter, mbcPower5V.value);
+        if (result.success && result.cfiInfo) {
+          cfiInfo.value = result.cfiInfo;
+          chipId.value = result.chipId;
+          if (result.romSizeHex) {
+            onRomSizeChange(result.romSizeHex);
+          }
+          showToast(result.message, 'success');
+          log(result.message, 'success');
+        } else {
+          showToast(result.message, 'error');
+          log(result.message, 'error');
+          cfiInfo.value = null;
         }
-        showToast(result.message, 'success');
-        log(result.message, 'success');
-      } else {
-        showToast(result.message, 'error');
-        log(result.message, 'error');
-        cfiInfo.value = null;
-      }
-      await burnerFacade.resetCommandBuffer(adapter);
+      });
     },
     onError: (error) => {
       showToast(t('messages.operation.readCartFailed'), 'error');
@@ -429,16 +443,18 @@ async function eraseChip() {
         resetProgress();
         return;
       }
+      const currentCfiInfo = cfiInfo.value;
 
-      const response = await burnerFacade.eraseChip(
-        adapter,
-        cfiInfo.value,
-        selectedMbcType.value,
-        mbcPower5V.value,
-        signal,
-      );
-      showToast(response.message, response.success ? 'success' : 'error');
-      await burnerFacade.resetCommandBuffer(adapter);
+      await withCommandBufferReset(adapter, async () => {
+        const response = await burnerFacade.eraseChip(
+          adapter,
+          currentCfiInfo,
+          selectedMbcType.value,
+          mbcPower5V.value,
+          signal,
+        );
+        showToast(response.message, response.success ? 'success' : 'error');
+      });
     },
     onError: (error) => {
       showToast(t('messages.operation.eraseFailed'), 'error');
@@ -468,19 +484,21 @@ async function writeRom() {
         resetProgress();
         return;
       }
+      const currentCfiInfo = cfiInfo.value;
+      const currentRomData = romFileData.value;
       const romSize = parseInt(selectedRomSize.value, 16);
 
-      let alignedRomData = romFileData.value;
-      if (romFileData.value.length < romSize) {
+      let alignedRomData = currentRomData;
+      if (currentRomData.length < romSize) {
         const padded = new Uint8Array(romSize);
-        padded.set(romFileData.value);
-        padded.fill(0xff, romFileData.value.length);
+        padded.set(currentRomData);
+        padded.fill(0xff, currentRomData.length);
         alignedRomData = padded;
       }
 
       const option: CommandOptions = {
         baseAddress: parseInt(selectedBaseAddress.value, 16),
-        cfiInfo: cfiInfo.value,
+        cfiInfo: currentCfiInfo,
         size: romSize,
         mbcType: selectedMbcType.value,
         enable5V: mbcPower5V.value,
@@ -489,9 +507,10 @@ async function writeRom() {
         option.romPageSize = 512;
       }
 
-      const response = await burnerFacade.writeRom(adapter, alignedRomData, option, signal);
-      showToast(response.message, response.success ? 'success' : 'error');
-      await burnerFacade.resetCommandBuffer(adapter);
+      await withCommandBufferReset(adapter, async () => {
+        const response = await burnerFacade.writeRom(adapter, alignedRomData, option, signal);
+        showToast(response.message, response.success ? 'success' : 'error');
+      });
     },
     onError: (error) => {
       showToast(t('messages.rom.writeFailed'), 'error');
@@ -520,10 +539,11 @@ async function readRom() {
         resetProgress();
         return;
       }
+      const currentCfiInfo = cfiInfo.value;
 
       const option: CommandOptions = {
         baseAddress: parseInt(selectedBaseAddress.value, 16),
-        cfiInfo: cfiInfo.value,
+        cfiInfo: currentCfiInfo,
         mbcType: selectedMbcType.value,
         enable5V: mbcPower5V.value,
       };
@@ -532,40 +552,41 @@ async function readRom() {
       }
 
       const romSize = parseInt(selectedRomSize.value, 16);
-      const response = await burnerFacade.readRom(adapter, romSize, option, signal);
-      if (response.success) {
-        showToast(response.message, 'success');
-        if (response.data) {
-          const romInfo = parseRom(response.data);
+      await withCommandBufferReset(adapter, async () => {
+        const response = await burnerFacade.readRom(adapter, romSize, option, signal);
+        if (response.success) {
+          showToast(response.message, 'success');
+          if (response.data) {
+            const romInfo = parseRom(response.data);
 
-          if (romInfo.isValid) {
-            recentFileNamesStore.addFileName(romInfo.fileName);
-          }
+            if (romInfo.isValid) {
+              recentFileNamesStore.addFileName(romInfo.fileName);
+            }
 
-          const now = DateTime.now().toLocal().toFormat('yyyyMMdd-HHmmss');
-          const fallbackExtension = romInfo.type === 'GBA'
-            ? 'gba'
-            : romInfo.type === 'GBC'
-              ? 'gbc'
-              : romInfo.type === 'GB'
-                ? 'gb'
-                : 'rom';
-          let fileName = `exported_${now}.${fallbackExtension}`;
-          if (romInfo.isValid) {
-            fileName = romInfo.fileName;
+            const now = DateTime.now().toLocal().toFormat('yyyyMMdd-HHmmss');
+            const fallbackExtension = romInfo.type === 'GBA'
+              ? 'gba'
+              : romInfo.type === 'GBC'
+                ? 'gbc'
+                : romInfo.type === 'GB'
+                  ? 'gb'
+                  : 'rom';
+            let fileName = `exported_${now}.${fallbackExtension}`;
+            if (romInfo.isValid) {
+              fileName = romInfo.fileName;
+            }
+            const saveResult = await saveAsFile(response.data, fileName);
+            if (saveResult.saved) {
+              log(t('messages.rom.exportSuccess', { name: fileName }), 'success');
+            } else {
+              showToast(t('messages.operation.cancelled'), 'info');
+              log(t('messages.operation.cancelled'), 'warn');
+            }
           }
-          const saveResult = await saveAsFile(response.data, fileName);
-          if (saveResult.saved) {
-            log(t('messages.rom.exportSuccess', { name: fileName }), 'success');
-          } else {
-            showToast(t('messages.operation.cancelled'), 'info');
-            log(t('messages.operation.cancelled'), 'warn');
-          }
+        } else {
+          showToast(response.message, 'error');
         }
-      } else {
-        showToast(response.message, 'error');
-      }
-      await burnerFacade.resetCommandBuffer(adapter);
+      });
     },
     onError: (error) => {
       showToast(t('messages.rom.readFailed'), 'error');
@@ -598,16 +619,19 @@ async function verifyRom() {
         throw new Error('verifyRom requires abort signal');
       }
 
+      const currentCfiInfo = cfiInfo.value;
+      const currentRomData = romFileData.value;
       const size = parseInt(selectedRomSize.value, 16);
-      const response = await burnerFacade.verifyRom(adapter, romFileData.value, {
-        baseAddress: parseInt(selectedBaseAddress.value, 16),
-        cfiInfo: cfiInfo.value,
-        size,
-        mbcType: selectedMbcType.value,
-        enable5V: mbcPower5V.value,
-      }, signal);
-      showToast(response.message, response.success ? 'success' : 'error');
-      await burnerFacade.resetCommandBuffer(adapter);
+      await withCommandBufferReset(adapter, async () => {
+        const response = await burnerFacade.verifyRom(adapter, currentRomData, {
+          baseAddress: parseInt(selectedBaseAddress.value, 16),
+          cfiInfo: currentCfiInfo,
+          size,
+          mbcType: selectedMbcType.value,
+          enable5V: mbcPower5V.value,
+        }, signal);
+        showToast(response.message, response.success ? 'success' : 'error');
+      });
     },
     onError: (error) => {
       showToast(t('messages.rom.verifyFailed'), 'error');
@@ -640,20 +664,22 @@ async function verifyBlank(fillByte: number) {
         throw new Error('verifyBlank requires abort signal');
       }
 
+      const currentCfiInfo = cfiInfo.value;
       const size = parseInt(selectedRomSize.value, 16);
       const blankData = new Uint8Array(size).fill(fillByte);
       const fillLabel = fillByte === 0xFF ? '0xFF' : '0x00';
       log(t('messages.rom.verifyBlankStart', { size: formatBytes(size), fill: fillLabel }), 'info');
 
-      const response = await burnerFacade.verifyRom(adapter, blankData, {
-        baseAddress: parseInt(selectedBaseAddress.value, 16),
-        cfiInfo: cfiInfo.value,
-        size,
-        mbcType: selectedMbcType.value,
-        enable5V: mbcPower5V.value,
-      }, signal);
-      showToast(response.message, response.success ? 'success' : 'error');
-      await burnerFacade.resetCommandBuffer(adapter);
+      await withCommandBufferReset(adapter, async () => {
+        const response = await burnerFacade.verifyRom(adapter, blankData, {
+          baseAddress: parseInt(selectedBaseAddress.value, 16),
+          cfiInfo: currentCfiInfo,
+          size,
+          mbcType: selectedMbcType.value,
+          enable5V: mbcPower5V.value,
+        }, signal);
+        showToast(response.message, response.success ? 'success' : 'error');
+      });
     },
     onError: (error) => {
       showToast(t('messages.rom.verifyFailed'), 'error');
@@ -675,21 +701,24 @@ async function writeRam() {
         showToast(t('messages.operation.readCartInfoFirst'), 'error');
         return;
       }
+      const currentCfiInfo = cfiInfo.value;
+      const currentRamData = ramFileData.value;
 
-      const response = await burnerFacade.writeRam(adapter, ramFileData.value, {
-        ramType: selectedRamType.value as RamType,
-        baseAddress: parseInt(selectedRamBaseAddress.value, 16),
-        cfiInfo: cfiInfo.value,
-        mbcType: selectedMbcType.value,
-        enable5V: mbcPower5V.value,
+      await withCommandBufferReset(adapter, async () => {
+        const response = await burnerFacade.writeRam(adapter, currentRamData, {
+          ramType: selectedRamType.value as RamType,
+          baseAddress: parseInt(selectedRamBaseAddress.value, 16),
+          cfiInfo: currentCfiInfo,
+          mbcType: selectedMbcType.value,
+          enable5V: mbcPower5V.value,
+        });
+        showToast(response.message, response.success ? 'success' : 'error');
+        if (response.success) {
+          log(t('messages.ram.writeSuccess'), 'success');
+        } else {
+          log(t('messages.ram.writeFailed'), 'error');
+        }
       });
-      showToast(response.message, response.success ? 'success' : 'error');
-      if (response.success) {
-        log(t('messages.ram.writeSuccess'), 'success');
-      } else {
-        log(t('messages.ram.writeFailed'), 'error');
-      }
-      await burnerFacade.resetCommandBuffer(adapter);
     },
     onError: (error) => {
       showToast(t('messages.ram.writeFailed'), 'error');
@@ -711,38 +740,40 @@ async function readRam() {
         showToast(t('messages.operation.readCartInfoFirst'), 'error');
         return;
       }
+      const currentCfiInfo = cfiInfo.value;
 
       const defaultSize = ramFileData.value ? ramFileData.value.length : parseInt(selectedRamSize.value, 16);
-      const response = await burnerFacade.readRam(adapter, defaultSize, {
-        ramType: selectedRamType.value as RamType,
-        baseAddress: parseInt(selectedRamBaseAddress.value, 16),
-        cfiInfo: cfiInfo.value,
-        mbcType: selectedMbcType.value,
-        enable5V: mbcPower5V.value,
-      });
-      if (response.success) {
-        showToast(response.message, 'success');
-        if (response.data) {
-          const now = DateTime.now().toLocal().toFormat('yyyyMMdd-HHmmss');
-          const defaultFileName = `exported_${now}.sav`;
+      await withCommandBufferReset(adapter, async () => {
+        const response = await burnerFacade.readRam(adapter, defaultSize, {
+          ramType: selectedRamType.value as RamType,
+          baseAddress: parseInt(selectedRamBaseAddress.value, 16),
+          cfiInfo: currentCfiInfo,
+          mbcType: selectedMbcType.value,
+          enable5V: mbcPower5V.value,
+        });
+        if (response.success) {
+          showToast(response.message, 'success');
+          if (response.data) {
+            const now = DateTime.now().toLocal().toFormat('yyyyMMdd-HHmmss');
+            const defaultFileName = `exported_${now}.sav`;
 
-          if (recentFileNamesStore.hasFileNames) {
-            pendingRamData.value = response.data;
-            showFileNameSelector.value = true;
-          } else {
-            const saveResult = await saveAsFile(response.data, defaultFileName);
-            if (saveResult.saved) {
-              log(t('messages.ram.exportSuccess', { name: defaultFileName }), 'success');
+            if (recentFileNamesStore.hasFileNames) {
+              pendingRamData.value = response.data;
+              showFileNameSelector.value = true;
             } else {
-              showToast(t('messages.operation.cancelled'), 'info');
-              log(t('messages.operation.cancelled'), 'warn');
+              const saveResult = await saveAsFile(response.data, defaultFileName);
+              if (saveResult.saved) {
+                log(t('messages.ram.exportSuccess', { name: defaultFileName }), 'success');
+              } else {
+                showToast(t('messages.operation.cancelled'), 'info');
+                log(t('messages.operation.cancelled'), 'warn');
+              }
             }
           }
+        } else {
+          showToast(response.message, 'error');
         }
-      } else {
-        showToast(response.message, 'error');
-      }
-      await burnerFacade.resetCommandBuffer(adapter);
+      });
     },
     onError: (error) => {
       showToast(t('messages.ram.readFailed'), 'error');
@@ -764,23 +795,26 @@ async function verifyRam() {
         showToast(t('messages.operation.readCartInfoFirst'), 'error');
         return;
       }
+      const currentCfiInfo = cfiInfo.value;
+      const currentRamData = ramFileData.value;
 
       const size = parseInt(selectedRamSize.value, 16);
-      const response = await burnerFacade.verifyRam(adapter, ramFileData.value, {
-        ramType: selectedRamType.value as RamType,
-        baseAddress: parseInt(selectedRamBaseAddress.value, 16),
-        cfiInfo: cfiInfo.value,
-        size,
-        mbcType: selectedMbcType.value,
-        enable5V: mbcPower5V.value,
+      await withCommandBufferReset(adapter, async () => {
+        const response = await burnerFacade.verifyRam(adapter, currentRamData, {
+          ramType: selectedRamType.value as RamType,
+          baseAddress: parseInt(selectedRamBaseAddress.value, 16),
+          cfiInfo: currentCfiInfo,
+          size,
+          mbcType: selectedMbcType.value,
+          enable5V: mbcPower5V.value,
+        });
+        showToast(response.message, response.success ? 'success' : 'error');
+        if (response.success) {
+          log(t('messages.ram.verifySuccess'), 'success');
+        } else {
+          log(t('messages.ram.verifyFailed'), 'error');
+        }
       });
-      showToast(response.message, response.success ? 'success' : 'error');
-      if (response.success) {
-        log(t('messages.ram.verifySuccess'), 'success');
-      } else {
-        log(t('messages.ram.verifyFailed'), 'error');
-      }
-      await burnerFacade.resetCommandBuffer(adapter);
     },
     onError: (error) => {
       showToast(t('messages.ram.verifyFailed'), 'error');
@@ -802,27 +836,29 @@ async function verifyRamBlank(fillByte: number) {
         showToast(t('messages.operation.readCartInfoFirst'), 'error');
         return;
       }
+      const currentCfiInfo = cfiInfo.value;
 
       const size = parseInt(selectedRamSize.value, 16);
       const blankData = new Uint8Array(size).fill(fillByte);
       const fillLabel = fillByte === 0xFF ? '0xFF' : '0x00';
       log(t('messages.ram.verifyBlankStart', { size: formatBytes(size), fill: fillLabel }), 'info');
 
-      const response = await burnerFacade.verifyRam(adapter, blankData, {
-        ramType: selectedRamType.value as RamType,
-        baseAddress: parseInt(selectedRamBaseAddress.value, 16),
-        cfiInfo: cfiInfo.value,
-        size,
-        mbcType: selectedMbcType.value,
-        enable5V: mbcPower5V.value,
+      await withCommandBufferReset(adapter, async () => {
+        const response = await burnerFacade.verifyRam(adapter, blankData, {
+          ramType: selectedRamType.value as RamType,
+          baseAddress: parseInt(selectedRamBaseAddress.value, 16),
+          cfiInfo: currentCfiInfo,
+          size,
+          mbcType: selectedMbcType.value,
+          enable5V: mbcPower5V.value,
+        });
+        showToast(response.message, response.success ? 'success' : 'error');
+        if (response.success) {
+          log(t('messages.ram.verifySuccess'), 'success');
+        } else {
+          log(t('messages.ram.verifyFailed'), 'error');
+        }
       });
-      showToast(response.message, response.success ? 'success' : 'error');
-      if (response.success) {
-        log(t('messages.ram.verifySuccess'), 'success');
-      } else {
-        log(t('messages.ram.verifyFailed'), 'error');
-      }
-      await burnerFacade.resetCommandBuffer(adapter);
     },
     onError: (error) => {
       showToast(t('messages.ram.verifyFailed'), 'error');
@@ -878,26 +914,28 @@ async function readRomInfo() {
         showToast(t('messages.operation.readCartInfoFirst'), 'error');
         return;
       }
+      const currentCfiInfo = cfiInfo.value;
 
       log(t('ui.operation.startReadingMultiCart'));
 
-      const gameResults = await burnerFacade.scanMultiCart(
-        adapter,
-        mode.value,
-        cfiInfo.value,
-        selectedMbcType.value,
-        mbcPower5V.value,
-      );
+      await withCommandBufferReset(adapter, async () => {
+        const gameResults = await burnerFacade.scanMultiCart(
+          adapter,
+          mode.value,
+          currentCfiInfo,
+          selectedMbcType.value,
+          mbcPower5V.value,
+        );
 
-      printGameDetectionResults(gameResults);
+        printGameDetectionResults(gameResults);
 
-      showToast(t('ui.operation.readMultiCartSuccess'), 'success');
-      log(t('ui.operation.readMultiCartSuccess'), 'success');
-      await burnerFacade.resetCommandBuffer(adapter);
+        showToast(t('ui.operation.readMultiCartSuccess'), 'success');
+        log(t('ui.operation.readMultiCartSuccess'), 'success');
 
-      // 显示多合一结果弹窗
-      multiCartResults.value = gameResults;
-      showMultiCartResultModal.value = true;
+        // 显示多合一结果弹窗
+        multiCartResults.value = gameResults;
+        showMultiCartResultModal.value = true;
+      });
     },
     onError: (error) => {
       showToast(t('ui.operation.readMultiCartFailed'), 'error');

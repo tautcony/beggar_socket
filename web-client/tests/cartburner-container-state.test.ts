@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { useCartBurnerSessionState } from '@/composables/cartburner';
+import { runWithCommandBufferReset, useCartBurnerSessionState } from '@/composables/cartburner';
 
 describe('CartBurner container state', () => {
   it('tracks read/write/verify flows with shared busy/progress/log state', async () => {
@@ -104,5 +104,39 @@ describe('CartBurner container state', () => {
         details: 'Read package timeout in 3000ms (read#199, expected=1B, received=0B)',
       }),
     );
+  });
+
+  it('resets the command buffer when a nested save operation throws', async () => {
+    const reset = vi.fn(() => Promise.resolve());
+    const saveError = new Error('save failed');
+
+    await expect(runWithCommandBufferReset(
+      'adapter',
+      () => Promise.reject(saveError),
+      reset,
+      vi.fn(),
+    )).rejects.toBe(saveError);
+    expect(reset).toHaveBeenCalledWith('adapter');
+  });
+
+  it('settles operation state and reports a command-buffer reset failure', async () => {
+    const state = useCartBurnerSessionState((key) => key);
+    const resetError = new Error('reset failed');
+    const onResetError = vi.fn();
+
+    await state.executeOperation({
+      updateProgress: { type: 'read', progress: 100, showProgress: true },
+      operation: () => runWithCommandBufferReset(
+        'adapter',
+        () => Promise.resolve('saved'),
+        () => Promise.reject(resetError),
+        onResetError,
+      ),
+      onError: vi.fn(),
+    });
+
+    expect(onResetError).toHaveBeenCalledWith(resetError);
+    expect(state.busy.value).toBe(false);
+    expect(state.progressInfo.value.progress).toBe(100);
   });
 });
