@@ -12,8 +12,31 @@ const BLOCK_GRANULARITY = 0x80000;
 const ITEM_LIST_ALIGNMENT = 0x40000;
 /** Size of the status/config area written into the flash (4 KiB). */
 const STATUS_AREA_SIZE = 0x1000;
+/** Maximum number of UTF-16 code units stored in an item-list title. */
+export const ITEM_TITLE_CODE_UNIT_LIMIT = 0x30;
 
 let log = '';
+
+function createBuildGames(games: GameConfig[]): GameConfig[] {
+  return games.map(game => ({
+    enabled: game.enabled,
+    file: game.file,
+    title: game.title,
+    title_font: game.title_font,
+    save_slot: game.save_slot,
+    map_256m: game.map_256m,
+    keys: game.keys ? [...game.keys] : undefined,
+  }));
+}
+
+function truncateItemTitle(title: string): string {
+  let truncated = title.slice(0, ITEM_TITLE_CODE_UNIT_LIMIT);
+  const lastCodeUnit = truncated.charCodeAt(truncated.length - 1);
+  if (lastCodeUnit >= 0xD800 && lastCodeUnit <= 0xDBFF) {
+    truncated = truncated.slice(0, -1);
+  }
+  return truncated;
+}
 
 export function logp(...args: unknown[]): void {
   const s = args.join(' ');
@@ -247,7 +270,7 @@ export function generateItemList(games: GameConfig[], roms_keys: number[], batte
     let c = 0;
     for (const game of games) {
       if (game.keysValue !== key) continue;
-      const title = game.title; // 不截断标题
+      const title = truncateItemTitle(game.title);
       // 生成 item list 二进制结构
       const buf = new Uint8Array(0x30 * 2 + 16);
       const view = new DataView(buf.buffer);
@@ -264,7 +287,7 @@ export function generateItemList(games: GameConfig[], roms_keys: number[], batte
       }
       // 模拟Buffer.write() - 写入最多0x30个字符的UTF-16LE
       const titleBuffer = new Uint8Array(0x30 * 2);
-      const maxChars = Math.min(title.length, 0x30);
+      const maxChars = title.length;
       for (let i = 0; i < maxChars; i++) {
         const charCode = title.charCodeAt(i);
         titleBuffer[i * 2] = charCode & 0xFF; // 低字节
@@ -335,7 +358,7 @@ export async function buildRom(input: BuildInput): Promise<BuildResult> {
   log = '';
   const { config, menuRom, romFiles, saveFiles, options } = input;
   const { games, cartridge_type, battery_present, min_rom_size } = {
-    games: config.games,
+    games: createBuildGames(config.games),
     cartridge_type: config.cartridge.type,
     battery_present: config.cartridge.battery_present,
     min_rom_size: config.cartridge.min_rom_size || MIN_ROM_SIZE,

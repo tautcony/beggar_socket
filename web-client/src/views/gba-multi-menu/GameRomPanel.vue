@@ -70,6 +70,7 @@
                 <input
                   v-model="item.config.title"
                   type="text"
+                  maxlength="48"
                   class="config-input"
                 >
               </div>

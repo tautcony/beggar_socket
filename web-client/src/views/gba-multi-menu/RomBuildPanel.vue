@@ -29,9 +29,6 @@
             <option value="5">
               5. ChisFlash 1.0G (128MB)
             </option>
-            <option value="6">
-              6. ChisFlash 2.0G (256MB)
-            </option>
           </select>
         </div>
 
