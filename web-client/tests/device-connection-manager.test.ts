@@ -192,4 +192,34 @@ describe('DeviceConnectionManager', () => {
 
     await expect(manager.requestDevice()).rejects.toThrow('Invalid connection handle: context is not a valid DeviceHandle');
   });
+
+  it('clears legacy device state even when disconnect fails', async () => {
+    connectionUseCaseState.disconnect.mockResolvedValue({
+      success: false,
+      failure: {
+        stage: 'disconnect',
+        code: 'disconnect_failed',
+        message: 'close failed',
+      },
+    });
+
+    const { DeviceConnectionManager } = await import('@/services/device-connection-manager');
+    const manager = DeviceConnectionManager.getInstance();
+    const device = {
+      transport: {},
+      port: {},
+      connection: {},
+      serialHandle: { platform: 'tauri' },
+      portInfo: { path: '/dev/tty.usbmodem1' },
+    } as never;
+
+    await expect(manager.disconnectDevice(device)).rejects.toThrow('[disconnect/disconnect_failed] close failed');
+    expect(manager.isDeviceConnected(device)).toBe(false);
+    expect(device).toMatchObject({
+      transport: null,
+      port: null,
+      connection: null,
+      serialHandle: null,
+    });
+  });
 });

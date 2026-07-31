@@ -40,6 +40,14 @@ function createPortMock(overrides: Partial<BurnerConnectionPort> = {}): BurnerCo
   };
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 describe('ConnectionOrchestrationUseCase', () => {
   it('sequences list/select/connect/init and transitions to connected then idle on disconnect', async () => {
     const port = createPortMock();
@@ -79,6 +87,156 @@ describe('ConnectionOrchestrationUseCase', () => {
     expect(result.failure?.code).toBe('init_failed');
     expect(result.context.handle).toBeNull();
     expect(result.context.selection).toBeNull();
+  });
+
+  it('keeps init failure normalized when rollback disconnect also fails', async () => {
+    const disconnect = vi.fn().mockRejectedValue(new Error('close failed'));
+    const port = createPortMock({
+      init: vi.fn().mockResolvedValue({
+        ok: false,
+        error: {
+          stage: 'init',
+          code: 'init_failed',
+          message: 'init failed',
+          recoverable: true,
+        },
+      }),
+      disconnect,
+    });
+
+    const useCase = new ConnectionOrchestrationUseCase(port);
+    const result = await useCase.prepareConnection();
+
+    expect(disconnect).toHaveBeenCalledOnce();
+    expect(result.success).toBe(false);
+    expect(result.state).toBe('failed');
+    expect(result.failure?.stage).toBe('init');
+    expect(result.failure?.code).toBe('init_failed');
+    expect(result.failure?.message).toBe('init failed');
+    expect(result.failure?.cause).toMatchObject({
+      cleanup: expect.any(Error),
+    });
+    expect(result.context.handle).toBeNull();
+    expect(useCase.snapshot.state).toBe('failed');
+  });
+
+  it('returns the current connection instead of opening another one when already connected', async () => {
+    const basePort = createPortMock();
+    const connect = vi.fn((selection?: BurnerConnectionSelection | null) => basePort.connect(selection));
+    const useCase = new ConnectionOrchestrationUseCase(createPortMock({ connect }));
+
+    const first = await useCase.prepareConnection();
+    const second = await useCase.prepareConnection();
+
+    expect(first.success).toBe(true);
+    expect(second.success).toBe(true);
+    expect(second.context.handle?.id).toBe(first.context.handle?.id);
+    expect(connect).toHaveBeenCalledTimes(1);
+  });
+
+  it('runs a disconnect requested during connect after the connection attempt settles', async () => {
+    const basePort = createPortMock();
+    const connectResult = deferred<Awaited<ReturnType<BurnerConnectionPort['connect']>>>();
+    const connect = vi.fn(() => connectResult.promise);
+    const disconnect = vi.fn(() => Promise.resolve({ ok: true as const, data: undefined }));
+    const useCase = new ConnectionOrchestrationUseCase(createPortMock({ connect, disconnect }));
+
+    const connecting = useCase.prepareConnection();
+    await vi.waitFor(() => {
+      expect(connect).toHaveBeenCalledOnce();
+    });
+    const disconnecting = useCase.disconnect();
+    connectResult.resolve(await basePort.connect(null));
+
+    expect((await connecting).success).toBe(true);
+    expect((await disconnecting).success).toBe(true);
+    expect(useCase.snapshot.state).toBe('idle');
+    expect(useCase.snapshot.context.handle).toBeNull();
+    expect(disconnect).toHaveBeenCalledOnce();
+  });
+
+  it('runs a connect requested during disconnect after the disconnect settles', async () => {
+    const disconnectResult = deferred<Awaited<ReturnType<BurnerConnectionPort['disconnect']>>>();
+    const disconnect = vi.fn(() => disconnectResult.promise);
+    const port = createPortMock({ disconnect });
+    const useCase = new ConnectionOrchestrationUseCase(port);
+    await useCase.prepareConnection();
+
+    const disconnecting = useCase.disconnect();
+    await vi.waitFor(() => {
+      expect(disconnect).toHaveBeenCalledOnce();
+    });
+    const connecting = useCase.prepareConnection();
+    disconnectResult.resolve({ ok: true, data: undefined });
+
+    expect((await disconnecting).success).toBe(true);
+    expect((await connecting).success).toBe(true);
+    expect(useCase.snapshot.state).toBe('connected');
+    expect(useCase.snapshot.context.handle).not.toBeNull();
+  });
+
+  it('does not reconnect when retry cleanup fails', async () => {
+    const basePort = createPortMock();
+    const connect = vi.fn((selection?: BurnerConnectionSelection | null) => basePort.connect(selection));
+    const disconnect = vi.fn().mockResolvedValue({
+      ok: false,
+      error: {
+        stage: 'disconnect',
+        code: 'disconnect_failed',
+        message: 'close failed',
+      },
+    });
+    const useCase = new ConnectionOrchestrationUseCase(createPortMock({ connect, disconnect }));
+    await useCase.prepareConnection();
+
+    const retry = await useCase.retryConnection();
+
+    expect(retry.success).toBe(false);
+    expect(retry.failure?.code).toBe('disconnect_failed');
+    expect(connect).toHaveBeenCalledOnce();
+  });
+
+  it('best-effort disconnects a stale connection handle before failing', async () => {
+    const staleHandle = {
+      id: 'mock:/dev/mock:1',
+      platform: 'web' as const,
+      portInfo: { path: '/dev/mock', vendorId: '0483', productId: '0721' },
+      context: {
+        platform: 'web',
+        portInfo: { path: '/dev/mock', vendorId: '0483', productId: '0721' },
+        transport: {},
+        port: null,
+        connection: null,
+      },
+    };
+    const connect = vi
+      .fn()
+      .mockResolvedValue({ ok: true, data: staleHandle });
+    const disconnect = vi.fn().mockResolvedValue({ ok: true, data: undefined });
+    const useCase = new ConnectionOrchestrationUseCase(createPortMock({ connect, disconnect }));
+    (useCase as unknown as {
+      snapshotState: {
+        state: string;
+        context: {
+          generation: number;
+          selection: BurnerConnectionSelection | null;
+          handle: typeof staleHandle;
+        };
+      };
+    }).snapshotState = {
+      state: 'failed',
+      context: {
+        generation: 1,
+        selection: null,
+        handle: staleHandle,
+      },
+    };
+
+    const second = await useCase.prepareConnection();
+
+    expect(second.success).toBe(false);
+    expect(second.failure?.code).toBe('stale_context');
+    expect(disconnect).toHaveBeenCalledWith(staleHandle);
   });
 
   it('supports recovery from failed attempt via retry with fresh context', async () => {

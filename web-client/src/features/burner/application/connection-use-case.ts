@@ -54,6 +54,18 @@ function toFailure(state: ConnectionState, context: ConnectionContext, failure: 
   };
 }
 
+function appendCleanupCause(failure: ConnectionFailure, cleanupError: unknown): ConnectionFailure {
+  return {
+    ...failure,
+    cause: cleanupError
+      ? {
+        original: failure.cause,
+        cleanup: cleanupError,
+      }
+      : failure.cause,
+  };
+}
+
 export class ConnectionOrchestrationUseCase {
   private snapshotState: ConnectionSnapshot = {
     state: 'idle',
@@ -64,13 +76,18 @@ export class ConnectionOrchestrationUseCase {
     },
   };
 
-  private isConnecting = false;
-  private isDisconnecting = false;
+  private lifecycleQueue: Promise<void> = Promise.resolve();
 
   constructor(private readonly connectionPort: BurnerConnectionPort) {}
 
   get snapshot(): ConnectionSnapshot {
     return this.snapshotState;
+  }
+
+  private enqueueLifecycle<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.lifecycleQueue.then(operation, operation);
+    this.lifecycleQueue = result.then(() => undefined, () => undefined);
+    return result;
   }
 
   private setState(state: ConnectionState) {
@@ -118,19 +135,12 @@ export class ConnectionOrchestrationUseCase {
   }
 
   async prepareConnection(): Promise<ConnectionCommandResult> {
-    if (this.isConnecting) {
-      return toFailure(this.snapshotState.state, this.snapshotState.context, {
-        stage: 'connect',
-        code: 'connect_failed',
-        message: 'Connection already in progress',
-      });
-    }
-    this.isConnecting = true;
-    try {
-      return await this._prepareConnection();
-    } finally {
-      this.isConnecting = false;
-    }
+    return this.enqueueLifecycle(async () => {
+      if (this.snapshotState.state === 'connected' && this.snapshotState.context.handle) {
+        return toSuccess('connected', this.snapshotState.context, 'Connection already ready');
+      }
+      return this._prepareConnection();
+    });
   }
 
   private async _prepareConnection(): Promise<ConnectionCommandResult> {
@@ -163,15 +173,10 @@ export class ConnectionOrchestrationUseCase {
   }
 
   async prepareConnectionWithSelection(selection: ConnectionContext['selection']): Promise<ConnectionCommandResult> {
-    if (this.isConnecting) {
-      return toFailure(this.snapshotState.state, this.snapshotState.context, {
-        stage: 'connect',
-        code: 'connect_failed',
-        message: 'Connection already in progress',
-      });
-    }
-    this.isConnecting = true;
-    try {
+    return this.enqueueLifecycle(async () => {
+      if (this.snapshotState.state === 'connected' && this.snapshotState.context.handle) {
+        return toSuccess('connected', this.snapshotState.context, 'Connection already ready');
+      }
       if (!selection) {
         const failure: ConnectionFailure = {
           stage: 'select',
@@ -181,10 +186,8 @@ export class ConnectionOrchestrationUseCase {
         const result = this.markFailure(failure);
         return toFailure(result.state, result.context, failure);
       }
-      return await this.connectAndInit(selection);
-    } finally {
-      this.isConnecting = false;
-    }
+      return this.connectAndInit(selection);
+    });
   }
 
   async listAvailableSelections(): Promise<ConnectionCommandResult & { ports?: ConnectionContext['selection'][] }> {
@@ -216,19 +219,31 @@ export class ConnectionOrchestrationUseCase {
     }
 
     if (connectResult.data.id === previousHandle?.id) {
+      let cleanupError: unknown;
       const failure: ConnectionFailure = {
         stage: 'connect',
         code: 'stale_context',
         message: 'Reconnect must return a fresh connection context',
       };
-      const result = this.markFailure(failure);
-      return toFailure(result.state, result.context, failure);
+      try {
+        await this.connectionPort.disconnect(connectResult.data);
+      } catch (error) {
+        cleanupError = error;
+      }
+      const failureWithCleanup = appendCleanupCause(failure, cleanupError);
+      const result = this.markFailure(failureWithCleanup);
+      return toFailure(result.state, result.context, failureWithCleanup);
     }
 
     const initResult = await this.connectionPort.init(connectResult.data);
     if (!initResult.ok) {
-      await this.connectionPort.disconnect(connectResult.data);
-      const failure = normalizeFailure('init', initResult.error, 'init_failed');
+      let cleanupError: unknown;
+      try {
+        await this.connectionPort.disconnect(connectResult.data);
+      } catch (error) {
+        cleanupError = error;
+      }
+      const failure = appendCleanupCause(normalizeFailure('init', initResult.error, 'init_failed'), cleanupError);
       const result = this.markFailure(failure);
       return toFailure(result.state, result.context, failure);
     }
@@ -238,27 +253,11 @@ export class ConnectionOrchestrationUseCase {
   }
 
   async ensureConnected(): Promise<ConnectionCommandResult> {
-    if (this.snapshotState.state === 'connected' && this.snapshotState.context.handle) {
-      return toSuccess('connected', this.snapshotState.context, 'Connection already ready');
-    }
-
     return this.prepareConnection();
   }
 
   async disconnect(): Promise<ConnectionCommandResult> {
-    if (this.isDisconnecting) {
-      return toFailure(this.snapshotState.state, this.snapshotState.context, {
-        stage: 'disconnect',
-        code: 'disconnect_failed',
-        message: 'Disconnect already in progress',
-      });
-    }
-    this.isDisconnecting = true;
-    try {
-      return await this._disconnect();
-    } finally {
-      this.isDisconnecting = false;
-    }
+    return this.enqueueLifecycle(() => this._disconnect());
   }
 
   private async _disconnect(): Promise<ConnectionCommandResult> {
@@ -295,9 +294,12 @@ export class ConnectionOrchestrationUseCase {
   }
 
   async retryConnection(): Promise<ConnectionCommandResult> {
-    if (this.snapshotState.context.handle) {
-      await this.disconnect();
-    }
-    return this.prepareConnection();
+    return this.enqueueLifecycle(async () => {
+      if (this.snapshotState.context.handle) {
+        const disconnectResult = await this._disconnect();
+        if (!disconnectResult.success) return disconnectResult;
+      }
+      return this._prepareConnection();
+    });
   }
 }

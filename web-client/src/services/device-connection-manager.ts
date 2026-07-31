@@ -285,19 +285,21 @@ export class DeviceConnectionManager {
    * 断开设备连接
    */
   async disconnectDevice(device: DeviceInfo): Promise<void> {
-    const result = await this.connectionUseCase.disconnect();
-    if (!result.success) {
-      throw this.asError(result.failure ?? {
-        stage: 'disconnect',
-        code: 'disconnect_failed',
-        message: 'Failed to disconnect device',
-      });
+    try {
+      const result = await this.connectionUseCase.disconnect();
+      if (!result.success) {
+        throw this.asError(result.failure ?? {
+          stage: 'disconnect',
+          code: 'disconnect_failed',
+          message: 'Failed to disconnect device',
+        });
+      }
+    } finally {
+      device.connection = null;
+      device.port = null;
+      device.transport = null;
+      device.serialHandle = null;
     }
-
-    device.connection = null;
-    device.port = null;
-    device.transport = null;
-    device.serialHandle = null;
   }
 
   /**
