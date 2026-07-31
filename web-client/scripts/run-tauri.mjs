@@ -33,6 +33,14 @@ function resolveCargoBinDir() {
   return null;
 }
 
+function getPathEnvKey(env) {
+  if (process.platform !== 'win32') {
+    return 'PATH';
+  }
+
+  return Object.keys(env).find(key => key.toLowerCase() === 'path') ?? 'Path';
+}
+
 const [, , command, ...forwardedArgs] = process.argv;
 
 if (!command || (command !== 'dev' && command !== 'build')) {
@@ -43,16 +51,17 @@ if (!command || (command !== 'dev' && command !== 'build')) {
 const env = { ...process.env };
 const require = createRequire(import.meta.url);
 const cargoBinDir = resolveCargoBinDir();
+const pathEnvKey = getPathEnvKey(env);
 
 if (cargoBinDir) {
-  const pathEntries = (env.PATH ?? '').split(delimiter).filter(Boolean);
+  const pathEntries = (env[pathEnvKey] ?? '').split(delimiter).filter(Boolean);
   if (!pathEntries.includes(cargoBinDir)) {
-    env.PATH = [cargoBinDir, ...pathEntries].join(delimiter);
+    env[pathEnvKey] = [cargoBinDir, ...pathEntries].join(delimiter);
   }
 }
 
 const cargoBinaryName = process.platform === 'win32' ? 'cargo.exe' : 'cargo';
-const hasCargoOnPath = (env.PATH ?? '')
+const hasCargoOnPath = (env[pathEnvKey] ?? '')
   .split(delimiter)
   .filter(Boolean)
   .some(entry => canExecute(join(entry, cargoBinaryName)));

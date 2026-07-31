@@ -1,4 +1,4 @@
-import { DateTime } from 'luxon';
+﻿import { DateTime } from 'luxon';
 
 import { gbc_read, gbc_write } from '@/protocol';
 
@@ -12,49 +12,49 @@ export interface MBC3RTCData {
 }
 
 /**
- * MBC3 RTC操作类
+ * MBC3 RTC鎿嶄綔绫?
  */
 export class MBC3RTC extends BaseRTC {
   /**
-   * 启用RAM访问
+   * 鍚敤RAM璁块棶
    */
   private async enableRAMAccess(): Promise<void> {
-    await gbc_write(this.device, new Uint8Array([0x0a]), 0x0000);
+    await gbc_write(this.transport, new Uint8Array([0x0a]), 0x0000);
   }
 
   /**
-   * 锁存时间
+   * 閿佸瓨鏃堕棿
    */
   private async latchTime(): Promise<void> {
-    await gbc_write(this.device, new Uint8Array([0x01]), 0x6000);
+    await gbc_write(this.transport, new Uint8Array([0x01]), 0x6000);
   }
 
   /**
-   * 解锁时间
+   * 瑙ｉ攣鏃堕棿
    */
   private async unlatchTime(): Promise<void> {
-    await gbc_write(this.device, new Uint8Array([0x00]), 0x6000);
+    await gbc_write(this.transport, new Uint8Array([0x00]), 0x6000);
   }
 
   /**
-   * 读取RTC寄存器
+   * 璇诲彇RTC瀵勫瓨鍣?
    */
   private async readRTCRegister(register: number): Promise<number> {
-    await gbc_write(this.device, new Uint8Array([register]), 0x4000);
-    const data = await gbc_read(this.device, 1, 0xa000);
+    await gbc_write(this.transport, new Uint8Array([register]), 0x4000);
+    const data = await gbc_read(this.transport, 1, 0xa000);
     return data[0];
   }
 
   /**
-   * 写入RTC寄存器
+   * 鍐欏叆RTC瀵勫瓨鍣?
    */
   private async writeRTCRegister(register: number, value: number): Promise<void> {
-    await gbc_write(this.device, new Uint8Array([register]), 0x4000);
-    await gbc_write(this.device, new Uint8Array([value]), 0xa000);
+    await gbc_write(this.transport, new Uint8Array([register]), 0x4000);
+    await gbc_write(this.transport, new Uint8Array([value]), 0xa000);
   }
 
   /**
-   * 停止RTC计时器
+   * 鍋滄RTC璁℃椂鍣?
    */
   private async stopTimer(): Promise<void> {
     await this.unlatchTime();
@@ -63,20 +63,20 @@ export class MBC3RTC extends BaseRTC {
   }
 
   /**
-   * 启动RTC计时器
+   * 鍚姩RTC璁℃椂鍣?
    */
   private async startTimer(): Promise<void> {
     await this.unlatchTime();
     await this.latchTime();
-    await gbc_write(this.device, new Uint8Array([0x00]), 0x4000);
-    await gbc_write(this.device, new Uint8Array([0x00]), 0x0000);
+    await gbc_write(this.transport, new Uint8Array([0x00]), 0x4000);
+    await gbc_write(this.transport, new Uint8Array([0x00]), 0x0000);
     await this.delay(100);
     await this.unlatchTime();
     await this.delay(100);
   }
 
   /**
-   * 验证写入时间（在已启用RAM的状态下进行）
+   * 楠岃瘉鍐欏叆鏃堕棿锛堝湪宸插惎鐢≧AM鐨勭姸鎬佷笅杩涜锛?
    */
   private async verifyWrittenTime(attempts = 5): Promise<void> {
     for (let ii = attempts; ii > 0; ii--) {
@@ -92,49 +92,49 @@ export class MBC3RTC extends BaseRTC {
       const verifyMinute = verifyBuffer[1];
       const verifySecond = verifyBuffer[0];
 
-      // 使用luxon格式化输出
+      // 浣跨敤luxon鏍煎紡鍖栬緭鍑?
       const currentYear = DateTime.now().year;
       const dt = DateTime.fromObject({ year: currentYear, month: 1, day: 1 })
         .plus({ days: verifyDay - 1 })
         .set({ hour: verifyHour, minute: verifyMinute, second: verifySecond });
 
       if (dt.isValid) {
-        console.log(`验证 ${ii}: ${dt.toFormat('yyyy-MM-dd HH:mm:ss')} (第${verifyDay}天)`);
+        console.log(`楠岃瘉 ${ii}: ${dt.toFormat('yyyy-MM-dd HH:mm:ss')} (绗?{verifyDay}澶?`);
       } else {
-        console.log(`验证 ${ii}: ${verifyDay}日 ${verifyHour}:${verifyMinute}:${verifySecond} (无效日期)`);
+        console.log(`楠岃瘉 ${ii}: ${verifyDay}鏃?${verifyHour}:${verifyMinute}:${verifySecond} (鏃犳晥鏃ユ湡)`);
       }
       await this.delay(1000);
     }
   }
 
   /**
-   * 检查MBC3 RTC功能是否可用
+   * 妫€鏌BC3 RTC鍔熻兘鏄惁鍙敤
    */
   async checkCapability(): Promise<boolean> {
     try {
       await this.enableRAMAccess();
       await this.latchTime();
 
-      // 尝试读取一个RTC寄存器来检查功能
+      // 灏濊瘯璇诲彇涓€涓猂TC瀵勫瓨鍣ㄦ潵妫€鏌ュ姛鑳?
       const second = await this.readRTCRegister(0x08);
       await this.unlatchTime();
 
-      // 如果能成功读取且值合理，认为RTC功能可用
+      // 濡傛灉鑳芥垚鍔熻鍙栦笖鍊煎悎鐞嗭紝璁や负RTC鍔熻兘鍙敤
       return second >= 0 && second <= 59;
     } catch (error) {
-      console.error('检查MBC3 RTC功能时出错:', error);
+      console.error('妫€鏌BC3 RTC鍔熻兘鏃跺嚭閿?', error);
       return false;
     }
   }
 
   /**
-   * 设置MBC3 RTC时间
+   * 璁剧疆MBC3 RTC鏃堕棿
    */
   async setTime(timeData: unknown): Promise<void> {
     const rtcData = timeData as MBC3RTCData;
 
     try {
-      // 使用luxon验证输入的时间是否有效
+      // 浣跨敤luxon楠岃瘉杈撳叆鐨勬椂闂存槸鍚︽湁鏁?
       const currentYear = DateTime.now().year;
       const isLeapYear = DateTime.local(currentYear).isInLeapYear;
       const maxDays = isLeapYear ? 366 : 365;
@@ -157,7 +157,7 @@ export class MBC3RTC extends BaseRTC {
 
       await this.enableRAMAccess();
 
-      // 读取当前时间以验证功能
+      // 璇诲彇褰撳墠鏃堕棿浠ラ獙璇佸姛鑳?
       await this.latchTime();
       const buffer: number[] = [];
       for (let i = 0x08; i <= 0x0d; i++) {
@@ -165,40 +165,40 @@ export class MBC3RTC extends BaseRTC {
       }
       await this.unlatchTime();
 
-      // 准备新的时间数据
+      // 鍑嗗鏂扮殑鏃堕棿鏁版嵁
       const timeDataArray = [
         rtcData.second,
         rtcData.minute,
         rtcData.hour,
         rtcData.day & 0xff,
-        (rtcData.day & 0x100) >> 8, // 修正日期高位计算
+        (rtcData.day & 0x100) >> 8, // 淇鏃ユ湡楂樹綅璁＄畻
       ];
 
-      // 停止计时器
+      // 鍋滄璁℃椂鍣?
       await this.stopTimer();
 
-      // 写入新时间
+      // 鍐欏叆鏂版椂闂?
       for (let i = 0x08; i <= 0x0c; i++) {
         await this.writeRTCRegister(i, timeDataArray[i - 0x08]);
       }
 
-      // 重启计时器
+      // 閲嶅惎璁℃椂鍣?
       await this.startTimer();
 
-      // 验证设置（使用专门的验证方法，不重新启用RAM）
+      // 楠岃瘉璁剧疆锛堜娇鐢ㄤ笓闂ㄧ殑楠岃瘉鏂规硶锛屼笉閲嶆柊鍚敤RAM锛?
       await this.verifyWrittenTime(5);
     } catch (error) {
-      console.error('设置MBC3 RTC时间失败:', error);
+      console.error('璁剧疆MBC3 RTC鏃堕棿澶辫触:', error);
       throw error;
     }
   }
 
   /**
-   * 从DateTime设置MBC3 RTC时间
+   * 浠嶥ateTime璁剧疆MBC3 RTC鏃堕棿
    */
   async setTimeFromDateTime(dt: DateTime): Promise<void> {
     const rtcData: MBC3RTCData = {
-      day: dt.ordinal, // luxon直接提供年中天数
+      day: dt.ordinal, // luxon鐩存帴鎻愪緵骞翠腑澶╂暟
       hour: dt.hour,
       minute: dt.minute,
       second: dt.second,
@@ -208,7 +208,7 @@ export class MBC3RTC extends BaseRTC {
   }
 
   /**
-   * 设置当前时间到RTC
+   * 璁剧疆褰撳墠鏃堕棿鍒癛TC
    */
   async setCurrentTime(timezone?: string): Promise<void> {
     const now = timezone ? DateTime.now().setZone(timezone) : DateTime.now();
@@ -216,17 +216,17 @@ export class MBC3RTC extends BaseRTC {
   }
 
   /**
-   * 读取MBC3 RTC时间
+   * 璇诲彇MBC3 RTC鏃堕棿
    */
   async readTime(): Promise<{ status: boolean; time?: DateTime; error?: string }> {
     try {
       await this.enableRAMAccess();
 
-      // 锁存当前时间
+      // 閿佸瓨褰撳墠鏃堕棿
       await this.unlatchTime();
       await this.latchTime();
 
-      // 读取时间寄存器
+      // 璇诲彇鏃堕棿瀵勫瓨鍣?
       const second = (await this.readRTCRegister(0x08)) & 0x3f;
       const minute = (await this.readRTCRegister(0x09)) & 0x3f;
       const hour = (await this.readRTCRegister(0x0a)) & 0x1f;
@@ -235,7 +235,7 @@ export class MBC3RTC extends BaseRTC {
 
       const day = dayLow | (dayHigh << 8);
 
-      // MBC3没有年月信息，使用当前年份的开始，然后加上天数
+      // MBC3娌℃湁骞存湀淇℃伅锛屼娇鐢ㄥ綋鍓嶅勾浠界殑寮€濮嬶紝鐒跺悗鍔犱笂澶╂暟
       const currentYear = DateTime.now().year;
       const time = DateTime.fromObject({ year: currentYear, month: 1, day: 1 })
         .plus({ days: day - 1 })
@@ -247,13 +247,13 @@ export class MBC3RTC extends BaseRTC {
 
       return { status: true, time };
     } catch (error) {
-      console.error('读取MBC3 RTC时出错:', error);
-      return { status: false, error: error instanceof Error ? error.message : '未知错误' };
+      console.error('璇诲彇MBC3 RTC鏃跺嚭閿?', error);
+      return { status: false, error: error instanceof Error ? error.message : '鏈煡閿欒' };
     }
   }
 
   /**
-   * MBC3特有的验证时间设置方法
+   * MBC3鐗规湁鐨勯獙璇佹椂闂磋缃柟娉?
    */
   protected override async verifyTimeSet(attempts = 5): Promise<void> {
     await this.enableRAMAccess();
@@ -271,16 +271,16 @@ export class MBC3RTC extends BaseRTC {
       const verifyMinute = verifyBuffer[1];
       const verifySecond = verifyBuffer[0];
 
-      // 使用luxon格式化输出
+      // 浣跨敤luxon鏍煎紡鍖栬緭鍑?
       const currentYear = DateTime.now().year;
       const dt = DateTime.fromObject({ year: currentYear, month: 1, day: 1 })
         .plus({ days: verifyDay - 1 })
         .set({ hour: verifyHour, minute: verifyMinute, second: verifySecond });
 
       if (dt.isValid) {
-        console.log(`验证 ${ii}: ${dt.toFormat('yyyy-MM-dd HH:mm:ss')} (第${verifyDay}天)`);
+        console.log(`楠岃瘉 ${ii}: ${dt.toFormat('yyyy-MM-dd HH:mm:ss')} (绗?{verifyDay}澶?`);
       } else {
-        console.log(`验证 ${ii}: ${verifyDay}日 ${verifyHour}:${verifyMinute}:${verifySecond} (无效日期)`);
+        console.log(`楠岃瘉 ${ii}: ${verifyDay}鏃?${verifyHour}:${verifyMinute}:${verifySecond} (鏃犳晥鏃ユ湡)`);
       }
       await this.delay(1000);
     }

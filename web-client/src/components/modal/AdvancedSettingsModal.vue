@@ -542,8 +542,8 @@ const createDefaultSettings = (): ReturnType<typeof AdvancedSettings.getSettings
     profile: 'stm',
   },
   size: {
-    romPageSize: 0x200,
-    ramPageSize: 0x100,
+    romPageSize: 0x1000,
+    ramPageSize: 0x1000,
   },
   throttle: {
     romRead: 0,

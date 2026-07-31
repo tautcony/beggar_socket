@@ -1,10 +1,9 @@
-import { resolveTransport, type Transport, type TransportReadMode } from '@/platform/serial';
+import type { Transport, TransportReadMode } from '@/platform/serial';
 import { AdvancedSettings } from '@/settings/advanced-settings';
-import { type DeviceInfo } from '@/types';
 
 import { PROTOCOL_ACK } from './constants';
 
-export type ProtocolTransportInput = DeviceInfo | { transport: Transport };
+export type ProtocolTransportInput = Transport;
 
 export function toLittleEndian(value: number, byteLength: number): Uint8Array {
   const bytes = new Uint8Array(byteLength);
@@ -26,8 +25,7 @@ export function fromLittleEndian(bytes: Uint8Array): number {
 
 // 使用适配器的统一接口
 export async function sendPackage(input: ProtocolTransportInput, payload: Uint8Array, timeoutMs?: number): Promise<boolean> {
-  const transport = resolveTransport(input);
-  return transport.send(payload, timeoutMs ?? AdvancedSettings.packageSendTimeout);
+  return input.send(payload, timeoutMs ?? AdvancedSettings.packageSendTimeout);
 }
 
 export async function getPackage(
@@ -36,8 +34,7 @@ export async function getPackage(
   timeoutMs?: number,
   mode: TransportReadMode = 'byob',
 ): Promise<{ data: Uint8Array }> {
-  const transport = resolveTransport(input);
-  return transport.read(length, timeoutMs ?? AdvancedSettings.packageReceiveTimeout, mode);
+  return input.read(length, timeoutMs ?? AdvancedSettings.packageReceiveTimeout, mode);
 }
 
 export async function getResult(input: ProtocolTransportInput, timeoutMs?: number): Promise<boolean> {
@@ -52,8 +49,7 @@ export async function sendAndReceivePackage(
   sendTimeoutMs?: number,
   readTimeoutMs?: number,
 ): Promise<{ data: Uint8Array }> {
-  const transport = resolveTransport(input);
-  return transport.sendAndReceive(
+  return input.sendAndReceive(
     payload,
     readLength,
     sendTimeoutMs ?? AdvancedSettings.packageSendTimeout,
@@ -72,54 +68,7 @@ export async function sendAndExpectAck(
 }
 
 export async function setSignals(input: ProtocolTransportInput, signals: SerialOutputSignals): Promise<void> {
-  const transport = resolveTransport(input);
-  await transport.setSignals(signals);
-}
-
-/**
- * Prefer using the standalone functions (sendPackage, getPackage, etc.) instead.
- */
-export class ProtocolAdapter {
-  static async sendPackage(
-    transport: Transport,
-    payload: Uint8Array,
-    timeoutMs?: number,
-  ): Promise<boolean> {
-    return transport.send(payload, timeoutMs ?? AdvancedSettings.packageSendTimeout);
-  }
-
-  static async getPackage(
-    transport: Transport,
-    length: number,
-    timeoutMs?: number,
-    mode: TransportReadMode = 'byob',
-  ): Promise<{ data: Uint8Array }> {
-    return transport.read(length, timeoutMs ?? AdvancedSettings.packageReceiveTimeout, mode);
-  }
-
-  static async sendAndReceive(
-    transport: Transport,
-    payload: Uint8Array,
-    readLength: number,
-    sendTimeoutMs?: number,
-    readTimeoutMs?: number,
-  ): Promise<{ data: Uint8Array }> {
-    return transport.sendAndReceive(
-      payload,
-      readLength,
-      sendTimeoutMs ?? AdvancedSettings.packageSendTimeout,
-      readTimeoutMs ?? AdvancedSettings.packageReceiveTimeout,
-    );
-  }
-
-  static async getResult(transport: Transport, timeoutMs?: number): Promise<boolean> {
-    const result = await this.getPackage(transport, 1, timeoutMs ?? AdvancedSettings.packageReceiveTimeout);
-    return result.data?.byteLength > 0 && result.data[0] === PROTOCOL_ACK;
-  }
-
-  static async setSignals(transport: Transport, signals: SerialOutputSignals): Promise<void> {
-    await transport.setSignals(signals);
-  }
+  await input.setSignals(signals);
 }
 
 // Flash 类型定义和工具函数

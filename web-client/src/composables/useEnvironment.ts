@@ -1,4 +1,4 @@
-import { isTauri } from '@/utils/tauri';
+import { isTauriRuntime, isWebRuntime } from '@/platform/runtime';
 
 /**
  * 环境配置组合
@@ -8,14 +8,14 @@ export class Environment {
    * 检查是否为 Tauri 环境
    */
   static get isTauri(): boolean {
-    return isTauri();
+    return isTauriRuntime();
   }
 
   /**
    * 检查是否为 Web 环境
    */
   static get isWeb(): boolean {
-    return !isTauri();
+    return isWebRuntime();
   }
 
   /**

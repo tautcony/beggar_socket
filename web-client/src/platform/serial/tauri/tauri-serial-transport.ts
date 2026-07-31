@@ -1,5 +1,10 @@
-import { ClearBuffer, SerialPort } from 'tauri-plugin-serialplugin-api';
-
+import {
+  closeNativeSerial,
+  flushNativeSerialInput,
+  readNativeSerial,
+  setNativeSerialSignals,
+  writeNativeSerial,
+} from '@/platform/native';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { withTimeout } from '@/utils/async-utils';
 
@@ -17,7 +22,7 @@ export class TauriSerialTransport implements Transport {
   private lastRxAt = 0;
   private readSequence = 0;
 
-  constructor(private readonly serialPort: SerialPort) {}
+  constructor(private readonly sessionId: number) {}
 
   async attachListener(): Promise<void> {
     return Promise.resolve();
@@ -28,7 +33,7 @@ export class TauriSerialTransport implements Transport {
     const timeout = timeoutMs ?? AdvancedSettings.packageSendTimeout;
 
     await withTimeout(
-      this.serialPort.writeBinary(payload),
+      writeNativeSerial(this.sessionId, payload, timeout),
       timeout,
       `Send package timeout in ${timeout}ms`,
     );
@@ -57,7 +62,7 @@ export class TauriSerialTransport implements Transport {
       let chunk: Uint8Array;
       try {
         chunk = await withTimeout(
-          this.serialPort.readBinary({ size: length - offset, timeout: remainingTimeout }),
+          readNativeSerial(this.sessionId, length - offset, remainingTimeout),
           remainingTimeout,
           `Read package timeout in ${timeout}ms`,
         );
@@ -121,15 +126,19 @@ export class TauriSerialTransport implements Transport {
     this.assertOpen();
 
     if (typeof signals.dataTerminalReady === 'boolean') {
-      await this.serialPort.writeDataTerminalReady(signals.dataTerminalReady);
+      await setNativeSerialSignals(this.sessionId, {
+        dataTerminalReady: signals.dataTerminalReady,
+      });
     }
     if (typeof signals.requestToSend === 'boolean') {
-      await this.serialPort.writeRequestToSend(signals.requestToSend);
+      await setNativeSerialSignals(this.sessionId, {
+        requestToSend: signals.requestToSend,
+      });
     }
   }
 
   flushInput(): Promise<void> {
-    return this.serialPort.clearBuffer(ClearBuffer.Input).catch(() => {});
+    return flushNativeSerialInput(this.sessionId).catch(() => {});
   }
 
   async close(): Promise<void> {
@@ -138,7 +147,7 @@ export class TauriSerialTransport implements Transport {
     }
 
     this.closed = true;
-    await this.serialPort.close();
+    await closeNativeSerial(this.sessionId);
   }
 
   private assertOpen(): void {

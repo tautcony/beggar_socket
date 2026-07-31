@@ -1,51 +1,12 @@
-import { DataBits, FlowControl, Parity, type PortInfo, SerialPort, StopBits } from 'tauri-plugin-serialplugin-api';
-
+import { listNativeSerialPorts, openNativeSerialPort } from '@/platform/native';
 import type { SerialPortInfo } from '@/types/serial';
-import { timeout, withTimeout } from '@/utils/async-utils';
+import { withTimeout } from '@/utils/async-utils';
 import { PortSelectionRequiredError } from '@/utils/errors/PortSelectionRequiredError';
 import type { PortFilter } from '@/utils/port-filter';
 
-import { DEFAULT_SERIAL_CONFIG } from '../constants';
 import { initDeviceSignals } from '../device-signals';
 import type { DeviceGateway, DeviceHandle, DeviceSelection } from '../types';
 import { TauriSerialTransport } from './tauri-serial-transport';
-
-function normalizeUsbId(value: string | undefined): string | undefined {
-  if (!value || value === 'Unknown') {
-    return undefined;
-  }
-
-  const radix = /^0x/i.test(value) || /^[0-9a-f]{4}$/i.test(value) ? 16 : 10;
-  const numericValue = Number.parseInt(value, radix);
-  return Number.isNaN(numericValue) ? value.toLowerCase() : numericValue.toString(16).padStart(4, '0');
-}
-
-export function toSerialPortInfo(path: string, portInfo: PortInfo): SerialPortInfo {
-  return {
-    path,
-    manufacturer: portInfo.manufacturer === 'Unknown' ? undefined : portInfo.manufacturer,
-    product: portInfo.product === 'Unknown' ? undefined : portInfo.product,
-    serialNumber: portInfo.serial_number === 'Unknown' ? undefined : portInfo.serial_number,
-    vendorId: normalizeUsbId(portInfo.vid),
-    productId: normalizeUsbId(portInfo.pid),
-  };
-}
-
-function mergePortInfoMaps(
-  primary: Record<string, PortInfo>,
-  secondary: Record<string, PortInfo>,
-): Record<string, PortInfo> {
-  const merged = { ...secondary };
-
-  for (const [path, portInfo] of Object.entries(primary)) {
-    merged[path] = {
-      ...merged[path],
-      ...portInfo,
-    };
-  }
-
-  return merged;
-}
 
 function toDeviceAliasPath(path: string): string {
   return path.replace(/^\/dev\/(?:cu|tty)\./, '/dev/');
@@ -111,15 +72,7 @@ export class TauriDeviceGateway implements DeviceGateway {
   private static readonly OPEN_TIMEOUT_MS = 5000;
 
   async list(filter?: PortFilter): Promise<SerialPortInfo[]> {
-    const [ports, directPorts] = await Promise.all([
-      SerialPort.available_ports(),
-      SerialPort.available_ports_direct().catch(() => ({})),
-    ]);
-
-    const mergedPorts = mergePortInfoMaps(ports, directPorts);
-    const mapped = dedupeAndSortPorts(
-      Object.entries(mergedPorts).map(([path, portInfo]) => toSerialPortInfo(path, portInfo)),
-    );
+    const mapped = dedupeAndSortPorts(await listNativeSerialPorts());
     const filtered = filter ? mapped.filter(filter) : mapped;
     console.info('[TauriDeviceGateway] list', {
       total: mapped.length,
@@ -152,33 +105,24 @@ export class TauriDeviceGateway implements DeviceGateway {
       selectedPort = ports[0];
     }
 
-    const tauriPort = new SerialPort({
-      path: selectedPort.path,
-      baudRate: DEFAULT_SERIAL_CONFIG.baudRate,
-      dataBits: DataBits.Eight,
-      flowControl: FlowControl.None,
-      parity: Parity.None,
-      stopBits: StopBits.One,
-      timeout: 1000,
-      size: DEFAULT_SERIAL_CONFIG.bufferSize,
-    });
-
+    let sessionId: number;
     try {
       console.info('[TauriDeviceGateway] open', describePort(selectedPort));
-      await withTimeout(
-        tauriPort.open(),
+      const session = await withTimeout(
+        openNativeSerialPort(selectedPort.path),
         TauriDeviceGateway.OPEN_TIMEOUT_MS,
         `Tauri serial connect timeout after ${TauriDeviceGateway.OPEN_TIMEOUT_MS}ms for ${selectedPort.path}`,
       );
+      sessionId = session.sessionId;
     } catch (error) {
       throw new Error(`Tauri serial connect failed for ${selectedPort.path}: ${errorMessage(error)}`);
     }
 
-    const transport = new TauriSerialTransport(tauriPort);
+    const transport = new TauriSerialTransport(sessionId);
     try {
       await transport.attachListener();
     } catch (error) {
-      await tauriPort.close().catch(() => {});
+      await transport.close().catch(() => {});
       throw new Error(`Tauri serial listener attach failed for ${selectedPort.path}: ${errorMessage(error)}`);
     }
 

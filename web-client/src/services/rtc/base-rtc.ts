@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 
+import type { Transport } from '@/platform/serial';
 import { DeviceInfo } from '@/types/device-info';
 
 /**
@@ -10,6 +11,14 @@ export abstract class BaseRTC {
 
   constructor(device: DeviceInfo) {
     this.device = device;
+  }
+
+  protected get transport(): Transport {
+    const transport = this.device.transport ?? this.device.serialHandle?.transport;
+    if (!transport) {
+      throw new Error('Device transport is not initialized');
+    }
+    return transport;
   }
 
   /**

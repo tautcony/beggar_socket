@@ -129,7 +129,6 @@ import { useToast } from '@/composables/useToast';
 import { createCartridgeProtocolSession } from '@/features/burner/adapters';
 import { type BurnerProtocolSession, createBurnerFacade, type GameDetectionResult } from '@/features/burner/application';
 import { CartridgeAdapter, GBAAdapter, MBC5Adapter } from '@/services';
-import { shouldUseLargeRomPage } from '@/services/flash-chip';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { useRecentFileNamesStore } from '@/stores/recent-file-names-store';
 import { CommandOptions, DeviceInfo } from '@/types';
@@ -503,9 +502,6 @@ async function writeRom() {
         mbcType: selectedMbcType.value,
         enable5V: mbcPower5V.value,
       };
-      if (shouldUseLargeRomPage(chipId.value)) {
-        option.romPageSize = 512;
-      }
 
       await withCommandBufferReset(adapter, async () => {
         const response = await burnerFacade.writeRom(adapter, alignedRomData, option, signal);
@@ -547,9 +543,6 @@ async function readRom() {
         mbcType: selectedMbcType.value,
         enable5V: mbcPower5V.value,
       };
-      if (shouldUseLargeRomPage(chipId.value)) {
-        option.romPageSize = 512;
-      }
 
       const romSize = parseInt(selectedRomSize.value, 16);
       await withCommandBufferReset(adapter, async () => {

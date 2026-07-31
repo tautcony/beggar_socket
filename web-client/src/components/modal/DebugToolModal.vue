@@ -406,8 +406,13 @@ async function sendCommand() {
       throw new Error(t('ui.debug.tool.errors.commandFailed'));
     }
 
+    const transport = device.transport ?? device.serialHandle?.transport;
+    if (!transport) {
+      throw new Error(t('ui.debug.tool.errors.noDevice'));
+    }
+
     const result = await executeDebugCommand({
-      device,
+      transport,
       command: selectedCommand.value,
       address: parsedAddress,
       length: length.value === '' ? null : length.value,
