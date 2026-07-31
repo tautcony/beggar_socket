@@ -243,7 +243,7 @@ function handleMenuRomChange(e: Event) {
   if (files && files.length > 0) {
     const file = files[0];
     if (file.name.toLowerCase().endsWith('.gba')) {
-      processMenuRomFile(file);
+      void processMenuRomFile(file);
     }
   }
 }
@@ -254,7 +254,7 @@ function handleBgImageChange(e: Event) {
   if (files && files.length > 0) {
     const file = files[0];
     if (file.name.toLowerCase().endsWith('.png') || file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg')) {
-      processBgImageFile(file);
+      void processBgImageFile(file);
     }
   }
 }

@@ -460,7 +460,9 @@
       "dragOver": "Отпустите файл",
       "browse": "Обзор...",
       "selected": "Выбран файл: {name}",
-      "cleared": "Выбор файла очищен"
+      "cleared": "Выбор файла очищен",
+      "readFailed": "Не удалось прочитать файл: {name}",
+      "readFailedCount": "Не удалось прочитать файлов: {count}"
     },
     "log": {
       "title": "Журнал",
@@ -665,6 +667,7 @@
       "verifySuccess": "Проверка успешна",
       "verifyFailed": "Ошибка проверки",
       "cancelled": "Операция отменена",
+      "resetCommandBufferFailed": "Не удалось сбросить буфер команд",
       "readCartInfoFirst": "Сначала прочитайте информацию о картридже",
       "unsupportedMode": "Неподдерживаемый режим или адаптер не инициализирован",
       "noRomFile": "Сначала выберите ROM-файл",
@@ -738,7 +741,8 @@
       "downloaded": "ROM скачан, имя файла: {fileName}, размер: {size}",
       "assembledForMainInterface": "Собран {romType} ROM, размер: {size}, доступен в интерфейсе операций с ROM",
       "applied": "Сборка ROM применена к главному интерфейсу",
-      "returnedFromAssembly": "Сборка ROM завершена! {romType} ROM размер: {size}MB, возврат на главную страницу"
+      "returnedFromAssembly": "Сборка ROM завершена! {romType} ROM размер: {size}MB, возврат на главную страницу",
+      "downloadFailed": "Ошибка скачивания ROM: {error}"
     },
     "ram": {
       "writing": "Запись RAM, размер {size} байт",
@@ -891,7 +895,8 @@
       "buildCompleted": "Сборка завершена!",
       "buildFailed": "Ошибка сборки: {error}",
       "romDownloaded": "ROM скачан",
-      "romApplied": "ROM применен к главной странице"
+      "romApplied": "ROM применен к главной странице",
+      "romDownloadFailed": "Ошибка скачивания ROM: {error}"
     }
   }
 }

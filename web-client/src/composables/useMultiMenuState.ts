@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router';
 import { useToast } from '@/composables/useToast';
 import { type BuildInput, type BuildResult, buildRom as buildRomFromService } from '@/services/lk';
 import { useRomAssemblyResultStore } from '@/stores/rom-assembly-store';
+import { downloadBlob, readFileAsArrayBuffer } from '@/utils/file-io';
 import { formatBytes } from '@/utils/formatter-utils';
 
 export interface GameConfig {
@@ -77,6 +78,14 @@ export function useMultiMenuState() {
 
   // --- Init ---
   const initAbortController = new AbortController();
+  const fileReadAbortController = new AbortController();
+  let disposed = false;
+  let menuRomRequestId = 0;
+  let bgImageRequestId = 0;
+  const pendingGameRomFileNames = new Set<string>();
+
+  const isCurrentMenuRomRequest = (requestId: number) => !disposed && requestId === menuRomRequestId;
+  const isCurrentBgImageRequest = (requestId: number) => !disposed && requestId === bgImageRequestId;
 
   // --- Methods ---
   function goBack() {
@@ -89,92 +98,113 @@ export function useMultiMenuState() {
     isLoadingLibrary.value = true;
     try {
       await import('jimp');
+      if (disposed) return;
       libraryLoaded.value = true;
       showToast(t('ui.gbaMultiMenu.libraryLoaded'), 'success');
     } catch (error) {
+      if (disposed) return;
       showToast(t('ui.gbaMultiMenu.libraryLoadFailed'), 'error');
       console.error('Failed to load image library:', error);
       libraryLoaded.value = true;
     } finally {
-      isLoadingLibrary.value = false;
+      if (!disposed) isLoadingLibrary.value = false;
     }
   }
 
   async function loadDefaultBackground() {
+    const requestId = ++bgImageRequestId;
     try {
-      cleanupBgImagePreview();
-
       const response = await fetch('bg.png', { signal: initAbortController.signal });
+      if (!isCurrentBgImageRequest(requestId)) return;
 
       if (response.ok || response.status === 304) {
         const blob = await response.blob();
+        if (!isCurrentBgImageRequest(requestId)) return;
         const arrayBuffer = await blob.arrayBuffer();
-        bgImageData.value = arrayBuffer;
-        bgImageFileName.value = 'bg.png';
+        if (!isCurrentBgImageRequest(requestId)) return;
+
+        let dimensions: { width: number; height: number } | null = null;
+        let processedPreviewUrl: string | null = null;
 
         try {
           const { Jimp } = await import('jimp');
+          if (!isCurrentBgImageRequest(requestId)) return;
           const img = await Jimp.fromBuffer(arrayBuffer) as InstanceType<typeof Jimp>;
-
-          bgImageDimensions.value = { width: img.width, height: img.height };
+          if (!isCurrentBgImageRequest(requestId)) return;
+          dimensions = { width: img.width, height: img.height };
 
           const { generateIndexedPreviewImage } = await import('@/services/lk/imageUtils');
-          const processedPreviewUrl = await generateIndexedPreviewImage(img);
-          processedBgImagePreviewUrl.value = processedPreviewUrl;
+          if (!isCurrentBgImageRequest(requestId)) return;
+          processedPreviewUrl = await generateIndexedPreviewImage(img);
+          if (!isCurrentBgImageRequest(requestId)) return;
         } catch (error) {
+          if (!isCurrentBgImageRequest(requestId)) return;
           console.error('Failed to generate processed preview for default image:', error);
-          processedBgImagePreviewUrl.value = null;
-          bgImageDimensions.value = null;
         }
 
+        cleanupBgImagePreview();
+        bgImageData.value = arrayBuffer;
+        bgImageFileName.value = 'bg.png';
+        bgImageDimensions.value = dimensions;
+        processedBgImagePreviewUrl.value = processedPreviewUrl;
         showToast(t('messages.gbaMultiMenu.bgImageLoaded', { name: 'bg.png (默认)' }), 'success');
       } else {
+        if (!isCurrentBgImageRequest(requestId)) return;
         showToast(t('messages.gbaMultiMenu.bgImageLoadFailed', { name: 'bg.png (默认)', status: response.status }), 'error');
       }
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') return;
+      if (!isCurrentBgImageRequest(requestId) || (error instanceof Error && error.name === 'AbortError')) return;
       showToast(t('messages.gbaMultiMenu.bgImageLoadFailed', { name: 'bg.png (默认)', status: (error as Error).message }), 'error');
     }
   }
 
   async function loadDefaultMenuRom() {
     const defaultMenuRom = 'lk_multimenu_for_chisflash_01_02G.gba';
+    const requestId = ++menuRomRequestId;
     try {
       const response = await fetch(defaultMenuRom, { signal: initAbortController.signal });
+      if (!isCurrentMenuRomRequest(requestId)) return;
 
       if (response.ok || response.status === 304) {
         const blob = await response.blob();
+        if (!isCurrentMenuRomRequest(requestId)) return;
         const arrayBuffer = await blob.arrayBuffer();
+        if (!isCurrentMenuRomRequest(requestId)) return;
         menuRomData.value = arrayBuffer;
         menuRomFileName.value = defaultMenuRom;
         showToast(t('messages.gbaMultiMenu.menuRomLoaded', { name: defaultMenuRom }), 'success');
       } else {
+        if (!isCurrentMenuRomRequest(requestId)) return;
         showToast(t('messages.gbaMultiMenu.menuRomLoadFailed', { name: defaultMenuRom, status: response.status }), 'error');
       }
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') return;
+      if (!isCurrentMenuRomRequest(requestId) || (error instanceof Error && error.name === 'AbortError')) return;
       showToast(t('messages.gbaMultiMenu.menuRomLoadFailed', { name: defaultMenuRom, status: (error as Error).message }), 'error');
     }
   }
 
-  function processMenuRomFile(file: File) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const data = reader.result as ArrayBuffer;
+  async function processMenuRomFile(file: File) {
+    const requestId = ++menuRomRequestId;
+    try {
+      const data = await readFileAsArrayBuffer(file, fileReadAbortController.signal);
+      if (!isCurrentMenuRomRequest(requestId)) return;
       menuRomData.value = data;
       menuRomFileName.value = file.name;
       showToast(t('messages.gbaMultiMenu.menuRomLoaded', { name: file.name }), 'success');
-    };
-    reader.readAsArrayBuffer(file);
+    } catch (error) {
+      if (!isCurrentMenuRomRequest(requestId)) return;
+      showToast(t('messages.gbaMultiMenu.menuRomLoadFailed', { name: file.name, status: (error as Error).message }), 'error');
+    }
   }
 
-  function processGameRomFile(file: File) {
+  async function processGameRomFile(file: File) {
     const existingIndex = gameRomItems.value.findIndex(item => item.fileName === file.name);
-    if (existingIndex !== -1) return;
+    if (existingIndex !== -1 || pendingGameRomFileNames.has(file.name)) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const data = reader.result as ArrayBuffer;
+    pendingGameRomFileNames.add(file.name);
+    try {
+      const data = await readFileAsArrayBuffer(file, fileReadAbortController.signal);
+      if (disposed) return;
 
       const config: GameConfig = {
         file: file.name,
@@ -193,47 +223,62 @@ export function useMultiMenuState() {
 
       gameRomItems.value.push(newItem);
       showToast(t('messages.gbaMultiMenu.gameRomLoaded', { name: file.name }), 'success');
-    };
-    reader.readAsArrayBuffer(file);
+    } catch (error) {
+      if (disposed) return;
+      showToast(t('messages.gbaMultiMenu.gameRomLoadFailed', { name: file.name, error: (error as Error).message }), 'error');
+    } finally {
+      pendingGameRomFileNames.delete(file.name);
+    }
   }
 
-  function processBgImageFile(file: File) {
+  async function processBgImageFile(file: File) {
+    const requestId = ++bgImageRequestId;
     cleanupBgImagePreview();
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const data = reader.result as ArrayBuffer;
+    try {
+      const data = await readFileAsArrayBuffer(file, fileReadAbortController.signal);
+      if (!isCurrentBgImageRequest(requestId)) return;
       bgImageData.value = data;
       bgImageFileName.value = file.name;
 
       try {
         const { Jimp } = await import('jimp');
+        if (!isCurrentBgImageRequest(requestId)) return;
         const img = await Jimp.fromBuffer(data) as InstanceType<typeof Jimp>;
+        if (!isCurrentBgImageRequest(requestId)) return;
 
         bgImageDimensions.value = { width: img.width, height: img.height };
 
         const { generateIndexedPreviewImage } = await import('@/services/lk/imageUtils');
+        if (!isCurrentBgImageRequest(requestId)) return;
         const processedPreviewUrl = await generateIndexedPreviewImage(img);
+        if (!isCurrentBgImageRequest(requestId)) return;
         processedBgImagePreviewUrl.value = processedPreviewUrl;
       } catch (error) {
+        if (!isCurrentBgImageRequest(requestId)) return;
         console.error('Failed to generate processed preview:', error);
         processedBgImagePreviewUrl.value = null;
         bgImageDimensions.value = null;
       }
 
+      if (!isCurrentBgImageRequest(requestId)) return;
       showToast(t('messages.gbaMultiMenu.bgImageLoaded', { name: file.name }), 'success');
-    };
-    reader.readAsArrayBuffer(file);
+    } catch (error) {
+      if (!isCurrentBgImageRequest(requestId)) return;
+      showToast(t('messages.gbaMultiMenu.bgImageLoadFailed', { name: file.name, status: (error as Error).message }), 'error');
+    }
   }
 
-  function processSaveFile(file: File) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const data = reader.result as ArrayBuffer;
+  async function processSaveFile(file: File) {
+    try {
+      const data = await readFileAsArrayBuffer(file, fileReadAbortController.signal);
+      if (disposed) return;
       saveFiles.value.set(file.name, data);
       showToast(t('messages.gbaMultiMenu.saveFileLoaded', { name: file.name }), 'success');
-    };
-    reader.readAsArrayBuffer(file);
+    } catch (error) {
+      if (disposed) return;
+      showToast(t('messages.gbaMultiMenu.saveFileLoadFailed', { name: file.name, error: (error as Error).message }), 'error');
+    }
   }
 
   function removeGameRom(fileName: string) {
@@ -354,15 +399,13 @@ export function useMultiMenuState() {
   function downloadRom() {
     if (!buildResult.value) return;
 
-    const blob = new Blob([buildResult.value.rom], { type: 'application/octet-stream' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = outputName.value.replace('<CODE>', buildResult.value.code);
-    a.click();
-    URL.revokeObjectURL(url);
-
-    showToast(t('messages.gbaMultiMenu.romDownloaded'), 'success');
+    try {
+      const blob = new Blob([buildResult.value.rom], { type: 'application/octet-stream' });
+      downloadBlob(blob, outputName.value.replace('<CODE>', buildResult.value.code));
+      showToast(t('messages.gbaMultiMenu.romDownloaded'), 'success');
+    } catch (error) {
+      showToast(t('messages.gbaMultiMenu.romDownloadFailed', { error: (error as Error).message }), 'error');
+    }
   }
 
   function applyRom() {
@@ -409,8 +452,12 @@ export function useMultiMenuState() {
 
   // --- Cleanup ---
   onUnmounted(() => {
+    disposed = true;
+    menuRomRequestId++;
+    bgImageRequestId++;
     cleanupBgImagePreview();
     initAbortController.abort();
+    fileReadAbortController.abort();
   });
 
   return {

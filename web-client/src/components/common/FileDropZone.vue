@@ -85,8 +85,11 @@
 import { IonIcon } from '@ionic/vue';
 import { closeOutline, downloadOutline } from 'ionicons/icons';
 import { ref, toRefs, useTemplateRef } from 'vue';
+import { useI18n } from 'vue-i18n';
 
+import { useToast } from '@/composables/useToast';
 import { FileInfo } from '@/types/file-info';
+import { downloadBlob, readFileAsArrayBuffer } from '@/utils/file-io';
 import { formatBytes } from '@/utils/formatter-utils';
 
 const props = withDefaults(defineProps<{
@@ -106,10 +109,13 @@ const props = withDefaults(defineProps<{
 });
 // 解构 props 为 ref，方便在函数中使用
 const { fileData, fileName, disabled, multiple } = toRefs(props);
+const { t } = useI18n();
+const { showToast } = useToast();
 
 const emit = defineEmits<{
   'file-selected': [file: FileInfo | FileInfo[]];
   'file-cleared': [];
+  'file-error': [error: { fileName: string; error: unknown }];
 }>();
 
 const dragOver = ref(false);
@@ -123,47 +129,55 @@ function onFileChange(e: Event) {
     }
 
     if (multiple.value) {
-      processFiles(Array.from(files));
+      void processFiles(Array.from(files));
     } else {
-      processFile(files[0]);
+      void processFile(files[0]);
     }
   }
 }
 
-function processFiles(files: File[]) {
-  const fileInfos: FileInfo[] = [];
-  let processedCount = 0;
+function toFileInfo(file: File, data: ArrayBuffer): FileInfo {
+  const bytes = new Uint8Array(data);
+  return {
+    name: file.name,
+    data: bytes,
+    size: bytes.length,
+  };
+}
 
-  for (const file of files) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const data = new Uint8Array(reader.result as ArrayBuffer);
-      fileInfos.push({
-        name: file.name,
-        data: data,
-        size: data.length,
-      });
+async function processFiles(files: File[]) {
+  const results = await Promise.allSettled(
+    files.map(async file => toFileInfo(file, await readFileAsArrayBuffer(file))),
+  );
+  const fileInfos = results
+    .filter((result): result is PromiseFulfilledResult<FileInfo> => result.status === 'fulfilled')
+    .map(result => result.value);
 
-      processedCount++;
-      if (processedCount === files.length) {
-        emit('file-selected', fileInfos);
-      }
-    };
-    reader.readAsArrayBuffer(file);
+  const failures = results.flatMap((result, index) => {
+    if (result.status === 'fulfilled') return [];
+    console.warn('[FileDropZone] Failed to read file', result.reason);
+    const failedFileName = files[index].name;
+    emit('file-error', { fileName: failedFileName, error: result.reason });
+    return [failedFileName];
+  });
+
+  if (failures.length > 0) {
+    showToast(t('ui.file.readFailedCount', { count: failures.length }), 'error');
+  }
+
+  if (fileInfos.length > 0) {
+    emit('file-selected', fileInfos);
   }
 }
 
-function processFile(file: File) {
-  const reader = new FileReader();
-  reader.onload = () => {
-    const data = new Uint8Array(reader.result as ArrayBuffer);
-    emit('file-selected', {
-      name: file.name,
-      data: data,
-      size: data.length,
-    } as FileInfo);
-  };
-  reader.readAsArrayBuffer(file);
+async function processFile(file: File) {
+  try {
+    emit('file-selected', toFileInfo(file, await readFileAsArrayBuffer(file)));
+  } catch (error) {
+    console.warn('[FileDropZone] Failed to read file', error);
+    emit('file-error', { fileName: file.name, error });
+    showToast(t('ui.file.readFailed', { name: file.name }), 'error');
+  }
 }
 
 function onZoneClick(e: Event) {
@@ -183,14 +197,7 @@ function clearFile() {
 function downloadFile() {
   if (!fileData.value || !fileName.value) return;
   const blob = new Blob([fileData.value as BlobPart], { type: 'application/octet-stream' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName.value;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, fileName.value);
 }
 
 function handleDragOver(e: Event) {
@@ -209,9 +216,9 @@ function handleDrop(e: DragEvent) {
   const files = e.dataTransfer?.files;
   if (files && files.length > 0) {
     if (multiple.value) {
-      processFiles(Array.from(files));
+      void processFiles(Array.from(files));
     } else {
-      processFile(files[0]);
+      void processFile(files[0]);
     }
   }
 }

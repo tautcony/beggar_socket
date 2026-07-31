@@ -462,7 +462,9 @@
       "dragOver": "释放文件",
       "browse": "浏览...",
       "selected": "已选择文件: {name}",
-      "cleared": "已清除文件选择"
+      "cleared": "已清除文件选择",
+      "readFailed": "文件读取失败: {name}",
+      "readFailedCount": "有 {count} 个文件读取失败"
     },
     "log": {
       "title": "日志",
@@ -678,6 +680,7 @@
       "verifySuccess": "校验成功",
       "verifyFailed": "校验失败",
       "cancelled": "操作已取消",
+      "resetCommandBufferFailed": "重置命令缓冲区失败",
       "readCartInfoFirst": "请先读取卡带信息",
       "unsupportedMode": "未支持的模式或适配器未初始化",
       "noRomFile": "请先选择ROM文件",
@@ -751,7 +754,8 @@
       "downloaded": "ROM下载完成，文件名: {fileName}，大小: {size}",
       "assembledForMainInterface": "已组装{romType} ROM，大小: {size}，可在ROM操作界面使用",
       "applied": "ROM组装已应用到主界面",
-      "returnedFromAssembly": "ROM组装完成！{romType} ROM 大小: {size}MB，已返回主页"
+      "returnedFromAssembly": "ROM组装完成！{romType} ROM 大小: {size}MB，已返回主页",
+      "downloadFailed": "ROM下载失败: {error}"
     },
     "ram": {
       "writing": "正在写入RAM，大小 {size} 字节",
@@ -907,7 +911,8 @@
       "buildCompleted": "构建完成！",
       "buildFailed": "构建失败: {error}",
       "romDownloaded": "ROM已下载",
-      "romApplied": "ROM已应用到主页面"
+      "romApplied": "ROM已应用到主页面",
+      "romDownloadFailed": "ROM下载失败: {error}"
     }
   }
 }

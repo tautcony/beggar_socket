@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { ref } from 'vue';
 
 import type { FileInfo } from '@/types/file-info';
+import { downloadBlob } from '@/utils/file-io';
 import { formatBytes } from '@/utils/formatter-utils';
 import { isTauri } from '@/utils/tauri';
 
@@ -99,25 +100,8 @@ export function useCartBurnerFileState(log: (message: string) => void, translate
       };
     }
 
-    let url: string | null = null;
-    let anchor: HTMLAnchorElement | null = null;
-
-    try {
-      const blob = new Blob([data as BlobPart], { type: 'application/octet-stream' });
-      url = URL.createObjectURL(blob);
-      anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = filename;
-      document.body.appendChild(anchor);
-      anchor.click();
-    } finally {
-      if (anchor?.parentNode) {
-        anchor.parentNode.removeChild(anchor);
-      }
-      if (url) {
-        URL.revokeObjectURL(url);
-      }
-    }
+    const blob = new Blob([data as BlobPart], { type: 'application/octet-stream' });
+    downloadBlob(blob, filename);
 
     return { saved: true };
   }

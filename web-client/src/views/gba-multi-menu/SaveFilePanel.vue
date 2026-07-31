@@ -77,7 +77,7 @@ function handleSaveFileChange(e: Event) {
   if (files && files.length > 0) {
     Array.from(files).forEach(file => {
       if (file.name.toLowerCase().endsWith('.sav')) {
-        processSaveFile(file);
+        void processSaveFile(file);
       }
     });
   }
@@ -88,7 +88,7 @@ function handleSaveFileDrop(e: DragEvent) {
   if (files && files.length > 0) {
     Array.from(files).forEach(file => {
       if (file.name.toLowerCase().endsWith('.sav')) {
-        processSaveFile(file);
+        void processSaveFile(file);
       }
     });
   }

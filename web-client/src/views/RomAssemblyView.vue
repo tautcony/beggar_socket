@@ -224,6 +224,7 @@ import { useToast } from '@/composables/useToast';
 import { useRomAssemblyResultStore } from '@/stores/rom-assembly-store';
 import type { FileInfo } from '@/types/file-info';
 import type { RomSlot } from '@/types/rom-assembly';
+import { downloadBlob } from '@/utils/file-io';
 import { formatBytes, formatHex } from '@/utils/formatter-utils';
 import {
   assembleRom,
@@ -455,19 +456,16 @@ function assembleAndDownload() {
   const timestamp = DateTime.now().toFormat('yyyyMMdd_HHmmss');
   const fileName = `assembled_${selectedRomType.value.toLowerCase()}_${timestamp}.rom`;
 
-  // 下载文件
-  const blob = new Blob([assembled.data as BlobPart], { type: 'application/octet-stream' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  a.click();
-  URL.revokeObjectURL(url);
-
-  showToast(t('messages.romAssembly.downloaded', {
-    size: formatBytes(assembled.totalSize),
-    fileName,
-  }), 'success');
+  try {
+    const blob = new Blob([assembled.data as BlobPart], { type: 'application/octet-stream' });
+    downloadBlob(blob, fileName);
+    showToast(t('messages.romAssembly.downloaded', {
+      size: formatBytes(assembled.totalSize),
+      fileName,
+    }), 'success');
+  } catch (error) {
+    showToast(t('messages.romAssembly.downloadFailed', { error: (error as Error).message }), 'error');
+  }
 }
 
 // 工具函数

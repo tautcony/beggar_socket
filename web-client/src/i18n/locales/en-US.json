@@ -462,7 +462,9 @@
       "dragOver": "Release files",
       "browse": "Browse...",
       "selected": "Selected file: {name}",
-      "cleared": "Cleared file selection"
+      "cleared": "Cleared file selection",
+      "readFailed": "Failed to read file: {name}",
+      "readFailedCount": "Failed to read {count} file(s)"
     },
     "log": {
       "title": "Log",
@@ -678,6 +680,7 @@
       "verifySuccess": "Verify successful",
       "verifyFailed": "Verify failed",
       "cancelled": "Operation cancelled",
+      "resetCommandBufferFailed": "Failed to reset command buffer",
       "readCartInfoFirst": "Please read cartridge information first",
       "unsupportedMode": "Mode not supported or adapter uninitialized",
       "noRomFile": "Please select a ROM file first",
@@ -751,7 +754,8 @@
       "downloaded": "ROM download completed, file: {fileName}, size: {size}",
       "assembledForMainInterface": "Assembled {romType} ROM, size: {size}, available in ROM operations interface",
       "applied": "ROM assembly has been applied to main interface",
-      "returnedFromAssembly": "ROM assembly completed! {romType} ROM size: {size}MB, returned to home"
+      "returnedFromAssembly": "ROM assembly completed! {romType} ROM size: {size}MB, returned to home",
+      "downloadFailed": "ROM download failed: {error}"
     },
     "ram": {
       "writing": "Writing RAM, size {size} bytes",
@@ -907,7 +911,8 @@
       "buildCompleted": "Build completed!",
       "buildFailed": "Build failed: {error}",
       "romDownloaded": "ROM downloaded",
-      "romApplied": "ROM applied to main page"
+      "romApplied": "ROM applied to main page",
+      "romDownloadFailed": "ROM download failed: {error}"
     }
   }
 }

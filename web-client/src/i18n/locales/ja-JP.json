@@ -460,7 +460,9 @@
       "dragOver": "ファイルをリリース",
       "browse": "参照...",
       "selected": "選択されたファイル: {name}",
-      "cleared": "ファイル選択をクリア"
+      "cleared": "ファイル選択をクリア",
+      "readFailed": "ファイルの読み込みに失敗しました: {name}",
+      "readFailedCount": "{count} 個のファイルの読み込みに失敗しました"
     },
     "log": {
       "title": "ログ",
@@ -667,6 +669,7 @@
       "verifySuccess": "検証成功",
       "verifyFailed": "検証失敗",
       "cancelled": "操作がキャンセルされました",
+      "resetCommandBufferFailed": "コマンドバッファのリセットに失敗しました",
       "readCartInfoFirst": "まずカートリッジ情報を読み取ってください",
       "unsupportedMode": "未サポートのモードまたはアダプターが初期化されていません",
       "noRomFile": "ROMファイルを選択してください",
@@ -740,7 +743,8 @@
       "downloaded": "ROMダウンロード完了、ファイル名: {fileName}、サイズ: {size}",
       "assembledForMainInterface": "{romType} ROMを組み立てました、サイズ: {size}、ROM操作画面で利用可能です",
       "applied": "ROM組み立てがメイン画面に適用されました",
-      "returnedFromAssembly": "ROM組み立て完了！{romType} ROMサイズ: {size}MB、ホームに戻りました"
+      "returnedFromAssembly": "ROM組み立て完了！{romType} ROMサイズ: {size}MB、ホームに戻りました",
+      "downloadFailed": "ROMダウンロード失敗: {error}"
     },
     "ram": {
       "writing": "RAMを書き込み中、サイズ {size} バイト",
@@ -893,7 +897,8 @@
       "buildCompleted": "構築完了！",
       "buildFailed": "構築に失敗しました: {error}",
       "romDownloaded": "ROMがダウンロードされました",
-      "romApplied": "ROMをメインページに適用しました"
+      "romApplied": "ROMをメインページに適用しました",
+      "romDownloadFailed": "ROMダウンロード失敗: {error}"
     }
   }
 }

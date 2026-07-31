@@ -161,7 +161,7 @@ function onGameRomsSelected(e: Event) {
   if (files && files.length > 0) {
     Array.from(files).forEach(file => {
       if (file.name.toLowerCase().endsWith('.gba')) {
-        processGameRomFile(file);
+        void processGameRomFile(file);
       }
     });
   }
@@ -172,7 +172,7 @@ function handleGameRomDrop(e: DragEvent) {
   if (files && files.length > 0) {
     Array.from(files).forEach(file => {
       if (file.name.toLowerCase().endsWith('.gba')) {
-        processGameRomFile(file);
+        void processGameRomFile(file);
       }
     });
   }
