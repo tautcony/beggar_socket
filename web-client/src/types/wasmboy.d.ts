@@ -137,7 +137,10 @@ declare module 'wasmboy' {
     getBootROMs(): BootROM[];
 
     // ROM loading and control
-    loadROM(romArrayBuffer: ArrayBuffer, enableDebugger?: boolean): Promise<void>;
+    loadROM(rom: Uint8Array | File | string, fetchOptions?: {
+      headers?: HeadersInit;
+      fileName?: string;
+    }): Promise<void>;
     play(): Promise<void>;
     pause(): Promise<void>;
     reset(): Promise<void>;

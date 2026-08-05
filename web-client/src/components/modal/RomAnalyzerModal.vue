@@ -55,6 +55,7 @@
                 variant="error"
                 size="sm"
                 :icon="closeOutline"
+                icon-only
                 @click.stop="clearFile"
               />
             </div>

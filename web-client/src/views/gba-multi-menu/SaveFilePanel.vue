@@ -26,6 +26,7 @@
             variant="error"
             size="sm"
             :icon="closeCircleOutline"
+            icon-only
             @click="removeSaveFile(fileName)"
           />
         </div>

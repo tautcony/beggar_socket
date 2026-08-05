@@ -18,6 +18,7 @@
             variant="secondary"
             size="sm"
             :icon="isPaused ? play : pause"
+            icon-only
             :title="$t('ui.emulator.pause')"
             @click="togglePause"
           />
@@ -25,6 +26,7 @@
             variant="warning"
             size="sm"
             :icon="refresh"
+            icon-only
             :title="$t('ui.emulator.reset')"
             @click="resetGame"
           />
@@ -32,6 +34,7 @@
             variant="error"
             size="sm"
             :icon="close"
+            icon-only
             :title="$t('ui.emulator.close')"
             @click="closeEmulator"
           />
@@ -51,11 +54,11 @@
         <div class="controls-help">
           <p>{{ $t('ui.emulator.controlsHelp') }}</p>
           <div class="key-mappings">
-            <span class="key-mapping">{{ $t('ui.emulator.dpad') }}: Arrow Keys</span>
-            <span class="key-mapping">{{ $t('ui.emulator.aButton') }}: Z</span>
-            <span class="key-mapping">{{ $t('ui.emulator.bButton') }}: X</span>
-            <span class="key-mapping">{{ $t('ui.emulator.start') }}: Enter</span>
-            <span class="key-mapping">{{ $t('ui.emulator.select') }}: Shift</span>
+            <span class="key-mapping">{{ $t('ui.emulator.dpad') }}: WASD</span>
+            <span class="key-mapping">{{ $t('ui.emulator.aButton') }}: J</span>
+            <span class="key-mapping">{{ $t('ui.emulator.bButton') }}: K</span>
+            <span class="key-mapping">{{ $t('ui.emulator.start') }}: C</span>
+            <span class="key-mapping">{{ $t('ui.emulator.select') }}: V</span>
           </div>
         </div>
       </div>
@@ -89,6 +92,39 @@ const emit = defineEmits<{
 const gameCanvas = useTemplateRef<HTMLCanvasElement>('gameCanvas');
 const isPaused = ref(false);
 let wasmBoyInstance: WasmBoyStatic | null = null;
+
+const keyBindings: Record<string, keyof JoypadState> = {
+  'KeyW': 'up',
+  'KeyD': 'right',
+  'KeyS': 'down',
+  'KeyA': 'left',
+  'KeyJ': 'a',
+  'KeyK': 'b',
+  'KeyV': 'select',
+  'KeyC': 'start',
+};
+
+interface JoypadState {
+  up: boolean;
+  right: boolean;
+  down: boolean;
+  left: boolean;
+  a: boolean;
+  b: boolean;
+  select: boolean;
+  start: boolean;
+}
+
+const joypadState: JoypadState = {
+  up: false,
+  right: false,
+  down: false,
+  left: false,
+  a: false,
+  b: false,
+  select: false,
+  start: false,
+};
 
 onMounted(async () => {
   if (props.isVisible && props.romData) {
@@ -174,7 +210,10 @@ async function initEmulator() {
 
     // 加载 ROM
     try {
-      await WasmBoy.loadROM(props.romData.buffer as ArrayBuffer);
+      // WasmBoy 0.7.1 recognizes ROM bytes as Uint8Array. Passing the
+      // underlying ArrayBuffer makes it treat the buffer as a URL and call
+      // toLowerCase() on it.
+      await WasmBoy.loadROM(props.romData);
     } catch (romError: unknown) {
       console.error('ROM loading failed:', romError);
       // 尝试清理 WasmBoy 状态
@@ -227,18 +266,42 @@ async function initEmulator() {
 }
 
 function setupKeyboardControls() {
-  // WasmBoy 通常会自动处理键盘输入
-  // 默认键盘映射：
-  // Arrow Keys = D-Pad
-  // Z = A Button
-  // X = B Button
-  // Enter = Start
-  // Shift = Select
+  wasmBoyInstance?.disableDefaultJoypad();
+  document.addEventListener('keydown', handleKeyDown);
+  document.addEventListener('keyup', handleKeyUp);
+}
 
-  // 启用默认的手柄控制
-  if (wasmBoyInstance) {
-    wasmBoyInstance.enableDefaultJoypad();
-  }
+function updateJoypadState() {
+  if (!wasmBoyInstance) return;
+
+  wasmBoyInstance.setJoypadState(
+    joypadState.up ? 1 : 0,
+    joypadState.right ? 1 : 0,
+    joypadState.down ? 1 : 0,
+    joypadState.left ? 1 : 0,
+    joypadState.a ? 1 : 0,
+    joypadState.b ? 1 : 0,
+    joypadState.select ? 1 : 0,
+    joypadState.start ? 1 : 0,
+  );
+}
+
+function handleKeyDown(event: KeyboardEvent) {
+  const key = keyBindings[event.code];
+  if (!key) return;
+
+  event.preventDefault();
+  joypadState[key] = true;
+  updateJoypadState();
+}
+
+function handleKeyUp(event: KeyboardEvent) {
+  const key = keyBindings[event.code];
+  if (!key) return;
+
+  event.preventDefault();
+  joypadState[key] = false;
+  updateJoypadState();
 }
 
 async function togglePause() {
@@ -280,6 +343,12 @@ async function closeEmulator() {
 }
 
 async function cleanup() {
+  document.removeEventListener('keydown', handleKeyDown);
+  document.removeEventListener('keyup', handleKeyUp);
+  Object.keys(joypadState).forEach((key) => {
+    joypadState[key as keyof JoypadState] = false;
+  });
+
   if (wasmBoyInstance) {
     try {
       await wasmBoyInstance.pause();
@@ -325,8 +394,9 @@ async function handleOverlayClick(event: MouseEvent) {
   background: color-vars.$color-bg;
   border-radius: radius-vars.$radius-xl;
   box-shadow: color-vars.$shadow-lg;
+  width: min(540px, calc(100vw - 2rem));
   max-width: 90vw;
-  max-height: 90vh;
+  max-height: calc(100vh - 2rem);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -342,6 +412,10 @@ async function handleOverlayClick(event: MouseEvent) {
 }
 
 .emulator-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   display: flex;
   align-items: center;
   gap: spacing-vars.$space-2;
@@ -357,9 +431,12 @@ async function handleOverlayClick(event: MouseEvent) {
 .emulator-controls {
   display: flex;
   gap: spacing-vars.$space-2;
+  flex-shrink: 0;
 }
 
 .emulator-content {
+  min-width: 0;
+  overflow: auto;
   display: flex;
   justify-content: center;
   padding: spacing-vars.$space-5;
@@ -374,8 +451,9 @@ async function handleOverlayClick(event: MouseEvent) {
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
   /* 放大显示，保持像素完美 */
-  width: 480px;
-  height: 432px;
+  width: min(480px, 100%);
+  height: auto;
+  aspect-ratio: 160 / 144;
 }
 
 .emulator-footer {

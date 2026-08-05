@@ -8,6 +8,7 @@
           :variant="autoScrollEnabled ? 'success' : 'primary'"
           size="sm"
           :icon="chevronDownOutline"
+          icon-only
           :title="autoScrollEnabled ? $t('ui.log.autoScrollEnabled') : $t('ui.log.autoScrollDisabled')"
           @click="handleButtonClick"
           @dblclick="handleButtonDoubleClick"
@@ -97,7 +98,7 @@ const emit = defineEmits<{
 const logBox = useTemplateRef<HTMLDivElement>('logBox');
 const scrollTimeout = ref<ReturnType<typeof setTimeout>>();
 const isUserScrolling = ref(false);
-const autoScrollEnabled = ref(false); // 将由detectAutoScrollState()决定初始状态
+const autoScrollEnabled = ref(props.autoScroll);
 const hasUserAutoScrollOverride = ref(false);
 
 function clearLog() {
@@ -152,6 +153,7 @@ function scrollToBottom() {
 // 处理按钮点击事件
 function handleButtonClick() {
   // 单机：滚动到底部
+  isUserScrolling.value = false;
   scrollToBottom();
 }
 
@@ -173,8 +175,15 @@ function detectAutoScrollState() {
     autoScrollEnabled.value,
     props.logs.length,
     hasUserAutoScrollOverride.value,
+    props.autoScroll,
   );
 }
+
+watch(() => props.autoScroll, (enabled) => {
+  if (!hasUserAutoScrollOverride.value) {
+    autoScrollEnabled.value = enabled;
+  }
+});
 
 // 自动滚动到底部
 watch(() => props.logs.length, async () => {

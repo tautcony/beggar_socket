@@ -14,6 +14,7 @@
             variant="secondary"
             size="sm"
             :icon="isPaused ? play : pause"
+            icon-only
             :title="$t('ui.emulator.pause')"
             @click="togglePause"
           />
@@ -21,6 +22,7 @@
             variant="warning"
             size="sm"
             :icon="refresh"
+            icon-only
             :title="$t('ui.emulator.reset')"
             @click="resetGame"
           />
@@ -28,6 +30,7 @@
             variant="error"
             size="sm"
             :icon="close"
+            icon-only
             :title="$t('ui.emulator.close')"
             @click="closeEmulator"
           />
@@ -110,6 +113,78 @@ const hasError = ref(false);
 const errorMessage = ref('');
 const crashCount = ref(0);
 const isInitializing = ref(false);
+
+interface GbaAudio {
+  context: AudioContext | null;
+  jsAudio?: GbaAudioProcessor;
+  buffers?: [Float32Array, Float32Array];
+  sampleRate: number;
+  resampleRatio: number;
+  bufferSize: number;
+  maxSamples: number;
+  sampleMask: number;
+  enabled?: boolean;
+  pause: (paused: boolean) => void;
+  audioProcess: (event: GbaAudioEvent) => void;
+}
+
+interface GbaAudioEvent {
+  outputBuffer: {
+    getChannelData: (channel: number) => Float32Array;
+  };
+}
+
+interface GbaAudioProcessor {
+  connect: (destination: AudioNode) => void;
+  disconnect: () => void;
+  port?: MessagePort;
+}
+
+const GBA_AUDIO_WORKLET = `
+class GbaAudioProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.queue = [];
+    this.offset = 0;
+    this.port.onmessage = ({ data }) => {
+      if (data?.left && data?.right) {
+        this.queue.push(data);
+      }
+    };
+  }
+
+  process(_inputs, outputs) {
+    const output = outputs[0];
+    const left = output[0];
+    const right = output[1] || left;
+
+    for (let index = 0; index < left.length; index += 1) {
+      const packet = this.queue[0];
+      if (!packet || this.offset >= packet.left.length) {
+        left[index] = 0;
+        right[index] = 0;
+        continue;
+      }
+
+      left[index] = packet.left[this.offset];
+      right[index] = packet.right[this.offset];
+      this.offset += 1;
+
+      if (this.offset >= packet.left.length) {
+        this.queue.shift();
+        this.offset = 0;
+      }
+    }
+
+    return true;
+  }
+}
+
+registerProcessor('gba-audio-processor', GbaAudioProcessor);
+`;
+
+let audioPumpTimer: ReturnType<typeof setInterval> | null = null;
+let audioSetupToken = 0;
 
 const keyBindings: Record<string, number> = {
   'KeyW': 6, // UP
@@ -194,6 +269,10 @@ function initializeEmulator() {
     // 设置错误处理器
     setupErrorHandling();
 
+    // gbats 1.0.9 leaves its browser audio initialization disabled. Create
+    // an AudioWorklet output so generated samples reach speakers.
+    void setupAudio();
+
     // 设置图片格式
     gba.value.screenImageFormat = 'webp';
 
@@ -240,6 +319,136 @@ function setupErrorHandling() {
   }
 }
 
+async function setupAudio() {
+  if (!gba.value) return;
+
+  const emulator = gba.value;
+  const audio = emulator.emulator.audio as unknown as GbaAudio;
+  const setupToken = ++audioSetupToken;
+  const audioWindow = window as Window & {
+    webkitAudioContext?: new () => unknown;
+  };
+  const AudioContextConstructor = globalThis.AudioContext ?? audioWindow.webkitAudioContext;
+
+  if (!AudioContextConstructor) {
+    console.warn('Web Audio API is not available; GBA audio is disabled');
+    return;
+  }
+
+  let context: AudioContext | null = null;
+
+  try {
+    stopAudioPump();
+    context = new AudioContextConstructor();
+    if (!context.audioWorklet) {
+      console.warn('AudioWorklet is not available; GBA audio is disabled');
+      await context.close();
+      return;
+    }
+
+    const moduleUrl = URL.createObjectURL(new Blob([GBA_AUDIO_WORKLET], {
+      type: 'application/javascript',
+    }));
+    try {
+      await context.audioWorklet.addModule(moduleUrl);
+    } finally {
+      URL.revokeObjectURL(moduleUrl);
+    }
+
+    if (setupToken !== audioSetupToken || gba.value !== emulator) {
+      await context.close();
+      return;
+    }
+
+    const bufferSize = 4096;
+    const maxSamples = bufferSize << 2;
+    const processor = new AudioWorkletNode(context, 'gba-audio-processor', {
+      numberOfInputs: 0,
+      numberOfOutputs: 1,
+      outputChannelCount: [2],
+    });
+
+    audio.context = context;
+    audio.bufferSize = bufferSize;
+    audio.maxSamples = maxSamples;
+    audio.sampleMask = maxSamples - 1;
+    audio.buffers = [
+      new Float32Array(maxSamples),
+      new Float32Array(maxSamples),
+    ];
+    audio.resampleRatio = audio.sampleRate / context.sampleRate;
+    audio.jsAudio = processor;
+
+    // The emulator may already have enabled sound before the audio node was
+    // installed. Reconnect it without changing the emulated state.
+    audio.pause(false);
+    startAudioPump(audio, processor, bufferSize, context.sampleRate);
+    void context.resume().catch((error: unknown) => {
+      console.warn('Could not resume GBA audio context:', error);
+    });
+  } catch (error: unknown) {
+    console.warn('Could not initialize GBA audio:', error);
+    if (context) {
+      void context.close().catch(() => { /* ignore close errors */ });
+    }
+  }
+}
+
+function startAudioPump(
+  audio: GbaAudio,
+  processor: GbaAudioProcessor,
+  bufferSize: number,
+  sampleRate: number,
+) {
+  if (!processor.port) return;
+
+  const pump = () => {
+    if (!processor.port || !audio.buffers) return;
+
+    const left = new Float32Array(bufferSize);
+    const right = new Float32Array(bufferSize);
+    audio.audioProcess({
+      outputBuffer: {
+        getChannelData: (channel: number) => channel === 0 ? left : right,
+      },
+    });
+    processor.port.postMessage({ left, right }, [left.buffer, right.buffer]);
+  };
+
+  pump();
+  audioPumpTimer = setInterval(pump, (bufferSize / sampleRate) * 1000);
+}
+
+function stopAudioPump() {
+  if (audioPumpTimer) {
+    clearInterval(audioPumpTimer);
+    audioPumpTimer = null;
+  }
+}
+
+function teardownAudio() {
+  audioSetupToken += 1;
+  stopAudioPump();
+
+  const audio = gba.value?.emulator.audio as unknown as GbaAudio | undefined;
+  const audioContext = audio?.context;
+  audio?.jsAudio?.disconnect();
+  if (audio) {
+    audio.context = null;
+    audio.jsAudio = undefined;
+  }
+  void audioContext?.close().catch(() => { /* ignore close errors */ });
+}
+
+function resumeAudio() {
+  const audio = gba.value?.emulator.audio as unknown as GbaAudio | undefined;
+  if (audio?.context?.state === 'suspended') {
+    void audio.context.resume().catch((error: unknown) => {
+      console.warn('Could not resume GBA audio context:', error);
+    });
+  }
+}
+
 function handleEmulatorError(level: number, error: string) {
   console.error('Emulator error:', error);
 
@@ -270,6 +479,8 @@ function retryInitialization() {
 
 function handleKeyDown(event: KeyboardEvent) {
   if (!gba.value || hasError.value) return;
+
+  resumeAudio();
 
   const gamepadKey = keyBindings[event.code];
   if (gamepadKey !== undefined) {
@@ -304,6 +515,7 @@ function togglePause() {
   try {
     if (isPaused.value) {
       // 恢复运行
+      resumeAudio();
       gba.value.emulator.runStable();
       isPaused.value = false;
       showToast(t('ui.emulator.resumed'), 'success');
@@ -324,10 +536,13 @@ function resetGame() {
 
   try {
     // 使用 Wrapper 的 resetEmulator 方法
+    gba.value.pause();
+    teardownAudio();
     gba.value.resetEmulator();
 
     // 重置后重新设置错误处理器，因为resetEmulator可能会清除logger
     setupErrorHandling();
+    void setupAudio();
 
     isPaused.value = false;
     hasError.value = false;
@@ -357,6 +572,9 @@ function cleanup() {
       if (!isPaused.value) {
         gba.value.pause();
       }
+
+      teardownAudio();
+
       // gbats Wrapper 会自动清理资源
       gba.value = null;
     } catch (error) {
@@ -398,8 +616,9 @@ function cleanup() {
   border-radius: radius-vars.$radius-xl;
   box-shadow: color-vars.$shadow-lg;
   overflow: hidden;
+  width: min(540px, calc(100vw - 2rem));
   max-width: 90vw;
-  max-height: 90vh;
+  max-height: calc(100vh - 2rem);
   display: flex;
   flex-direction: column;
 }
@@ -414,6 +633,10 @@ function cleanup() {
 }
 
 .emulator-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   margin: 0;
   font-size: typography-vars.$font-size-lg;
   font-weight: typography-vars.$font-weight-semibold;
@@ -425,6 +648,7 @@ function cleanup() {
 .emulator-controls {
   display: flex;
   gap: spacing-vars.$space-2;
+  flex-shrink: 0;
 }
 
 .emulator-content {
@@ -433,6 +657,8 @@ function cleanup() {
   align-items: center;
   justify-content: center;
   padding: spacing-vars.$space-5;
+  min-width: 0;
+  overflow: auto;
   min-height: 200px;
 }
 
@@ -469,11 +695,10 @@ function cleanup() {
   image-rendering: crisp-edges;
   max-width: 100%;
   max-height: 100%;
-  width: auto;
+  width: min(480px, 100%);
   height: auto;
+  aspect-ratio: 240 / 160;
   /* GBA屏幕比例 240x160，放大到合适尺寸 */
-  min-width: 480px;
-  min-height: 320px;
 }
 
 .emulator-footer {

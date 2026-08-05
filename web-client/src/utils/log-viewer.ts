@@ -1,12 +1,12 @@
 export function resolveAutoScrollEnabled(
   currentEnabled: boolean,
-  logCount: number,
+  _logCount: number,
   hasUserOverride: boolean,
-  threshold = 50,
+  defaultEnabled = true,
 ): boolean {
   if (hasUserOverride) {
     return currentEnabled;
   }
 
-  return logCount <= threshold;
+  return defaultEnabled;
 }

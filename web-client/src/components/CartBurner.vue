@@ -1016,14 +1016,17 @@ defineExpose({
 
 /* 内容区域 */
 .content-area {
-  width: 100%;
+  width: 102%;
   min-width: 0;
   max-width: none;
   display: flex;
   flex-direction: column;
   overflow-y: visible;
   overflow-x: hidden;
-  padding-right: 0;
+  /* Keep scaled upload borders inside the scroll clip without shifting panel content. */
+  margin-inline: -1%;
+  padding-inline: 1%;
+  scrollbar-gutter: stable;
   box-sizing: border-box;
 }
 

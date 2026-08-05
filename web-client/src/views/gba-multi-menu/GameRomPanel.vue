@@ -47,6 +47,7 @@
                   variant="secondary"
                   size="sm"
                   :icon="buildOutline"
+                  icon-only
                   :title="$t('ui.gbaMultiMenu.configureGame')"
                   @click.stop="toggleGameConfig(item.fileName)"
                 />
@@ -54,6 +55,7 @@
                   variant="error"
                   size="sm"
                   :icon="closeCircleOutline"
+                  icon-only
                   @click.stop="removeGameRom(item.fileName)"
                 />
               </div>

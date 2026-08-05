@@ -555,25 +555,32 @@ const hasAssembledRom = computed(() => {
 }
 
 /* 当有播放按钮时的布局 */
+.file-upload-container.has-play-button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+}
+
 .file-upload-container.has-play-button > *:first-child {
-  flex: 0 0 80%;
-  width: 80%;
+  min-width: 0;
+  width: auto;
 }
 
 .file-upload-container.has-play-button .play-button {
   max-width: none;
-  margin-bottom: var(--space-3);
+  margin-bottom: 0;
 }
 
 .play-button {
   display: flex;
   align-items: center;
-  align-self: stretch;
-  height: auto;
+  align-self: start;
+  aspect-ratio: 1 / 1;
+  height: calc(100% - var(--space-3));
   justify-content: center;
   padding: var(--space-3);
   min-width: 48px;
-  width: 100%;
+  width: auto;
   background: linear-gradient(135deg, var(--color-success) 0%, #45a049 100%) !important;
   color: white !important;
   border: none !important;

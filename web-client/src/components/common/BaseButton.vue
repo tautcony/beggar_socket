@@ -25,6 +25,7 @@ export interface ButtonProps {
   disabled?: boolean;
   loading?: boolean;
   icon?: unknown;
+  iconOnly?: boolean;
   iconPosition?: 'left' | 'right';
   text?: string;
   title?: string;
@@ -36,6 +37,7 @@ const props = withDefaults(defineProps<ButtonProps>(), {
   disabled: false,
   loading: false,
   icon: undefined,
+  iconOnly: false,
   iconPosition: 'left',
   text: '',
   title: '',
@@ -59,6 +61,10 @@ const buttonClasses = computed(() => {
     classes.push('button-with-icon');
   } else {
     classes.push('button-without-icon');
+  }
+
+  if (props.iconOnly) {
+    classes.push('button-icon-only');
   }
 
   // 状态类
@@ -116,6 +122,7 @@ function handleClick(event: Event) {
   box-shadow: color-vars.$shadow-sm;
   position: relative;
   overflow: hidden;
+  box-sizing: border-box;
 
   // 防止文字换行
   white-space: nowrap;
@@ -309,5 +316,33 @@ function handleClick(event: Event) {
     padding: spacing-vars.$space-2 spacing-vars.$space-4;
     font-size: typography-vars.$font-size-base;
   }
+}
+
+// 纯图标按钮保持稳定的正方形点击区域。
+.button-icon-only {
+  gap: 0;
+  padding: 0;
+  aspect-ratio: 1 / 1;
+}
+
+.button-sm.button-icon-only {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+}
+
+.button-md.button-icon-only {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+}
+
+.button-lg.button-icon-only {
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  min-height: 48px;
 }
 </style>

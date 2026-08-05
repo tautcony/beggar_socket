@@ -18,6 +18,7 @@
             variant="secondary"
             size="sm"
             :icon="isPaused ? play : pause"
+            icon-only
             :title="$t('ui.emulator.pause')"
             @click="togglePause"
           />
@@ -25,6 +26,7 @@
             variant="warning"
             size="sm"
             :icon="refresh"
+            icon-only
             :title="$t('ui.emulator.reset')"
             @click="resetGame"
           />
@@ -32,6 +34,7 @@
             variant="error"
             size="sm"
             :icon="close"
+            icon-only
             :title="$t('ui.emulator.close')"
             @click="closeEmulator"
           />
@@ -51,11 +54,11 @@
         <div class="controls-help">
           <p>{{ $t('ui.emulator.controlsHelp') }}</p>
           <div class="key-mappings">
-            <span class="key-mapping">{{ $t('ui.emulator.dpad') }}: Arrow Keys</span>
-            <span class="key-mapping">{{ $t('ui.emulator.aButton') }}: Z</span>
-            <span class="key-mapping">{{ $t('ui.emulator.bButton') }}: X</span>
-            <span class="key-mapping">{{ $t('ui.emulator.start') }}: Enter</span>
-            <span class="key-mapping">{{ $t('ui.emulator.select') }}: Shift</span>
+            <span class="key-mapping">{{ $t('ui.emulator.dpad') }}: WASD</span>
+            <span class="key-mapping">{{ $t('ui.emulator.aButton') }}: J</span>
+            <span class="key-mapping">{{ $t('ui.emulator.bButton') }}: K</span>
+            <span class="key-mapping">{{ $t('ui.emulator.start') }}: C</span>
+            <span class="key-mapping">{{ $t('ui.emulator.select') }}: V</span>
           </div>
         </div>
       </div>
@@ -214,14 +217,14 @@ function setupKeyboardControls() {
   // 使用 keyboardManager 配置按键映射
   if (gameboyInstance?.keyboardManager) {
     // 设置自定义按键映射
-    gameboyInstance.keyboardManager.left = 'ArrowLeft';
-    gameboyInstance.keyboardManager.right = 'ArrowRight';
-    gameboyInstance.keyboardManager.up = 'ArrowUp';
-    gameboyInstance.keyboardManager.down = 'ArrowDown';
-    gameboyInstance.keyboardManager.a = 'KeyZ'; // A 按钮映射到 Z 键
-    gameboyInstance.keyboardManager.b = 'KeyX'; // B 按钮映射到 X 键
-    gameboyInstance.keyboardManager.start = 'Enter';
-    gameboyInstance.keyboardManager.select = 'ShiftLeft'; // SELECT 按钮映射到 Shift 键
+    gameboyInstance.keyboardManager.left = 'KeyA';
+    gameboyInstance.keyboardManager.right = 'KeyD';
+    gameboyInstance.keyboardManager.up = 'KeyW';
+    gameboyInstance.keyboardManager.down = 'KeyS';
+    gameboyInstance.keyboardManager.a = 'KeyJ';
+    gameboyInstance.keyboardManager.b = 'KeyK';
+    gameboyInstance.keyboardManager.start = 'KeyC';
+    gameboyInstance.keyboardManager.select = 'KeyV';
 
     console.log('Keyboard mappings configured:', {
       a: gameboyInstance.keyboardManager.a,
@@ -335,8 +338,9 @@ function handleOverlayClick(event: MouseEvent) {
   background: color-vars.$color-bg;
   border-radius: radius-vars.$radius-xl;
   box-shadow: color-vars.$shadow-lg;
+  width: min(540px, calc(100vw - 2rem));
   max-width: 90vw;
-  max-height: 90vh;
+  max-height: calc(100vh - 2rem);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -352,6 +356,10 @@ function handleOverlayClick(event: MouseEvent) {
 }
 
 .emulator-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   display: flex;
   align-items: center;
   gap: spacing-vars.$space-2;
@@ -367,9 +375,12 @@ function handleOverlayClick(event: MouseEvent) {
 .emulator-controls {
   display: flex;
   gap: spacing-vars.$space-2;
+  flex-shrink: 0;
 }
 
 .emulator-content {
+  min-width: 0;
+  overflow: auto;
   display: flex;
   justify-content: center;
   padding: spacing-vars.$space-5;
@@ -384,8 +395,9 @@ function handleOverlayClick(event: MouseEvent) {
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
   /* 放大显示，保持像素完美 */
-  width: 480px;
-  height: 432px;
+  width: min(480px, 100%);
+  height: auto;
+  aspect-ratio: 160 / 144;
 }
 
 .emulator-footer {
