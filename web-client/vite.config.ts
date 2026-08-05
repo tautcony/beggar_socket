@@ -64,7 +64,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src'),
+      '@': resolve(import.meta.dirname, 'src'),
       buffer: 'buffer',
     },
   },
@@ -95,6 +95,10 @@ export default defineConfig({
 
           if (id.includes('/node_modules/luxon/')) {
             return 'luxon';
+          }
+
+          if (id.includes('/node_modules/@ionic/') || id.includes('/node_modules/ionicons/')) {
+            return 'ionic';
           }
 
           if (id.includes('/node_modules/jimp/')) {
