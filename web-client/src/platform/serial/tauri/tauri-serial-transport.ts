@@ -141,6 +141,14 @@ export class TauriSerialTransport implements Transport {
     return flushNativeSerialInput(this.sessionId).catch(() => {});
   }
 
+  async drainInput(quietMs = 50, _maxWaitMs?: number): Promise<void> {
+    // 原生 flush 直接清驱动层缓冲；间隔一个静默期再清一次，
+    // 吸收仍在 USB 传输途中的迟到字节。
+    await this.flushInput();
+    await new Promise((resolve) => setTimeout(resolve, quietMs));
+    await this.flushInput();
+  }
+
   async close(): Promise<void> {
     if (this.closed) {
       return;

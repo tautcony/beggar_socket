@@ -257,7 +257,13 @@ export class CartridgeAdapter {
       await this.device.port?.setSignals({ dataTerminalReady: false, requestToSend: false });
     }
     await timeout(CartridgeAdapter.COMMAND_RESET_SETTLE_MS);
-    await transport?.flushInput?.();
+    // flushInput 只能清掉快照时刻已缓冲的数据；被超时抛弃的命令的迟到响应可能
+    // 仍在 OS/USB 栈途中，需要持续排空到线路静默，否则下一条命令的响应会错位。
+    if (transport?.drainInput) {
+      await transport.drainInput();
+    } else {
+      await transport?.flushInput?.();
+    }
   }
 
   protected async stabilizeCommandChannel(settleMs = 100): Promise<void> {

@@ -70,6 +70,10 @@ export class SimulatedTransport implements Transport {
     return Promise.resolve();
   }
 
+  drainInput(): Promise<void> {
+    return this.flushInput();
+  }
+
   close(): Promise<void> {
     this.pendingResponses.length = 0;
     closeSimulatedDeviceState(this.state);

@@ -64,6 +64,9 @@ export async function sendAndExpectAck(
   readTimeoutMs?: number,
 ): Promise<boolean> {
   const result = await sendAndReceivePackage(input, payload, 1, sendTimeoutMs, readTimeoutMs);
+  // 对齐 C# 客户端读取 ACK 后的 DiscardInBuffer：协议上 ACK 之后不应再有字节，
+  // 立即丢弃已到达的杂散数据，避免残留字节使后续命令的响应帧错位。
+  await input.flushInput?.();
   return result.data?.byteLength > 0 && result.data[0] === PROTOCOL_ACK;
 }
 

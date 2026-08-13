@@ -150,6 +150,30 @@ export class WebSerialTransport implements Transport {
     return Promise.resolve();
   }
 
+  async drainInput(quietMs = 50, maxWaitMs = 500): Promise<void> {
+    this.clearBuffer();
+    if (!this.port.readable) {
+      return;
+    }
+    this.ensurePumpStarted();
+
+    const deadline = Date.now() + maxWaitMs;
+    while (Date.now() < deadline) {
+      if (this.streamDone || this.streamError) {
+        this.clearBuffer();
+        return;
+      }
+      try {
+        await this.waitForData(Math.max(1, Math.min(quietMs, deadline - Date.now())));
+      } catch {
+        // 静默期内没有新数据到达，说明迟到字节已排空
+        return;
+      }
+      this.clearBuffer();
+    }
+    this.clearBuffer();
+  }
+
   async close(): Promise<void> {
     await this.waitForWriterRecovery();
     this.releaseWriter();

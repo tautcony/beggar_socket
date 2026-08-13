@@ -1,5 +1,6 @@
 ﻿import {
   cart_power,
+  FLASH_CMD_RESET,
   GBC_FLASH_CMD_SET,
   gbc_read,
   gbc_read_fram,
@@ -809,6 +810,13 @@ export class MBC5Adapter extends CartridgeAdapter {
               );
 
               await this.stabilizeCommandChannel(MBC5Adapter.ROM_WRITE_RETRY_RESET_MS);
+              // 上次失败的编程命令可能被中途打断，flash 芯片会停留在命令序列中间；
+              // 先发 reset(0xF0) 让其回到读取阵列状态，再执行擦除重写。
+              try {
+                await gbc_write(this.transport, new Uint8Array([FLASH_CMD_RESET]), 0x00);
+              } catch (resetError) {
+                this.log(errorToBurnerLog(`Flash reset before retry failed @ ${formatHex(sector.address, 4)}`, resetError), 'warn');
+              }
               if (AdvancedSettings.romWriteRetryDelayMs > 0) {
                 await timeout(AdvancedSettings.romWriteRetryDelayMs * nextRetry);
               }

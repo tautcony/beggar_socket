@@ -1,4 +1,5 @@
 ﻿import {
+  FLASH_CMD_RESET,
   GBA_ROM_FLASH_CMD_SET,
   getFlashName,
   ram_erase_flash,
@@ -537,6 +538,13 @@ export class GBAAdapter extends CartridgeAdapter {
             );
 
             await this.stabilizeCommandChannel(GBAAdapter.ROM_WRITE_RETRY_RESET_MS);
+            // 上次失败的编程命令可能被中途打断，flash 芯片会停留在命令序列中间；
+            // 先发 reset(0xF0) 让其回到读取阵列状态，再执行擦除重写。
+            try {
+              await rom_write(this.transport, toLittleEndian(FLASH_CMD_RESET, 2), 0x00);
+            } catch (resetError) {
+              this.log(errorToBurnerLog(`Flash reset before retry failed @ ${formatHex(sector.address, 4)}`, resetError), 'warn');
+            }
             if (AdvancedSettings.romWriteRetryDelayMs > 0) {
               await timeout(AdvancedSettings.romWriteRetryDelayMs * nextRetry);
             }

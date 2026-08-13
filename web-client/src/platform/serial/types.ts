@@ -11,6 +11,13 @@ export interface Transport {
   sendAndReceive: (payload: Uint8Array, readLength: number, sendTimeoutMs?: number, readTimeoutMs?: number) => Promise<{ data: Uint8Array }>;
   setSignals: (signals: SerialOutputSignals) => Promise<void>;
   flushInput?: () => Promise<void>;
+  /**
+   * Discard buffered input and keep discarding until the line stays quiet.
+   * Unlike flushInput (a point-in-time snapshot clear), this also absorbs bytes
+   * still in transit in the OS/USB stack — e.g. a late response from a command
+   * the host has already given up on.
+   */
+  drainInput?: (quietMs?: number, maxWaitMs?: number) => Promise<void>;
   close?: () => Promise<void>;
 }
 
