@@ -44,7 +44,9 @@
 | 超时契约与操作预算 | 排队 | 依赖生命周期，保留慢设备兼容默认行为 |
 | Native 会话锁与有界取消 | 完成 | 14 Rust tests、cargo check --locked、5 CI contracts；独立worker/真实close |
 | AST 依赖门禁 | 完成 | 40 focused tests；AST/Vue/resolution/type边/runtime循环；真实图无违规 |
-| CFI / LK 容量边界证据与修复 | 排队 | 先写 fixture 确认行为 |
+| CFI 几何边界证据与修复 | 完成 | 128 related tests；GL-T/AL032D/CoreCFI转录fixture，完整regions/128-byte特殊编码 |
+| LK 容量边界证据与修复 | 排队 | 独立fixture确认save/list/尾部布局 |
+| 异构sector区域与baseAddress | 排队 | CFI下游审查新增；先证明非零地址物理sector交集与writer行为 |
 | 文档与性能证据更新 | 排队 | 汇总最后代码与测量，未证实问题不盲改 |
 
 集成验证（上述进行中三项收尾）：59 文件 862 项测试全部通过，完整 ESLint、vue-tsc、check:deps、production build 通过。构建保留既有 Jimp/Ionic chunk、Jimp eval 和 gbats fs externalization 提示；性能任务仍待证据评估。
