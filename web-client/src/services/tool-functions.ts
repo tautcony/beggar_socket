@@ -8,6 +8,7 @@ import { DeviceInfo } from '@/types/device-info';
 import { ProgressInfo } from '@/types/progress-info';
 import { type BurnerLogInput, formatBurnerLogMessage } from '@/utils/burner-log';
 
+import { runDeviceOperation } from './device-operation-owner';
 import { GBAAdapter } from './gba-adapter';
 import { MBC5Adapter } from './mbc5-adapter';
 import { type GBARTCData, type MBC3RTCData, RTCManager } from './rtc';
@@ -54,7 +55,7 @@ function requireDeviceTransport(device: DeviceInfo): Transport {
  * @param type - RTC绫诲瀷锛?GBA' 鎴?'MBC3'
  * @param rtcData - RTC鏁版嵁
  */
-export async function setRTC(device: DeviceInfo, type: 'GBA' | 'MBC3', rtcData: GBARTCData | MBC3RTCData): Promise<void> {
+async function setRTCTransaction(device: DeviceInfo, type: 'GBA' | 'MBC3', rtcData: GBARTCData | MBC3RTCData): Promise<void> {
   const rtcManager = new RTCManager(type, device);
   await rtcManager.setTime(rtcData);
 }
@@ -64,7 +65,7 @@ export async function setRTC(device: DeviceInfo, type: 'GBA' | 'MBC3', rtcData: 
  * @param device - 璁惧淇℃伅
  * @param type - RTC绫诲瀷锛?GBA' 鎴?'MBC3'
  */
-export async function readRTC(device: DeviceInfo, type: 'GBA' | 'MBC3'): Promise<{ status: boolean; time?: DateTime; error?: string }> {
+async function readRTCTransaction(device: DeviceInfo, type: 'GBA' | 'MBC3'): Promise<{ status: boolean; time?: DateTime; error?: string }> {
   const rtcManager = new RTCManager(type, device);
   return await rtcManager.readTime();
 }
@@ -72,7 +73,7 @@ export async function readRTC(device: DeviceInfo, type: 'GBA' | 'MBC3'): Promise
 /**
  * 闇囧姩娴嬭瘯 (GBA)
  */
-export async function rumbleTest(device: DeviceInfo): Promise<void> {
+async function rumbleTestTransaction(device: DeviceInfo): Promise<void> {
   const transport = requireDeviceTransport(device);
 
   console.log('GPIO 鎸囦护');
@@ -105,7 +106,7 @@ export async function rumbleTest(device: DeviceInfo): Promise<void> {
  * @param device - 璁惧淇℃伅
  * @param onProgress - 杩涘害鍥炶皟鍑芥暟
  */
-export async function ppbUnlockGBA(device: DeviceInfo, onProgress?: (progress: PPBProgress) => void): Promise<{ success: boolean; message: string }> {
+async function ppbUnlockGBATransaction(device: DeviceInfo, onProgress?: (progress: PPBProgress) => void): Promise<{ success: boolean; message: string }> {
   const t = i18n.global.t;
   const transport = requireDeviceTransport(device);
 
@@ -306,7 +307,7 @@ export async function ppbUnlockGBA(device: DeviceInfo, onProgress?: (progress: P
  * @param device - 璁惧淇℃伅
  * @param onProgress - 杩涘害鍥炶皟鍑芥暟
  */
-export async function ppbUnlockMBC5(device: DeviceInfo, onProgress?: (progress: PPBProgress) => void): Promise<{ success: boolean; message: string }> {
+async function ppbUnlockMBC5Transaction(device: DeviceInfo, onProgress?: (progress: PPBProgress) => void): Promise<{ success: boolean; message: string }> {
   const t = i18n.global.t;
   const transport = requireDeviceTransport(device);
 
@@ -508,3 +509,9 @@ export async function ppbUnlockMBC5(device: DeviceInfo, onProgress?: (progress: 
     return { success: false, message: errorMsg };
   }
 }
+
+export function setRTC(...args: Parameters<typeof setRTCTransaction>) { return runDeviceOperation(args[0], () => setRTCTransaction(...args)); }
+export function readRTC(...args: Parameters<typeof readRTCTransaction>) { return runDeviceOperation(args[0], () => readRTCTransaction(...args)); }
+export function rumbleTest(...args: Parameters<typeof rumbleTestTransaction>) { return runDeviceOperation(args[0], () => rumbleTestTransaction(...args)); }
+export function ppbUnlockGBA(...args: Parameters<typeof ppbUnlockGBATransaction>) { return runDeviceOperation(args[0], () => ppbUnlockGBATransaction(...args)); }
+export function ppbUnlockMBC5(...args: Parameters<typeof ppbUnlockMBC5Transaction>) { return runDeviceOperation(args[0], () => ppbUnlockMBC5Transaction(...args)); }

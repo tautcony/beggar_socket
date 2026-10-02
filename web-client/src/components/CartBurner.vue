@@ -129,6 +129,7 @@ import { useToast } from '@/composables/useToast';
 import { createCartridgeProtocolSession } from '@/features/burner/adapters';
 import { type BurnerProtocolSession, createBurnerFacade, type GameDetectionResult } from '@/features/burner/application';
 import { CartridgeAdapter, GBAAdapter, MBC5Adapter } from '@/services';
+import { getDeviceOperationOwner } from '@/services/device-operation-owner';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { useRecentFileNamesStore } from '@/stores/recent-file-names-store';
 import { CommandOptions, DeviceInfo } from '@/types';
@@ -155,8 +156,8 @@ const mode = ref<ModeType>('GBA');
 const selectedMbcType = ref<MbcType>('MBC5');
 const mbcPower5V = ref(false);
 const burnerFacade = createBurnerFacade({ translate: key => t(key), formatHex: value => formatHex(value, 4) });
+const sessionState = useCartBurnerSessionState(t, () => props.device);
 const {
-  burnerSession,
   busy,
   logs,
   progressInfo,
@@ -169,7 +170,7 @@ const {
   log,
   syncSessionState,
   executeOperation,
-} = useCartBurnerSessionState(t);
+} = sessionState;
 const {
   romFileData,
   romFileName,
@@ -234,9 +235,10 @@ const sectorCounts = computed(() => {
 const gbaAdapter = ref<BurnerProtocolSession | null>();
 const mbc5Adapter = ref<BurnerProtocolSession | null>();
 
-function createSession(adapter: CartridgeAdapter, modeName: string): BurnerProtocolSession {
+function createSession(adapter: CartridgeAdapter, modeName: string, device: DeviceInfo): BurnerProtocolSession {
+  const owner = getDeviceOperationOwner(device);
   return createCartridgeProtocolSession(adapter, modeName.toLowerCase(), {
-    isActive: () => props.deviceReady && props.device !== null,
+    isActive: () => props.deviceReady && getDeviceOperationOwner(props.device) === owner && owner?.connected === true,
   });
 }
 
@@ -265,9 +267,9 @@ if (import.meta.hot) {
 
   // 从 HMR 数据恢复日志状态
   if (data.cartBurnerState.logs.length > 0) {
-    burnerSession.clearLogs();
+    sessionState.burnerSession.clearLogs();
     for (const entry of data.cartBurnerState.logs) {
-      burnerSession.addLog(entry.time, {
+      sessionState.burnerSession.addLog(entry.time, {
         message: entry.message,
         error: entry.error,
         details: entry.details,
@@ -296,20 +298,25 @@ function initializeAdapters() {
       return;
     }
 
+    const device = { ...props.device };
+    const owner = getDeviceOperationOwner(device);
+    const isCurrent = () => getDeviceOperationOwner(props.device) === owner;
+    const boundLog: typeof log = (msg, level) => { if (isCurrent()) log(msg, level); };
+    const boundProgress: typeof updateProgress = info => { if (isCurrent()) updateProgress(info); };
     const gbaRuntimeAdapter = new GBAAdapter(
-      props.device,
-      (msg, level) => { log(msg, level); },
-      updateProgress,
+      device,
+      boundLog,
+      boundProgress,
       t,
     );
-    gbaAdapter.value = createSession(gbaRuntimeAdapter, 'gba');
+    gbaAdapter.value = createSession(gbaRuntimeAdapter, 'gba', device);
     const mbc5RuntimeAdapter = new MBC5Adapter(
-      props.device,
-      (msg, level) => { log(msg, level); },
-      updateProgress,
+      device,
+      boundLog,
+      boundProgress,
       t,
     );
-    mbc5Adapter.value = createSession(mbc5RuntimeAdapter, 'mbc5');
+    mbc5Adapter.value = createSession(mbc5RuntimeAdapter, 'mbc5', device);
   } else {
     // 设备未连接时清空适配器
     if (gbaAdapter.value || mbc5Adapter.value) {
@@ -320,7 +327,9 @@ function initializeAdapters() {
   }
 }
 
-watch(() => props.deviceReady, () => {
+watch(() => [props.deviceReady, getDeviceOperationOwner(props.device)], () => {
+  gbaAdapter.value = null;
+  mbc5Adapter.value = null;
   initializeAdapters();
 });
 
@@ -862,8 +871,8 @@ async function verifyRamBlank(fillByte: number) {
 
 // 重置组件状态的方法
 function resetState() {
-  burnerSession.abortOperation();
-  burnerSession.clearLogs();
+  sessionState.burnerSession.abortOperation();
+  sessionState.burnerSession.clearLogs();
   resetProgress();
   syncSessionState();
 

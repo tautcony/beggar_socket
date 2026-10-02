@@ -1,8 +1,10 @@
 import { DateTime } from 'luxon';
-import { computed, onScopeDispose, ref } from 'vue';
+import { computed, onScopeDispose, ref, watch } from 'vue';
 
 import { BurnerSession, runBurnerFlow } from '@/features/burner/application';
+import { getDeviceOperationOwner } from '@/services/device-operation-owner';
 import type { BurnerLogEntry, BurnerLogLevel } from '@/types/burner-log';
+import type { DeviceInfo } from '@/types/device-info';
 import { DEFAULT_PROGRESS, type ProgressInfo } from '@/types/progress-info';
 import { type BurnerLogInput, formatBurnerLogMessage } from '@/utils/burner-log';
 
@@ -14,15 +16,34 @@ interface ExecuteOperationOptions<TResult> {
   onError: (error: unknown) => void | Promise<void>;
 }
 
-export function useCartBurnerSessionState(translate: (key: string) => string) {
-  const burnerSession = new BurnerSession();
-  const busy = ref(false);
+export function useCartBurnerSessionState(translate: (key: string) => string, getDevice?: () => DeviceInfo | null) {
+  let burnerSession = new BurnerSession();
+  const localBusy = ref(false);
+  const ownerRevision = ref(0);
+  let unsubscribe: (() => void) | undefined;
+  const currentOwner = () => getDevice ? getDeviceOperationOwner(getDevice()) : undefined;
+  const busy = computed(() => {
+    void ownerRevision.value;
+    return currentOwner()?.busy ?? localBusy.value;
+  });
   const logs = ref<BurnerLogEntry[]>([]);
   const progressInfo = ref<ProgressInfo>({ ...DEFAULT_PROGRESS });
   const keepProgressModalOpen = ref(false);
 
+  if (getDevice) watch(currentOwner, (owner) => {
+    unsubscribe?.();
+    burnerSession.abortOperation();
+    burnerSession = new BurnerSession();
+    localBusy.value = false;
+    unsubscribe = owner?.subscribe(() => { ownerRevision.value++; });
+    progressInfo.value = { ...DEFAULT_PROGRESS };
+    logs.value = [];
+    keepProgressModalOpen.value = false;
+  }, { immediate: true });
+
   // Abort any in-progress operation when the component scope is destroyed
   onScopeDispose(() => {
+    unsubscribe?.();
     burnerSession.abortOperation();
   });
 
@@ -35,14 +56,14 @@ export function useCartBurnerSessionState(translate: (key: string) => string) {
 
   function syncSessionState() {
     const snapshot = burnerSession.snapshot;
-    busy.value = snapshot.busy;
+    localBusy.value = snapshot.busy;
     progressInfo.value = { ...DEFAULT_PROGRESS, ...snapshot.progress };
     logs.value = [...snapshot.logs];
   }
 
   function syncProgressState() {
     const snapshot = burnerSession.snapshot;
-    busy.value = snapshot.busy;
+    localBusy.value = snapshot.busy;
     progressInfo.value = { ...DEFAULT_PROGRESS, ...snapshot.progress };
   }
 
@@ -112,34 +133,42 @@ export function useCartBurnerSessionState(translate: (key: string) => string) {
     if (burnerSession.snapshot.busy) {
       throw new Error('Burner operation already running');
     }
-    keepProgressModalOpen.value = false;
-    burnerSession.resetProgress();
-    syncProgressState();
-    return runBurnerFlow({
-      session: burnerSession,
-      cancellable: options.cancellable,
-      resetProgressOnFinish: options.resetProgressOnFinish,
-      updateProgress: options.updateProgress,
-      syncState: () => {
-        syncSessionState();
-        // 操作因错误结束时（不论是抛出异常还是返回失败结果），保持弹窗打开
-        if (progressInfo.value.state === 'error') {
-          keepProgressModalOpen.value = true;
-        }
-      },
-      log,
-      cancelLogMessage: translate('messages.operation.cancelled'),
-      execute: ({ signal }) => options.operation(signal),
-      onError: async (error) => {
-        // 抛出异常路径：适配器来不及将进度置为 error，在此补充设置
-        burnerSession.updateProgress({ state: 'error', allowCancel: false, showProgress: true });
-        await options.onError(error);
-      },
-    });
+    const owner = currentOwner();
+    if (getDevice && !owner) throw new Error('Device transport is not initialized');
+    const session = burnerSession;
+    const run = () => {
+      keepProgressModalOpen.value = false;
+      burnerSession.resetProgress();
+      syncProgressState();
+      return runBurnerFlow({
+        session,
+        cancellable: options.cancellable,
+        resetProgressOnFinish: options.resetProgressOnFinish,
+        updateProgress: options.updateProgress,
+        syncState: () => {
+          if (currentOwner() !== owner || burnerSession !== session) return;
+          syncSessionState();
+          // 操作因错误结束时（不论是抛出异常还是返回失败结果），保持弹窗打开
+          if (progressInfo.value.state === 'error') {
+            keepProgressModalOpen.value = true;
+          }
+        },
+        log: (message, level) => { if (currentOwner() === owner && burnerSession === session) log(message, level); },
+        cancelLogMessage: translate('messages.operation.cancelled'),
+        execute: ({ signal }) => options.operation(signal),
+        onError: async (error) => {
+          // 抛出异常路径：适配器来不及将进度置为 error，在此补充设置
+          if (currentOwner() !== owner || burnerSession !== session) return;
+          burnerSession.updateProgress({ state: 'error', allowCancel: false, showProgress: true });
+          await options.onError(error);
+        },
+      });
+    };
+    return owner ? owner.run(run, () => { session.abortOperation(); }) : run();
   }
 
   return {
-    burnerSession,
+    get burnerSession() { return burnerSession; },
     busy,
     logs,
     progressInfo,

@@ -49,6 +49,23 @@ function deferred<T>() {
 }
 
 describe('ConnectionOrchestrationUseCase', () => {
+  it('does not let a queued old-handle disconnect close the replacement connection', async () => {
+    const closing = deferred<Awaited<ReturnType<BurnerConnectionPort['disconnect']>>>();
+    const disconnect = vi.fn(() => closing.promise);
+    const useCase = new ConnectionOrchestrationUseCase(createPortMock({ disconnect }));
+    await useCase.prepareConnection();
+    const oldHandle = useCase.snapshot.context.handle;
+    const reconnecting = useCase.reconnectWithSelection({ portInfo: { path: '/dev/replacement' }, context: {} });
+    await vi.waitFor(() => { expect(disconnect).toHaveBeenCalledOnce(); });
+    const staleDisconnect = useCase.disconnect(oldHandle?.id);
+    closing.resolve({ ok: true, data: undefined });
+    expect((await reconnecting).success).toBe(true);
+    expect((await staleDisconnect).success).toBe(true);
+    expect(useCase.snapshot.state).toBe('connected');
+    expect(useCase.snapshot.context.handle?.portInfo?.path).toBe('/dev/replacement');
+    expect(disconnect).toHaveBeenCalledOnce();
+  });
+
   it.each(['reconnect', 'disconnect', 'prepare'] as const)('finishes selected reconnect before a concurrent %s', async (next) => {
     const events: string[] = [];
     const basePort = createPortMock();

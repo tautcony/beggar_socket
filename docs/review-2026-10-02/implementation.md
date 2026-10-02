@@ -33,7 +33,7 @@
 | 指定端口原子重连 | 完成 | 32 focused tests；close/open/init单事务；全类型检查通过 |
 | bank 分块规划 | 完成 | 61 focused tests；按窗口剩余量分块、RAM绝对地址bank |
 | 取消生命周期 | 完成 | 31 focused tests；取消/超时保留所有权到worker与cleanup结束 |
-| 设备级操作独占与工具/断连集成 | 实施中 | 独立 agent；前置 06e0270 / 2e97a35 |
+| 设备级操作独占与工具/断连集成 | 完成 | 53 focused tests；identity、完整事务、排队断连检查 |
 | 设置 runtime schema | 完成 | 119 focused tests；原子校验、version1、保留合法旧值 |
 | RTC 输入契约 | 完成 | 174 focused tests；非法输入零I/O，合法输入快照 |
 | RTC 失败恢复 | 完成 | 197 focused tests；独立cleanup、Halt控制恢复、完整类型检查通过 |
@@ -46,3 +46,5 @@
 | AST 依赖门禁 | 排队 | 独立 agent |
 | CFI / LK 容量边界证据与修复 | 排队 | 先写 fixture 确认行为 |
 | 文档与性能证据更新 | 排队 | 汇总最后代码与测量，未证实问题不盲改 |
+
+集成验证（上述进行中三项收尾）：59 文件 862 项测试全部通过，完整 ESLint、vue-tsc、check:deps、production build 通过。构建保留既有 Jimp/Ionic chunk、Jimp eval 和 gbats fs externalization 提示；性能任务仍待证据评估。

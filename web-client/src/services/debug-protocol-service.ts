@@ -1,6 +1,8 @@
 import type { Transport } from '@/platform/serial';
 import { Command, createCommandPayload, GBACommand, GBCCommand, getPackage, sendPackage } from '@/protocol';
 
+import { getTransportOperationOwner } from './device-operation-owner';
+
 export type DebugCommandType = 'GBA' | 'GBC';
 
 export interface ExecuteDebugCommandInput {
@@ -46,30 +48,32 @@ export function isDuplicatedDebugCommandName(key: string): boolean {
 }
 
 export async function executeDebugCommand(input: ExecuteDebugCommandInput): Promise<ExecuteDebugCommandResult> {
-  const payloadBuilder = createCommandPayload(input.command);
+  return getTransportOperationOwner(input.transport).run(async () => {
+    const payloadBuilder = createCommandPayload(input.command);
 
-  if (input.address !== null && input.address !== undefined) {
-    payloadBuilder.addAddress(input.address);
-  }
+    if (input.address !== null && input.address !== undefined) {
+      payloadBuilder.addAddress(input.address);
+    }
 
-  if (input.length !== null && input.length !== undefined) {
-    payloadBuilder.addLittleEndian(input.length, 4);
-  }
+    if (input.length !== null && input.length !== undefined) {
+      payloadBuilder.addLittleEndian(input.length, 4);
+    }
 
-  if (input.data && input.data.length > 0) {
-    payloadBuilder.addBytes(input.data);
-  }
+    if (input.data && input.data.length > 0) {
+      payloadBuilder.addBytes(input.data);
+    }
 
-  const payload = payloadBuilder.build();
-  await sendPackage(input.transport, payload);
-  const result = await getPackage(input.transport, input.receiveLength, input.timeoutMs);
+    const payload = payloadBuilder.build();
+    await sendPackage(input.transport, payload);
+    const result = await getPackage(input.transport, input.receiveLength, input.timeoutMs);
 
-  if (!result.data) {
-    throw new Error('No response data');
-  }
+    if (!result.data) {
+      throw new Error('No response data');
+    }
 
-  return {
-    requestData: payload,
-    responseData: result.data,
-  };
+    return {
+      requestData: payload,
+      responseData: result.data,
+    };
+  });
 }

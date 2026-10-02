@@ -210,7 +210,7 @@ describe('DeviceConnectionManager', () => {
     expect(connectionUseCaseState.disconnect).not.toHaveBeenCalled();
   });
 
-  it('clears legacy device state even when disconnect fails', async () => {
+  it('retains the failed-close handle for retry and reports the device unavailable', async () => {
     connectionUseCaseState.disconnect.mockResolvedValue({
       success: false,
       failure: {
@@ -230,13 +230,12 @@ describe('DeviceConnectionManager', () => {
       portInfo: { path: '/dev/tty.usbmodem1' },
     } as never;
 
+    const original = { ...device as object };
     await expect(manager.disconnectDevice(device)).rejects.toThrow('[disconnect/disconnect_failed] close failed');
     expect(manager.isDeviceConnected(device)).toBe(false);
-    expect(device).toMatchObject({
-      transport: null,
-      port: null,
-      connection: null,
-      serialHandle: null,
-    });
+    expect(device).toEqual(original);
+    connectionUseCaseState.disconnect.mockResolvedValue({ success: true });
+    await manager.disconnectDevice(device);
+    expect(device).toMatchObject({ transport: null, port: null, serialHandle: null });
   });
 });

@@ -284,8 +284,14 @@ export class ConnectionOrchestrationUseCase {
     return this.prepareConnection();
   }
 
-  async disconnect(): Promise<ConnectionCommandResult> {
-    return this.enqueueLifecycle(() => this._disconnect());
+  async disconnect(expectedHandleId?: string): Promise<ConnectionCommandResult> {
+    return this.enqueueLifecycle(async () => {
+      // Check inside the lifecycle queue: a preceding reconnect may replace the handle.
+      if (expectedHandleId !== undefined && this.snapshotState.context.handle?.id !== expectedHandleId) {
+        return toSuccess(this.snapshotState.state, this.snapshotState.context, 'Connection already replaced');
+      }
+      return this._disconnect();
+    });
   }
 
   private async _disconnect(): Promise<ConnectionCommandResult> {

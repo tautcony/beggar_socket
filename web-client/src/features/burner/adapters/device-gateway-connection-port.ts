@@ -1,4 +1,5 @@
 import type { DeviceGateway, DeviceHandle, DeviceSelection } from '@/platform/serial';
+import { getTransportOperationOwner } from '@/services/device-operation-owner';
 
 import { mapConnectionStageError } from '../application/domain/error-mapping';
 import type { BurnerConnectionHandle, BurnerConnectionPort, BurnerConnectionSelection } from '../application/domain/ports';
@@ -76,6 +77,9 @@ export class DeviceGatewayConnectionPortAdapter implements BurnerConnectionPort 
   }
 
   async disconnect(handle: BurnerConnectionHandle): Promise<BurnerDomainResult<void>> {
-    return withConnectionMapping('disconnect', () => this.gateway.disconnect(unwrapHandle(handle)));
+    return withConnectionMapping('disconnect', () => {
+      const deviceHandle = unwrapHandle(handle);
+      return getTransportOperationOwner(deviceHandle.transport).close(() => this.gateway.disconnect(deviceHandle));
+    });
   }
 }

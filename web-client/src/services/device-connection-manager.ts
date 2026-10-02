@@ -2,6 +2,7 @@ import { createConnectionOrchestrationUseCase } from '@/features/burner/adapters
 import type { BurnerConnectionHandle, BurnerConnectionSelection, ConnectionFailure } from '@/features/burner/application';
 import { isTauriRuntime } from '@/platform/runtime';
 import type { DeviceHandle } from '@/platform/serial';
+import { getDeviceOperationOwner, getTransportOperationOwner } from '@/services/device-operation-owner';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { DeviceInfo } from '@/types/device-info';
 import { attachFirmwareProfile, getFirmwareProfileById, inferFirmwareProfileFromPort } from '@/types/firmware-profile';
@@ -17,6 +18,7 @@ export class DeviceConnectionManager {
   private static instance: DeviceConnectionManager;
   private readonly connectionUseCase = createConnectionOrchestrationUseCase();
   private isConnecting = false;
+  private readonly failedDisconnectOwners = new WeakSet<object>();
 
   private constructor() {}
 
@@ -292,16 +294,21 @@ export class DeviceConnectionManager {
    * 断开设备连接
    */
   async disconnectDevice(device: DeviceInfo): Promise<void> {
-    try {
-      const result = await this.connectionUseCase.disconnect();
+    const owner = getDeviceOperationOwner(device);
+    const currentHandle = this.connectionUseCase.snapshot.context.handle;
+    const context = currentHandle?.context;
+    if (!this.isDeviceHandle(context) || owner === getTransportOperationOwner(context.transport)) {
+      const result = await this.connectionUseCase.disconnect(currentHandle?.id);
       if (!result.success) {
+        if (owner) this.failedDisconnectOwners.add(owner);
         throw this.asError(result.failure ?? {
           stage: 'disconnect',
           code: 'disconnect_failed',
           message: 'Failed to disconnect device',
         });
       }
-    } finally {
+    }
+    if (getDeviceOperationOwner(device) === owner) {
       device.connection = null;
       device.port = null;
       device.transport = null;
@@ -313,7 +320,9 @@ export class DeviceConnectionManager {
    * 检查设备是否已连接
    */
   isDeviceConnected(device: DeviceInfo): boolean {
-    return !!(device.transport ?? device.connection ?? device.port);
+    const owner = getDeviceOperationOwner(device);
+    return !!(device.transport ?? device.connection ?? device.port)
+      && (!owner || (owner.available && !this.failedDisconnectOwners.has(owner)));
   }
 
   getConnectionSnapshot() {
