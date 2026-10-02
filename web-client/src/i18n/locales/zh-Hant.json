@@ -472,6 +472,8 @@
         "packageSendTimeout": "資料包傳送逾時",
         "packageReceiveTimeout": "資料包接收逾時",
         "operationTimeout": "操作逾時",
+        "operationBudgetEnabled": "啟用操作時間預算",
+        "operationBudgetHint": "預設關閉。限制裝置執行（含命令清理），不包含儲存對話框。到期請求取消，仍需等待目前裝置命令與復原完成。",
         "milliseconds": "毫秒",
         "validation": {
           "required": "此欄位為必填項",

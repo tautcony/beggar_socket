@@ -497,6 +497,8 @@
         "packageSendTimeout": "パッケージ送信タイムアウト",
         "packageReceiveTimeout": "パッケージ受信タイムアウト",
         "operationTimeout": "オペレーションタイムアウト",
+        "operationBudgetEnabled": "操作時間制限を有効にする",
+        "operationBudgetHint": "既定では無効です。コマンド後処理を含むデバイス操作に適用され、保存ダイアログは含みません。期限後はキャンセルを要求し、現在のコマンドと復旧の完了を待ちます。",
         "milliseconds": "ミリ秒",
         "validation": {
           "required": "この項目は必須です",

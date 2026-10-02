@@ -6,6 +6,8 @@ export type TransportReadMode = 'byob' | 'default';
 
 export interface Transport {
   send: (payload: Uint8Array, timeoutMs?: number) => Promise<boolean>;
+  /** Packet timeout contract is backend-specific: WebSerial uses an idle wait
+   * per fragment; Tauri/native uses one total deadline for this read. */
   read: (length: number, timeoutMs?: number, mode?: TransportReadMode) => Promise<{ data: Uint8Array }>;
   /** Atomic send-then-read guarded by a mutex so concurrent callers are serialised. */
   sendAndReceive: (payload: Uint8Array, readLength: number, sendTimeoutMs?: number, readTimeoutMs?: number) => Promise<{ data: Uint8Array }>;

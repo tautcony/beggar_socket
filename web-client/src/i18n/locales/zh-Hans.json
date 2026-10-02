@@ -499,6 +499,8 @@
         "packageSendTimeout": "数据包发送超时",
         "packageReceiveTimeout": "数据包接收超时",
         "operationTimeout": "操作超时",
+        "operationBudgetEnabled": "启用操作时间预算",
+        "operationBudgetHint": "默认关闭。限制设备执行（含命令清理），不包含保存对话框。到期请求取消，仍需等待当前设备命令和恢复完成。",
         "milliseconds": "毫秒",
         "validation": {
           "required": "此字段为必填项",

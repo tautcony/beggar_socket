@@ -27,6 +27,7 @@ export interface AdvancedSettingsConfig {
     packageSend?: number;
     packageReceive?: number;
     operation?: number;
+    operationBudgetEnabled?: boolean;
   };
 }
 
@@ -81,11 +82,13 @@ const SETTING_DESCRIPTORS: readonly SettingDescriptor[] = [
 const _storage: Record<string, number> = Object.fromEntries(
   SETTING_DESCRIPTORS.map((d) => [d.key, d.default]),
 );
+let _operationBudgetEnabled = false;
 let _firmwareProfile: ConfigurableFirmwareProfileId = 'stm';
 
 const STORAGE_VERSION = 1;
 
 function restoreDefaults(): void {
+  _operationBudgetEnabled = false;
   _firmwareProfile = 'stm';
   for (const desc of SETTING_DESCRIPTORS) {
     _storage[desc.key] = desc.default;
@@ -153,8 +156,9 @@ function inspectSettings(settings: unknown, normalize = false) {
   const errors: string[] = [];
   const values: Record<string, number> = {};
   let profile: ConfigurableFirmwareProfileId | undefined;
+  let budgetEnabled: boolean | undefined;
   if (!isSettingsObject(settings)) {
-    return { errors: ['Settings must be an object'], values, profile };
+    return { errors: ['Settings must be an object'], values, profile, budgetEnabled };
   }
 
   const groups = new Set(['firmware', ...SETTING_DESCRIPTORS.map((desc) => desc.group)]);
@@ -175,6 +179,12 @@ function inspectSettings(settings: unknown, normalize = false) {
         if (value === 'stm' || value === 'stc') profile = value;
         else if (normalize && typeof value === 'string') profile = validateFirmwareProfile(value);
         else errors.push('Firmware profile must be stm or stc');
+        continue;
+      }
+      if (groupName === 'timeout' && field === 'operationBudgetEnabled') {
+        if (value === undefined) continue;
+        if (typeof value === 'boolean') budgetEnabled = value;
+        else errors.push('Operation budget enabled must be a boolean');
         continue;
       }
       const desc = descriptors.find((candidate) => candidate.field === field);
@@ -199,7 +209,7 @@ function inspectSettings(settings: unknown, normalize = false) {
       values[desc.key] = normalize ? validateValue(value, desc.validator) : value;
     }
   }
-  return { errors, values, profile };
+  return { errors, values, profile, budgetEnabled };
 }
 
 // --- AdvancedSettings class ---
@@ -222,6 +232,7 @@ export class AdvancedSettings {
   declare static packageSendTimeout: number;
   declare static packageReceiveTimeout: number;
   declare static operationTimeout: number;
+  declare static operationBudgetEnabled: boolean;
 
   static getSettings() {
     return {
@@ -251,14 +262,16 @@ export class AdvancedSettings {
         packageSend: _storage.packageSendTimeout,
         packageReceive: _storage.packageReceiveTimeout,
         operation: _storage.operationTimeout,
+        operationBudgetEnabled: _operationBudgetEnabled,
       },
     };
   }
 
   static setSettings(settings: AdvancedSettingsConfig): void {
-    const { errors, values, profile } = inspectSettings(settings, true);
+    const { errors, values, profile, budgetEnabled } = inspectSettings(settings, true);
     if (errors.length) throw new TypeError(errors.join('; '));
     if (profile !== undefined) _firmwareProfile = profile;
+    if (budgetEnabled !== undefined) _operationBudgetEnabled = budgetEnabled;
     Object.assign(_storage, values);
     this.saveSettings();
   }
@@ -278,11 +291,12 @@ export class AdvancedSettings {
         if (Object.prototype.hasOwnProperty.call(snapshot, 'version') && version !== STORAGE_VERSION) {
           throw new TypeError('Unsupported advanced settings version');
         }
-        const { errors, values, profile } = inspectSettings(settings);
+        const { errors, values, profile, budgetEnabled } = inspectSettings(settings);
         if (errors.length) throw new TypeError(errors.join('; '));
         restoreDefaults();
         Object.assign(_storage, values);
         if (profile !== undefined) _firmwareProfile = profile;
+        if (budgetEnabled !== undefined) _operationBudgetEnabled = budgetEnabled;
       }
     } catch (error) {
       console.warn('Failed to load advanced settings, using defaults', error);
@@ -348,3 +362,14 @@ for (const desc of SETTING_DESCRIPTORS) {
     configurable: true,
   });
 }
+
+Object.defineProperty(AdvancedSettings, 'operationBudgetEnabled', {
+  get(): boolean { return _operationBudgetEnabled; },
+  set(value: boolean) {
+    if (typeof value !== 'boolean') throw new TypeError('Operation budget enabled must be a boolean');
+    _operationBudgetEnabled = value;
+    AdvancedSettings.saveSettings();
+  },
+  enumerable: true,
+  configurable: true,
+});

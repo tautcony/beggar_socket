@@ -379,6 +379,7 @@ export class WebSerialTransport implements Transport {
     length: number,
     timeoutMs?: number,
   ): Promise<{ data: Uint8Array }> {
+    // Idle deadline: each arriving fragment starts a new wait window.
     const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
     const readId = ++this.readSequence;
     const startedAt = Date.now();

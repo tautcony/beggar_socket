@@ -199,6 +199,15 @@
             </div>
 
             <div class="setting-item">
+              <label for="operation-budget-enabled">
+                <input
+                  id="operation-budget-enabled"
+                  v-model="localSettings.timeout.operationBudgetEnabled"
+                  type="checkbox"
+                >
+                {{ $t('ui.settings.timeout.operationBudgetEnabled') }}
+              </label>
+              <small class="hint">{{ $t('ui.settings.timeout.operationBudgetHint') }}</small>
               <label for="operation-timeout">{{ $t('ui.settings.timeout.operationTimeout') }}</label>
               <div class="input-group">
                 <input
@@ -564,6 +573,7 @@ const createDefaultSettings = (): ReturnType<typeof AdvancedSettings.getSettings
     packageSend: 3000,
     packageReceive: 3000,
     operation: 30000,
+    operationBudgetEnabled: false,
   },
 });
 

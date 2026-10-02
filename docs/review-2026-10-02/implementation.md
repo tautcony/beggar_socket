@@ -39,7 +39,7 @@
 | 结构化失败传播 | 完成 | 177 related tests；原message/data/cause、ACK/取消分类、Vue诊断identity |
 | 适配器共享读取规则 | 完成 | 95 related tests（新26）；公共读取循环/既有retry、供电/延迟/bank/progress transcript |
 | UI 编排迁移 | 完成 | 106 related tests（新41）；11入口prepare/reset、admission与结果/cleanup/disposal guards |
-| 超时契约与操作预算 | 排队 | 依赖生命周期，保留慢设备兼容默认行为 |
+| 超时契约与操作预算 | 完成 | 190 related tests（新31）；默认off/旧v1兼容，真实worker/reset等待，idle/total契约 |
 | Native 会话锁与有界取消 | 完成 | 14 Rust tests、cargo check --locked、5 CI contracts；独立worker/真实close |
 | AST 依赖门禁 | 完成 | 40 focused tests；AST/Vue/resolution/type边/runtime循环；真实图无违规 |
 | CFI 几何边界证据与修复 | 完成 | 128 related tests；GL-T/AL032D/CoreCFI转录fixture，完整regions/128-byte特殊编码 |

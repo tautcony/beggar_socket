@@ -84,7 +84,7 @@ export interface BurnerSessionPort {
   startOperation(cancellable?: boolean): AbortSignal | undefined;
   completeOperation(token: symbol | null): void;
   beginRecovery(token: symbol | null): void;
-  abortOperation(): void;
+  abortOperation(reason?: unknown): void;
   updateProgress(info: ProgressInfo): void;
   resetProgress(): void;
 }

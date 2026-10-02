@@ -48,6 +48,7 @@ export class TauriSerialTransport implements Transport {
     this.assertOpen();
     const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
     const readId = ++this.readSequence;
+    // Total deadline: fragment progress never replenishes the read budget.
     const startedAt = Date.now();
     const startRxBytes = this.totalRxBytes;
     const startRxReads = this.totalRxReads;

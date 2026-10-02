@@ -43,10 +43,10 @@ export class BurnerSession implements BurnerSessionPort {
     }
   }
 
-  abortOperation() {
+  abortOperation(reason?: unknown) {
     if (!this.state.busy) return;
     if (this.state.phase === 'running') this.state.phase = 'cancelling';
-    this.state.abortController?.abort();
+    this.state.abortController?.abort(reason);
   }
 
   async runWithTimeout<T>(operation: () => Promise<T>, timeoutMs: number): Promise<T> {

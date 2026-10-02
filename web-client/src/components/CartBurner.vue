@@ -4,7 +4,7 @@
       key="progress"
       v-model="showProgressModal"
       v-bind="progressInfo"
-      :timeout="operationTimeout"
+      :timeout="packetTimeoutEstimate"
       :latest-log="logs.length > 0 ? logs[logs.length - 1] : undefined"
       @stop="handleProgressStop"
       @close="handleProgressClose"
@@ -199,7 +199,7 @@ const {
   log(message);
 }, (key, params) => t(key, params as never));
 
-const operationTimeout = computed(() => {
+const packetTimeoutEstimate = computed(() => {
   if (progressInfo.value.type === 'erase') {
     return AdvancedSettings.packageReceiveTimeout;
   } else if (progressInfo.value.type === 'write') {

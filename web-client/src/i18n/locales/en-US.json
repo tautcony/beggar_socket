@@ -499,6 +499,8 @@
         "packageSendTimeout": "Package Send Timeout",
         "packageReceiveTimeout": "Package Receive Timeout",
         "operationTimeout": "Operation Timeout",
+        "operationBudgetEnabled": "Enable operation time budget",
+        "operationBudgetHint": "Disabled by default. Limits device execution including command cleanup, not save dialogs. Expiry requests cancellation; wait for the current device command and recovery to finish.",
         "milliseconds": "ms",
         "validation": {
           "required": "This field is required",

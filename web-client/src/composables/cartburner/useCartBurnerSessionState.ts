@@ -3,6 +3,7 @@ import { computed, onScopeDispose, ref, shallowRef, watch } from 'vue';
 
 import { BurnerSession, runBurnerFlow } from '@/features/burner/application';
 import { getDeviceOperationOwner } from '@/services/device-operation-owner';
+import { AdvancedSettings } from '@/settings/advanced-settings';
 import type { BurnerLogEntry, BurnerLogLevel } from '@/types/burner-log';
 import type { DeviceInfo } from '@/types/device-info';
 import { DEFAULT_PROGRESS, type ProgressInfo } from '@/types/progress-info';
@@ -140,6 +141,7 @@ export function useCartBurnerSessionState(translate: (key: string) => string, ge
     if (burnerSession.snapshot.busy) {
       throw new Error('Burner operation already running');
     }
+    const budgetMs = AdvancedSettings.operationBudgetEnabled ? AdvancedSettings.operationTimeout : undefined;
     const owner = currentOwner();
     const device = getDevice?.();
     if (getDevice && !owner) throw new Error('Device transport is not initialized');
@@ -153,6 +155,7 @@ export function useCartBurnerSessionState(translate: (key: string) => string, ge
       return runBurnerFlow({
         session,
         cancellable: options.cancellable,
+        budgetMs,
         resetProgressOnFinish: options.resetProgressOnFinish,
         updateProgress: options.updateProgress,
         syncState: () => {
