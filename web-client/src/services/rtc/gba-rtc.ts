@@ -2,7 +2,7 @@
 
 import { rom_read, rom_write, toLittleEndian } from '@/protocol';
 
-import { BaseRTC } from './base-rtc';
+import { BaseRTC, RTCCleanupError } from './base-rtc';
 
 export interface GBARTCData {
   year: number;
@@ -72,7 +72,20 @@ export class GBARTC extends BaseRTC {
    * 娓呯悊GPIO鐘舵€?
    */
   private async cleanupGPIO(): Promise<void> {
-    await rom_write(this.transport, toLittleEndian(0x00, 2), 0xc8 >> 1); // disable gpio
+    const errors: unknown[] = [];
+    for (const step of [
+      () => rom_write(this.transport, toLittleEndian(0x01, 2), 0xc4 >> 1), // cs 0, sck 1
+      () => rom_write(this.transport, toLittleEndian(0x00, 2), 0xc8 >> 1), // disable gpio
+    ]) {
+      try {
+        await step();
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+    if (errors.length > 0) {
+      throw new RTCCleanupError(errors);
+    }
   }
 
   /**
@@ -125,19 +138,20 @@ export class GBARTC extends BaseRTC {
   }
   async checkCapability(): Promise<boolean> {
     try {
-      // 妫€娴婫PIO鍔熻兘
-      const read1 = await rom_read(this.transport, 6, 0xc4);
-      await rom_write(this.transport, toLittleEndian(0x01, 2), 0xc8 >> 1); // enable gpio
-      const read2 = await rom_read(this.transport, 6, 0xc4);
-      await rom_write(this.transport, toLittleEndian(0x00, 2), 0xc8 >> 1); // disable gpio
+      return await this.withCleanup(async () => {
+        // 妫€娴婫PIO鍔熻兘
+        const read1 = await rom_read(this.transport, 6, 0xc4);
+        await rom_write(this.transport, toLittleEndian(0x01, 2), 0xc8 >> 1); // enable gpio
+        const read2 = await rom_read(this.transport, 6, 0xc4);
 
-      // 妫€鏌ユ槸鍚︽湁GPIO鍔熻兘
-      for (let i = 0; i < 6; i++) {
-        if (read1[i] !== read2[i]) {
-          return true;
+        // 妫€鏌ユ槸鍚︽湁GPIO鍔熻兘
+        for (let i = 0; i < 6; i++) {
+          if (read1[i] !== read2[i]) {
+            return true;
+          }
         }
-      }
-      return false;
+        return false;
+      }, [() => this.cleanupGPIO()]);
     } catch (error) {
       console.error('妫€鏌BA GPIO鍔熻兘鏃跺嚭閿?', error);
       return false;
@@ -171,42 +185,37 @@ export class GBARTC extends BaseRTC {
         throw new Error('Cartridge does not have GPIO functionality');
       }
 
-      await this.initializeGPIO();
-      await this.checkAndResetIfNeeded();
+      await this.withCleanup(async () => {
+        await this.initializeGPIO();
+        await this.checkAndResetIfNeeded();
 
-      // 璁剧疆鏃堕棿
-      const year = this.intToCompressedBCD(rtcData.year % 100); // 鍙彇鍚庝袱浣?
-      const month = this.intToCompressedBCD(rtcData.month);
-      const date = this.intToCompressedBCD(rtcData.date);
-      const day = this.intToCompressedBCD(rtcData.day);
-      const hour = this.intToCompressedBCD(rtcData.hour);
-      const minute = this.intToCompressedBCD(rtcData.minute);
-      const second = this.intToCompressedBCD(rtcData.second);
+        // 璁剧疆鏃堕棿
+        const year = this.intToCompressedBCD(rtcData.year % 100); // 鍙彇鍚庝袱浣?
+        const month = this.intToCompressedBCD(rtcData.month);
+        const date = this.intToCompressedBCD(rtcData.date);
+        const day = this.intToCompressedBCD(rtcData.day);
+        const hour = this.intToCompressedBCD(rtcData.hour);
+        const minute = this.intToCompressedBCD(rtcData.minute);
+        const second = this.intToCompressedBCD(rtcData.second);
 
-      await this.s3511_writeByte(0x26); // write time command
-      await this.s3511_writeByte(year);
-      await this.s3511_writeByte(month);
-      await this.s3511_writeByte(date);
-      await this.s3511_writeByte(day);
-      await this.s3511_writeByte(hour);
-      await this.s3511_writeByte(minute);
-      await this.s3511_writeByte(second);
-      await rom_write(this.transport, toLittleEndian(0x01, 2), 0xc4 >> 1); // cs 0, sck 1
+        await this.s3511_writeByte(0x26); // write time command
+        await this.s3511_writeByte(year);
+        await this.s3511_writeByte(month);
+        await this.s3511_writeByte(date);
+        await this.s3511_writeByte(day);
+        await this.s3511_writeByte(hour);
+        await this.s3511_writeByte(minute);
+        await this.s3511_writeByte(second);
+        await rom_write(this.transport, toLittleEndian(0x01, 2), 0xc4 >> 1); // cs 0, sck 1
 
-      // 绛夊緟鍐欏叆瀹屾垚
-      await this.delay(1000);
+        // 绛夊緟鍐欏叆瀹屾垚
+        await this.delay(1000);
 
-      // 楠岃瘉鍐欏叆锛堜娇鐢ㄤ笓闂ㄧ殑楠岃瘉鏂规硶锛屼笉閲嶆柊鍒濆鍖朑PIO锛?
-      await this.verifyWrittenTime(5);
+        // 楠岃瘉鍐欏叆锛堜娇鐢ㄤ笓闂ㄧ殑楠岃瘉鏂规硶锛屼笉閲嶆柊鍒濆鍖朑PIO锛?
+        await this.verifyWrittenTime(5);
 
-      await this.cleanupGPIO();
+      }, [() => this.cleanupGPIO()]);
     } catch (error) {
-      // 纭繚鍦ㄥ嚭閿欐椂涔熸竻鐞咷PIO鐘舵€?
-      try {
-        await this.cleanupGPIO();
-      } catch (cleanupError) {
-        console.error('娓呯悊GPIO鐘舵€佹椂鍑洪敊:', cleanupError);
-      }
       throw error;
     }
   }
@@ -248,48 +257,42 @@ export class GBARTC extends BaseRTC {
         return { status: false, error: 'Cartridge does not have GPIO functionality' };
       }
 
-      await this.initializeGPIO();
-      const status = await this.checkAndResetIfNeeded();
+      return await this.withCleanup(async () => {
+        await this.initializeGPIO();
+        const status = await this.checkAndResetIfNeeded();
 
-      console.log(`RTC Status: 0x${status.toString(16)}`);
+        console.log(`RTC Status: 0x${status.toString(16)}`);
 
-      // 璇诲彇鏃堕棿鏁版嵁
-      await this.s3511_writeByte(0xa6); // read time command
-      const year = this.compressedBCDToInt(await this.s3511_readByte());
-      const month = this.compressedBCDToInt(await this.s3511_readByte() & 0x1f);
-      const date = this.compressedBCDToInt(await this.s3511_readByte() & 0x3f);
-      const day = this.compressedBCDToInt(await this.s3511_readByte() & 0x07);
-      const hour = this.compressedBCDToInt(await this.s3511_readByte() & 0x3f);
-      const minute = this.compressedBCDToInt(await this.s3511_readByte() & 0x7f);
-      const second = this.compressedBCDToInt(await this.s3511_readByte() & 0x7f);
+        // 璇诲彇鏃堕棿鏁版嵁
+        await this.s3511_writeByte(0xa6); // read time command
+        const year = this.compressedBCDToInt(await this.s3511_readByte());
+        const month = this.compressedBCDToInt(await this.s3511_readByte() & 0x1f);
+        const date = this.compressedBCDToInt(await this.s3511_readByte() & 0x3f);
+        const day = this.compressedBCDToInt(await this.s3511_readByte() & 0x07);
+        const hour = this.compressedBCDToInt(await this.s3511_readByte() & 0x3f);
+        const minute = this.compressedBCDToInt(await this.s3511_readByte() & 0x7f);
+        const second = this.compressedBCDToInt(await this.s3511_readByte() & 0x7f);
 
-      await rom_write(this.transport, toLittleEndian(0x01, 2), 0xc4 >> 1); // cs 0, sck 1
+        await rom_write(this.transport, toLittleEndian(0x01, 2), 0xc4 >> 1); // cs 0, sck 1
 
-      // 浣跨敤luxon鍒涘缓DateTime瀵硅薄
-      const time = DateTime.fromObject({
-        year: 2000 + year,
-        month: month,
-        day: date,
-        hour: hour,
-        minute: minute,
-        second: second,
-      });
+        // 浣跨敤luxon鍒涘缓DateTime瀵硅薄
+        const time = DateTime.fromObject({
+          year: 2000 + year,
+          month: month,
+          day: date,
+          hour: hour,
+          minute: minute,
+          second: second,
+        });
 
-      if (!time.isValid) {
-        throw new Error(`Invalid date/time values: ${time.invalidReason}`);
-      }
+        if (!time.isValid) {
+          throw new Error(`Invalid date/time values: ${time.invalidReason}`);
+        }
 
-      await this.cleanupGPIO();
-
-      return { status: true, time };
+        return { status: true, time };
+      }, [() => this.cleanupGPIO()]);
     } catch (error) {
       console.error('璇诲彇GBA RTC鏃跺嚭閿?', error);
-      // 纭繚鍦ㄥ嚭閿欐椂涔熸竻鐞咷PIO鐘舵€?
-      try {
-        await this.cleanupGPIO();
-      } catch (cleanupError) {
-        console.error('娓呯悊GPIO鐘舵€佹椂鍑洪敊:', cleanupError);
-      }
       return { status: false, error: error instanceof Error ? error.message : '鏈煡閿欒' };
     }
   }

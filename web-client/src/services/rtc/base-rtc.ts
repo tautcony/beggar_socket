@@ -3,6 +3,13 @@ import { DateTime } from 'luxon';
 import type { Transport } from '@/platform/serial';
 import { DeviceInfo } from '@/types/device-info';
 
+export class RTCCleanupError extends Error {
+  constructor(readonly errors: readonly unknown[]) {
+    super('RTC cleanup failed');
+    this.name = 'RTCCleanupError';
+  }
+}
+
 /**
  * RTC操作的基础抽象类
  */
@@ -44,6 +51,34 @@ export abstract class BaseRTC {
    */
   protected async delay(ms: number): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /** Run independent cleanup steps even when the operation or earlier cleanup fails. */
+  protected async withCleanup<T>(operation: () => Promise<T>, cleanup: readonly (() => Promise<void>)[]): Promise<T> {
+    let failed = false;
+    let cause: unknown;
+    try {
+      return await operation();
+    } catch (error) {
+      failed = true;
+      cause = error;
+      throw error;
+    } finally {
+      const cleanupErrors: unknown[] = [];
+      for (const step of cleanup) {
+        try {
+          await step();
+        } catch (error) {
+          cleanupErrors.push(...(error instanceof RTCCleanupError ? error.errors : [error]));
+        }
+      }
+      if (cleanupErrors.length > 0) {
+        console.error('RTC cleanup failed', { cause, cleanupErrors });
+        if (!failed) {
+          throw new RTCCleanupError(cleanupErrors);
+        }
+      }
+    }
   }
 
   /**
