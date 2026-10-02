@@ -13,8 +13,8 @@
 
 ## 范围与剩余工作
 
-- 适配器共享读取规则、UI 命令编排已完成。
-- 后续：超时契约和默认关闭的操作预算、性能证据与安全懒加载、当前架构文档。
+- 本轮 Web Client 实施队列已完成；每项具有回归证据并独立提交。
+- 硬件、浏览器/Tauri smoke、完整运行时性能和历史清单中未覆盖场景仍需验收；见 current-finding-status.md。
 
 固件与旧 C# 实施不在本轮范围。未验证的硬件/性能假设先补证据，不按猜测修改。
 
@@ -46,10 +46,19 @@
 | LK 容量边界证据与修复 | 完成 | 60 related tests；slot0/shared/import/reservations/fullspan/list容量，8MiB golden不变 |
 | 异构sector区域与baseAddress | 完成 | 179 related tests；physical交集、容量尾部、两adapter partial首sector真实重试 |
 | 性能证据与图像按需加载 | 完成 | 51 related tests（新6）；无背景不import，PNG/golden不变；bundle测量见performance-evidence.md |
-| 架构文档与历史finding状态 | 排队 | 汇总最后代码与测量，保留未测量/硬件限制 |
+| 架构文档与历史finding状态 | 完成 | 新30 docs contracts；真实路径/导航/CI命令检查，保留历史与未完成验收 |
 
 集成验证（上述进行中三项收尾）：59 文件 862 项测试全部通过，完整 ESLint、vue-tsc、check:deps、production build 通过。构建保留既有 Jimp/Ionic chunk、Jimp eval 和 gbats fs externalization 提示；性能任务仍待证据评估。
 
 最新集成（RTC 写后验证与 native 会话隔离提交后）：60 文件 905 项 Vitest 全通过，14 Rust tests、cargo check --locked、完整 lint/type/deps 与 production build 通过。RTC 提交 6433a48，native 提交 73aadf4。结构化失败传播曾受 subagent 额度错误中断，未留下生产代码改动，已继续同任务；AST 门禁由新 agent 实施。
 
 阶段集成（适配器/UI 编排合并中）：完整 lint/type 通过，72 文件 1133 项中 1132 通过；AST 内真实 ESLint fixture 在重型检查并发时运行 26 秒，触发其 20 秒限制。该次不能记为全量通过；最终门禁应避免并发重型检查，并再次验证。原生 14 项测试再次通过。
+
+## 最终验收（2026-10-03）
+
+- Node 24.19.0：Vitest run --maxWorkers=4，79 文件 / 1205 项全部通过，45.51 秒。使用显式 bundled runtime 执行既有 Vitest 入口；本机限制并发以避免真实 ESLint fixture 竞争资源。没有扩大测试 timeout 或跳过用例。
+- 完整 src/tests ESLint、vue-tsc --noEmit、AST architecture dependencies 全部通过；production Vite build 通过（1969 modules，7.39 秒）。
+- Native：cargo test --locked 的 14 项测试、cargo check --locked 通过；此后 native 源码未改。
+- 构建仍有既有 gbats fs externalization、Jimp eval、Ionic/Jimp 大 chunk 与 plugin timing 提示；未把打包成功当作浏览器功能或性能验收。
+- 本次收尾提交：e5ec9a6（适配器读取规则）、057b78f（图像按需加载）、72dee6c（UI 编排）、235d155（默认关闭操作预算），以及独立文档提交。
+- stash 保留未恢复；无 push、部署或 OpenSpec 归档。固件与旧 C# 未修改；剩余实际验收见 [当前 finding 状态](current-finding-status.md)。

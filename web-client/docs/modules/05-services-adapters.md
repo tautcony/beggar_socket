@@ -1,61 +1,15 @@
-﻿# 模块：Services / Adapters
+# 模块：Services / Adapters
 
-## 目录
+`src/services/cartridge-adapter.ts` 保留外部卡带 API、日志、进度和公共 readROMWithStrategy 执行循环。`src/services/gba-adapter.ts` 与 `src/services/mbc5-adapter.ts` 提供实际 ROM read 策略；`src/services/platform-ops.ts` 的 RomReadOps / RomReadStrategy 表达 read、bank、power、throttle。旧 PlatformOps 仅保留 deprecated 类型兼容，未使用基类 getCartInfo 明示不支持。
 
-### 核心适配器
-- `src/services/cartridge-adapter.ts`: 适配器抽象基类（日志/进度/状态）
-- `src/services/gba-adapter.ts`: GBA 卡带适配器
-- `src/services/mbc5-adapter.ts`: MBC5（GBC）卡带适配器
-- `src/services/mock-adapter.ts`: 模拟适配器（用于测试/调试）
+共享边界是读取循环、重试和进度，GBA/MBC 的 bank、电压、字节/word 地址、erase/write/RAM 时序仍由各硬件实现负责。
 
-### 连接管理
-- `src/services/device-connection-manager.ts`: 统一连接管理（调用 `platform/serial` 网关）
-- `src/services/serial-service.ts`（legacy facade）: 旧接口兼容层
+- `src/services/bank-chunk-planner.ts`：按逻辑地址计算 bank、映射地址和窗口余量，读取/校验/RAM 传输不能跨窗口。
+- `src/utils/sector-utils.ts`：按物理 sector 与请求范围交集规划；首个部分扇区失败重写从正确逻辑 offset 恢复。擦除仍作用于整个物理 sector，不保证其请求范围外数据保留。
+- `src/utils/parsers/cfi-parser.ts`：验证完整区域描述、容量总和和指数，支持 CFI 128-byte 特殊编码及 bulk-only；非标准芯片需单独证据。
+- `src/services/device-connection-manager.ts`：连接 use case、gateway 与 owner 的服务入口。
+- `src/services/tool-functions.ts` 与 `src/services/debug-protocol-service.ts`：RTC/PPB/调试完整事务参与 owner。
 
-### 辅助服务
-- `src/services/flash-chip.ts`: Flash 芯片辅助（`shouldUseLargeRomPage` 等）
-- `src/services/system-notice-service.ts`: 系统通知（从 public 获取 JSON 配置、localStorage 已读状态管理）
-- `src/services/tool-functions.ts`: 工具操作（`setRTC`、RTC 数据处理等）
-- `src/services/debug-protocol-service.ts`: 调试命令服务（`executeDebugCommand`、`getAvailableDebugCommands`）
+RTC 的 `src/services/rtc/base-rtc.ts`、`src/services/rtc/gba-rtc.ts`、`src/services/rtc/mbc3-rtc.ts` 在 I/O 前验证输入，写后比较目标和经过时间，并独立尝试硬件 cleanup，保留主错误与恢复错误。
 
-### RTC 子模块（`src/services/rtc/`）
-- `base-rtc.ts`: RTC 基类
-- `gba-rtc.ts`: GBA RTC 实现
-- `mbc3-rtc.ts`: MBC3 RTC 实现
-- `index.ts`: 统一导出（`RTCManager`）
-
-### LK 多卡菜单子模块（`src/services/lk/`）
-- `romBuilder.ts`: GBA 多菜单 ROM 构建主逻辑
-- `imageUtils.ts`: 背景图像处理
-- `types.ts`: `BuildInput`、`BuildResult`、`GameConfig` 等类型
-- `utils.ts`: 工具函数（SHA1、Sector Map 等）
-- `cli.ts`: 命令行入口（供 Node 环境调用）
-- `index.ts`: 统一导出
-
-### 入口
-- `src/services/index.ts`: 统一导出
-
-## 模块设计
-- `cartridge-adapter.ts`: 适配器抽象基类（日志/进度/状态）
-- `gba-adapter.ts`、`mbc5-adapter.ts`、`mock-adapter.ts`：
-  - 实现硬件操作细节
-  - 调用 `protocol/*` 完成实际命令收发
-- `device-connection-manager.ts`：
-  - 调用 `platform/serial` 网关处理连接、初始化、断开
-- `serial-service.ts`：
-  - 旧接口 facade，内部转接 `platform/serial`（兼容存量）
-- `system-notice-service.ts`：
-  - 从 `public/system-notifications.json` 读取通知元数据
-  - 通过 localStorage 管理已读状态
-- `debug-protocol-service.ts`：
-  - 暴露原始协议调试能力，供 `DebugToolModal` 使用
-
-## 职责
-- 将业务操作映射为协议命令调用。
-- 处理速度/进度/日志等运行时细节。
-- 连接管理统一走 `device-connection-manager`。
-- RTC 读写、多卡菜单 ROM 构建、系统通知等辅助能力。
-
-## 说明
-- 该层当前是"过渡层"：同时承载适配与基础设施逻辑。
-- `lk/` 与 `rtc/` 为独立子域，未来可进一步下沉或独立拆分。
+LK 的 `src/services/lk/romBuilder.ts` 使用局部 BuildContext、InputGame → PreparedGame → AllocatedGame 阶段模型，校验存档/ROM/item-list 容量后编码；无背景不加载 imageUtils。`src/services/lk/imageUtils.ts` 保留现有图像算法；字节 golden 与 PNG 证据不代表浏览器性能已验收。

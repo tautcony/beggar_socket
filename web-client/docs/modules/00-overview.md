@@ -1,115 +1,33 @@
 # 模块总览
 
-## 范围与目标
-- 范围：`web-client`（Vue3 + TypeScript + Vite + Electron）
-- 目标：
-  - 明确模块边界与职责
-  - 固化关键数据流转路径
-  - 对齐当前 guardrails/test 门禁
-  - 为后续重构提供可执行基线
-
-## 系统上下文
+当前范围为 Vue 3 + TypeScript + Vite 的 Web Client，以及 Tauri 桌面运行时。调试模式使用同一协议接口驱动模拟设备。
 
 ```mermaid
 flowchart LR
-  User[用户] --> UI[Vue UI: views/components]
-  UI --> App[Application: features/burner]
-  App --> Adapter[Services: GBA/MBC5/Mock Adapter]
-  Adapter --> Protocol[Protocol: beggar_socket]
-  Protocol --> Transport[Platform Serial Transport]
-  Transport --> HW[烧录硬件/串口设备]
-
-  UI --> Store[Pinia Stores]
-  UI --> Settings[Advanced/Debug Settings]
-  UI --> I18N[i18n]
-
-  subgraph Runtime
-    Web[Web Serial]
-    Electron[Electron IPC + serialport]
-  end
-
-  Transport --> Web
-  Transport --> Electron
+  UI[Vue 交互与展示] --> App[Burner application / domain ports]
+  App --> Ports[Burner adapters]
+  Ports --> Services[GBA / MBC / RTC services]
+  Services --> Protocol[beggar_socket protocol]
+  Protocol --> Transport[Transport]
+  Transport --> Web[Web Serial]
+  Transport --> Tauri[Tauri native session]
+  Transport --> Sim[Simulated runtime]
 ```
 
-## 分层架构（当前实现）
+`src/features/burner/application/` 管理操作与连接生命周期，`src/features/burner/adapters/` 接入硬件实现。`src/types/` 和 `src/utils/` 承载共享契约与纯规则；`src/services/` 仍包含卡带硬件策略和独立 RTC/LK 子域。
 
-```text
-Presentation
-  - src/views
-  - src/components
-  - src/composables
-      |
-Application
-  - src/features/burner/application  （用例、会话、流程模板）
-  - src/features/burner/adapters     （端口适配器、工厂）
-  - src/features/burner/application/domain （domain 契约：ports/result/connection/error-mapping）
-      |
-Domain/Rules（当前以 utils/types 分散承载）
-  - src/utils/parsers
-  - src/utils/progress
-  - src/utils/rom
-  - src/types
-      |
-Infrastructure
-  - src/platform/serial
-  - src/protocol/beggar_socket
-  - src/services (adapter/device manager/RTC/LK/system-notice 等)
-  - electron/*
-```
+设备所有权由 `src/features/burner/application/device-operation-owner.ts` 统一：同一 transport 的页面、工具和断连共享独占权。取消提出请求，真实 worker 与 cleanup 完成后才能释放；失败 close 保留资源供重试。
 
-说明：
-- `features/burner/application/domain` 定义 BurnerConnectionPort 等接口，`features/burner/adapters` 实现这些接口。
-- `services` 仍承载部分编排/基础设施职责，属于过渡态。
+架构门禁入口为 `scripts/check-architecture-deps.cjs`。TS AST、Vue script 和 module resolution 检查 alias/relative/dynamic/re-export/type 边；运行时循环单独检查。非字面量计算 import 不在静态解析覆盖内。ESLint 限制与脚本边界均须通过，绿灯不能代替行为验收。
 
-## 依赖方向
-- `Presentation -> Application -> Infrastructure`
-- `services` 中适配器调用 `protocol`，`protocol` 调用 `platform/serial` 的 `Transport`
-- UI 不允许直接 import `protocol/*`
+质量命令（在 web-client 目录）：
 
-## 依赖约束与质量门禁
-
-### 依赖约束
-- ESLint `import/no-restricted-paths`：
-  - 禁止 `components/views -> protocol`
-  - 禁止 `types/utils -> services`
-  - 禁止 `protocol -> services/serial-service`
-  - 禁止 `components/operaiton -> platform/services/orchestration 内部实现`
-- 架构检查脚本：
-  - `npm run check:deps`
-  - 输出 top-level 依赖矩阵 + 违规边检查
-
-### 测试门禁
-- 主流程：`tests/burner-application.test.ts`
-- 设备网关：`tests/device-gateway.test.ts`
-- 传输契约：`tests/protocol-transport.test.ts`
-- 连接用例：`tests/connection-usecase-orchestration.test.ts`
-- 端口契约：`tests/burner-port-contract.test.ts`
-- 规则工具：parser/progress/formatter/crc 等单测
-
-推荐门禁命令：
 - `npm run lint`
 - `npm run type-check`
-- `npm run test:run`
 - `npm run check:deps`
+- `npm run test:run`
 - `npm run build`
 
-## 当前差距与演进顺序
+CI 基线 Node 24.19.0 / npm 11.19.0；`.github/workflows/check-webclient.yml` 提供 quality 与 Windows native check/test。Web/Tauri 打包依赖该工作流；GitHub 分支保护 required status 是否配置，尚未验收。
 
-### 当前差距
-- `CartBurner.vue` 仍较大，UI 与流程编排尚未完全解耦。
-- `services` 同时承担“业务适配 + 基础设施”角色，边界仍可继续收敛。
-- `serial-service.ts` 为兼容 facade，后续可逐步去存量依赖。
-
-### 建议顺序
-1. 继续拆分 `CartBurner`：将操作编排下沉到 `features/burner/application`。
-2. 将 `services` 中可纯化逻辑下沉到 `domain/utils`，基础设施上移到 `platform/*`。
-3. 用 `DeviceGateway + Transport` 作为唯一串口入口，逐步收敛 legacy API。
-4. 每一步保持 `check:deps + tests` 绿灯后再推进。
-
-## 文档维护规则
-- 任何新增核心流程（连接、烧录、导出）需同步更新本目录对应数据流图文档。
-- 任何新增跨层依赖规则需同步更新 `architecture-guardrails.md`。
-- 每次大改后，至少运行一次：
-  - `npm run check:deps`
-  - `npm run test:run`
+当前修复证据与剩余验收见[状态报告](../../../docs/review-2026-10-02/current-finding-status.md)。新增核心入口须更新相应模块文档与合同测试。
