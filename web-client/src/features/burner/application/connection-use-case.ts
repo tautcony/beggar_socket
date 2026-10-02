@@ -97,13 +97,16 @@ export class ConnectionOrchestrationUseCase {
     };
   }
 
-  private markFailure(failure: ConnectionFailure): ConnectionUseCaseResult {
+  private markFailure(
+    failure: ConnectionFailure,
+    resource: Pick<ConnectionContext, 'selection' | 'handle'> = this.snapshotState.context,
+  ): ConnectionUseCaseResult {
     this.snapshotState = {
       state: 'failed',
       context: {
         generation: this.snapshotState.context.generation + 1,
-        selection: null,
-        handle: null,
+        selection: resource.selection,
+        handle: resource.handle,
       },
       lastFailure: failure,
     };
@@ -191,26 +194,52 @@ export class ConnectionOrchestrationUseCase {
   }
 
   async listAvailableSelections(): Promise<ConnectionCommandResult & { ports?: ConnectionContext['selection'][] }> {
-    const listResult = await this.connectionPort.list();
-    if (!listResult.ok) {
-      const failure = normalizeFailure('list', listResult.error, 'list_failed');
-      const result = this.markFailure(failure);
-      return {
-        ...toFailure(result.state, result.context, failure),
-      };
-    }
+    try {
+      const listResult = await this.connectionPort.list();
+      if (!listResult.ok) {
+        const failure = normalizeFailure('list', listResult.error, 'list_failed');
+        return toFailure(this.snapshotState.state, this.snapshotState.context, failure);
+      }
 
-    return {
-      ...toSuccess(this.snapshotState.state, this.snapshotState.context, 'Listed ports'),
-      ports: listResult.data
-        .filter(Boolean)
-        .map(portInfo => ({ portInfo, context: { portInfo } })),
-    };
+      return {
+        ...toSuccess(this.snapshotState.state, this.snapshotState.context, 'Listed ports'),
+        ports: listResult.data
+          .filter(Boolean)
+          .map(portInfo => ({ portInfo, context: { portInfo } })),
+      };
+    } catch (error) {
+      const failure = normalizeFailure('list', error, 'list_failed');
+      return toFailure(this.snapshotState.state, this.snapshotState.context, failure);
+    }
+  }
+
+  private async closeHandle(handle: NonNullable<ConnectionContext['handle']>): Promise<{ error: unknown } | undefined> {
+    try {
+      const result = await this.connectionPort.disconnect(handle);
+      return result.ok ? undefined : { error: result.error };
+    } catch (error) {
+      return { error };
+    }
+  }
+
+  private async rollbackConnection(
+    failure: ConnectionFailure,
+    selection: ConnectionContext['selection'],
+    handle: NonNullable<ConnectionContext['handle']>,
+  ): Promise<ConnectionCommandResult> {
+    const cleanup = await this.closeHandle(handle);
+    const failureWithCleanup = appendCleanupCause(failure, cleanup?.error);
+    const result = this.markFailure(failureWithCleanup, cleanup ? { selection, handle } : { selection: null, handle: null });
+    return toFailure(result.state, result.context, failureWithCleanup);
   }
 
   private async connectAndInit(selection: ConnectionContext['selection']): Promise<ConnectionCommandResult> {
-    this.setState('connecting');
     const previousHandle = this.snapshotState.context.handle;
+    if (previousHandle) {
+      const cleanup = await this._disconnect();
+      if (!cleanup.success) return cleanup;
+    }
+    this.setState('connecting');
     const connectResult = await this.connectionPort.connect(selection);
     if (!connectResult.ok) {
       const failure = normalizeFailure('connect', connectResult.error, 'connect_failed');
@@ -219,33 +248,24 @@ export class ConnectionOrchestrationUseCase {
     }
 
     if (connectResult.data.id === previousHandle?.id) {
-      let cleanupError: unknown;
-      const failure: ConnectionFailure = {
+      return this.rollbackConnection({
         stage: 'connect',
         code: 'stale_context',
         message: 'Reconnect must return a fresh connection context',
-      };
-      try {
-        await this.connectionPort.disconnect(connectResult.data);
-      } catch (error) {
-        cleanupError = error;
-      }
-      const failureWithCleanup = appendCleanupCause(failure, cleanupError);
-      const result = this.markFailure(failureWithCleanup);
-      return toFailure(result.state, result.context, failureWithCleanup);
+      }, selection, connectResult.data);
     }
 
-    const initResult = await this.connectionPort.init(connectResult.data);
-    if (!initResult.ok) {
-      let cleanupError: unknown;
-      try {
-        await this.connectionPort.disconnect(connectResult.data);
-      } catch (error) {
-        cleanupError = error;
+    let initFailure: ConnectionFailure | undefined;
+    try {
+      const initResult = await this.connectionPort.init(connectResult.data);
+      if (!initResult.ok) {
+        initFailure = normalizeFailure('init', initResult.error, 'init_failed');
       }
-      const failure = appendCleanupCause(normalizeFailure('init', initResult.error, 'init_failed'), cleanupError);
-      const result = this.markFailure(failure);
-      return toFailure(result.state, result.context, failure);
+    } catch (error) {
+      initFailure = normalizeFailure('init', error, 'init_failed');
+    }
+    if (initFailure) {
+      return this.rollbackConnection(initFailure, selection, connectResult.data);
     }
 
     const result = this.markConnected(selection, connectResult.data);
@@ -274,9 +294,9 @@ export class ConnectionOrchestrationUseCase {
     }
 
     this.setState('disconnecting');
-    const disconnectResult = await this.connectionPort.disconnect(this.snapshotState.context.handle);
-    if (!disconnectResult.ok) {
-      const failure = normalizeFailure('disconnect', disconnectResult.error, 'disconnect_failed');
+    const cleanup = await this.closeHandle(this.snapshotState.context.handle);
+    if (cleanup) {
+      const failure = normalizeFailure('disconnect', cleanup.error, 'disconnect_failed');
       const result = this.markFailure(failure);
       return toFailure(result.state, result.context, failure);
     }
