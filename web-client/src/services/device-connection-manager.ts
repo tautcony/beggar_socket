@@ -205,16 +205,15 @@ export class DeviceConnectionManager {
 
     try {
       console.info('[DeviceConnectionManager] connectWithSelectedPort', this.describePort(selectedPort));
-      await this.connectionUseCase.disconnect();
 
       const selection: BurnerConnectionSelection = {
         portInfo: selectedPort,
         context: { portInfo: selectedPort },
       };
 
-      const result = await this.connectionUseCase.prepareConnectionWithSelection(selection);
+      const result = await this.connectionUseCase.reconnectWithSelection(selection);
       if (!result.success || !result.context.handle) {
-        console.error('[DeviceConnectionManager] prepareConnectionWithSelection failed', {
+        console.error('[DeviceConnectionManager] reconnectWithSelection failed', {
           selectedPort: this.describePort(selectedPort),
           failure: result.failure,
         });

@@ -49,6 +49,90 @@ function deferred<T>() {
 }
 
 describe('ConnectionOrchestrationUseCase', () => {
+  it.each(['reconnect', 'disconnect', 'prepare'] as const)('finishes selected reconnect before a concurrent %s', async (next) => {
+    const events: string[] = [];
+    const basePort = createPortMock();
+    const closing = deferred<Awaited<ReturnType<BurnerConnectionPort['disconnect']>>>();
+    const initializing = deferred<Awaited<ReturnType<BurnerConnectionPort['init']>>>();
+    const disconnect = vi.fn(async (handle: Parameters<BurnerConnectionPort['disconnect']>[0]) => {
+      events.push(`close:${handle.portInfo?.path}`);
+      return disconnect.mock.calls.length === 1 ? closing.promise : { ok: true as const, data: undefined };
+    });
+    const connect = vi.fn(async (selection?: BurnerConnectionSelection | null) => {
+      events.push(`open:${selection?.portInfo?.path}`);
+      return basePort.connect(selection);
+    });
+    const init = vi.fn(async (handle: Parameters<BurnerConnectionPort['init']>[0]) => {
+      events.push(`init:${handle.portInfo?.path}`);
+      return handle.portInfo?.path === '/dev/first' ? initializing.promise : { ok: true as const, data: undefined };
+    });
+    const useCase = new ConnectionOrchestrationUseCase(createPortMock({ connect, init, disconnect }));
+    await useCase.prepareConnection();
+    events.length = 0;
+
+    const reconnecting = useCase.reconnectWithSelection({ portInfo: { path: '/dev/first' }, context: {} });
+    await vi.waitFor(() => {
+      expect(events).toEqual(['close:/dev/mock']);
+    });
+    const following = next === 'reconnect'
+      ? useCase.reconnectWithSelection({ portInfo: { path: '/dev/second' }, context: {} })
+      : next === 'disconnect' ? useCase.disconnect() : useCase.prepareConnection();
+    closing.resolve({ ok: true, data: undefined });
+    await vi.waitFor(() => {
+      expect(events).toEqual(['close:/dev/mock', 'open:/dev/first', 'init:/dev/first']);
+    });
+    expect(disconnect).toHaveBeenCalledOnce();
+    initializing.resolve({ ok: true, data: undefined });
+
+    const first = await reconnecting;
+    const second = await following;
+    expect(first.success).toBe(true);
+    expect(second.success).toBe(true);
+    if (next === 'reconnect') {
+      expect(events).toEqual(['close:/dev/mock', 'open:/dev/first', 'init:/dev/first', 'close:/dev/first', 'open:/dev/second', 'init:/dev/second']);
+      expect(second.context.handle?.portInfo?.path).toBe('/dev/second');
+    } else if (next === 'disconnect') {
+      expect(events).toEqual(['close:/dev/mock', 'open:/dev/first', 'init:/dev/first', 'close:/dev/first']);
+      expect(useCase.snapshot.state).toBe('idle');
+    } else {
+      expect(events).toEqual(['close:/dev/mock', 'open:/dev/first', 'init:/dev/first']);
+      expect(second.context.handle).toBe(first.context.handle);
+    }
+  });
+
+  it.each(['result', 'throw'] as const)('does not open selected reconnect after close %s failure and retries cleanup', async (mode) => {
+    const basePort = createPortMock();
+    const connect = vi.fn((selection?: BurnerConnectionSelection | null) => basePort.connect(selection));
+    const disconnect = vi.fn().mockResolvedValue({ ok: true, data: undefined });
+    const useCase = new ConnectionOrchestrationUseCase(createPortMock({ connect, disconnect }));
+    const initial = await useCase.prepareConnection();
+    const error = new Error('close failed');
+    if (mode === 'throw') disconnect.mockRejectedValueOnce(error);
+    else disconnect.mockResolvedValueOnce({ ok: false, error });
+    const selection = { portInfo: { path: '/dev/selected' }, context: {} };
+
+    const failed = await useCase.reconnectWithSelection(selection);
+    expect(failed.failure?.code).toBe('disconnect_failed');
+    expect(failed.context.handle).toBe(initial.context.handle);
+    expect(connect).toHaveBeenCalledOnce();
+    const recovered = await useCase.reconnectWithSelection(selection);
+    expect(recovered.success).toBe(true);
+    expect(recovered.context.handle?.portInfo?.path).toBe('/dev/selected');
+    expect(connect).toHaveBeenCalledTimes(2);
+    expect(disconnect).toHaveBeenNthCalledWith(1, initial.context.handle);
+    expect(disconnect).toHaveBeenNthCalledWith(2, initial.context.handle);
+  });
+
+  it('keeps selected prepare idempotent while connected', async () => {
+    const basePort = createPortMock();
+    const connect = vi.fn((selection?: BurnerConnectionSelection | null) => basePort.connect(selection));
+    const useCase = new ConnectionOrchestrationUseCase(createPortMock({ connect }));
+    const first = await useCase.prepareConnection();
+    const second = await useCase.prepareConnectionWithSelection({ portInfo: { path: '/dev/other' }, context: {} });
+    expect(second.context.handle).toBe(first.context.handle);
+    expect(connect).toHaveBeenCalledOnce();
+  });
+
   it.each(['result', 'throw'] as const)('keeps enumeration %s failures read-only while connected', async (mode) => {
     const error = new Error('list failed');
     const list = vi.fn();

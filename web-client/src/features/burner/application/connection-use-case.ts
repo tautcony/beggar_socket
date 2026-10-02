@@ -180,17 +180,25 @@ export class ConnectionOrchestrationUseCase {
       if (this.snapshotState.state === 'connected' && this.snapshotState.context.handle) {
         return toSuccess('connected', this.snapshotState.context, 'Connection already ready');
       }
-      if (!selection) {
-        const failure: ConnectionFailure = {
-          stage: 'select',
-          code: 'selection_required',
-          message: 'Device selection required',
-        };
-        const result = this.markFailure(failure);
-        return toFailure(result.state, result.context, failure);
-      }
-      return this.connectAndInit(selection);
+      return this._prepareConnectionWithSelection(selection);
     });
+  }
+
+  async reconnectWithSelection(selection: ConnectionContext['selection']): Promise<ConnectionCommandResult> {
+    return this.enqueueLifecycle(() => this._prepareConnectionWithSelection(selection));
+  }
+
+  private async _prepareConnectionWithSelection(selection: ConnectionContext['selection']): Promise<ConnectionCommandResult> {
+    if (!selection) {
+      const failure: ConnectionFailure = {
+        stage: 'select',
+        code: 'selection_required',
+        message: 'Device selection required',
+      };
+      const result = this.markFailure(failure);
+      return toFailure(result.state, result.context, failure);
+    }
+    return this.connectAndInit(selection);
   }
 
   async listAvailableSelections(): Promise<ConnectionCommandResult & { ports?: ConnectionContext['selection'][] }> {

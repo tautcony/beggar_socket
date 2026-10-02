@@ -5,7 +5,7 @@ import { PortFilters } from '@/utils/port-filter';
 
 const connectionUseCaseState = vi.hoisted(() => ({
   listAvailableSelections: vi.fn(),
-  prepareConnectionWithSelection: vi.fn(),
+  reconnectWithSelection: vi.fn(),
   prepareConnection: vi.fn(),
   disconnect: vi.fn(),
   ensureConnected: vi.fn(),
@@ -30,7 +30,7 @@ describe('DeviceConnectionManager', () => {
       success: true,
       ports: [],
     });
-    connectionUseCaseState.prepareConnectionWithSelection.mockResolvedValue({
+    connectionUseCaseState.reconnectWithSelection.mockResolvedValue({
       success: true,
       context: {
         handle: {
@@ -88,7 +88,7 @@ describe('DeviceConnectionManager', () => {
     const manager = DeviceConnectionManager.getInstance();
     await manager.requestDevice(PortFilters.presets.beggarSocket());
 
-    expect(connectionUseCaseState.prepareConnectionWithSelection).toHaveBeenCalledWith({
+    expect(connectionUseCaseState.reconnectWithSelection).toHaveBeenCalledWith({
       portInfo: {
         path: '/dev/tty.usbmodem6D83538A48851',
         vendorId: '0483',
@@ -102,6 +102,7 @@ describe('DeviceConnectionManager', () => {
         },
       },
     });
+    expect(connectionUseCaseState.disconnect).not.toHaveBeenCalled();
     expect(infoSpy).toHaveBeenCalledWith(
       '[DeviceConnectionManager] firmware profile detected',
       expect.objectContaining({
@@ -170,7 +171,7 @@ describe('DeviceConnectionManager', () => {
         { path: '/dev/cu.usbmodem2', manufacturer: 'STMicroelectronics' },
       ],
     });
-    expect(connectionUseCaseState.prepareConnectionWithSelection).not.toHaveBeenCalled();
+    expect(connectionUseCaseState.reconnectWithSelection).not.toHaveBeenCalled();
   });
 
   it('fails fast when orchestration returns a handle without a valid DeviceHandle context', async () => {
@@ -193,6 +194,20 @@ describe('DeviceConnectionManager', () => {
     const manager = DeviceConnectionManager.getInstance();
 
     await expect(manager.requestDevice()).rejects.toThrow('Invalid connection handle: context is not a valid DeviceHandle');
+  });
+
+  it('propagates selected reconnect cleanup failures without a separate disconnect', async () => {
+    connectionUseCaseState.reconnectWithSelection.mockResolvedValue({
+      success: false,
+      context: {},
+      failure: { stage: 'disconnect', code: 'disconnect_failed', message: 'close failed' },
+    });
+    const { DeviceConnectionManager } = await import('@/services/device-connection-manager');
+    const manager = DeviceConnectionManager.getInstance();
+
+    await expect(manager.connectWithSelectedPort({ path: '/dev/selected' })).rejects.toThrow('[disconnect/disconnect_failed] close failed');
+    expect(connectionUseCaseState.reconnectWithSelection).toHaveBeenCalledOnce();
+    expect(connectionUseCaseState.disconnect).not.toHaveBeenCalled();
   });
 
   it('clears legacy device state even when disconnect fails', async () => {

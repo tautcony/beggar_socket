@@ -4,7 +4,7 @@
 
 ## 2. Selected reconnect
 
-- [ ] 2.1 Serialize selected reconnect as one transaction and migrate manager with concurrency/failure tests; validate and commit.
+- [x] 2.1 Serialize selected reconnect as one transaction and migrate manager with concurrency/failure tests; validate and commit.
 
 ## 3. Native session lifecycle
 
