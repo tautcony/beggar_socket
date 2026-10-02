@@ -59,12 +59,17 @@ export function logp(...args: unknown[]): void {
 
 // 编译准备与主流程拆分
 export function prepareCompilation(cartridge_type: number) {
-  if (cartridge_type < 0 || cartridge_type >= cartridgeTypes.length || !cartridgeTypes[cartridge_type]) {
+  if (!Number.isInteger(cartridge_type) || cartridge_type <= 0 || cartridge_type >= cartridgeTypes.length || !cartridgeTypes[cartridge_type]) {
     throw new Error(`Invalid cartridge type: ${cartridge_type}`);
   }
   const flash_size = cartridgeTypes[cartridge_type].flash_size;
   const sector_size = cartridgeTypes[cartridge_type].sector_size;
   const block_size = cartridgeTypes[cartridge_type].block_size;
+  if (![flash_size, sector_size, block_size].every(value => Number.isSafeInteger(value) && value > 0)
+    || flash_size % sector_size !== 0 || flash_size % block_size !== 0
+    || block_size % sector_size !== 0 || sector_size < STATUS_AREA_SIZE) {
+    throw new Error('Invalid cartridge geometry');
+  }
   const sector_count = Math.floor(flash_size / sector_size);
   const block_count = Math.floor(flash_size / block_size);
   const sectors_per_block = BLOCK_GRANULARITY / sector_size;
@@ -74,10 +79,14 @@ export function prepareCompilation(cartridge_type: number) {
   return { flash_size, sector_size, block_size, sector_count, block_count, sectors_per_block, compilation, sector_map };
 }
 
+function paddedMenuLength(length: number): number {
+  return length + 0x10 - (length % 0x10) + 0x20;
+}
+
 export function readMenuRom(menuRomData: ArrayBuffer, sector_size: number, compilation: Uint8Array): { menu_rom: Uint8Array, build_timestamp_offset: number } {
   const menuRom = arrayBufferToUint8Array(menuRomData);
   // 补齐到16字节对齐
-  const paddingLength = (menuRom.length + 0x10 - (menuRom.length % 0x10)) - menuRom.length;
+  const paddingLength = paddedMenuLength(menuRom.length) - 0x20 - menuRom.length;
   const padded_step1 = new Uint8Array(menuRom.length + paddingLength);
   padded_step1.set(menuRom);
   padded_step1.fill(0xFF, menuRom.length);
@@ -114,8 +123,14 @@ function prepareGames(
   romFiles: Map<string, ArrayBuffer>,
   saveFiles: Map<string, ArrayBuffer>,
 ): { games: PreparedGame[], saves_read: number[], save_end_offset: number, roms_keys: number[] } {
+  if (!Number.isSafeInteger(min_rom_size) || min_rom_size < BLOCK_GRANULARITY
+    || !Number.isInteger(Math.log2(min_rom_size))) {
+    throw new Error(`Invalid minimum ROM size: ${min_rom_size}`);
+  }
   const preparedGames: PreparedGame[] = [];
   const saves_read: number[] = [];
+  const initializedSlots = new Set<number>();
+  let save_end_offset = save_data_sector_offset;
   let roms_keys: number[] = [0];
   let index = 0;
   for (const inputGame of games) {
@@ -124,6 +139,8 @@ function prepareGames(
     if (!romData) {
       continue;
     }
+    if (romData.byteLength === 0) throw new Error(`ROM "${inputGame.file}" is empty`);
+    if (![1, 2].includes(inputGame.title_font ?? 1)) throw new Error(`Invalid title font for "${inputGame.file}"`);
     let size = romData.byteLength;
     if ((size & (size - 1)) !== 0) {
       let x = 0x80000;
@@ -153,7 +170,7 @@ function prepareGames(
       index,
       size,
       title_font: (inputGame.title_font ?? 1) - 1,
-      sector_count: Math.floor(size / sector_size),
+      sector_count: Math.ceil(size / sector_size),
       keysValue: 0,
       save_type: 0,
     };
@@ -180,11 +197,17 @@ function prepareGames(
       roms_keys.push(keys);
       roms_keys = Array.from(new Set(roms_keys));
     }
-    if (battery_present && game.save_slot !== null) {
+    if (battery_present && game.save_slot !== null && game.save_slot !== 0) {
+      if (!Number.isInteger(game.save_slot) || game.save_slot < 1 || game.save_slot > 256
+        || save_data_sector_offset + game.save_slot > sector_map.length
+        || (save_data_sector_offset + game.save_slot) * sector_size > compilation.length) {
+        throw new Error(`Invalid save slot for "${game.file}": ${game.save_slot}`);
+      }
       game.save_type = 2;
       game.save_slot--;
       const save_slot = game.save_slot;
       const offset = save_data_sector_offset + save_slot;
+      save_end_offset = Math.max(save_end_offset, offset + 1);
       updateSectorMap(sector_map, offset, 1, 's');
       if (!saves_read.includes(save_slot)) {
         const saveFileName = parsePath(game.file).name + '.sav';
@@ -208,7 +231,10 @@ function prepareGames(
           save_buffer.set(saveArray.subarray(0, copyLength));
           saves_read.push(save_slot);
         }
-        compilation.set(save_buffer, offset * sector_size);
+        if (saveData || !initializedSlots.has(save_slot)) {
+          compilation.set(save_buffer, offset * sector_size);
+          initializedSlots.add(save_slot);
+        }
       }
     } else {
       game.save_type = 0;
@@ -217,7 +243,6 @@ function prepareGames(
     preparedGames.push(game);
     index++;
   }
-  const save_end_offset = saves_read.length > 0 ? sector_map.join('').lastIndexOf('S') + 1 : save_data_sector_offset;
   return { games: preparedGames, saves_read, save_end_offset, roms_keys };
 }
 
@@ -261,7 +286,11 @@ async function allocateRomData(
         sector_count_map = Math.floor((32 * 1024 * 1024) / sector_size);
       }
       if (sector_count_map > 0 && i % sector_count_map === 0) {
-        const canFit = sector_map.slice(i, i + game.sector_count).every(s => s === '.');
+        const canFit = Number.isSafeInteger(game.sector_count) && game.sector_count > 0
+          && i + game.sector_count <= sector_map.length
+          && (i + game.sector_count) * sector_size <= compilation.length
+          && i * sector_size + game.size <= compilation.length
+          && sector_map.slice(i, i + game.sector_count).every(s => s === '.');
         if (canFit) {
           updateSectorMap(sector_map, i, game.sector_count, 'r');
           const romData = romFiles.get(game.file);
@@ -352,12 +381,16 @@ export function generateItemList(games: GameConfig[], roms_keys: number[], batte
       block_count,
     };
   });
-  return encodeItemList(allocatedGames, roms_keys);
+  return encodeItemList(allocatedGames, roms_keys, sector_size);
 }
 
 // item list 生成
-function encodeItemList(games: AllocatedGame[], roms_keys: number[]): Uint8Array {
-  let item_list = new Uint8Array(0);
+function encodeItemList(games: AllocatedGame[], roms_keys: number[], capacity: number): Uint8Array {
+  const entrySize = 0x30 * 2 + 16;
+  const entryCount = roms_keys.reduce((count, key) => count + games.filter(game => game.keysValue === key).length, 0);
+  if (entryCount * entrySize > capacity) throw new Error('LK item list exceeds its reserved sector');
+  const item_list = new Uint8Array(entryCount * entrySize);
+  let itemOffset = 0;
   // 按 index 排序
   games = [...games].sort((a, b) => a.index - b.index);
   for (const key of roms_keys) {
@@ -388,7 +421,8 @@ function encodeItemList(games: AllocatedGame[], roms_keys: number[]): Uint8Array
         titleBuffer[i * 2 + 1] = (charCode >> 8) & 0xFF; // 高字节
       }
       buf.set(titleBuffer, 16);
-      item_list = new Uint8Array([...item_list, ...buf]);
+      item_list.set(buf, itemOffset);
+      itemOffset += entrySize;
       c++;
     }
   }
@@ -456,11 +490,15 @@ export async function buildRom(input: BuildInput): Promise<BuildResult> {
     games: createBuildGames(config.games),
     cartridge_type: config.cartridge.type,
     battery_present: config.cartridge.battery_present,
-    min_rom_size: config.cartridge.min_rom_size || MIN_ROM_SIZE,
+    min_rom_size: config.cartridge.min_rom_size === 0 ? MIN_ROM_SIZE : config.cartridge.min_rom_size ?? MIN_ROM_SIZE,
   };
 
   // 编译准备
   const { flash_size, sector_size, block_size, compilation, sector_map } = prepareCompilation(cartridge_type);
+  // Keep the firmware's fixed one-sector list/status layout, including strict next alignment.
+  const paddedMenuSize = paddedMenuLength(menuRom.byteLength);
+  const listByteOffset = paddedMenuSize + ITEM_LIST_ALIGNMENT - (paddedMenuSize % ITEM_LIST_ALIGNMENT);
+  if (listByteOffset + 2 * sector_size > flash_size) throw new Error('LK menu/list/status layout exceeds flash capacity');
   // 读取Menu ROM
   const { menu_rom } = readMenuRom(menuRom, sector_size, compilation);
   // 更新背景（按需动态加载）
@@ -503,7 +541,7 @@ export async function buildRom(input: BuildInput): Promise<BuildResult> {
   const { games: validGames, save_end_offset, roms_keys } = prepareGames(games, sector_size, min_rom_size, battery_present, compilation, sector_map, save_data_sector, romFiles, saveFiles);
   const { games: allocatedGames } = await allocateRomData(validGames, compilation, sector_map, sector_size, block_size, save_end_offset, true, romFiles, context.logp);
   // 生成item list
-  const itemList = encodeItemList(allocatedGames, roms_keys);
+  const itemList = encodeItemList(allocatedGames, roms_keys, sector_size);
   // 写入item list到扇区位置
   compilation.set(itemList, item_list_sector * sector_size);
   // 写出ROM
