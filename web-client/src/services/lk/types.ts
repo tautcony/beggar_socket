@@ -39,6 +39,23 @@ export interface GameConfig {
   keysValue?: number;
 }
 
+/** Caller settings only; computed phase metadata never enters preparation. */
+export type InputGame = Pick<GameConfig, 'enabled' | 'file' | 'title' | 'title_font' | 'save_slot' | 'map_256m' | 'keys'>;
+
+export interface PreparedGame extends InputGame {
+  index: number;
+  size: number;
+  sector_count: number;
+  save_type: number;
+  keysValue: number;
+}
+
+export interface AllocatedGame extends PreparedGame {
+  sector_offset: number;
+  block_offset: number;
+  block_count: number;
+}
+
 export interface CartridgeConfig {
   type: number;
   battery_present: boolean;

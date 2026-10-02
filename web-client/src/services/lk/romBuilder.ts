@@ -1,6 +1,6 @@
 // romBuilder.ts - ROM构建器主逻辑
 
-import { BuildInput, BuildResult, cartridgeTypes, GameConfig } from './types';
+import { AllocatedGame, BuildInput, BuildResult, cartridgeTypes, GameConfig, InputGame, PreparedGame } from './types';
 import { arrayBufferToUint8Array, parsePath, sha1, uint8ArrayToArrayBuffer, updateSectorMap } from './utils';
 
 // ---- Layout constants ----
@@ -15,9 +15,23 @@ const STATUS_AREA_SIZE = 0x1000;
 /** Maximum number of UTF-16 code units stored in an item-list title. */
 export const ITEM_TITLE_CODE_UNIT_LIMIT = 0x30;
 
-let log = '';
+interface BuildContext {
+  log: string;
+  logp: (...args: unknown[]) => void;
+}
 
-function createBuildGames(games: GameConfig[]): GameConfig[] {
+function createBuildContext(): BuildContext {
+  const context: BuildContext = {
+    log: '',
+    logp: (...args) => {
+      logp(...args);
+      context.log += args.join(' ') + '\n';
+    },
+  };
+  return context;
+}
+
+function createBuildGames(games: GameConfig[]): InputGame[] {
   return games.map(game => ({
     enabled: game.enabled,
     file: game.file,
@@ -41,7 +55,6 @@ function truncateItemTitle(title: string): string {
 export function logp(...args: unknown[]): void {
   const s = args.join(' ');
   console.log(s);
-  log += s + '\n';
 }
 
 // 编译准备与主流程拆分
@@ -90,8 +103,8 @@ export function readMenuRom(menuRomData: ArrayBuffer, sector_size: number, compi
 }
 
 // ROM与存档导入、ROM数据写入
-export function importSaveDataAndAddRom(
-  games: GameConfig[],
+function prepareGames(
+  games: InputGame[],
   sector_size: number,
   min_rom_size: number,
   battery_present: boolean,
@@ -100,15 +113,15 @@ export function importSaveDataAndAddRom(
   save_data_sector_offset: number,
   romFiles: Map<string, ArrayBuffer>,
   saveFiles: Map<string, ArrayBuffer>,
-): { games: GameConfig[], saves_read: number[], save_end_offset: number, roms_keys: number[] } {
+): { games: PreparedGame[], saves_read: number[], save_end_offset: number, roms_keys: number[] } {
+  const preparedGames: PreparedGame[] = [];
   const saves_read: number[] = [];
   let roms_keys: number[] = [0];
   let index = 0;
-  for (const game of games) {
-    if (!game.enabled) continue;
-    const romData = romFiles.get(game.file);
+  for (const inputGame of games) {
+    if (!inputGame.enabled) continue;
+    const romData = romFiles.get(inputGame.file);
     if (!romData) {
-      game.missing = true;
       continue;
     }
     let size = romData.byteLength;
@@ -135,10 +148,15 @@ export function importSaveDataAndAddRom(
         size = Math.max(size, min_rom_size);
       }
     }
-    game.index = index;
-    game.size = size;
-    game.title_font = (game.title_font ?? 1) - 1;
-    game.sector_count = Math.floor(size / sector_size);
+    const game: PreparedGame = {
+      ...inputGame,
+      index,
+      size,
+      title_font: (inputGame.title_font ?? 1) - 1,
+      sector_count: Math.floor(size / sector_size),
+      keysValue: 0,
+      save_type: 0,
+    };
     // Hidden ROMs
     let keys = 0;
     if (game.keys) {
@@ -196,15 +214,32 @@ export function importSaveDataAndAddRom(
       game.save_type = 0;
       game.save_slot = 0;
     }
+    preparedGames.push(game);
     index++;
   }
   const save_end_offset = saves_read.length > 0 ? sector_map.join('').lastIndexOf('S') + 1 : save_data_sector_offset;
-  return { games: games.filter(g => !g.missing), saves_read, save_end_offset, roms_keys };
+  return { games: preparedGames, saves_read, save_end_offset, roms_keys };
+}
+
+/** Compatibility adapter for callers using the exported mutable phase helper. */
+export function importSaveDataAndAddRom(
+  games: GameConfig[], sector_size: number, min_rom_size: number, battery_present: boolean,
+  compilation: Uint8Array, sector_map: string[], save_data_sector_offset: number,
+  romFiles: Map<string, ArrayBuffer>, saveFiles: Map<string, ArrayBuffer>,
+): { games: GameConfig[], saves_read: number[], save_end_offset: number, roms_keys: number[] } {
+  const result = prepareGames(createBuildGames(games), sector_size, min_rom_size, battery_present, compilation, sector_map, save_data_sector_offset, romFiles, saveFiles);
+  let preparedIndex = 0;
+  for (const game of games) {
+    if (!game.enabled) continue;
+    if (!romFiles.has(game.file)) game.missing = true;
+    else Object.assign(game, result.games[preparedIndex++]);
+  }
+  return { ...result, games: games.filter(game => !game.missing) };
 }
 
 // ROM数据分配与写入
-export async function addRomData(
-  games: GameConfig[],
+async function allocateRomData(
+  games: PreparedGame[],
   compilation: Uint8Array,
   sector_map: string[],
   sector_size: number,
@@ -212,21 +247,23 @@ export async function addRomData(
   save_end_offset: number,
   boot_logo_found: boolean,
   romFiles: Map<string, ArrayBuffer>,
-): Promise<boolean> {
+  writeLog: (...args: unknown[]) => void,
+): Promise<{ games: AllocatedGame[], logoFound: boolean }> {
+  const allocatedGames: AllocatedGame[] = [];
   let logoFound = boot_logo_found;
   // 按ROM大小降序排序
-  games.sort((a, b) => (b.size ?? 0) - (a.size ?? 0));
+  games.sort((a, b) => b.size - a.size);
   for (const game of games) {
     let found = false;
     for (let i = save_end_offset; i < sector_map.length; i++) {
-      let sector_count_map = game.sector_count ?? 0;
+      let sector_count_map = game.sector_count;
       if (game.map_256m) {
         sector_count_map = Math.floor((32 * 1024 * 1024) / sector_size);
       }
       if (sector_count_map > 0 && i % sector_count_map === 0) {
-        const canFit = sector_map.slice(i, i + (game.sector_count ?? 0)).every(s => s === '.');
+        const canFit = sector_map.slice(i, i + game.sector_count).every(s => s === '.');
         if (canFit) {
-          updateSectorMap(sector_map, i, game.sector_count ?? 0, 'r');
+          updateSectorMap(sector_map, i, game.sector_count, 'r');
           const romData = romFiles.get(game.file);
           if (romData) {
             const rom = arrayBufferToUint8Array(romData);
@@ -236,9 +273,12 @@ export async function addRomData(
             }
             // 写入ROM数据
             compilation.set(rom, writeOffset);
-            game.sector_offset = i;
-            game.block_offset = Math.floor((game.sector_offset ?? 0) * sector_size / block_size);
-            game.block_count = Math.floor((sector_count_map * sector_size) / block_size);
+            allocatedGames.push({
+              ...game,
+              sector_offset: i,
+              block_offset: Math.floor(i * sector_size / block_size),
+              block_count: Math.floor((sector_count_map * sector_size) / block_size),
+            });
             found = true;
             // boot logo - 直接比较SHA1哈希
             const logoData = rom.subarray(4, 0xA0);
@@ -255,17 +295,71 @@ export async function addRomData(
       }
     }
     if (!found) {
-      logp(`"${game.title}" couldn't be added because it exceeds the available cartridge space.`);
+      writeLog(`"${game.title}" couldn't be added because it exceeds the available cartridge space.`);
     }
   }
-  return logoFound;
+  return { games: allocatedGames, logoFound };
+}
+
+function requireNumber(game: GameConfig, field: keyof GameConfig): number {
+  const value = game[field];
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new Error(`Game "${game.file}" is missing required ${field} metadata`);
+  }
+  return value;
+}
+
+export async function addRomData(
+  games: GameConfig[], compilation: Uint8Array, sector_map: string[], sector_size: number,
+  block_size: number, save_end_offset: number, boot_logo_found: boolean, romFiles: Map<string, ArrayBuffer>,
+): Promise<boolean> {
+  const prepared = games.filter(game => game.enabled && !game.missing).map((game): PreparedGame => ({
+    ...game,
+    index: requireNumber(game, 'index'),
+    size: requireNumber(game, 'size'),
+    sector_count: requireNumber(game, 'sector_count'),
+    save_type: requireNumber(game, 'save_type'),
+    keysValue: requireNumber(game, 'keysValue'),
+  }));
+  const result = await allocateRomData(prepared, compilation, sector_map, sector_size, block_size, save_end_offset, boot_logo_found, romFiles, logp);
+  // Match the original mutable helper's order and metadata, including duplicate files.
+  const allocatedByIndex = new Map(result.games.map(game => [game.index, game]));
+  games.sort((a, b) => (b.size ?? 0) - (a.size ?? 0));
+  for (const game of games) {
+    if (game.enabled && game.index !== undefined) {
+      const allocated = allocatedByIndex.get(game.index);
+      if (allocated) Object.assign(game, allocated);
+    }
+  }
+  return result.logoFound;
+}
+
+// Public adapter preserves callers that provide only the serialized phase fields.
+export function generateItemList(games: GameConfig[], roms_keys: number[], battery_present: boolean, block_size: number, sector_size: number, save_data_sector_offset: number): Uint8Array {
+  const allocatedGames = games.filter(game => game.sector_offset !== undefined).map((game): AllocatedGame => {
+    const block_offset = requireNumber(game, 'block_offset');
+    const block_count = requireNumber(game, 'block_count');
+    const size = game.size ?? block_count * block_size;
+    return {
+      ...game,
+      index: requireNumber(game, 'index'),
+      size,
+      sector_count: game.sector_count ?? Math.floor(size / sector_size),
+      keysValue: requireNumber(game, 'keysValue'),
+      save_type: requireNumber(game, 'save_type'),
+      sector_offset: requireNumber(game, 'sector_offset'),
+      block_offset,
+      block_count,
+    };
+  });
+  return encodeItemList(allocatedGames, roms_keys);
 }
 
 // item list 生成
-export function generateItemList(games: GameConfig[], roms_keys: number[], battery_present: boolean, block_size: number, sector_size: number, save_data_sector_offset: number): Uint8Array {
+function encodeItemList(games: AllocatedGame[], roms_keys: number[]): Uint8Array {
   let item_list = new Uint8Array(0);
   // 按 index 排序
-  games = games.filter(g => g.sector_offset !== undefined).sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+  games = [...games].sort((a, b) => a.index - b.index);
   for (const key of roms_keys) {
     let c = 0;
     for (const game of games) {
@@ -274,13 +368,13 @@ export function generateItemList(games: GameConfig[], roms_keys: number[], batte
       // 生成 item list 二进制结构
       const buf = new Uint8Array(0x30 * 2 + 16);
       const view = new DataView(buf.buffer);
-      view.setUint8(0, game.title_font ?? 0);
+      view.setUint8(0, game.title_font);
       view.setUint8(1, title.length);
-      view.setUint16(2, game.block_offset ?? 0, true);
-      view.setUint16(4, game.block_count ?? 0, true);
-      view.setUint8(6, game.save_type ?? 0);
-      view.setUint8(7, game.save_slot ?? 0);
-      view.setUint16(8, game.keysValue ?? 0, true);
+      view.setUint16(2, game.block_offset, true);
+      view.setUint16(4, game.block_count, true);
+      view.setUint8(6, game.save_type);
+      view.setUint8(7, game.save_slot);
+      view.setUint16(8, game.keysValue, true);
       // 填充10-16字节为0
       for (let i = 10; i < 16; i++) {
         buf[i] = 0;
@@ -316,6 +410,7 @@ export async function writeCompilation(
   menu_rom: Uint8Array,
   cartridge_type: number,
   battery_present: boolean,
+  writeLog: (...args: unknown[]) => void = logp,
 ): Promise<{ rom: ArrayBuffer, code: string }> {
   const rom_size = sector_map.join('').replace(/\.+$/, '').length * sector_size;
   // 计算 ROM code - 使用实际的status和item_list数据
@@ -337,14 +432,14 @@ export async function writeCompilation(
   checksum = (checksum - 0x19) & 0xFF;
   compilation[0xBD] = checksum;
 
-  logp('');
-  logp(`Menu ROM:        0x${(0).toString(16).padStart(8, '0').toUpperCase()}–0x${menu_rom.length.toString(16).padStart(8, '0').toUpperCase()}`);
-  logp(`Game List:       0x${(item_list_offset * sector_size).toString(16).padStart(8, '0').toUpperCase()}–0x${(item_list_offset * sector_size + item_list.length).toString(16).padStart(8, '0').toUpperCase()}`);
-  logp(`Status Area:     0x${(status_offset * sector_size).toString(16).padStart(8, '0').toUpperCase()}–0x${(status_offset * sector_size + STATUS_AREA_SIZE).toString(16).padStart(8, '0').toUpperCase()}`);
-  logp('');
-  logp(`Cartridge Type:  ${cartridge_type} (${cartridgeTypes[cartridge_type].name}) ${battery_present ? 'with battery' : 'without battery'}`);
-  logp(`Output ROM Size: ${(rom_size / 1024 / 1024).toFixed(2)} MiB`);
-  logp(`Output ROM Code: ${rom_code}`);
+  writeLog('');
+  writeLog(`Menu ROM:        0x${(0).toString(16).padStart(8, '0').toUpperCase()}–0x${menu_rom.length.toString(16).padStart(8, '0').toUpperCase()}`);
+  writeLog(`Game List:       0x${(item_list_offset * sector_size).toString(16).padStart(8, '0').toUpperCase()}–0x${(item_list_offset * sector_size + item_list.length).toString(16).padStart(8, '0').toUpperCase()}`);
+  writeLog(`Status Area:     0x${(status_offset * sector_size).toString(16).padStart(8, '0').toUpperCase()}–0x${(status_offset * sector_size + STATUS_AREA_SIZE).toString(16).padStart(8, '0').toUpperCase()}`);
+  writeLog('');
+  writeLog(`Cartridge Type:  ${cartridge_type} (${cartridgeTypes[cartridge_type].name}) ${battery_present ? 'with battery' : 'without battery'}`);
+  writeLog(`Output ROM Size: ${(rom_size / 1024 / 1024).toFixed(2)} MiB`);
+  writeLog(`Output ROM Code: ${rom_code}`);
 
   // 替换输出文件名中的 <CODE> 占位符
   const outFile = output_file.replace('<CODE>', rom_code);
@@ -355,7 +450,7 @@ export async function writeCompilation(
 
 // 主构建函数
 export async function buildRom(input: BuildInput): Promise<BuildResult> {
-  log = '';
+  const context = createBuildContext();
   const { config, menuRom, romFiles, saveFiles, options } = input;
   const { games, cartridge_type, battery_present, min_rom_size } = {
     games: createBuildGames(config.games),
@@ -405,14 +500,14 @@ export async function buildRom(input: BuildInput): Promise<BuildResult> {
   compilation.set(statusData, status_sector * sector_size);
   const save_data_sector = status_sector + 1;
   // 导入存档并添加ROM
-  const { games: validGames, saves_read, save_end_offset, roms_keys } = importSaveDataAndAddRom(games, sector_size, min_rom_size, battery_present, compilation, sector_map, save_data_sector, romFiles, saveFiles);
-  const bootLogoFound = await addRomData(validGames, compilation, sector_map, sector_size, block_size, save_end_offset, true, romFiles);
+  const { games: validGames, save_end_offset, roms_keys } = prepareGames(games, sector_size, min_rom_size, battery_present, compilation, sector_map, save_data_sector, romFiles, saveFiles);
+  const { games: allocatedGames } = await allocateRomData(validGames, compilation, sector_map, sector_size, block_size, save_end_offset, true, romFiles, context.logp);
   // 生成item list
-  const itemList = generateItemList(validGames, roms_keys, battery_present, block_size, sector_size, save_data_sector);
+  const itemList = encodeItemList(allocatedGames, roms_keys);
   // 写入item list到扇区位置
   compilation.set(itemList, item_list_sector * sector_size);
   // 写出ROM
-  const { rom, code } = await writeCompilation(compilation, sector_map, sector_size, options.output, options.split, flash_size, statusData, itemList, status_sector, item_list_sector, menu_rom, cartridge_type, battery_present);
+  const { rom, code } = await writeCompilation(compilation, sector_map, sector_size, options.output, options.split, flash_size, statusData, itemList, status_sector, item_list_sector, menu_rom, cartridge_type, battery_present, context.logp);
 
-  return { rom, log, code };
+  return { rom, log: context.log, code };
 }
