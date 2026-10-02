@@ -21,6 +21,16 @@ function readWorkflow(name: string): Workflow {
 }
 
 describe('Web Client CI gates', () => {
+  it('requires locked native checks and tests in the reusable quality workflow', () => {
+    const workflow = readWorkflow('check-webclient');
+    const steps = workflow.jobs.native.steps ?? [];
+    for (const command of ['cargo check --locked', 'cargo test --locked']) {
+      const step = steps.find(item => item.run === command);
+      expect(step, command).toBeDefined();
+      expect(step?.['continue-on-error']).not.toBe(true);
+    }
+  });
+
   it('runs every behavior gate without allowing a failed step to continue', () => {
     const workflow = readWorkflow('check-webclient');
     expect(workflow.on).toHaveProperty('workflow_call');

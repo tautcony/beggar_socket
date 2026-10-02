@@ -5,18 +5,19 @@ use std::{
   io::{ErrorKind, Read, Write},
   path::PathBuf,
   sync::{
-    atomic::{AtomicU64, Ordering},
-    Mutex,
+    atomic::{AtomicBool, AtomicU64, Ordering},
+    Arc, Mutex,
   },
   time::{Duration, Instant},
 };
 
 const DEFAULT_BAUD_RATE: u32 = 9_600;
 const DEFAULT_IO_TIMEOUT_MS: u64 = 1_000;
+const IO_SLICE: Duration = Duration::from_millis(50);
 
 pub struct NativePlatformState {
   next_session_id: AtomicU64,
-  serial_sessions: Mutex<HashMap<u64, SerialSession>>,
+  serial_sessions: Mutex<HashMap<u64, Arc<SessionOwner>>>,
 }
 
 impl Default for NativePlatformState {
@@ -24,6 +25,20 @@ impl Default for NativePlatformState {
     Self {
       next_session_id: AtomicU64::new(1),
       serial_sessions: Mutex::new(HashMap::new()),
+    }
+  }
+}
+
+struct SessionOwner {
+  closing: AtomicBool,
+  session: Mutex<Option<SerialSession>>,
+}
+
+impl SessionOwner {
+  fn new(path: String, port: Box<dyn SerialPort>) -> Self {
+    Self {
+      closing: AtomicBool::new(false),
+      session: Mutex::new(Some(SerialSession { path, port })),
     }
   }
 }
@@ -63,120 +78,83 @@ pub struct RuntimeMetadata {
 }
 
 #[tauri::command]
-pub fn native_list_serial_ports() -> Result<Vec<NativeSerialPortInfo>, String> {
-  let ports = serialport::available_ports().map_err(|error| error.to_string())?;
-  Ok(ports.into_iter().map(NativeSerialPortInfo::from).collect())
+pub async fn native_list_serial_ports() -> Result<Vec<NativeSerialPortInfo>, String> {
+  run_blocking(|| {
+    let ports = serialport::available_ports().map_err(|error| error.to_string())?;
+    Ok(ports.into_iter().map(NativeSerialPortInfo::from).collect())
+  })
+  .await
 }
 
 #[tauri::command]
-pub fn native_open_serial_port(
+pub async fn native_open_serial_port(
   state: tauri::State<'_, NativePlatformState>,
   path: String,
 ) -> Result<NativeSerialSessionInfo, String> {
-  let port = serialport::new(&path, DEFAULT_BAUD_RATE)
-    .data_bits(DataBits::Eight)
-    .flow_control(FlowControl::None)
-    .parity(Parity::None)
-    .stop_bits(StopBits::One)
-    .timeout(Duration::from_millis(DEFAULT_IO_TIMEOUT_MS))
-    .open()
-    .map_err(|error| format!("Failed to open serial port {path}: {error}"))?;
+  let (path, port) = run_blocking(move || {
+    let port = serialport::new(&path, DEFAULT_BAUD_RATE)
+      .data_bits(DataBits::Eight)
+      .flow_control(FlowControl::None)
+      .parity(Parity::None)
+      .stop_bits(StopBits::One)
+      .timeout(Duration::from_millis(DEFAULT_IO_TIMEOUT_MS))
+      .open()
+      .map_err(|error| format!("Failed to open serial port {path}: {error}"))?;
+    Ok((path, port))
+  })
+  .await?;
 
   let session_id = state.next_session_id.fetch_add(1, Ordering::Relaxed);
   let mut sessions = lock_sessions(&state)?;
-  sessions.insert(session_id, SerialSession { path, port });
+  sessions.insert(session_id, Arc::new(SessionOwner::new(path, port)));
 
   Ok(NativeSerialSessionInfo { session_id })
 }
 
 #[tauri::command]
-pub fn native_serial_write(
+pub async fn native_serial_write(
   state: tauri::State<'_, NativePlatformState>,
   session_id: u64,
   bytes: Vec<u8>,
   timeout_ms: Option<u64>,
 ) -> Result<(), String> {
-  with_session(&state, session_id, |session| {
-    session
-      .port
-      .set_timeout(Duration::from_millis(timeout_ms.unwrap_or(DEFAULT_IO_TIMEOUT_MS)))
-      .map_err(|error| format!("Failed to set serial timeout for {}: {error}", session.path))?;
-    session
-      .port
-      .write_all(&bytes)
-      .map_err(|error| format!("Failed to write serial data to {}: {error}", session.path))?;
-    session
-      .port
-      .flush()
-      .map_err(|error| format!("Failed to flush serial data to {}: {error}", session.path))
+  invoke_session(&state, session_id, move |session, closing| {
+    write_session(
+      session,
+      closing,
+      &bytes,
+      timeout_ms.unwrap_or(DEFAULT_IO_TIMEOUT_MS),
+    )
   })
+  .await
 }
 
 #[tauri::command]
-pub fn native_serial_read(
+pub async fn native_serial_read(
   state: tauri::State<'_, NativePlatformState>,
   session_id: u64,
   length: usize,
   timeout_ms: Option<u64>,
 ) -> Result<Vec<u8>, String> {
-  with_session(&state, session_id, |session| {
-    let timeout_ms = timeout_ms.unwrap_or(DEFAULT_IO_TIMEOUT_MS);
-    let started_at = Instant::now();
-    let mut buffer = vec![0_u8; length];
-    let mut offset = 0;
-
-    while offset < length {
-      let elapsed_ms = started_at.elapsed().as_millis() as u64;
-      if elapsed_ms >= timeout_ms {
-        return Err(format!(
-          "Read package timeout in {timeout_ms}ms for {}",
-          session.path
-        ));
-      }
-
-      let remaining_timeout = timeout_ms.saturating_sub(elapsed_ms).max(1);
-      session
-        .port
-        .set_timeout(Duration::from_millis(remaining_timeout))
-        .map_err(|error| format!("Failed to set serial timeout for {}: {error}", session.path))?;
-
-      match session.port.read(&mut buffer[offset..]) {
-        Ok(0) => {
-          return Err(format!(
-            "Read package returned no data for {}",
-            session.path
-          ));
-        }
-        Ok(bytes_read) => {
-          offset += bytes_read;
-        }
-        Err(error) if error.kind() == ErrorKind::TimedOut => {
-          return Err(format!(
-            "Read package timeout in {timeout_ms}ms for {}",
-            session.path
-          ));
-        }
-        Err(error) => {
-          return Err(format!(
-            "Failed to read serial data from {}: {error}",
-            session.path
-          ));
-        }
-      }
-    }
-
-    Ok(buffer)
+  invoke_session(&state, session_id, move |session, closing| {
+    read_session(
+      session,
+      closing,
+      length,
+      timeout_ms.unwrap_or(DEFAULT_IO_TIMEOUT_MS),
+    )
   })
+  .await
 }
 
 #[tauri::command]
-pub fn native_serial_set_signals(
+pub async fn native_serial_set_signals(
   state: tauri::State<'_, NativePlatformState>,
   session_id: u64,
   data_terminal_ready: Option<bool>,
   request_to_send: Option<bool>,
 ) -> Result<(), String> {
-  with_session(&state, session_id, |session| {
+  invoke_session(&state, session_id, move |session, _closing| {
     if let Some(value) = data_terminal_ready {
       session
         .port
@@ -191,31 +169,29 @@ pub fn native_serial_set_signals(
     }
     Ok(())
   })
+  .await
 }
 
 #[tauri::command]
-pub fn native_serial_flush_input(
+pub async fn native_serial_flush_input(
   state: tauri::State<'_, NativePlatformState>,
   session_id: u64,
 ) -> Result<(), String> {
-  with_session(&state, session_id, |session| {
+  invoke_session(&state, session_id, move |session, _closing| {
     session
       .port
       .clear(ClearBuffer::Input)
       .map_err(|error| format!("Failed to clear input buffer for {}: {error}", session.path))
   })
+  .await
 }
 
 #[tauri::command]
-pub fn native_serial_close(
+pub async fn native_serial_close(
   state: tauri::State<'_, NativePlatformState>,
   session_id: u64,
 ) -> Result<(), String> {
-  let mut sessions = lock_sessions(&state)?;
-  sessions
-    .remove(&session_id)
-    .map(|_| ())
-    .ok_or_else(|| format!("Serial session {session_id} is not open"))
+  close_session(&state, session_id).await
 }
 
 #[tauri::command]
@@ -248,25 +224,232 @@ pub fn native_runtime_metadata(app: tauri::AppHandle) -> RuntimeMetadata {
   }
 }
 
-fn lock_sessions<'a>(
-  state: &'a tauri::State<'_, NativePlatformState>,
-) -> Result<std::sync::MutexGuard<'a, HashMap<u64, SerialSession>>, String> {
+fn lock_sessions(
+  state: &NativePlatformState,
+) -> Result<std::sync::MutexGuard<'_, HashMap<u64, Arc<SessionOwner>>>, String> {
   state
     .serial_sessions
     .lock()
     .map_err(|_| "Native serial session state is poisoned".to_string())
 }
 
-fn with_session<T>(
-  state: &tauri::State<'_, NativePlatformState>,
+fn lookup_session(
+  state: &NativePlatformState,
   session_id: u64,
-  operation: impl FnOnce(&mut SerialSession) -> Result<T, String>,
+) -> Result<Arc<SessionOwner>, String> {
+  lock_sessions(state)?
+    .get(&session_id)
+    .cloned()
+    .ok_or_else(|| format!("Serial session {session_id} is not open"))
+}
+
+fn check_open(closing: &AtomicBool, session_id: u64) -> Result<(), String> {
+  if closing.load(Ordering::Acquire) {
+    Err(format!("Serial session {session_id} is closing"))
+  } else {
+    Ok(())
+  }
+}
+
+fn with_owner<T>(
+  owner: &SessionOwner,
+  session_id: u64,
+  operation: impl FnOnce(&mut SerialSession, &AtomicBool) -> Result<T, String>,
 ) -> Result<T, String> {
-  let mut sessions = lock_sessions(state)?;
-  let session = sessions
-    .get_mut(&session_id)
+  check_open(&owner.closing, session_id)?;
+  let mut session = owner
+    .session
+    .lock()
+    .map_err(|_| format!("Serial session {session_id} state is poisoned"))?;
+  check_open(&owner.closing, session_id)?;
+  let session = session
+    .as_mut()
     .ok_or_else(|| format!("Serial session {session_id} is not open"))?;
-  operation(session)
+  operation(session, &owner.closing)
+}
+
+async fn run_blocking<T: Send + 'static>(
+  operation: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+  tauri::async_runtime::spawn_blocking(operation)
+    .await
+    .map_err(|error| format!("Native serial worker failed: {error}"))?
+}
+
+async fn invoke_session<T: Send + 'static>(
+  state: &NativePlatformState,
+  session_id: u64,
+  operation: impl FnOnce(&mut SerialSession, &AtomicBool) -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+  let owner = lookup_session(state, session_id)?;
+  check_open(&owner.closing, session_id)?;
+  // Async commands must not block the Tauri command/UI thread on I/O or a lock.
+  run_blocking(move || with_owner(&owner, session_id, operation)).await
+}
+
+fn begin_close(state: &NativePlatformState, session_id: u64) -> Result<Arc<SessionOwner>, String> {
+  let sessions = lock_sessions(state)?;
+  let owner = sessions
+    .get(&session_id)
+    .cloned()
+    .ok_or_else(|| format!("Serial session {session_id} is not open"))?;
+  owner.closing.store(true, Ordering::Release);
+  Ok(owner)
+}
+
+fn dispose_session(owner: &SessionOwner) {
+  // Keep the closing owner registered so simultaneous close requests join it.
+  // Recover a poisoned operation lock so a prior panic cannot leak the port.
+  let mut session = owner
+    .session
+    .lock()
+    .unwrap_or_else(|error| error.into_inner());
+  // Disposal happens under the operation lock, before any close can succeed.
+  drop(session.take());
+}
+
+#[cfg(test)]
+fn with_session<T>(
+  state: &NativePlatformState,
+  session_id: u64,
+  operation: impl FnOnce(&mut SerialSession, &AtomicBool) -> Result<T, String>,
+) -> Result<T, String> {
+  let owner = lookup_session(state, session_id)?;
+  with_owner(&owner, session_id, operation)
+}
+
+async fn close_session(state: &NativePlatformState, session_id: u64) -> Result<(), String> {
+  let owner = begin_close(state, session_id)?;
+  run_blocking(move || {
+    dispose_session(&owner);
+    Ok(())
+  })
+  .await?;
+  lock_sessions(state)?.remove(&session_id);
+  Ok(())
+}
+
+fn check_cancelled(session: &SerialSession, closing: &AtomicBool) -> Result<(), String> {
+  if closing.load(Ordering::Acquire) {
+    Err(format!(
+      "Serial operation cancelled for {}: session is closing",
+      session.path
+    ))
+  } else {
+    Ok(())
+  }
+}
+
+fn set_io_slice(session: &mut SerialSession, remaining: Duration) -> Result<(), String> {
+  session
+    .port
+    .set_timeout(remaining.min(IO_SLICE))
+    .map_err(|error| format!("Failed to set serial timeout for {}: {error}", session.path))
+}
+
+fn read_session(
+  session: &mut SerialSession,
+  closing: &AtomicBool,
+  length: usize,
+  timeout_ms: u64,
+) -> Result<Vec<u8>, String> {
+  let started_at = Instant::now();
+  let timeout = Duration::from_millis(timeout_ms);
+  let mut buffer = vec![0_u8; length];
+  let mut offset = 0;
+  while offset < length {
+    check_cancelled(session, closing)?;
+    let remaining = timeout.saturating_sub(started_at.elapsed());
+    if remaining.is_zero() {
+      return Err(format!(
+        "Read package timeout in {timeout_ms}ms for {}",
+        session.path
+      ));
+    }
+    set_io_slice(session, remaining)?;
+    match session.port.read(&mut buffer[offset..]) {
+      Ok(0) => {
+        return Err(format!(
+          "Read package returned no data for {}",
+          session.path
+        ))
+      }
+      Ok(count) => offset += count,
+      Err(error) if matches!(error.kind(), ErrorKind::TimedOut | ErrorKind::Interrupted) => {}
+      Err(error) => {
+        return Err(format!(
+          "Failed to read serial data from {}: {error}",
+          session.path
+        ))
+      }
+    }
+  }
+  check_cancelled(session, closing)?;
+  if length > 0 && started_at.elapsed() >= timeout {
+    return Err(format!(
+      "Read package timeout in {timeout_ms}ms for {}",
+      session.path
+    ));
+  }
+  Ok(buffer)
+}
+
+fn write_session(
+  session: &mut SerialSession,
+  closing: &AtomicBool,
+  bytes: &[u8],
+  timeout_ms: u64,
+) -> Result<(), String> {
+  let started_at = Instant::now();
+  let timeout = Duration::from_millis(timeout_ms);
+  let mut offset = 0;
+  while offset < bytes.len() {
+    check_cancelled(session, closing)?;
+    let remaining = timeout.saturating_sub(started_at.elapsed());
+    if remaining.is_zero() {
+      return Err(format!(
+        "Failed to write serial data to {}: timeout in {timeout_ms}ms",
+        session.path
+      ));
+    }
+    set_io_slice(session, remaining)?;
+    match session.port.write(&bytes[offset..]) {
+      // Windows serialport 4.9 WriteFile timeout can succeed with zero bytes.
+      // Retry this serial-specific no-progress result until the total deadline.
+      Ok(0) => std::thread::sleep(remaining.min(Duration::from_millis(1))),
+      Ok(count) => offset += count,
+      Err(error) if matches!(error.kind(), ErrorKind::TimedOut | ErrorKind::Interrupted) => {}
+      Err(error) => {
+        return Err(format!(
+          "Failed to write serial data to {}: {error}",
+          session.path
+        ))
+      }
+    }
+  }
+  check_cancelled(session, closing)?;
+  let remaining = timeout.saturating_sub(started_at.elapsed());
+  if !bytes.is_empty() && remaining.is_zero() {
+    return Err(format!(
+      "Failed to write serial data to {}: timeout in {timeout_ms}ms",
+      session.path
+    ));
+  }
+  set_io_slice(session, remaining)?;
+  // serialport 4.9 uses FlushFileBuffers / tcdrain: timeout cannot portably
+  // bound this call. Retain ownership until the real driver call returns.
+  session
+    .port
+    .flush()
+    .map_err(|error| format!("Failed to flush serial data to {}: {error}", session.path))?;
+  check_cancelled(session, closing)?;
+  if !bytes.is_empty() && started_at.elapsed() >= timeout {
+    return Err(format!(
+      "Failed to flush serial data to {}: timeout in {timeout_ms}ms",
+      session.path
+    ));
+  }
+  Ok(())
 }
 
 fn display_path(path: &PathBuf) -> String {
@@ -309,3 +492,7 @@ impl NativeSerialPortInfo {
     }
   }
 }
+
+#[cfg(test)]
+#[path = "native_platform_tests.rs"]
+mod tests;

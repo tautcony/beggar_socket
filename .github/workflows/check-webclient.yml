@@ -7,6 +7,20 @@ permissions:
   contents: read
 
 jobs:
+  native:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: web-client/src-tauri
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: web-client/src-tauri -> target
+      - run: cargo check --locked
+      - run: cargo test --locked
+
   quality:
     runs-on: ubuntu-latest
     defaults:
