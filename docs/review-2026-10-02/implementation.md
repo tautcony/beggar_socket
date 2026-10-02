@@ -43,8 +43,10 @@
 | 适配器模板收敛 / UI 编排迁移 | 排队 | 依赖 bank、生命周期、错误 |
 | 超时契约与操作预算 | 排队 | 依赖生命周期，保留慢设备兼容默认行为 |
 | Native 会话锁与有界取消 | 完成 | 14 Rust tests、cargo check --locked、5 CI contracts；独立worker/真实close |
-| AST 依赖门禁 | 排队 | 独立 agent |
+| AST 依赖门禁 | 完成 | 40 focused tests；AST/Vue/resolution/type边/runtime循环；真实图无违规 |
 | CFI / LK 容量边界证据与修复 | 排队 | 先写 fixture 确认行为 |
 | 文档与性能证据更新 | 排队 | 汇总最后代码与测量，未证实问题不盲改 |
 
 集成验证（上述进行中三项收尾）：59 文件 862 项测试全部通过，完整 ESLint、vue-tsc、check:deps、production build 通过。构建保留既有 Jimp/Ionic chunk、Jimp eval 和 gbats fs externalization 提示；性能任务仍待证据评估。
+
+最新集成（RTC 写后验证与 native 会话隔离提交后）：60 文件 905 项 Vitest 全通过，14 Rust tests、cargo check --locked、完整 lint/type/deps 与 production build 通过。RTC 提交 6433a48，native 提交 73aadf4。结构化失败传播曾受 subagent 额度错误中断，未留下生产代码改动，已继续同任务；AST 门禁由新 agent 实施。
