@@ -45,28 +45,19 @@ export interface BurnerOperationContext {
   signal?: AbortSignal;
 }
 
-function toFailureResult(result: BurnerDomainResult<unknown>, fallbackMessage: string): CommandResult {
-  if (result.ok) {
-    return {
-      success: true,
-      message: fallbackMessage,
-    };
-  }
-
-  return {
-    success: false,
-    message: result.error.message || fallbackMessage,
-  };
-}
-
 function toCommandResult(result: BurnerDomainResult<CommandResult>, fallbackMessage: string): CommandResult {
   if (result.ok) {
     return result.data;
   }
 
+  if (result.commandResult) {
+    return result.commandResult.error === result.error ? result.commandResult : { ...result.commandResult, error: result.error };
+  }
+
   return {
     success: false,
     message: result.error.message || fallbackMessage,
+    error: result.error,
   };
 }
 
@@ -99,6 +90,7 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
       return {
         success: false,
         message: `${this.translate('messages.operation.readCartFailed')}: ${result.error.message}`,
+        error: result.error,
       };
     }
 
@@ -201,7 +193,7 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
 
     const result = await this.protocolPort.resetCommandBuffer(session);
     if (!result.ok) {
-      throw new Error(toFailureResult(result, 'Reset command buffer failed').message);
+      throw Object.assign(new Error(result.error.message), result.error);
     }
   }
 

@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import { computed, onScopeDispose, ref, watch } from 'vue';
+import { computed, onScopeDispose, ref, shallowRef, watch } from 'vue';
 
 import { BurnerSession, runBurnerFlow } from '@/features/burner/application';
 import { getDeviceOperationOwner } from '@/services/device-operation-owner';
@@ -26,7 +26,8 @@ export function useCartBurnerSessionState(translate: (key: string) => string, ge
     void ownerRevision.value;
     return currentOwner()?.busy ?? localBusy.value;
   });
-  const logs = ref<BurnerLogEntry[]>([]);
+  // Log updates replace the array; preserve diagnostic and cause object identities.
+  const logs = shallowRef<BurnerLogEntry[]>([]);
   const progressInfo = ref<ProgressInfo>({ ...DEFAULT_PROGRESS });
   const keepProgressModalOpen = ref(false);
 
@@ -111,8 +112,9 @@ export function useCartBurnerSessionState(translate: (key: string) => string, ge
       message: entry.message,
       error: entry.error,
       details: entry.details,
+      diagnostic: entry.diagnostic,
     };
-    if (entry.error || entry.details) {
+    if (entry.error || entry.details || entry.diagnostic) {
       console.log(`${consolePrefix} ${formatBurnerLogMessage(entry)}`, consolePayload);
     } else {
       console.log(`${consolePrefix} ${formatBurnerLogMessage(entry)}`);

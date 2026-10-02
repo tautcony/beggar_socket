@@ -205,13 +205,16 @@ describe('GBAAdapter.writeROM recovery', () => {
     vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
 
     mockRomRead.mockResolvedValueOnce(new Uint8Array([0x00, 0xff, 0xff, 0xff]));
-    mockRomEraseSector.mockRejectedValue(new Error('erase timeout'));
+    const original = Object.assign(new Error('erase timeout'), { code: 'PACKET_TIMEOUT' });
+    mockRomEraseSector.mockRejectedValue(original);
 
     const result = await adapter.writeROM(new Uint8Array([0xaa]), createOptions());
 
     expect(result.success).toBe(false);
     expect(result.message).toContain('retry exhausted');
     expect(result.message).toContain('erase timeout');
+    expect(result.error?.code).toBe('timeout');
+    expect(result.error?.cause).toBe(original);
     expect(mockRomEraseSector).toHaveBeenCalledTimes(2);
   });
 });

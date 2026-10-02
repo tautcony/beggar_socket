@@ -16,6 +16,7 @@
 import { planBankChunk } from '@/services/bank-chunk-planner';
 import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
 import { AdvancedSettings } from '@/settings/advanced-settings';
+import { abortedCommandError, commandErrorToException, mapCommandError } from '@/types/command-error';
 import { CommandOptions, MbcType } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
@@ -234,10 +235,8 @@ export class MBC5Adapter extends CartridgeAdapter {
       }
     }
 
-    throw new Error(
-      `ROM sector erase retry exhausted at ${formatHex(sector.address, 4)} `
-      + `(${reason}): ${this.describeError(lastError)}`,
-    );
+    throw commandErrorToException(mapCommandError('protocol', lastError, 'ROM erase failed'), `ROM sector erase retry exhausted at ${formatHex(sector.address, 4)} `
+      + `(${reason}): ${this.describeError(lastError)}`);
   }
 
   private async readRAMChunkWithRetry(
@@ -452,6 +451,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             // 妫€鏌ユ槸鍚﹀凡琚彇娑?
             if (signal?.aborted) {
               return {
+                error: abortedCommandError(this.t('messages.operation.cancelled'), signal?.reason as unknown),
                 success: false,
                 message: this.t('messages.operation.cancelled'),
               };
@@ -471,6 +471,7 @@ export class MBC5Adapter extends CartridgeAdapter {
               if (signal?.aborted) {
                 this.log(this.t('messages.operation.cancelled'), 'warn');
                 return {
+                  error: abortedCommandError(this.t('messages.operation.cancelled'), signal?.reason as unknown),
                   success: false,
                   message: this.t('messages.operation.cancelled'),
                 };
@@ -506,6 +507,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           if (signal?.aborted) {
             this.log(this.t('messages.operation.cancelled'), 'warn');
             return {
+              error: abortedCommandError(this.t('messages.operation.cancelled'), e),
               success: false,
               message: this.t('messages.operation.cancelled'),
             };
@@ -513,6 +515,7 @@ export class MBC5Adapter extends CartridgeAdapter {
 
           this.log(errorToBurnerLog(this.t('messages.operation.eraseFailed'), e), 'error');
           return {
+            error: mapCommandError('protocol', e, 'Command failed'),
             success: false,
             message: this.t('messages.operation.eraseFailed'),
           };
@@ -596,6 +599,7 @@ export class MBC5Adapter extends CartridgeAdapter {
               if (signal?.aborted) {
                 progressReporter.reportError(this.t('messages.operation.cancelled'));
                 return {
+                  error: abortedCommandError(this.t('messages.operation.cancelled'), signal?.reason as unknown),
                   success: false,
                   message: this.t('messages.operation.cancelled'),
                 };
@@ -687,6 +691,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           if (signal?.aborted) {
             this.log(this.t('messages.operation.cancelled'), 'warn');
             return {
+              error: abortedCommandError(this.t('messages.operation.cancelled'), e),
               success: false,
               message: this.t('messages.operation.cancelled'),
             };
@@ -706,6 +711,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           progressReporter.reportError(errorMessage);
           this.log(errorLog, 'error');
           return {
+            error: mapCommandError('protocol', e, 'Command failed'),
             success: false,
             message: errorMessage,
           };
@@ -796,7 +802,7 @@ export class MBC5Adapter extends CartridgeAdapter {
               );
 
               if (retriesUsed >= maxRetries) {
-                throw new Error(`ROM write retries exhausted @ ${formatHex(sector.address, 4)}: ${this.describeError(reason)}`);
+                throw commandErrorToException(mapCommandError('protocol', reason, 'ROM write failed'), `ROM write retries exhausted @ ${formatHex(sector.address, 4)}: ${this.describeError(reason)}`);
               }
 
               const nextRetry = retriesUsed + 1;
@@ -842,6 +848,7 @@ export class MBC5Adapter extends CartridgeAdapter {
               if (signal?.aborted) {
                 progressReporter.reportError(this.t('messages.operation.cancelled'));
                 return {
+                  error: abortedCommandError(this.t('messages.operation.cancelled'), signal?.reason as unknown),
                   success: false,
                   message: this.t('messages.operation.cancelled'),
                 };
@@ -953,6 +960,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           progressReporter.reportError(errorMessage);
           this.log(errorLog, 'error');
           return {
+            error: mapCommandError('protocol', e, 'Command failed'),
             success: false,
             message: errorMessage,
           };
@@ -1013,6 +1021,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             );
             progressReporter.reportError(this.t('messages.operation.cancelled'));
             return {
+              error: abortedCommandError(this.t('messages.operation.cancelled'), signal?.reason as unknown),
               success: false,
               message: this.t('messages.operation.cancelled'),
             };
@@ -1050,6 +1059,7 @@ export class MBC5Adapter extends CartridgeAdapter {
               if (signal?.aborted) {
                 progressReporter.reportError(this.t('messages.operation.cancelled'));
                 return {
+                  error: abortedCommandError(this.t('messages.operation.cancelled'), signal?.reason as unknown),
                   success: false,
                   message: this.t('messages.operation.cancelled'),
                 };
@@ -1091,8 +1101,7 @@ export class MBC5Adapter extends CartridgeAdapter {
                 progressReporter.reportProgress(
                   totalRead,
                   currentSpeed,
-                  this.t('messages.progress.readSpeed', { speed: formatSpeed(currentSpeed) }),
-                );
+                  this.t('messages.progress.readSpeed', { speed: formatSpeed(currentSpeed) }));
               }
 
               // 姣?涓櫨鍒嗘瘮璁板綍涓€娆℃棩蹇?
@@ -1135,6 +1144,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           progressReporter.reportError(this.t('messages.rom.readFailed'));
           this.log(errorToBurnerLog(this.t('messages.rom.readFailed'), e), 'error');
           return {
+            error: mapCommandError('protocol', e, 'Command failed'),
             success: false,
             message: this.t('messages.rom.readFailed'),
           };
@@ -1185,6 +1195,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           );
           progressReporter.reportError(this.t('messages.operation.cancelled'));
           return {
+            error: abortedCommandError(this.t('messages.operation.cancelled'), signal?.reason as unknown),
             success: false,
             message: this.t('messages.operation.cancelled'),
           };
@@ -1244,6 +1255,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             if (signal?.aborted) {
               progressReporter.reportError(this.t('messages.operation.cancelled'));
               return {
+                error: abortedCommandError(this.t('messages.operation.cancelled'), signal?.reason as unknown),
                 success: false,
                 message: this.t('messages.operation.cancelled'),
               };
@@ -1375,6 +1387,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           return {
             success: success,
             message: message,
+            ...(!success ? { error: { stage: 'protocol' as const, code: 'verification_mismatch' as const, message, recoverable: true } } : {}),
           };
         } catch (e) {
           const progressReporter = new ProgressReporter(
@@ -1386,6 +1399,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           progressReporter.reportError(this.t('messages.rom.verifyFailed'));
           this.log(errorToBurnerLog(this.t('messages.rom.verifyFailed'), e), 'error');
           return {
+            error: mapCommandError('protocol', e, 'Command failed'),
             success: false,
             message: this.t('messages.rom.verifyFailed'),
           };
@@ -1506,6 +1520,7 @@ export class MBC5Adapter extends CartridgeAdapter {
         } catch (e) {
           this.log(errorToBurnerLog(this.t('messages.ram.writeFailed'), e), 'error');
           return {
+            error: mapCommandError('protocol', e, 'Command failed'),
             success: false,
             message: this.t('messages.ram.writeFailed'),
           };
@@ -1629,6 +1644,7 @@ export class MBC5Adapter extends CartridgeAdapter {
         } catch (e) {
           this.log(errorToBurnerLog(this.t('messages.ram.readFailed'), e), 'error');
           return {
+            error: mapCommandError('protocol', e, 'Command failed'),
             success: false,
             message: this.t('messages.ram.readFailed'),
           };
@@ -1707,10 +1723,12 @@ export class MBC5Adapter extends CartridgeAdapter {
           return {
             success: success,
             message,
+            ...(!success ? { error: { stage: 'protocol' as const, code: 'verification_mismatch' as const, message, recoverable: true } } : {}),
           };
         } catch (e) {
           this.log(errorToBurnerLog(this.t('messages.ram.verifyFailed'), e), 'error');
           return {
+            error: mapCommandError('protocol', e, 'Command failed'),
             success: false,
             message: this.t('messages.ram.verifyFailed'),
           };

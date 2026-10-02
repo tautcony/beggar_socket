@@ -39,7 +39,7 @@
 | RTC 失败恢复 | 完成 | 197 focused tests；独立cleanup、Halt控制恢复、完整类型检查通过 |
 | RTC 实际写后验证 | 完成 | 239 RTC tests；实际目标比较、单调容差、进位/坏BCD/恢复 |
 | LK 局部构建状态与阶段模型 | 完成 | 19 focused tests；并发日志隔离、8MiB golden ROM、typed阶段 |
-| 结构化失败传播 | 实施中 | 独立 agent；保留cause/stage/code与UI诊断 |
+| 结构化失败传播 | 完成 | 177 related tests；原message/data/cause、ACK/取消分类、Vue诊断identity |
 | 适配器模板收敛 / UI 编排迁移 | 排队 | 依赖 bank、生命周期、错误 |
 | 超时契约与操作预算 | 排队 | 依赖生命周期，保留慢设备兼容默认行为 |
 | Native 会话锁与有界取消 | 完成 | 14 Rust tests、cargo check --locked、5 CI contracts；独立worker/真实close |

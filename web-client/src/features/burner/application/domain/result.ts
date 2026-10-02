@@ -1,28 +1,8 @@
+import type { CommandError as BurnerDomainError } from '@/types/command-error';
+import type { CommandResult } from '@/types/command-result';
 import type { ProgressInfo } from '@/types/progress-info';
 
-export type BurnerErrorStage = 'connection' | 'transport' | 'protocol' | 'session' | 'unknown';
-
-export type BurnerErrorCode =
-  | 'aborted'
-  | 'selection_required'
-  | 'not_connected'
-  | 'list_failed'
-  | 'select_failed'
-  | 'connect_failed'
-  | 'init_failed'
-  | 'disconnect_failed'
-  | 'stale_context'
-  | 'timeout'
-  | 'runtime_error'
-  | 'unknown';
-
-export interface BurnerDomainError {
-  stage: BurnerErrorStage;
-  code: BurnerErrorCode;
-  message: string;
-  cause?: unknown;
-  recoverable: boolean;
-}
+export type { CommandError as BurnerDomainError, CommandErrorCode as BurnerErrorCode, CommandErrorStage as BurnerErrorStage } from '@/types/command-error';
 
 export interface BurnerDomainProgress {
   type: ProgressInfo['type'];
@@ -38,6 +18,7 @@ export interface BurnerDomainSuccess<TData> {
 }
 
 export interface BurnerDomainFailure {
+  commandResult?: CommandResult;
   ok: false;
   error: BurnerDomainError;
 }

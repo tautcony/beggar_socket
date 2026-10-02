@@ -1,8 +1,29 @@
 import { describe, expect, it, vi } from 'vitest';
+import { effectScope } from 'vue';
 
 import { runWithCommandBufferReset, useCartBurnerSessionState } from '@/composables/cartburner';
+import { errorToBurnerLog } from '@/utils/burner-log';
 
 describe('CartBurner container state', () => {
+  it('preserves diagnostic and plain cause identities through Vue log projection', () => {
+    const scope = effectScope();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    try {
+      const state = scope.run(() => useCartBurnerSessionState(key => key));
+      if (!state) throw new Error('Missing state');
+      const cause = { device: 'disconnected' };
+      const diagnostic = { stage: 'transport' as const, code: 'transport_failure' as const, message: 'detail', recoverable: true, cause };
+      state.log(errorToBurnerLog('Read failed', diagnostic), 'error');
+      expect(state.logs.value[0]?.diagnostic).toBe(diagnostic);
+      expect(state.logs.value[0]?.diagnostic?.cause).toBe(cause);
+      expect(consoleSpy.mock.calls[0]?.[1]).toMatchObject({ diagnostic });
+      state.clearLog();
+      expect(state.logs.value).toEqual([]);
+      state.log('next');
+      expect(state.logs.value[0]?.message).toBe('next');
+    } finally { scope.stop(); consoleSpy.mockRestore(); }
+  });
+
   it('tracks read/write/verify flows with shared busy/progress/log state', async () => {
     const state = useCartBurnerSessionState((key) => key);
 

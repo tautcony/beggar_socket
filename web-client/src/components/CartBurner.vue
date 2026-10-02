@@ -136,6 +136,7 @@ import { CommandOptions, DeviceInfo } from '@/types';
 import type { BurnerLogEntry } from '@/types/burner-log';
 import type { MbcType } from '@/types/command-options';
 import { getFirmwareProfile, inferFirmwareProfileFromPort } from '@/types/firmware-profile';
+import { errorToBurnerLog } from '@/utils/burner-log';
 import { formatBytes, formatHex } from '@/utils/formatter-utils';
 import { CFIInfo } from '@/utils/parsers/cfi-parser';
 import { detectMbcTypeFromRom, parseRom } from '@/utils/parsers/rom-parser.ts';
@@ -394,9 +395,8 @@ async function withCommandBufferReset<T>(adapter: BurnerProtocolSession, operati
     operation,
     currentAdapter => burnerFacade.resetCommandBuffer(currentAdapter),
     (error) => {
-      const message = error instanceof Error ? error.message : String(error);
       showToast(t('messages.operation.resetCommandBufferFailed'), 'error');
-      log(`${t('messages.operation.resetCommandBufferFailed')}: ${message}`, 'error');
+      log(errorToBurnerLog(t('messages.operation.resetCommandBufferFailed'), error), 'error');
     },
   );
 }
@@ -422,7 +422,7 @@ async function readCart() {
           log(result.message, 'success');
         } else {
           showToast(result.message, 'error');
-          log(result.message, 'error');
+          log(result.error ? errorToBurnerLog(result.message, result.error) : result.message, 'error');
           cfiInfo.value = null;
         }
       });
@@ -462,6 +462,7 @@ async function eraseChip() {
           signal,
         );
         showToast(response.message, response.success ? 'success' : 'error');
+        if (response.error) log(errorToBurnerLog(response.message, response.error), 'error');
       });
     },
     onError: (error) => {
@@ -515,6 +516,7 @@ async function writeRom() {
       await withCommandBufferReset(adapter, async () => {
         const response = await burnerFacade.writeRom(adapter, alignedRomData, option, signal);
         showToast(response.message, response.success ? 'success' : 'error');
+        if (response.error) log(errorToBurnerLog(response.message, response.error), 'error');
       });
     },
     onError: (error) => {
@@ -587,6 +589,7 @@ async function readRom() {
           }
         } else {
           showToast(response.message, 'error');
+          if (response.error) log(errorToBurnerLog(response.message, response.error), 'error');
         }
       });
     },
@@ -633,6 +636,7 @@ async function verifyRom() {
           enable5V: mbcPower5V.value,
         }, signal);
         showToast(response.message, response.success ? 'success' : 'error');
+        if (response.error) log(errorToBurnerLog(response.message, response.error), 'error');
       });
     },
     onError: (error) => {
@@ -681,6 +685,7 @@ async function verifyBlank(fillByte: number) {
           enable5V: mbcPower5V.value,
         }, signal);
         showToast(response.message, response.success ? 'success' : 'error');
+        if (response.error) log(errorToBurnerLog(response.message, response.error), 'error');
       });
     },
     onError: (error) => {
@@ -715,6 +720,7 @@ async function writeRam() {
           enable5V: mbcPower5V.value,
         });
         showToast(response.message, response.success ? 'success' : 'error');
+        if (response.error) log(errorToBurnerLog(response.message, response.error), 'error');
         if (response.success) {
           log(t('messages.ram.writeSuccess'), 'success');
         } else {
@@ -774,6 +780,7 @@ async function readRam() {
           }
         } else {
           showToast(response.message, 'error');
+          if (response.error) log(errorToBurnerLog(response.message, response.error), 'error');
         }
       });
     },
@@ -811,6 +818,7 @@ async function verifyRam() {
           enable5V: mbcPower5V.value,
         });
         showToast(response.message, response.success ? 'success' : 'error');
+        if (response.error) log(errorToBurnerLog(response.message, response.error), 'error');
         if (response.success) {
           log(t('messages.ram.verifySuccess'), 'success');
         } else {
@@ -855,6 +863,7 @@ async function verifyRamBlank(fillByte: number) {
           enable5V: mbcPower5V.value,
         });
         showToast(response.message, response.success ? 'success' : 'error');
+        if (response.error) log(errorToBurnerLog(response.message, response.error), 'error');
         if (response.success) {
           log(t('messages.ram.verifySuccess'), 'success');
         } else {

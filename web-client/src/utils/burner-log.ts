@@ -1,4 +1,5 @@
 import type { BurnerLogMessage } from '@/types/burner-log';
+import { isCommandError, mapCommandError } from '@/types/command-error';
 
 export type BurnerLogInput = string | BurnerLogMessage;
 
@@ -15,8 +16,9 @@ export function formatBurnerLogMessage(message: BurnerLogMessage): string {
  * 则将 detail 拆分到 `details` 字段，message 和 error 保持独立。
  */
 export function errorToBurnerLog(message: string, error: unknown): BurnerLogMessage {
+  const diagnostic = mapCommandError('unknown', error, message);
   if (!(error instanceof Error)) {
-    return { message, error: String(error) };
+    return { message, error: isCommandError(error) ? error.message : String(error), diagnostic };
   }
 
   const detail = 'detail' in error && typeof (error as Record<string, unknown>).detail === 'string'
@@ -24,6 +26,6 @@ export function errorToBurnerLog(message: string, error: unknown): BurnerLogMess
     : undefined;
 
   return detail
-    ? { message, error: error.message, details: detail }
-    : { message, error: error.message };
+    ? { message, error: error.message, details: detail, diagnostic }
+    : { message, error: error.message, diagnostic };
 }

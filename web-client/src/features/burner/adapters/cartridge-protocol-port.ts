@@ -58,7 +58,7 @@ function normalizeCommandResult(stage: 'protocol' | 'transport', result: Command
     return successResult(result);
   }
 
-  return failureResult(mapDomainError(stage, new Error(result.message), result.message));
+  return { ...failureResult(mapDomainError(stage, result.error, result.message)), commandResult: result };
 }
 
 async function wrapRuntimeCall<TData>(

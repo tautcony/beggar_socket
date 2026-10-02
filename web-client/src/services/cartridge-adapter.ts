@@ -2,6 +2,7 @@
 import type { Transport } from '@/platform/serial';
 import { getFlashName } from '@/protocol';
 import { AdvancedSettings } from '@/settings/advanced-settings';
+import { abortedCommandError, mapCommandError } from '@/types/command-error';
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
@@ -384,7 +385,8 @@ export class CartridgeAdapter {
           if (signal?.aborted) {
             const pr = new ProgressReporter('read', size, (pi) => { this.updateProgress(pi); }, (k, p) => this.t(k, p), showProgress);
             pr.reportError(this.t('messages.operation.cancelled'));
-            return { success: false, message: this.t('messages.operation.cancelled') };
+            return { error: abortedCommandError(this.t('messages.operation.cancelled'), signal?.reason as unknown),
+              success: false, message: this.t('messages.operation.cancelled') };
           }
 
           return await this.withPowerConfig(options.enable5V ?? false, async () => {
@@ -405,7 +407,8 @@ export class CartridgeAdapter {
             while (totalRead < size) {
               if (signal?.aborted) {
                 progressReporter.reportError(this.t('messages.operation.cancelled'));
-                return { success: false, message: this.t('messages.operation.cancelled') };
+                return { error: abortedCommandError(this.t('messages.operation.cancelled'), signal?.reason as unknown),
+                  success: false, message: this.t('messages.operation.cancelled') };
               }
 
               const chunkSize = Math.min(pageSize, size - totalRead);
@@ -463,7 +466,8 @@ export class CartridgeAdapter {
           const pr = new ProgressReporter('read', size, (pi) => { this.updateProgress(pi); }, (k, p) => this.t(k, p), showProgress);
           pr.reportError(this.t('messages.rom.readFailed'));
           this.log(errorToBurnerLog(this.t('messages.rom.readFailed'), e), 'error');
-          return { success: false, message: this.t('messages.rom.readFailed') };
+          return { error: mapCommandError('protocol', e, 'Command failed'),
+            success: false, message: this.t('messages.rom.readFailed') };
         }
       },
       { adapter_type: ops.platformId, operation_type: 'read_rom' },

@@ -240,7 +240,8 @@ describe('MBC5Adapter.writeROM recovery', () => {
 
     AdvancedSettings.romEraseRetryCount = 1;
     mockGbcRead.mockResolvedValueOnce(new Uint8Array([0x00, 0xff, 0xff, 0xff]));
-    mockGbcRomEraseSector.mockRejectedValue(new Error('erase timeout'));
+    const original = Object.assign(new Error('erase timeout'), { code: 'PACKET_TIMEOUT' });
+    mockGbcRomEraseSector.mockRejectedValue(original);
 
     const result = await adapter.writeROM(
       new Uint8Array([0xaa]),
@@ -250,6 +251,8 @@ describe('MBC5Adapter.writeROM recovery', () => {
     expect(result.success).toBe(false);
     expect(result.message).toContain('retry exhausted');
     expect(result.message).toContain('erase timeout');
+    expect(result.error?.code).toBe('timeout');
+    expect(result.error?.cause).toBe(original);
     expect(mockGbcRomEraseSector).toHaveBeenCalledTimes(2);
   });
 });
