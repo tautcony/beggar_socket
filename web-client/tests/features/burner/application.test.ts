@@ -28,7 +28,7 @@ function createFakeCfi(deviceSize = 0x20000): CFIInfo {
         sectorCount: Math.max(1, deviceSize / 0x10000),
         totalSize: deviceSize,
         startAddress: 0,
-        endAddress: deviceSize,
+        endAddress: deviceSize - 1,
       },
     ],
   } as CFIInfo;

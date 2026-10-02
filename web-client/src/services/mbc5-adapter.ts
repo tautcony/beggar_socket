@@ -839,7 +839,7 @@ export class MBC5Adapter extends CartridgeAdapter {
               );
               await this.eraseRomSectorWithRetry(sector, mbcType, 'recover', signal);
               progressReporter.markSectorState(sector.address, 'pending');
-              written = sector.address - baseAddress;
+              written = Math.max(0, sector.address - baseAddress);
               chunkCount = 0;
               currentBank = -1;
             };

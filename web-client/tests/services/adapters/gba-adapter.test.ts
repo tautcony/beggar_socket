@@ -49,10 +49,10 @@ function createCfiInfo(deviceSize = 0x8000): CFIInfo {
     eraseSectorRegions: 1,
     eraseSectorBlocks: [{
       sectorSize: 0x4000,
-      sectorCount: 2,
-      totalSize: 0x8000,
+      sectorCount: deviceSize / 0x4000,
+      totalSize: deviceSize,
       startAddress: 0,
-      endAddress: 0x7fff,
+      endAddress: deviceSize - 1,
     }],
     reverseSectorRegion: false,
     info: 'test-cfi',

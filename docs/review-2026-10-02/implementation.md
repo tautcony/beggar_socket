@@ -46,7 +46,7 @@
 | AST 依赖门禁 | 完成 | 40 focused tests；AST/Vue/resolution/type边/runtime循环；真实图无违规 |
 | CFI 几何边界证据与修复 | 完成 | 128 related tests；GL-T/AL032D/CoreCFI转录fixture，完整regions/128-byte特殊编码 |
 | LK 容量边界证据与修复 | 完成 | 60 related tests；slot0/shared/import/reservations/fullspan/list容量，8MiB golden不变 |
-| 异构sector区域与baseAddress | 实施中 | 独立agent；物理sector交集、partial首sector重试与容量尾部 |
+| 异构sector区域与baseAddress | 完成 | 179 related tests；physical交集、容量尾部、两adapter partial首sector真实重试 |
 | 文档与性能证据更新 | 排队 | 汇总最后代码与测量，未证实问题不盲改 |
 
 集成验证（上述进行中三项收尾）：59 文件 862 项测试全部通过，完整 ESLint、vue-tsc、check:deps、production build 通过。构建保留既有 Jimp/Ionic chunk、Jimp eval 和 gbats fs externalization 提示；性能任务仍待证据评估。

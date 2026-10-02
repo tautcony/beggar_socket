@@ -6,46 +6,62 @@ export function calcSectorUsage(
   size: number,
   baseAddress = 0x00,
 ): SectorBlock[] {
-  // 如果不需要任何空间，返回空数组
-  if (size <= 0) {
-    return [];
+  if (!Number.isSafeInteger(size) || size < 0 || !Number.isSafeInteger(baseAddress) || baseAddress < 0) {
+    throw new Error('Invalid sector range: size and baseAddress must be nonnegative safe integers');
+  }
+  const rangeEnd = baseAddress + size;
+  if (!Number.isSafeInteger(rangeEnd)) {
+    throw new Error('Invalid sector range: end address exceeds safe integer bounds');
+  }
+  // Empty requests do not require erase geometry.
+  if (size === 0) return [];
+
+  const blocks = [...eraseSectorBlocks].sort((a, b) => a.startAddress - b.startAddress);
+  let previousEnd: number | undefined;
+  for (const block of blocks) {
+    const { sectorSize, sectorCount, totalSize, startAddress, endAddress } = block;
+    const calculatedSize = sectorSize * sectorCount;
+    const endExclusive = startAddress + calculatedSize;
+    if (
+      !Number.isSafeInteger(sectorSize) || sectorSize <= 0
+      || !Number.isSafeInteger(sectorCount) || sectorCount <= 0
+      || !Number.isSafeInteger(totalSize) || totalSize !== calculatedSize
+      || !Number.isSafeInteger(calculatedSize)
+      || !Number.isSafeInteger(startAddress) || startAddress < 0
+      || !Number.isSafeInteger(endAddress) || endAddress !== endExclusive - 1
+      || !Number.isSafeInteger(endExclusive)
+      || (previousEnd !== undefined && startAddress !== previousEnd)
+    ) {
+      throw new Error('Invalid sector geometry: regions must contain contiguous physical sectors with consistent safe integer bounds');
+    }
+    previousEnd = endExclusive;
   }
 
-  // 计算总可用空间
-  const totalAvailable = eraseSectorBlocks.reduce((sum, block) => sum + block.totalSize, 0);
-
-  // 检查空间是否足够
-  if (totalAvailable < size) {
-    throw new Error(`Insufficient sector space: need ${size} bytes, but only ${totalAvailable} bytes available`);
+  const geometryStart = blocks[0]?.startAddress ?? 0;
+  const geometryEnd = previousEnd ?? 0;
+  if (blocks.length === 0 || baseAddress < geometryStart || rangeEnd > geometryEnd) {
+    const available = baseAddress >= geometryStart ? Math.max(0, geometryEnd - baseAddress) : 0;
+    throw new Error(`Insufficient sector space: need ${size} bytes, but only ${available} bytes available`);
   }
 
   const result: SectorBlock[] = [];
-  let remaining = size;
-  let currentAddress = baseAddress;
-
-  for (const block of eraseSectorBlocks) {
-    if (remaining <= 0) break;
-    if (block.sectorCount === 0) continue; // 跳过空扇区块
-
-    // 计算需要使用的扇区数量
-    const sectorsNeeded = Math.ceil(remaining / block.sectorSize);
-    const sectorsToUse = Math.min(sectorsNeeded, block.sectorCount);
-
-    if (sectorsToUse > 0) {
-      const totalSize = sectorsToUse * block.sectorSize;
-      result.push({
-        startAddress: currentAddress,
-        endAddress: currentAddress + totalSize - 1,
-        sectorSize: block.sectorSize,
-        sectorCount: sectorsToUse,
-        totalSize,
-      });
-
-      currentAddress += totalSize;
-      remaining -= totalSize;
-    }
+  for (const block of blocks) {
+    const overlapStart = Math.max(baseAddress, block.startAddress);
+    const overlapEnd = Math.min(rangeEnd, block.endAddress + 1);
+    if (overlapStart >= overlapEnd) continue;
+    const firstSector = Math.floor((overlapStart - block.startAddress) / block.sectorSize);
+    const endSector = Math.ceil((overlapEnd - block.startAddress) / block.sectorSize);
+    const sectorCount = endSector - firstSector;
+    const startAddress = block.startAddress + firstSector * block.sectorSize;
+    const totalSize = sectorCount * block.sectorSize;
+    result.push({
+      startAddress,
+      endAddress: startAddress + totalSize - 1,
+      sectorSize: block.sectorSize,
+      sectorCount,
+      totalSize,
+    });
   }
-
   return result;
 }
 
