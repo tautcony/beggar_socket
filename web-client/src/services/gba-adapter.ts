@@ -1,6 +1,5 @@
 ﻿import {
   FLASH_CMD_RESET,
-  GBA_ROM_FLASH_CMD_SET,
   getFlashName,
   ram_erase_flash,
   ram_program_flash,
@@ -18,7 +17,7 @@
 } from '@/protocol';
 import { planBankChunk } from '@/services/bank-chunk-planner';
 import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
-import type { PlatformOps } from '@/services/platform-ops';
+import type { RomReadOps } from '@/services/platform-ops';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { abortedCommandError, commandErrorToException, mapCommandError } from '@/types/command-error';
 import { CommandOptions } from '@/types/command-options';
@@ -59,27 +58,8 @@ export class GBAAdapter extends CartridgeAdapter {
     super(device, logCallback, progressCallback, translateFunc);
   }
 
-  protected override createPlatformOps(): PlatformOps {
-    return {
-      platformId: 'gba',
-      flashCmdSet: {
-        ...GBA_ROM_FLASH_CMD_SET,
-        read: (...args: Parameters<typeof rom_read>) => rom_read(...args),
-        write: (...args: Parameters<typeof rom_write>) => rom_write(...args),
-      },
-      cfiEntryAddress: 0x55,
-      romProgram: (device, data, addr, buf) => rom_program(device, data, addr, buf),
-      romEraseSector: (device, addr) => rom_erase_sector(device, addr),
-      cfiGetId: (device) => rom_get_id(device),
-      toRomBank: (address) => {
-        const bank = address >> 25;
-        return { bank, cartAddress: address };
-      },
-      switchRomBank: async (_device, bank) => {
-        await this.switchROMBank(bank);
-      },
-      needsRomBankSwitch: (cfiInfo) => cfiInfo.deviceSize > (1 << 25),
-    };
+  protected override createPlatformOps(): RomReadOps {
+    return { read: (...args: Parameters<typeof rom_read>) => rom_read(...args) };
   }
 
   private describeError(error: unknown): string {
@@ -718,179 +698,16 @@ export class GBAAdapter extends CartridgeAdapter {
    * @param showProgress - 鏄惁鏄剧ず璇诲彇杩涘害闈㈡澘锛岄粯璁や负true
    * @returns - 鎿嶄綔缁撴灉锛屽寘鍚鍙栫殑鏁版嵁
    */
-  override async readROM(size = 0x200000, options: CommandOptions, signal?: AbortSignal, showProgress = true) : Promise<CommandResult> {
-    const baseAddress = options.baseAddress ?? 0x00;
-    const pageSize = this.resolveRomPageSize(options.romPageSize);
-    const readThrottleMs = AdvancedSettings.romReadThrottleMs;
-    const retries = AdvancedSettings.romReadRetryCount;
-    const retryDelayMs = AdvancedSettings.romReadRetryDelayMs;
-    const timeoutMs = AdvancedSettings.packageReceiveTimeout;
-
-    this.log(this.t('messages.operation.startReadROM', {
-      size,
-      baseAddress: formatHex(baseAddress, 4),
-    }), 'info');
-
-    return PerformanceTracker.trackAsyncOperation(
-      'gba.readROM',
-      async () => {
-        try {
-          // 妫€鏌ユ槸鍚﹀凡琚彇娑?
-          if (signal?.aborted) {
-            const progressReporter = new ProgressReporter(
-              'read',
-              size,
-              (progressInfo) => { this.updateProgress(progressInfo); },
-              (key, params) => this.t(key, params),
-              showProgress,
-            );
-            progressReporter.reportError(this.t('messages.operation.cancelled'));
-            return {
-              error: abortedCommandError(this.t('messages.operation.cancelled'), signal?.reason as unknown),
-              success: false,
-              message: this.t('messages.operation.cancelled'),
-            };
-          }
-
-          await this.stabilizeCommandChannel(GBAAdapter.ROM_READ_START_SETTLE_MS);
-          this.log(this.t('messages.rom.reading'), 'info');
-          let totalRead = 0;
-
-          const data = new Uint8Array(size);
-
-          // 浣跨敤閫熷害璁＄畻鍣?
-          const speedCalculator = new SpeedCalculator();
-
-          // 鍒涘缓杩涘害鎶ュ憡鍣?
-          const progressReporter = new ProgressReporter(
-            'read',
-            size,
-            (progressInfo) => { this.updateProgress(progressInfo); },
-            (key, params) => this.t(key, params),
-            showProgress,
-          );
-
-          // 鎶ュ憡寮€濮嬬姸鎬?
-          progressReporter.reportStart(this.t('messages.rom.reading'));
-
-          // 鍒嗗潡璇诲彇浠ヤ究璁＄畻閫熷害缁熻
-          let lastLoggedProgress = -1; // 鍒濆鍖栦负-1锛岀‘淇濈涓€娆?%浼氳璁板綍
-          let chunkCount = 0; // 璁板綍宸插鐞嗙殑鍧楁暟
-          let currentBank = -1;
-
-          while (totalRead < size) {
-            // 妫€鏌ユ槸鍚﹀凡琚彇娑?
-            if (signal?.aborted) {
-              progressReporter.reportError(this.t('messages.operation.cancelled'));
-              return {
-                error: abortedCommandError(this.t('messages.operation.cancelled'), signal?.reason as unknown),
-                success: false,
-                message: this.t('messages.operation.cancelled'),
-              };
-            }
-
-            const currentAddress = baseAddress + totalRead;
-            const { bank, cartAddress, chunkSize } = planBankChunk(currentAddress, size - totalRead, pageSize, { platform: 'gba', memory: 'rom' });
-
-            // 璁＄畻bank鍜屽湴鍧€
-            if (options.cfiInfo.deviceSize > (1 << 25)) {
-              if (bank !== currentBank) {
-                currentBank = bank;
-                await this.switchROMBank(bank);
-              }
-            }
-
-            // 璇诲彇鏁版嵁
-            const restoreState = options.cfiInfo.deviceSize > (1 << 25)
-              ? async () => { await this.switchROMBank(bank); }
-              : undefined;
-            const chunk = await this.readROMChunkWithRetry(
-              chunkSize,
-              currentAddress,
-              cartAddress,
-              Math.floor(totalRead / pageSize) + 1,
-              bank,
-              restoreState,
-            );
-            const chunkEndTime = Date.now();
-            data.set(chunk, totalRead);
-
-            totalRead += chunkSize;
-            chunkCount++;
-
-            // 娣诲姞鏁版嵁鐐瑰埌閫熷害璁＄畻鍣?
-            speedCalculator.addDataPoint(chunkSize, chunkEndTime);
-
-            // 姣?0娆℃搷浣滄垨鏈€鍚庝竴娆℃洿鏂拌繘搴?
-            if (chunkCount % 10 === 0 || totalRead >= size) {
-              // 璁＄畻褰撳墠閫熷害
-              const currentSpeed = speedCalculator.getCurrentSpeed();
-
-              // 鎶ュ憡杩涘害
-              progressReporter.reportProgress(
-                totalRead,
-                currentSpeed,
-                this.t('messages.progress.readSpeed', { speed: formatSpeed(currentSpeed) }));
-            }
-
-            // 姣?涓櫨鍒嗘瘮璁板綍涓€娆℃棩蹇?
-            const progress = Math.floor((totalRead / size) * 100);
-            if (progress % 5 === 0 && progress !== lastLoggedProgress) {
-              this.log(this.t('messages.rom.readingAt', { address: formatHex(currentAddress, 4), progress }), 'info');
-              lastLoggedProgress = progress;
-            }
-
-            if (totalRead < size && readThrottleMs > 0) {
-              await timeout(readThrottleMs);
-            }
-          }
-
-          const totalTime = speedCalculator.getTotalTime();
-          const avgSpeed = speedCalculator.getAverageSpeed();
-          const maxSpeed = speedCalculator.getMaxSpeed();
-
-          this.log(this.t('messages.rom.readSuccess', { size: data.length }), 'success');
-          this.log(this.t('messages.rom.readSummary', {
-            totalTime: formatTimeDuration(totalTime),
-            avgSpeed: formatSpeed(avgSpeed),
-            maxSpeed: formatSpeed(maxSpeed),
-            totalSize: formatBytes(size),
-          }), 'info');
-
-          // 鎶ュ憡瀹屾垚鐘舵€?
-          progressReporter.reportCompleted(this.t('messages.rom.readSuccess', { size: data.length }), avgSpeed);
-
-          return {
-            success: true,
-            data: data,
-            message: this.t('messages.rom.readSuccess', { size: data.length }),
-          };
-        } catch (e) {
-          const progressReporter = new ProgressReporter(
-            'read',
-            size,
-            (progressInfo) => { this.updateProgress(progressInfo); },
-            (key, params) => this.t(key, params),
-            showProgress,
-          );
-          progressReporter.reportError(this.t('messages.rom.readFailed'));
-          this.log(errorToBurnerLog(this.t('messages.rom.readFailed'), e), 'error');
-          return {
-            error: mapCommandError('protocol', e, 'Command failed'),
-            success: false,
-            message: this.t('messages.rom.readFailed'),
-          };
-        }
-      },
-      {
-        adapter_type: 'gba',
-        operation_type: 'read_rom',
-      },
-      {
-        dataSize: size,
-        baseAddress: baseAddress,
-      },
-    );
+  override async readROM(size = 0x200000, options: CommandOptions, signal?: AbortSignal, showProgress = true): Promise<CommandResult> {
+    return this.readROMWithStrategy(size, options, {
+      platformId: 'gba',
+      bankWindow: { platform: 'gba', memory: 'rom' },
+      resolveBankSwitch: () => options.cfiInfo.deviceSize > GBAAdapter.ROM_BANK_SIZE
+        ? async bank => { await this.switchROMBank(bank); }
+        : undefined,
+      withPowerConfig: read => read(),
+      throttleMs: AdvancedSettings.romReadThrottleMs,
+    }, signal, showProgress);
   }
 
   /**

@@ -1,7 +1,6 @@
 ﻿import {
   cart_power,
   FLASH_CMD_RESET,
-  GBC_FLASH_CMD_SET,
   gbc_read,
   gbc_read_fram,
   gbc_rom_erase_chip,
@@ -31,7 +30,7 @@ import { ProgressReporter } from '@/utils/progress/progress-reporter';
 import { SpeedCalculator } from '@/utils/progress/speed-calculator';
 import { calcSectorUsage } from '@/utils/sector-utils';
 
-import type { PlatformOps } from './platform-ops';
+import type { RomReadOps } from './platform-ops';
 
 /**
  * MBC5 Adapter - 灏佽MBC5鍗″甫鐨勫崗璁搷浣?
@@ -55,33 +54,8 @@ export class MBC5Adapter extends CartridgeAdapter {
     super(device, logCallback, progressCallback, translateFunc);
   }
 
-  protected override createPlatformOps(): PlatformOps {
-    return {
-      platformId: 'mbc5',
-      flashCmdSet: {
-        ...GBC_FLASH_CMD_SET,
-        read: (...args: Parameters<typeof gbc_read>) => gbc_read(...args),
-        write: (...args: Parameters<typeof gbc_write>) => gbc_write(...args),
-      },
-      cfiEntryAddress: 0xaa,
-      romProgram: (device, data, addr, buf) => gbc_rom_program(device, data, addr, buf),
-      romEraseSector: (device, addr) => gbc_rom_erase_sector(device, addr),
-      cfiGetId: (device) => gbc_rom_get_id(device),
-      toRomBank: (address) => {
-        const bank = Math.max(0, address >> 14);
-        const cartAddress = this.getBaseAddressOfBank('MBC5', bank) + (address & 0x3fff);
-        return { bank, cartAddress };
-      },
-      switchRomBank: async (_device, bank, options) => {
-        const mbcType = (options as CommandOptions | undefined)?.mbcType ?? 'MBC5';
-        await this.switchROMBank(bank, mbcType);
-      },
-      needsRomBankSwitch: () => true,
-    };
-  }
-
-  protected override async withPowerConfig<T>(enable5V: boolean, fn: () => Promise<T>): Promise<T> {
-    return this.withOptional5v(enable5V, fn);
+  protected override createPlatformOps(): RomReadOps {
+    return { read: (...args: Parameters<typeof gbc_read>) => gbc_read(...args) };
   }
 
   private getUnsupportedPowerControlResult(): CommandResult | null {
@@ -987,178 +961,20 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param showProgress - 鏄惁鏄剧ず璇诲彇杩涘害闈㈡澘锛岄粯璁や负true
    * @returns - 鎿嶄綔缁撴灉锛屽寘鍚鍙栫殑鏁版嵁
    */
-  override async readROM(size: number, options: CommandOptions, signal?: AbortSignal, showProgress = true) : Promise<CommandResult> {
+  override async readROM(size: number, options: CommandOptions, signal?: AbortSignal, showProgress = true): Promise<CommandResult> {
     if (options.enable5V) {
       const unsupported = this.getUnsupportedPowerControlResult();
       if (unsupported) return unsupported;
     }
 
     const mbcType = options.mbcType ?? 'MBC5';
-    const enable5V = options.enable5V ?? false;
-    const baseAddress = options.baseAddress ?? 0x00;
-    const pageSize = this.resolveRomPageSize(options.romPageSize);
-    const retries = AdvancedSettings.romReadRetryCount;
-    const retryDelayMs = AdvancedSettings.romReadRetryDelayMs;
-    const timeoutMs = AdvancedSettings.packageReceiveTimeout;
-
-    this.log(this.t('messages.operation.startReadROM', {
-      size,
-      baseAddress: formatHex(baseAddress, 4),
-    }), 'info');
-
-    return PerformanceTracker.trackAsyncOperation(
-      'mbc5.readROM',
-      async () => {
-        try {
-          // 妫€鏌ユ槸鍚﹀凡琚彇娑?
-          if (signal?.aborted) {
-            const progressReporter = new ProgressReporter(
-              'read',
-              size,
-              (progressInfo) => { this.updateProgress(progressInfo); },
-              (key, params) => this.t(key, params),
-              showProgress,
-            );
-            progressReporter.reportError(this.t('messages.operation.cancelled'));
-            return {
-              error: abortedCommandError(this.t('messages.operation.cancelled'), signal?.reason as unknown),
-              success: false,
-              message: this.t('messages.operation.cancelled'),
-            };
-          }
-
-          return await this.withOptional5v(enable5V, async () => {
-            await this.stabilizeCommandChannel(MBC5Adapter.ROM_READ_START_SETTLE_MS);
-            this.log(this.t('messages.rom.reading'), 'info');
-            let totalRead = 0;
-
-            const data = new Uint8Array(size);
-
-            // 浣跨敤閫熷害璁＄畻鍣?
-            const speedCalculator = new SpeedCalculator();
-
-            // 鍒涘缓杩涘害鎶ュ憡鍣?
-            const progressReporter = new ProgressReporter(
-              'read',
-              size,
-              (progressInfo) => { this.updateProgress(progressInfo); },
-              (key, params) => this.t(key, params),
-              showProgress,
-            );
-
-            // 鎶ュ憡寮€濮嬬姸鎬?
-            progressReporter.reportStart(this.t('messages.rom.reading'));
-
-            // 鍒嗗潡璇诲彇浠ヤ究璁＄畻閫熷害缁熻
-            let lastLoggedProgress = -1; // 鍒濆鍖栦负-1锛岀‘淇濈涓€娆?%浼氳璁板綍
-            let chunkCount = 0; // 璁板綍宸插鐞嗙殑鍧楁暟
-            let currentBank = -1;
-
-            while (totalRead < size) {
-              // 妫€鏌ユ槸鍚﹀凡琚彇娑?
-              if (signal?.aborted) {
-                progressReporter.reportError(this.t('messages.operation.cancelled'));
-                return {
-                  error: abortedCommandError(this.t('messages.operation.cancelled'), signal?.reason as unknown),
-                  success: false,
-                  message: this.t('messages.operation.cancelled'),
-                };
-              }
-
-              const currentAddress = baseAddress + totalRead;
-              const { bank, cartAddress, chunkSize } = planBankChunk(currentAddress, size - totalRead, pageSize, { platform: 'mbc', memory: 'rom', mbcType });
-
-              // 璁＄畻bank鍜屽湴鍧€
-              if (bank !== currentBank) {
-                currentBank = bank;
-                await this.switchROMBank(bank, mbcType);
-              }
-
-              // 璇诲彇鏁版嵁
-              const chunk = await this.readROMChunkWithRetry(
-                chunkSize,
-                currentAddress,
-                cartAddress,
-                Math.floor(totalRead / pageSize) + 1,
-                bank,
-                async () => { await this.switchROMBank(bank, mbcType); },
-              );
-              const chunkEndTime = Date.now();
-              data.set(chunk, totalRead);
-
-              totalRead += chunkSize;
-              chunkCount++;
-
-              // 娣诲姞鏁版嵁鐐瑰埌閫熷害璁＄畻鍣?
-              speedCalculator.addDataPoint(chunkSize, chunkEndTime);
-
-              // 姣?0娆℃搷浣滄垨鏈€鍚庝竴娆℃洿鏂拌繘搴?
-              if (chunkCount % 10 === 0 || totalRead >= size) {
-                // 璁＄畻褰撳墠閫熷害
-                const currentSpeed = speedCalculator.getCurrentSpeed();
-
-                // 鎶ュ憡杩涘害
-                progressReporter.reportProgress(
-                  totalRead,
-                  currentSpeed,
-                  this.t('messages.progress.readSpeed', { speed: formatSpeed(currentSpeed) }));
-              }
-
-              // 姣?涓櫨鍒嗘瘮璁板綍涓€娆℃棩蹇?
-              const progress = Math.floor((totalRead / size) * 100);
-              if (progress % 5 === 0 && progress !== lastLoggedProgress) {
-                this.log(this.t('messages.rom.readingAt', { address: formatHex(currentAddress, 4), progress }), 'info');
-                lastLoggedProgress = progress;
-              }
-            }
-
-            const totalTime = speedCalculator.getTotalTime();
-            const avgSpeed = speedCalculator.getAverageSpeed();
-            const maxSpeed = speedCalculator.getMaxSpeed();
-
-            this.log(this.t('messages.rom.readSuccess', { size: data.length }), 'success');
-            this.log(this.t('messages.rom.readSummary', {
-              totalTime: formatTimeDuration(totalTime),
-              avgSpeed: formatSpeed(avgSpeed),
-              maxSpeed: formatSpeed(maxSpeed),
-              totalSize: formatBytes(size),
-            }), 'info');
-
-            // 鎶ュ憡瀹屾垚鐘舵€?
-            progressReporter.reportCompleted(this.t('messages.rom.readSuccess', { size: data.length }), avgSpeed);
-
-            return {
-              success: true,
-              data: data,
-              message: this.t('messages.rom.readSuccess', { size: data.length }),
-            };
-          });
-        } catch (e) {
-          const progressReporter = new ProgressReporter(
-            'read',
-            size,
-            (progressInfo) => { this.updateProgress(progressInfo); },
-            (key, params) => this.t(key, params),
-            showProgress,
-          );
-          progressReporter.reportError(this.t('messages.rom.readFailed'));
-          this.log(errorToBurnerLog(this.t('messages.rom.readFailed'), e), 'error');
-          return {
-            error: mapCommandError('protocol', e, 'Command failed'),
-            success: false,
-            message: this.t('messages.rom.readFailed'),
-          };
-        }
-      },
-      {
-        adapter_type: 'mbc5',
-        operation_type: 'read_rom',
-      },
-      {
-        dataSize: size,
-        baseAddress,
-      },
-    );
+    return this.readROMWithStrategy(size, options, {
+      platformId: 'mbc5',
+      bankWindow: { platform: 'mbc', memory: 'rom', mbcType },
+      resolveBankSwitch: () => async bank => { await this.switchROMBank(bank, mbcType); },
+      withPowerConfig: read => this.withOptional5v(options.enable5V ?? false, read),
+      throttleMs: 0,
+    }, signal, showProgress);
   }
 
   /**

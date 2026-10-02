@@ -11,13 +11,10 @@
 
 扩大回归：完成取消/协议/连接后，52 个文件 497 项测试通过（不含实施中的设置/bank 新回归）；类型检查曾全项目通过，最终仍需所有任务合并后的全量门禁。
 
-## 待完成
+## 范围与剩余工作
 
-- 连接查询/关闭/指定端口重连/迟到 open 的资源所有权。
-- 协议长度与模拟运行时约束、bank 分块。
-- 取消生命周期与设备级独占。
-- RTC 校验、恢复和写后比较；配置 schema。
-- 可验证的适配器/错误/LK 抽象收敛及文档/依赖门禁。
+- 正在实施：UI 命令编排。
+- 后续：超时契约和默认关闭的操作预算、性能证据与安全懒加载、当前架构文档。
 
 固件与旧 C# 实施不在本轮范围。未验证的硬件/性能假设先补证据，不按猜测修改。
 
@@ -40,7 +37,8 @@
 | RTC 实际写后验证 | 完成 | 239 RTC tests；实际目标比较、单调容差、进位/坏BCD/恢复 |
 | LK 局部构建状态与阶段模型 | 完成 | 19 focused tests；并发日志隔离、8MiB golden ROM、typed阶段 |
 | 结构化失败传播 | 完成 | 177 related tests；原message/data/cause、ACK/取消分类、Vue诊断identity |
-| 适配器模板收敛 / UI 编排迁移 | 排队 | 依赖 bank、生命周期、错误 |
+| 适配器共享读取规则 | 完成 | 95 related tests（新26）；公共读取循环/既有retry、供电/延迟/bank/progress transcript |
+| UI 编排迁移 | 进行中 | 独立 subagent；prepare/reset、admission 与结果投影 guards |
 | 超时契约与操作预算 | 排队 | 依赖生命周期，保留慢设备兼容默认行为 |
 | Native 会话锁与有界取消 | 完成 | 14 Rust tests、cargo check --locked、5 CI contracts；独立worker/真实close |
 | AST 依赖门禁 | 完成 | 40 focused tests；AST/Vue/resolution/type边/runtime循环；真实图无违规 |
