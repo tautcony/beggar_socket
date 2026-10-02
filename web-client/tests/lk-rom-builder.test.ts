@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildRom, generateItemList, ITEM_TITLE_CODE_UNIT_LIMIT, prepareCompilation } from '@/services/lk/romBuilder';
 import type { BuildInput, GameConfig } from '@/services/lk/types';
 
+import { assertBinaryEqual } from './helpers/binary-assertion';
+
 function makeSerializedGame(title: string): GameConfig {
   return {
     enabled: true,
@@ -63,7 +65,7 @@ describe('LK ROM builder', () => {
       const second = await buildRom(input);
 
       expect(input.config).toEqual(originalConfig);
-      expect(new Uint8Array(second.rom)).toEqual(new Uint8Array(first.rom));
+      assertBinaryEqual(new Uint8Array(second.rom), new Uint8Array(first.rom));
       expect(second.code).toBe(first.code);
     } finally {
       vi.useRealTimers();

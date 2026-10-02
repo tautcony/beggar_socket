@@ -1,0 +1,7 @@
+## 1. Binary regression baseline
+
+- [x] 1.1 Add exact binary assertion with differing-length/byte tests and migrate LK regression; validate and commit. Focused tests: 10 passed; LK test no longer times out.
+
+## 2. Quality workflow
+
+- [ ] 2.1 Add PR quality gates and deployment prerequisites with workflow contract tests; validate and commit.
