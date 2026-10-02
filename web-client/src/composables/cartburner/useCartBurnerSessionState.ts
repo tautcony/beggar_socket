@@ -12,11 +12,13 @@ interface ExecuteOperationOptions<TResult> {
   cancellable?: boolean;
   resetProgressOnFinish?: boolean;
   updateProgress?: Partial<ProgressInfo>;
-  operation: (signal?: AbortSignal) => Promise<TResult>;
+  operation: (signal?: AbortSignal, isAttached?: () => boolean) => Promise<TResult>;
+  onSuccess?: (result: TResult, isCurrent: () => boolean) => void | Promise<void>;
   onError: (error: unknown) => void | Promise<void>;
 }
 
 export function useCartBurnerSessionState(translate: (key: string) => string, getDevice?: () => DeviceInfo | null) {
+  let scopeActive = true;
   let burnerSession = new BurnerSession();
   const localBusy = ref(false);
   const ownerRevision = ref(0);
@@ -44,6 +46,7 @@ export function useCartBurnerSessionState(translate: (key: string) => string, ge
 
   // Abort any in-progress operation when the component scope is destroyed
   onScopeDispose(() => {
+    scopeActive = false;
     unsubscribe?.();
     burnerSession.abortOperation();
   });
@@ -73,6 +76,7 @@ export function useCartBurnerSessionState(translate: (key: string) => string, ge
   }
 
   function updateProgress(info: ProgressInfo) {
+    if (!scopeActive) return;
     if (info.showProgress === true) {
       if (keepProgressModalOpen.value && progressInfo.value.state === 'paused' && info.state === 'running') {
         return;
@@ -105,6 +109,7 @@ export function useCartBurnerSessionState(translate: (key: string) => string, ge
   }
 
   function log(msg: BurnerLogInput, level: BurnerLogLevel = 'info') {
+    if (!scopeActive) return;
     const time = DateTime.now().toLocaleString(DateTime.TIME_24_WITH_SECONDS);
     const entry = typeof msg === 'string' ? { message: msg } : msg;
     const consolePrefix = `[CartBurner][${level}][${time}]`;
@@ -136,8 +141,11 @@ export function useCartBurnerSessionState(translate: (key: string) => string, ge
       throw new Error('Burner operation already running');
     }
     const owner = currentOwner();
+    const device = getDevice?.();
     if (getDevice && !owner) throw new Error('Device transport is not initialized');
     const session = burnerSession;
+    const isAttached = () => scopeActive && currentOwner() === owner && getDevice?.() === device && burnerSession === session;
+    const isCurrent = () => isAttached() && session.snapshot.phase !== 'cancelling' && !session.snapshot.abortController?.signal.aborted;
     const run = () => {
       keepProgressModalOpen.value = false;
       burnerSession.resetProgress();
@@ -148,19 +156,22 @@ export function useCartBurnerSessionState(translate: (key: string) => string, ge
         resetProgressOnFinish: options.resetProgressOnFinish,
         updateProgress: options.updateProgress,
         syncState: () => {
-          if (currentOwner() !== owner || burnerSession !== session) return;
+          if (!isAttached()) return;
           syncSessionState();
           // 操作因错误结束时（不论是抛出异常还是返回失败结果），保持弹窗打开
           if (progressInfo.value.state === 'error') {
             keepProgressModalOpen.value = true;
           }
         },
-        log: (message, level) => { if (currentOwner() === owner && burnerSession === session) log(message, level); },
+        log: (message, level) => { if (isAttached()) log(message, level); },
         cancelLogMessage: translate('messages.operation.cancelled'),
-        execute: ({ signal }) => options.operation(signal),
+        execute: ({ signal }) => options.operation(signal, isAttached),
+        onSuccess: (result) => {
+          if (isCurrent()) return options.onSuccess?.(result, isCurrent);
+        },
         onError: async (error) => {
           // 抛出异常路径：适配器来不及将进度置为 error，在此补充设置
-          if (currentOwner() !== owner || burnerSession !== session) return;
+          if (!isAttached()) return;
           burnerSession.updateProgress({ state: 'error', allowCancel: false, showProgress: true });
           await options.onError(error);
         },

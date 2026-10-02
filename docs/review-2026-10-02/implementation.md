@@ -13,7 +13,7 @@
 
 ## 范围与剩余工作
 
-- 正在实施：UI 命令编排。
+- 适配器共享读取规则、UI 命令编排已完成。
 - 后续：超时契约和默认关闭的操作预算、性能证据与安全懒加载、当前架构文档。
 
 固件与旧 C# 实施不在本轮范围。未验证的硬件/性能假设先补证据，不按猜测修改。
@@ -38,7 +38,7 @@
 | LK 局部构建状态与阶段模型 | 完成 | 19 focused tests；并发日志隔离、8MiB golden ROM、typed阶段 |
 | 结构化失败传播 | 完成 | 177 related tests；原message/data/cause、ACK/取消分类、Vue诊断identity |
 | 适配器共享读取规则 | 完成 | 95 related tests（新26）；公共读取循环/既有retry、供电/延迟/bank/progress transcript |
-| UI 编排迁移 | 进行中 | 独立 subagent；prepare/reset、admission 与结果投影 guards |
+| UI 编排迁移 | 完成 | 106 related tests（新41）；11入口prepare/reset、admission与结果/cleanup/disposal guards |
 | 超时契约与操作预算 | 排队 | 依赖生命周期，保留慢设备兼容默认行为 |
 | Native 会话锁与有界取消 | 完成 | 14 Rust tests、cargo check --locked、5 CI contracts；独立worker/真实close |
 | AST 依赖门禁 | 完成 | 40 focused tests；AST/Vue/resolution/type边/runtime循环；真实图无违规 |

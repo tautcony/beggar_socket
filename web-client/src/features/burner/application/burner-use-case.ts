@@ -4,6 +4,8 @@ import type { CFIInfo } from '@/utils/parsers/cfi-parser';
 import { parseRom, type RomInfo } from '@/utils/parsers/rom-parser';
 import { calcSectorUsage } from '@/utils/sector-utils';
 
+import { type BurnerCommandSelection, prepareCommand, type PreparedBurnerCommand } from './command-preparation';
+import { runWithCommandBufferReset } from './command-transaction';
 import type { BurnerProtocolPort, BurnerProtocolSession } from './domain/ports';
 import type { BurnerDomainResult } from './domain/result';
 
@@ -295,6 +297,8 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
 }
 
 export interface BurnerFacade {
+  prepareCommand(selection: BurnerCommandSelection, data?: Uint8Array | null, preparation?: 'pad-rom' | 'read-rom' | 'read-ram' | number): PreparedBurnerCommand;
+  runCommand<TResult>(session: BurnerProtocolSession, operation: () => Promise<TResult>, onResetError: (error: unknown) => void): Promise<TResult>;
   readCart(session: BurnerProtocolSession, enable5V: boolean): Promise<BurnerReadCartResult>;
   eraseChip(
     session: BurnerProtocolSession,
@@ -349,6 +353,14 @@ export interface BurnerFacade {
 
 export class BurnerFacadeImpl implements BurnerFacade {
   constructor(private readonly useCase: BurnerUseCase) {}
+
+  prepareCommand(selection: BurnerCommandSelection, data?: Uint8Array | null, preparation?: 'pad-rom' | 'read-rom' | 'read-ram' | number): PreparedBurnerCommand {
+    return prepareCommand(selection, data, preparation);
+  }
+
+  runCommand<TResult>(session: BurnerProtocolSession, operation: () => Promise<TResult>, onResetError: (error: unknown) => void): Promise<TResult> {
+    return runWithCommandBufferReset(session, operation, current => this.useCase.resetCommandBuffer(current), onResetError);
+  }
 
   readCart(session: BurnerProtocolSession, enable5V: boolean): Promise<BurnerReadCartResult> {
     return this.useCase.readCart(session, enable5V);
