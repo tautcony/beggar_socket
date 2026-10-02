@@ -35,7 +35,9 @@ export type TranslateFunction = (key: string, params?: any) => string;
 export class CartridgeAdapter {
   private static readonly COMMAND_RESET_PULSE_MS = 10;
   private static readonly COMMAND_RESET_SETTLE_MS = 200;
-  private static readonly SIMULATED_TRANSFER_CHUNK_SIZE = 0xfffd;
+  // Aligned chunks fit the smallest cartridge bank window (MBC5 RAM: 8 KiB)
+  // and leave room for every command's header and CRC trailer.
+  private static readonly SIMULATED_TRANSFER_CHUNK_SIZE = 0x2000;
 
   // 子类共享时序常量
   protected static readonly ROM_READ_START_SETTLE_MS = 100;
@@ -283,7 +285,7 @@ export class CartridgeAdapter {
 
     // Simulated transports already execute the full protocol path. Use larger logical chunks so
     // async command overhead does not dwarf the configured throughput controls in debug mode.
-    return Math.max(configuredPageSize, CartridgeAdapter.SIMULATED_TRANSFER_CHUNK_SIZE);
+    return CartridgeAdapter.SIMULATED_TRANSFER_CHUNK_SIZE;
   }
 
   protected resolveRamPageSize(requestedPageSize?: number): number {
@@ -292,7 +294,7 @@ export class CartridgeAdapter {
       return configuredPageSize;
     }
 
-    return Math.max(configuredPageSize, CartridgeAdapter.SIMULATED_TRANSFER_CHUNK_SIZE);
+    return CartridgeAdapter.SIMULATED_TRANSFER_CHUNK_SIZE;
   }
 
   protected summarizeLogMessage(message: BurnerLogInput): string {

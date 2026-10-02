@@ -1,6 +1,7 @@
 import { modbusCRC16_lut } from '@/utils/crc-utils';
 
-import { Command } from './command';
+import type { Command } from './command';
+import { MAX_PROTOCOL_FRAME_SIZE } from './constants';
 
 const PACKET_HEADER_SIZE = 2;
 
@@ -24,6 +25,9 @@ export class PayloadBuilder {
    */
   private ensureCapacity(additionalBytes: number): void {
     const required = this.offset + additionalBytes + PACKET_HEADER_SIZE; // 额外预留2字节给CRC
+    if (!Number.isInteger(additionalBytes) || additionalBytes < 0 || required > MAX_PROTOCOL_FRAME_SIZE) {
+      throw new RangeError(`Protocol frame size ${required} exceeds the ${MAX_PROTOCOL_FRAME_SIZE}-byte limit`);
+    }
     if (required > this.capacity) {
       // 扩容策略：至少翻倍，或者满足需求
       const newCapacity = Math.max(this.capacity * 2, required);
@@ -94,6 +98,9 @@ export class PayloadBuilder {
       return this.buffer.subarray(0, this.offset + PACKET_HEADER_SIZE);
     }
 
+    // A reused builder may still contain a previous CRC at the new trailer position.
+    this.buffer.fill(0, this.offset, this.offset + PACKET_HEADER_SIZE);
+
     return this.buffer.subarray(0, this.offset + PACKET_HEADER_SIZE);
   }
 
@@ -118,6 +125,9 @@ export class PayloadBuilder {
    * @param length - 长度值
    */
   addLength(length: number): this {
+    if (!Number.isInteger(length) || length < 0 || length > 0xffff) {
+      throw new RangeError(`Protocol length ${length} must be an unsigned 16-bit integer`);
+    }
     return this.addLittleEndian(length, 2);
   }
 

@@ -27,7 +27,7 @@
 | CI 质量门禁 | 完成 | 0b665f9，4 workflow contracts |
 | 连接查询与失败资源所有权 | 完成 | 19 项回归通过；保留失败 cleanup handle |
 | Tauri 迟到 open / close 重试 | 完成 | 28 项回归通过；清理失败明确诊断 |
-| 协议帧长度与模拟真实性 | 实施中 | 独立 agent |
+| 协议帧长度与模拟真实性 | 完成 | 55 focused tests；总长约束、CRC哨兵、128KiB往返 |
 | 指定端口原子重连 | 实施中 | 独立 agent；前置 367d34e |
 | bank 分块规划 | 排队 | 依赖协议长度 |
 | 取消生命周期 | 实施中 | 独立 agent |

@@ -9,6 +9,7 @@ import {
   maybeThrowSimulatedTransportError,
   setSimulatedSignals,
   type SimulatedDeviceState,
+  validateSimulatedCommandPayload,
 } from './runtime';
 
 export class SimulatedTransport implements Transport {
@@ -22,6 +23,7 @@ export class SimulatedTransport implements Transport {
   }
 
   async send(payload: Uint8Array, _timeoutMs?: number): Promise<boolean> {
+    validateSimulatedCommandPayload(payload);
     await applySimulatedTransferDelay('write', payload.byteLength);
     maybeThrowSimulatedTransportError('send');
     const result = executeSimulatedCommand(this.state, payload);

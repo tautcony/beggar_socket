@@ -13,6 +13,7 @@ import {
   GBA_RAM_FLASH_ADDR_2,
   GBC_FLASH_ADDR_1,
   GBC_FLASH_ADDR_2,
+  MAX_PROTOCOL_FRAME_SIZE,
   PROTOCOL_ACK,
 } from '@/protocol/beggar_socket/constants';
 import { DebugSettings, type SimulatedMemorySlot } from '@/settings/debug-settings';
@@ -635,13 +636,62 @@ export function closeSimulatedDeviceState(state: SimulatedDeviceState): void {
   state.closed = true;
 }
 
+export function validateSimulatedCommandPayload(payload: Uint8Array): void {
+  if (payload.byteLength < 5 || payload.byteLength > MAX_PROTOCOL_FRAME_SIZE
+    || readUInt16(payload, 0) !== payload.byteLength) {
+    throw new Error('Invalid simulated command frame length');
+  }
+
+  const command: GBACommand | GBCCommand = payload[2];
+  let minimumSize: number;
+  let exactSize = false;
+  switch (command) {
+    case GBACommand.ERASE_CHIP:
+      minimumSize = 5;
+      exactSize = true;
+      break;
+    case GBCCommand.CART_POWER:
+    case GBCCommand.CART_PHI_DIV:
+      minimumSize = 6;
+      exactSize = true;
+      break;
+    case GBACommand.DIRECT_WRITE:
+    case GBACommand.RAM_WRITE:
+    case GBACommand.RAM_WRITE_TO_FLASH:
+    case GBCCommand.DIRECT_WRITE:
+      minimumSize = 9;
+      break;
+    case GBACommand.FRAM_WRITE:
+    case GBCCommand.FRAM_WRITE:
+      minimumSize = 10;
+      break;
+    case GBACommand.PROGRAM:
+    case GBCCommand.ROM_PROGRAM:
+      minimumSize = 11;
+      break;
+    case GBACommand.READ:
+    case GBACommand.RAM_READ:
+    case GBCCommand.READ:
+      minimumSize = 11;
+      exactSize = true;
+      break;
+    case GBACommand.FRAM_READ:
+    case GBCCommand.FRAM_READ:
+      minimumSize = 12;
+      exactSize = true;
+      break;
+    default:
+      throw new Error(`Unsupported simulated command: 0x${command.toString(16)}`);
+  }
+  if (payload.byteLength < minimumSize || (exactSize && payload.byteLength !== minimumSize)) {
+    throw new Error('Invalid simulated command payload layout');
+  }
+}
+
 export function executeSimulatedCommand(state: SimulatedDeviceState, payload: Uint8Array): CommandResult {
   ensureSessionOpen(state);
-
-  const command = payload[2] as GBACommand | GBCCommand | undefined;
-  if (command === undefined) {
-    throw new Error('Invalid simulated command payload');
-  }
+  validateSimulatedCommandPayload(payload);
+  const command: GBACommand | GBCCommand = payload[2];
 
   switch (command) {
     case GBACommand.ERASE_CHIP:
@@ -651,14 +701,14 @@ export function executeSimulatedCommand(state: SimulatedDeviceState, payload: Ui
 
     case GBACommand.PROGRAM: {
       const address = readUInt32(payload, 3);
-      const data = payload.subarray(9);
+      const data = payload.subarray(9, payload.byteLength - 2);
       writeClamped(state.gba.rom, address, data);
       return { response: makeAckResponse() };
     }
 
     case GBACommand.DIRECT_WRITE: {
       const address = readUInt32(payload, 3);
-      const data = payload.subarray(7);
+      const data = payload.subarray(7, payload.byteLength - 2);
       handleGbaRomDirectWrite(state, address, data);
       return { response: makeAckResponse() };
     }
@@ -671,7 +721,7 @@ export function executeSimulatedCommand(state: SimulatedDeviceState, payload: Ui
 
     case GBACommand.RAM_WRITE: {
       const address = readUInt32(payload, 3);
-      const data = payload.subarray(7);
+      const data = payload.subarray(7, payload.byteLength - 2);
       handleGbaRamDirectWrite(state, address, data);
       return { response: makeAckResponse() };
     }
@@ -684,7 +734,7 @@ export function executeSimulatedCommand(state: SimulatedDeviceState, payload: Ui
 
     case GBACommand.RAM_WRITE_TO_FLASH: {
       const address = readUInt32(payload, 3);
-      const data = payload.subarray(7);
+      const data = payload.subarray(7, payload.byteLength - 2);
       const offset = currentGbaFlashRamOffset(state.gba, address);
       writeClamped(state.gba.ram, offset, data);
       return { response: makeAckResponse() };
@@ -692,7 +742,7 @@ export function executeSimulatedCommand(state: SimulatedDeviceState, payload: Ui
 
     case GBACommand.FRAM_WRITE: {
       const address = readUInt32(payload, 3);
-      const data = payload.subarray(8);
+      const data = payload.subarray(8, payload.byteLength - 2);
       const offset = currentGbaRamOffset(state.gba, address);
       state.gba.ram.set(data, Math.min(offset, state.gba.ram.byteLength));
       return { response: makeAckResponse() };
@@ -713,7 +763,7 @@ export function executeSimulatedCommand(state: SimulatedDeviceState, payload: Ui
 
     case GBCCommand.DIRECT_WRITE: {
       const address = readUInt32(payload, 3);
-      const data = payload.subarray(7);
+      const data = payload.subarray(7, payload.byteLength - 2);
       handleGbcDirectWrite(state, address, data);
       return { response: makeAckResponse() };
     }
@@ -726,7 +776,7 @@ export function executeSimulatedCommand(state: SimulatedDeviceState, payload: Ui
 
     case GBCCommand.ROM_PROGRAM: {
       const address = readUInt32(payload, 3);
-      const data = payload.subarray(9);
+      const data = payload.subarray(9, payload.byteLength - 2);
       const romOffset = currentGbcRomOffset(state.gbc, address);
       writeClamped(state.gbc.rom, romOffset, data);
       return { response: makeAckResponse() };
@@ -734,7 +784,7 @@ export function executeSimulatedCommand(state: SimulatedDeviceState, payload: Ui
 
     case GBCCommand.FRAM_WRITE: {
       const address = readUInt32(payload, 3);
-      const data = payload.subarray(8);
+      const data = payload.subarray(8, payload.byteLength - 2);
       if (address >= 0xa000 && address < 0xc000) {
         const offset = currentGbcRamOffset(state.gbc, address);
         writeClamped(state.gbc.ram, offset, data);
