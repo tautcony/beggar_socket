@@ -31,9 +31,9 @@
 | 指定端口原子重连 | 完成 | 32 focused tests；close/open/init单事务；全类型检查通过 |
 | bank 分块规划 | 实施中 | 独立 agent；前置 0dd7a17 |
 | 取消生命周期 | 完成 | 31 focused tests；取消/超时保留所有权到worker与cleanup结束 |
-| 设备级操作独占与工具/断连集成 | 排队 | 依赖取消生命周期、连接 |
-| 设置 runtime schema | 实施中 | 独立 agent |
-| RTC 输入契约 | 排队 | 独立 agent |
+| 设备级操作独占与工具/断连集成 | 实施中 | 独立 agent；前置 06e0270 / 2e97a35 |
+| 设置 runtime schema | 完成 | 119 focused tests；原子校验、version1、保留合法旧值 |
+| RTC 输入契约 | 实施中 | 独立 agent |
 | RTC 失败恢复 | 排队 | 依赖 RTC 输入 |
 | RTC 实际写后验证 | 排队 | 依赖 RTC 恢复 |
 | LK 局部构建状态与阶段模型 | 排队 | 独立 agent |

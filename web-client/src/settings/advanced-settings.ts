@@ -83,12 +83,22 @@ const _storage: Record<string, number> = Object.fromEntries(
 );
 let _firmwareProfile: ConfigurableFirmwareProfileId = 'stm';
 
-const LEGACY_DEFAULTS = {
-  romPageSize: 0x200,
-  ramPageSize: 0x100,
-} as const;
+const STORAGE_VERSION = 1;
+
+function restoreDefaults(): void {
+  _firmwareProfile = 'stm';
+  for (const desc of SETTING_DESCRIPTORS) {
+    _storage[desc.key] = desc.default;
+  }
+}
 
 function validateValue(value: number, type: ValidatorType): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new TypeError(`${VALIDATOR_META[type].label} must be a finite number`);
+  }
+  if (type === 'pageSize' && !Number.isInteger(value)) {
+    throw new TypeError('Page size must be an integer');
+  }
   const { min, max } = LIMITS[type];
   const { label, unit } = VALIDATOR_META[type];
 
@@ -125,12 +135,71 @@ function formatErrorRange(min: number, max: number, type: ValidatorType): string
 }
 
 function validateFirmwareProfile(value: unknown): ConfigurableFirmwareProfileId {
+  if (typeof value !== 'string') throw new TypeError('Firmware profile must be a string');
   if (value === 'stm' || value === 'stc') {
     return value;
   }
 
-  console.warn(`Firmware profile ${String(value)} is not supported, falling back to stm`);
+  console.warn(`Firmware profile ${value} is not supported, falling back to stm`);
   return 'stm';
+}
+
+function isSettingsObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
+}
+
+function inspectSettings(settings: unknown, normalize = false) {
+  const errors: string[] = [];
+  const values: Record<string, number> = {};
+  let profile: ConfigurableFirmwareProfileId | undefined;
+  if (!isSettingsObject(settings)) {
+    return { errors: ['Settings must be an object'], values, profile };
+  }
+
+  const groups = new Set(['firmware', ...SETTING_DESCRIPTORS.map((desc) => desc.group)]);
+  for (const [groupName, group] of Object.entries(settings)) {
+    if (!groups.has(groupName)) {
+      errors.push(`Unknown settings group: ${groupName}`);
+      continue;
+    }
+    if (group === undefined) continue;
+    if (!isSettingsObject(group)) {
+      errors.push(`${groupName} settings must be an object`);
+      continue;
+    }
+    const descriptors = SETTING_DESCRIPTORS.filter((desc) => desc.group === groupName);
+    for (const [field, value] of Object.entries(group)) {
+      if (groupName === 'firmware' && field === 'profile') {
+        if (value === undefined) continue;
+        if (value === 'stm' || value === 'stc') profile = value;
+        else if (normalize && typeof value === 'string') profile = validateFirmwareProfile(value);
+        else errors.push('Firmware profile must be stm or stc');
+        continue;
+      }
+      const desc = descriptors.find((candidate) => candidate.field === field);
+      if (!desc) {
+        errors.push(`Unknown settings field: ${groupName}.${field}`);
+        continue;
+      }
+      if (value === undefined) continue;
+      if (typeof value !== 'number' || !Number.isFinite(value)) {
+        errors.push(`${desc.errorLabel} must be a finite number`);
+        continue;
+      }
+      if ((!normalize || desc.validator === 'pageSize') && !Number.isInteger(value)) {
+        errors.push(`${desc.errorLabel} must be an integer`);
+        continue;
+      }
+      const { min, max } = LIMITS[desc.validator];
+      if (!normalize && (value < min || value > max)) {
+        errors.push(`${desc.errorLabel} must be between ${formatErrorRange(min, max, desc.validator)}`);
+        continue;
+      }
+      values[desc.key] = normalize ? validateValue(value, desc.validator) : value;
+    }
+  }
+  return { errors, values, profile };
 }
 
 // --- AdvancedSettings class ---
@@ -187,27 +256,15 @@ export class AdvancedSettings {
   }
 
   static setSettings(settings: AdvancedSettingsConfig): void {
-    if (settings.firmware?.profile !== undefined) {
-      _firmwareProfile = validateFirmwareProfile(settings.firmware.profile);
-    }
-
-    for (const desc of SETTING_DESCRIPTORS) {
-      const group = settings[desc.group as keyof AdvancedSettingsConfig];
-      if (group) {
-        const value = (group as Record<string, number | undefined>)[desc.field];
-        if (value !== undefined) {
-          _storage[desc.key] = validateValue(value, desc.validator);
-        }
-      }
-    }
+    const { errors, values, profile } = inspectSettings(settings, true);
+    if (errors.length) throw new TypeError(errors.join('; '));
+    if (profile !== undefined) _firmwareProfile = profile;
+    Object.assign(_storage, values);
     this.saveSettings();
   }
 
   static resetToDefaults(): void {
-    _firmwareProfile = 'stm';
-    for (const desc of SETTING_DESCRIPTORS) {
-      _storage[desc.key] = desc.default;
-    }
+    restoreDefaults();
     this.saveSettings();
   }
 
@@ -215,24 +272,27 @@ export class AdvancedSettings {
     try {
       const saved = localStorage.getItem('advanced_settings');
       if (saved) {
-        const settings = JSON.parse(saved) as AdvancedSettingsConfig;
-        if (settings.size?.romPageSize === LEGACY_DEFAULTS.romPageSize) {
-          settings.size.romPageSize = _storage.romPageSize;
+        const snapshot: unknown = JSON.parse(saved);
+        if (!isSettingsObject(snapshot)) throw new TypeError('Saved settings must be an object');
+        const { version, ...settings } = snapshot;
+        if (Object.prototype.hasOwnProperty.call(snapshot, 'version') && version !== STORAGE_VERSION) {
+          throw new TypeError('Unsupported advanced settings version');
         }
-        if (settings.size?.ramPageSize === LEGACY_DEFAULTS.ramPageSize) {
-          settings.size.ramPageSize = _storage.ramPageSize;
-        }
-        this.setSettings(settings);
+        const { errors, values, profile } = inspectSettings(settings);
+        if (errors.length) throw new TypeError(errors.join('; '));
+        restoreDefaults();
+        Object.assign(_storage, values);
+        if (profile !== undefined) _firmwareProfile = profile;
       }
     } catch (error) {
       console.warn('Failed to load advanced settings, using defaults', error);
-      this.resetToDefaults();
+      restoreDefaults();
     }
   }
 
   public static saveSettings(): void {
     try {
-      const settings = this.getSettings();
+      const settings = { version: STORAGE_VERSION, ...this.getSettings() };
       localStorage.setItem('advanced_settings', JSON.stringify(settings));
     } catch (error) {
       console.error('Failed to save advanced settings:', error);
@@ -255,23 +315,9 @@ export class AdvancedSettings {
   }
 
   static validateSettings(
-    settings: Partial<ReturnType<typeof AdvancedSettings.getSettings>>,
+    settings: unknown,
   ): { valid: boolean; errors: string[] } {
-    const errors: string[] = [];
-
-    for (const desc of SETTING_DESCRIPTORS) {
-      const group = settings[desc.group as keyof typeof settings];
-      if (group) {
-        const value = (group as Record<string, number | undefined>)[desc.field];
-        if (value !== undefined && typeof value === 'number') {
-          const { min, max } = LIMITS[desc.validator];
-          if (value < min || value > max) {
-            errors.push(`${desc.errorLabel} must be between ${formatErrorRange(min, max, desc.validator)}`);
-          }
-        }
-      }
-    }
-
+    const { errors } = inspectSettings(settings);
     return { valid: errors.length === 0, errors };
   }
 }

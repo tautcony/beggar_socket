@@ -218,7 +218,7 @@ describe('AdvancedSettings', () => {
       expect(AdvancedSettings.firmwareProfile).toBe('stc');
     });
 
-    it('migrates saved legacy default page sizes to protocol-aligned defaults', () => {
+    it('preserves explicit unversioned page sizes', () => {
       localStorageMock.advanced_settings = JSON.stringify({
         size: {
           romPageSize: 0x200,
@@ -228,8 +228,8 @@ describe('AdvancedSettings', () => {
 
       AdvancedSettings.loadSettings();
 
-      expect(AdvancedSettings.romPageSize).toBe(0x1000);
-      expect(AdvancedSettings.ramPageSize).toBe(0x1000);
+      expect(AdvancedSettings.romPageSize).toBe(0x200);
+      expect(AdvancedSettings.ramPageSize).toBe(0x100);
     });
 
     it('resets to defaults on invalid JSON', () => {
@@ -299,6 +299,157 @@ describe('AdvancedSettings', () => {
       expect(result.valid).toBe(false);
       expect(result.errors).toContain('default timeout must be between 1000ms and 300000ms');
       expect(result.errors).toContain('packageSend timeout must be between 1000ms and 300000ms');
+    });
+  });
+
+  describe('runtime schema and persistence', () => {
+    const unsupportedProfile = { firmware: { profile: 'unknown' } };
+    const malformed = [
+      null, [], 'settings', 1, { size: null }, { size: [] }, { size: 'size' },
+      { size: { romPageSize: '512' } }, { size: { romPageSize: {} } },
+      { size: { romPageSize: null } }, { size: { extra: 512 } }, { extra: {} },
+      unsupportedProfile, { firmware: { extra: 'stm' } },
+      { firmware: { profile: {} } }, { firmware: { profile: null } },
+    ];
+
+    it.each(malformed)('rejects malformed validation input: %j', (input) => {
+      expect(AdvancedSettings.validateSettings(input).valid).toBe(false);
+    });
+
+    it.each(malformed.filter((input) => input !== unsupportedProfile))(
+      'rejects malformed settings updates: %j', (input) => {
+        const before = AdvancedSettings.getSettings();
+        expect(() => { AdvancedSettings.setSettings(input as AdvancedSettingsConfig); }).toThrow();
+        expect(AdvancedSettings.getSettings()).toEqual(before);
+        expect(localStorage.setItem).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      { group: 'size', field: 'romPageSize', min: 64, max: 4096 },
+      { group: 'throttle', field: 'romRead', min: 0, max: 1000 },
+      { group: 'retry', field: 'romReadCount', min: 0, max: 10 },
+      { group: 'retry', field: 'romReadDelay', min: 0, max: 5000 },
+      { group: 'timeout', field: 'operation', min: 1000, max: 300000 },
+    ])('enforces finite integer bounds for $group.$field', ({ group, field, min, max }) => {
+      for (const value of [min, max]) {
+        expect(AdvancedSettings.validateSettings({ [group]: { [field]: value } }).valid).toBe(true);
+      }
+      for (const value of [min - 1, max + 1, min + 0.5, NaN, Infinity, -Infinity]) {
+        expect(AdvancedSettings.validateSettings({ [group]: { [field]: value } }).valid).toBe(false);
+      }
+    });
+
+    it('preserves unsupported firmware string setter fallback', () => {
+      AdvancedSettings.firmwareProfile = 'stc';
+      AdvancedSettings.setSettings({ firmware: { profile: 'unknown' } } as unknown as AdvancedSettingsConfig);
+      expect(AdvancedSettings.firmwareProfile).toBe('stm');
+    });
+
+    it.each([null, {}, [], 1])('rejects malformed static firmware values: %j', (value) => {
+      expect(() => { AdvancedSettings.firmwareProfile = value as 'stm'; }).toThrow();
+      expect(AdvancedSettings.firmwareProfile).toBe('stm');
+      expect(localStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it.each([NaN, Infinity, -Infinity, 64.5, '512', null, {}])(
+      'rejects malformed page size atomically: %j', (value) => {
+        const before = AdvancedSettings.getSettings();
+        expect(() => {
+          AdvancedSettings.setSettings({
+            firmware: { profile: 'stc' }, size: { romPageSize: 512, ramPageSize: value },
+          } as AdvancedSettingsConfig);
+        }).toThrow();
+        expect(AdvancedSettings.getSettings()).toEqual(before);
+        expect(localStorage.setItem).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([NaN, Infinity, -Infinity, '100', null, {}])(
+      'rejects malformed static setter values: %j', (value) => {
+        const before = AdvancedSettings.getSettings();
+        expect(() => { AdvancedSettings.operationTimeout = value as number; }).toThrow();
+        expect(AdvancedSettings.getSettings()).toEqual(before);
+        expect(localStorage.setItem).not.toHaveBeenCalled();
+      },
+    );
+
+    it('rejects fractional page setters and preserves existing truncation contracts', () => {
+      expect(() => { AdvancedSettings.romPageSize = 64.5; }).toThrow();
+      AdvancedSettings.setSettings({
+        throttle: { romRead: 10.9 }, retry: { romReadCount: 5.9, romReadDelay: 12.8 },
+        timeout: { operation: 5000.9 },
+      });
+      expect(AdvancedSettings.romReadThrottleMs).toBe(10);
+      expect(AdvancedSettings.romReadRetryCount).toBe(5);
+      expect(AdvancedSettings.romReadRetryDelayMs).toBe(12);
+      expect(AdvancedSettings.operationTimeout).toBe(5000);
+    });
+
+    it.each([NaN, Infinity, -Infinity, 1.5, '1', null, {}])(
+      'strict validation rejects invalid retry numbers: %j', (value) => {
+        expect(AdvancedSettings.validateSettings({ retry: { romReadCount: value } }).valid).toBe(false);
+      },
+    );
+
+    it.each(malformed)('loads malformed snapshots safely: %j', (input) => {
+      AdvancedSettings.firmwareProfile = 'stc';
+      const saved = JSON.stringify(input);
+      localStorageMock.advanced_settings = saved;
+      vi.clearAllMocks();
+      AdvancedSettings.loadSettings();
+      expect(AdvancedSettings.firmwareProfile).toBe('stm');
+      expect(AdvancedSettings.romPageSize).toBe(4096);
+      expect(localStorageMock.advanced_settings).toBe(saved);
+      expect(localStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it.each([1.5, -1, 11, null, '1', {}])('rejects invalid persisted integers: %j', (value) => {
+      const saved = JSON.stringify({ size: { romPageSize: 512 }, retry: { romReadCount: value } });
+      localStorageMock.advanced_settings = saved;
+      AdvancedSettings.loadSettings();
+      expect(AdvancedSettings.romPageSize).toBe(4096);
+      expect(localStorageMock.advanced_settings).toBe(saved);
+    });
+
+    it('versions saved settings and roundtrips legal legacy values', () => {
+      const legacy = { firmware: { profile: 'stc' }, size: { romPageSize: 512, ramPageSize: 256 } };
+      localStorageMock.advanced_settings = JSON.stringify(legacy);
+      AdvancedSettings.loadSettings();
+      AdvancedSettings.saveSettings();
+      const saved = localStorageMock.advanced_settings;
+      expect(JSON.parse(saved)).toEqual(expect.objectContaining({ version: 1, ...legacy }));
+      AdvancedSettings.resetToDefaults();
+      localStorageMock.advanced_settings = saved;
+      AdvancedSettings.loadSettings();
+      expect(AdvancedSettings.getSettings()).toEqual(expect.objectContaining(legacy));
+    });
+
+    it.each([0, 2, null, '1', {}])('preserves unsupported snapshot version: %j', (version) => {
+      AdvancedSettings.romPageSize = 512;
+      const saved = JSON.stringify({ version, size: { romPageSize: 256 } });
+      localStorageMock.advanced_settings = saved;
+      vi.clearAllMocks();
+      AdvancedSettings.loadSettings();
+      expect(AdvancedSettings.romPageSize).toBe(4096);
+      expect(localStorageMock.advanced_settings).toBe(saved);
+      expect(localStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it('returns detached settings and limits', () => {
+      AdvancedSettings.getSettings().size.romPageSize = 512;
+      (AdvancedSettings.getLimits().pageSize as { min: number }).min = 512;
+      expect(AdvancedSettings.romPageSize).toBe(4096);
+      expect(AdvancedSettings.getLimits().pageSize.min).toBe(64);
+    });
+
+    it('handles storage read and write failures', () => {
+      vi.mocked(localStorage.setItem).mockImplementation(() => { throw new Error('write'); });
+      expect(() => { AdvancedSettings.romPageSize = 512; }).not.toThrow();
+      expect(AdvancedSettings.romPageSize).toBe(512);
+      vi.mocked(localStorage.getItem).mockImplementation(() => { throw new Error('read'); });
+      expect(() => { AdvancedSettings.loadSettings(); }).not.toThrow();
+      expect(AdvancedSettings.romPageSize).toBe(4096);
     });
   });
 
