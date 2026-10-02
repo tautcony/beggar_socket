@@ -8,6 +8,13 @@ on:
     paths:
       - 'web-client/**'
       - '.github/workflows/build-webclient.yml'
+      - '.github/workflows/check-webclient.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'web-client/**'
+      - '.github/workflows/build-webclient.yml'
+      - '.github/workflows/check-webclient.yml'
 
 permissions:
   contents: read
@@ -22,16 +29,21 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  quality:
+    uses: ./.github/workflows/check-webclient.yml
+
   build:
+    if: github.event_name == 'push'
+    needs: quality
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: '24.19.0'
 
       - name: Upgrade npm
-        run: npm install -g npm@latest
+        run: npm install -g npm@11.19.0
 
       - name: Build code
         run: |

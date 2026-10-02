@@ -6,18 +6,24 @@ on:
     paths:
       - "web-client/**"
       - ".github/workflows/build-tauri.yml"
+      - ".github/workflows/check-webclient.yml"
   pull_request:
     branches: ["main"]
     paths:
       - "web-client/**"
       - ".github/workflows/build-tauri.yml"
+      - ".github/workflows/check-webclient.yml"
   workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  quality:
+    uses: ./.github/workflows/check-webclient.yml
+
   build:
+    needs: quality
     name: ${{ matrix.job_name }}
     strategy:
       fail-fast: false

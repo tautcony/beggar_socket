@@ -4,4 +4,4 @@
 
 ## 2. Quality workflow
 
-- [ ] 2.1 Add PR quality gates and deployment prerequisites with workflow contract tests; validate and commit.
+- [x] 2.1 Add PR quality gates and deployment prerequisites with workflow contract tests; validate and commit. Four workflow contracts passed; existing 448 tests passed; lint/type/dependency checks passed after import ordering.
