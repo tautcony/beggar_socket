@@ -45,8 +45,11 @@
 | CFI 几何边界证据与修复 | 完成 | 128 related tests；GL-T/AL032D/CoreCFI转录fixture，完整regions/128-byte特殊编码 |
 | LK 容量边界证据与修复 | 完成 | 60 related tests；slot0/shared/import/reservations/fullspan/list容量，8MiB golden不变 |
 | 异构sector区域与baseAddress | 完成 | 179 related tests；physical交集、容量尾部、两adapter partial首sector真实重试 |
-| 文档与性能证据更新 | 排队 | 汇总最后代码与测量，未证实问题不盲改 |
+| 性能证据与图像按需加载 | 完成 | 51 related tests（新6）；无背景不import，PNG/golden不变；bundle测量见performance-evidence.md |
+| 架构文档与历史finding状态 | 排队 | 汇总最后代码与测量，保留未测量/硬件限制 |
 
 集成验证（上述进行中三项收尾）：59 文件 862 项测试全部通过，完整 ESLint、vue-tsc、check:deps、production build 通过。构建保留既有 Jimp/Ionic chunk、Jimp eval 和 gbats fs externalization 提示；性能任务仍待证据评估。
 
 最新集成（RTC 写后验证与 native 会话隔离提交后）：60 文件 905 项 Vitest 全通过，14 Rust tests、cargo check --locked、完整 lint/type/deps 与 production build 通过。RTC 提交 6433a48，native 提交 73aadf4。结构化失败传播曾受 subagent 额度错误中断，未留下生产代码改动，已继续同任务；AST 门禁由新 agent 实施。
+
+阶段集成（适配器/UI 编排合并中）：完整 lint/type 通过，72 文件 1133 项中 1132 通过；AST 内真实 ESLint fixture 在重型检查并发时运行 26 秒，触发其 20 秒限制。该次不能记为全量通过；最终门禁应避免并发重型检查，并再次验证。原生 14 项测试再次通过。
