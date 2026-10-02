@@ -131,30 +131,30 @@ export class MBC3RTC extends BaseRTC {
    * 璁剧疆MBC3 RTC鏃堕棿
    */
   async setTime(timeData: unknown): Promise<void> {
-    const rtcData = timeData as MBC3RTCData;
+    const rtcData: MBC3RTCData = BaseRTC.snapshotTimeFields(timeData, ['day', 'hour', 'minute', 'second']);
+
+    // 浣跨敤luxon楠岃瘉杈撳叆鐨勬椂闂存槸鍚︽湁鏁?
+    const currentYear = DateTime.now().year;
+    const isLeapYear = DateTime.local(currentYear).isInLeapYear;
+    const maxDays = isLeapYear ? 366 : 365;
+
+    if (rtcData.day < 1 || rtcData.day > maxDays) {
+      throw new Error(`Invalid day of year: ${rtcData.day}. Must be between 1 and ${maxDays}`);
+    }
+
+    if (rtcData.hour < 0 || rtcData.hour > 23) {
+      throw new Error(`Invalid hour: ${rtcData.hour}. Must be between 0 and 23`);
+    }
+
+    if (rtcData.minute < 0 || rtcData.minute > 59) {
+      throw new Error(`Invalid minute: ${rtcData.minute}. Must be between 0 and 59`);
+    }
+
+    if (rtcData.second < 0 || rtcData.second > 59) {
+      throw new Error(`Invalid second: ${rtcData.second}. Must be between 0 and 59`);
+    }
 
     try {
-      // 浣跨敤luxon楠岃瘉杈撳叆鐨勬椂闂存槸鍚︽湁鏁?
-      const currentYear = DateTime.now().year;
-      const isLeapYear = DateTime.local(currentYear).isInLeapYear;
-      const maxDays = isLeapYear ? 366 : 365;
-
-      if (rtcData.day < 1 || rtcData.day > maxDays) {
-        throw new Error(`Invalid day of year: ${rtcData.day}. Must be between 1 and ${maxDays}`);
-      }
-
-      if (rtcData.hour < 0 || rtcData.hour > 23) {
-        throw new Error(`Invalid hour: ${rtcData.hour}. Must be between 0 and 23`);
-      }
-
-      if (rtcData.minute < 0 || rtcData.minute > 59) {
-        throw new Error(`Invalid minute: ${rtcData.minute}. Must be between 0 and 59`);
-      }
-
-      if (rtcData.second < 0 || rtcData.second > 59) {
-        throw new Error(`Invalid second: ${rtcData.second}. Must be between 0 and 59`);
-      }
-
       await this.enableRAMAccess();
 
       // 璇诲彇褰撳墠鏃堕棿浠ラ獙璇佸姛鑳?
@@ -197,6 +197,9 @@ export class MBC3RTC extends BaseRTC {
    * 浠嶥ateTime璁剧疆MBC3 RTC鏃堕棿
    */
   async setTimeFromDateTime(dt: DateTime): Promise<void> {
+    if (!DateTime.isDateTime(dt) || !dt.isValid) {
+      throw new Error('Invalid date/time provided');
+    }
     const rtcData: MBC3RTCData = {
       day: dt.ordinal, // luxon鐩存帴鎻愪緵骞翠腑澶╂暟
       hour: dt.hour,

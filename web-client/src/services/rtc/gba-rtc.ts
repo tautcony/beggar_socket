@@ -148,15 +148,14 @@ export class GBARTC extends BaseRTC {
    * 璁剧疆GBA RTC鏃堕棿
    */
   async setTime(timeData: unknown): Promise<void> {
-    const rtcData = timeData as GBARTCData;
-
-    try {
-      if (!(await this.checkCapability())) {
-        throw new Error('Cartridge does not have GPIO functionality');
-      }
-
-      // 浣跨敤luxon楠岃瘉杈撳叆鐨勬棩鏈熸椂闂存槸鍚︽湁鏁?
-      if (!BaseRTC.isValidDateTime(
+    const rtcData: GBARTCData = BaseRTC.snapshotTimeFields(timeData, ['year', 'month', 'date', 'day', 'hour', 'minute', 'second']);
+    if (rtcData.year < 0 || rtcData.year > 99
+      || rtcData.month < 1 || rtcData.month > 12
+      || rtcData.day < 0 || rtcData.day > 6
+      || rtcData.hour < 0 || rtcData.hour > 23
+      || rtcData.minute < 0 || rtcData.minute > 59
+      || rtcData.second < 0 || rtcData.second > 59
+      || !BaseRTC.isValidDateTime(
         rtcData.year + 2000,
         rtcData.month,
         rtcData.date,
@@ -164,7 +163,12 @@ export class GBARTC extends BaseRTC {
         rtcData.minute,
         rtcData.second,
       )) {
-        throw new Error('Invalid date/time provided');
+      throw new Error('Invalid date/time provided');
+    }
+
+    try {
+      if (!(await this.checkCapability())) {
+        throw new Error('Cartridge does not have GPIO functionality');
       }
 
       await this.initializeGPIO();
@@ -211,6 +215,9 @@ export class GBARTC extends BaseRTC {
    * 浠庣壒瀹氭椂鍖虹殑DateTime璁剧疆RTC鏃堕棿
    */
   async setTimeFromDateTime(dt: DateTime): Promise<void> {
+    if (!DateTime.isDateTime(dt) || !dt.isValid) {
+      throw new Error('Invalid date/time provided');
+    }
     const rtcData: GBARTCData = {
       year: dt.year - 2000,
       month: dt.month,

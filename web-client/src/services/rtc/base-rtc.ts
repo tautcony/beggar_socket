@@ -77,8 +77,28 @@ export abstract class BaseRTC {
    * 验证日期时间是否合理
    */
   protected static isValidDateTime(year: number, month: number, day: number, hour: number, minute: number, second: number): boolean {
+    if (![year, month, day, hour, minute, second].every(value => Number.isFinite(value) && Number.isInteger(value))) {
+      return false;
+    }
     const dt = DateTime.fromObject({ year, month, day, hour, minute, second });
     return dt.isValid;
+  }
+
+  protected static snapshotTimeFields<K extends string>(timeData: unknown, fields: readonly K[]): Record<K, number> {
+    if (typeof timeData !== 'object' || timeData === null || Array.isArray(timeData)) {
+      throw new Error('Invalid RTC time data');
+    }
+
+    const input = timeData as Record<string, unknown>;
+    const snapshot = {} as Record<K, number>;
+    for (const field of fields) {
+      const value = input[field];
+      if (typeof value !== 'number' || !Number.isFinite(value) || !Number.isInteger(value)) {
+        throw new Error(`Invalid RTC ${field}: must be a finite integer`);
+      }
+      snapshot[field] = value;
+    }
+    return snapshot;
   }
 
   /**
