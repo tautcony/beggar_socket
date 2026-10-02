@@ -15,6 +15,7 @@ import type { Transport, TransportReadMode } from '../types';
 export class TauriSerialTransport implements Transport {
   private readonly mutex = new Mutex();
   private closed = false;
+  private closePromise: Promise<void> | undefined;
   private totalRxBytes = 0;
   private totalRxReads = 0;
   private totalTxBytes = 0;
@@ -113,6 +114,7 @@ export class TauriSerialTransport implements Transport {
     sendTimeoutMs?: number,
     readTimeoutMs?: number,
   ): Promise<{ data: Uint8Array }> {
+    this.assertOpen();
     const release = await this.mutex.acquire();
     try {
       await this.send(payload, sendTimeoutMs);
@@ -131,13 +133,15 @@ export class TauriSerialTransport implements Transport {
       });
     }
     if (typeof signals.requestToSend === 'boolean') {
+      this.assertOpen();
       await setNativeSerialSignals(this.sessionId, {
         requestToSend: signals.requestToSend,
       });
     }
   }
 
-  flushInput(): Promise<void> {
+  async flushInput(): Promise<void> {
+    this.assertOpen();
     return flushNativeSerialInput(this.sessionId).catch(() => {});
   }
 
@@ -149,18 +153,28 @@ export class TauriSerialTransport implements Transport {
     await this.flushInput();
   }
 
-  async close(): Promise<void> {
+  close(): Promise<void> {
     if (this.closed) {
-      return;
+      return Promise.resolve();
+    }
+    if (this.closePromise) {
+      return this.closePromise;
     }
 
-    this.closed = true;
-    await closeNativeSerial(this.sessionId);
+    this.closePromise = Promise.resolve().then(() => closeNativeSerial(this.sessionId)).then(() => {
+      this.closed = true;
+    }).finally(() => {
+      this.closePromise = undefined;
+    });
+    return this.closePromise;
   }
 
   private assertOpen(): void {
     if (this.closed) {
       throw new Error('Serial transport is closed');
+    }
+    if (this.closePromise) {
+      throw new Error('Serial transport is closing');
     }
   }
 }

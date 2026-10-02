@@ -8,4 +8,4 @@
 
 ## 3. Native session lifecycle
 
-- [ ] 3.1 Reclaim late native open and retry failed close with delayed/failure tests; validate and commit.
+- [x] 3.1 Reclaim late native open and retry failed close with delayed/failure tests; validate and commit.
