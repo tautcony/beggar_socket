@@ -9,6 +9,8 @@
 - 测试基线：大型二进制输出使用精确线性比较，覆盖 view offset、长度和首/中/末字节差异。LK 回归仍固定时钟并检查输入不变；10 项 focused tests 通过，耗时 1.77 秒。
 - CI：Web/Tauri 共用固定运行时的质量工作流，Pages/Tauri build 依赖 quality；4 项 YAML 工作流契约通过，原有 448 项测试通过。
 
+扩大回归：完成取消/协议/连接后，52 个文件 497 项测试通过（不含实施中的设置/bank 新回归）；类型检查曾全项目通过，最终仍需所有任务合并后的全量门禁。
+
 ## 待完成
 
 - 连接查询/关闭/指定端口重连/迟到 open 的资源所有权。
@@ -29,7 +31,7 @@
 | Tauri 迟到 open / close 重试 | 完成 | 28 项回归通过；清理失败明确诊断 |
 | 协议帧长度与模拟真实性 | 完成 | 55 focused tests；总长约束、CRC哨兵、128KiB往返 |
 | 指定端口原子重连 | 完成 | 32 focused tests；close/open/init单事务；全类型检查通过 |
-| bank 分块规划 | 实施中 | 独立 agent；前置 0dd7a17 |
+| bank 分块规划 | 完成 | 61 focused tests；按窗口剩余量分块、RAM绝对地址bank |
 | 取消生命周期 | 完成 | 31 focused tests；取消/超时保留所有权到worker与cleanup结束 |
 | 设备级操作独占与工具/断连集成 | 实施中 | 独立 agent；前置 06e0270 / 2e97a35 |
 | 设置 runtime schema | 完成 | 119 focused tests；原子校验、version1、保留合法旧值 |

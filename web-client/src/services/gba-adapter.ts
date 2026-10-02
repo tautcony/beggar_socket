@@ -16,6 +16,7 @@
   rom_write,
   toLittleEndian,
 } from '@/protocol';
+import { planBankChunk } from '@/services/bank-chunk-planner';
 import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
 import type { PlatformOps } from '@/services/platform-ops';
 import { AdvancedSettings } from '@/settings/advanced-settings';
@@ -778,11 +779,10 @@ export class GBAAdapter extends CartridgeAdapter {
               };
             }
 
-            const chunkSize = Math.min(pageSize, size - totalRead);
             const currentAddress = baseAddress + totalRead;
+            const { bank, cartAddress, chunkSize } = planBankChunk(currentAddress, size - totalRead, pageSize, { platform: 'gba', memory: 'rom' });
 
             // 璁＄畻bank鍜屽湴鍧€
-            const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress);
             if (options.cfiInfo.deviceSize > (1 << 25)) {
               if (bank !== currentBank) {
                 currentBank = bank;
@@ -978,8 +978,8 @@ export class GBAAdapter extends CartridgeAdapter {
               };
             }
 
-            const chunkSize = Math.min(pageSize, total - verified);
             const currentAddress = baseAddress + verified;
+            const { bank, cartAddress, chunkSize } = planBankChunk(currentAddress, total - verified, pageSize, { platform: 'gba', memory: 'rom' });
 
             while (
               activeSectorIndex + 1 < sectors.length
@@ -1002,7 +1002,6 @@ export class GBAAdapter extends CartridgeAdapter {
               );
             }
 
-            const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress);
             if (isMultiCard) {
               if (bank !== currentBank) {
                 currentBank = bank;
@@ -1207,27 +1206,20 @@ export class GBAAdapter extends CartridgeAdapter {
           // 浣跨敤閫熷害璁＄畻鍣?
           const speedCalculator = new SpeedCalculator();
 
+          let currentBank = -1;
           while (written < total) {
-            // 鍒嘼ank
-            if (written === 0x00000) {
+            const absoluteAddress = baseAddress + written;
+            const { bank, cartAddress: baseAddr, chunkSize } = planBankChunk(
+              absoluteAddress, total - written, pageSize, { platform: 'gba', memory: 'ram' },
+            );
+            if (bank !== currentBank) {
               if (ramType === 'FLASH') {
-                await this.switchFlashBank(0);
+                await this.switchFlashBank(bank);
               } else {
-                await this.switchSRAMBank(0);
+                await this.switchSRAMBank(bank);
               }
-            } else if (written === 0x10000) {
-              if (ramType === 'FLASH') {
-                await this.switchFlashBank(1);
-              } else {
-                await this.switchSRAMBank(1);
-              }
+              currentBank = bank;
             }
-
-            const baseAddr = written & 0xffff;
-
-            // 鍒嗗寘
-            const remainingSize = total - written;
-            const chunkSize = Math.min(pageSize, remainingSize);
             const chunk = fileData.subarray(written, written + chunkSize);
 
             // 鏍规嵁RAM绫诲瀷閫夋嫨鍐欏叆鏂规硶
@@ -1331,7 +1323,7 @@ export class GBAAdapter extends CartridgeAdapter {
           const retryAttempts = AdvancedSettings.ramReadRetryCount + 1;
           const retryDelayMs = AdvancedSettings.ramReadRetryDelayMs;
           const restoreRAMBankState = async (absoluteAddress: number): Promise<void> => {
-            const bank = absoluteAddress >= 0x10000 ? 1 : 0;
+            const { bank } = planBankChunk(absoluteAddress, 1, 1, { platform: 'gba', memory: 'ram' });
             if (ramType === 'FLASH') {
               await this.switchFlashBank(bank);
             } else {
@@ -1373,32 +1365,20 @@ export class GBAAdapter extends CartridgeAdapter {
           // 浣跨敤閫熷害璁＄畻鍣?
           const speedCalculator = new SpeedCalculator();
 
+          let currentBank = -1;
           while (read < size) {
-            // 鍒嘼ank
-            if (read === 0x00000) {
-              if (ramType === 'FLASH') {
-                await this.switchFlashBank(0);
-              } else {
-                await this.switchSRAMBank(0);
-              }
-              this.log(`RAM bank ready @ ${formatHex(read, 4)}`, 'info');
-            } else if (read === 0x10000) {
-              if (ramType === 'FLASH') {
-                await this.switchFlashBank(1);
-              } else {
-                await this.switchSRAMBank(1);
-              }
-              this.log(`RAM bank ready @ ${formatHex(read, 4)}`, 'info');
+            const absoluteAddress = baseAddress + read;
+            const { bank, cartAddress: baseAddr, chunkSize } = planBankChunk(
+              absoluteAddress, size - read, pageSize, { platform: 'gba', memory: 'ram' },
+            );
+            if (bank !== currentBank) {
+              await restoreRAMBankState(absoluteAddress);
+              this.log(`RAM bank ready @ ${formatHex(absoluteAddress, 4)}`, 'info');
+              currentBank = bank;
             }
 
-            const baseAddr = read & 0xffff;
-
-            // 鍒嗗寘
-            const remainingSize = size - read;
-            const chunkSize = Math.min(pageSize, remainingSize);
-
             // 璇诲彇鏁版嵁
-            const chunk = await readChunkWithRetry(chunkSize, baseAddr, read);
+            const chunk = await readChunkWithRetry(chunkSize, baseAddr, absoluteAddress);
             const chunkEndTime = Date.now();
             result.set(chunk, read);
 

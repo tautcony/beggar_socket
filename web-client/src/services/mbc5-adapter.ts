@@ -13,6 +13,7 @@
   getFlashName,
   setSignals,
 } from '@/protocol';
+import { planBankChunk } from '@/services/bank-chunk-planner';
 import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions, MbcType } from '@/types/command-options';
@@ -1054,11 +1055,10 @@ export class MBC5Adapter extends CartridgeAdapter {
                 };
               }
 
-              const chunkSize = Math.min(pageSize, size - totalRead);
               const currentAddress = baseAddress + totalRead;
+              const { bank, cartAddress, chunkSize } = planBankChunk(currentAddress, size - totalRead, pageSize, { platform: 'mbc', memory: 'rom', mbcType });
 
               // 璁＄畻bank鍜屽湴鍧€
-              const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress, mbcType);
               if (bank !== currentBank) {
                 currentBank = bank;
                 await this.switchROMBank(bank, mbcType);
@@ -1249,8 +1249,8 @@ export class MBC5Adapter extends CartridgeAdapter {
               };
             }
 
-            const chunkSize = Math.min(pageSize, total - verified);
             const currentAddress = baseAddress + verified;
+            const { bank, cartAddress, chunkSize } = planBankChunk(currentAddress, total - verified, pageSize, { platform: 'mbc', memory: 'rom', mbcType });
 
             while (
               activeSectorIndex + 1 < sectors.length
@@ -1273,7 +1273,6 @@ export class MBC5Adapter extends CartridgeAdapter {
               );
             }
 
-            const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress, mbcType);
             if (bank !== currentBank) {
               currentBank = bank;
               await this.switchROMBank(bank, mbcType);
@@ -1453,11 +1452,10 @@ export class MBC5Adapter extends CartridgeAdapter {
               const ramAddress = baseAddress + written;
               // 鍒嗗寘
               const remainingSize = total - written;
-              const chunkSize = Math.min(pageSize, remainingSize);
+              const { bank, cartAddress, chunkSize } = planBankChunk(ramAddress, remainingSize, pageSize, { platform: 'mbc', memory: 'ram', mbcType });
               const chunk = fileData.subarray(written, written + chunkSize);
 
               // 璁＄畻bank鍜屽湴鍧€
-              const { bank, cartAddress } = this.ramBankRelevantAddress(ramAddress, mbcType);
               if (bank !== currentBank) {
                 currentBank = bank;
                 await this.switchRAMBank(bank, mbcType);
@@ -1582,15 +1580,13 @@ export class MBC5Adapter extends CartridgeAdapter {
               const ramAddress = baseAddress + read;
 
               // 璁＄畻bank鍜屽湴鍧€
-              const { bank, cartAddress } = this.ramBankRelevantAddress(ramAddress, mbcType);
+              const { bank, cartAddress, chunkSize } = planBankChunk(
+                ramAddress, size - read, pageSize, { platform: 'mbc', memory: 'ram', mbcType },
+              );
               if (bank !== currentBank) {
                 currentBank = bank;
                 await this.switchRAMBank(bank, mbcType);
               }
-
-              // 鍒嗗寘
-              const remainingSize = size - read;
-              const chunkSize = Math.min(pageSize, remainingSize);
 
               // 璇诲彇鏁版嵁
               const chunk = await this.readRAMChunkWithRetry(
