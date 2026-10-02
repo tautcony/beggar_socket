@@ -11,6 +11,13 @@ import type { CFIInfo } from '@/utils/parsers/cfi-parser';
 const t = (key: string) => key;
 const toHex = (value: number) => `0x${value.toString(16)}`;
 
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
+  return { promise, resolve, reject };
+}
+
 function createFakeCfi(deviceSize = 0x20000): CFIInfo {
   return {
     deviceSize,
@@ -75,8 +82,11 @@ describe('BurnerSession', () => {
     expect(session.snapshot.abortController).not.toBeNull();
 
     session.abortOperation();
+    expect(session.snapshot.busy).toBe(true);
+    expect(signal?.aborted).toBe(true);
+    expect(() => session.startOperation()).toThrow('already running');
+    session.completeOperation(session.snapshot.operationToken);
     expect(session.snapshot.busy).toBe(false);
-    expect(session.snapshot.abortController).toBeNull();
   });
 
   it('should append and trim logs', () => {
@@ -121,20 +131,144 @@ describe('BurnerSession', () => {
     expect(session.snapshot.logs).toEqual([]);
   });
 
-  it('should converge lifecycle state when operation times out', async () => {
+  it.each(['resolve', 'reject'] as const)('retains timeout ownership until late worker %s', async (outcome) => {
+    vi.useFakeTimers();
+    try {
+      const session = new BurnerSession();
+      const worker = deferred<string>();
+      const timed = session.runWithTimeout(() => worker.promise, 10);
+      const rejection = expect(timed).rejects.toThrow('Operation timeout');
+      await vi.advanceTimersByTimeAsync(10);
+      await rejection;
+      expect(session.snapshot.busy).toBe(true);
+      expect(() => session.startOperation()).toThrow('already running');
+      if (outcome === 'resolve') worker.resolve('late');
+      else worker.reject(new Error('late failure'));
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(session.snapshot.busy).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('ignores a stale completion token', () => {
     const session = new BurnerSession();
-
-    await expect(session.runWithTimeout(async () => {
-      await new Promise(resolve => setTimeout(resolve, 20));
-      return 'ok';
-    }, 1)).rejects.toThrow('Operation timeout');
-
+    session.startOperation();
+    const oldToken = session.snapshot.operationToken;
+    session.completeOperation(oldToken);
+    session.startOperation();
+    session.completeOperation(oldToken);
+    expect(session.snapshot.busy).toBe(true);
+    session.completeOperation(session.snapshot.operationToken);
     expect(session.snapshot.busy).toBe(false);
-    expect(session.snapshot.abortController).toBeNull();
+  });
+
+  it('preserves timeout helper success and worker failure', async () => {
+    const session = new BurnerSession();
+    await expect(session.runWithTimeout(() => Promise.resolve('ok'), 1000)).resolves.toBe('ok');
+    expect(session.snapshot.busy).toBe(false);
+    const failure = new Error('worker failed');
+    await expect(session.runWithTimeout(() => Promise.reject(failure), 1000)).rejects.toBe(failure);
+    expect(session.snapshot.busy).toBe(false);
   });
 });
 
 describe('runBurnerFlow', () => {
+  it('runs cleanup and releases ownership when progress projection throws', async () => {
+    const session = new BurnerSession();
+    const failure = new Error('projection failed');
+    const onFinally = vi.fn(() => {
+      expect(session.snapshot.busy).toBe(true);
+    });
+    await expect(runBurnerFlow({
+      session,
+      syncState: () => { if (session.snapshot.phase === 'recovering') throw failure; },
+      execute: () => Promise.resolve('ok'), onFinally,
+    })).rejects.toBe(failure);
+    expect(onFinally).toHaveBeenCalledOnce();
+    expect(session.snapshot.busy).toBe(false);
+  });
+
+  it('skips success side effects for a cancelled worker that resolves late', async () => {
+    const session = new BurnerSession();
+    const worker = deferred<string>();
+    const onSuccess = vi.fn();
+    const flow = runBurnerFlow({
+      session, cancellable: true, syncState: () => {}, execute: () => worker.promise, onSuccess,
+    });
+    session.abortOperation();
+    worker.resolve('late');
+    await expect(flow).resolves.toBe('late');
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(session.snapshot.busy).toBe(false);
+    await expect(runBurnerFlow({
+      session, cancellable: true, syncState: () => {}, execute: () => Promise.resolve('normal'), onSuccess,
+    })).resolves.toBe('normal');
+    expect(onSuccess).toHaveBeenCalledExactlyOnceWith('normal');
+  });
+  it('preserves successful progress reset before delayed cleanup while retaining ownership', async () => {
+    const session = new BurnerSession();
+    const cleanup = deferred<undefined>();
+    const onFinally = vi.fn(() => {
+      expect(session.snapshot.busy).toBe(true);
+      expect(session.snapshot.progress.state).toBe('idle');
+      return cleanup.promise;
+    });
+    const flow = runBurnerFlow({
+      session, syncState: () => {}, resetProgressOnFinish: true,
+      updateProgress: { progress: 100, state: 'running' },
+      execute: () => Promise.resolve('ok'), onFinally,
+    });
+    await vi.waitFor(() => { expect(onFinally).toHaveBeenCalledOnce(); });
+    expect(() => session.startOperation()).toThrow('already running');
+    cleanup.resolve(undefined);
+    await expect(flow).resolves.toBe('ok');
+    expect(session.snapshot.busy).toBe(false);
+  });
+
+  it('releases ownership when an error handler rejects', async () => {
+    const session = new BurnerSession();
+    const failure = new Error('error handler failed');
+    await expect(runBurnerFlow({
+      session, syncState: () => {}, execute: () => Promise.reject(new Error('worker failed')),
+      onError: () => Promise.reject(failure),
+    })).rejects.toBe(failure);
+    expect(session.snapshot.busy).toBe(false);
+  });
+  it('retains ownership through deferred cancellation and cleanup', async () => {
+    const session = new BurnerSession();
+    const worker = deferred<string>();
+    const cleanup = deferred<undefined>();
+    const onFinally = vi.fn(() => cleanup.promise);
+    const flow = runBurnerFlow({ session, cancellable: true, syncState: () => {}, execute: () => worker.promise, onFinally });
+    session.abortOperation();
+    expect(session.snapshot.busy).toBe(true);
+    const replacement = vi.fn(() => Promise.resolve('replacement'));
+    await expect(runBurnerFlow({ session, syncState: () => {}, execute: replacement })).rejects.toThrow('already running');
+    expect(replacement).not.toHaveBeenCalled();
+    const aborted = new Error('aborted');
+    aborted.name = 'AbortError';
+    worker.reject(aborted);
+    await vi.waitFor(() => { expect(onFinally).toHaveBeenCalledOnce(); });
+    expect(session.snapshot.busy).toBe(true);
+    expect(session.snapshot.phase).toBe('recovering');
+    cleanup.resolve(undefined);
+    await expect(flow).resolves.toBeUndefined();
+    expect(session.snapshot.busy).toBe(false);
+  });
+
+  it('releases ownership even when cleanup rejects', async () => {
+    const session = new BurnerSession();
+    const failure = new Error('cleanup failed');
+    await expect(runBurnerFlow({
+      session, syncState: () => {}, execute: () => Promise.resolve('ok'),
+      onFinally: () => { expect(session.snapshot.busy).toBe(true); return Promise.reject(failure); },
+    })).rejects.toBe(failure);
+    expect(session.snapshot.busy).toBe(false);
+    expect(session.snapshot.phase).toBe('idle');
+  });
+
   it('should apply shared lifecycle for progress and busy state', async () => {
     const session = new BurnerSession();
     const busyStates: boolean[] = [];

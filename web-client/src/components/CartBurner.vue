@@ -862,7 +862,7 @@ async function verifyRamBlank(fillByte: number) {
 
 // 重置组件状态的方法
 function resetState() {
-  burnerSession.completeOperation();
+  burnerSession.abortOperation();
   burnerSession.clearLogs();
   resetProgress();
   syncSessionState();

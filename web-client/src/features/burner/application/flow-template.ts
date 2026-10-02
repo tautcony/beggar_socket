@@ -27,15 +27,17 @@ function isAbortError(error: unknown): boolean {
 
 export async function runBurnerFlow<TResult>(options: BurnerFlowOptions<TResult>): Promise<TResult | undefined> {
   const signal = options.session.startOperation(options.cancellable ?? false);
-  if (options.updateProgress) {
-    options.session.updateProgress(options.updateProgress);
-  }
-  options.syncState(options.session.snapshot);
-
+  const token = options.session.snapshot.operationToken;
   let errorOccurred = false;
   try {
+    if (options.updateProgress) {
+      options.session.updateProgress(options.updateProgress);
+    }
+    options.syncState(options.session.snapshot);
     const result = await options.execute({ signal });
-    await options.onSuccess?.(result);
+    if (!signal?.aborted) {
+      await options.onSuccess?.(result);
+    }
     return result;
   } catch (error) {
     if (isAbortError(error)) {
@@ -49,13 +51,21 @@ export async function runBurnerFlow<TResult>(options: BurnerFlowOptions<TResult>
     await options.onError?.(error);
     return undefined;
   } finally {
-    options.session.completeOperation();
-    const aborted = signal?.aborted === true;
-    const currentProgressState = options.session.snapshot.progress?.state;
-    if (options.resetProgressOnFinish && !aborted && !errorOccurred && currentProgressState !== 'error') {
-      options.session.resetProgress();
+    options.session.beginRecovery(token);
+    try {
+      try {
+        const aborted = signal?.aborted === true;
+        const currentProgressState = options.session.snapshot.progress?.state;
+        if (options.resetProgressOnFinish && !aborted && !errorOccurred && currentProgressState !== 'error') {
+          options.session.resetProgress();
+        }
+        options.syncState(options.session.snapshot);
+      } finally {
+        await options.onFinally?.();
+      }
+    } finally {
+      options.session.completeOperation(token);
+      options.syncState(options.session.snapshot);
     }
-    options.syncState(options.session.snapshot);
-    await options.onFinally?.();
   }
 }

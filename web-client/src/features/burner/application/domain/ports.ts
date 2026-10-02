@@ -82,7 +82,8 @@ export interface BurnerProtocolPort {
 export interface BurnerSessionPort {
   readonly snapshot: BurnerSessionState;
   startOperation(cancellable?: boolean): AbortSignal | undefined;
-  completeOperation(): void;
+  completeOperation(token: symbol | null): void;
+  beginRecovery(token: symbol | null): void;
   abortOperation(): void;
   updateProgress(info: ProgressInfo): void;
   resetProgress(): void;

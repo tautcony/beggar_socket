@@ -109,6 +109,9 @@ export function useCartBurnerSessionState(translate: (key: string) => string) {
   }
 
   async function executeOperation<TResult>(options: ExecuteOperationOptions<TResult>) {
+    if (burnerSession.snapshot.busy) {
+      throw new Error('Burner operation already running');
+    }
     keepProgressModalOpen.value = false;
     burnerSession.resetProgress();
     syncProgressState();

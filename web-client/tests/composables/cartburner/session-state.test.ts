@@ -44,6 +44,30 @@ describe('CartBurner container state', () => {
     expect(state.logs.value.map(entry => entry.message)).toEqual(['read-ok', 'write-ok', 'verify-ok']);
   });
 
+  it('rejects reentry after stop without erasing cancelled progress', async () => {
+    const state = useCartBurnerSessionState((key) => key);
+    let finish!: () => void;
+    const worker = new Promise<void>((resolve) => { finish = resolve; });
+    const pending = state.executeOperation({
+      cancellable: true,
+      updateProgress: { progress: 42, showProgress: true, state: 'running' },
+      operation: () => worker,
+      onError: vi.fn(),
+    });
+    state.handleProgressStop();
+    const progress = { ...state.progressInfo.value };
+    const operation = vi.fn(() => Promise.resolve());
+    await expect(state.executeOperation({ operation, onError: vi.fn() })).rejects.toThrow('already running');
+    expect(operation).not.toHaveBeenCalled();
+    expect(state.busy.value).toBe(true);
+    expect(state.progressInfo.value).toEqual(progress);
+    expect(state.showProgressModal.value).toBe(true);
+    finish();
+    await pending;
+    expect(state.busy.value).toBe(false);
+    expect(state.progressInfo.value.state).toBe('paused');
+  });
+
   it('converges after cancellation and supports next operation', async () => {
     const state = useCartBurnerSessionState((key) => key);
 
