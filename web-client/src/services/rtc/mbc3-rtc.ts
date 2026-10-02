@@ -2,7 +2,7 @@
 
 import { gbc_read, gbc_write } from '@/protocol';
 
-import { BaseRTC } from './base-rtc';
+import { BaseRTC, type RTCWriteReference } from './base-rtc';
 
 export interface MBC3RTCData {
   day: number;
@@ -85,33 +85,26 @@ export class MBC3RTC extends BaseRTC {
   /**
    * 楠岃瘉鍐欏叆鏃堕棿锛堝湪宸插惎鐢≧AM鐨勭姸鎬佷笅杩涜锛?
    */
-  private async verifyWrittenTime(attempts = 5): Promise<void> {
-    for (let ii = attempts; ii > 0; ii--) {
-      const verifyBuffer: number[] = [];
-      await this.latchTime();
-      for (let i = 0x08; i <= 0x0c; i++) {
-        verifyBuffer.push(await this.readRTCRegister(i));
-      }
+  private async verifyWrittenTime(target: MBC3RTCData, reference: RTCWriteReference): Promise<void> {
+    const cycle = 512 * 86400;
+    const targetSeconds = target.day * 86400 + target.hour * 3600 + target.minute * 60 + target.second;
+    await this.verifyWrittenSnapshot(reference, () => this.withCleanup(async () => {
       await this.unlatchTime();
-
-      const verifyDay = ((verifyBuffer[4] & 0x01) << 8) | verifyBuffer[3];
-      const verifyHour = verifyBuffer[2];
-      const verifyMinute = verifyBuffer[1];
-      const verifySecond = verifyBuffer[0];
-
-      // 浣跨敤luxon鏍煎紡鍖栬緭鍑?
-      const currentYear = DateTime.now().year;
-      const dt = DateTime.fromObject({ year: currentYear, month: 1, day: 1 })
-        .plus({ days: verifyDay - 1 })
-        .set({ hour: verifyHour, minute: verifyMinute, second: verifySecond });
-
-      if (dt.isValid) {
-        console.log(`楠岃瘉 ${ii}: ${dt.toFormat('yyyy-MM-dd HH:mm:ss')} (绗?{verifyDay}澶?`);
-      } else {
-        console.log(`楠岃瘉 ${ii}: ${verifyDay}鏃?${verifyHour}:${verifyMinute}:${verifySecond} (鏃犳晥鏃ユ湡)`);
-      }
-      await this.delay(1000);
-    }
+      await this.latchTime();
+      const observedAt = performance.now();
+      const value: number[] = [];
+      for (let register = 0x08; register <= 0x0c; register++) value.push(await this.readRTCRegister(register));
+      return { value, observedAt };
+    }, [() => this.unlatchTime()]), (bytes, minimum, maximum) => {
+      const [second, minute, hour, low, high] = bytes;
+      if (bytes.some(byte => !Number.isInteger(byte) || byte < 0 || byte > 255)
+        || second > 59 || minute > 59 || hour > 23 || (high & 0x40) !== 0) return false;
+      // Undefined DH bits are ignored; Halt and sticky day carry are checked explicitly.
+      const day = low | ((high & 1) << 8);
+      const actual = day * 86400 + hour * 3600 + minute * 60 + second;
+      const elapsed = this.elapsedCounterSeconds(actual - targetSeconds, cycle, minimum, maximum);
+      return elapsed !== undefined && ((high & 0x80) !== 0) === (targetSeconds + elapsed >= cycle);
+    });
   }
 
   /**
@@ -193,15 +186,18 @@ export class MBC3RTC extends BaseRTC {
         await this.stopTimer(originalHigh);
 
         // 鍐欏叆鏂版椂闂?
-        for (let i = 0x08; i <= 0x0c; i++) {
+        for (let i = 0x08; i < 0x0c; i++) {
           await this.writeRTCRegister(i, timeDataArray[i - 0x08]);
         }
+        const started = performance.now();
+        await this.writeRTCRegister(0x0c, timeDataArray[4]);
+        const writeCompletedAt = performance.now();
 
         // 閲嶅惎璁℃椂鍣?
         await this.startTimer();
 
         // 楠岃瘉璁剧疆锛堜娇鐢ㄤ笓闂ㄧ殑楠岃瘉鏂规硶锛屼笉閲嶆柊鍚敤RAM锛?
-        await this.verifyWrittenTime(5);
+        await this.verifyWrittenTime(rtcData, { started, completed: writeCompletedAt });
         completed = true;
       }, [
         async () => {
@@ -282,39 +278,4 @@ export class MBC3RTC extends BaseRTC {
     }
   }
 
-  /**
-   * MBC3鐗规湁鐨勯獙璇佹椂闂磋缃柟娉?
-   */
-  protected override async verifyTimeSet(attempts = 5): Promise<void> {
-    await this.withCleanup(async () => {
-      await this.enableRAMAccess();
-
-      for (let ii = attempts; ii > 0; ii--) {
-        const verifyBuffer: number[] = [];
-        await this.latchTime();
-        for (let i = 0x08; i <= 0x0c; i++) {
-          verifyBuffer.push(await this.readRTCRegister(i));
-        }
-        await this.unlatchTime();
-
-        const verifyDay = ((verifyBuffer[4] & 0x01) << 8) | verifyBuffer[3];
-        const verifyHour = verifyBuffer[2];
-        const verifyMinute = verifyBuffer[1];
-        const verifySecond = verifyBuffer[0];
-
-        // 浣跨敤luxon鏍煎紡鍖栬緭鍑?
-        const currentYear = DateTime.now().year;
-        const dt = DateTime.fromObject({ year: currentYear, month: 1, day: 1 })
-          .plus({ days: verifyDay - 1 })
-          .set({ hour: verifyHour, minute: verifyMinute, second: verifySecond });
-
-        if (dt.isValid) {
-          console.log(`楠岃瘉 ${ii}: ${dt.toFormat('yyyy-MM-dd HH:mm:ss')} (绗?{verifyDay}澶?`);
-        } else {
-          console.log(`楠岃瘉 ${ii}: ${verifyDay}鏃?${verifyHour}:${verifyMinute}:${verifySecond} (鏃犳晥鏃ユ湡)`);
-        }
-        await this.delay(1000);
-      }
-    }, this.idleCleanup());
-  }
 }

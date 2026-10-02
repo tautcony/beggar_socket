@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Transport } from '@/platform/serial';
 import { gbc_read, gbc_write, rom_read, rom_write } from '@/protocol';
-import { BaseRTC } from '@/services/rtc/base-rtc';
-import { GBARTC } from '@/services/rtc/gba-rtc';
-import { MBC3RTC } from '@/services/rtc/mbc3-rtc';
+import { BaseRTC, type RTCWriteReference } from '@/services/rtc/base-rtc';
+import { GBARTC, type GBARTCData } from '@/services/rtc/gba-rtc';
+import { MBC3RTC, type MBC3RTCData } from '@/services/rtc/mbc3-rtc';
 
 vi.mock('@/protocol', () => ({
   gbc_read: vi.fn(() => Promise.resolve(new Uint8Array(1))),
@@ -18,9 +18,9 @@ vi.mock('@/protocol', () => ({
 interface GBAInternals {
   initializeGPIO: () => Promise<void>;
   cleanupGPIO: () => Promise<void>;
-  checkAndResetIfNeeded: () => Promise<number>;
+  checkAndResetIfNeeded: (normalize24Hour?: boolean) => Promise<number>;
   s3511_writeByte: (value: number) => Promise<void>;
-  verifyWrittenTime: () => Promise<void>;
+  verifyWrittenTime: (target: GBARTCData, reference: RTCWriteReference) => Promise<void>;
   delay: () => Promise<void>;
 }
 
@@ -32,7 +32,7 @@ interface MBC3Internals {
   writeRTCRegister: (register: number, value: number) => Promise<void>;
   stopTimer: () => Promise<void>;
   startTimer: () => Promise<void>;
-  verifyWrittenTime: () => Promise<void>;
+  verifyWrittenTime: (target: MBC3RTCData, reference: RTCWriteReference) => Promise<void>;
 }
 
 function gbaHarness() {
@@ -131,7 +131,7 @@ describe('GBA RTC input contract', () => {
   });
 
   it('snapshots fields before awaiting capability', async () => {
-    const { rtc, capability, write } = gbaHarness();
+    const { rtc, capability, write, verify } = gbaHarness();
     const input = { ...gbaValid };
     capability.mockImplementation(() => {
       input.year = 99;
@@ -140,6 +140,7 @@ describe('GBA RTC input contract', () => {
     });
     await rtc.setTime(input);
     expect(write.mock.calls.map(([value]) => value)).toEqual([0x26, 0x24, 0x02, 0x29, 0x00, 0x23, 0x59, 0x59]);
+    expect(verify).toHaveBeenCalledWith(gbaValid, { started: expect.any(Number), completed: expect.any(Number) });
   });
 
   it.each([DateTime.invalid('test'), DateTime.fromObject({ year: 1999 }), DateTime.fromObject({ year: 2100 })])('rejects unsupported DateTime %# without I/O', async dt => {
@@ -189,7 +190,7 @@ describe('MBC3 RTC input contract', () => {
   });
 
   it('snapshots fields before awaiting RAM access', async () => {
-    const { rtc, enable, write } = mbc3Harness();
+    const { rtc, enable, write, verify } = mbc3Harness();
     const input = { ...mbc3Valid };
     enable.mockImplementation(() => {
       input.day = 1;
@@ -198,6 +199,7 @@ describe('MBC3 RTC input contract', () => {
     });
     await rtc.setTime(input);
     expect(write.mock.calls).toEqual([[0x08, 59], [0x09, 59], [0x0a, 23], [0x0b, 110], [0x0c, 1]]);
+    expect(verify).toHaveBeenCalledWith(mbc3Valid, { started: expect.any(Number), completed: expect.any(Number) });
   });
 
   it('rejects invalid DateTime before I/O', async () => {

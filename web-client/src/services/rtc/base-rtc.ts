@@ -3,6 +3,11 @@ import { DateTime } from 'luxon';
 import type { Transport } from '@/platform/serial';
 import { DeviceInfo } from '@/types/device-info';
 
+export interface RTCWriteReference {
+  started: number;
+  completed: number;
+}
+
 export class RTCCleanupError extends Error {
   constructor(readonly errors: readonly unknown[]) {
     super('RTC cleanup failed');
@@ -84,14 +89,33 @@ export abstract class BaseRTC {
   /**
    * 验证时间设置
    */
-  protected async verifyTimeSet(attempts = 5): Promise<void> {
-    for (let i = attempts; i > 0; i--) {
-      const result = await this.readTime();
-      if (result.status && result.time) {
-        console.log(`验证 ${i}: ${result.time.toFormat('yyyy-MM-dd HH:mm:ss')}`);
-      }
-      await this.delay(500);
+  protected async verifyWrittenSnapshot<T>(
+    reference: RTCWriteReference,
+    read: () => Promise<{ value: T; observedAt: number }>,
+    matches: (value: T, minimumSeconds: number, maximumSeconds: number) => boolean,
+  ): Promise<void> {
+    const validClock = (value: number) => Number.isFinite(value) && value >= 0 && value <= Number.MAX_SAFE_INTEGER;
+    if (!validClock(reference.started) || !validClock(reference.completed) || reference.completed < reference.started) {
+      throw new Error('RTC write verification failed: invalid monotonic write reference');
     }
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { value, observedAt } = await read();
+      if (!validClock(observedAt) || observedAt < reference.completed) {
+        throw new Error('RTC write verification failed: invalid monotonic snapshot reference');
+      }
+      const minimum = Math.max(0, Math.floor((observedAt - reference.completed) / 1000) - 1);
+      const maximum = Math.max(0, Math.ceil((observedAt - reference.started) / 1000) + 1);
+      if (matches(value, minimum, maximum)) return;
+      if (attempt < 4) await this.delay(500);
+    }
+    throw new Error('RTC write verification failed: readback does not match requested time');
+  }
+
+  /** Smallest nonnegative elapsed increment in the window matching a wrapping counter. */
+  protected elapsedCounterSeconds(delta: number, cycle: number, minimum: number, maximum: number): number | undefined {
+    const wrapped = ((delta % cycle) + cycle) % cycle;
+    const elapsed = wrapped + Math.max(0, Math.ceil((minimum - wrapped) / cycle)) * cycle;
+    return elapsed <= maximum ? elapsed : undefined;
   }
 
   /**

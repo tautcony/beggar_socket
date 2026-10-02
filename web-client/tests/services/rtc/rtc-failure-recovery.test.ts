@@ -49,11 +49,11 @@ function mbc3Model(failAt = -1, high = 0x81) {
   return { rtc, commands, registers, idle: () => !enabled && bank === 0 && !latched };
 }
 
-function gbaModel(failAt = -1, status = 0) {
+function gbaModel(failAt = -1, status = 0, verification = true) {
   const commands: Command[] = [];
   let capabilityRead = 0;
   let bit = 0;
-  const bytes = [status, 0x24, 1, 2, 2, 3, 4, 5];
+  const bytes = [status, ...(verification ? [0x40] : []), 0x24, 1, 2, 2, 3, 4, 5];
   const step = (command: Command) => {
     commands.push(command);
     if (commands.length === failAt) throw primary;
@@ -110,7 +110,10 @@ describe('MBC3 RTC failure recovery', () => {
     const count = baseline.commands.length - 3;
     for (let index = 1; index <= count; index++) {
       const model = mbc3Model(index, high);
-      await expect(model.rtc.setTime(input), `command ${index}`).rejects.toBe(primary);
+      const result = expect(model.rtc.setTime(input), `command ${index}`).rejects;
+      // The snapshot's final unlatch is now an independent cleanup step.
+      if (index === count) await result.toMatchObject({ errors: [primary] });
+      else await result.toBe(primary);
       expect(model.registers[4], `high register after command ${index}`).toBe(high);
       expect(model.commands.slice(-3)).toEqual(mbc3Idle);
       expect(model.idle()).toBe(true);
@@ -187,14 +190,18 @@ describe('GBA RTC failure recovery', () => {
     { operation: 'readTime', status: 0x80 },
     { operation: 'checkCapability', status: 0 },
   ] as const)('cleans every failed $operation device command with status $status', async ({ operation, status }) => {
-    const baseline = gbaModel(-1, status);
+    const baseline = gbaModel(-1, status, operation === 'setTime');
     await (operation === 'setTime' ? baseline.rtc.setTime(gbaInput) : baseline.rtc[operation]());
     const count = baseline.commands.length - 2;
+    const verificationReleases = baseline.commands.flatMap((command, index) =>
+      command.kind === 'write' && command.address === 0xc4 >> 1 && command.value === 1 ? [index + 1] : [],
+    ).slice(-3, -1);
     for (let index = 1; index <= count; index++) {
-      const model = gbaModel(index, status);
+      const model = gbaModel(index, status, operation === 'setTime');
       if (operation === 'setTime') {
         // Capability probes keep their existing boolean contract.
-        if (index > 5) await expect(model.rtc.setTime(gbaInput)).rejects.toBe(primary);
+        if (verificationReleases.includes(index)) await expect(model.rtc.setTime(gbaInput)).rejects.toMatchObject({ errors: [primary] });
+        else if (index > 5) await expect(model.rtc.setTime(gbaInput)).rejects.toBe(primary);
         else await expect(model.rtc.setTime(gbaInput)).rejects.toThrow();
       } else {
         const result = await model.rtc[operation]();
@@ -205,7 +212,7 @@ describe('GBA RTC failure recovery', () => {
   }, 60000);
 
   it.each(['setTime', 'readTime', 'checkCapability'] as const)('finishes successful %s in GPIO idle state', async operation => {
-    const model = gbaModel();
+    const model = gbaModel(-1, 0, operation === 'setTime');
     const result = await (operation === 'setTime' ? model.rtc.setTime(gbaInput) : model.rtc[operation]());
     if (operation === 'readTime') expect(result).toMatchObject({ status: true });
     if (operation === 'checkCapability') expect(result).toBe(true);

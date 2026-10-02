@@ -2,7 +2,7 @@
 
 import { rom_read, rom_write, toLittleEndian } from '@/protocol';
 
-import { BaseRTC, RTCCleanupError } from './base-rtc';
+import { BaseRTC, RTCCleanupError, type RTCWriteReference } from './base-rtc';
 
 export interface GBARTCData {
   year: number;
@@ -91,7 +91,7 @@ export class GBARTC extends BaseRTC {
   /**
    * 璇诲彇RTC鐘舵€佸苟澶勭悊鐢垫睜娌＄數鐨勬儏鍐?
    */
-  private async checkAndResetIfNeeded(): Promise<number> {
+  private async checkAndResetIfNeeded(normalize24Hour = false): Promise<number> {
     // 璇诲彇RTC鐘舵€?
     await this.s3511_writeByte(0xc6);
     const status = await this.s3511_readByte();
@@ -107,34 +107,51 @@ export class GBARTC extends BaseRTC {
       await rom_write(this.transport, toLittleEndian(0x01, 2), 0xc4 >> 1); // cs 0, sck 1
     }
 
+    if (normalize24Hour && (status & 0xc0) === 0) {
+      await this.s3511_writeByte(0x46);
+      await this.s3511_writeByte((status & 0x2a) | 0x40);
+      await rom_write(this.transport, toLittleEndian(0x01, 2), 0xc4 >> 1);
+    }
     return status;
   }
 
   /**
    * 楠岃瘉鍐欏叆鏃堕棿锛堝湪宸插垵濮嬪寲鐨凣PIO鐘舵€佷笅杩涜锛?
    */
-  private async verifyWrittenTime(attempts = 5): Promise<void> {
-    for (let i = attempts; i > 0; i--) {
-      // 閲嶆柊鍚敤GPIO锛堝叧閿楠わ級
-      await rom_write(this.transport, toLittleEndian(0x01, 2), 0xc8 >> 1); // enable gpio
-
-      // 璇诲彇鏃堕棿楠岃瘉
-      await this.s3511_writeByte(0xa6);
-      const verifyYear = this.compressedBCDToInt(await this.s3511_readByte());
-      const verifyMonth = this.compressedBCDToInt(await this.s3511_readByte() & 0x1f);
-      const verifyDate = this.compressedBCDToInt(await this.s3511_readByte() & 0x3f);
-      const verifyDay = this.compressedBCDToInt(await this.s3511_readByte() & 0x07);
-      const verifyHour = this.compressedBCDToInt(await this.s3511_readByte() & 0x3f);
-      const verifyMinute = this.compressedBCDToInt(await this.s3511_readByte() & 0x7f);
-      const verifySecond = this.compressedBCDToInt(await this.s3511_readByte() & 0x7f);
-
-      await rom_write(this.transport, toLittleEndian(0x01, 2), 0xc4 >> 1); // cs 0, sck 1
-      await rom_write(this.transport, toLittleEndian(0x00, 2), 0xc8 >> 1); // disable gpio
-
-      console.log(`楠岃瘉 ${i}: ${2000 + verifyYear}-${verifyMonth.toString().padStart(2, '0')}-${verifyDate.toString().padStart(2, '0')} ${verifyHour.toString().padStart(2, '0')}:${verifyMinute.toString().padStart(2, '0')}:${verifySecond.toString().padStart(2, '0')} WK${verifyDay}`);
-
-      await this.delay(1000);
-    }
+  private async verifyWrittenTime(target: GBARTCData, reference: RTCWriteReference): Promise<void> {
+    const epoch = DateTime.utc(2000, 1, 1).toSeconds();
+    const cycle = DateTime.utc(2100, 1, 1).toSeconds() - epoch;
+    const targetTime = DateTime.utc(2000 + target.year, target.month, target.date, target.hour, target.minute, target.second);
+    await this.verifyWrittenSnapshot(reference, async () => {
+      const status = await this.withCleanup(async () => {
+        await this.s3511_writeByte(0xc6);
+        return this.s3511_readByte();
+      }, [() => rom_write(this.transport, toLittleEndian(0x01, 2), 0xc4 >> 1)]);
+      return this.withCleanup(async () => {
+        await this.s3511_writeByte(0xa6);
+        const observedAt = performance.now();
+        const bytes: number[] = [];
+        for (let i = 0; i < 7; i++) bytes.push(await this.s3511_readByte());
+        return { value: { status, bytes }, observedAt };
+      }, [() => rom_write(this.transport, toLittleEndian(0x01, 2), 0xc4 >> 1)]);
+    }, ({ status, bytes }, minimum, maximum) => {
+      // POWER, unsupported status bits and 12-hour mode are not a valid written state.
+      if (!Number.isInteger(status) || status < 0 || status > 255 || (status & 0x40) === 0 || (status & ~0x6a) !== 0) return false;
+      const masks = [0xff, 0x1f, 0x3f, 0x07, 0x7f, 0x7f, 0x7f];
+      if (bytes.some((byte, i) => !Number.isInteger(byte) || byte < 0 || byte > 255 || (byte & ~masks[i]) !== 0)) return false;
+      // Hour bit 6 is the AM/PM flag, ignored in 24-hour mode; second bit 7 is TEST.
+      const bcd = bytes.map((byte, i) => i === 4 ? byte & 0x3f : byte);
+      if (bcd.some(byte => (byte & 0x0f) > 9 || (byte >> 4) > 9)) return false;
+      const [year, month, date, day, hour, minute, second] = bcd.map(byte => this.compressedBCDToInt(byte));
+      if (month < 1 || month > 12 || date < 1 || date > 31 || day > 6 || hour > 23 || minute > 59 || second > 59
+        || !BaseRTC.isValidDateTime(2000 + year, month, date, hour, minute, second)) return false;
+      const actual = DateTime.utc(2000 + year, month, date, hour, minute, second);
+      const elapsed = this.elapsedCounterSeconds(actual.toSeconds() - targetTime.toSeconds(), cycle, minimum, maximum);
+      if (elapsed === undefined) return false;
+      const targetSeconds = targetTime.toSeconds() - epoch;
+      const days = Math.floor((targetSeconds + elapsed) / 86400) - Math.floor(targetSeconds / 86400);
+      return day === (target.day + days) % 7;
+    });
   }
   async checkCapability(): Promise<boolean> {
     try {
@@ -187,7 +204,7 @@ export class GBARTC extends BaseRTC {
 
       await this.withCleanup(async () => {
         await this.initializeGPIO();
-        await this.checkAndResetIfNeeded();
+        await this.checkAndResetIfNeeded(true);
 
         // 璁剧疆鏃堕棿
         const year = this.intToCompressedBCD(rtcData.year % 100); // 鍙彇鍚庝袱浣?
@@ -205,14 +222,16 @@ export class GBARTC extends BaseRTC {
         await this.s3511_writeByte(day);
         await this.s3511_writeByte(hour);
         await this.s3511_writeByte(minute);
+        const started = performance.now();
         await this.s3511_writeByte(second);
         await rom_write(this.transport, toLittleEndian(0x01, 2), 0xc4 >> 1); // cs 0, sck 1
+        const completed = performance.now();
 
         // 绛夊緟鍐欏叆瀹屾垚
         await this.delay(1000);
 
         // 楠岃瘉鍐欏叆锛堜娇鐢ㄤ笓闂ㄧ殑楠岃瘉鏂规硶锛屼笉閲嶆柊鍒濆鍖朑PIO锛?
-        await this.verifyWrittenTime(5);
+        await this.verifyWrittenTime(rtcData, { started, completed });
 
       }, [() => this.cleanupGPIO()]);
     } catch (error) {
