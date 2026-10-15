@@ -28,6 +28,10 @@ describe('Operation panel contracts', () => {
       'read-rom',
       'verify-rom',
       'verify-blank',
+      'preview-save-checkpoint',
+      'preview-save-result',
+      'preview-session-started',
+      'preview-session-ended',
     ]);
   });
 

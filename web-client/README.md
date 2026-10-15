@@ -68,6 +68,11 @@ npm run preview
 | `npm run lint` | 代码检查 |
 | `npm run lint:fix` | 自动修复代码问题 |
 | `npm run type-check` | TypeScript 类型检查 |
+| `npm run test:gba-rom -- --rom <ROM路径>` | 真实 GBA ROM 启动和存档回归 |
+
+真实 ROM 回归脚本支持 GOODBOY 操作序列、SAV 导入/导出/重载校验、截图及错误报告，详见 [使用说明](scripts/README-gba-rom.md)。
+
+GBA raw SAV 的文件长度独立于 ROM 的 SRAM/Flash/EEPROM 硬件窗口。任何非空 raw 文件都可导入；核心只使用可寻址前缀，其他字节会随完整存档镜像保留，并在 RAM 回写、下载和重载时继续保留。短文件按核心初始 backing 补齐到运行所需窗口。EEPROM 以协议运行时窗口为准，文件大小只作为未确定时的提示。
 
 ### 浏览器兼容性
 

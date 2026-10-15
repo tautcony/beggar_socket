@@ -2,6 +2,8 @@ import type { MbcType } from '@/types/command-options';
 import type { FileInfo } from '@/types/file-info';
 import type { FirmwareProfile } from '@/types/firmware-profile';
 
+export type { GbaPreviewLaunch, GbaPreviewSavePayload } from '@/features/gba-save/types';
+
 export interface ChipOperationsProps {
   mode?: 'GBA' | 'MBC5';
   deviceReady: boolean;
@@ -30,6 +32,11 @@ export interface RomOperationsProps {
   busy: boolean;
   romFileData?: Uint8Array | null;
   romFileName?: string;
+  ramFileData?: Uint8Array | null;
+  ramFileName?: string;
+  romRevision?: number;
+  ramRevision?: number;
+  previewBlocked?: boolean;
   selectedRomSize?: string;
   selectedBaseAddress?: string;
 }
@@ -44,6 +51,10 @@ export const ROM_OPERATION_EVENTS = [
   'read-rom',
   'verify-rom',
   'verify-blank',
+  'preview-save-checkpoint',
+  'preview-save-result',
+  'preview-session-started',
+  'preview-session-ended',
 ] as const;
 
 export interface RamOperationsProps {

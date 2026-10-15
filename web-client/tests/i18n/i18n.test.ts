@@ -122,6 +122,17 @@ describe('i18n', () => {
       expect(messages['ja-JP'].ui.device.connect).toBe('デバイスを接続');
     });
 
+    it('includes save preview controls and errors in every locale', async () => {
+      const { messages } = await import('@/i18n/index');
+      for (const locale of ['zh-Hans', 'zh-Hant', 'en-US', 'ja-JP', 'ru-RU'] as const) {
+        expect(messages[locale].ui.emulator.saveAssociationTitle).toBeTruthy();
+        expect(messages[locale].ui.emulator.discardSaveResult).toBeTruthy();
+        expect(messages[locale].ui.emulator.errors.savePendingClose).toBeTruthy();
+        expect(messages[locale].ui.file.download).toBeTruthy();
+        expect(messages[locale].messages.emulator.pendingSaveRecovery).toBeTruthy();
+      }
+    });
+
     it('应该创建有效的i18n实例', async () => {
       const { default: i18n } = await import('@/i18n/index');
 

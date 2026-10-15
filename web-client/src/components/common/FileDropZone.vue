@@ -70,6 +70,8 @@
             <button
               class="download-file-btn"
               :disabled="disabled || !fileData"
+              :title="$t('ui.file.download')"
+              :aria-label="$t('ui.file.download')"
               @click.stop="downloadFile"
             >
               <IonIcon :icon="downloadOutline" />
@@ -88,8 +90,9 @@ import { ref, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useToast } from '@/composables/useToast';
+import { saveBinaryFile } from '@/platform/native';
 import { FileInfo } from '@/types/file-info';
-import { downloadBlob, readFileAsArrayBuffer } from '@/utils/file-io';
+import { readFileAsArrayBuffer } from '@/utils/file-io';
 import { formatBytes } from '@/utils/formatter-utils';
 
 const props = withDefaults(defineProps<{
@@ -194,10 +197,15 @@ function clearFile() {
 }
 
 /** 下载当前文件 */
-function downloadFile() {
-  if (!fileData.value || !fileName.value) return;
-  const blob = new Blob([fileData.value as BlobPart], { type: 'application/octet-stream' });
-  downloadBlob(blob, fileName.value);
+async function downloadFile() {
+  if (disabled.value || !fileData.value || !fileName.value) return;
+  const name = fileName.value;
+  try {
+    await saveBinaryFile(new Uint8Array(fileData.value), name);
+  } catch (error) {
+    console.warn('[FileDropZone] Failed to download file', error);
+    showToast(t('ui.file.downloadFailed', { name }), 'error');
+  }
 }
 
 function handleDragOver(e: Event) {

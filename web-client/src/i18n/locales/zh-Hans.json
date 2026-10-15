@@ -365,8 +365,22 @@
         "keyPressError": "按键错误：{error}",
         "pauseResumeError": "暂停/恢复错误：{error}",
         "resetError": "重置错误：{error}",
-        "tooManyRetries": "重试次数过多，请刷新页面"
-      }
+        "tooManyRetries": "重试次数过多，请刷新页面",
+        "unknownSaveType": "无法识别此 ROM 的 RAM 类型。你可以不使用此 RAM 启动。",
+        "saveConflict": "RAM 容量或协议冲突",
+        "savePendingClose": "仍有 RAM 写入待完成。请恢复游戏并完成保存后再关闭。",
+        "lastCheckpointOnly": "使用最近一次已完成的 RAM 检查点。",
+        "exportingLastCheckpoint": "RAM 写入仍在进行；正在导出最近一次已完成的检查点。",
+        "exportFailed": "RAM 导出失败"
+      },
+      "exportSave": "导出 RAM",
+      "startWithoutSave": "不使用此 RAM 启动",
+      "discardSaveResult": "丢弃 RAM 结果",
+      "saveAssociationTitle": "RAM 文件关联",
+      "saveAssociationMessage": "ROM：{rom}\nRAM：{save}\n文件名不同。请选择是否使用此 RAM。",
+      "useSelectedSave": "使用所选 RAM",
+      "exportStarted": "已开始下载 RAM：{name}",
+      "exportSaved": "RAM 已保存到 {name}"
     },
     "ram": {
       "title": "RAM操作",
@@ -390,7 +404,7 @@
       "typeSRAM": "SRAM",
       "typeFLASH": "FLASH",
       "typeFRAM": "FRAM",
-      "typeBATLESS": "免电存档",
+      "typeBATLESS": "免电 RAM",
       "baseAddressOptions": {
         "fullCart": "整卡",
         "menu": "菜单",
@@ -401,7 +415,9 @@
       "recentFileNames": "最近使用的ROM文件（点击选择对应.sav文件名）",
       "enterFileName": "输入文件名...",
       "resetToDefault": "重置为默认文件名",
-      "download": "下载"
+      "download": "下载",
+      "exportStarted": "已开始下载：{name}",
+      "exportSaved": "RAM 文件已保存到 {name}"
     },
     "tools": {
       "title": "卡带工具",
@@ -462,7 +478,9 @@
       "selected": "已选择文件: {name}",
       "cleared": "已清除文件选择",
       "readFailed": "文件读取失败: {name}",
-      "readFailedCount": "有 {count} 个文件读取失败"
+      "readFailedCount": "有 {count} 个文件读取失败",
+      "download": "下载文件",
+      "downloadFailed": "文件下载失败：{name}"
     },
     "log": {
       "title": "日志",
@@ -600,15 +618,15 @@
       "dropGameRoms": "拖拽游戏ROM文件到此处",
       "backgroundImage": "背景图像",
       "dropBgImage": "拖拽背景图像文件到此处",
-      "saveFiles": "存档文件",
-      "dropSaveFiles": "拖拽存档文件到此处",
+      "saveFiles": "RAM 文件",
+      "dropSaveFiles": "拖拽 RAM 文件到此处",
       "configuration": "配置",
       "basicSettings": "基本设置",
       "fileSettings": "文件设置",
       "configureGame": "配置游戏",
       "gameTitle": "游戏标题",
       "titleFont": "标题字体",
-      "saveSlot": "存档槽位",
+      "saveSlot": "RAM 槽位",
       "enabled": "启用",
       "cartridgeType": "卡带类型",
       "batterySupport": "电池支持",
@@ -658,9 +676,9 @@
       "startWriteRAM": "开始写入RAM - 数据大小: {fileSize} 字节, 基址: {baseAddress}",
       "startReadRAM": "开始读取RAM - 大小: {size} 字节, 基址: {baseAddress}",
       "startVerifyRAM": "开始校验RAM - 数据大小: {fileSize} 字节, 基址: {baseAddress}",
-      "startWriteBatterylessSave": "开始写入免电存档 - 数据大小: {fileSize} 字节, 基址: {baseAddress}",
-      "startReadBatterylessSave": "开始读取免电存档 - 基址: {baseAddress}",
-      "startVerifyBatterylessSave": "开始校验免电存档 - 数据大小: {fileSize} 字节, 基址: {baseAddress}",
+      "startWriteBatterylessSave": "开始写入免电 RAM - 数据大小: {fileSize} 字节, 基址: {baseAddress}",
+      "startReadBatterylessSave": "开始读取免电 RAM - 基址: {baseAddress}",
+      "startVerifyBatterylessSave": "开始校验免电 RAM - 数据大小: {fileSize} 字节, 基址: {baseAddress}",
       "getCartInfoFailed": "获取卡带信息失败",
       "startGetCartInfo": "开始获取卡带信息",
       "detectedMbcType": "检测到映射类型 {type}",
@@ -740,7 +758,9 @@
     "emulator": {
       "launched": "已启动模拟器预览: {name}",
       "closed": "模拟器已关闭",
-      "unsupportedRom": "不支持的ROM文件格式"
+      "unsupportedRom": "不支持的ROM文件格式",
+      "resolveSaveResultFirst": "请先导出或丢弃待处理的预览 RAM，再启动另一个预览。",
+      "pendingSaveRecovery": "{rom} 的 RAM 输出已保留以供恢复（关联文件：{save}）。"
     },
     "romAssembly": {
       "fileTooLarge": "文件 {name} 过大，无法放入任何槽位",
@@ -787,28 +807,30 @@
         "eraseComplete": "擦除完成"
       },
       "batteryless": {
-        "found": "找到免电存档 - 偏移: {offset}, 大小: {size}",
-        "notFound": "未找到免电存档",
-        "searchFailed": "搜索免电存档失败",
-        "info": "免电存档信息 - 偏移: {offset}, 大小: {size}",
-        "erase": "擦除免电存档区域 {startAddress} - {endAddress}",
-        "startWrite": "开始写入免电存档",
-        "writing": "正在写入免电存档 ({progress}%)",
-        "writeComplete": "免电存档写入完成",
-        "writeSuccess": "免电存档写入成功",
-        "writeFailed": "免电存档写入失败",
+        "found": "找到免电 RAM - 偏移: {offset}, 大小: {size}",
+        "notFound": "未找到免电 RAM",
+        "searchFailed": "搜索免电 RAM失败",
+        "info": "免电 RAM信息 - 偏移: {offset}, 大小: {size}",
+        "erase": "擦除免电 RAM区域 {startAddress} - {endAddress}",
+        "startWrite": "开始写入免电 RAM",
+        "writing": "正在写入免电 RAM ({progress}%)",
+        "writeComplete": "免电 RAM写入完成",
+        "writeSuccess": "免电 RAM写入成功",
+        "writeFailed": "免电 RAM写入失败",
         "writeSummary": "写入统计 - 总耗时: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 总大小: {totalSize}",
-        "startRead": "开始读取免电存档",
-        "reading": "正在读取免电存档 ({progress}%)",
-        "readComplete": "免电存档读取完成，大小：{size}",
-        "readSuccess": "免电存档读取成功，大小：{size}",
-        "readFailed": "免电存档读取失败",
+        "startRead": "开始读取免电 RAM",
+        "reading": "正在读取免电 RAM ({progress}%)",
+        "readComplete": "免电 RAM读取完成，大小：{size}",
+        "readSuccess": "免电 RAM读取成功，大小：{size}",
+        "readFailed": "免电 RAM读取失败",
         "readSummary": "读取统计 - 总耗时: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 总大小: {totalSize}",
-        "startVerify": "开始校验免电存档",
-        "verifying": "正在校验免电存档 ({progress}%)",
-        "verifySuccess": "免电存档校验成功",
-        "verifyFailed": "免电存档校验失败"
-      }
+        "startVerify": "开始校验免电 RAM",
+        "verifying": "正在校验免电 RAM ({progress}%)",
+        "verifySuccess": "免电 RAM校验成功",
+        "verifyFailed": "免电 RAM校验失败"
+      },
+      "previewSaveApplied": "预览 RAM 已更新：{name}（{size}）",
+      "exportFailed": "RAM 文件导出失败"
     },
     "progress": {
       "writing": "已处理: {written}/{total} 字节",
@@ -899,10 +921,10 @@
       "gameRomLoadFailed": "加载游戏ROM失败 {name}: {error}",
       "bgImageLoaded": "背景图像已加载: {name}",
       "bgImageLoadFailed": "加载背景图像失败 {name}: {status}",
-      "saveFileLoaded": "存档文件已加载: {name}",
-      "saveFileLoadFailed": "加载存档文件失败 {name}: {error}",
+      "saveFileLoaded": "RAM 文件已加载：{name}",
+      "saveFileLoadFailed": "加载 RAM 文件失败 {name}：{error}",
       "gameRomRemoved": "已移除游戏ROM: {name}",
-      "saveFileRemoved": "已移除存档文件: {name}",
+      "saveFileRemoved": "已移除 RAM 文件：{name}",
       "gameReordered": "游戏ROM顺序已重新排列",
       "buildStarted": "开始构建ROM...",
       "configReady": "配置准备完成，开始构建...",

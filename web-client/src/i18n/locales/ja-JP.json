@@ -365,8 +365,22 @@
         "keyPressError": "キー入力エラー：{error}",
         "pauseResumeError": "一時停止/再開エラー：{error}",
         "resetError": "リセットエラー：{error}",
-        "tooManyRetries": "再試行回数が多すぎます。ページを更新してください"
-      }
+        "tooManyRetries": "再試行回数が多すぎます。ページを更新してください",
+        "unknownSaveType": "ROMのRAM形式を認識できません。このRAMを使わずに開始できます。",
+        "saveConflict": "RAM容量またはプロトコルの不一致",
+        "savePendingClose": "RAM書き込みが保留中です。ゲームを再開して保存を完了してから閉じてください。",
+        "lastCheckpointOnly": "最後に完了したRAMチェックポイントを使用します。",
+        "exportingLastCheckpoint": "RAM書き込み中です。最後に完了したチェックポイントを書き出します。",
+        "exportFailed": "RAMの書き出しに失敗しました"
+      },
+      "exportSave": "RAMを書き出す",
+      "startWithoutSave": "このRAMを使わずに開始",
+      "discardSaveResult": "RAM結果を破棄",
+      "saveAssociationTitle": "RAMファイルの関連付け",
+      "saveAssociationMessage": "ROM：{rom}\nRAM：{save}\n名前が異なります。このRAMを使うか選択してください。",
+      "useSelectedSave": "選択したRAMを使う",
+      "exportStarted": "RAMのダウンロードを開始しました：{name}",
+      "exportSaved": "RAMを保存しました：{name}"
     },
     "ram": {
       "title": "RAM操作",
@@ -390,7 +404,7 @@
       "typeSRAM": "SRAM",
       "typeFLASH": "FLASH",
       "typeFRAM": "FRAM",
-      "typeBATLESS": "バッテリーレスセーブ",
+      "typeBATLESS": "バッテリーレスRAM",
       "baseAddressOptions": {
         "fullCart": "フルカート",
         "menu": "メニュー",
@@ -401,7 +415,9 @@
       "recentFileNames": "最近使用したROMファイル（クリックして対応する.savファイル名を選択）",
       "enterFileName": "ファイル名を入力...",
       "resetToDefault": "デフォルトのファイル名にリセット",
-      "download": "ダウンロード"
+      "download": "ダウンロード",
+      "exportStarted": "ダウンロードを開始しました：{name}",
+      "exportSaved": "RAMファイルを保存しました：{name}"
     },
     "tools": {
       "title": "カートリッジツール",
@@ -460,7 +476,9 @@
       "selected": "選択されたファイル: {name}",
       "cleared": "ファイル選択をクリア",
       "readFailed": "ファイルの読み込みに失敗しました: {name}",
-      "readFailedCount": "{count} 個のファイルの読み込みに失敗しました"
+      "readFailedCount": "{count} 個のファイルの読み込みに失敗しました",
+      "download": "ファイルをダウンロード",
+      "downloadFailed": "ファイルのダウンロードに失敗しました：{name}"
     },
     "log": {
       "title": "ログ",
@@ -592,15 +610,15 @@
       "dropGameRoms": "ゲームROMファイルをここにドラッグ",
       "backgroundImage": "背景画像",
       "dropBgImage": "背景画像ファイルをここにドラッグ",
-      "saveFiles": "セーブファイル",
-      "dropSaveFiles": "セーブファイルをここにドラッグ",
+      "saveFiles": "RAMファイル",
+      "dropSaveFiles": "RAMファイルをここにドロップ",
       "configuration": "設定",
       "basicSettings": "基本設定",
       "fileSettings": "ファイル設定",
       "configureGame": "ゲーム設定",
       "gameTitle": "ゲームタイトル",
       "titleFont": "タイトルフォント",
-      "saveSlot": "セーブスロット",
+      "saveSlot": "RAMスロット",
       "enabled": "有効",
       "cartridgeType": "カートリッジタイプ",
       "batterySupport": "バッテリーサポート",
@@ -647,9 +665,9 @@
       "startWriteRAM": "RAM書き込みを開始 - データサイズ: {fileSize} バイト, ベースアドレス: {baseAddress}",
       "startReadRAM": "RAM読み取りを開始 - サイズ: {size} バイト, ベースアドレス: {baseAddress}",
       "startVerifyRAM": "RAM検証を開始 - データサイズ: {fileSize} バイト, ベースアドレス: {baseAddress}",
-      "startWriteBatterylessSave": "バッテリーレスセーブ書き込みを開始 - データサイズ: {fileSize} バイト, ベースアドレス: {baseAddress}",
-      "startReadBatterylessSave": "バッテリーレスセーブ読み取りを開始 - ベースアドレス: {baseAddress}",
-      "startVerifyBatterylessSave": "バッテリーレスセーブ検証を開始 - データサイズ: {fileSize} バイト, ベースアドレス: {baseAddress}",
+      "startWriteBatterylessSave": "バッテリーレスRAM書き込みを開始 - データサイズ: {fileSize} バイト, ベースアドレス: {baseAddress}",
+      "startReadBatterylessSave": "バッテリーレスRAM読み取りを開始 - ベースアドレス: {baseAddress}",
+      "startVerifyBatterylessSave": "バッテリーレスRAM検証を開始 - データサイズ: {fileSize} バイト, ベースアドレス: {baseAddress}",
       "getCartInfoFailed": "カートリッジ情報取得失敗",
       "startGetCartInfo": "カートリッジ情報の取得を開始",
       "detectedMbcType": "マッパー種別 {type} を検出しました",
@@ -729,7 +747,9 @@
     "emulator": {
       "launched": "エミュレータープレビューを開始: {name}",
       "closed": "エミュレーターを終了",
-      "unsupportedRom": "サポートされていないROMファイルです"
+      "unsupportedRom": "サポートされていないROMファイルです",
+      "resolveSaveResultFirst": "次のプレビューを開始する前に、保留中のプレビューRAMを書き出すか破棄してください。",
+      "pendingSaveRecovery": "{rom} のRAM出力を復旧用に保持しました（関連ファイル：{save}）。"
     },
     "romAssembly": {
       "fileTooLarge": "ファイル {name} が大きすぎて、どのスロットにも配置できません",
@@ -776,28 +796,30 @@
         "eraseComplete": "消去完了"
       },
       "batteryless": {
-        "found": "バッテリーレスセーブ発見 - オフセット: {offset}, サイズ: {size}",
-        "notFound": "バッテリーレスセーブが見つかりません",
-        "searchFailed": "バッテリーレスセーブ検索失敗",
-        "info": "バッテリーレスセーブ情報 - オフセット: {offset}, サイズ: {size}",
-        "erase": "バッテリーレスセーブ領域消去 {startAddress} - {endAddress}",
-        "startWrite": "バッテリーレスセーブ書き込み開始",
-        "writing": "バッテリーレスセーブ書き込み中 ({progress}%)",
-        "writeComplete": "バッテリーレスセーブ書き込み完了",
-        "writeSuccess": "バッテリーレスセーブ書き込み成功",
-        "writeFailed": "バッテリーレスセーブ書き込み失敗",
+        "found": "バッテリーレスRAM発見 - オフセット: {offset}, サイズ: {size}",
+        "notFound": "バッテリーレスRAMが見つかりません",
+        "searchFailed": "バッテリーレスRAM検索失敗",
+        "info": "バッテリーレスRAM情報 - オフセット: {offset}, サイズ: {size}",
+        "erase": "バッテリーレスRAM領域消去 {startAddress} - {endAddress}",
+        "startWrite": "バッテリーレスRAM書き込み開始",
+        "writing": "バッテリーレスRAM書き込み中 ({progress}%)",
+        "writeComplete": "バッテリーレスRAM書き込み完了",
+        "writeSuccess": "バッテリーレスRAM書き込み成功",
+        "writeFailed": "バッテリーレスRAM書き込み失敗",
         "writeSummary": "書き込み統計 - 総時間: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 総サイズ: {totalSize}",
-        "startRead": "バッテリーレスセーブ読み取り開始",
-        "reading": "バッテリーレスセーブ読み取り中 ({progress}%)",
-        "readComplete": "バッテリーレスセーブ読み取り完了、サイズ：{size}",
-        "readSuccess": "バッテリーレスセーブ読み取り成功、サイズ：{size}",
-        "readFailed": "バッテリーレスセーブ読み取り失敗",
+        "startRead": "バッテリーレスRAM読み取り開始",
+        "reading": "バッテリーレスRAM読み取り中 ({progress}%)",
+        "readComplete": "バッテリーレスRAM読み取り完了、サイズ：{size}",
+        "readSuccess": "バッテリーレスRAM読み取り成功、サイズ：{size}",
+        "readFailed": "バッテリーレスRAM読み取り失敗",
         "readSummary": "読み取り統計 - 総時間: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 総サイズ: {totalSize}",
-        "startVerify": "バッテリーレスセーブ検証開始",
-        "verifying": "バッテリーレスセーブ検証中 ({progress}%)",
-        "verifySuccess": "バッテリーレスセーブ検証成功",
-        "verifyFailed": "バッテリーレスセーブ検証失敗"
-      }
+        "startVerify": "バッテリーレスRAM検証開始",
+        "verifying": "バッテリーレスRAM検証中 ({progress}%)",
+        "verifySuccess": "バッテリーレスRAM検証成功",
+        "verifyFailed": "バッテリーレスRAM検証失敗"
+      },
+      "previewSaveApplied": "プレビューRAMを更新しました：{name}（{size}）",
+      "exportFailed": "RAMファイルの書き出しに失敗しました"
     },
     "progress": {
       "writing": "処理済み: {written}/{total} バイト",
@@ -885,10 +907,10 @@
       "gameRomLoadFailed": "ゲームROM {name} の読み込みに失敗しました: {error}",
       "bgImageLoaded": "背景画像が読み込まれました: {name}",
       "bgImageLoadFailed": "背景画像 {name} の読み込みに失敗しました: {status}",
-      "saveFileLoaded": "セーブファイルが読み込まれました: {name}",
-      "saveFileLoadFailed": "セーブファイル {name} の読み込みに失敗しました: {error}",
+      "saveFileLoaded": "RAMファイルが読み込まれました：{name}",
+      "saveFileLoadFailed": "RAMファイル {name} の読み込みに失敗しました：{error}",
       "gameRomRemoved": "ゲームROMが削除されました: {name}",
-      "saveFileRemoved": "セーブファイルが削除されました: {name}",
+      "saveFileRemoved": "RAMファイルを削除しました：{name}",
       "gameReordered": "ゲームROMの順序が変更されました",
       "buildStarted": "ROM構築を開始しています...",
       "configReady": "設定準備完了、構築を開始します...",

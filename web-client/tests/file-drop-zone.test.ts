@@ -3,15 +3,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import FileDropZone from '@/components/common/FileDropZone.vue';
 
-const { readFileMock, showToastMock } = vi.hoisted(() => ({
+const { readFileMock, saveFileMock, showToastMock } = vi.hoisted(() => ({
   readFileMock: vi.fn(),
+  saveFileMock: vi.fn(),
   showToastMock: vi.fn(),
 }));
 
 vi.mock('@/utils/file-io', () => ({
-  downloadBlob: vi.fn(),
   readFileAsArrayBuffer: readFileMock,
 }));
+
+vi.mock('@/platform/native', () => ({ saveBinaryFile: saveFileMock }));
 
 vi.mock('@/composables/useToast', () => ({
   useToast: () => ({ showToast: showToastMock }),
@@ -44,11 +46,46 @@ async function selectFiles(wrapper: ReturnType<typeof mountDropZone>, files: Fil
   await flushPromises();
 }
 
-describe('FileDropZone read failures', () => {
+describe('FileDropZone', () => {
   beforeEach(() => {
     readFileMock.mockReset();
+    saveFileMock.mockReset().mockResolvedValue({ saved: true });
     showToastMock.mockReset();
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  });
+
+  it('downloads the current file through the platform facade using an owned exact-range copy', async () => {
+    const source = new Uint8Array([9, 1, 2, 8]);
+    const wrapper = mountDropZone(false, source.subarray(1, 3));
+    await wrapper.get('.download-file-btn').trigger('click');
+    await flushPromises();
+
+    expect(saveFileMock).toHaveBeenCalledWith(new Uint8Array([1, 2]), 'existing.bin');
+    const downloaded = saveFileMock.mock.calls[0][0] as Uint8Array;
+    downloaded[0] = 7;
+    expect(source).toEqual(new Uint8Array([9, 1, 2, 8]));
+    expect(wrapper.emitted('file-cleared')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('retains the current file when a download is cancelled or fails', async () => {
+    const bytes = new Uint8Array([1, 2]);
+    const wrapper = mountDropZone(false, bytes);
+    saveFileMock.mockResolvedValueOnce({ saved: false });
+    await wrapper.get('.download-file-btn').trigger('click');
+    await flushPromises();
+    expect(showToastMock).not.toHaveBeenCalled();
+
+    saveFileMock.mockRejectedValueOnce(new Error('write failed'));
+    await wrapper.get('.download-file-btn').trigger('click');
+    await flushPromises();
+    expect(showToastMock).toHaveBeenCalledWith('ui.file.downloadFailed:{"name":"existing.bin"}', 'error');
+    expect(wrapper.props('fileData')).toEqual(bytes);
+    expect(wrapper.emitted('file-cleared')).toBeUndefined();
+    await wrapper.setProps({ disabled: true });
+    await wrapper.get('.download-file-btn').trigger('click');
+    expect(saveFileMock).toHaveBeenCalledTimes(2);
+    wrapper.unmount();
   });
 
   it('reports a single-file failure without replacing the existing file', async () => {

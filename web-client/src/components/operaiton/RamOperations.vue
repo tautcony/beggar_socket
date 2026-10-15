@@ -75,7 +75,7 @@
       </div>
       <div class="ram-content">
         <FileDropZone
-          :disabled="!deviceReady || busy"
+          :disabled="busy"
           :file-data="ramFileData"
           :file-name="ramFileName"
           accept-types=".sav,.ram"

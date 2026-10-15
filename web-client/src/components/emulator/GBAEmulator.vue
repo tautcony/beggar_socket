@@ -13,6 +13,7 @@
           <BaseButton
             variant="secondary"
             size="sm"
+            :disabled="exportInProgress"
             :icon="isPaused ? play : pause"
             icon-only
             :title="$t('ui.emulator.pause')"
@@ -21,14 +22,23 @@
           <BaseButton
             variant="warning"
             size="sm"
+            :disabled="exportInProgress"
             :icon="refresh"
             icon-only
             :title="$t('ui.emulator.reset')"
             @click="resetGame"
           />
           <BaseButton
+            variant="secondary"
+            size="sm"
+            :text="$t('ui.emulator.exportSave')"
+            :disabled="!latestCheckpoint || exportInProgress"
+            @click="exportSave"
+          />
+          <BaseButton
             variant="error"
             size="sm"
+            :disabled="exportInProgress"
             :icon="close"
             icon-only
             :title="$t('ui.emulator.close')"
@@ -54,6 +64,12 @@
             variant="primary"
             :text="$t('ui.emulator.retry')"
             @click="retryInitialization"
+          />
+          <BaseButton
+            v-if="launch?.saveData && !skipSelectedSave"
+            variant="secondary"
+            :text="$t('ui.emulator.startWithoutSave')"
+            @click="startWithoutSelectedSave"
           />
         </div>
         <canvas
@@ -87,11 +103,17 @@
 import { IonIcon } from '@ionic/vue';
 import { Wrapper } from 'gbats';
 import { close, pause, play, refresh, warning } from 'ionicons/icons';
-import { nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
+import { nextTick, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import BaseButton from '@/components/common/BaseButton.vue';
+import { attachSettledSaveListener, captureGbaSave, copyBytes, type GbaSaveCore, importGbaSave, inspectGbaSave, isGbaSaveSettled, type SaveCheckpoint } from '@/components/emulator/gba-save-bridge';
+import { applyGbatsArmCompatibility } from '@/components/emulator/gbats-arm-compat';
+import type { GbaPreviewLaunch } from '@/components/operaiton/contracts';
 import { useToast } from '@/composables/useToast';
+import type { GbaPreviewSavePayload } from '@/features/gba-save/types';
+import { saveBinaryFile } from '@/platform/native';
+import { isTauriRuntime } from '@/platform/runtime';
 
 const { t } = useI18n();
 const { showToast } = useToast();
@@ -100,19 +122,37 @@ const props = defineProps<{
   isVisible: boolean;
   romData: Uint8Array | null;
   romName: string;
+  launch?: GbaPreviewLaunch | null;
 }>();
 
 const emit = defineEmits<{
-  close: [];
+  close: [sessionId?: string];
+  'save-checkpoint': [payload: GbaPreviewSavePayload];
+  'save-result': [payload: GbaPreviewSavePayload];
+  'save-use-changed': [sessionId: string];
 }>();
 
 const gameCanvas = useTemplateRef<HTMLCanvasElement>('gameCanvas');
-const gba = ref<Wrapper | null>(null);
+const gba = shallowRef<Wrapper | null>(null);
+const heldInputs = new Map<string, number>();
 const isPaused = ref(false);
 const hasError = ref(false);
 const errorMessage = ref('');
 const crashCount = ref(0);
 const isInitializing = ref(false);
+const latestCheckpoint = ref<SaveCheckpoint | null>(null);
+const skipSelectedSave = ref(false);
+
+let bridgeDisposer: (() => void) | null = null;
+let coreGeneration = 0;
+let importedCapacity: number | undefined;
+let initialBytes: Uint8Array | null = null;
+let closing = false;
+let sessionOverride: Uint8Array | null = null;
+let resultDelivered = false;
+let activeSaveLaunch: GbaPreviewSavePayload['launch'] | null = null;
+const exportInProgress = ref(false);
+let unmounted = false;
 
 interface GbaAudio {
   context: AudioContext | null;
@@ -185,6 +225,7 @@ registerProcessor('gba-audio-processor', GbaAudioProcessor);
 
 let audioPumpTimer: ReturnType<typeof setInterval> | null = null;
 let audioSetupToken = 0;
+let exportToken = 0;
 
 const keyBindings: Record<string, number> = {
   'KeyW': 6, // UP
@@ -206,7 +247,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  cleanup();
+  cleanup(true);
 });
 
 watch(() => props.isVisible, async (newVisible) => {
@@ -218,7 +259,10 @@ watch(() => props.isVisible, async (newVisible) => {
   }
 });
 
-watch(() => props.romData, async (newRomData) => {
+watch(() => [props.romData, props.launch?.sessionId] as const, async ([newRomData], [oldRomData, oldSessionId]) => {
+  if ((newRomData !== oldRomData || props.launch?.sessionId !== oldSessionId) && gba.value) {
+    finishSessionBeforeReplacement();
+  }
   if (newRomData && props.isVisible) {
     await nextTick();
     initializeEmulator();
@@ -232,6 +276,18 @@ function initializeEmulator() {
   }
 
   try {
+    if (!gba.value) resultDelivered = false;
+    if (props.launch && activeSaveLaunch?.sessionId !== props.launch.sessionId) {
+      activeSaveLaunch = {
+        sessionId: props.launch.sessionId,
+        romName: props.launch.romName,
+        romRevision: props.launch.romRevision,
+        ramRevision: props.launch.ramRevision,
+        saveName: props.launch.saveName,
+        usesSelectedSave: props.launch.usesSelectedSave,
+        ramWasEmptyAtLaunch: props.launch.ramWasEmptyAtLaunch,
+      };
+    }
     isInitializing.value = true;
     hasError.value = false;
     errorMessage.value = '';
@@ -244,27 +300,73 @@ function initializeEmulator() {
       throw new Error(t('ui.emulator.errors.romDataNotProvided'));
     }
 
-    // 检查ROM数据有效性
-    if (props.romData.length < 1024) {
+    const inputRom = props.launch?.romData ?? props.romData;
+    if (!inputRom || inputRom.length < 1024) {
       throw new Error(t('ui.emulator.errors.romTooSmall'));
     }
 
-    cleanup();
+    disposeCore();
 
     // 检查浏览器兼容性
     if (!window.WebAssembly) {
       throw new Error(t('ui.emulator.errors.webAssemblyNotSupported'));
     }
 
-    // 根据官方例子初始化 gbats Wrapper
+    const ownedRom = copyBytes(inputRom);
     gba.value = new Wrapper({
-      rom: props.romData.buffer as ArrayBuffer,
+      rom: ownedRom.buffer as ArrayBuffer,
       canvas: gameCanvas.value,
     });
 
     if (!gba.value) {
       throw new Error(t('ui.emulator.errors.createInstanceFailed'));
     }
+
+    // Wrapper starts scheduling from its constructor; pause it synchronously
+    // before applying core compatibility or preparing any save data.
+    gba.value.emulator.pause();
+    applyGbatsArmCompatibility(gba.value.emulator);
+    const core = gba.value.emulator as unknown as GbaSaveCore;
+    const descriptor = inspectGbaSave(core);
+    const selectedSave = sessionOverride ?? (skipSelectedSave.value ? null : props.launch?.saveData ?? null);
+    if (selectedSave) {
+      if (!descriptor) throw new Error(t('ui.emulator.errors.unknownSaveType'));
+      const imported = importGbaSave(core, selectedSave);
+      importedCapacity = imported.descriptor.capacity;
+      initialBytes ??= copyBytes(imported.baseline ?? imported.data);
+      rememberSaveCheckpoint(imported);
+    } else if (descriptor && !initialBytes) {
+      try {
+        const initial = captureGbaSave(core);
+        initialBytes = copyBytes(initial.baseline ?? initial.data);
+        rememberSaveCheckpoint(initial);
+      } catch {
+        // EEPROM capacity is unknown until the game's first DMA access.
+      }
+    }
+
+    const generation = ++coreGeneration;
+    bridgeDisposer = descriptor ? attachSettledSaveListener(
+      core,
+      () => generation === coreGeneration,
+      () => importedCapacity,
+      checkpoint => {
+        rememberSaveCheckpoint(checkpoint);
+        const baseline = initialBytes;
+        const changed = baseline ? !bytesEqual(checkpoint.data, baseline) : checkpoint.data.some(byte => byte !== 0);
+        emitSavePayload('save-checkpoint', checkpoint.data, checkpoint.descriptor.capacity, changed);
+      },
+      error => {
+        releaseHeldInputs();
+        gba.value?.emulator.pause();
+        isPaused.value = true;
+        hasError.value = true;
+        errorMessage.value = `${t('ui.emulator.errors.saveConflict')}: ${error.message}`;
+        if (latestCheckpoint.value) {
+          emitSavePayload('save-checkpoint', latestCheckpoint.value.data, latestCheckpoint.value.descriptor.capacity, initialBytes ? !bytesEqual(latestCheckpoint.value.data, initialBytes) : true);
+        }
+      },
+    ) : null;
 
     // 设置错误处理器
     setupErrorHandling();
@@ -279,9 +381,15 @@ function initializeEmulator() {
     // 绑定键盘事件
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleInputFocusLoss);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // 重置错误计数
     crashCount.value = 0;
+
+    if (!isPaused.value && !hasError.value) {
+      gba.value.emulator.runStable();
+    }
 
     showToast(t('ui.emulator.loaded'), 'success');
   } catch (error) {
@@ -289,6 +397,7 @@ function initializeEmulator() {
 
     crashCount.value++;
     hasError.value = true;
+    disposeCore();
 
     if (error instanceof Error) {
       errorMessage.value = error.message;
@@ -307,12 +416,63 @@ function initializeEmulator() {
   }
 }
 
+function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) return false;
+  }
+  return true;
+}
+
+function emitSavePayload(
+  event: 'save-checkpoint' | 'save-result',
+  data: Uint8Array,
+  capacity: number,
+  changed: boolean,
+  reason?: string,
+) {
+  if (!activeSaveLaunch) return;
+  const payload: GbaPreviewSavePayload = {
+    launch: { ...activeSaveLaunch },
+    data: copyBytes(data),
+    capacity,
+    changed,
+    ...(reason ? { reason } : {}),
+  };
+  if (event === 'save-checkpoint') emit('save-checkpoint', payload);
+  else emit('save-result', payload);
+}
+
+function rememberSaveCheckpoint(checkpoint: SaveCheckpoint) {
+  if (checkpoint.baseline) {
+    if (!initialBytes) {
+      initialBytes = copyBytes(checkpoint.baseline);
+    } else if (checkpoint.baseline.byteLength > initialBytes.byteLength) {
+      const expandedBaseline = new Uint8Array(checkpoint.baseline.byteLength);
+      expandedBaseline.set(initialBytes);
+      expandedBaseline.set(checkpoint.baseline.subarray(initialBytes.byteLength), initialBytes.byteLength);
+      initialBytes = expandedBaseline;
+    }
+  }
+  latestCheckpoint.value = { descriptor: checkpoint.descriptor, data: copyBytes(checkpoint.data) };
+}
+
 function setupErrorHandling() {
-  if (!gba.value) return;
+  const wrapper = gba.value;
+  if (!wrapper) return;
+  const core = wrapper.emulator;
 
   try {
-    gba.value.emulator.setLogger((level: number, error: string) => {
-      handleEmulatorError(level, error);
+    core.setLogger((level: number, error: string) => {
+      if (gba.value !== wrapper || wrapper.emulator !== core) return;
+
+      if (level > 0 && (level & core.LOG_ERROR) !== 0) {
+        handleEmulatorError(level, error);
+      } else if (level > 0 && (level & core.LOG_WARN) !== 0) {
+        console.warn('GBA emulator warning:', error);
+      } else {
+        console.debug('GBA emulator log:', error);
+      }
     });
   } catch (error) {
     console.warn('Could not set up error handling:', error);
@@ -451,6 +611,7 @@ function resumeAudio() {
 
 function handleEmulatorError(level: number, error: string) {
   console.error('Emulator error:', error);
+  releaseHeldInputs();
 
   if (gba.value) {
     gba.value?.emulator.pause();
@@ -468,48 +629,92 @@ function handleEmulatorError(level: number, error: string) {
   showToast(t('ui.emulator.errors.crashed'), 'error');
 }
 
-function retryInitialization() {
+async function retryInitialization() {
   if (crashCount.value > 3) {
     showToast(t('ui.emulator.errors.tooManyRetries'), 'error');
     return;
   }
 
+  sessionOverride = latestCheckpoint.value ? copyBytes(latestCheckpoint.value.data) : null;
+  hasError.value = false;
+  await nextTick();
+  initializeEmulator();
+}
+
+async function startWithoutSelectedSave() {
+  skipSelectedSave.value = true;
+  sessionOverride = null;
+  importedCapacity = undefined;
+  initialBytes = null;
+  latestCheckpoint.value = null;
+  if (activeSaveLaunch) {
+    activeSaveLaunch = { ...activeSaveLaunch, saveName: undefined, usesSelectedSave: false };
+    emit('save-use-changed', activeSaveLaunch.sessionId);
+  }
+  hasError.value = false;
+  await nextTick();
   initializeEmulator();
 }
 
 function handleKeyDown(event: KeyboardEvent) {
-  if (!gba.value || hasError.value) return;
-
-  resumeAudio();
-
   const gamepadKey = keyBindings[event.code];
-  if (gamepadKey !== undefined) {
-    event.preventDefault();
-    try {
-      gba.value.press(gamepadKey);
-    } catch (e) {
-      console.error('Error pressing key:', e);
-      handleEmulatorError(1, t('ui.emulator.errors.keyPressError', { error: e instanceof Error ? e.message : String(e) }));
-    }
+  if (gamepadKey === undefined) return;
+  event.preventDefault();
+  if (event.repeat || heldInputs.has(event.code) || !canAcceptGameInput()) return;
+
+  try {
+    const wrapper = gba.value;
+    if (!wrapper) return;
+    wrapper.emulator.keypad.currentDown &= ~(1 << gamepadKey);
+    heldInputs.set(event.code, gamepadKey);
+    resumeAudio();
+  } catch (error) {
+    console.error('Error pressing key:', error);
+    handleEmulatorError(1, t('ui.emulator.errors.keyPressError', { error: error instanceof Error ? error.message : String(error) }));
   }
 }
 
 function handleKeyUp(event: KeyboardEvent) {
-  if (!gba.value || hasError.value) return;
-
   const gamepadKey = keyBindings[event.code];
-  if (gamepadKey !== undefined) {
-    event.preventDefault();
-    try {
-      // gbats 的 Wrapper 会自动处理按键释放
-      // 不需要手动调用释放函数
-    } catch (error) {
-      console.error('Error releasing key:', error);
-    }
+  if (gamepadKey === undefined) return;
+  event.preventDefault();
+  releaseHeldInput(event.code);
+}
+
+function canAcceptGameInput(): boolean {
+  return props.isVisible && Boolean(gba.value) && !isInitializing.value && !isPaused.value
+    && !gba.value?.emulator.paused && !hasError.value && !exportInProgress.value && !closing;
+}
+
+function releaseHeldInput(code: string) {
+  const gamepadKey = heldInputs.get(code);
+  if (gamepadKey === undefined) return;
+  heldInputs.delete(code);
+
+  if (![...heldInputs.values()].includes(gamepadKey)) {
+    const keypad = gba.value?.emulator.keypad;
+    if (keypad) keypad.currentDown |= 1 << gamepadKey;
   }
 }
 
+function releaseHeldInputs() {
+  for (const gamepadKey of new Set(heldInputs.values())) {
+    const keypad = gba.value?.emulator.keypad;
+    if (keypad) keypad.currentDown |= 1 << gamepadKey;
+  }
+  heldInputs.clear();
+}
+
+function handleInputFocusLoss() {
+  releaseHeldInputs();
+}
+
+function handleVisibilityChange() {
+  if (document.visibilityState === 'hidden') releaseHeldInputs();
+}
+
 function togglePause() {
+  if (exportInProgress.value) return;
   if (!gba.value || hasError.value) return;
 
   try {
@@ -521,6 +726,7 @@ function togglePause() {
       showToast(t('ui.emulator.resumed'), 'success');
     } else {
       // 暂停
+      releaseHeldInputs();
       gba.value.emulator.pause();
       isPaused.value = true;
       showToast(t('ui.emulator.paused'), 'success');
@@ -533,20 +739,24 @@ function togglePause() {
 
 function resetGame() {
   if (!gba.value) return;
+  if (exportInProgress.value) return;
 
   try {
-    // 使用 Wrapper 的 resetEmulator 方法
-    gba.value.pause();
-    teardownAudio();
-    gba.value.resetEmulator();
-
-    // 重置后重新设置错误处理器，因为resetEmulator可能会清除logger
-    setupErrorHandling();
-    void setupAudio();
-
-    isPaused.value = false;
+    const restorePaused = isPaused.value;
+    releaseHeldInputs();
+    gba.value.emulator.pause();
+    try {
+      const checkpoint = captureGbaSave(gba.value.emulator, importedCapacity);
+      rememberSaveCheckpoint(checkpoint);
+    } catch {
+      // A pending protocol command cannot replace the last valid checkpoint.
+    }
+    sessionOverride = latestCheckpoint.value ? copyBytes(latestCheckpoint.value.data) : null;
+    disposeCore();
     hasError.value = false;
     errorMessage.value = '';
+    isPaused.value = restorePaused;
+    initializeEmulator();
     showToast(t('ui.emulator.reset'), 'success');
   } catch (e) {
     console.error('Failed to reset game:', e);
@@ -555,25 +765,126 @@ function resetGame() {
   }
 }
 
-function closeEmulator() {
-  cleanup();
-  emit('close');
+async function closeEmulator() {
+  if (closing) return;
+  if (exportInProgress.value) return;
+  closing = true;
+  releaseHeldInputs();
+  const closingCore = gba.value?.emulator as unknown as GbaSaveCore | undefined;
+  const closingGeneration = coreGeneration;
+  const wasRunning = Boolean(gba.value && !isPaused.value && !hasError.value);
+  if (closingCore && wasRunning) {
+    const deadline = Date.now() + 500;
+    while (Date.now() < deadline && coreGeneration === closingGeneration
+      && gba.value?.emulator === closingCore && !coreIsSettled()) {
+      await new Promise(resolve => setTimeout(resolve, 16));
+    }
+  }
+
+  if (unmounted || coreGeneration !== closingGeneration) {
+    closing = false;
+    return;
+  }
+
+  const core = gba.value?.emulator as unknown as GbaSaveCore | undefined;
+  let checkpoint = latestCheckpoint.value;
+  let reason: string | undefined;
+  if (core && !hasError.value) {
+    core.pause();
+    try {
+      const captured = captureGbaSave(core, importedCapacity);
+      rememberSaveCheckpoint(captured);
+      checkpoint = latestCheckpoint.value;
+    } catch (error) {
+      reason = error instanceof Error ? error.message : String(error);
+      if (!isGbaSaveSettled(core)) {
+        if (wasRunning) core.runStable();
+        closing = false;
+        showToast(t('ui.emulator.errors.savePendingClose'), 'info');
+        return;
+      }
+      checkpoint = null;
+    }
+  } else if (hasError.value) {
+    reason = t('ui.emulator.errors.lastCheckpointOnly');
+  }
+
+  if (checkpoint) {
+    const changed = initialBytes ? !bytesEqual(checkpoint.data, initialBytes) : checkpoint.data.some(byte => byte !== 0);
+    emitSavePayload('save-result', checkpoint.data, checkpoint.descriptor.capacity, changed, reason);
+    resultDelivered = true;
+  }
+  disposeCore();
+  emit('close', activeSaveLaunch?.sessionId);
+  closing = false;
 }
 
-function cleanup() {
+function coreIsSettled(): boolean {
+  const core = gba.value?.emulator as unknown as GbaSaveCore | undefined;
+  return !core || isGbaSaveSettled(core);
+}
+
+async function exportSave() {
+  if (!latestCheckpoint.value || exportInProgress.value) return;
+  exportInProgress.value = true;
+  releaseHeldInputs();
+  const exportingWrapper = gba.value;
+  const exportingCore = exportingWrapper?.emulator;
+  const exportingGeneration = coreGeneration;
+  const currentExportToken = ++exportToken;
+  const wasPaused = isPaused.value;
+  exportingCore?.pause();
+  try {
+    const core = exportingCore as unknown as GbaSaveCore | undefined;
+    if (core && isGbaSaveSettled(core)) {
+      try {
+        const stable = captureGbaSave(core, importedCapacity);
+        rememberSaveCheckpoint(stable);
+      } catch {
+        // Unknown EEPROM capacity keeps the previous valid checkpoint usable.
+      }
+    } else if (core) {
+      showToast(t('ui.emulator.errors.exportingLastCheckpoint'), 'info');
+    }
+    const filename = props.launch?.usesSelectedSave && props.launch.saveName
+      ? props.launch.saveName
+      : `${props.romName.replace(/\.[^.]*$/, '')}.sav`;
+    const result = await saveBinaryFile(copyBytes(latestCheckpoint.value.data), filename);
+    if (result.saved) {
+      showToast(isTauriRuntime()
+        ? t('ui.emulator.exportSaved', { name: result.path ?? filename })
+        : t('ui.emulator.exportStarted', { name: filename }), 'success');
+    } else {
+      showToast(t('messages.operation.cancelled'), 'info');
+    }
+  } catch (error) {
+    showToast(`${t('ui.emulator.errors.exportFailed')}: ${error instanceof Error ? error.message : String(error)}`, 'error');
+  } finally {
+    if (currentExportToken === exportToken) exportInProgress.value = false;
+    if (gba.value === exportingWrapper && coreGeneration === exportingGeneration
+      && exportingWrapper?.emulator === exportingCore) {
+      if (!wasPaused && !hasError.value) exportingCore?.runStable();
+    }
+  }
+}
+
+function disposeCore() {
+  coreGeneration += 1;
+  releaseHeldInputs();
+  bridgeDisposer?.();
+  bridgeDisposer = null;
   // 移除键盘事件监听器
   document.removeEventListener('keydown', handleKeyDown);
   document.removeEventListener('keyup', handleKeyUp);
+  window.removeEventListener('blur', handleInputFocusLoss);
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
 
   // 停止模拟器
   if (gba.value) {
     try {
       // 先暂停，然后清理
-      if (!isPaused.value) {
-        gba.value.pause();
-      }
-
       teardownAudio();
+      gba.value.emulator.pause();
 
       // gbats Wrapper 会自动清理资源
       gba.value = null;
@@ -583,10 +894,57 @@ function cleanup() {
   }
 
   // 重置状态
-  isPaused.value = false;
+}
+
+function finishSessionBeforeReplacement() {
+  const core = gba.value?.emulator as unknown as GbaSaveCore | undefined;
+  if (core) {
+    core.pause();
+    if (isGbaSaveSettled(core)) {
+      try {
+        const stable = captureGbaSave(core, importedCapacity);
+        rememberSaveCheckpoint(stable);
+      } catch {
+        // Keep the last valid checkpoint if metadata is unresolved.
+      }
+    }
+  }
+  if (latestCheckpoint.value && !resultDelivered) {
+    const changed = initialBytes ? !bytesEqual(latestCheckpoint.value.data, initialBytes) : latestCheckpoint.value.data.some(byte => byte !== 0);
+    emitSavePayload('save-result', latestCheckpoint.value.data, latestCheckpoint.value.descriptor.capacity, changed, t('ui.emulator.errors.lastCheckpointOnly'));
+    resultDelivered = true;
+  }
+  disposeCore();
+  initialBytes = null;
+  latestCheckpoint.value = null;
+  importedCapacity = undefined;
+  sessionOverride = null;
+  skipSelectedSave.value = false;
+  resultDelivered = false;
   hasError.value = false;
-  errorMessage.value = '';
-  isInitializing.value = false;
+  isPaused.value = false;
+}
+
+function cleanup(isFinalUnmount = false) {
+  if (isFinalUnmount) unmounted = true;
+  const core = gba.value?.emulator as unknown as GbaSaveCore | undefined;
+  if (core) {
+    core.pause();
+    if (isGbaSaveSettled(core)) {
+      try {
+        const stable = captureGbaSave(core, importedCapacity);
+        rememberSaveCheckpoint(stable);
+      } catch {
+        // Keep the last valid checkpoint if save metadata is unresolved.
+      }
+    }
+  }
+  if (gba.value && !resultDelivered && latestCheckpoint.value) {
+    const changed = initialBytes ? !bytesEqual(latestCheckpoint.value.data, initialBytes) : latestCheckpoint.value.data.some(byte => byte !== 0);
+    emitSavePayload('save-result', latestCheckpoint.value.data, latestCheckpoint.value.descriptor.capacity, changed, t('ui.emulator.errors.lastCheckpointOnly'));
+    resultDelivered = true;
+  }
+  disposeCore();
 }
 </script>
 

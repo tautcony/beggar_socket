@@ -31,6 +31,22 @@
         @click="mode = 'MBC5'"
       />
     </div>
+    <section
+      v-if="pendingPreviewResult"
+      class="preview-save-recovery"
+    >
+      <p>{{ t('messages.emulator.pendingSaveRecovery', { rom: pendingPreviewResult.launch.romName, save: pendingPreviewResult.launch.saveName || defaultSaveName(pendingPreviewResult.launch.romName) }) }}</p>
+      <BaseButton
+        variant="primary"
+        :text="t('ui.emulator.exportSave')"
+        @click="exportPendingPreviewResult"
+      />
+      <BaseButton
+        variant="secondary"
+        :text="t('ui.emulator.discardSaveResult')"
+        @click="discardPendingPreviewResult"
+      />
+    </section>
     <div class="main-layout">
       <div class="content-area">
         <TransitionGroup
@@ -65,6 +81,11 @@
             :busy="busy"
             :rom-file-data="romFileData || undefined"
             :rom-file-name="romFileName"
+            :ram-file-data="ramFileData"
+            :ram-file-name="ramFileName"
+            :rom-revision="romRevision"
+            :ram-revision="ramRevision"
+            :preview-blocked="Boolean(pendingPreviewResult)"
             :selected-rom-size="selectedRomSize"
             :selected-base-address="selectedBaseAddress"
             @file-selected="onRomFileSelected"
@@ -76,6 +97,10 @@
             @rom-size-change="onRomSizeChange"
             @base-address-change="onRomBaseAddressChange"
             @mode-switch-required="onModeSwitchRequired"
+            @preview-save-checkpoint="onPreviewSaveCheckpoint"
+            @preview-save-result="onPreviewSaveResult"
+            @preview-session-started="onPreviewSessionStarted"
+            @preview-session-ended="onPreviewSessionEnded"
           />
 
           <RamOperations
@@ -124,10 +149,12 @@ import FileNameSelectorModal from '@/components/modal/FileNameSelectorModal.vue'
 import MultiCartResultModal from '@/components/modal/MultiCartResultModal.vue';
 import ProgressDisplayModal from '@/components/modal/ProgressDisplayModal.vue';
 import { ChipOperations, RamOperations, RomOperations } from '@/components/operaiton';
+import type { GbaPreviewSavePayload } from '@/components/operaiton/contracts';
 import { runWithCommandBufferReset, useCartBurnerFileState, useCartBurnerSessionState } from '@/composables/cartburner';
 import { useToast } from '@/composables/useToast';
 import { createCartridgeProtocolSession } from '@/features/burner/adapters';
 import { type BurnerProtocolSession, createBurnerFacade, type GameDetectionResult } from '@/features/burner/application';
+import { isTauriRuntime } from '@/platform/runtime';
 import { CartridgeAdapter, GBAAdapter, MBC5Adapter } from '@/services';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { useRecentFileNamesStore } from '@/stores/recent-file-names-store';
@@ -173,15 +200,19 @@ const {
 const {
   romFileData,
   romFileName,
+  romRevision,
   selectedRomSize,
   selectedBaseAddress,
   ramFileData,
   ramFileName,
+  ramRevision,
   selectedRamSize,
   selectedRamType,
   selectedRamBaseAddress,
   showFileNameSelector,
   pendingRamData,
+  pendingPreviewResult,
+  activePreviewSessionId,
   onRomFileSelected,
   onRomFileCleared,
   onRamFileSelected,
@@ -191,6 +222,11 @@ const {
   onRamBaseAddressChange,
   onRamSizeChange,
   onRamTypeChange,
+  applyPreviewSaveResult,
+  discardPendingPreviewResult,
+  activatePreviewSession,
+  endPreviewSession,
+  resetSelectedFiles,
   onFileNameSelected,
   saveAsFile,
 } = useCartBurnerFileState((message) => {
@@ -211,6 +247,7 @@ const operationTimeout = computed(() => {
 // multi-cart result modal
 const showMultiCartResultModal = ref(false);
 const multiCartResults = ref<GameDetectionResult[]>([]);
+const latestPreviewCheckpoint = ref<GbaPreviewSavePayload | null>(null);
 
 // chip props
 const chipId = ref<number[] | undefined>(undefined);
@@ -249,7 +286,7 @@ watch(mode, (newMode) => {
 // 热重载状态恢复 - 保持适配器状态和日志
 if (import.meta.hot) {
   const hot = import.meta.hot;
-  const data = hot.data as {
+  const data = (hot.data ?? {}) as {
     cartBurnerState?: {
       logs: BurnerLogEntry[];
     }
@@ -873,10 +910,7 @@ function resetState() {
   cfiInfo.value = null;
 
   // 重置文件数据
-  romFileData.value = null;
-  romFileName.value = '';
-  ramFileData.value = null;
-  ramFileName.value = '';
+  resetSelectedFiles();
 
   // 重置选择的大小为默认值
   selectedRomSize.value = '0x800000'; // 默认8MB
@@ -891,6 +925,57 @@ function resetState() {
   // 重置适配器
   gbaAdapter.value = null;
   mbc5Adapter.value = null;
+}
+
+function onPreviewSaveCheckpoint(payload: GbaPreviewSavePayload) {
+  if (activePreviewSessionId.value !== payload.launch.sessionId) return;
+  latestPreviewCheckpoint.value = { ...payload, data: new Uint8Array(payload.data) };
+}
+
+function onPreviewSaveResult(payload: GbaPreviewSavePayload) {
+  const result = applyPreviewSaveResult(payload, busy.value);
+  endPreviewSession(payload.launch.sessionId);
+  if (latestPreviewCheckpoint.value?.launch.sessionId === payload.launch.sessionId) {
+    latestPreviewCheckpoint.value = null;
+  }
+  if (result === 'retained') {
+    showToast(t('messages.emulator.pendingSaveRecovery', { rom: payload.launch.romName, save: payload.launch.saveName ?? defaultSaveName(payload.launch.romName) }), 'info');
+  }
+}
+
+function defaultSaveName(romName: string) {
+  return `${romName.replace(/\.[^.]*$/, '')}.sav`;
+}
+
+function onPreviewSessionStarted(launch: { sessionId: string }) {
+  latestPreviewCheckpoint.value = null;
+  activatePreviewSession(launch.sessionId);
+}
+
+function onPreviewSessionEnded(sessionId: string) {
+  endPreviewSession(sessionId);
+  if (latestPreviewCheckpoint.value?.launch.sessionId === sessionId) {
+    latestPreviewCheckpoint.value = null;
+  }
+}
+
+async function exportPendingPreviewResult() {
+  const result = pendingPreviewResult.value;
+  if (!result) return;
+  const name = result.launch.saveName ?? defaultSaveName(result.launch.romName);
+  try {
+    const outcome = await saveAsFile(new Uint8Array(result.data), name);
+    if (outcome.saved) {
+      showToast(isTauriRuntime()
+        ? t('ui.ram.exportSaved', { name: outcome.path ?? name })
+        : t('ui.ram.exportStarted', { name }), 'success');
+      if (pendingPreviewResult.value === result) discardPendingPreviewResult();
+    } else {
+      showToast(t('messages.operation.cancelled'), 'info');
+    }
+  } catch (error) {
+    showToast(`${t('messages.ram.exportFailed')}: ${error instanceof Error ? error.message : String(error)}`, 'error');
+  }
 }
 
 async function readRomInfo() {

@@ -365,8 +365,22 @@
         "keyPressError": "Ошибка нажатия клавиши: {error}",
         "pauseResumeError": "Ошибка паузы/возобновления: {error}",
         "resetError": "Ошибка сброса: {error}",
-        "tooManyRetries": "Слишком много попыток, обновите страницу"
-      }
+        "tooManyRetries": "Слишком много попыток, обновите страницу",
+        "unknownSaveType": "Не удалось определить тип RAM для ROM. Можно запустить игру без этой RAM.",
+        "saveConflict": "Несовпадение ёмкости или протокола RAM",
+        "savePendingClose": "Запись RAM ещё выполняется. Возобновите игру, завершите сохранение и повторите закрытие.",
+        "lastCheckpointOnly": "Используется последняя завершённая контрольная точка RAM.",
+        "exportingLastCheckpoint": "Запись RAM не завершена; экспортируется последняя контрольная точка.",
+        "exportFailed": "Не удалось экспортировать RAM"
+      },
+      "exportSave": "Экспорт RAM",
+      "startWithoutSave": "Запустить без этой RAM",
+      "discardSaveResult": "Удалить результат RAM",
+      "saveAssociationTitle": "Связь файла RAM",
+      "saveAssociationMessage": "ROM: {rom}\nRAM: {save}\nИмена различаются. Выберите, использовать ли эту RAM.",
+      "useSelectedSave": "Использовать выбранную RAM",
+      "exportStarted": "Загрузка RAM начата: {name}",
+      "exportSaved": "RAM сохранена в {name}"
     },
     "ram": {
       "title": "Операции с RAM",
@@ -390,7 +404,7 @@
       "typeSRAM": "SRAM",
       "typeFLASH": "FLASH",
       "typeFRAM": "FRAM",
-      "typeBATLESS": "Бесс батарейное сохранение",
+      "typeBATLESS": "RAM без батарейки",
       "baseAddressOptions": {
         "fullCart": "Полный картридж",
         "menu": "Меню",
@@ -401,7 +415,9 @@
       "recentFileNames": "Недавно использованные ROM-файлы (нажмите, чтобы выбрать соответствующее имя .sav файла)",
       "enterFileName": "Введите имя файла...",
       "resetToDefault": "Сбросить к имени по умолчанию",
-      "download": "Скачать"
+      "download": "Скачать",
+      "exportStarted": "Загрузка начата: {name}",
+      "exportSaved": "Файл RAM сохранён в {name}"
     },
     "tools": {
       "title": "Инструменты картриджа",
@@ -460,7 +476,9 @@
       "selected": "Выбран файл: {name}",
       "cleared": "Выбор файла очищен",
       "readFailed": "Не удалось прочитать файл: {name}",
-      "readFailedCount": "Не удалось прочитать файлов: {count}"
+      "readFailedCount": "Не удалось прочитать файлов: {count}",
+      "download": "Скачать файл",
+      "downloadFailed": "Не удалось скачать файл: {name}"
     },
     "log": {
       "title": "Журнал",
@@ -590,15 +608,15 @@
       "dropGameRoms": "Перетащите ROM-файлы игр сюда",
       "backgroundImage": "Фоновое изображение",
       "dropBgImage": "Перетащите фоновое изображение сюда",
-      "saveFiles": "Файлы сохранений",
-      "dropSaveFiles": "Перетащите файлы сохранений сюда",
+      "saveFiles": "Файлы RAM",
+      "dropSaveFiles": "Перетащите файлы RAM сюда",
       "configuration": "Конфигурация",
       "basicSettings": "Основные настройки",
       "fileSettings": "Настройки файлов",
       "configureGame": "Настроить игру",
       "gameTitle": "Название игры",
       "titleFont": "Шрифт заголовка",
-      "saveSlot": "Слот сохранения",
+      "saveSlot": "Слот RAM",
       "enabled": "Включено",
       "cartridgeType": "Тип картриджа",
       "batterySupport": "Поддержка батареи",
@@ -645,9 +663,9 @@
       "startWriteRAM": "Начало записи RAM - размер данных: {fileSize} байт, базовый адрес: {baseAddress}",
       "startReadRAM": "Начало чтения RAM - размер: {size} байт, базовый адрес: {baseAddress}",
       "startVerifyRAM": "Начало проверки RAM - размер данных: {fileSize} байт, базовый адрес: {baseAddress}",
-      "startWriteBatterylessSave": "Начало записи бесс батарейного сохранения - размер данных: {fileSize} байт, базовый адрес: {baseAddress}",
-      "startReadBatterylessSave": "Начало чтения бесс батарейного сохранения - базовый адрес: {baseAddress}",
-      "startVerifyBatterylessSave": "Начало проверки бесс батарейного сохранения - размер данных: {fileSize} байт, базовый адрес: {baseAddress}",
+      "startWriteBatterylessSave": "Начало записи RAM без батарейки - размер данных: {fileSize} байт, базовый адрес: {baseAddress}",
+      "startReadBatterylessSave": "Начало чтения RAM без батарейки - базовый адрес: {baseAddress}",
+      "startVerifyBatterylessSave": "Начало проверки RAM без батарейки - размер данных: {fileSize} байт, базовый адрес: {baseAddress}",
       "getCartInfoFailed": "Не удалось получить информацию о картридже",
       "startGetCartInfo": "Начало получения информации о картридже",
       "detectedMbcType": "Обнаружен тип маппера {type}",
@@ -727,7 +745,9 @@
     "emulator": {
       "launched": "Запущен предварительный просмотр эмулятора: {name}",
       "closed": "Эмулятор закрыт",
-      "unsupportedRom": "Неподдерживаемый формат ROM-файла"
+      "unsupportedRom": "Неподдерживаемый формат ROM-файла",
+      "resolveSaveResultFirst": "Перед запуском другого предпросмотра экспортируйте или удалите ожидающую RAM предпросмотра.",
+      "pendingSaveRecovery": "Данные RAM для {rom} сохранены для восстановления (связанный файл: {save})."
     },
     "romAssembly": {
       "fileTooLarge": "Файл {name} слишком большой, не помещается ни в один слот",
@@ -774,28 +794,30 @@
         "eraseComplete": "Стирание завершено"
       },
       "batteryless": {
-        "found": "Найдено бесс батарейное сохранение - смещение: {offset}, размер: {size}",
-        "notFound": "Бесс батарейное сохранение не найдено",
-        "searchFailed": "Ошибка поиска бесс батарейного сохранения",
-        "info": "Информация о бесс батарейном сохранении - смещение: {offset}, размер: {size}",
-        "erase": "Стирание области бесс батарейного сохранения {startAddress} - {endAddress}",
-        "startWrite": "Начало записи бесс батарейного сохранения",
-        "writing": "Запись бесс батарейного сохранения ({progress}%)",
-        "writeComplete": "Запись бесс батарейного сохранения завершена",
-        "writeSuccess": "Запись бесс батарейного сохранения успешна",
-        "writeFailed": "Ошибка записи бесс батарейного сохранения",
+        "found": "Найдено RAM без батарейки - смещение: {offset}, размер: {size}",
+        "notFound": "RAM без батарейки не найдено",
+        "searchFailed": "Ошибка поиска RAM без батарейки",
+        "info": "Информация о RAM без батарейки - смещение: {offset}, размер: {size}",
+        "erase": "Стирание области RAM без батарейки {startAddress} - {endAddress}",
+        "startWrite": "Начало записи RAM без батарейки",
+        "writing": "Запись RAM без батарейки ({progress}%)",
+        "writeComplete": "Запись RAM без батарейки завершена",
+        "writeSuccess": "Запись RAM без батарейки успешна",
+        "writeFailed": "Ошибка записи RAM без батарейки",
         "writeSummary": "Статистика записи - общее время: {totalTime}, средняя скорость: {avgSpeed}, максимальная скорость: {maxSpeed}, общий размер: {totalSize}",
-        "startRead": "Начало чтения бесс батарейного сохранения",
-        "reading": "Чтение бесс батарейного сохранения ({progress}%)",
-        "readComplete": "Чтение бесс батарейного сохранения завершено, размер: {size}",
-        "readSuccess": "Чтение бесс батарейного сохранения успешно, размер: {size}",
-        "readFailed": "Ошибка чтения бесс батарейного сохранения",
+        "startRead": "Начало чтения RAM без батарейки",
+        "reading": "Чтение RAM без батарейки ({progress}%)",
+        "readComplete": "Чтение RAM без батарейки завершено, размер: {size}",
+        "readSuccess": "Чтение RAM без батарейки успешно, размер: {size}",
+        "readFailed": "Ошибка чтения RAM без батарейки",
         "readSummary": "Статистика чтения - общее время: {totalTime}, средняя скорость: {avgSpeed}, максимальная скорость: {maxSpeed}, общий размер: {totalSize}",
-        "startVerify": "Начало проверки бесс батарейного сохранения",
-        "verifying": "Проверка бесс батарейного сохранения ({progress}%)",
-        "verifySuccess": "Проверка бесс батарейного сохранения успешна",
-        "verifyFailed": "Ошибка проверки бесс батарейного сохранения"
-      }
+        "startVerify": "Начало проверки RAM без батарейки",
+        "verifying": "Проверка RAM без батарейки ({progress}%)",
+        "verifySuccess": "Проверка RAM без батарейки успешна",
+        "verifyFailed": "Ошибка проверки RAM без батарейки"
+      },
+      "previewSaveApplied": "RAM предпросмотра обновлена: {name} ({size})",
+      "exportFailed": "Не удалось экспортировать файл RAM"
     },
     "progress": {
       "writing": "Обработано: {written}/{total} байт",
@@ -883,10 +905,10 @@
       "gameRomLoadFailed": "Ошибка загрузки ROM игры {name}: {error}",
       "bgImageLoaded": "Фоновое изображение загружено: {name}",
       "bgImageLoadFailed": "Ошибка загрузки фонового изображения {name}: {status}",
-      "saveFileLoaded": "Файл сохранения загружен: {name}",
-      "saveFileLoadFailed": "Ошибка загрузки файла сохранения {name}: {error}",
+      "saveFileLoaded": "Файл RAM загружен: {name}",
+      "saveFileLoadFailed": "Ошибка загрузки файла RAM {name}: {error}",
       "gameRomRemoved": "ROM игры удален: {name}",
-      "saveFileRemoved": "Файл сохранения удален: {name}",
+      "saveFileRemoved": "Файл RAM удалён: {name}",
       "gameReordered": "Порядок ROM игр изменен",
       "buildStarted": "Начало сборки ROM...",
       "configReady": "Конфигурация готова, начало сборки...",

@@ -1,6 +1,8 @@
 # beggar_socket
 A lightweight gba cartridge burner, with limited functionality
 
+The web GBA preview accepts any non-empty raw SAV length independently of the ROM's native SRAM, Flash, or EEPROM window. It imports the addressable prefix and preserves the full image, including trailing bytes, through checkpoints, RAM writeback, export, and reload. See [the web client README](web-client/README.md) and [ROM regression guide](web-client/scripts/README-gba-rom.md).
+
 # pcb和原理图
 
 [sch_pcb](https://oshwhub.com/linscon/beggar_socket)
