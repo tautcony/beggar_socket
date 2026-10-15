@@ -33,7 +33,10 @@ export const STC_FIRMWARE_PROFILE: FirmwareProfile = {
   id: 'stc',
   label: '碳酸丐',
   capabilities: {
-    gbaSectorErase: false,
+    // GBA 扇区擦除通过 rom_write(0xf5) 透传解锁序列 + rom_read(0xf6) 轮询实现
+    // （rom_erase_sector），不依赖碳酸丐固件未实现的专用命令 0xf3；
+    // C# 客户端在碳酸丐上就是用同一套透传序列擦除的。
+    gbaSectorErase: true,
     gbaFramRam: false,
     gbcFramRam: true,
     cartPowerControl: true,

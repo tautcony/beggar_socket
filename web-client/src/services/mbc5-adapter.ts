@@ -147,52 +147,6 @@ export class MBC5Adapter extends CartridgeAdapter {
     return error instanceof Error ? error.message : String(error);
   }
 
-  private buildRomSampleOffsets(logicalAddress: number, regionSize: number, sampleSize: number): number[] {
-    if (regionSize <= 0 || sampleSize <= 0) {
-      return [];
-    }
-
-    const maxOffset = Math.max(0, regionSize - sampleSize);
-    const sampleSlots = maxOffset + 1;
-    const sampleCount = Math.min(MBC5Adapter.ROM_WRITE_SAMPLE_COUNT, sampleSlots);
-    const offsets = new Set<number>([0, maxOffset]);
-
-    while (offsets.size < sampleCount) {
-      offsets.add(Math.floor(Math.random() * sampleSlots));
-    }
-
-    return [...offsets].sort((a, b) => a - b);
-  }
-
-  private async sampleRomRegionBlank(
-    logicalAddress: number,
-    regionSize: number,
-    mbcType: MbcType,
-  ): Promise<boolean> {
-    const sampleSize = Math.min(MBC5Adapter.ROM_WRITE_SAMPLE_BYTES, regionSize);
-    const sampleOffsets = this.buildRomSampleOffsets(logicalAddress, regionSize, sampleSize);
-
-    for (const offset of sampleOffsets) {
-      const sampleAddress = logicalAddress + offset;
-      const { bank, cartAddress } = this.romBankRelevantAddress(sampleAddress, mbcType);
-      const bankWindowRemaining = 0x4000 - (sampleAddress & 0x3fff);
-      const readSize = Math.min(sampleSize, regionSize - offset, bankWindowRemaining);
-      const sample = await this.readROMChunkWithRetry(
-        readSize,
-        sampleAddress,
-        cartAddress,
-        offset + 1,
-        bank,
-        async () => { await this.switchROMBank(bank, mbcType); },
-      );
-      if (!sample.every(byte => byte === 0xff)) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
   private async eraseRomSectorWithRetry(
     sector: SectorProgressInfo,
     mbcType: MbcType,
@@ -210,8 +164,7 @@ export class MBC5Adapter extends CartridgeAdapter {
       }
 
       try {
-        const { bank, cartAddress } = this.romBankRelevantAddress(sector.address, mbcType);
-        await this.switchROMBank(bank, mbcType);
+        const { cartAddress } = this.romBankRelevantAddress(sector.address, mbcType);
         await gbc_rom_erase_sector(this.transport, cartAddress);
         return;
       } catch (error) {
@@ -535,7 +488,6 @@ export class MBC5Adapter extends CartridgeAdapter {
     sectorInfo: SectorBlock[],
     options: CommandOptions,
     signal?: AbortSignal,
-    allowSampleSkip = false,
   ): Promise<CommandResult> {
     if (options.enable5V) {
       const unsupported = this.getUnsupportedPowerControlResult();
@@ -616,33 +568,15 @@ export class MBC5Adapter extends CartridgeAdapter {
                 await this.switchROMBank(bank, mbcType);
               }
 
-              let skippedBySample = false;
-              if (allowSampleSkip) {
-                const sampleBlank = await this.sampleRomRegionBlank(sector.address, sector.size, mbcType);
-                skippedBySample = sampleBlank;
-              }
-
-              if (skippedBySample) {
-                this.log({
-                  message: this.t('messages.operation.eraseSector', {
-                    from: formatHex(sector.address, 4),
-                    to: formatHex(sector.address + sector.size - 1, 4),
-                  }),
-                  details: this.t('messages.operation.eraseSectorSkipped', {
-                    samples: `${MBC5Adapter.ROM_WRITE_SAMPLE_COUNT}x${MBC5Adapter.ROM_WRITE_SAMPLE_BYTES}B`,
-                  }),
-                }, 'info');
-              } else {
-                this.log(this.t('messages.operation.eraseSector', {
-                  from: formatHex(sector.address, 4),
-                  to: formatHex(sector.address + sector.size - 1, 4),
-                }), 'info');
-                await this.eraseRomSectorWithRetry(sector, mbcType, 'prepare', signal);
-              }
+              this.log(this.t('messages.operation.eraseSector', {
+                from: formatHex(sector.address, 4),
+                to: formatHex(sector.address + sector.size - 1, 4),
+              }), 'info');
+              await this.eraseRomSectorWithRetry(sector, mbcType, 'prepare', signal);
               const sectorEndTime = Date.now();
 
-              // 鏇存柊褰撳墠鎵囧尯鐘舵€佷负"宸插畬鎴?鎴?宸茶烦杩囨摝闄?
-              progressReporter.markSectorState(sector.address, skippedBySample ? 'skipped_erase' : 'erased');
+              // 更新当前扇区状态为"已完成"
+              progressReporter.markSectorState(sector.address, 'erased');
 
               eraseCount++;
               const erasedBytes = eraseCount * sector.size;
@@ -734,7 +668,12 @@ export class MBC5Adapter extends CartridgeAdapter {
     const enable5V = options.enable5V ?? false;
     const baseAddress = options.baseAddress ?? 0x00;
     const pageSize = this.resolveRomPageSize(options.romPageSize);
-    const bufferSize = options.cfiInfo.bufferSize ?? 0;
+    // 与 C# 客户端对齐：JS28F256 等 Intel 系（厂商 ID 0x89）在 x8 模式下写缓冲
+    // 最大 256 字节，CFI 报告值在这类卡上不可靠；错误的缓冲长度会让固件的
+    // 编程校验轮询永不收敛（设备永久沉默，主机只能等到超时）。
+    const bufferSize = options.cfiInfo.flashId?.[0] === 0x89
+      ? 256
+      : (options.cfiInfo.bufferSize ?? 0);
 
     this.log(this.t('messages.operation.startWriteROM', {
       fileSize: fileData.byteLength,
@@ -755,7 +694,9 @@ export class MBC5Adapter extends CartridgeAdapter {
 
             const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, total, baseAddress);
             const eraseStartTime = Date.now();
-            const eraseResult = await this.eraseSectors(sectorInfo, options, signal, true);
+            // GBC 扇区擦除不受固件能力限制，与 C# 客户端一致写前无条件擦除；
+            // 抽样跳过误判会导致在未擦除数据上编程，触发固件校验轮询死循环。
+            const eraseResult = await this.eraseSectors(sectorInfo, options, signal);
             const eraseDuration = Date.now() - eraseStartTime;
             if (!eraseResult.success) {
               return eraseResult;
@@ -830,6 +771,8 @@ export class MBC5Adapter extends CartridgeAdapter {
                 }),
                 sector.address,
               );
+              const { bank } = this.romBankRelevantAddress(sector.address, mbcType);
+              await this.switchROMBank(bank, mbcType);
               await this.eraseRomSectorWithRetry(sector, mbcType, 'recover', signal);
               progressReporter.markSectorState(sector.address, 'pending');
               written = sector.address - baseAddress;

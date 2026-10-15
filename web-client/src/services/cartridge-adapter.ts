@@ -42,8 +42,6 @@ export class CartridgeAdapter {
   protected static readonly ROM_READ_RETRY_RESET_MS = 120;
   protected static readonly ROM_WRITE_RETRY_RESET_MS = 150;
   protected static readonly ROM_ERASE_RETRY_RESET_MS = 150;
-  protected static readonly ROM_WRITE_SAMPLE_COUNT = 4;
-  protected static readonly ROM_WRITE_SAMPLE_BYTES = 4;
   protected static readonly RAM_READ_START_SETTLE_MS = 150;
   protected static readonly RAM_READ_RETRY_RESET_MS = 150;
 

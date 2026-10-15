@@ -129,7 +129,7 @@ describe('MBC5Adapter.writeROM recovery', () => {
     AdvancedSettings.romWriteRetryCount = 1;
   });
 
-  it('skips the prepare erase when blank sampling passes', async () => {
+  it('erases the sector before writing', async () => {
     const logs: string[] = [];
     const adapter = new MBC5Adapter(
       createMockDevice(),
@@ -146,6 +146,7 @@ describe('MBC5Adapter.writeROM recovery', () => {
     );
     vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
 
+    mockGbcRomEraseSector.mockResolvedValue(undefined);
     mockGbcRomProgram.mockResolvedValue(undefined);
 
     const result = await adapter.writeROM(
@@ -154,13 +155,12 @@ describe('MBC5Adapter.writeROM recovery', () => {
     );
 
     expect(result.success).toBe(true);
-    expect(mockGbcRomEraseSector).not.toHaveBeenCalled();
+    expect(mockGbcRomEraseSector).toHaveBeenCalledTimes(1);
     expect(mockGbcRomProgram).toHaveBeenCalledTimes(1);
     expect(logs).toContain('messages.operation.eraseSector');
-    expect(logs).toContain('messages.operation.eraseSectorSkipped');
   });
 
-  it('fully erases the target range before starting to program when sampling finds data', async () => {
+  it('fully erases the target range before starting to program', async () => {
     const logs: string[] = [];
     const adapter = new MBC5Adapter(
       createMockDevice(),
@@ -181,8 +181,6 @@ describe('MBC5Adapter.writeROM recovery', () => {
     expect(mockGbcRomEraseSector).toHaveBeenCalledTimes(1);
     expect(mockGbcRomProgram).toHaveBeenCalledTimes(1);
     expect(mockGbcRomEraseSector.mock.invocationCallOrder[0]).toBeLessThan(mockGbcRomProgram.mock.invocationCallOrder[0]);
-    expect(logs.some((entry) => entry.includes('ROM erase sample found programmed data'))).toBe(false);
-    expect(logs.some((entry) => entry.includes('ROM erase skipped after blank sample'))).toBe(false);
   });
 
   it('retries the current sector from its start after a program failure', async () => {
@@ -201,7 +199,8 @@ describe('MBC5Adapter.writeROM recovery', () => {
     );
 
     expect(result.success).toBe(true);
-    expect(mockGbcRomEraseSector).toHaveBeenCalledTimes(1);
+    // 写前擦除 1 次 + 恢复重试时再擦除 1 次
+    expect(mockGbcRomEraseSector).toHaveBeenCalledTimes(2);
     expect(mockGbcRomProgram).toHaveBeenCalledTimes(2);
   });
 
@@ -224,7 +223,8 @@ describe('MBC5Adapter.writeROM recovery', () => {
     );
 
     expect(result.success).toBe(true);
-    expect(mockGbcRomEraseSector).toHaveBeenCalledTimes(1);
+    // 写前擦除 1 次 + 恢复重试时再擦除 1 次
+    expect(mockGbcRomEraseSector).toHaveBeenCalledTimes(2);
     expect(mockGbcRomProgram).toHaveBeenCalledTimes(4);
     expect(mockGbcRomProgram.mock.calls.map(([_, chunk]) => Array.from(chunk as Uint8Array))).toEqual([
       [0x11, 0x22],

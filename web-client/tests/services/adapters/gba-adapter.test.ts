@@ -97,7 +97,7 @@ describe('GBAAdapter.writeROM recovery', () => {
     AdvancedSettings.romWriteRetryCount = 1;
   });
 
-  it('skips the prepare erase when blank sampling passes', async () => {
+  it('erases the sector before writing', async () => {
     const logs: string[] = [];
     const adapter = new GBAAdapter(
       createMockDevice(),
@@ -114,18 +114,18 @@ describe('GBAAdapter.writeROM recovery', () => {
     );
     vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
 
+    mockRomEraseSector.mockResolvedValue(undefined);
     mockRomProgram.mockResolvedValue(undefined);
 
     const result = await adapter.writeROM(new Uint8Array([0xaa]), createOptions());
 
     expect(result.success).toBe(true);
-    expect(mockRomEraseSector).not.toHaveBeenCalled();
+    expect(mockRomEraseSector).toHaveBeenCalledTimes(1);
     expect(mockRomProgram).toHaveBeenCalledTimes(1);
     expect(logs).toContain('messages.operation.eraseSector');
-    expect(logs).toContain('messages.operation.eraseSectorSkipped');
   });
 
-  it('fully erases the target range before starting to program when sampling finds data', async () => {
+  it('fully erases the target range before starting to program', async () => {
     const logs: string[] = [];
     const adapter = new GBAAdapter(
       createMockDevice(),
@@ -143,8 +143,30 @@ describe('GBAAdapter.writeROM recovery', () => {
     expect(mockRomEraseSector).toHaveBeenCalledTimes(1);
     expect(mockRomProgram).toHaveBeenCalledTimes(1);
     expect(mockRomEraseSector.mock.invocationCallOrder[0]).toBeLessThan(mockRomProgram.mock.invocationCallOrder[0]);
-    expect(logs.some((entry) => entry.includes('ROM erase sample found programmed data'))).toBe(false);
-    expect(logs.some((entry) => entry.includes('ROM erase skipped after blank sample'))).toBe(false);
+  });
+
+  it('switches ROM bank once when erasing multiple sectors in the same bank', async () => {
+    const adapter = new GBAAdapter(createMockDevice());
+    const switchSpy = vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+    mockRomEraseSector.mockResolvedValue(undefined);
+
+    const multiBankCfi = createCfiInfo(1 << 26);
+    multiBankCfi.eraseSectorBlocks = [{
+      sectorSize: 0x20000,
+      sectorCount: 4,
+      totalSize: 0x80000,
+      startAddress: 0x01f00000,
+      endAddress: 0x01f7ffff,
+    }];
+
+    const result = await adapter.eraseSectors(multiBankCfi.eraseSectorBlocks, createOptions({
+      cfiInfo: multiBankCfi,
+    }));
+
+    expect(result.success).toBe(true);
+    expect(mockRomEraseSector).toHaveBeenCalledTimes(4);
+    expect(switchSpy).toHaveBeenCalledTimes(1);
+    expect(switchSpy).toHaveBeenCalledWith(0);
   });
 
   it('retries the current sector after a program failure on a multi-bank cartridge', async () => {
@@ -166,7 +188,8 @@ describe('GBAAdapter.writeROM recovery', () => {
     );
 
     expect(result.success).toBe(true);
-    expect(mockRomEraseSector).toHaveBeenCalledTimes(1);
+    // 写前擦除 1 次 + 恢复重试时再擦除 1 次
+    expect(mockRomEraseSector).toHaveBeenCalledTimes(2);
     expect(mockRomProgram).toHaveBeenCalledTimes(2);
     expect(switchSpy).toHaveBeenCalledWith(1);
   });
@@ -190,7 +213,8 @@ describe('GBAAdapter.writeROM recovery', () => {
     );
 
     expect(result.success).toBe(true);
-    expect(mockRomEraseSector).toHaveBeenCalledTimes(1);
+    // 写前擦除 1 次 + 恢复重试时再擦除 1 次
+    expect(mockRomEraseSector).toHaveBeenCalledTimes(2);
     expect(mockRomProgram).toHaveBeenCalledTimes(4);
     expect(mockRomProgram.mock.calls.map(([_, chunk]) => Array.from(chunk as Uint8Array))).toEqual([
       [0x11, 0x22],
@@ -225,16 +249,18 @@ describe('GBAAdapter firmware capability gates', () => {
     AdvancedSettings.resetToDefaults();
   });
 
-  it('rejects sector erase on carbon firmware before sending unsupported command', async () => {
+  it('performs sector erase on carbon firmware via passthrough commands', async () => {
     const adapter = new GBAAdapter(createMockDevice({
       firmwareProfile: STC_FIRMWARE_PROFILE,
     }));
+    vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+    mockRomEraseSector.mockResolvedValue(undefined);
 
     const result = await adapter.eraseSectors(createCfiInfo().eraseSectorBlocks, createOptions());
 
-    expect(result.success).toBe(false);
-    expect(result.message).toContain('碳酸丐 firmware');
-    expect(mockRomEraseSector).not.toHaveBeenCalled();
+    // rom_erase_sector 通过 rom_write/rom_read 透传实现，碳酸丐固件同样支持
+    expect(result.success).toBe(true);
+    expect(mockRomEraseSector).toHaveBeenCalled();
   });
 
   it('rejects GBA FRAM RAM operations on carbon firmware', async () => {
@@ -249,18 +275,21 @@ describe('GBAAdapter firmware capability gates', () => {
     expect(result.message).toContain('碳酸丐 firmware');
   });
 
-  it('allows STC ROM writes when blank sampling can skip unsupported sector erase', async () => {
+  it('erases before programming on STC firmware instead of relying on blank sampling', async () => {
     const adapter = new GBAAdapter(createMockDevice({
       firmwareProfile: STC_FIRMWARE_PROFILE,
     }));
     vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
     mockRomRead.mockResolvedValue(new Uint8Array([0xff, 0xff, 0xff, 0xff]));
+    mockRomEraseSector.mockResolvedValue(undefined);
     mockRomProgram.mockResolvedValue(undefined);
 
     const result = await adapter.writeROM(new Uint8Array([0xaa]), createOptions());
 
+    // 抽样跳过误判会导致在未擦除数据上编程，固件 DQ7 轮询死循环；
+    // 碳酸丐支持透传扇区擦除后，写前与丐中丐一样无条件擦除。
     expect(result.success).toBe(true);
-    expect(mockRomEraseSector).not.toHaveBeenCalled();
+    expect(mockRomEraseSector).toHaveBeenCalledTimes(1);
     expect(mockRomProgram).toHaveBeenCalledTimes(1);
   });
 });
