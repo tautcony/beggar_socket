@@ -57,7 +57,20 @@ export function loadSentry(app: App, config: SentryConfig = {}) {
       tracesSampleRate: config.tracesSampleRate ?? parseFloat(import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE as string || '0.1'),
       sampleRate: config.sampleRate ?? parseFloat(import.meta.env.VITE_SENTRY_SAMPLE_RATE as string || '1.0'),
       debug: false,
-      sendDefaultPii: false,
+      // Sentry 11 replaces sendDefaultPii with category-specific collection.
+      // Collect user/IP information and retain browser/device context via the
+      // default integrations, with other data categories configured separately.
+      dataCollection: {
+        userInfo: true,
+        cookies: false,
+        httpHeaders: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user'] },
+        httpBodies: [],
+        urlQueryParams: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user'] },
+        genAI: { inputs: false, outputs: false },
+        databaseQueryData: false,
+        queues: false,
+        graphQL: { document: false, variables: false },
+      },
       // replaysSessionSampleRate: parseFloat(import.meta.env.VITE_SENTRY_REPLAY_SAMPLE_RATE as string || '0.1'),
       // replaysOnErrorSampleRate: parseFloat(import.meta.env.VITE_SENTRY_REPLAY_ERROR_SAMPLE_RATE as string || '1.0'),
       beforeSend(event) {
