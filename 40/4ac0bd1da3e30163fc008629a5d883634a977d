@@ -1,0 +1,47 @@
+web-client/src/types/firmware-profile.ts
+  s_ac77239eeb4b11::t_7cd1a3d94b67c8 36-39
+web-client/src/services/mbc5-adapter.ts
+  s_ac77239eeb4b11::t_c05c9796e2f8be 697-698
+  s_ac77239eeb4b11::t_3b1fd3236cebfc 167
+  s_ac77239eeb4b11::t_2185b4212c28a7 699
+  s_ac77239eeb4b11::t_cb2870ad39113d 774-775
+  s_ac77239eeb4b11::t_b531524e4278fd 571-575,578-579
+  s_ac77239eeb4b11::t_c3a896bf6c02e2 671-676
+web-client/src/services/gba-adapter.ts
+  s_ac77239eeb4b11::t_bc04728e735a8d 484-487
+  s_ac77239eeb4b11::t_de0e72402ea897 409
+  s_ac77239eeb4b11::t_eb7f9078d4a57b 221
+  s_ac77239eeb4b11::t_bf9ffe1d068065 296-300,303-304
+web-client/tests/services/adapters/gba-adapter.test.ts
+  s_ac77239eeb4b11::t_4e6fa47851ef26 148-169
+  s_ac77239eeb4b11::t_0e394d0a06b672 191-192
+  s_ac77239eeb4b11::t_01805faabe2bac 117,123
+  s_ac77239eeb4b11::t_692b596a1de048 278,284,289-290,292
+  s_ac77239eeb4b11::t_20fc071a16719e 128
+  s_ac77239eeb4b11::t_96130dcd38f405 100
+  s_ac77239eeb4b11::t_51ed686ea675b7 252,256-257,261-263
+  s_ac77239eeb4b11::t_0b63dbb35acb54 216-217
+  s_ac77239eeb4b11::t_28321d34f830f0 146-147
+web-client/tests/services/adapters/mbc5-adapter.test.ts
+  s_ac77239eeb4b11::t_6257a0137536fd 226-227
+  s_ac77239eeb4b11::t_2c3aad00debe55 163
+  s_ac77239eeb4b11::t_d2175aeb34f22b 132
+  s_ac77239eeb4b11::t_7ea315422ac428 202-203
+  s_ac77239eeb4b11::t_0e19d255d19b9a 149,158
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "404ac0bd1da3e30163fc008629a5d883634a977d",
+  "prompts": {},
+  "sessions": {
+    "s_ac77239eeb4b11": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "6d00e662-701f-4d20-a1de-2100faca23af",
+        "model": "composer-2.5"
+      },
+      "human_author": "TautCony <i@tautcony.xyz>"
+    }
+  }
+}
