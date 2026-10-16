@@ -33,12 +33,32 @@ jobs:
       - name: Upgrade npm
         run: npm install -g npm@latest
 
+      - name: Set Sentry release
+        id: sentry-release
+        run: |
+          node -e "const fs = require('node:fs'); const pkg = JSON.parse(fs.readFileSync('web-client/package.json', 'utf8')); console.log('release=' + pkg.version + '+' + process.env.GITHUB_SHA)" >> "$GITHUB_OUTPUT"
+
       - name: Build code
+        env:
+          VITE_SENTRY_RELEASE: ${{ steps.sentry-release.outputs.release }}
         run: |
           cd web-client
           npm ci
           npm run check:deps
           npm run build
+
+      - name: Upload source maps to Sentry
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_RELEASE: ${{ steps.sentry-release.outputs.release }}
+        run: |
+          if [ -z "$SENTRY_AUTH_TOKEN" ]; then
+            echo "SENTRY_AUTH_TOKEN must be configured in GitHub Actions secrets to publish this build." >&2
+            exit 1
+          fi
+          npx --yes @sentry/cli@3.8.0 releases new "$SENTRY_RELEASE" --org tautcony --project chisflash-burner
+          npx --yes @sentry/cli@3.8.0 sourcemaps upload --org tautcony --project chisflash-burner --release "$SENTRY_RELEASE" --url-prefix '~/beggar_socket' --wait web-client/dist
+          npx --yes @sentry/cli@3.8.0 releases finalize "$SENTRY_RELEASE" --org tautcony
 
       - name: Setup _site structure
         run: |

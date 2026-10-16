@@ -4,6 +4,7 @@ interface ImportMetaEnv {
   readonly VITE_BUILD_BRANCH?: string;
   readonly VITE_BUILD_COMMIT?: string;
   readonly VITE_BUILD_IS_RELEASE?: 'true' | 'false';
+  readonly VITE_SENTRY_RELEASE?: string;
 }
 
 interface ImportMeta {

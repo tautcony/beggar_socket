@@ -251,6 +251,36 @@ const mbc3Date = reactive<MBC3RTCData>({
   second: 0,
 });
 
+function isIntegerInput(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value);
+}
+
+function getGBADateTime() {
+  const values = [gbaDate.year, gbaDate.month, gbaDate.date, gbaDate.hour, gbaDate.minute, gbaDate.second];
+  if (!values.every(isIntegerInput)) return null;
+
+  return DateTime.fromObject({
+    year: gbaDate.year + 2000,
+    month: gbaDate.month,
+    day: gbaDate.date,
+    hour: gbaDate.hour,
+    minute: gbaDate.minute,
+    second: gbaDate.second,
+  });
+}
+
+function hasValidMBC3DateParts(): boolean {
+  const values = [mbc3Date.day, mbc3Date.hour, mbc3Date.minute, mbc3Date.second];
+  if (!values.every(isIntegerInput)) return false;
+
+  const currentYear = DateTime.now().year;
+  const maxDays = DateTime.local(currentYear).isInLeapYear ? 366 : 365;
+  return mbc3Date.day >= 1 && mbc3Date.day <= maxDays
+    && mbc3Date.hour >= 0 && mbc3Date.hour <= 23
+    && mbc3Date.minute >= 0 && mbc3Date.minute <= 59
+    && mbc3Date.second >= 0 && mbc3Date.second <= 59;
+}
+
 const weekDays = computed(() => [
   t('ui.tools.rtc.sunday'),
   t('ui.tools.rtc.monday'),
@@ -270,16 +300,11 @@ const title = computed(() => {
 // Computed property to show current date/time in a readable format
 const currentDateTime = computed(() => {
   if (props.type === 'GBA') {
-    const dt = DateTime.fromObject({
-      year: gbaDate.year + 2000,
-      month: gbaDate.month,
-      day: gbaDate.date,
-      hour: gbaDate.hour,
-      minute: gbaDate.minute,
-      second: gbaDate.second,
-    });
-    return dt.isValid ? dt.toFormat('yyyy-MM-dd HH:mm:ss') : t('ui.tools.rtc.invalidDate');
+    const dt = getGBADateTime();
+    return dt?.isValid ? dt.toFormat('yyyy-MM-dd HH:mm:ss') : t('ui.tools.rtc.invalidDate');
   } else {
+    if (!hasValidMBC3DateParts()) return t('ui.tools.rtc.invalidDate');
+
     const dt = DateTime.now().startOf('year').plus({ days: mbc3Date.day - 1 })
       .set({ hour: mbc3Date.hour, minute: mbc3Date.minute, second: mbc3Date.second });
     return dt.isValid ? dt.toFormat('yyyy-MM-dd HH:mm:ss') : t('ui.tools.rtc.invalidDate');
@@ -289,31 +314,13 @@ const currentDateTime = computed(() => {
 // Validation for GBA date
 const isGBADateValid = computed(() => {
   if (props.type !== 'GBA') return true;
-
-  const dt = DateTime.fromObject({
-    year: gbaDate.year + 2000,
-    month: gbaDate.month,
-    day: gbaDate.date,
-    hour: gbaDate.hour,
-    minute: gbaDate.minute,
-    second: gbaDate.second,
-  });
-
-  return dt.isValid;
+  return getGBADateTime()?.isValid ?? false;
 });
 
 // Validation for MBC3 date
 const isMBC3DateValid = computed(() => {
   if (props.type !== 'MBC3') return true;
-
-  const currentYear = DateTime.now().year;
-  const isLeapYear = DateTime.local(currentYear).isInLeapYear;
-  const maxDays = isLeapYear ? 366 : 365;
-
-  return mbc3Date.day >= 1 && mbc3Date.day <= maxDays &&
-         mbc3Date.hour >= 0 && mbc3Date.hour <= 23 &&
-         mbc3Date.minute >= 0 && mbc3Date.minute <= 59 &&
-         mbc3Date.second >= 0 && mbc3Date.second <= 59;
+  return hasValidMBC3DateParts();
 });
 
 const isDateValid = computed(() => {
@@ -394,6 +401,9 @@ watch(isRealTimeEnabled, (enabled) => {
 // Watch for date changes to auto-correct invalid values
 watch([() => gbaDate.month, () => gbaDate.year], () => {
   if (props.type === 'GBA') {
+    if (!isIntegerInput(gbaDate.year) || !isIntegerInput(gbaDate.month)
+      || gbaDate.month < 1 || gbaDate.month > 12) return;
+
     // Auto-correct date when month or year changes
     const maxDays = DateTime.fromObject({
       year: gbaDate.year + 2000,
@@ -409,11 +419,10 @@ watch([() => gbaDate.month, () => gbaDate.year], () => {
 // Watch for date changes to auto-calculate day of week
 watch([() => gbaDate.year, () => gbaDate.month, () => gbaDate.date], () => {
   if (props.type === 'GBA') {
-    const dt = DateTime.fromObject({
-      year: gbaDate.year + 2000,
-      month: gbaDate.month,
-      day: gbaDate.date,
-    });
+    if (!isIntegerInput(gbaDate.year) || !isIntegerInput(gbaDate.month) || !isIntegerInput(gbaDate.date)
+      || gbaDate.month < 1 || gbaDate.month > 12 || gbaDate.date < 1 || gbaDate.date > 31) return;
+
+    const dt = DateTime.fromObject({ year: gbaDate.year + 2000, month: gbaDate.month, day: gbaDate.date });
 
     if (dt.isValid) {
       // luxon weekday: 1 = Monday, ..., 6 = Saturday, 7 = Sunday

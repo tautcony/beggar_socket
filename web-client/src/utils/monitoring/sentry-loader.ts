@@ -41,12 +41,17 @@ export function loadSentry(app: App, config: SentryConfig = {}) {
 
   try {
     const dsn = config.dsn ?? import.meta.env.VITE_SENTRY_DSN as string;
+    const appVersion = import.meta.env.VITE_APP_VERSION as string || '1.0.0';
+    const buildCommit = import.meta.env.VITE_BUILD_COMMIT;
+    const release = config.release
+      ?? (import.meta.env.VITE_SENTRY_RELEASE)
+      ?? (buildCommit ? `${appVersion}+${buildCommit}` : appVersion);
 
     Sentry.init({
       app,
       dsn,
       environment: (config.environment ?? import.meta.env.VITE_SENTRY_ENVIRONMENT as string) || 'development',
-      release: (config.release ?? import.meta.env.VITE_APP_VERSION as string) || '1.0.0',
+      release,
       integrations: [
         browserTracingIntegration(),
         // Sentry.replayIntegration(),
