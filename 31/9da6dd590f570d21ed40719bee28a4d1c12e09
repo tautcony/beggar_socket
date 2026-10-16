@@ -1,0 +1,24 @@
+.github/workflows/build-webclient.yml
+  s_c860773995c1e8::t_5573c53da40a45 56-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "319da6dd590f570d21ed40719bee28a4d1c12e09",
+  "prompts": {},
+  "humans": {
+    "h_3705811fa4502c": {
+      "author": "TautCony <i@tautcony.xyz>"
+    }
+  },
+  "sessions": {
+    "s_c860773995c1e8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a14268-ca21-78c3-b7cf-35af11cc8d1c",
+        "model": "unknown"
+      },
+      "human_author": "TautCony <i@tautcony.xyz>"
+    }
+  }
+}
