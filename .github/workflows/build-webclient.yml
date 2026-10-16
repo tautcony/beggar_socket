@@ -53,8 +53,8 @@ jobs:
           SENTRY_RELEASE: ${{ steps.sentry-release.outputs.release }}
         run: |
           if [ -z "$SENTRY_AUTH_TOKEN" ]; then
-            echo "SENTRY_AUTH_TOKEN must be configured in GitHub Actions secrets to publish this build." >&2
-            exit 1
+            echo "::warning::SENTRY_AUTH_TOKEN is not configured; skipping Sentry source map upload."
+            exit 0
           fi
           npx --yes @sentry/cli@3.8.0 releases new "$SENTRY_RELEASE" --org tautcony --project chisflash-burner
           npx --yes @sentry/cli@3.8.0 sourcemaps upload --org tautcony --project chisflash-burner --release "$SENTRY_RELEASE" --url-prefix '~/beggar_socket' --wait web-client/dist
