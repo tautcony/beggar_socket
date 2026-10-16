@@ -1,0 +1,30 @@
+web-client/src/utils/monitoring/sentry-loader.ts
+  h_3705811fa4502c 44-48,54
+.github/workflows/build-webclient.yml
+  s_7943166b27bd5e::t_efa4ded31ce54d 36-40,42-43,50-62
+web-client/src/components/modal/RTCModal.vue
+  s_7943166b27bd5e::t_11042434b523c5 254-283,303-304,306-307,317,323,404-406,422-425
+web-client/src/vite-env.d.ts
+  s_7943166b27bd5e::t_635ac0150a87a6 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "bdca867407df29bc45ec90e4b668e4694122af0a",
+  "prompts": {},
+  "humans": {
+    "h_3705811fa4502c": {
+      "author": "TautCony <i@tautcony.xyz>"
+    }
+  },
+  "sessions": {
+    "s_7943166b27bd5e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1423e-6e3c-7190-bacd-5d1ca3d92e79",
+        "model": "unknown"
+      },
+      "human_author": "TautCony <i@tautcony.xyz>"
+    }
+  }
+}
