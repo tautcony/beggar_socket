@@ -45,7 +45,6 @@
     "@tauri-apps/api": "^2.12.4",
     "buffer": "^6.0.3",
     "dompurify": "^3.4.17",
-    "gameboy-emulator": "^1.1.2",
     "gbats": "^1.0.9",
     "image-q": "^4.0.0",
     "jimp": "1.6.0",
@@ -54,11 +53,7 @@
     "pinia": "^4.1.0",
     "vue": "^3.5.44",
     "vue-i18n": "^11.4.14",
-    "vue-router": "^5.4.0",
-    "wasmboy": "^0.7.1"
-  },
-  "overrides": {
-    "audiobuffer-to-wav": "1.0.0"
+    "vue-router": "^5.4.0"
   },
   "devDependencies": {
     "@stylistic/eslint-plugin": "^5.10.0",

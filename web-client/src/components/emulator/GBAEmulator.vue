@@ -1,112 +1,119 @@
 <template>
-  <div
-    v-if="isVisible"
-    class="emulator-overlay"
-    @click.self="closeEmulator"
+  <EmulatorLaunchTransition
+    :is-visible="isVisible"
+    theme-color="#b3c2a0"
+    @close="closeEmulator"
+    @covered="onTransitionCovered"
   >
-    <div class="emulator-container">
-      <div class="emulator-header">
-        <h3 class="emulator-title">
-          {{ $t('ui.emulator.title') }} - {{ romName }}
-        </h3>
-        <div class="emulator-controls">
-          <BaseButton
-            variant="secondary"
-            size="sm"
-            :disabled="exportInProgress"
-            :icon="isPaused ? play : pause"
-            icon-only
-            :title="$t('ui.emulator.pause')"
-            @click="togglePause"
-          />
-          <BaseButton
-            variant="warning"
-            size="sm"
-            :disabled="exportInProgress"
-            :icon="refresh"
-            icon-only
-            :title="$t('ui.emulator.reset')"
-            @click="resetGame"
-          />
-          <BaseButton
-            variant="secondary"
-            size="sm"
-            :text="$t('ui.emulator.exportSave')"
-            :disabled="!latestCheckpoint || exportInProgress"
-            @click="exportSave"
-          />
-          <BaseButton
-            variant="error"
-            size="sm"
-            :disabled="exportInProgress"
-            :icon="close"
-            icon-only
-            :title="$t('ui.emulator.close')"
-            @click="closeEmulator"
-          />
-        </div>
+    <div class="emulator-header">
+      <h3 class="emulator-title">
+        {{ $t('ui.emulator.title') }} - {{ romName }}
+      </h3>
+      <div class="emulator-controls">
+        <BaseButton
+          variant="secondary"
+          size="sm"
+          :disabled="exportInProgress"
+          :icon="isPaused ? play : pause"
+          icon-only
+          :title="$t('ui.emulator.pause')"
+          @click="togglePause"
+        />
+        <BaseButton
+          variant="warning"
+          size="sm"
+          :disabled="exportInProgress"
+          :icon="refresh"
+          icon-only
+          :title="$t('ui.emulator.reset')"
+          @click="resetGame"
+        />
+        <BaseButton
+          variant="secondary"
+          size="sm"
+          :text="$t('ui.emulator.exportSave')"
+          :disabled="!latestCheckpoint || exportInProgress"
+          @click="exportSave"
+        />
+        <BaseButton
+          variant="error"
+          size="sm"
+          :disabled="exportInProgress"
+          :icon="close"
+          icon-only
+          :title="$t('ui.emulator.close')"
+          @click="closeEmulator"
+        />
       </div>
+    </div>
 
-      <div class="emulator-content">
-        <div
-          v-if="hasError"
-          class="error-display"
-        >
-          <div class="error-icon">
-            <IonIcon
-              :icon="warning"
-              class="error-icon"
-            />
-          </div>
-          <h4>{{ $t('ui.emulator.errors.error') }}</h4>
-          <p>{{ errorMessage }}</p>
-          <BaseButton
-            variant="primary"
-            :text="$t('ui.emulator.retry')"
-            @click="retryInitialization"
-          />
-          <BaseButton
-            v-if="launch?.saveData && !skipSelectedSave"
-            variant="secondary"
-            :text="$t('ui.emulator.startWithoutSave')"
-            @click="startWithoutSelectedSave"
+    <div class="emulator-content">
+      <div
+        v-if="hasError"
+        class="error-display"
+      >
+        <div class="error-icon">
+          <IonIcon
+            :icon="warning"
+            class="error-icon"
           />
         </div>
+        <h4>{{ $t('ui.emulator.errors.error') }}</h4>
+        <p>{{ errorMessage }}</p>
+        <BaseButton
+          variant="primary"
+          :text="$t('ui.emulator.retry')"
+          @click="retryInitialization"
+        />
+        <BaseButton
+          v-if="launch?.saveData && !skipSelectedSave"
+          variant="secondary"
+          :text="$t('ui.emulator.startWithoutSave')"
+          @click="startWithoutSelectedSave"
+        />
+      </div>
+      <EmulatorScreenViewport
+        v-else
+        :is-ready="isScreenReady"
+        aspect-ratio="240 / 160"
+      >
         <canvas
-          v-else
           ref="gameCanvas"
           class="game-canvas"
+          :class="{ 'is-ready': isScreenReady }"
           width="240"
           height="160"
         />
-      </div>
+      </EmulatorScreenViewport>
+    </div>
 
-      <div class="emulator-footer">
-        <div class="controls-help">
-          <p>{{ $t('ui.emulator.controlsHelp') }}</p>
-          <div class="key-mappings">
-            <span class="key-mapping">{{ $t('ui.emulator.dpad') }}: WASD</span>
-            <span class="key-mapping">{{ $t('ui.emulator.aButton') }}: J</span>
-            <span class="key-mapping">{{ $t('ui.emulator.bButton') }}: K</span>
-            <span class="key-mapping">{{ $t('ui.emulator.start') }}: C</span>
-            <span class="key-mapping">{{ $t('ui.emulator.select') }}: V</span>
-            <span class="key-mapping">{{ $t('ui.emulator.l') }}: Shift左</span>
-            <span class="key-mapping">{{ $t('ui.emulator.r') }}: L</span>
-          </div>
+    <div class="emulator-footer">
+      <div class="controls-help">
+        <p>{{ $t('ui.emulator.controlsHelp') }}</p>
+        <div class="key-mappings">
+          <span class="key-mapping">{{ $t('ui.emulator.dpad') }}: WASD</span>
+          <span class="key-mapping">{{ $t('ui.emulator.aButton') }}: J</span>
+          <span class="key-mapping">{{ $t('ui.emulator.bButton') }}: K</span>
+          <span class="key-mapping">{{ $t('ui.emulator.start') }}: C</span>
+          <span class="key-mapping">{{ $t('ui.emulator.select') }}: V</span>
+          <span class="key-mapping">{{ $t('ui.emulator.l') }}: Shift左</span>
+          <span class="key-mapping">{{ $t('ui.emulator.r') }}: L</span>
         </div>
       </div>
     </div>
-  </div>
+  </EmulatorLaunchTransition>
 </template>
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import { Wrapper } from 'gbats';
 import { close, pause, play, refresh, warning } from 'ionicons/icons';
-import { nextTick, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import BaseButton from '@/components/common/BaseButton.vue';
+import EmulatorLaunchTransition from '@/components/emulator/EmulatorLaunchTransition.vue';
+import EmulatorScreenViewport from '@/components/emulator/EmulatorScreenViewport.vue';
 import { attachSettledSaveListener, captureGbaSave, copyBytes, type GbaSaveCore, importGbaSave, inspectGbaSave, isGbaSaveSettled, type SaveCheckpoint } from '@/components/emulator/gba-save-bridge';
 import { applyGbatsArmCompatibility } from '@/components/emulator/gbats-arm-compat';
 import type { GbaPreviewLaunch } from '@/components/operaiton/contracts';
@@ -142,6 +149,14 @@ const crashCount = ref(0);
 const isInitializing = ref(false);
 const latestCheckpoint = ref<SaveCheckpoint | null>(null);
 const skipSelectedSave = ref(false);
+const isCovered = ref(false);
+const isScreenReady = computed(
+  () => isCovered.value && Boolean(gba.value) && !isInitializing.value && !hasError.value,
+);
+
+function onTransitionCovered(covered: boolean) {
+  isCovered.value = covered;
+}
 
 let bridgeDisposer: (() => void) | null = null;
 let coreGeneration = 0;
@@ -252,7 +267,11 @@ onUnmounted(() => {
 
 watch(() => props.isVisible, async (newVisible) => {
   if (newVisible && props.romData) {
-    await nextTick();
+    let attempts = 0;
+    while (!gameCanvas.value && attempts < 5) {
+      await nextTick();
+      attempts++;
+    }
     initializeEmulator();
   } else if (!newVisible) {
     cleanup();
@@ -265,6 +284,9 @@ watch(() => [props.romData, props.launch?.sessionId] as const, async ([newRomDat
   }
   if (newRomData && props.isVisible) {
     await nextTick();
+    if (!gameCanvas.value) {
+      await nextTick();
+    }
     initializeEmulator();
   }
 });
@@ -945,6 +967,7 @@ function cleanup(isFinalUnmount = false) {
     resultDelivered = true;
   }
   disposeCore();
+  isCovered.value = false;
 }
 </script>
 
@@ -954,32 +977,6 @@ function cleanup(isFinalUnmount = false) {
 @use '@/styles/variables/typography' as typography-vars;
 @use '@/styles/variables/radius' as radius-vars;
 @use '@/styles/mixins' as mixins;
-
-.emulator-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(4px);
-}
-
-.emulator-container {
-  background: color-vars.$color-bg;
-  border-radius: radius-vars.$radius-xl;
-  box-shadow: color-vars.$shadow-lg;
-  overflow: hidden;
-  width: min(540px, calc(100vw - 2rem));
-  max-width: 90vw;
-  max-height: calc(100vh - 2rem);
-  display: flex;
-  flex-direction: column;
-}
 
 .emulator-header {
   background: linear-gradient(135deg, #5bcffa 0%, #f5abb9 100%);
@@ -1057,6 +1054,19 @@ function cleanup(isFinalUnmount = false) {
   height: auto;
   aspect-ratio: 240 / 160;
   /* GBA屏幕比例 240x160，放大到合适尺寸 */
+  opacity: 0;
+  transition: opacity 250ms cubic-bezier(0.33, 1, 0.68, 1);
+
+  &.is-ready {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-canvas {
+    transition: none !important;
+    opacity: 1 !important;
+  }
 }
 
 .emulator-footer {
