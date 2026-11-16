@@ -1,79 +1,86 @@
 <template>
-  <div
-    v-if="isVisible"
-    class="emulator-overlay"
-    @click.self="closeEmulator"
+  <EmulatorLaunchTransition
+    :is-visible="isVisible"
+    theme-color="#b9a4dc"
+    @close="closeEmulator"
+    @covered="onTransitionCovered"
   >
-    <div class="emulator-container">
-      <div class="emulator-header">
-        <h3 class="emulator-title">
-          <IonIcon
-            :icon="gameControllerOutline"
-            class="emulator-icon"
-          />
-          {{ $t('ui.emulator.title') }} - {{ romName }}
-        </h3>
-        <div class="emulator-controls">
-          <BaseButton
-            variant="secondary"
-            size="sm"
-            :icon="isPaused ? play : pause"
-            icon-only
-            :title="$t('ui.emulator.pause')"
-            @click="togglePause"
-          />
-          <BaseButton
-            variant="warning"
-            size="sm"
-            :icon="refresh"
-            icon-only
-            :title="$t('ui.emulator.reset')"
-            @click="resetGame"
-          />
-          <BaseButton
-            variant="error"
-            size="sm"
-            :icon="close"
-            icon-only
-            :title="$t('ui.emulator.close')"
-            @click="closeEmulator"
-          />
-        </div>
+    <div class="emulator-header">
+      <h3 class="emulator-title">
+        <IonIcon
+          :icon="gameControllerOutline"
+          class="emulator-icon"
+        />
+        {{ $t('ui.emulator.title') }} - {{ romName }}
+      </h3>
+      <div class="emulator-controls">
+        <BaseButton
+          variant="secondary"
+          size="sm"
+          :icon="isPaused ? play : pause"
+          icon-only
+          :title="$t('ui.emulator.pause')"
+          @click="togglePause"
+        />
+        <BaseButton
+          variant="warning"
+          size="sm"
+          :icon="refresh"
+          icon-only
+          :title="$t('ui.emulator.reset')"
+          @click="resetGame"
+        />
+        <BaseButton
+          variant="error"
+          size="sm"
+          :icon="close"
+          icon-only
+          :title="$t('ui.emulator.close')"
+          @click="closeEmulator"
+        />
       </div>
+    </div>
 
-      <div class="emulator-content">
+    <div class="emulator-content">
+      <EmulatorScreenViewport
+        :is-ready="isScreenReady"
+        aspect-ratio="160 / 144"
+      >
         <canvas
           ref="gameCanvas"
           class="game-canvas"
+          :class="{ 'is-ready': isScreenReady }"
           width="160"
           height="144"
         />
-      </div>
+      </EmulatorScreenViewport>
+    </div>
 
-      <div class="emulator-footer">
-        <div class="controls-help">
-          <p>{{ $t('ui.emulator.controlsHelp') }}</p>
-          <div class="key-mappings">
-            <span class="key-mapping">{{ $t('ui.emulator.dpad') }}: WASD</span>
-            <span class="key-mapping">{{ $t('ui.emulator.aButton') }}: J</span>
-            <span class="key-mapping">{{ $t('ui.emulator.bButton') }}: K</span>
-            <span class="key-mapping">{{ $t('ui.emulator.start') }}: C</span>
-            <span class="key-mapping">{{ $t('ui.emulator.select') }}: V</span>
-          </div>
+    <div class="emulator-footer">
+      <div class="controls-help">
+        <p>{{ $t('ui.emulator.controlsHelp') }}</p>
+        <div class="key-mappings">
+          <span class="key-mapping">{{ $t('ui.emulator.dpad') }}: WASD</span>
+          <span class="key-mapping">{{ $t('ui.emulator.aButton') }}: J</span>
+          <span class="key-mapping">{{ $t('ui.emulator.bButton') }}: K</span>
+          <span class="key-mapping">{{ $t('ui.emulator.start') }}: C</span>
+          <span class="key-mapping">{{ $t('ui.emulator.select') }}: V</span>
         </div>
       </div>
     </div>
-  </div>
+  </EmulatorLaunchTransition>
 </template>
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import { close, gameControllerOutline, pause, play, refresh } from 'ionicons/icons';
-import { nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { WasmBoy, type WasmBoyStatic } from 'wasmboy';
 
 import BaseButton from '@/components/common/BaseButton.vue';
+import { BinjgbRunner, type JoypadButton, type JoypadState } from '@/components/emulator/binjgb/binjgb-runner';
+import EmulatorLaunchTransition from '@/components/emulator/EmulatorLaunchTransition.vue';
+import EmulatorScreenViewport from '@/components/emulator/EmulatorScreenViewport.vue';
 import { useToast } from '@/composables/useToast';
 
 const { t } = useI18n();
@@ -91,9 +98,17 @@ const emit = defineEmits<{
 
 const gameCanvas = useTemplateRef<HTMLCanvasElement>('gameCanvas');
 const isPaused = ref(false);
-let wasmBoyInstance: WasmBoyStatic | null = null;
+const isCovered = ref(false);
+const isRunnerReady = ref(false);
+const isScreenReady = computed(() => isCovered.value && isRunnerReady.value);
 
-const keyBindings: Record<string, keyof JoypadState> = {
+function onTransitionCovered(covered: boolean) {
+  isCovered.value = covered;
+}
+
+let runnerInstance: BinjgbRunner | null = null;
+
+const keyBindings: Record<string, JoypadButton> = {
   'KeyW': 'up',
   'KeyD': 'right',
   'KeyS': 'down',
@@ -103,17 +118,6 @@ const keyBindings: Record<string, keyof JoypadState> = {
   'KeyV': 'select',
   'KeyC': 'start',
 };
-
-interface JoypadState {
-  up: boolean;
-  right: boolean;
-  down: boolean;
-  left: boolean;
-  a: boolean;
-  b: boolean;
-  select: boolean;
-  start: boolean;
-}
 
 const joypadState: JoypadState = {
   up: false,
@@ -132,27 +136,32 @@ onMounted(async () => {
   }
 });
 
-onUnmounted(async () => {
-  await cleanup();
+onUnmounted(() => {
+  cleanup();
 });
 
 // 监听可见性变化
 watch(() => props.isVisible, async (newVal) => {
   if (newVal && props.romData) {
-    await nextTick(async () => {
-      await initEmulator();
-    });
+    let attempts = 0;
+    while (!gameCanvas.value && attempts < 5) {
+      await nextTick();
+      attempts++;
+    }
+    await initEmulator();
   } else {
-    await cleanup();
+    cleanup();
   }
 });
 
 // 监听 ROM 数据变化
 watch(() => props.romData, async (newData) => {
   if (props.isVisible && newData) {
-    await nextTick(async () => {
-      await initEmulator();
-    });
+    await nextTick();
+    if (!gameCanvas.value) {
+      await nextTick();
+    }
+    await initEmulator();
   }
 });
 
@@ -161,69 +170,17 @@ async function initEmulator() {
 
   try {
     // 清理之前的实例
-    await cleanup();
+    cleanup();
 
-    // 声明局部变量
-    const wasmBoyCanvasRef = gameCanvas.value;
-    const isPlaying = {
-      set: (value: boolean) => {
-        // 这里可以添加状态管理逻辑
-        // console.log('Playing state:', value);
-      },
-      get: () => !isPaused.value,
-    };
-    const setStatus = (status: string, code: number) => {
-      // console.log('Status:', status, 'Code:', code);
-    };
-
-    const EmbedPlugin = {
-      name: 'EmbedPlugin',
-      saveState: (saveStateObject: Record<string, unknown>) => {
-        if (wasmBoyCanvasRef) {
-          saveStateObject.screenshotCanvasDataURL = wasmBoyCanvasRef.toDataURL();
-        }
-      },
-      play: () => { isPlaying.set(true); },
-      pause: () => {
-        isPlaying.set(false);
-        setStatus('Paused', -1);
-      },
-    };
-
-    // 设置 Canvas
-    WasmBoy.setCanvas(gameCanvas.value);
-    WasmBoy.addPlugin(EmbedPlugin);
-
-    // 初始化 WasmBoy
-    const config = {
-      headless: false,
-      useGbcWhenOptional: true,
-      audioAccumulateSamples: true,
-      graphicsBatchProcessing: false,
-      graphicsDisableScanlineRendering: false,
-      audioBufferSize: 1024,
-      frameSkip: 0,
-      audioBatchProcessing: false,
-    };
-
-    await WasmBoy.config(config);
-
-    // 加载 ROM
+    // 加载并初始化 binjgb 运行器
     try {
-      // WasmBoy 0.7.1 recognizes ROM bytes as Uint8Array. Passing the
-      // underlying ArrayBuffer makes it treat the buffer as a URL and call
-      // toLowerCase() on it.
-      await WasmBoy.loadROM(props.romData);
+      runnerInstance = await BinjgbRunner.create({
+        canvas: gameCanvas.value,
+        romData: props.romData,
+      });
     } catch (romError: unknown) {
       console.error('ROM loading failed:', romError);
-      // 尝试清理 WasmBoy 状态
-      try {
-        await WasmBoy.reset();
-      } catch (resetError) {
-        console.error('Reset after ROM load failure also failed:', resetError);
-      }
 
-      // 根据错误类型提供更具体的错误信息
       let errorMessage = t('ui.emulator.errors.romLoadFailed');
       if (romError instanceof RangeError) {
         errorMessage = t('ui.emulator.errors.invalidRom');
@@ -243,14 +200,14 @@ async function initEmulator() {
 
     // 开始游戏
     try {
-      await WasmBoy.play();
+      runnerInstance.play();
+      isRunnerReady.value = true;
     } catch (playError: unknown) {
       console.error('Failed to start game:', playError);
       showToast(t('ui.emulator.startGameFailed'), 'error');
       return;
     }
 
-    wasmBoyInstance = WasmBoy;
     isPaused.value = false;
 
     // 设置键盘事件监听
@@ -266,24 +223,8 @@ async function initEmulator() {
 }
 
 function setupKeyboardControls() {
-  wasmBoyInstance?.disableDefaultJoypad();
   document.addEventListener('keydown', handleKeyDown);
   document.addEventListener('keyup', handleKeyUp);
-}
-
-function updateJoypadState() {
-  if (!wasmBoyInstance) return;
-
-  wasmBoyInstance.setJoypadState(
-    joypadState.up ? 1 : 0,
-    joypadState.right ? 1 : 0,
-    joypadState.down ? 1 : 0,
-    joypadState.left ? 1 : 0,
-    joypadState.a ? 1 : 0,
-    joypadState.b ? 1 : 0,
-    joypadState.select ? 1 : 0,
-    joypadState.start ? 1 : 0,
-  );
 }
 
 function handleKeyDown(event: KeyboardEvent) {
@@ -292,7 +233,7 @@ function handleKeyDown(event: KeyboardEvent) {
 
   event.preventDefault();
   joypadState[key] = true;
-  updateJoypadState();
+  runnerInstance?.setJoypadButton(key, true);
 }
 
 function handleKeyUp(event: KeyboardEvent) {
@@ -301,19 +242,19 @@ function handleKeyUp(event: KeyboardEvent) {
 
   event.preventDefault();
   joypadState[key] = false;
-  updateJoypadState();
+  runnerInstance?.setJoypadButton(key, false);
 }
 
-async function togglePause() {
-  if (!wasmBoyInstance) return;
+function togglePause() {
+  if (!runnerInstance) return;
 
   try {
     if (isPaused.value) {
-      await wasmBoyInstance.play();
+      runnerInstance.play();
       isPaused.value = false;
       showToast(t('ui.emulator.running'), 'success');
     } else {
-      await wasmBoyInstance.pause();
+      runnerInstance.pause();
       isPaused.value = true;
       showToast(t('ui.emulator.paused'), 'success');
     }
@@ -323,12 +264,11 @@ async function togglePause() {
   }
 }
 
-async function resetGame() {
-  if (!wasmBoyInstance) return;
+function resetGame() {
+  if (!runnerInstance) return;
 
   try {
-    await wasmBoyInstance.reset();
-    await wasmBoyInstance.play();
+    runnerInstance.reset();
     isPaused.value = false;
     showToast(t('ui.emulator.reset') + ' - ' + t('ui.emulator.running'), 'success');
   } catch (error: unknown) {
@@ -337,35 +277,29 @@ async function resetGame() {
   }
 }
 
-async function closeEmulator() {
-  await cleanup();
+function closeEmulator() {
+  cleanup();
   emit('close');
 }
 
-async function cleanup() {
+function cleanup() {
   document.removeEventListener('keydown', handleKeyDown);
   document.removeEventListener('keyup', handleKeyUp);
   Object.keys(joypadState).forEach((key) => {
     joypadState[key as keyof JoypadState] = false;
   });
 
-  if (wasmBoyInstance) {
+  if (runnerInstance) {
     try {
-      await wasmBoyInstance.pause();
-      wasmBoyInstance.disableDefaultJoypad();
+      runnerInstance.destroy();
     } catch (error: unknown) {
       console.error('Error during cleanup:', error);
     }
-    wasmBoyInstance = null;
+    runnerInstance = null;
   }
   isPaused.value = false;
-}
-
-// Handle overlay click to close emulator
-async function handleOverlayClick(event: MouseEvent) {
-  if (event.target === event.currentTarget) {
-    await closeEmulator();
-  }
+  isRunnerReady.value = false;
+  isCovered.value = false;
 }
 </script>
 
@@ -375,32 +309,6 @@ async function handleOverlayClick(event: MouseEvent) {
 @use '@/styles/variables/typography' as typography-vars;
 @use '@/styles/variables/radius' as radius-vars;
 @use '@/styles/mixins' as mixins;
-
-.emulator-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(4px);
-}
-
-.emulator-container {
-  background: color-vars.$color-bg;
-  border-radius: radius-vars.$radius-xl;
-  box-shadow: color-vars.$shadow-lg;
-  width: min(540px, calc(100vw - 2rem));
-  max-width: 90vw;
-  max-height: calc(100vh - 2rem);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
 
 .emulator-header {
   display: flex;
@@ -454,6 +362,19 @@ async function handleOverlayClick(event: MouseEvent) {
   width: min(480px, 100%);
   height: auto;
   aspect-ratio: 160 / 144;
+  opacity: 0;
+  transition: opacity 250ms cubic-bezier(0.33, 1, 0.68, 1);
+
+  &.is-ready {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-canvas {
+    transition: none !important;
+    opacity: 1 !important;
+  }
 }
 
 .emulator-footer {

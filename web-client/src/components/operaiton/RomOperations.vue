@@ -219,7 +219,6 @@ import { formatHex } from '@/utils/formatter-utils';
 import { parseRom, type RomInfo } from '@/utils/parsers/rom-parser.ts';
 
 // 动态加载模拟器组件
-// const GBEmulator = defineAsyncComponent(() => import('@/components/emulator/GBEmulator.vue'));
 const GBCEmulator = defineAsyncComponent(() => import('@/components/emulator/GBCEmulator.vue'));
 const GBAEmulator = defineAsyncComponent(() => import('@/components/emulator/GBAEmulator.vue'));
 
