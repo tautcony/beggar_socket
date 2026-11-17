@@ -35,6 +35,19 @@ export interface BinjgbRunnerOptions {
 
 let cachedModulePromise: Promise<BinjgbModule> | null = null;
 
+function ensureBinjgbSerialBridge(): void {
+  const globalObj = globalThis as typeof globalThis & {
+    emulator?: { serialCallback?: (byte: number) => void };
+  };
+  if (!globalObj.emulator) {
+    globalObj.emulator = {
+      serialCallback: () => {},
+    };
+  } else if (typeof globalObj.emulator.serialCallback !== 'function') {
+    globalObj.emulator.serialCallback = () => {};
+  }
+}
+
 export async function getBinjgbModule(): Promise<BinjgbModule> {
   cachedModulePromise ??= Binjgb({
     locateFile: (path: string) => (path.endsWith('.wasm') ? wasmUrl : path),
@@ -116,6 +129,8 @@ export class BinjgbRunner {
   }
 
   private initEmulatorCore(): void {
+    ensureBinjgbSerialBridge();
+
     if (!this.originalRomData || this.originalRomData.byteLength < 0x150) {
       throw new RangeError('Invalid ROM size: minimum 336 bytes required for Game Boy header');
     }
