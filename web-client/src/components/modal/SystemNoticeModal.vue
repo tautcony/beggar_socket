@@ -228,7 +228,6 @@ async function onTranslate() {
 </script>
 
 <style scoped lang="scss">
-@use '@/styles/variables/colors' as color-vars;
 @use '@/styles/variables/spacing' as spacing-vars;
 @use '@/styles/variables/typography' as typography-vars;
 @use '@/styles/variables/radius' as radius-vars;
@@ -248,7 +247,7 @@ async function onTranslate() {
 .title-label {
   font-size: typography-vars.$font-size-xs;
   font-weight: typography-vars.$font-weight-semibold;
-  color: color-vars.$color-text-secondary;
+  color: var(--color-text-secondary);
   text-transform: uppercase;
 }
 
@@ -256,7 +255,7 @@ async function onTranslate() {
   margin: 0;
   font-size: typography-vars.$font-size-xl;
   font-weight: typography-vars.$font-weight-bold;
-  color: color-vars.$color-text;
+  color: var(--color-text);
   line-height: 1.3;
 }
 
@@ -266,7 +265,7 @@ async function onTranslate() {
   align-items: baseline;
   gap: spacing-vars.$space-2;
   font-size: typography-vars.$font-size-sm;
-  color: color-vars.$color-text-secondary;
+  color: var(--color-text-secondary);
 }
 
 .publish-label {
@@ -280,16 +279,16 @@ async function onTranslate() {
 .notice-content {
   max-height: 60vh;
   overflow-y: auto;
-  color: color-vars.$color-text;
+  color: var(--color-text);
 }
 
 .notice-translation-status {
   margin-top: spacing-vars.$space-2;
   font-size: typography-vars.$font-size-sm;
-  color: color-vars.$color-text-secondary;
+  color: var(--color-text-secondary);
 
   &.error {
-    color: color-vars.$color-error;
+    color: var(--color-error);
   }
 }
 
@@ -320,13 +319,13 @@ async function onTranslate() {
 }
 
 .markdown-body :deep(a) {
-  color: color-vars.$color-primary;
+  color: var(--color-primary);
   text-decoration: underline;
   word-break: break-all;
 }
 
 .markdown-body :deep(code) {
-  background-color: color-vars.$color-bg-secondary;
+  background-color: var(--color-bg-secondary);
   padding: 0 0.25rem;
   border-radius: radius-vars.$radius-sm;
   font-family: typography-vars.$font-family-mono;
@@ -334,7 +333,7 @@ async function onTranslate() {
 }
 
 .markdown-body :deep(pre) {
-  background-color: color-vars.$color-bg-secondary;
+  background-color: var(--color-bg-secondary);
   padding: spacing-vars.$space-3;
   border-radius: radius-vars.$radius-md;
   overflow-x: auto;
@@ -345,8 +344,8 @@ async function onTranslate() {
 .markdown-body :deep(blockquote) {
   margin: 0 0 spacing-vars.$space-3;
   padding-left: spacing-vars.$space-3;
-  border-left: 3px solid color-vars.$color-primary;
-  color: color-vars.$color-text-secondary;
+  border-left: 3px solid var(--color-primary);
+  color: var(--color-text-secondary);
   font-style: italic;
 }
 </style>

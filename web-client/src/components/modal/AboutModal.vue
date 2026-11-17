@@ -180,7 +180,6 @@ function closeModal() {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/variables/colors' as color-vars;
 @use '@/styles/variables/spacing' as spacing-vars;
 @use '@/styles/variables/typography' as typography-vars;
 @use '@/styles/variables/radius' as radius-vars;
@@ -197,8 +196,8 @@ function closeModal() {
     margin: 0 0 spacing-vars.$space-4 0;
     font-size: typography-vars.$font-size-xl;
     font-weight: typography-vars.$font-weight-semibold;
-    color: color-vars.$color-text;
-    border-bottom: 2px solid color-vars.$color-border-light;
+    color: var(--color-text);
+    border-bottom: 2px solid var(--color-border-light);
     padding-bottom: spacing-vars.$space-2;
   }
 }
@@ -230,14 +229,14 @@ function closeModal() {
 
 .app-version {
   margin: 0 0 spacing-vars.$space-3 0;
-  color: color-vars.$color-secondary;
+  color: var(--color-secondary);
   font-size: typography-vars.$font-size-base;
   font-weight: typography-vars.$font-weight-medium;
 }
 
 .app-description {
   margin: 0;
-  color: color-vars.$color-text;
+  color: var(--color-text);
   font-size: typography-vars.$font-size-base;
   line-height: typography-vars.$line-height-relaxed;
 }
@@ -304,13 +303,13 @@ function closeModal() {
 .external-icon {
   margin-left: auto;
   font-size: typography-vars.$font-size-base !important;
-  color: color-vars.$color-secondary !important;
+  color: var(--color-secondary) !important;
 }
 
 .license-text,
 .acknowledgments-text {
   margin: 0;
-  color: color-vars.$color-text;
+  color: var(--color-text);
   line-height: typography-vars.$line-height-relaxed;
   font-size: typography-vars.$font-size-sm;
   padding-bottom: spacing-vars.$space-4;

@@ -1213,9 +1213,9 @@ function getUsageBarColor(percentage: number): string {
 
 .cart-socket-empty:hover,
 .cart-socket-empty.drag-over.can-drop {
-  border-color: #2d243b;
+  border-color: var(--retro-border);
   border-style: solid;
-  background: #ffffff;
+  background: var(--retro-bg-surface);
 }
 
 .socket-offset {

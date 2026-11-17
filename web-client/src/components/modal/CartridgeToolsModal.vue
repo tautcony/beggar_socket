@@ -502,7 +502,6 @@ async function handlePPBUnlockMBC5() {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/variables/colors' as color-vars;
 @use '@/styles/variables/spacing' as spacing-vars;
 @use '@/styles/variables/typography' as typography-vars;
 @use '@/styles/variables/radius' as radius-vars;
@@ -581,7 +580,7 @@ async function handlePPBUnlockMBC5() {
 
   .clock-date {
     font-size: typography-vars.$font-size-lg;
-    color: color-vars.$color-text-secondary;
+    color: var(--color-text-secondary);
     font-family: 'Courier New', monospace;
   }
 }
@@ -596,7 +595,7 @@ async function handlePPBUnlockMBC5() {
 
   .placeholder-text {
     font-size: typography-vars.$font-size-base;
-    color: color-vars.$color-text-secondary;
+    color: var(--color-text-secondary);
     text-align: center;
     font-style: italic;
     opacity: 0.6;
@@ -613,11 +612,11 @@ async function handlePPBUnlockMBC5() {
 
 .log-header {
   padding: spacing-vars.$space-3 spacing-vars.$space-4;
-  background: color-vars.$color-bg-secondary;
-  border-bottom: 1px solid color-vars.$color-border;
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
   font-size: typography-vars.$font-size-sm;
   font-weight: typography-vars.$font-weight-medium;
-  color: color-vars.$color-text;
+  color: var(--color-text);
 }
 
 .log-content {
@@ -634,7 +633,7 @@ async function handlePPBUnlockMBC5() {
   gap: spacing-vars.$space-3;
 
   &.info {
-    color: color-vars.$color-text;
+    color: var(--color-text);
   }
 
   &.success {
@@ -650,7 +649,7 @@ async function handlePPBUnlockMBC5() {
   }
 
   .log-time {
-    color: color-vars.$color-text-secondary;
+    color: var(--color-text-secondary);
     min-width: 70px;
     font-size: typography-vars.$font-size-xs;
   }
@@ -662,7 +661,7 @@ async function handlePPBUnlockMBC5() {
 }
 
 .log-empty {
-  color: color-vars.$color-text-secondary;
+  color: var(--color-text-secondary);
   text-align: center;
   padding: spacing-vars.$space-8;
   font-style: italic;

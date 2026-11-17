@@ -360,12 +360,12 @@ function openSerialTest() {
 
 .menu-header {
   padding: spacing-vars.$space-4 spacing-vars.$space-5 spacing-vars.$space-3;
-  border-bottom: 1px solid color-vars.$color-border-light;
-  background: color-vars.$color-bg-secondary;
+  border-bottom: 1px solid var(--retro-divider);
+  background: var(--retro-bg-elevated);
 
   h4 {
     margin: 0;
-    color: #2c3e50;
+    color: var(--retro-ink);
     font-size: typography-vars.$font-size-base;
     font-weight: typography-vars.$font-weight-semibold;
   }
@@ -387,9 +387,10 @@ function openSerialTest() {
   cursor: pointer;
   transition: background 0.2s ease;
   text-align: left;
+  color: var(--retro-ink);
 
   &:hover:not(:disabled) {
-    background: color-vars.$color-bg-secondary;
+    background: var(--retro-bg-elevated);
   }
 
   &:disabled {
@@ -397,11 +398,11 @@ function openSerialTest() {
     cursor: not-allowed;
 
     .menu-item-title {
-      color: color-vars.$color-border;
+      color: var(--retro-ink-subtle);
     }
 
     .menu-item-desc {
-      color: color-vars.$color-border;
+      color: var(--retro-ink-subtle);
     }
   }
 }
@@ -415,19 +416,19 @@ function openSerialTest() {
 
 .menu-item-title {
   font-weight: typography-vars.$font-weight-semibold;
-  color: #2c3e50;
+  color: var(--retro-ink);
   font-size: typography-vars.$font-size-sm;
 }
 
 .menu-item-desc {
   font-size: typography-vars.$font-size-xs;
-  color: color-vars.$color-text-secondary;
+  color: var(--retro-ink-muted);
   line-height: typography-vars.$line-height-snug;
 }
 
 .menu-divider {
   height: 1px;
-  background: #e9ecef;
+  background: var(--retro-divider);
   margin: 8px 20px;
 }
 </style>

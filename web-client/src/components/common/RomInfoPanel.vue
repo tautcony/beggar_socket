@@ -66,6 +66,7 @@
           />
         </div>
         <div
+          v-if="romInfo.gameCode || (isEditing && romInfo.type === 'GBA')"
           class="rom-info-item"
         >
           <span class="rom-info-label">{{ $t('ui.rom.gameCode') }}:</span>
@@ -247,7 +248,7 @@
 import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { RetroButton, RetroIcon, RetroSelect } from '@/components/retro';
+import { RetroBadge, RetroButton, RetroIcon, RetroSelect } from '@/components/retro';
 import { useToast } from '@/composables/useToast';
 import { processGBALogoData } from '@/utils/compression-utils';
 import { formatBytes } from '@/utils/formatter-utils';
@@ -517,10 +518,10 @@ onMounted(async () => {
 }
 
 .rom-info-content {
-  background: color-vars.$color-bg;
+  background: var(--retro-bg-surface);
   border-radius: radius-vars.$radius-md;
   padding: spacing-vars.$space-4;
-  border: 1px solid color-vars.$color-border-light;
+  border: 1px solid var(--retro-border-subtle);
   overflow: hidden;
   transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
   max-height: 800px;

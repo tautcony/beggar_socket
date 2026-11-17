@@ -164,7 +164,7 @@ defineEmits([...CHIP_OPERATION_EVENTS]);
 <style scoped>
 .op-title {
   font-size: var(--font-size-lg);
-  color: var(--color-text);
+  color: var(--retro-ink);
   font-weight: var(--font-weight-semibold);
   transition: color 0.2s, font-weight 0.2s;
   white-space: nowrap;
@@ -223,7 +223,7 @@ defineEmits([...CHIP_OPERATION_EVENTS]);
 .chip-info-value {
   flex: 1 1 0;
   font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Menlo', 'Consolas', monospace;
-  color: var(--color-text);
+  color: var(--retro-ink);
   font-size: var(--font-size-xs);
   margin-right: 0;
   white-space: nowrap;

@@ -970,7 +970,6 @@ function cleanup(isFinalUnmount = false) {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/variables/colors' as color-vars;
 @use '@/styles/variables/spacing' as spacing-vars;
 @use '@/styles/variables/typography' as typography-vars;
 @use '@/styles/variables/radius' as radius-vars;
@@ -1007,7 +1006,7 @@ function cleanup(isFinalUnmount = false) {
 }
 
 .emulator-content {
-  background: color-vars.$color-bg;
+  background: var(--color-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1020,17 +1019,17 @@ function cleanup(isFinalUnmount = false) {
 .error-display {
   text-align: center;
   padding: spacing-vars.$space-10 spacing-vars.$space-5;
-  color: color-vars.$color-error;
+  color: var(--color-error);
 
   h4 {
     margin: 0 0 spacing-vars.$space-3 0;
     font-size: typography-vars.$font-size-xl;
-    color: color-vars.$color-error;
+    color: var(--color-error);
   }
 
   p {
     margin: 0 0 spacing-vars.$space-5 0;
-    color: color-vars.$color-text-secondary;
+    color: var(--color-text-secondary);
     line-height: typography-vars.$line-height-normal;
     max-width: 400px;
   }
@@ -1042,7 +1041,7 @@ function cleanup(isFinalUnmount = false) {
 }
 
 .game-canvas {
-  border: 2px solid color-vars.$color-text;
+  border: 2px solid var(--retro-border);
   border-radius: radius-vars.$radius-base;
   background: #000000;
   image-rendering: pixelated;
@@ -1070,33 +1069,33 @@ function cleanup(isFinalUnmount = false) {
 }
 
 .emulator-footer {
-  background: color-vars.$color-bg-secondary;
-  color: color-vars.$color-text;
-  padding: spacing-vars.$space-4 spacing-vars.$space-5;
-  border-top: 1px solid color-vars.$color-border-light;
+  background: var(--retro-bg-elevated);
+  color: var(--retro-ink);
+  padding: spacing-vars.$space-3 spacing-vars.$space-4;
+  border-top: 1px solid var(--retro-divider);
 }
 
 .controls-help {
   text-align: center;
 
   p {
-    margin: 0 0 spacing-vars.$space-3 0;
-    font-size: typography-vars.$font-size-sm;
-    color: color-vars.$color-text-secondary;
+    margin: 0 0 spacing-vars.$space-2 0;
+    font-size: typography-vars.$font-size-xs;
+    color: var(--retro-ink-muted);
   }
 }
 
 .key-mappings {
   display: flex;
   flex-wrap: wrap;
-  gap: spacing-vars.$space-2;
+  gap: 5px;
   justify-content: center;
   align-items: center;
 }
 
 .key-mapping {
   background: var(--retro-bg-surface);
-  padding: 2px 7px;
+  padding: 2px 6px;
   border-radius: 4px;
   font-family: var(--retro-font-mono);
   font-size: 11px;

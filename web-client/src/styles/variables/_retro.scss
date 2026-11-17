@@ -56,6 +56,26 @@
   --retro-warning-bg: #473b1f;
 
   --retro-overlay: rgba(35, 29, 47, 0.9);
+
+  // 兼容旧版通用语义变量，防止深色模式下出现深字深底或白底
+  --color-text: #efeaf8;
+  --color-text-secondary: #bfb4d6;
+  --color-text-tertiary: #8d82a6;
+  --color-text-inverse: #231d2f;
+  --color-bg: #2d253b;
+  --color-bg-secondary: #231d2f;
+  --color-bg-tertiary: #362d47;
+  --color-border: #5d4f7a;
+  --color-border-light: #4b3f63;
+  --color-border-dark: #9d91b8;
+  --color-primary: #8b7ae0;
+  --color-primary-hover: #a293eb;
+  --color-success: #69db7c;
+  --color-warning: #ffd43b;
+  --color-error: #ff8787;
+  --color-scrollbar-track: #231d2f;
+  --color-scrollbar-thumb: #5d4f7a;
+  --color-scrollbar-thumb-hover: #9d91b8;
 }
 
 @media (prefers-color-scheme: dark) {
