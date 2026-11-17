@@ -115,7 +115,7 @@ function closeModal() {
 }
 
 .empty-icon {
-  font-size: 3rem;
+  font-size: 48px;
   opacity: 0.4;
 }
 
@@ -201,7 +201,7 @@ function closeModal() {
 
 .addr-code {
   font-family: var(--retro-font-mono);
-  font-size: 0.9em;
+  font-size: var(--font-size-xs);
   background: var(--color-code-bg, #f0f0f0);
   padding: 1px 6px;
   border-radius: var(--radius-sm);
@@ -210,16 +210,17 @@ function closeModal() {
 
 .desc-text {
   color: var(--color-text-secondary);
-  font-size: 0.9em;
+  font-size: var(--font-size-xs);
 }
 
 .type-badge {
   display: inline-block;
   padding: 1px 8px;
   border-radius: var(--radius-sm);
-  font-size: 0.8em;
+  font-family: var(--retro-font-micro);
+  font-size: var(--font-size-micro);
   font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--letter-spacing-wide);
 }
 
 .type-gba { background: #e8f5e9; color: #2e7d32; }

@@ -35,8 +35,31 @@ describe('SimulatedTransport speed control', () => {
     await transport.send(payload);
     await transport.read(1);
 
-    expect(timeoutMock).toHaveBeenNthCalledWith(1, 100 + Math.ceil((payload.byteLength / 1024) * 1000));
-    expect(timeoutMock).toHaveBeenNthCalledWith(2, 100 + Math.ceil((1 / (2 * 1024)) * 1000));
+    // 100 + floor((payload.byteLength / 1024) * 1000)
+    expect(timeoutMock).toHaveBeenNthCalledWith(1, 100 + Math.floor((payload.byteLength / 1024) * 1000));
+    // 100 + floor((1 / 2048) * 1000) = 100 (with 0.488ms remainder carried forward)
+    expect(timeoutMock).toHaveBeenNthCalledWith(2, 100);
+  });
+
+  it('accumulates sub-millisecond throughput delays without forcing 1ms sleep per small packet', async () => {
+    DebugSettings.simulatedDelay = 0;
+    DebugSettings.simulatedReadSpeed = 4096 * 1024;
+    DebugSettings.simulatedWriteSpeed = 4096 * 1024;
+
+    const payload = createCommandPayload(GBCCommand.DIRECT_WRITE)
+      .addAddress(0)
+      .addBytes(new Uint8Array([0x12]))
+      .build();
+    const transport = new SimulatedTransport();
+
+    // 13 * (336 / 4194304) * 1000 = 1.041ms -> timeout(1) only triggers once on the 13th read
+    for (let i = 0; i < 13; i += 1) {
+      await transport.send(payload);
+      await transport.read(336);
+    }
+
+    expect(timeoutMock).toHaveBeenCalledTimes(1);
+    expect(timeoutMock).toHaveBeenCalledWith(1);
   });
 
   it('executes post-read flushInput inside the same mutex acquisition when flushAfterRead is true', async () => {

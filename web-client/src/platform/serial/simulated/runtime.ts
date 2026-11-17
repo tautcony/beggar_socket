@@ -25,6 +25,10 @@ export interface SimulatedDeviceState {
     dataTerminalReady?: boolean;
     requestToSend?: boolean;
   };
+  transferDelayRemainderMs: {
+    read: number;
+    write: number;
+  };
   gba: SimulatedGbaState;
   gbc: SimulatedGbcState;
 }
@@ -570,6 +574,10 @@ export function createSimulatedDeviceState(): SimulatedDeviceState {
       dataTerminalReady: false,
       requestToSend: false,
     },
+    transferDelayRemainderMs: {
+      read: 0,
+      write: 0,
+    },
     gba: {
       rom: createConfiguredMemory('gbaRom', 0x51a7c3),
       ram: createConfiguredMemory('gbaRam', 0xa55a12),
@@ -603,18 +611,31 @@ function calculateThroughputDelay(byteLength: number, bytesPerSecond: number): n
     return 0;
   }
 
-  return Math.ceil((byteLength / bytesPerSecond) * 1000);
+  return (byteLength / bytesPerSecond) * 1000;
 }
 
-export async function applySimulatedTransferDelay(kind: 'read' | 'write', byteLength: number): Promise<void> {
+export async function applySimulatedTransferDelay(
+  kind: 'read' | 'write',
+  byteLength: number,
+  state?: SimulatedDeviceState,
+): Promise<void> {
   const baseDelay = Math.max(0, DebugSettings.simulatedDelay);
   const bytesPerSecond = kind === 'read'
     ? DebugSettings.simulatedReadSpeed
     : DebugSettings.simulatedWriteSpeed;
-  const totalDelay = baseDelay + calculateThroughputDelay(byteLength, bytesPerSecond);
+  const exactDelay = baseDelay + calculateThroughputDelay(byteLength, bytesPerSecond);
 
-  if (totalDelay > 0) {
-    await timeout(totalDelay);
+  let sleepMs: number;
+  if (state) {
+    const accumulated = state.transferDelayRemainderMs[kind] + exactDelay;
+    sleepMs = Math.floor(accumulated);
+    state.transferDelayRemainderMs[kind] = accumulated - sleepMs;
+  } else {
+    sleepMs = Math.floor(exactDelay);
+  }
+
+  if (sleepMs > 0) {
+    await timeout(sleepMs);
   }
 }
 

@@ -162,16 +162,16 @@ function goBack() {
 
 .page-title {
   margin: 0;
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-xl);
   font-weight: var(--font-weight-semibold);
   color: var(--retro-ink);
-  letter-spacing: -0.01em;
+  letter-spacing: var(--letter-spacing-tight);
 }
 
 .platform-tag {
   font-family: var(--retro-font-micro);
   font-size: 10px;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--letter-spacing-wide);
   color: var(--retro-ink-muted);
 }
 
@@ -216,7 +216,7 @@ function goBack() {
   padding: 1px 6px;
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.18);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--letter-spacing-wide);
 }
 
 .tab-button:not(.active) .alpha-badge {

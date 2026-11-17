@@ -2,6 +2,7 @@
 @use '../variables/colors' as color-vars;
 @use '../variables/spacing' as spacing-vars;
 @use '../variables/radius' as radius;
+@use '../variables/typography' as typography-vars;
 
 // 卡片基础混合器
 @mixin card-base {
@@ -30,14 +31,14 @@
 
   .card-title {
     margin: 0;
-    font-size: 1.125rem;
+    font-size: typography-vars.$font-size-lg;
     font-weight: 600;
     color: color-vars.$color-text;
   }
 
   .card-subtitle {
     margin: spacing-vars.$space-1 0 0 0;
-    font-size: 0.875rem;
+    font-size: typography-vars.$font-size-sm;
     color: color-vars.$color-text-secondary;
   }
 }

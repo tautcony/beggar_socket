@@ -116,7 +116,7 @@ const selectedValue = computed<string | number | undefined>({
   left: 9px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 1.05em;
+  font-size: var(--font-size-xs);
   color: var(--retro-ink);
   pointer-events: none;
   z-index: 1;
@@ -147,7 +147,7 @@ const selectedValue = computed<string | number | undefined>({
   right: 8px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 0.95em;
+  font-size: var(--font-size-xs);
   color: var(--retro-ink-muted);
   pointer-events: none;
   z-index: 1;

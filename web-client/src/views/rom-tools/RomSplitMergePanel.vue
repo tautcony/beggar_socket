@@ -775,7 +775,7 @@ function getUsageBarColor(percentage: number): string {
   font-family: var(--retro-font-micro);
   font-size: 10px;
   color: var(--color-text-secondary);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--letter-spacing-wide);
 }
 
 .capacity-meter {
@@ -1024,7 +1024,7 @@ function getUsageBarColor(percentage: number): string {
   font-size: 10px;
   font-weight: var(--font-weight-semibold);
   color: #4f465e;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--letter-spacing-wide);
   flex-shrink: 0;
 }
 
@@ -1063,7 +1063,7 @@ function getUsageBarColor(percentage: number): string {
   font-size: 10px;
   font-weight: var(--font-weight-semibold);
   color: #4f465e;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--letter-spacing-wide);
 }
 
 .cart-grip-lines {
@@ -1108,7 +1108,7 @@ function getUsageBarColor(percentage: number): string {
   color: #ffffff;
   font-weight: var(--font-weight-bold);
   border-radius: 2px;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--letter-spacing-wide);
 }
 
 .label-offset {
@@ -1123,11 +1123,11 @@ function getUsageBarColor(percentage: number): string {
 }
 
 .label-internal-title {
-  font-size: 14px;
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-bold);
   color: #ffffff;
-  letter-spacing: 0.03em;
-  line-height: 1.25;
+  letter-spacing: var(--letter-spacing-wide);
+  line-height: var(--line-height-normal);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;

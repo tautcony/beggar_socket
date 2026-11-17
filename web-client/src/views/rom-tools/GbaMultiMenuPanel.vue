@@ -167,7 +167,7 @@ const totalGameRomSize = computed(() =>
   font-family: var(--retro-font-mono);
   font-size: var(--font-size-xs);
   color: var(--retro-ink-muted);
-  letter-spacing: 0.03em;
+  letter-spacing: var(--letter-spacing-wide);
 }
 
 .main-layout {
