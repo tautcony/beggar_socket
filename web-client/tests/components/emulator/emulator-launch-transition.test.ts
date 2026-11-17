@@ -164,6 +164,28 @@ describe('EmulatorLaunchTransition.vue', () => {
     expect(wrapper.find('svg.transition-wipe-svg').exists()).toBe(false);
   });
 
+  it('uses active page theme color when themeColor prop is not provided', async () => {
+    const { setTheme } = await import('@/composables/useTheme');
+    setTheme('sage');
+
+    const wrapper = mount(EmulatorLaunchTransition, {
+      props: {
+        isVisible: true,
+      },
+    });
+
+    expect(wrapper.find('.wipe-path-top').attributes('stroke')).toBe('#B4C3A1');
+    expect(wrapper.find('.emulator-overlay').attributes('style')).toContain('--wipe-theme-color: #B4C3A1');
+
+    setTheme('rose');
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('.wipe-path-top').attributes('stroke')).toBe('#DF9AB0');
+    expect(wrapper.find('.emulator-overlay').attributes('style')).toContain('--wipe-theme-color: #DF9AB0');
+
+    setTheme('lavender');
+  });
+
   it('triggers covered on 500ms timer fallback', async () => {
     vi.useFakeTimers();
     try {
@@ -332,7 +354,7 @@ describe('GBAEmulator Transition Integration', () => {
       // SVG wipe and screen shimmer are visible
       expect(wrapper.find('.transition-wipe-svg').exists()).toBe(true);
       expect(wrapper.find('.screen-loading-surface').exists()).toBe(true);
-      expect(wrapper.find('.wipe-path-top').attributes('stroke')).toBe('#b3c2a0');
+      expect(wrapper.find('.wipe-path-top').attributes('stroke')).toBe('#BFA9E2');
 
       // Advance 500ms
       vi.advanceTimersByTime(500);
@@ -402,8 +424,8 @@ describe('GBCEmulator Transition Integration', () => {
     const canvas = wrapper.find('.game-canvas');
     expect(canvas.classes()).not.toContain('is-ready');
 
-    // GBC theme color stroke #b9a4dc
-    expect(wrapper.find('.wipe-path-top').attributes('stroke')).toBe('#b9a4dc');
+    // Default active page theme color stroke (#BFA9E2)
+    expect(wrapper.find('.wipe-path-top').attributes('stroke')).toBe('#BFA9E2');
     expect(wrapper.find('.screen-loading-surface').exists()).toBe(true);
 
     // Wait for BinjgbRunner async init

@@ -3,7 +3,7 @@
     v-if="isVisible"
     class="emulator-overlay"
     :class="{ 'is-covered': isCovered }"
-    :style="{ '--wipe-theme-color': themeColor }"
+    :style="{ '--wipe-theme-color': effectiveThemeColor }"
   >
     <!-- Stepped SVG Boustrophedon Snake Wipe Layer (0ms -> 500ms) -->
     <svg
@@ -22,7 +22,7 @@
         stroke-linejoin="miter"
         pathLength="1"
         stroke-dasharray="1"
-        :stroke="themeColor"
+        :stroke="effectiveThemeColor"
         @animationend="handleAnimationEnd"
       />
       <path
@@ -34,7 +34,7 @@
         stroke-linejoin="miter"
         pathLength="1"
         stroke-dasharray="1"
-        :stroke="themeColor"
+        :stroke="effectiveThemeColor"
       />
     </svg>
 
@@ -52,19 +52,24 @@
 </template>
 
 <script setup lang="ts">
-import { toRef } from 'vue';
+import { computed, toRef } from 'vue';
 
 import { useEmulatorTransition } from '@/components/emulator/useEmulatorTransition';
+import { useTheme } from '@/composables/useTheme';
 
-const props = withDefaults(
-  defineProps<{
-    isVisible: boolean;
-    themeColor?: string;
-  }>(),
-  {
-    themeColor: '#b9a4dc',
-  },
-);
+const props = defineProps<{
+  isVisible: boolean;
+  themeColor?: string;
+}>();
+
+const { currentTheme, themes } = useTheme();
+
+const effectiveThemeColor = computed(() => {
+  if (props.themeColor) {
+    return props.themeColor;
+  }
+  return themes.find((item) => item.id === currentTheme.value)?.swatch ?? '#BFA9E2';
+});
 
 const emit = defineEmits<{
   covered: [isCovered: boolean];
@@ -136,7 +141,7 @@ defineExpose({
 
 @keyframes chromatic-overlay-settle {
   0% {
-    background-color: var(--wipe-theme-color, #b9a4dc);
+    background-color: var(--wipe-theme-color, var(--retro-accent, #BFA9E2));
     backdrop-filter: blur(0px);
   }
   100% {

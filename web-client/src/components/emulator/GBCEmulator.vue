@@ -1,7 +1,6 @@
 <template>
   <EmulatorLaunchTransition
     :is-visible="isVisible"
-    theme-color="#b9a4dc"
     @close="closeEmulator"
     @covered="onTransitionCovered"
   >
