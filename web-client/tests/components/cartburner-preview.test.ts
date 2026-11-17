@@ -17,7 +17,7 @@ vi.mock('@/services', () => ({ CartridgeAdapter: class {}, GBAAdapter: class {},
 vi.mock('@/features/burner/adapters', () => ({ createCartridgeProtocolSession: vi.fn() }));
 vi.mock('@/features/burner/application', async () => {
   const actual = await vi.importActual<typeof import('@/features/burner/application')>('@/features/burner/application');
-  return { ...actual, createBurnerFacade: () => ({}) };
+  return { ...actual, createBurnerUseCase: () => ({}) };
 });
 
 vi.mock('@/components/emulator/GBAEmulator.vue', () => {

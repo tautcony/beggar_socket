@@ -1,7 +1,5 @@
 export { BurnerSession } from './burner-session';
 export {
-  type BurnerFacade,
-  BurnerFacadeImpl,
   type BurnerUseCase,
   BurnerUseCaseImpl,
   type GameDetectionResult,
@@ -34,6 +32,6 @@ export type {
   BurnerErrorCode,
   BurnerErrorStage,
 } from './domain/result';
-export { createBurnerFacade, type CreateBurnerFacadeOptions } from './factory';
+export { createBurnerUseCase, type CreateBurnerUseCaseOptions } from './factory';
 export { type BurnerFlowContext, type BurnerFlowOptions, runBurnerFlow } from './flow-template';
 export type { BurnerLogEntry, BurnerSessionState, LogLevel } from './types';

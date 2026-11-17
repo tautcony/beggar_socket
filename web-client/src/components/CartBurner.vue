@@ -151,7 +151,7 @@ import { RetroButton, RetroCard, RetroSegmented } from '@/components/retro';
 import { runWithCommandBufferReset, useCartBurnerFileState, useCartBurnerSessionState } from '@/composables/cartburner';
 import { useToast } from '@/composables/useToast';
 import { createCartridgeProtocolSession } from '@/features/burner/adapters';
-import { type BurnerProtocolSession, createBurnerFacade, type GameDetectionResult } from '@/features/burner/application';
+import { type BurnerProtocolSession, createBurnerUseCase, type GameDetectionResult } from '@/features/burner/application';
 import { isTauriRuntime } from '@/platform/runtime';
 import { CartridgeAdapter, GBAAdapter, MBC5Adapter } from '@/services';
 import { AdvancedSettings } from '@/settings/advanced-settings';
@@ -180,7 +180,7 @@ const props = defineProps<{
 const mode = ref<ModeType>('GBA');
 const selectedMbcType = ref<MbcType>('MBC5');
 const mbcPower5V = ref(false);
-const burnerFacade = createBurnerFacade({ translate: key => t(key), formatHex: value => formatHex(value, 4) });
+const burnerUseCase = createBurnerUseCase({ translate: key => t(key), formatHex: value => formatHex(value, 4) });
 const {
   burnerSession,
   busy,
@@ -419,7 +419,7 @@ async function withCommandBufferReset<T>(adapter: BurnerProtocolSession, operati
   return runWithCommandBufferReset(
     adapter,
     operation,
-    currentAdapter => burnerFacade.resetCommandBuffer(currentAdapter),
+    currentAdapter => burnerUseCase.resetCommandBuffer(currentAdapter),
     (error) => {
       const message = error instanceof Error ? error.message : String(error);
       showToast(t('messages.operation.resetCommandBufferFailed'), 'error');
@@ -438,7 +438,7 @@ async function readCart() {
       }
 
       await withCommandBufferReset(adapter, async () => {
-        const result = await burnerFacade.readCart(adapter, mbcPower5V.value);
+        const result = await burnerUseCase.readCart(adapter, mbcPower5V.value);
         if (result.success && result.cfiInfo) {
           cfiInfo.value = result.cfiInfo;
           chipId.value = result.chipId;
@@ -481,13 +481,16 @@ async function eraseChip() {
       const currentCfiInfo = cfiInfo.value;
 
       await withCommandBufferReset(adapter, async () => {
-        const response = await burnerFacade.eraseChip(
-          adapter,
-          currentCfiInfo,
-          selectedMbcType.value,
-          mbcPower5V.value,
+        const response = await burnerUseCase.eraseChip({
+          session: adapter,
+          cfiInfo: currentCfiInfo,
           signal,
-        );
+          options: {
+            cfiInfo: currentCfiInfo,
+            mbcType: selectedMbcType.value,
+            enable5V: mbcPower5V.value,
+          },
+        });
         showToast(response.message, response.success ? 'success' : 'error');
       });
     },
@@ -533,7 +536,13 @@ async function writeRom() {
       };
 
       await withCommandBufferReset(adapter, async () => {
-        const response = await burnerFacade.writeRom(adapter, alignedRomData, option, signal);
+        const response = await burnerUseCase.writeRom({
+          session: adapter,
+          cfiInfo: option.cfiInfo,
+          options: option,
+          data: alignedRomData,
+          signal,
+        });
         showToast(response.message, response.success ? 'success' : 'error');
       });
     },
@@ -575,7 +584,13 @@ async function readRom() {
 
       const romSize = parseInt(selectedRomSize.value, 16);
       await withCommandBufferReset(adapter, async () => {
-        const response = await burnerFacade.readRom(adapter, romSize, option, signal);
+        const response = await burnerUseCase.readRom({
+          session: adapter,
+          cfiInfo: option.cfiInfo,
+          options: option,
+          size: romSize,
+          signal,
+        });
         if (response.success) {
           showToast(response.message, 'success');
           if (response.data) {
@@ -645,13 +660,20 @@ async function verifyRom() {
       const currentRomData = romFileData.value;
       const size = parseInt(selectedRomSize.value, 16);
       await withCommandBufferReset(adapter, async () => {
-        const response = await burnerFacade.verifyRom(adapter, currentRomData, {
+        const options = {
           baseAddress: parseInt(selectedBaseAddress.value, 16),
           cfiInfo: currentCfiInfo,
           size,
           mbcType: selectedMbcType.value,
           enable5V: mbcPower5V.value,
-        }, signal);
+        };
+        const response = await burnerUseCase.verifyRom({
+          session: adapter,
+          cfiInfo: currentCfiInfo,
+          options,
+          data: currentRomData,
+          signal,
+        });
         showToast(response.message, response.success ? 'success' : 'error');
       });
     },
@@ -693,13 +715,20 @@ async function verifyBlank(fillByte: number) {
       log(t('messages.rom.verifyBlankStart', { size: formatBytes(size), fill: fillLabel }), 'info');
 
       await withCommandBufferReset(adapter, async () => {
-        const response = await burnerFacade.verifyRom(adapter, blankData, {
+        const options = {
           baseAddress: parseInt(selectedBaseAddress.value, 16),
           cfiInfo: currentCfiInfo,
           size,
           mbcType: selectedMbcType.value,
           enable5V: mbcPower5V.value,
-        }, signal);
+        };
+        const response = await burnerUseCase.verifyRom({
+          session: adapter,
+          cfiInfo: currentCfiInfo,
+          options,
+          data: blankData,
+          signal,
+        });
         showToast(response.message, response.success ? 'success' : 'error');
       });
     },
@@ -727,12 +756,18 @@ async function writeRam() {
       const currentRamData = ramFileData.value;
 
       await withCommandBufferReset(adapter, async () => {
-        const response = await burnerFacade.writeRam(adapter, currentRamData, {
+        const options = {
           ramType: selectedRamType.value as RamType,
           baseAddress: parseInt(selectedRamBaseAddress.value, 16),
           cfiInfo: currentCfiInfo,
           mbcType: selectedMbcType.value,
           enable5V: mbcPower5V.value,
+        };
+        const response = await burnerUseCase.writeRam({
+          session: adapter,
+          cfiInfo: currentCfiInfo,
+          options,
+          data: currentRamData,
         });
         showToast(response.message, response.success ? 'success' : 'error');
         if (response.success) {
@@ -766,12 +801,18 @@ async function readRam() {
 
       const defaultSize = ramFileData.value ? ramFileData.value.length : parseInt(selectedRamSize.value, 16);
       await withCommandBufferReset(adapter, async () => {
-        const response = await burnerFacade.readRam(adapter, defaultSize, {
+        const options = {
           ramType: selectedRamType.value as RamType,
           baseAddress: parseInt(selectedRamBaseAddress.value, 16),
           cfiInfo: currentCfiInfo,
           mbcType: selectedMbcType.value,
           enable5V: mbcPower5V.value,
+        };
+        const response = await burnerUseCase.readRam({
+          session: adapter,
+          cfiInfo: currentCfiInfo,
+          options,
+          size: defaultSize,
         });
         if (response.success) {
           showToast(response.message, 'success');
@@ -822,13 +863,19 @@ async function verifyRam() {
 
       const size = parseInt(selectedRamSize.value, 16);
       await withCommandBufferReset(adapter, async () => {
-        const response = await burnerFacade.verifyRam(adapter, currentRamData, {
+        const options = {
           ramType: selectedRamType.value as RamType,
           baseAddress: parseInt(selectedRamBaseAddress.value, 16),
           cfiInfo: currentCfiInfo,
           size,
           mbcType: selectedMbcType.value,
           enable5V: mbcPower5V.value,
+        };
+        const response = await burnerUseCase.verifyRam({
+          session: adapter,
+          cfiInfo: currentCfiInfo,
+          options,
+          data: currentRamData,
         });
         showToast(response.message, response.success ? 'success' : 'error');
         if (response.success) {
@@ -866,13 +913,19 @@ async function verifyRamBlank(fillByte: number) {
       log(t('messages.ram.verifyBlankStart', { size: formatBytes(size), fill: fillLabel }), 'info');
 
       await withCommandBufferReset(adapter, async () => {
-        const response = await burnerFacade.verifyRam(adapter, blankData, {
+        const options = {
           ramType: selectedRamType.value as RamType,
           baseAddress: parseInt(selectedRamBaseAddress.value, 16),
           cfiInfo: currentCfiInfo,
           size,
           mbcType: selectedMbcType.value,
           enable5V: mbcPower5V.value,
+        };
+        const response = await burnerUseCase.verifyRam({
+          session: adapter,
+          cfiInfo: currentCfiInfo,
+          options,
+          data: blankData,
         });
         showToast(response.message, response.success ? 'success' : 'error');
         if (response.success) {
@@ -989,7 +1042,7 @@ async function readRomInfo() {
       log(t('ui.operation.startReadingMultiCart'));
 
       await withCommandBufferReset(adapter, async () => {
-        const gameResults = await burnerFacade.scanMultiCart(
+        const gameResults = await burnerUseCase.scanMultiCart(
           adapter,
           mode.value,
           currentCfiInfo,
