@@ -92,4 +92,30 @@ describe('TauriSerialTransport', () => {
     nativeState.readNativeSerial.mockResolvedValueOnce(new Uint8Array([0xdd]));
     await expect(transport.read(1, 20)).resolves.toEqual({ data: new Uint8Array([0xdd]) });
   });
+
+  it('executes post-read flushInput inside the same mutex acquisition when flushAfterRead is true', async () => {
+    const transport = new TauriSerialTransport(1);
+    await transport.attachListener();
+    const events: string[] = [];
+
+    nativeState.writeNativeSerial.mockImplementation(async (_id: number, payload: Uint8Array) => {
+      events.push(`send-${payload[0]}`);
+    });
+    nativeState.readNativeSerial
+      .mockResolvedValueOnce(new Uint8Array([0xaa]))
+      .mockResolvedValueOnce(new Uint8Array([0xbb]));
+    nativeState.flushNativeSerialInput.mockImplementation(async () => {
+      events.push('flush-start');
+      await Promise.resolve();
+      events.push('flush-end');
+    });
+
+    const first = transport.sendAndReceive(new Uint8Array([0x01]), 1, 20, 20, { flushAfterRead: true });
+    const second = transport.sendAndReceive(new Uint8Array([0x02]), 1, 20, 20);
+
+    const [res1, res2] = await Promise.all([first, second]);
+    expect(Array.from(res1.data)).toEqual([0xaa]);
+    expect(Array.from(res2.data)).toEqual([0xbb]);
+    expect(events).toEqual(['send-1', 'flush-start', 'flush-end', 'send-2']);
+  });
 });

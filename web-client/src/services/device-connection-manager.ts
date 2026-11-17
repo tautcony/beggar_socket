@@ -1,5 +1,11 @@
 import { createConnectionOrchestrationUseCase } from '@/features/burner/adapters';
-import type { BurnerConnectionHandle, BurnerConnectionSelection, ConnectionFailure } from '@/features/burner/application';
+import type {
+  BurnerConnectionHandle,
+  BurnerConnectionSelection,
+  ConnectionFailure,
+  ConnectionOperationResult,
+  ConnectionOperationToken,
+} from '@/features/burner/application';
 import { isTauriRuntime } from '@/platform/runtime';
 import type { DeviceHandle } from '@/platform/serial';
 import { AdvancedSettings } from '@/settings/advanced-settings';
@@ -75,20 +81,23 @@ export class DeviceConnectionManager {
     );
   }
 
-  private toDeviceInfo(handle: BurnerConnectionHandle): DeviceInfo {
+  private toDeviceInfo(handle: BurnerConnectionHandle, generation?: number): DeviceInfo {
     const ctx = handle.context;
     if (!this.isDeviceHandle(ctx)) {
       throw new Error('Invalid connection handle: context is not a valid DeviceHandle');
     }
-    const firmwareProfile = ctx.firmwareProfile ?? inferFirmwareProfileFromPort(ctx.portInfo);
+    const resolvedProfile = getFirmwareProfileById(AdvancedSettings.firmwareProfile);
+    ctx.firmwareProfile = resolvedProfile;
     return attachFirmwareProfile({
       port: ctx.port,
       connection: null,
       transport: ctx.transport,
       serialHandle: ctx,
       portInfo: ctx.portInfo,
-      firmwareProfile,
-    }, getFirmwareProfileById(AdvancedSettings.firmwareProfile));
+      firmwareProfile: resolvedProfile,
+      connectionGeneration: generation,
+      connectionId: handle.id,
+    }, resolvedProfile);
   }
 
   private asSerialPortInfo(portInfo: BurnerConnectionHandle['portInfo']): SerialPortInfo | null {
@@ -190,7 +199,7 @@ export class DeviceConnectionManager {
       });
     }
 
-    const device = this.toDeviceInfo(result.context.handle);
+    const device = this.toDeviceInfo(result.context.handle, result.context.generation);
     this.logFirmwareProfile(device, 'requestDevice');
     return device;
   }
@@ -225,9 +234,9 @@ export class DeviceConnectionManager {
         });
       }
 
-      const device = attachFirmwareProfile(
-        this.withPortInfo(this.toDeviceInfo(result.context.handle), selectedPort),
-        getFirmwareProfileById(AdvancedSettings.firmwareProfile),
+      const device = this.withPortInfo(
+        this.toDeviceInfo(result.context.handle, result.context.generation),
+        selectedPort,
       );
       this.logFirmwareProfile(device, 'connectWithSelectedPort');
       return device;
@@ -240,30 +249,72 @@ export class DeviceConnectionManager {
     }
   }
 
+  get isOperationBusy(): boolean {
+    return this.connectionUseCase.operationCoordinator.isBusy;
+  }
+
+  subscribeOperationBusy(listener: (busy: boolean) => void): () => void {
+    return this.connectionUseCase.operationCoordinator.subscribe(listener);
+  }
+
+  async runConnectionOperation<T>(options: {
+    token?: ConnectionOperationToken;
+    expectedGeneration?: number;
+    requireConnected?: boolean;
+    fn: (token: ConnectionOperationToken) => Promise<T>;
+  }): Promise<ConnectionOperationResult<T>> {
+    return this.connectionUseCase.operationCoordinator.runExclusive({
+      token: options.token,
+      expectedGeneration: options.expectedGeneration,
+      currentGeneration: () => this.connectionUseCase.snapshot.context.generation,
+      isConnected: options.requireConnected === false
+        ? undefined
+        : () => {
+          const snapshot = this.connectionUseCase.snapshot;
+          return snapshot.state === 'connected' && Boolean(snapshot.context.handle);
+        },
+      fn: options.fn,
+    });
+  }
+
   /**
    * 初始化串口状态（设置 DTR/RTS 信号）
    */
   async initializeDevice(device: DeviceInfo): Promise<void> {
-    const ensureResult = await this.connectionUseCase.ensureConnected();
-    if (!ensureResult.success || !ensureResult.context.handle) {
-      console.error('[DeviceConnectionManager] initializeDevice failed', {
-        device: this.describePort(device.portInfo),
-        failure: ensureResult.failure,
-      });
-      throw this.asError(ensureResult.failure ?? {
-        stage: 'init',
-        code: 'init_failed',
-        message: 'Failed to initialize device',
-      });
-    }
+    const opResult = await this.runConnectionOperation({
+      requireConnected: false,
+      fn: async () => {
+        const ensureResult = await this.connectionUseCase.ensureConnected();
+        if (!ensureResult.success || !ensureResult.context.handle) {
+          console.error('[DeviceConnectionManager] initializeDevice failed', {
+            device: this.describePort(device.portInfo),
+            failure: ensureResult.failure,
+          });
+          throw this.asError(ensureResult.failure ?? {
+            stage: 'init',
+            code: 'init_failed',
+            message: 'Failed to initialize device',
+          });
+        }
 
-    const latestDevice = this.toDeviceInfo(ensureResult.context.handle);
-    device.connection = latestDevice.connection;
-    device.port = latestDevice.port;
-    device.transport = latestDevice.transport;
-    device.serialHandle = latestDevice.serialHandle;
-    device.portInfo = latestDevice.portInfo;
-    device.firmwareProfile = latestDevice.firmwareProfile;
+        const latestDevice = this.toDeviceInfo(ensureResult.context.handle, ensureResult.context.generation);
+        device.connection = latestDevice.connection;
+        device.port = latestDevice.port;
+        device.transport = latestDevice.transport;
+        device.serialHandle = latestDevice.serialHandle;
+        device.portInfo = latestDevice.portInfo;
+        device.firmwareProfile = latestDevice.firmwareProfile;
+        device.connectionGeneration = latestDevice.connectionGeneration;
+        device.connectionId = latestDevice.connectionId;
+      },
+    });
+
+    if (!opResult.ok) {
+      if (opResult.reason === 'busy') {
+        throw Object.assign(new Error(opResult.message), { code: 'busy' });
+      }
+      throw opResult.error instanceof Error ? opResult.error : new Error(opResult.message);
+    }
   }
 
   async listAvailablePorts(filter?: PortFilter): Promise<SerialPortInfo[]> {
@@ -293,20 +344,34 @@ export class DeviceConnectionManager {
    * 断开设备连接
    */
   async disconnectDevice(device: DeviceInfo): Promise<void> {
-    try {
-      const result = await this.connectionUseCase.disconnect();
-      if (!result.success) {
-        throw this.asError(result.failure ?? {
-          stage: 'disconnect',
-          code: 'disconnect_failed',
-          message: 'Failed to disconnect device',
-        });
+    const opResult = await this.runConnectionOperation({
+      requireConnected: false,
+      fn: async () => {
+        try {
+          const result = await this.connectionUseCase.disconnect();
+          if (!result.success) {
+            throw this.asError(result.failure ?? {
+              stage: 'disconnect',
+              code: 'disconnect_failed',
+              message: 'Failed to disconnect device',
+            });
+          }
+        } finally {
+          device.connection = null;
+          device.port = null;
+          device.transport = null;
+          device.serialHandle = null;
+          device.connectionGeneration = undefined;
+          device.connectionId = undefined;
+        }
+      },
+    });
+
+    if (!opResult.ok) {
+      if (opResult.reason === 'busy') {
+        throw Object.assign(new Error(opResult.message), { code: 'busy' });
       }
-    } finally {
-      device.connection = null;
-      device.port = null;
-      device.transport = null;
-      device.serialHandle = null;
+      throw opResult.error instanceof Error ? opResult.error : new Error(opResult.message);
     }
   }
 
@@ -324,10 +389,8 @@ export class DeviceConnectionManager {
   private withPortInfo(device: DeviceInfo, portInfo?: SerialPortInfo): DeviceInfo {
     if (device.serialHandle) {
       device.serialHandle.portInfo = portInfo;
-      device.serialHandle.firmwareProfile = inferFirmwareProfileFromPort(portInfo);
     }
     device.portInfo = portInfo;
-    device.firmwareProfile = inferFirmwareProfileFromPort(portInfo);
     return device;
   }
 }

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ConnectionOperationCoordinator } from '@/features/burner/application';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { PortFilters } from '@/utils/port-filter';
 
@@ -9,7 +10,8 @@ const connectionUseCaseState = vi.hoisted(() => ({
   prepareConnection: vi.fn(),
   disconnect: vi.fn(),
   ensureConnected: vi.fn(),
-  snapshot: { state: 'idle', context: {} },
+  snapshot: { state: 'idle', context: { generation: 0, handle: null, selection: null } },
+  operationCoordinator: null as unknown as ConnectionOperationCoordinator,
 }));
 
 vi.mock('@/features/burner/adapters', () => ({
@@ -26,6 +28,8 @@ describe('DeviceConnectionManager', () => {
   beforeEach(async () => {
     AdvancedSettings.resetToDefaults();
     vi.clearAllMocks();
+    connectionUseCaseState.operationCoordinator = new ConnectionOperationCoordinator();
+    connectionUseCaseState.snapshot = { state: 'idle', context: { generation: 0, handle: null, selection: null } };
     connectionUseCaseState.listAvailableSelections.mockResolvedValue({
       success: true,
       ports: [],
@@ -223,5 +227,92 @@ describe('DeviceConnectionManager', () => {
       connection: null,
       serialHandle: null,
     });
+  });
+
+  it('preserves effective firmware profile on portInfo updates, applies new profile on reconnect, and rejects stale generation operations', async () => {
+    AdvancedSettings.firmwareProfile = 'stc';
+    connectionUseCaseState.snapshot = {
+      state: 'connected',
+      context: { generation: 1, handle: { id: 'h1' } as never, selection: null },
+    };
+    connectionUseCaseState.prepareConnectionWithSelection.mockResolvedValueOnce({
+      success: true,
+      context: {
+        generation: 1,
+        handle: {
+          id: 'h1',
+          platform: 'tauri',
+          portInfo: { path: '/dev/tty.usbmodem1' },
+          context: {
+            platform: 'tauri',
+            transport: { send: vi.fn() },
+            port: null,
+            connection: null,
+            portInfo: { path: '/dev/tty.usbmodem1' },
+          },
+        },
+      },
+    });
+
+    const { DeviceConnectionManager } = await import('@/services/device-connection-manager');
+    const manager = DeviceConnectionManager.getInstance();
+
+    // Connect with STM-looking port metadata while manual profile is STC
+    const firstDevice = await manager.connectWithSelectedPort({
+      path: '/dev/tty.usbmodem6D83538A48851',
+      vendorId: '0483',
+      productId: '0721',
+    });
+    expect(firstDevice.firmwareProfile?.id).toBe('stc');
+    expect(firstDevice.serialHandle?.firmwareProfile?.id).toBe('stc');
+    expect(firstDevice.connectionGeneration).toBe(1);
+
+    // Changing setting while connected does NOT mutate active connection profile
+    AdvancedSettings.firmwareProfile = 'stm';
+    expect(firstDevice.firmwareProfile?.id).toBe('stc');
+
+    // Reconnect increments generation and applies new profile
+    connectionUseCaseState.snapshot = {
+      state: 'connected',
+      context: { generation: 2, handle: { id: 'h2' } as never, selection: null },
+    };
+    connectionUseCaseState.prepareConnectionWithSelection.mockResolvedValueOnce({
+      success: true,
+      context: {
+        generation: 2,
+        handle: {
+          id: 'h2',
+          platform: 'tauri',
+          portInfo: { path: '/dev/tty.usbmodem1' },
+          context: {
+            platform: 'tauri',
+            transport: { send: vi.fn() },
+            port: null,
+            connection: null,
+            portInfo: { path: '/dev/tty.usbmodem1' },
+          },
+        },
+      },
+    });
+
+    const secondDevice = await manager.connectWithSelectedPort({
+      path: '/dev/tty.usbmodem6D83538A48851',
+      vendorId: '0483',
+      productId: '0721',
+    });
+    expect(secondDevice.firmwareProfile?.id).toBe('stm');
+    expect(secondDevice.connectionGeneration).toBe(2);
+
+    // Stale operation bound to firstDevice's generation is rejected before touching transport
+    const touchNewTransport = vi.fn();
+    const staleResult = await manager.runConnectionOperation({
+      expectedGeneration: firstDevice.connectionGeneration,
+      fn: touchNewTransport,
+    });
+    expect(staleResult).toMatchObject({
+      ok: false,
+      reason: 'stale_context',
+    });
+    expect(touchNewTransport).not.toHaveBeenCalled();
   });
 });

@@ -497,6 +497,8 @@
       "firmware": {
         "title": "ファームウェア種別",
         "profile": "現在のデバイスファームウェア",
+        "activeProfile": "現在の接続で有効なプロファイル",
+        "reconnectNotice": "変更は再接続または接続の再初期化後に有効になります。",
         "stm": "丐中丐",
         "stc": "碳酸丐"
       },
@@ -512,7 +514,8 @@
       },
       "size": {
         "title": "読み書き設定",
-        "romPageSize": "ROM読み書きページサイズ",
+        "romPageSize": "ROM書き込みページサイズ",
+        "romReadPageSize": "ROM読み込みページサイズ",
         "ramPageSize": "RAM読み書きページサイズ",
         "bytes": "バイト",
         "validation": {

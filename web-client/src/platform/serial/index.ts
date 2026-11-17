@@ -4,6 +4,7 @@ export type {
   DeviceGateway,
   DeviceHandle,
   DeviceSelection,
+  SendAndReceiveOptions,
   Transport,
   TransportReadMode,
 } from './types';

@@ -509,6 +509,8 @@
       "firmware": {
         "title": "固件类型",
         "profile": "当前插入设备固件",
+        "activeProfile": "当前连接生效固件",
+        "reconnectNotice": "修改将在重连或重新初始化连接后生效。",
         "stm": "丐中丐",
         "stc": "碳酸丐"
       },
@@ -524,7 +526,8 @@
       },
       "size": {
         "title": "读写设置",
-        "romPageSize": "ROM读写分页大小",
+        "romPageSize": "ROM写入分页大小",
+        "romReadPageSize": "ROM读取分页大小",
         "ramPageSize": "RAM读写分页大小",
         "bytes": "字节",
         "validation": {

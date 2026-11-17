@@ -125,7 +125,7 @@
             variant="primary"
             :icon="isSending ? 'pixelarticons:hourglass' : 'pixelarticons:play'"
             :text="isSending ? $t('ui.debug.tool.sending') : $t('ui.debug.tool.send')"
-            :disabled="!canSend || isSending"
+            :disabled="!canSend || isSending || connectionBusy"
             @click="sendCommand"
           />
 
@@ -208,6 +208,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { RetroButton, RetroIcon, RetroModal, RetroSelect } from '@/components/retro';
+import { useConnectionOperationBusy } from '@/composables/useConnectionOperationBusy';
 import { useToast } from '@/composables/useToast';
 import {
   type DebugCommandType,
@@ -215,6 +216,7 @@ import {
   getAvailableDebugCommands,
   isDuplicatedDebugCommandName,
 } from '@/services/debug-protocol-service';
+import { DeviceConnectionManager } from '@/services/device-connection-manager';
 import type { DeviceInfo } from '@/types/device-info';
 
 const props = defineProps<{
@@ -229,6 +231,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const { showToast } = useToast();
+const { connectionBusy } = useConnectionOperationBusy();
 
 // 创建一个计算属性来处理 v-model
 const localVisible = computed({
@@ -407,15 +410,28 @@ async function sendCommand() {
       throw new Error(t('ui.debug.tool.errors.noDevice'));
     }
 
-    const result = await executeDebugCommand({
-      transport,
-      command: selectedCommand.value,
-      address: parsedAddress,
-      length: length.value === '' ? null : length.value,
-      data: dataBytes,
-      receiveLength: maxResponseLength,
-      timeoutMs,
+    const opResult = await DeviceConnectionManager.getInstance().runConnectionOperation({
+      expectedGeneration: device.connectionGeneration,
+      requireConnected: false,
+      fn: () => executeDebugCommand({
+        transport,
+        command: selectedCommand.value as number,
+        address: parsedAddress,
+        length: length.value === '' ? null : length.value,
+        data: dataBytes,
+        receiveLength: maxResponseLength,
+        timeoutMs,
+      }),
     });
+    if (!opResult.ok) {
+      if (opResult.reason === 'busy') {
+        showToast(t('ui.operation.busy'), 'error');
+        return;
+      }
+      throw opResult.error instanceof Error ? opResult.error : new Error(opResult.message);
+    }
+
+    const result = opResult.value;
     requestData.value = result.requestData;
     responseData.value = result.responseData;
 

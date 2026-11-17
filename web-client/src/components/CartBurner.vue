@@ -195,7 +195,7 @@ const {
   log,
   syncSessionState,
   executeOperation,
-} = useCartBurnerSessionState(t);
+} = useCartBurnerSessionState(t, () => props.device?.connectionGeneration);
 const {
   romFileData,
   romFileName,

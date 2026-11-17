@@ -1,7 +1,9 @@
 import { DateTime } from 'luxon';
 import { computed, onScopeDispose, ref } from 'vue';
 
+import { useConnectionOperationBusy } from '@/composables/useConnectionOperationBusy';
 import { BurnerSession, runBurnerFlow } from '@/features/burner/application';
+import { DeviceConnectionManager } from '@/services/device-connection-manager';
 import type { BurnerLogEntry, BurnerLogLevel } from '@/types/burner-log';
 import { DEFAULT_PROGRESS, type ProgressInfo } from '@/types/progress-info';
 import { type BurnerLogInput, formatBurnerLogMessage } from '@/utils/burner-log';
@@ -14,9 +16,14 @@ interface ExecuteOperationOptions<TResult> {
   onError: (error: unknown) => void | Promise<void>;
 }
 
-export function useCartBurnerSessionState(translate: (key: string) => string) {
+export function useCartBurnerSessionState(
+  translate: (key: string) => string,
+  getExpectedGeneration?: () => number | undefined,
+) {
   const burnerSession = new BurnerSession();
-  const busy = ref(false);
+  const { connectionBusy } = useConnectionOperationBusy();
+  const sessionBusy = ref(false);
+  const busy = computed(() => sessionBusy.value || connectionBusy.value);
   const cancelling = ref(false);
   const logs = ref<BurnerLogEntry[]>([]);
   const progressInfo = ref<ProgressInfo>({ ...DEFAULT_PROGRESS });
@@ -36,7 +43,7 @@ export function useCartBurnerSessionState(translate: (key: string) => string) {
 
   function syncSessionState() {
     const snapshot = burnerSession.snapshot;
-    busy.value = snapshot.busy;
+    sessionBusy.value = snapshot.busy;
     cancelling.value = snapshot.cancelling;
     progressInfo.value = { ...DEFAULT_PROGRESS, ...snapshot.progress };
     logs.value = [...snapshot.logs];
@@ -44,7 +51,7 @@ export function useCartBurnerSessionState(translate: (key: string) => string) {
 
   function syncProgressState() {
     const snapshot = burnerSession.snapshot;
-    busy.value = snapshot.busy;
+    sessionBusy.value = snapshot.busy;
     cancelling.value = snapshot.cancelling;
     progressInfo.value = { ...DEFAULT_PROGRESS, ...snapshot.progress };
   }
@@ -115,30 +122,49 @@ export function useCartBurnerSessionState(translate: (key: string) => string) {
     if (burnerSession.snapshot.busy) {
       return undefined;
     }
-    keepProgressModalOpen.value = false;
-    burnerSession.resetProgress();
-    syncProgressState();
-    return runBurnerFlow({
-      session: burnerSession,
-      cancellable: options.cancellable,
-      resetProgressOnFinish: options.resetProgressOnFinish,
-      updateProgress: options.updateProgress,
-      syncState: () => {
-        syncSessionState();
-        // 操作因错误结束时（不论是抛出异常还是返回失败结果），保持弹窗打开
-        if (progressInfo.value.state === 'error') {
-          keepProgressModalOpen.value = true;
-        }
-      },
-      log,
-      cancelLogMessage: translate('messages.operation.cancelled'),
-      execute: ({ signal }) => options.operation(signal),
-      onError: async (error) => {
-        // 抛出异常路径：适配器来不及将进度置为 error，在此补充设置
-        burnerSession.updateProgress({ state: 'error', allowCancel: false, showProgress: true });
-        await options.onError(error);
+
+    const expectedGeneration = getExpectedGeneration?.();
+    const opResult = await DeviceConnectionManager.getInstance().runConnectionOperation({
+      expectedGeneration,
+      requireConnected: false,
+      fn: async () => {
+        keepProgressModalOpen.value = false;
+        burnerSession.resetProgress();
+        syncProgressState();
+        return runBurnerFlow({
+          session: burnerSession,
+          cancellable: options.cancellable,
+          resetProgressOnFinish: options.resetProgressOnFinish,
+          updateProgress: options.updateProgress,
+          syncState: () => {
+            syncSessionState();
+            // 操作因错误结束时（不论是抛出异常还是返回失败结果），保持弹窗打开
+            if (progressInfo.value.state === 'error') {
+              keepProgressModalOpen.value = true;
+            }
+          },
+          log,
+          cancelLogMessage: translate('messages.operation.cancelled'),
+          execute: ({ signal }) => options.operation(signal),
+          onError: async (error) => {
+            // 抛出异常路径：适配器来不及将进度置为 error，在此补充设置
+            burnerSession.updateProgress({ state: 'error', allowCancel: false, showProgress: true });
+            await options.onError(error);
+          },
+        });
       },
     });
+
+    if (!opResult.ok) {
+      if (opResult.reason === 'busy') {
+        log(translate('ui.operation.busy'), 'warn');
+        return undefined;
+      }
+      await options.onError(opResult.error ?? new Error(opResult.message));
+      return undefined;
+    }
+
+    return opResult.value;
   }
 
   return {

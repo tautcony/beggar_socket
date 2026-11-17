@@ -9,8 +9,6 @@ export interface PlatformOps {
   readonly cfiEntryAddress: number;
   readonly romBankSize: number;
 
-  romProgram(device: ProtocolTransportInput, data: Uint8Array, address: number, bufferSize: number): Promise<void>;
-  romEraseSector(device: ProtocolTransportInput, address: number): Promise<boolean>;
   cfiGetId(device: ProtocolTransportInput): Promise<Uint8Array>;
 
   toRomBank(address: number, options: CommandOptions): { bank: number; cartAddress: number };

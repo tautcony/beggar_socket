@@ -8,7 +8,6 @@
   ram_read_fram,
   ram_write,
   ram_write_fram,
-  rom_erase_chip,
   rom_erase_sector,
   rom_get_id,
   rom_program,
@@ -68,8 +67,6 @@ export class GBAAdapter extends CartridgeAdapter {
       },
       cfiEntryAddress: 0x55,
       romBankSize: GBAAdapter.ROM_BANK_SIZE,
-      romProgram: (device, data, addr, buf) => rom_program(device, data, addr, buf),
-      romEraseSector: (device, addr) => rom_erase_sector(device, addr),
       cfiGetId: (device) => rom_get_id(device),
       toRomBank: (address) => {
         const bank = address >> 25;
@@ -134,85 +131,6 @@ export class GBAAdapter extends CartridgeAdapter {
    * 鍏ㄧ墖鎿﹂櫎
    * @param signal - 鍙栨秷淇″彿锛岀敤浜庝腑姝㈡搷浣?
    * @returns - 鍖呭惈鎴愬姛鐘舵€佸拰娑堟伅鐨勫璞?
-   */
-  override async eraseChip(options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
-    return PerformanceTracker.trackAsyncOperation(
-      'gba.eraseChip',
-      async () => {
-        this.log(this.t('messages.operation.eraseChip'), 'info');
-
-        try {
-          // 妫€鏌ユ槸鍚﹀凡琚彇娑?
-          if (signal?.aborted) {
-            return {
-              success: false,
-              message: this.t('messages.operation.cancelled'),
-            };
-          }
-
-          await rom_erase_chip(this.transport);
-
-          const startTime = Date.now();
-          let elapsedSeconds = 0;
-
-          // 楠岃瘉鎿﹂櫎鏄惁瀹屾垚
-          const eraseDeadline = startTime + GBAAdapter.CHIP_ERASE_TIMEOUT_MS;
-          while (Date.now() < eraseDeadline) {
-            // 妫€鏌ユ槸鍚﹀凡琚彇娑?
-            if (signal?.aborted) {
-              this.log(this.t('messages.operation.cancelled'), 'warn');
-              return {
-                success: false,
-                message: this.t('messages.operation.cancelled'),
-              };
-            }
-
-            const eraseComplete = await this.isBlank(0x00, 0x100);
-            elapsedSeconds = Date.now() - startTime;
-            if (eraseComplete) {
-              this.log(`${this.t('messages.operation.eraseComplete')} (${(elapsedSeconds / 1000).toFixed(1)}s)`, 'success');
-              break;
-            } else {
-              this.log(`${this.t('messages.operation.eraseInProgress')} (${(elapsedSeconds / 1000).toFixed(1)}s)`, 'info');
-              await timeout(1000);
-            }
-          }
-          if (Date.now() >= eraseDeadline) {
-            throw new Error(`Chip erase timeout after ${GBAAdapter.CHIP_ERASE_TIMEOUT_MS / 1000}s`);
-          }
-
-          return {
-            success: true,
-            message: this.t('messages.operation.eraseComplete'),
-          };
-        } catch (e) {
-          if (signal?.aborted) {
-            this.log(this.t('messages.operation.cancelled'), 'warn');
-            return {
-              success: false,
-              message: this.t('messages.operation.cancelled'),
-            };
-          }
-
-          this.log(errorToBurnerLog(this.t('messages.operation.eraseFailed'), e), 'error');
-          return {
-            success: false,
-            message: this.t('messages.operation.eraseFailed'),
-          };
-        }
-      },
-      {
-        adapter_type: 'gba',
-        operation_type: 'erase_chip',
-      },
-    );
-  }
-
-  /**
-   * 鎿﹂櫎ROM鎵囧尯
-   * @param sectorInfo - 鎵囧尯淇℃伅鏁扮粍
-   * @param signal - 鍙栨秷淇″彿锛岀敤浜庝腑姝㈡搷浣?
-   * @returns - 鎿嶄綔缁撴灉
    */
   override async eraseSectors(
     sectorInfo: SectorBlock[],
@@ -1504,6 +1422,7 @@ export class GBAAdapter extends CartridgeAdapter {
    * @returns 鍗″甫瀹归噺鐩稿叧淇℃伅
    */
   override async getCartInfo(): Promise<CFIInfo | false> {
+    this.lastCartInfoError = undefined;
     this.log(this.t('messages.operation.startGetCartInfo'), 'info');
 
     return PerformanceTracker.trackAsyncOperation(
@@ -1519,7 +1438,8 @@ export class GBAAdapter extends CartridgeAdapter {
           const cfiInfo = parseCFI(cfiData);
 
           if (!cfiInfo) {
-            this.log(this.t('messages.operation.cfiParseFailed'), 'error');
+            this.lastCartInfoError = this.t('messages.operation.cfiParseFailed');
+            this.log(this.lastCartInfoError, 'error');
             return false;
           }
 
@@ -1541,6 +1461,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
           return cfiInfo;
         } catch (e) {
+          this.lastCartInfoError = e instanceof Error ? e.message : String(e);
           this.log(errorToBurnerLog(this.t('messages.operation.romSizeQueryFailed'), e), 'error');
           return false;
         }

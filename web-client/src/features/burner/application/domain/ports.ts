@@ -36,6 +36,7 @@ export interface BurnerProtocolSession {
   readonly id: string;
   isActive?: () => boolean;
   getCartInfo(enable5V?: boolean): Promise<CFIInfo | false>;
+  getLastCartInfoError?: () => string | undefined;
   eraseSectors(sectorInfo: SectorBlock[], options: CommandOptions, signal?: AbortSignal): Promise<CommandResult>;
   writeROM(data: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult>;
   readROM(size: number, options: CommandOptions, signal?: AbortSignal, showProgress?: boolean): Promise<CommandResult>;
@@ -44,39 +45,6 @@ export interface BurnerProtocolSession {
   readRAM(size: number, options?: CommandOptions): Promise<CommandResult>;
   verifyRAM(data: Uint8Array, options?: CommandOptions): Promise<CommandResult>;
   resetCommandBuffer(): Promise<void>;
-}
-
-export interface BurnerProtocolPort {
-  readCartInfo(session: BurnerProtocolSession, enable5V: boolean): Promise<BurnerDomainResult<CFIInfo>>;
-  eraseSectors(
-    session: BurnerProtocolSession,
-    sectorInfo: SectorBlock[],
-    options: CommandOptions,
-    signal?: AbortSignal,
-  ): Promise<BurnerDomainResult<CommandResult>>;
-  writeRom(
-    session: BurnerProtocolSession,
-    data: Uint8Array,
-    options: CommandOptions,
-    signal?: AbortSignal,
-  ): Promise<BurnerDomainResult<CommandResult>>;
-  readRom(
-    session: BurnerProtocolSession,
-    size: number,
-    options: CommandOptions,
-    signal?: AbortSignal,
-    showProgress?: boolean,
-  ): Promise<BurnerDomainResult<CommandResult>>;
-  verifyRom(
-    session: BurnerProtocolSession,
-    data: Uint8Array,
-    options: CommandOptions,
-    signal: AbortSignal,
-  ): Promise<BurnerDomainResult<CommandResult>>;
-  writeRam(session: BurnerProtocolSession, data: Uint8Array, options?: CommandOptions): Promise<BurnerDomainResult<CommandResult>>;
-  readRam(session: BurnerProtocolSession, size: number, options?: CommandOptions): Promise<BurnerDomainResult<CommandResult>>;
-  verifyRam(session: BurnerProtocolSession, data: Uint8Array, options?: CommandOptions): Promise<BurnerDomainResult<CommandResult>>;
-  resetCommandBuffer(session: BurnerProtocolSession): Promise<BurnerDomainResult<void>>;
 }
 
 export interface BurnerSessionPort {

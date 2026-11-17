@@ -4,7 +4,6 @@
   GBC_FLASH_CMD_SET,
   gbc_read,
   gbc_read_fram,
-  gbc_rom_erase_chip,
   gbc_rom_erase_sector,
   gbc_rom_get_id,
   gbc_rom_program,
@@ -64,13 +63,10 @@ export class MBC5Adapter extends CartridgeAdapter {
       },
       cfiEntryAddress: 0xaa,
       romBankSize: 0x4000,
-      romProgram: (device, data, addr, buf) => gbc_rom_program(device, data, addr, buf),
-      romEraseSector: (device, addr) => gbc_rom_erase_sector(device, addr),
       cfiGetId: (device) => gbc_rom_get_id(device),
-      toRomBank: (address) => {
-        const bank = Math.max(0, address >> 14);
-        const cartAddress = this.getBaseAddressOfBank('MBC5', bank) + (address & 0x3fff);
-        return { bank, cartAddress };
+      toRomBank: (address, options) => {
+        const mbcType = (options as CommandOptions | undefined)?.mbcType ?? 'MBC5';
+        return this.romBankRelevantAddress(address, mbcType);
       },
       switchRomBank: async (_device, bank, options) => {
         const mbcType = (options as CommandOptions | undefined)?.mbcType ?? 'MBC5';
@@ -78,10 +74,6 @@ export class MBC5Adapter extends CartridgeAdapter {
       },
       needsRomBankSwitch: () => true,
     };
-  }
-
-  protected override async withPowerConfig<T>(enable5V: boolean, fn: () => Promise<T>): Promise<T> {
-    return this.withOptional5v(enable5V, fn);
   }
 
   private getUnsupportedPowerControlResult(): CommandResult | null {
@@ -387,105 +379,6 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param signal - 鍙栨秷淇″彿锛岀敤浜庝腑姝㈡搷浣?
    * @returns - 鍖呭惈鎴愬姛鐘舵€佸拰娑堟伅鐨勫璞?
    */
-  override async eraseChip(options: CommandOptions, signal?: AbortSignal) : Promise<CommandResult> {
-    if (options.enable5V) {
-      const unsupported = this.getUnsupportedPowerControlResult();
-      if (unsupported) return unsupported;
-    }
-
-    return PerformanceTracker.trackAsyncOperation(
-      'mbc5.eraseChip',
-      async () => {
-        this.log(this.t('messages.operation.eraseChip'), 'info');
-
-        const mbcType = options.mbcType ?? 'MBC5';
-        const enable5V = options.enable5V ?? false;
-
-        try {
-          return await this.withOptional5v(enable5V, async () => {
-            // 妫€鏌ユ槸鍚﹀凡琚彇娑?
-            if (signal?.aborted) {
-              return {
-                success: false,
-                message: this.t('messages.operation.cancelled'),
-              };
-            }
-
-            // 鑾峰彇鎿﹂櫎瓒呮椂鏃堕棿
-            const eraseTimeoutMs = this.calculateEraseTimeout(options.cfiInfo);
-
-            await gbc_rom_erase_chip(this.transport);
-
-            const startTime = Date.now();
-            let elapsedMilliseconds = 0;
-
-            // 楠岃瘉鎿﹂櫎鏄惁瀹屾垚
-            const eraseDeadline = startTime + Math.max(eraseTimeoutMs * 2, 120_000);
-            while (Date.now() < eraseDeadline) {
-              if (signal?.aborted) {
-                this.log(this.t('messages.operation.cancelled'), 'warn');
-                return {
-                  success: false,
-                  message: this.t('messages.operation.cancelled'),
-                };
-              }
-
-              const eraseComplete = await this.isBlank(0x00, 0x100, mbcType);
-              elapsedMilliseconds = Date.now() - startTime;
-
-              if (eraseComplete) {
-                this.log(`${this.t('messages.operation.eraseComplete')} (${(elapsedMilliseconds / 1000).toFixed(1)}s)`, 'success');
-                break;
-              } else {
-                // 濡傛灉鏈夐鏈熸摝闄ゆ椂闂达紝鏄剧ず杩涘害鐧惧垎姣?
-                if (eraseTimeoutMs > 0) {
-                  const progress = Math.min(100, Math.floor((elapsedMilliseconds / eraseTimeoutMs) * 100));
-                  this.log(`${this.t('messages.operation.eraseInProgress')} (${(elapsedMilliseconds / 1000).toFixed(1)}s, ${progress}%)`, 'info');
-                } else {
-                  this.log(`${this.t('messages.operation.eraseInProgress')} (${(elapsedMilliseconds / 1000).toFixed(1)}s)`, 'info');
-                }
-                await timeout(1000);
-              }
-            }
-            if (Date.now() >= eraseDeadline) {
-              throw new Error(`Chip erase timeout after ${(eraseDeadline - startTime) / 1000}s`);
-            }
-
-            return {
-              success: true,
-              message: this.t('messages.operation.eraseComplete'),
-            };
-          });
-        } catch (e) {
-          if (signal?.aborted) {
-            this.log(this.t('messages.operation.cancelled'), 'warn');
-            return {
-              success: false,
-              message: this.t('messages.operation.cancelled'),
-            };
-          }
-
-          this.log(errorToBurnerLog(this.t('messages.operation.eraseFailed'), e), 'error');
-          return {
-            success: false,
-            message: this.t('messages.operation.eraseFailed'),
-          };
-        }
-      },
-      {
-        adapter_type: 'mbc5',
-        operation_type: 'erase_chip',
-      },
-    );
-  }
-
-  /**
-   * 鎿﹂櫎ROM鎵囧尯
-   * @param sectorInfo - 鎵囧尯淇℃伅鏁扮粍
-   * @param options - 鍛戒护閫夐」锛屽寘鍚?MBC 绫诲瀷鍜?5V 浣胯兘璁剧疆
-   * @param signal - 鍙栨秷淇″彿锛岀敤浜庝腑姝㈡搷浣?
-   * @returns - 鎿嶄綔缁撴灉
-   */
   override async eraseSectors(
     sectorInfo: SectorBlock[],
     options: CommandOptions,
@@ -669,7 +562,7 @@ export class MBC5Adapter extends CartridgeAdapter {
     const mbcType = options.mbcType ?? 'MBC5';
     const enable5V = options.enable5V ?? false;
     const baseAddress = options.baseAddress ?? 0x00;
-    const pageSize = this.resolveRomReadPageSize(options.romPageSize);
+    const pageSize = this.resolveRomPageSize(options.romPageSize);
     // 与 C# 客户端对齐：JS28F256 等 Intel 系（厂商 ID 0x89）在 x8 模式下写缓冲
     // 最大 256 字节，CFI 报告值在这类卡上不可靠；错误的缓冲长度会让固件的
     // 编程校验轮询永不收敛（设备永久沉默，主机只能等到超时）。
@@ -975,6 +868,7 @@ export class MBC5Adapter extends CartridgeAdapter {
     const enable5V = options.enable5V ?? false;
     const baseAddress = options.baseAddress ?? 0x00;
     const pageSize = this.resolveRomReadPageSize(options.romPageSize);
+    const readThrottleMs = AdvancedSettings.romReadThrottleMs;
     const retries = AdvancedSettings.romReadRetryCount;
     const retryDelayMs = AdvancedSettings.romReadRetryDelayMs;
     const timeoutMs = AdvancedSettings.packageReceiveTimeout;
@@ -1093,6 +987,10 @@ export class MBC5Adapter extends CartridgeAdapter {
                 this.log(this.t('messages.rom.readingAt', { address: formatHex(currentAddress, 4), progress }), 'info');
                 lastLoggedProgress = progress;
               }
+
+              if (totalRead < size && readThrottleMs > 0) {
+                await timeout(readThrottleMs);
+              }
             }
 
             const totalTime = speedCalculator.getTotalTime();
@@ -1157,6 +1055,7 @@ export class MBC5Adapter extends CartridgeAdapter {
     }
 
     const mbcType = options.mbcType ?? 'MBC5';
+    const enable5V = options.enable5V ?? false;
     const baseAddress = options.baseAddress ?? 0;
     const pageSize = this.resolveRomReadPageSize(options.romPageSize);
 
@@ -1183,7 +1082,9 @@ export class MBC5Adapter extends CartridgeAdapter {
           };
         }
         try {
-          this.log(this.t('messages.rom.verifying'), 'info');
+          return await this.withOptional5v(enable5V, async () => {
+            await this.stabilizeCommandChannel(MBC5Adapter.ROM_READ_START_SETTLE_MS);
+            this.log(this.t('messages.rom.verifying'), 'info');
 
           const configuredSize = options.size ?? fileData.byteLength;
           const deviceSize = options.cfiInfo.deviceSize;
@@ -1272,7 +1173,14 @@ export class MBC5Adapter extends CartridgeAdapter {
             }
 
             // 璇诲彇鏁版嵁
-            const actualChunk = await gbc_read(this.transport, chunkSize, cartAddress);
+            const actualChunk = await this.readROMChunkWithRetry(
+              chunkSize,
+              currentAddress,
+              cartAddress,
+              Math.floor(verified / pageSize) + 1,
+              bank,
+              async () => { await this.switchROMBank(bank, mbcType); },
+            );
             const chunkEndTime = Date.now();
 
             // 閫愬瓧鑺傛瘮杈?
@@ -1370,6 +1278,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             success: success,
             message: message,
           };
+          });
         } catch (e) {
           const progressReporter = new ProgressReporter(
             'verify',
@@ -1730,8 +1639,11 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @returns 鍗″甫瀹归噺鐩稿叧淇℃伅
    */
   override async getCartInfo(enable5V = false): Promise<CFIInfo | false> {
+    this.lastCartInfoError = undefined;
     if (enable5V && !this.firmwareProfile.capabilities.cartPowerControl) {
-      this.log(firmwareUnsupportedResult('MBC 5V power control', this.firmwareProfile).message, 'error');
+      const unsupported = firmwareUnsupportedResult('MBC 5V power control', this.firmwareProfile);
+      this.lastCartInfoError = unsupported.message;
+      this.log(unsupported.message, 'error');
       return false;
     }
 
@@ -1751,7 +1663,8 @@ export class MBC5Adapter extends CartridgeAdapter {
             const cfiInfo = parseCFI(cfiData);
 
             if (!cfiInfo) {
-              this.log(this.t('messages.operation.cfiParseFailed'), 'error');
+              this.lastCartInfoError = this.t('messages.operation.cfiParseFailed');
+              this.log(this.lastCartInfoError, 'error');
               return false;
             }
 
@@ -1774,6 +1687,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             return cfiInfo;
           });
         } catch (e) {
+          this.lastCartInfoError = e instanceof Error ? e.message : String(e);
           this.log(errorToBurnerLog(this.t('messages.operation.romSizeQueryFailed'), e), 'error');
           return false;
         }

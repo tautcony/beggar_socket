@@ -2,9 +2,10 @@
 
 import { WebSerialTransport } from '@/platform/serial/transports';
 import type { Transport } from '@/platform/serial/types';
-import { GBACommand, gbc_read, gbc_write, getPackage, getResult, ram_read, rom_erase_sector, rom_program, rom_read, sendPackage, setSignals } from '@/protocol';
+import { GBACommand, gbc_read, gbc_write, getPackage, getResult, ram_read, rom_erase_sector, rom_program, rom_read, sendAndExpectAck, sendPackage, setSignals } from '@/protocol';
 import { readProtocolPayload } from '@/protocol/beggar_socket/packet-read';
 import { createCommandPayload } from '@/protocol/beggar_socket/payload-builder';
+import { executeDebugCommand } from '@/services/debug-protocol-service';
 
 describe('Protocol transport abstraction', () => {
   it('protocol utilities send and read through Transport', async () => {
@@ -464,5 +465,56 @@ describe('Protocol transport abstraction', () => {
       expect(lowLenByte).toBeLessThan(0xa0);
       expect(lowLenByte).not.toBe(0x55);
     }
+  });
+
+  it('sendAndExpectAck uses atomic flushAfterRead option without separate unlocked flushInput', async () => {
+    const flushInput = vi.fn().mockResolvedValue(undefined);
+    const sendAndReceive = vi.fn().mockResolvedValue({ data: new Uint8Array([0xaa]) });
+    const transport: Transport = {
+      send: vi.fn(),
+      read: vi.fn(),
+      sendAndReceive,
+      setSignals: vi.fn(),
+      flushInput,
+    };
+
+    const ok = await sendAndExpectAck(transport, new Uint8Array([0x01, 0x02]), 100, 200);
+
+    expect(ok).toBe(true);
+    expect(sendAndReceive).toHaveBeenCalledWith(
+      new Uint8Array([0x01, 0x02]),
+      1,
+      100,
+      200,
+      { flushAfterRead: true },
+    );
+    expect(flushInput).not.toHaveBeenCalled();
+  });
+
+  it('executeDebugCommand serializes through Transport.sendAndReceive instead of uncoordinated send/read', async () => {
+    const send = vi.fn();
+    const read = vi.fn();
+    const sendAndReceive = vi.fn().mockResolvedValue({ data: new Uint8Array([0x12, 0x34]) });
+    const transport: Transport = {
+      send,
+      read,
+      sendAndReceive,
+      setSignals: vi.fn(),
+    };
+
+    const result = await executeDebugCommand({
+      transport,
+      command: GBACommand.READ,
+      address: 0x0000,
+      receiveLength: 2,
+      timeoutMs: 350,
+    });
+
+    expect(send).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
+    expect(sendAndReceive).toHaveBeenCalledTimes(1);
+    expect(sendAndReceive.mock.calls[0][1]).toBe(2);
+    expect(sendAndReceive.mock.calls[0][3]).toBe(350);
+    expect(Array.from(result.responseData)).toEqual([0x12, 0x34]);
   });
 });

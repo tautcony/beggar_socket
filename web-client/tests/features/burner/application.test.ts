@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { CartridgeProtocolPortAdapter } from '@/features/burner/adapters';
 import { BurnerSession } from '@/features/burner/application/burner-session';
 import { type BurnerOperationContext, BurnerUseCaseImpl } from '@/features/burner/application/burner-use-case';
 import type { BurnerProtocolSession } from '@/features/burner/application/domain/ports';
 import { runBurnerFlow } from '@/features/burner/application/flow-template';
 import type { CommandResult } from '@/types/command-result';
+import { firmwareUnsupportedResult, STM_FIRMWARE_PROFILE } from '@/types/firmware-profile';
 import type { CFIInfo } from '@/utils/parsers/cfi-parser';
 
 const t = (key: string) => key;
@@ -49,7 +49,7 @@ function createSession(overrides: Partial<BurnerProtocolSession> = {}): BurnerPr
 }
 
 function createUseCase() {
-  return new BurnerUseCaseImpl(new CartridgeProtocolPortAdapter(), t, toHex);
+  return new BurnerUseCaseImpl(t, toHex);
 }
 
 function createContext(
@@ -416,5 +416,89 @@ describe('BurnerUseCaseImpl', () => {
     const second = await useCase.readRom({ ...context, size: 1, showProgress: false });
     expect(second.success).toBe(true);
     expect(second.message).toBe('read-ok');
+  });
+
+  it('preserves error classification for timeout, cancellation, disconnect, and unsupported capability without round-trip loss', async () => {
+    const useCase = createUseCase();
+
+    const timeoutSession = createSession({
+      readROM: () => Promise.reject(Object.assign(new Error('Read timeout after 3000ms'), { code: 'TIMEOUT' })),
+    });
+    const timeoutRes = await useCase.readRom({ ...createContext(timeoutSession), size: 1 });
+    expect(timeoutRes).toMatchObject({
+      success: false,
+      errorCode: 'timeout',
+      errorStage: 'transport',
+      message: 'Read timeout after 3000ms',
+    });
+
+    const cancelErr = new Error('Operation aborted');
+    cancelErr.name = 'AbortError';
+    const cancelSession = createSession({
+      writeROM: () => Promise.reject(cancelErr),
+    });
+    const cancelRes = await useCase.writeRom({ ...createContext(cancelSession), data: new Uint8Array([1]) });
+    expect(cancelRes).toMatchObject({
+      success: false,
+      errorCode: 'aborted',
+      errorStage: 'transport',
+      message: 'Operation aborted',
+    });
+
+    const disconnectedSession = createSession({ isActive: () => false });
+    const disconnectedRes = await useCase.readRam({ ...createContext(disconnectedSession), size: 1 });
+    expect(disconnectedRes).toMatchObject({
+      success: false,
+      errorCode: 'not_connected',
+      errorStage: 'session',
+      message: 'Device not connected',
+    });
+
+    const unsupportedSession = createSession({
+      writeROM: () => Promise.resolve(firmwareUnsupportedResult('MBC 5V power control', STM_FIRMWARE_PROFILE)),
+    });
+    const unsupportedRes = await useCase.writeRom({ ...createContext(unsupportedSession), data: new Uint8Array([1]) });
+    expect(unsupportedRes).toMatchObject({
+      success: false,
+      errorCode: 'unsupported',
+      errorStage: 'protocol',
+      message: `MBC 5V power control is not supported by ${STM_FIRMWARE_PROFILE.label} firmware`,
+    });
+  });
+
+  it('preserves underlying readCartInfo failure causes instead of generic No cart info returned', async () => {
+    const useCase = createUseCase();
+
+    // 1. 5V unsupported / CFI parse failure via getLastCartInfoError
+    const cfiFailSession = createSession({
+      getCartInfo: () => Promise.resolve(false),
+      getLastCartInfoError: () => 'messages.operation.cfiParseFailed',
+    });
+    const cfiFailRes = await useCase.readCart(cfiFailSession, false);
+    expect(cfiFailRes.success).toBe(false);
+    expect(cfiFailRes.message).toContain('messages.operation.cfiParseFailed');
+    expect(cfiFailRes.message).not.toContain('No cart info returned');
+
+    // 2. Timeout thrown by getCartInfo
+    const timeoutCartSession = createSession({
+      getCartInfo: () => Promise.reject(Object.assign(new Error('Packet timeout'), { code: 'PACKET_TIMEOUT' })),
+    });
+    const timeoutCartRes = await useCase.readCart(timeoutCartSession, false);
+    expect(timeoutCartRes).toMatchObject({
+      success: false,
+      errorCode: 'timeout',
+      errorStage: 'protocol',
+    });
+    expect(timeoutCartRes.message).toContain('Packet timeout');
+
+    // 3. Disconnected session
+    const disconnectedCartSession = createSession({ isActive: () => false });
+    const disconnectedCartRes = await useCase.readCart(disconnectedCartSession, false);
+    expect(disconnectedCartRes).toMatchObject({
+      success: false,
+      errorCode: 'not_connected',
+      errorStage: 'session',
+      message: 'Device not connected',
+    });
   });
 });

@@ -141,6 +141,7 @@
     <!-- 高级设置面板 -->
     <AdvancedSettingsModal
       v-model="isSettingsVisible"
+      :device="device"
       @close="closeSettings"
       @applied="onSettingsApplied"
     />

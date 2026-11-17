@@ -1,3 +1,4 @@
+import { ConnectionOperationCoordinator } from './connection-operation-coordinator';
 import type {
   ConnectionCommandResult,
   ConnectionContext,
@@ -67,6 +68,7 @@ function appendCleanupCause(failure: ConnectionFailure, cleanupError: unknown): 
 }
 
 export class ConnectionOrchestrationUseCase {
+  readonly operationCoordinator = new ConnectionOperationCoordinator();
   private snapshotState: ConnectionSnapshot = {
     state: 'idle',
     context: {
