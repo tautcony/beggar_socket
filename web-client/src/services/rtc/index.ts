@@ -9,22 +9,14 @@ import { MBC3RTC, MBC3RTCData } from './mbc3-rtc';
 export type RTCType = 'GBA' | 'MBC3';
 export type RTCData = GBARTCData | MBC3RTCData;
 
-/**
- * RTC工厂类 - 用于创建不同类型的RTC实例
- */
-export class RTCFactory {
-  /**
-   * 创建RTC实例
-   */
-  static createRTC(type: RTCType, device: DeviceInfo): BaseRTC {
-    switch (type) {
-      case 'GBA':
-        return new GBARTC(device);
-      case 'MBC3':
-        return new MBC3RTC(device);
-      default:
-        throw new Error(`Unsupported RTC type: ${type}`);
-    }
+function createRTC(type: RTCType, device: DeviceInfo): BaseRTC {
+  switch (type) {
+    case 'GBA':
+      return new GBARTC(device);
+    case 'MBC3':
+      return new MBC3RTC(device);
+    default:
+      throw new Error(`Unsupported RTC type: ${type}`);
   }
 }
 
@@ -35,7 +27,7 @@ export class RTCManager {
   private rtc: BaseRTC;
 
   constructor(type: RTCType, device: DeviceInfo) {
-    this.rtc = RTCFactory.createRTC(type, device);
+    this.rtc = createRTC(type, device);
   }
 
   /**
