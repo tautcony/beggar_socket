@@ -40,9 +40,7 @@
   "dependencies": {
     "@iconify-json/pixelarticons": "^1.2.10",
     "@iconify/vue": "^5.0.5",
-    "@ionic/vue": "^9.0.8",
     "@jimp/plugin-resize": "1.6.1",
-    "@sentry/tracing": "^7.120.4",
     "@sentry/vue": "^11.7.0",
     "@tauri-apps/api": "^2.12.4",
     "buffer": "^6.0.3",
@@ -62,7 +60,6 @@
     "@tauri-apps/cli": "^2.12.3",
     "@types/luxon": "^3.7.6",
     "@types/node": "^26.6.5",
-    "@types/quantize": "^1.0.2",
     "@types/w3c-web-serial": "^1.0.8",
     "@types/w3c-web-usb": "^1.0.14",
     "@vitejs/plugin-vue": "^6.0.10",

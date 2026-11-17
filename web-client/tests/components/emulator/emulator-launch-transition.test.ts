@@ -30,12 +30,6 @@ vi.mock('vue-i18n', () => ({
   }),
 }));
 
-vi.mock('@ionic/vue', () => ({
-  IonIcon: {
-    template: '<span class="mock-ion-icon" />',
-  },
-}));
-
 vi.mock('gbats', () => ({
   Wrapper: class MockWrapper {
     emulator: any;

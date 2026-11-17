@@ -47,13 +47,8 @@ config.global.mocks = {
   },
 };
 
-// Mock Ionic components globally
+// Mock global components
 config.global.components = {
-  IonIcon: {
-    name: 'IonIcon',
-    props: ['name'],
-    template: '<div class="ion-icon" :data-name="name"></div>',
-  },
   Teleport: {
     name: 'Teleport',
     props: ['to'],
