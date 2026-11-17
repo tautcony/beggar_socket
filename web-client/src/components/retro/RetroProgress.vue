@@ -72,8 +72,8 @@ const clampedPercent = computed(() => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-family: var(--retro-font-mono);
-  font-size: 11px;
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   color: var(--retro-ink-muted);
 }
 

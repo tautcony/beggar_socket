@@ -192,7 +192,7 @@ defineExpose({
   border: 1px solid var(--retro-border);
   background: var(--retro-bg-tint);
   color: var(--retro-ink);
-  font-size: 15px;
+  font-size: var(--font-size-sm);
   flex-shrink: 0;
 }
 

@@ -169,8 +169,8 @@ function goBack() {
 }
 
 .platform-tag {
-  font-family: var(--retro-font-mono);
-  font-size: 11px;
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   letter-spacing: 0.06em;
   color: var(--retro-ink-muted);
 }
@@ -210,7 +210,7 @@ function goBack() {
 }
 
 .alpha-badge {
-  font-family: var(--retro-font-mono);
+  font-family: var(--retro-font-micro);
   font-size: 10px;
   font-weight: var(--font-weight-semibold);
   padding: 1px 6px;

@@ -118,8 +118,8 @@ const hasHeader = computed(
 }
 
 .retro-count-pill {
-  font-family: var(--retro-font-mono);
-  font-size: 11px;
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   padding: 1px 7px;
   border-radius: 999px;
   border: 1px solid var(--retro-border-subtle);

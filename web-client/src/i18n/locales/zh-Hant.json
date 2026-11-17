@@ -482,7 +482,7 @@
         "fontPreview": "字體預覽：方舟像素 / 復古工作台",
         "fonts": {
           "system": "系統預設字體",
-          "arkPixel": "Ark Pixel（方舟像素 12px）"
+          "arkPixel": "Ark Pixel（方舟像素）"
         }
       },
       "size": {

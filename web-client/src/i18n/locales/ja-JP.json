@@ -507,7 +507,7 @@
         "fontPreview": "フォントプレビュー：Ark Pixel / レトロワークベンチ",
         "fonts": {
           "system": "システムデフォルト",
-          "arkPixel": "Ark Pixel (12px Proportional)"
+          "arkPixel": "Ark Pixel"
         }
       },
       "size": {

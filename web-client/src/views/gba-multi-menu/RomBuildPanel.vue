@@ -300,8 +300,8 @@ function handleBgImageChange(e: Event) {
 }
 
 .header-badge {
-  font-family: var(--retro-font-mono);
-  font-size: 11px;
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   padding: 1px 6px;
   border-radius: 4px;
   border: 1px solid var(--retro-border-subtle);
@@ -334,7 +334,8 @@ function handleBgImageChange(e: Event) {
   border-radius: 4px;
   background: var(--retro-bg-surface);
   color: var(--retro-ink);
-  font-size: var(--font-size-xs);
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   line-height: 1.3;
   transition: box-shadow 0.12s ease;
 }
@@ -353,7 +354,8 @@ function handleBgImageChange(e: Event) {
   align-items: center;
   gap: 8px;
   margin-top: 2px;
-  font-size: var(--font-size-xs);
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   font-weight: var(--font-weight-medium);
   color: var(--retro-ink);
   cursor: pointer;
@@ -417,8 +419,8 @@ function handleBgImageChange(e: Event) {
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  font-family: var(--retro-font-mono);
-  font-size: 11px;
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   color: var(--retro-ink);
 }
 
@@ -435,7 +437,8 @@ function handleBgImageChange(e: Event) {
 }
 
 .file-meta-empty {
-  font-size: 11px;
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   color: var(--retro-ink-subtle);
 }
 
@@ -466,7 +469,8 @@ function handleBgImageChange(e: Event) {
 }
 
 .result-badge {
-  font-size: 11px;
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   font-weight: var(--font-weight-bold);
   padding: 2px 6px;
   border-radius: 4px;
@@ -476,8 +480,8 @@ function handleBgImageChange(e: Event) {
 }
 
 .result-specs {
-  font-family: var(--retro-font-mono);
-  font-size: 11px;
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   color: var(--retro-ink-muted);
 }
 
@@ -511,14 +515,15 @@ function handleBgImageChange(e: Event) {
 
 .preview-item h6 {
   margin: 0;
-  font-size: var(--font-size-xs);
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   font-weight: var(--font-weight-bold);
   color: var(--retro-ink);
 }
 
 .image-dimensions {
-  font-family: var(--retro-font-mono);
-  font-size: 11px;
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   color: var(--retro-ink-muted);
 }
 

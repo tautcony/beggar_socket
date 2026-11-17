@@ -120,8 +120,8 @@ function handleDrop(e: DragEvent) {
 }
 
 .retro-dropzone-hint {
-  font-family: var(--retro-font-mono);
-  font-size: 11px;
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   color: var(--retro-ink-subtle);
 }
 </style>

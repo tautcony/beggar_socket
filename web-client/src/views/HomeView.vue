@@ -327,7 +327,7 @@ $title-color: #2c3e50;
   color: var(--retro-ink);
   margin: 0;
   font-weight: typography-vars.$font-weight-semibold;
-  letter-spacing: -0.01em;
+  letter-spacing: var(--letter-spacing-tight);
   @include mixins.text-truncate;
 }
 
@@ -340,7 +340,7 @@ $title-color: #2c3e50;
   box-shadow: var(--retro-shadow-btn);
   padding: 2px 8px;
   font-family: var(--retro-font-mono);
-  font-size: 11px;
+  font-size: typography-vars.$font-size-xs;
   font-weight: typography-vars.$font-weight-bold;
   text-decoration: none;
   transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.12s ease;
