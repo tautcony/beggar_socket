@@ -120,6 +120,12 @@ function handleGlobalToast(event: Event) {
   showToast(custom.detail.message, custom.detail.type ?? 'info', custom.detail.duration ?? 3000);
 }
 
+declare global {
+  interface Window {
+    showToast?: (message: string, type?: RetroToastType, duration?: number) => void;
+  }
+}
+
 onMounted(() => {
   window.addEventListener('show-toast', handleGlobalToast);
   if (typeof window !== 'undefined') {
