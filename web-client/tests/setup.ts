@@ -54,18 +54,6 @@ config.global.components = {
     props: ['name'],
     template: '<div class="ion-icon" :data-name="name"></div>',
   },
-  BaseModal: {
-    name: 'BaseModal',
-    props: ['visible', 'title', 'closeDisabled', 'width'],
-    emits: ['close'],
-    template: `
-      <div class="base-modal" v-if="visible">
-        <header><slot name="header"></slot></header>
-        <main><slot></slot></main>
-        <footer><slot name="footer"></slot></footer>
-      </div>
-    `,
-  },
   Teleport: {
     name: 'Teleport',
     props: ['to'],
