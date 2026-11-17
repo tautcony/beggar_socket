@@ -11,42 +11,86 @@ export function calcSectorUsage(
     return [];
   }
 
-  // 计算总可用空间
-  const totalAvailable = eraseSectorBlocks.reduce((sum, block) => sum + block.totalSize, 0);
+  const sortedBlocks = eraseSectorBlocks
+    .filter((block) => block.sectorCount > 0 && block.sectorSize > 0 && block.totalSize > 0)
+    .slice()
+    .sort((a, b) => a.startAddress - b.startAddress);
 
-  // 检查空间是否足够
-  if (totalAvailable < size) {
-    throw new Error(`Insufficient sector space: need ${size} bytes, but only ${totalAvailable} bytes available`);
+  const deviceSize = sortedBlocks.reduce(
+    (maxEnd, block) => Math.max(maxEnd, block.startAddress + block.totalSize),
+    0,
+  );
+
+  // 检查写入范围是否越过设备末尾
+  if (baseAddress < 0 || baseAddress + size > deviceSize) {
+    throw new Error(
+      `Insufficient sector space: need ${size} bytes at 0x${baseAddress.toString(16)}, but device size is ${deviceSize} bytes`,
+    );
   }
 
+  const rangeStart = baseAddress;
+  const rangeEnd = baseAddress + size;
   const result: SectorBlock[] = [];
-  let remaining = size;
-  let currentAddress = baseAddress;
 
-  for (const block of eraseSectorBlocks) {
-    if (remaining <= 0) break;
-    if (block.sectorCount === 0) continue; // 跳过空扇区块
+  for (const block of sortedBlocks) {
+    const blockStart = block.startAddress;
+    const blockEnd = blockStart + block.totalSize;
+    if (blockEnd <= rangeStart || blockStart >= rangeEnd) {
+      continue;
+    }
 
-    // 计算需要使用的扇区数量
-    const sectorsNeeded = Math.ceil(remaining / block.sectorSize);
-    const sectorsToUse = Math.min(sectorsNeeded, block.sectorCount);
+    const firstIndex = Math.max(0, Math.floor((rangeStart - blockStart) / block.sectorSize));
+    const lastIndex = Math.min(
+      block.sectorCount - 1,
+      Math.floor((rangeEnd - 1 - blockStart) / block.sectorSize),
+    );
+    const sectorCount = lastIndex - firstIndex + 1;
+    if (sectorCount <= 0) {
+      continue;
+    }
 
-    if (sectorsToUse > 0) {
-      const totalSize = sectorsToUse * block.sectorSize;
+    const startAddress = blockStart + firstIndex * block.sectorSize;
+    const totalSize = sectorCount * block.sectorSize;
+    const endAddress = startAddress + totalSize - 1;
+
+    const prev = result[result.length - 1];
+    if (prev?.sectorSize === block.sectorSize && prev.endAddress + 1 === startAddress) {
+      prev.sectorCount += sectorCount;
+      prev.totalSize += totalSize;
+      prev.endAddress = endAddress;
+    } else {
       result.push({
-        startAddress: currentAddress,
-        endAddress: currentAddress + totalSize - 1,
+        startAddress,
+        endAddress,
         sectorSize: block.sectorSize,
-        sectorCount: sectorsToUse,
+        sectorCount,
         totalSize,
       });
-
-      currentAddress += totalSize;
-      remaining -= totalSize;
     }
   }
 
   return result;
+}
+
+/**
+ * 计算扇区擦除范围中超出目标写入区间的额外字节数（首/尾部分覆盖）
+ */
+export function getExtraErasedBytes(
+  sectorBlocks: SectorBlock[],
+  baseAddress: number,
+  size: number,
+): { headExtra: number; tailExtra: number; eraseStart: number; eraseEnd: number } | null {
+  if (sectorBlocks.length === 0 || size <= 0) {
+    return null;
+  }
+  const eraseStart = sectorBlocks[0].startAddress;
+  const eraseEnd = sectorBlocks[sectorBlocks.length - 1].endAddress + 1;
+  const headExtra = Math.max(0, baseAddress - eraseStart);
+  const tailExtra = Math.max(0, eraseEnd - (baseAddress + size));
+  if (headExtra === 0 && tailExtra === 0) {
+    return null;
+  }
+  return { headExtra, tailExtra, eraseStart, eraseEnd };
 }
 
 /**

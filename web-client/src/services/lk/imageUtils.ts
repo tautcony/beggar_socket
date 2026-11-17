@@ -1,6 +1,5 @@
-import { ResizeStrategy } from '@jimp/plugin-resize';
 import * as IQ from 'image-q';
-import { Jimp, rgbaToInt } from 'jimp';
+import { Jimp, ResizeStrategy, rgbaToInt } from 'jimp';
 
 type JimpObject = InstanceType<typeof Jimp>;
 

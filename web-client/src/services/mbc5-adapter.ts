@@ -27,7 +27,8 @@ import { PerformanceTracker } from '@/utils/monitoring/sentry-tracker';
 import { CFIInfo, parseCFI, SectorBlock } from '@/utils/parsers/cfi-parser';
 import { ProgressReporter } from '@/utils/progress/progress-reporter';
 import { SpeedCalculator } from '@/utils/progress/speed-calculator';
-import { calcSectorUsage } from '@/utils/sector-utils';
+import { calcSectorUsage, getExtraErasedBytes } from '@/utils/sector-utils';
+import { isAllErasedBytes, nextChunkSize, prepareRomImage } from '@/utils/transfer-plan';
 
 import type { PlatformOps } from './platform-ops';
 
@@ -62,6 +63,7 @@ export class MBC5Adapter extends CartridgeAdapter {
         write: (...args: Parameters<typeof gbc_write>) => gbc_write(...args),
       },
       cfiEntryAddress: 0xaa,
+      romBankSize: 0x4000,
       romProgram: (device, data, addr, buf) => gbc_rom_program(device, data, addr, buf),
       romEraseSector: (device, addr) => gbc_rom_erase_sector(device, addr),
       cfiGetId: (device) => gbc_rom_get_id(device),
@@ -667,7 +669,7 @@ export class MBC5Adapter extends CartridgeAdapter {
     const mbcType = options.mbcType ?? 'MBC5';
     const enable5V = options.enable5V ?? false;
     const baseAddress = options.baseAddress ?? 0x00;
-    const pageSize = this.resolveRomPageSize(options.romPageSize);
+    const pageSize = this.resolveRomReadPageSize(options.romPageSize);
     // 与 C# 客户端对齐：JS28F256 等 Intel 系（厂商 ID 0x89）在 x8 模式下写缓冲
     // 最大 256 字节，CFI 报告值在这类卡上不可靠；错误的缓冲长度会让固件的
     // 编程校验轮询永不收敛（设备永久沉默，主机只能等到超时）。
@@ -688,11 +690,20 @@ export class MBC5Adapter extends CartridgeAdapter {
         try {
           return await this.withOptional5v(enable5V, async () => {
             const total = options.size ?? fileData.byteLength;
+            const image = prepareRomImage(fileData, total);
             const wallClockStartTime = Date.now();
             let written = 0;
             this.log(this.t('messages.rom.writing', { size: total }), 'info');
 
             const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, total, baseAddress);
+            const extraErase = getExtraErasedBytes(sectorInfo, baseAddress, total);
+            if (extraErase) {
+              this.log(
+                `Partial sector coverage: erasing [${formatHex(extraErase.eraseStart, 4)}, ${formatHex(extraErase.eraseEnd, 4)}) `
+                + `(headExtra=${extraErase.headExtra}B, tailExtra=${extraErase.tailExtra}B)`,
+                'warn',
+              );
+            }
             const eraseStartTime = Date.now();
             // GBC 扇区擦除不受固件能力限制，与 C# 客户端一致写前无条件擦除；
             // 抽样跳过误判会导致在未擦除数据上编程，触发固件校验轮询死循环。
@@ -719,6 +730,9 @@ export class MBC5Adapter extends CartridgeAdapter {
 
             let lastLoggedProgress = -1;
             let chunkCount = 0;
+            let programRequests = 0;
+            let retryCount = 0;
+            let skippedBytes = 0;
             let currentBank = -1;
             const sectorWriteRetryCounts = new Map<number, number>();
             const writeEndAddressExclusive = baseAddress + total;
@@ -740,6 +754,7 @@ export class MBC5Adapter extends CartridgeAdapter {
               }
 
               const nextRetry = retriesUsed + 1;
+              retryCount++;
               sectorWriteRetryCounts.set(sector.address, nextRetry);
               this.log(retryLog, 'warn');
 
@@ -775,7 +790,7 @@ export class MBC5Adapter extends CartridgeAdapter {
               await this.switchROMBank(bank, mbcType);
               await this.eraseRomSectorWithRetry(sector, mbcType, 'recover', signal);
               progressReporter.markSectorState(sector.address, 'pending');
-              written = sector.address - baseAddress;
+              written = Math.max(sector.address, baseAddress) - baseAddress;
               chunkCount = 0;
               currentBank = -1;
             };
@@ -797,17 +812,42 @@ export class MBC5Adapter extends CartridgeAdapter {
               const currentSector = sectors[currentSectorIndex];
               const sectorWriteEnd = Math.min(writeEndAddressExclusive, currentSector.address + currentSector.size);
 
-              const bankWindowRemaining = 0x4000 - (currentAddress & 0x3fff);
-              const chunkSize = Math.min(
+              const chunkSize = nextChunkSize({
+                address: currentAddress,
+                remaining: total - written,
                 pageSize,
-                total - written,
-                sectorWriteEnd - currentAddress,
-                bankWindowRemaining,
-              );
-              const chunk = fileData.subarray(written, written + chunkSize);
+                bankSize: 0x4000,
+                sectorEnd: sectorWriteEnd,
+                bufferSize,
+              });
+              const chunk = image.subarray(written, written + chunkSize);
               if (chunk.byteLength === 0) {
                 this.log(this.t('messages.rom.writeNoData'), 'warn');
                 break;
+              }
+
+              if (isAllErasedBytes(chunk)) {
+                written += chunkSize;
+                skippedBytes += chunkSize;
+                chunkCount++;
+                if (written + baseAddress >= sectorWriteEnd) {
+                  progressReporter.markSectorState(currentSector.address, 'completed');
+                }
+                if (chunkCount % 10 === 0 || written >= total || written + baseAddress >= sectorWriteEnd) {
+                  const currentSpeed = speedCalculator.getCurrentSpeed();
+                  progressReporter.emitProgress(
+                    written,
+                    currentSpeed,
+                    this.t('messages.progress.writeSpeed', { speed: formatSpeed(currentSpeed) }),
+                    currentAddress,
+                  );
+                }
+                const progress = Math.floor((written / total) * 100);
+                if (progress % 5 === 0 && progress !== lastLoggedProgress) {
+                  this.log(this.t('messages.rom.writingAt', { address: formatHex(currentAddress, 4), progress }), 'info');
+                  lastLoggedProgress = progress;
+                }
+                continue;
               }
 
               const currentSpeedBeforeWrite = speedCalculator.getCurrentSpeed();
@@ -826,6 +866,7 @@ export class MBC5Adapter extends CartridgeAdapter {
               }
 
               try {
+                programRequests++;
                 await gbc_rom_program(this.transport, chunk, cartAddress, bufferSize);
               } catch (error) {
                 await recoverSectorWrite(currentSectorIndex, error);
@@ -859,10 +900,10 @@ export class MBC5Adapter extends CartridgeAdapter {
               }
             }
 
-            const transferTime = speedCalculator.getTotalTime();
             const totalTime = (Date.now() - wallClockStartTime) / 1000;
             const eraseTime = eraseDuration / 1000;
-            const avgSpeed = speedCalculator.getAverageSpeed();
+            const transferTime = speedCalculator.getTotalTime() || Math.max(0, totalTime - eraseTime);
+            const avgSpeed = transferTime > 0 ? total / transferTime : 0;
             const maxSpeed = speedCalculator.getMaxSpeed();
 
             this.log(this.t('messages.rom.writeComplete'), 'success');
@@ -873,6 +914,9 @@ export class MBC5Adapter extends CartridgeAdapter {
               avgSpeed: formatSpeed(avgSpeed),
               maxSpeed: formatSpeed(maxSpeed),
               totalSize: formatBytes(total),
+              programRequests,
+              retryCount,
+              skippedBytes: formatBytes(skippedBytes),
             }), 'info');
 
             // 鎶ュ憡瀹屾垚鐘舵€?
@@ -930,7 +974,7 @@ export class MBC5Adapter extends CartridgeAdapter {
     const mbcType = options.mbcType ?? 'MBC5';
     const enable5V = options.enable5V ?? false;
     const baseAddress = options.baseAddress ?? 0x00;
-    const pageSize = this.resolveRomPageSize(options.romPageSize);
+    const pageSize = this.resolveRomReadPageSize(options.romPageSize);
     const retries = AdvancedSettings.romReadRetryCount;
     const retryDelayMs = AdvancedSettings.romReadRetryDelayMs;
     const timeoutMs = AdvancedSettings.packageReceiveTimeout;
@@ -997,8 +1041,13 @@ export class MBC5Adapter extends CartridgeAdapter {
                 };
               }
 
-              const chunkSize = Math.min(pageSize, size - totalRead);
               const currentAddress = baseAddress + totalRead;
+              const chunkSize = nextChunkSize({
+                address: currentAddress,
+                remaining: size - totalRead,
+                pageSize,
+                bankSize: 0x4000,
+              });
 
               // 璁＄畻bank鍜屽湴鍧€
               const { bank, cartAddress } = this.romBankRelevantAddress(currentAddress, mbcType);
@@ -1047,7 +1096,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             }
 
             const totalTime = speedCalculator.getTotalTime();
-            const avgSpeed = speedCalculator.getAverageSpeed();
+            const avgSpeed = totalTime > 0 ? size / totalTime : speedCalculator.getAverageSpeed();
             const maxSpeed = speedCalculator.getMaxSpeed();
 
             this.log(this.t('messages.rom.readSuccess', { size: data.length }), 'success');
@@ -1056,6 +1105,7 @@ export class MBC5Adapter extends CartridgeAdapter {
               avgSpeed: formatSpeed(avgSpeed),
               maxSpeed: formatSpeed(maxSpeed),
               totalSize: formatBytes(size),
+              requestCount: chunkCount,
             }), 'info');
 
             // 鎶ュ憡瀹屾垚鐘舵€?
@@ -1108,7 +1158,7 @@ export class MBC5Adapter extends CartridgeAdapter {
 
     const mbcType = options.mbcType ?? 'MBC5';
     const baseAddress = options.baseAddress ?? 0;
-    const pageSize = this.resolveRomPageSize(options.romPageSize);
+    const pageSize = this.resolveRomReadPageSize(options.romPageSize);
 
     this.log(this.t('messages.operation.startVerifyROM', {
       fileSize: fileData.byteLength,
@@ -1137,22 +1187,16 @@ export class MBC5Adapter extends CartridgeAdapter {
 
           const configuredSize = options.size ?? fileData.byteLength;
           const deviceSize = options.cfiInfo.deviceSize;
-          const fileSize = fileData.byteLength;
-          const total = Math.min(configuredSize, deviceSize, fileSize);
-          if (configuredSize > deviceSize) {
+          const availableDeviceSize = Math.max(0, deviceSize - baseAddress);
+          const total = Math.min(configuredSize, availableDeviceSize);
+          if (configuredSize > availableDeviceSize) {
             this.log(this.t('messages.rom.verifyClampedToDevice', {
               configured: formatBytes(configuredSize),
               device: formatBytes(deviceSize),
               actual: formatBytes(total),
             }), 'warn');
           }
-          if (configuredSize > fileSize) {
-            this.log(this.t('messages.rom.verifyClampedToFile', {
-              configured: formatBytes(configuredSize),
-              file: formatBytes(fileSize),
-              actual: formatBytes(total),
-            }), 'warn');
-          }
+          const image = prepareRomImage(fileData, total);
           let verified = 0;
           let success = true;
           let failedAddress = -1;
@@ -1192,8 +1236,13 @@ export class MBC5Adapter extends CartridgeAdapter {
               };
             }
 
-            const chunkSize = Math.min(pageSize, total - verified);
             const currentAddress = baseAddress + verified;
+            const chunkSize = nextChunkSize({
+              address: currentAddress,
+              remaining: total - verified,
+              pageSize,
+              bankSize: 0x4000,
+            });
 
             while (
               activeSectorIndex + 1 < sectors.length
@@ -1228,7 +1277,7 @@ export class MBC5Adapter extends CartridgeAdapter {
 
             // 閫愬瓧鑺傛瘮杈?
             for (let i = 0; i < chunkSize; i++) {
-              const expectedByte = fileData[verified + i];
+              const expectedByte = image[verified + i];
               const actualByte = actualChunk[i];
               if (expectedByte !== actualByte) {
                 success = false;
@@ -1291,7 +1340,7 @@ export class MBC5Adapter extends CartridgeAdapter {
           }
 
           const totalTime = speedCalculator.getTotalTime();
-          const avgSpeed = speedCalculator.getAverageSpeed();
+          const avgSpeed = totalTime > 0 ? total / totalTime : speedCalculator.getAverageSpeed();
           const maxSpeed = speedCalculator.getMaxSpeed();
 
           if (success) {
@@ -1306,6 +1355,7 @@ export class MBC5Adapter extends CartridgeAdapter {
               avgSpeed: formatSpeed(avgSpeed),
               maxSpeed: formatSpeed(maxSpeed),
               totalSize: formatBytes(total),
+              requestCount: chunkCount,
             }), 'info');
 
             // 鎶ュ憡瀹屾垚鐘舵€?

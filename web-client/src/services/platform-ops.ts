@@ -7,6 +7,7 @@ export interface PlatformOps {
   readonly platformId: 'gba' | 'mbc5';
   readonly flashCmdSet: FlashCommandSet;
   readonly cfiEntryAddress: number;
+  readonly romBankSize: number;
 
   romProgram(device: ProtocolTransportInput, data: Uint8Array, address: number, bufferSize: number): Promise<void>;
   romEraseSector(device: ProtocolTransportInput, address: number): Promise<boolean>;

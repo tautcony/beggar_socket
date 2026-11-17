@@ -3,7 +3,7 @@ export { GBACommand, GBCCommand } from './command';
 export { FLASH_CMD_RESET } from './constants';
 export type { FlashCommandSet } from './flash-command-set';
 export { flashEraseCommand, flashEraseSector, flashGetId, flashPollUntilReady, flashUnlockSequence } from './flash-command-set';
-export { createCommandPayload } from './payload-builder';
+export { createCommandPayload, createPayload } from './payload-builder';
 export type { CartPowerMode } from './protocol';
 export {
   cart_power,

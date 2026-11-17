@@ -6,6 +6,7 @@ export type { BurnerLogEntry };
 
 export interface BurnerSessionState {
   busy: boolean;
+  cancelling: boolean;
   abortController: AbortController | null;
   progress: ProgressInfo;
   logs: BurnerLogEntry[];

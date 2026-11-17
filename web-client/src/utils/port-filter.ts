@@ -185,6 +185,7 @@ export const PortFilters = {
      */
     beggarSocket: (): PortFilter => PortFilters.devices([
       { vendorId: 0x0483, productId: 0x0721 },
+      { vendorId: 0x0483, productId: 0x5740 },
       { manufacturer: 'STMicroelectronics', product: 'Beggar Socket' },
     ]),
   },

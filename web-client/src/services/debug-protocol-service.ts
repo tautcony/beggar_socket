@@ -1,5 +1,5 @@
 import type { Transport } from '@/platform/serial';
-import { Command, createCommandPayload, GBACommand, GBCCommand, getPackage, sendPackage } from '@/protocol';
+import { createPayload, GBACommand, GBCCommand, getPackage, sendPackage } from '@/protocol';
 
 export type DebugCommandType = 'GBA' | 'GBC';
 
@@ -46,7 +46,7 @@ export function isDuplicatedDebugCommandName(key: string): boolean {
 }
 
 export async function executeDebugCommand(input: ExecuteDebugCommandInput): Promise<ExecuteDebugCommandResult> {
-  const payloadBuilder = createCommandPayload(input.command);
+  const payloadBuilder = createPayload().addByte(input.command);
 
   if (input.address !== null && input.address !== undefined) {
     payloadBuilder.addAddress(input.address);

@@ -37,6 +37,7 @@ describe('AdvancedSettings', () => {
     it('returns correct defaults for all properties', () => {
       expect(AdvancedSettings.firmwareProfile).toBe('stm');
       expect(AdvancedSettings.romPageSize).toBe(0x1000);
+      expect(AdvancedSettings.romReadPageSize).toBe(0x1000);
       expect(AdvancedSettings.ramPageSize).toBe(0x1000);
       expect(AdvancedSettings.romReadThrottleMs).toBe(0);
       expect(AdvancedSettings.ramReadThrottleMs).toBe(0);
@@ -58,7 +59,7 @@ describe('AdvancedSettings', () => {
       const s = AdvancedSettings.getSettings();
       expect(s).toEqual({
         firmware: { profile: 'stm' },
-        size: { romPageSize: 0x1000, ramPageSize: 0x1000 },
+        size: { romPageSize: 0x1000, romReadPageSize: 0x1000, ramPageSize: 0x1000 },
         throttle: { romRead: 0, ramRead: 0 },
         retry: {
           romReadCount: 1, ramReadCount: 1,
@@ -83,9 +84,18 @@ describe('AdvancedSettings', () => {
       expect(AdvancedSettings.ramPageSize).toBe(0x40);
     });
 
-    it('accepts valid page sizes including non-power-of-two', () => {
+    it('normalizes non-power-of-two page sizes down to a power of two', () => {
       AdvancedSettings.romPageSize = 300;
-      expect(AdvancedSettings.romPageSize).toBe(300);
+      expect(AdvancedSettings.romPageSize).toBe(256);
+
+      AdvancedSettings.romPageSize = 1000;
+      expect(AdvancedSettings.romPageSize).toBe(512);
+
+      AdvancedSettings.romReadPageSize = 24576;
+      expect(AdvancedSettings.romReadPageSize).toBe(16384);
+
+      AdvancedSettings.romReadPageSize = 32768;
+      expect(AdvancedSettings.romReadPageSize).toBe(32768);
     });
 
     it('clamps throttle values', () => {

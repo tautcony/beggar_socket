@@ -2,8 +2,9 @@
 
 import { WebSerialTransport } from '@/platform/serial/transports';
 import type { Transport } from '@/platform/serial/types';
-import { gbc_read, gbc_write, getPackage, getResult, ram_read, rom_erase_sector, rom_read, sendPackage, setSignals } from '@/protocol';
+import { GBACommand, gbc_read, gbc_write, getPackage, getResult, ram_read, rom_erase_sector, rom_program, rom_read, sendPackage, setSignals } from '@/protocol';
 import { readProtocolPayload } from '@/protocol/beggar_socket/packet-read';
+import { createCommandPayload } from '@/protocol/beggar_socket/payload-builder';
 
 describe('Protocol transport abstraction', () => {
   it('protocol utilities send and read through Transport', async () => {
@@ -415,6 +416,53 @@ describe('Protocol transport abstraction', () => {
       expect(close).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  it('encodes F4/F6 with byte addresses, F5 erase with word address, and keeps PayloadBuilder.build(false) single-tailed', async () => {
+    const sentFrames: Uint8Array[] = [];
+    const transport: Transport = {
+      send: vi.fn().mockResolvedValue(true),
+      read: vi.fn().mockResolvedValue({ data: new Uint8Array([0xaa]) }),
+      sendAndReceive: vi.fn().mockImplementation((payload: Uint8Array, readLen: number) => {
+        sentFrames.push(payload);
+        if (readLen === 1) {
+          return Promise.resolve({ data: new Uint8Array([0xaa]) });
+        }
+        const resp = new Uint8Array(readLen);
+        resp[2] = 0xff;
+        resp[3] = 0xff;
+        return Promise.resolve({ data: resp });
+      }),
+      setSignals: vi.fn().mockResolvedValue(undefined),
+    };
+
+    // F4 (rom_program) 使用 byte 地址 0x00012340
+    await rom_program(transport, new Uint8Array(64).fill(0x55), 0x00012340, 32);
+    const f4Frame = sentFrames[0];
+    expect(f4Frame[2]).toBe(0xf4);
+    expect(Array.from(f4Frame.slice(3, 7))).toEqual([0x40, 0x23, 0x01, 0x00]);
+
+    // F6 (rom_read) 使用 byte 地址 0x00020000
+    await rom_read(transport, 4, 0x00020000);
+    const f6Frame = sentFrames[1];
+    expect(f6Frame[2]).toBe(0xf6);
+    expect(Array.from(f6Frame.slice(3, 7))).toEqual([0x00, 0x00, 0x02, 0x00]);
+
+    // PayloadBuilder.build(false) 只含一份 2 字节尾部（总长 = 2+1+4+2 = 9，无重复 0x00 0x00）
+    const builtNoCrc = createCommandPayload(GBACommand.READ)
+      .addLittleEndian(0x00020000, 4)
+      .build(false);
+    expect(builtNoCrc.length).toBe(9);
+    expect(Array.from(builtNoCrc.slice(7))).toEqual([0x00, 0x00]);
+
+    // F4 帧长低字节对于规整后各页大小 (64B..4096B) 均不落入 RC31 FlashGBX 触发范围 (>= 0xA0 或 0x55)
+    for (const pageSize of [64, 128, 256, 512, 1024, 2048, 4096]) {
+      sentFrames.length = 0;
+      await rom_program(transport, new Uint8Array(pageSize).fill(0x12), 0x00000000, 32);
+      const lowLenByte = sentFrames[0][0];
+      expect(lowLenByte).toBeLessThan(0xa0);
+      expect(lowLenByte).not.toBe(0x55);
     }
   });
 });

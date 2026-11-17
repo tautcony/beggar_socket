@@ -17,6 +17,7 @@ interface ExecuteOperationOptions<TResult> {
 export function useCartBurnerSessionState(translate: (key: string) => string) {
   const burnerSession = new BurnerSession();
   const busy = ref(false);
+  const cancelling = ref(false);
   const logs = ref<BurnerLogEntry[]>([]);
   const progressInfo = ref<ProgressInfo>({ ...DEFAULT_PROGRESS });
   const keepProgressModalOpen = ref(false);
@@ -36,6 +37,7 @@ export function useCartBurnerSessionState(translate: (key: string) => string) {
   function syncSessionState() {
     const snapshot = burnerSession.snapshot;
     busy.value = snapshot.busy;
+    cancelling.value = snapshot.cancelling;
     progressInfo.value = { ...DEFAULT_PROGRESS, ...snapshot.progress };
     logs.value = [...snapshot.logs];
   }
@@ -43,6 +45,7 @@ export function useCartBurnerSessionState(translate: (key: string) => string) {
   function syncProgressState() {
     const snapshot = burnerSession.snapshot;
     busy.value = snapshot.busy;
+    cancelling.value = snapshot.cancelling;
     progressInfo.value = { ...DEFAULT_PROGRESS, ...snapshot.progress };
   }
 
@@ -72,13 +75,13 @@ export function useCartBurnerSessionState(translate: (key: string) => string) {
 
   function handleProgressStop() {
     keepProgressModalOpen.value = true;
+    burnerSession.abortOperation();
     burnerSession.updateProgress({
       state: 'paused',
       allowCancel: false,
-      detail: translate('messages.operation.cancelled'),
+      detail: translate('messages.operation.cancelling'),
       showProgress: true,
     });
-    burnerSession.abortOperation();
     syncSessionState();
   }
 
@@ -109,6 +112,9 @@ export function useCartBurnerSessionState(translate: (key: string) => string) {
   }
 
   async function executeOperation<TResult>(options: ExecuteOperationOptions<TResult>) {
+    if (burnerSession.snapshot.busy) {
+      return undefined;
+    }
     keepProgressModalOpen.value = false;
     burnerSession.resetProgress();
     syncProgressState();
@@ -138,6 +144,7 @@ export function useCartBurnerSessionState(translate: (key: string) => string) {
   return {
     burnerSession,
     busy,
+    cancelling,
     logs,
     progressInfo,
     showProgressModal,

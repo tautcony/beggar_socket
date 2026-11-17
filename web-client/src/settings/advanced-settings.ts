@@ -1,4 +1,5 @@
 import type { ConfigurableFirmwareProfileId } from '@/types/firmware-profile';
+import { floorPowerOfTwo } from '@/utils/transfer-plan';
 
 export interface AdvancedSettingsConfig {
   firmware?: {
@@ -6,6 +7,7 @@ export interface AdvancedSettingsConfig {
   };
   size?: {
     romPageSize?: number;
+    romReadPageSize?: number;
     ramPageSize?: number;
   };
   throttle?: {
@@ -32,7 +34,7 @@ export interface AdvancedSettingsConfig {
 
 // --- Setting descriptor infrastructure ---
 
-type ValidatorType = 'pageSize' | 'throttle' | 'retryCount' | 'retryDelay' | 'timeout';
+type ValidatorType = 'pageSize' | 'readPageSize' | 'throttle' | 'retryCount' | 'retryDelay' | 'timeout';
 
 interface SettingDescriptor {
   key: string;
@@ -45,6 +47,7 @@ interface SettingDescriptor {
 
 const LIMITS = {
   pageSize: { min: 0x40, max: 0x1000 },
+  readPageSize: { min: 0x40, max: 0x8000 },
   throttle: { min: 0, max: 1000 },
   retryCount: { min: 0, max: 10 },
   retryDelay: { min: 0, max: 5000 },
@@ -53,6 +56,7 @@ const LIMITS = {
 
 const VALIDATOR_META: Record<ValidatorType, { label: string; unit: string }> = {
   pageSize: { label: 'Page size', unit: '' },
+  readPageSize: { label: 'Read page size', unit: '' },
   throttle: { label: 'Read throttle', unit: 'ms' },
   retryCount: { label: 'Retry count', unit: '' },
   retryDelay: { label: 'Retry delay', unit: 'ms' },
@@ -61,6 +65,7 @@ const VALIDATOR_META: Record<ValidatorType, { label: string; unit: string }> = {
 
 const SETTING_DESCRIPTORS: readonly SettingDescriptor[] = [
   { key: 'romPageSize', group: 'size', field: 'romPageSize', default: 0x1000, validator: 'pageSize', errorLabel: 'ROM page size' },
+  { key: 'romReadPageSize', group: 'size', field: 'romReadPageSize', default: 0x1000, validator: 'readPageSize', errorLabel: 'ROM read page size' },
   { key: 'ramPageSize', group: 'size', field: 'ramPageSize', default: 0x1000, validator: 'pageSize', errorLabel: 'RAM page size' },
   { key: 'romReadThrottleMs', group: 'throttle', field: 'romRead', default: 0, validator: 'throttle', errorLabel: 'ROM read throttle' },
   { key: 'ramReadThrottleMs', group: 'throttle', field: 'ramRead', default: 0, validator: 'throttle', errorLabel: 'RAM read throttle' },
@@ -104,8 +109,10 @@ function validateValue(value: number, type: ValidatorType): number {
     return max;
   }
 
-  if (type === 'pageSize' && (v & (v - 1)) !== 0) {
-    console.warn(`Page size ${v} is not a power of two and may reduce performance`);
+  if ((type === 'pageSize' || type === 'readPageSize') && (v & (v - 1)) !== 0) {
+    const normalized = floorPowerOfTwo(v, min);
+    console.warn(`${label} ${v} is not a power of two, normalizing down to ${normalized}`);
+    return normalized;
   }
 
   return type === 'retryCount' ? Math.trunc(v) : v;
@@ -114,6 +121,7 @@ function validateValue(value: number, type: ValidatorType): number {
 function formatErrorRange(min: number, max: number, type: ValidatorType): string {
   switch (type) {
     case 'pageSize':
+    case 'readPageSize':
       return `${min} and ${max} bytes`;
     case 'throttle':
     case 'retryDelay':
@@ -138,6 +146,7 @@ function validateFirmwareProfile(value: unknown): ConfigurableFirmwareProfileId 
 export class AdvancedSettings {
   declare static firmwareProfile: ConfigurableFirmwareProfileId;
   declare static romPageSize: number;
+  declare static romReadPageSize: number;
   declare static ramPageSize: number;
   declare static romReadThrottleMs: number;
   declare static ramReadThrottleMs: number;
@@ -161,6 +170,7 @@ export class AdvancedSettings {
       },
       size: {
         romPageSize: _storage.romPageSize,
+        romReadPageSize: _storage.romReadPageSize,
         ramPageSize: _storage.ramPageSize,
       },
       throttle: {
@@ -247,6 +257,7 @@ export class AdvancedSettings {
   static getLimits() {
     return {
       pageSize: { min: LIMITS.pageSize.min, max: LIMITS.pageSize.max },
+      readPageSize: { min: LIMITS.readPageSize.min, max: LIMITS.readPageSize.max },
       throttle: { min: LIMITS.throttle.min, max: LIMITS.throttle.max },
       retryCount: { min: LIMITS.retryCount.min, max: LIMITS.retryCount.max },
       retryDelay: { min: LIMITS.retryDelay.min, max: LIMITS.retryDelay.max },
@@ -255,7 +266,7 @@ export class AdvancedSettings {
   }
 
   static validateSettings(
-    settings: Partial<ReturnType<typeof AdvancedSettings.getSettings>>,
+    settings: AdvancedSettingsConfig,
   ): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
 

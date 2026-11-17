@@ -638,7 +638,7 @@ export function closeSimulatedDeviceState(state: SimulatedDeviceState): void {
 export function executeSimulatedCommand(state: SimulatedDeviceState, payload: Uint8Array): CommandResult {
   ensureSessionOpen(state);
 
-  const command = payload[2] as GBACommand | GBCCommand | undefined;
+  const command = payload[2] as unknown as GBACommand | GBCCommand | undefined;
   if (command === undefined) {
     throw new Error('Invalid simulated command payload');
   }
