@@ -211,6 +211,27 @@ describe('BinjgbRunner', () => {
 
     runner.destroy();
   });
+
+  it('handles serial transfer (SC=0x81) without throwing ReferenceError for emulator', async () => {
+    delete (globalThis as { emulator?: unknown }).emulator;
+
+    const rom = makeValidGbRom();
+    // 0x0100: nop; jp 0x0150
+    rom.set([0x00, 0xc3, 0x50, 0x01], 0x100);
+    // 0x0150: ld a, 0x42; ldh (0x01), a; ld a, 0x81; ldh (0x02), a; jr -2
+    rom.set([0x3e, 0x42, 0xe0, 0x01, 0x3e, 0x81, 0xe0, 0x02, 0x18, 0xfe], 0x150);
+
+    const canvas = createMockCanvas();
+    const runner = await BinjgbRunner.create({
+      canvas,
+      romData: rom,
+    });
+
+    expect(() => {
+      runner.stepFrame(2);
+    }).not.toThrow();
+    runner.destroy();
+  });
 });
 
 describe('GBCEmulator.vue Lifecycle & UI', () => {
