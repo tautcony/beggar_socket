@@ -13,7 +13,6 @@ vi.mock('@/platform/native', () => ({ saveBinaryFile: harness.export }));
 vi.mock('@/platform/runtime', () => ({ isTauriRuntime: () => false, isWebRuntime: () => true }));
 vi.mock('@/composables/useToast', () => ({ useToast: () => ({ showToast: vi.fn() }) }));
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
-vi.mock('@ionic/vue', () => ({ IonIcon: { render: () => h('span') } }));
 vi.mock('@/services', () => ({ CartridgeAdapter: class {}, GBAAdapter: class {}, MBC5Adapter: class {} }));
 vi.mock('@/features/burner/adapters', () => ({ createCartridgeProtocolSession: vi.fn() }));
 vi.mock('@/features/burner/application', async () => {

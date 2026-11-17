@@ -89,16 +89,12 @@ export default defineConfig({
             return 'vue';
           }
 
-          if (id.includes('/node_modules/@sentry/vue/') || id.includes('/node_modules/@sentry/tracing/')) {
+          if (id.includes('/node_modules/@sentry/vue/')) {
             return 'sentry';
           }
 
           if (id.includes('/node_modules/luxon/')) {
             return 'luxon';
-          }
-
-          if (id.includes('/node_modules/@ionic/') || id.includes('/node_modules/ionicons/')) {
-            return 'ionic';
           }
 
           if (id.includes('/node_modules/jimp/')) {

@@ -72,7 +72,6 @@ vi.mock('gbats', () => ({
 }));
 
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string, params?: { error?: string }) => params?.error ? `${key}: ${params.error}` : key }) }));
-vi.mock('@ionic/vue', () => ({ IonIcon: { template: '<span />' } }));
 
 function makeRom(saveSignature = 'SRAM_V123'): Uint8Array {
   const rom = new Uint8Array(1024);
