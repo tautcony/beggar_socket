@@ -121,35 +121,3 @@ export class PerformanceTracker {
     return 0;
   }
 }
-
-/**
- * 装饰器：用于自动跟踪方法性能
- */
-export function TrackPerformance(operationName?: string) {
-  return function (
-    target: Record<string, unknown>,
-    propertyKey: string,
-    descriptor: PropertyDescriptor,
-  ) {
-    const originalMethod = descriptor.value as (...args: unknown[]) => unknown;
-    const targetConstructor = target.constructor as { name: string };
-    const name = operationName ?? `${targetConstructor.name}.${propertyKey}`;
-
-    descriptor.value = function (this: Record<string, unknown>, ...args: unknown[]) {
-      const methodConstructor = originalMethod.constructor as { name: string };
-      if (methodConstructor.name === 'AsyncFunction') {
-        return PerformanceTracker.trackAsyncOperation(
-          name,
-          () => originalMethod.apply(this, args) as Promise<unknown>,
-        );
-      } else {
-        return PerformanceTracker.trackSyncOperation(
-          name,
-          () => originalMethod.apply(this, args),
-        );
-      }
-    };
-
-    return descriptor;
-  };
-}

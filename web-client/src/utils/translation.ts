@@ -1,4 +1,3 @@
-const GOOGLE_TRANSLATE_BASE_URL = 'https://translate.google.com/';
 const GOOGLE_TRANSLATE_API = 'https://translate.googleapis.com/translate_a/single';
 
 const localeMap: Record<string, string> = {
@@ -69,21 +68,4 @@ export async function translateText(text: string, targetLocale: string): Promise
     .filter((segment) => segment.length > 0);
 
   return segments.join('');
-}
-
-export function openGoogleTranslate(text: string, targetLocale: string): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  const normalized = normalizeText(text);
-  if (!normalized) {
-    return;
-  }
-
-  const truncated = normalized.length > 1500 ? `${normalized.slice(0, 1500)}…` : normalized;
-  const target = resolveTargetLocale(targetLocale);
-  const url = `${GOOGLE_TRANSLATE_BASE_URL}?sl=auto&tl=${encodeURIComponent(target)}&text=${encodeURIComponent(truncated)}&op=translate`;
-
-  window.open(url, '_blank', 'noopener');
 }

@@ -332,6 +332,4 @@ export class DeviceConnectionManager {
   }
 }
 
-// 导出单例实例
-export const deviceConnectionManager = DeviceConnectionManager.getInstance();
 export { PortSelectionRequiredError };
