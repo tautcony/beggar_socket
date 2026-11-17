@@ -411,13 +411,14 @@ const simulatedConnected = computed(() => {
 });
 
 const configuredResourceCountLabel = computed(() => {
-  void stateVersion.value;
-  const count = DebugSettings.countConfiguredSimulatedMemoryImages();
+  const count = stateVersion.value >= 0 ? DebugSettings.countConfiguredSimulatedMemoryImages() : 0;
   return `${count}/${DebugSettings.getSimulatedMemorySlots().length}`;
 });
 
 const memorySlots = computed(() => {
-  void stateVersion.value;
+  if (stateVersion.value < 0) {
+    return [];
+  }
   return DebugSettings.getSimulatedMemorySlots().map((slot) => {
     const definition = DebugSettings.getSimulatedMemoryDefinition(slot);
     const image = DebugSettings.getSimulatedMemoryImageSummary(slot);

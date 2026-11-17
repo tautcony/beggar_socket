@@ -17,6 +17,7 @@ import { ProgressInfoBuilder } from '@/utils/progress/progress-builder';
 import { ProgressReporter } from '@/utils/progress/progress-reporter';
 import { SpeedCalculator } from '@/utils/progress/speed-calculator';
 import { createSectorProgressInfo } from '@/utils/sector-utils';
+import { floorPowerOfTwo, nextChunkSize } from '@/utils/transfer-plan';
 
 import type { PlatformOps } from './platform-ops';
 
@@ -274,13 +275,32 @@ export class CartridgeAdapter {
   }
 
   protected resolveRomPageSize(requestedPageSize?: number): number {
-    const configuredPageSize = Math.min(requestedPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize);
+    const configuredPageSize = floorPowerOfTwo(
+      Math.min(requestedPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize),
+      1,
+    );
     if (!this.isSimulatedDevice()) {
       return configuredPageSize;
     }
 
     // Simulated transports already execute the full protocol path. Use larger logical chunks so
     // async command overhead does not dwarf the configured throughput controls in debug mode.
+    return Math.max(configuredPageSize, CartridgeAdapter.SIMULATED_TRANSFER_CHUNK_SIZE);
+  }
+
+  protected resolveRomReadPageSize(requestedPageSize?: number): number {
+    const configuredPageSize = floorPowerOfTwo(
+      Math.min(
+        requestedPageSize ?? AdvancedSettings.romReadPageSize,
+        AdvancedSettings.romReadPageSize,
+        this.firmwareProfile.maxReadChunk,
+      ),
+      1,
+    );
+    if (!this.isSimulatedDevice()) {
+      return configuredPageSize;
+    }
+
     return Math.max(configuredPageSize, CartridgeAdapter.SIMULATED_TRANSFER_CHUNK_SIZE);
   }
 
@@ -368,7 +388,7 @@ export class CartridgeAdapter {
   async readROM(size: number, options: CommandOptions, signal?: AbortSignal, showProgress = true): Promise<CommandResult> {
     const ops = this.ops;
     const baseAddress = options.baseAddress ?? 0x00;
-    const pageSize = this.resolveRomPageSize(options.romPageSize);
+    const pageSize = this.resolveRomReadPageSize(options.romPageSize);
     const readThrottleMs = AdvancedSettings.romReadThrottleMs;
 
     this.log(this.t('messages.operation.startReadROM', { size, baseAddress: formatHex(baseAddress, 4) }), 'info');
@@ -404,8 +424,13 @@ export class CartridgeAdapter {
                 return { success: false, message: this.t('messages.operation.cancelled') };
               }
 
-              const chunkSize = Math.min(pageSize, size - totalRead);
               const currentAddress = baseAddress + totalRead;
+              const chunkSize = nextChunkSize({
+                address: currentAddress,
+                remaining: size - totalRead,
+                pageSize,
+                bankSize: needsBankSwitch ? ops.romBankSize : undefined,
+              });
               const { bank, cartAddress } = ops.toRomBank(currentAddress, options);
 
               if (needsBankSwitch && bank !== currentBank) {
@@ -441,7 +466,7 @@ export class CartridgeAdapter {
             }
 
             const totalTime = speedCalculator.getTotalTime();
-            const avgSpeed = speedCalculator.getAverageSpeed();
+            const avgSpeed = totalTime > 0 ? size / totalTime : speedCalculator.getAverageSpeed();
             const maxSpeed = speedCalculator.getMaxSpeed();
 
             this.log(this.t('messages.rom.readSuccess', { size: data.length }), 'success');
@@ -450,6 +475,7 @@ export class CartridgeAdapter {
               avgSpeed: formatSpeed(avgSpeed),
               maxSpeed: formatSpeed(maxSpeed),
               totalSize: formatBytes(size),
+              requestCount: chunkCount,
             }), 'info');
 
             progressReporter.reportCompleted(this.t('messages.rom.readSuccess', { size: data.length }), avgSpeed);

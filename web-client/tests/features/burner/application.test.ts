@@ -66,17 +66,82 @@ function createContext(
 }
 
 describe('BurnerSession', () => {
-  it('should manage cancellable operation lifecycle', () => {
+  it('should manage cancellable operation lifecycle and keep busy until completion', () => {
     const session = new BurnerSession();
 
     const signal = session.startOperation(true);
     expect(signal).toBeDefined();
     expect(session.snapshot.busy).toBe(true);
+    expect(session.snapshot.cancelling).toBe(false);
     expect(session.snapshot.abortController).not.toBeNull();
 
     session.abortOperation();
+    expect(signal?.aborted).toBe(true);
+    expect(session.snapshot.cancelling).toBe(true);
+    expect(session.snapshot.busy).toBe(true);
+    expect(() => session.startOperation(true)).toThrow('Burner session is busy');
+
+    session.completeOperation();
     expect(session.snapshot.busy).toBe(false);
+    expect(session.snapshot.cancelling).toBe(false);
     expect(session.snapshot.abortController).toBeNull();
+  });
+
+  it('keeps lock until in-flight runBurnerFlow promise settles after abortOperation', async () => {
+    const session = new BurnerSession();
+    let releaseInFlight!: () => void;
+    const inFlightGate = new Promise<void>((resolve) => {
+      releaseInFlight = resolve;
+    });
+
+    const firstFlow = runBurnerFlow({
+      session,
+      cancellable: true,
+      syncState: () => {},
+      execute: async () => {
+        await inFlightGate;
+        return 'done';
+      },
+    });
+
+    session.abortOperation();
+    expect(session.snapshot.busy).toBe(true);
+    expect(session.snapshot.cancelling).toBe(true);
+    await expect(runBurnerFlow({
+      session,
+      cancellable: true,
+      syncState: () => {},
+      execute: () => Promise.resolve('second'),
+    })).rejects.toThrow('Burner session is busy');
+
+    releaseInFlight();
+    await firstFlow;
+    expect(session.snapshot.busy).toBe(false);
+    expect(session.snapshot.cancelling).toBe(false);
+  });
+
+  it('runWithTimeout aborts on deadline and releases busy only after operation settles', async () => {
+    const session = new BurnerSession();
+    let releaseSlowOp!: () => void;
+    let capturedSignal: AbortSignal | undefined;
+
+    const slowOpPromise = session.runWithTimeout(async () => {
+      capturedSignal = session.snapshot.abortController?.signal;
+      await new Promise<void>((resolve) => {
+        releaseSlowOp = resolve;
+      });
+      return 'late-result';
+    }, 10);
+
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(capturedSignal?.aborted).toBe(true);
+    expect(session.snapshot.busy).toBe(true);
+    expect(session.snapshot.cancelling).toBe(true);
+
+    releaseSlowOp();
+    await expect(slowOpPromise).rejects.toThrow('Operation timeout in 10ms');
+    expect(session.snapshot.busy).toBe(false);
+    expect(session.snapshot.cancelling).toBe(false);
   });
 
   it('should append and trim logs', () => {

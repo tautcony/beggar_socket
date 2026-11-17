@@ -73,6 +73,17 @@ describe('firmware profile detection', () => {
     expect(profile.capabilities.gbaSectorErase).toBe(true);
   });
 
+  it('maps RC31 legacy 0483:5740 port to STC profile even with serialNumber', () => {
+    const profile = inferFirmwareProfileFromPort({
+      path: '/dev/cu.usbmodem1234',
+      vendorId: '0483',
+      productId: '5740',
+      serialNumber: 'RC31-001',
+    });
+
+    expect(profile).toBe(STC_FIRMWARE_PROFILE);
+  });
+
   it('models STC GBA FRAM gap without blocking MBC FRAM', () => {
     expect(isRamTypeSupportedByFirmware(STC_FIRMWARE_PROFILE, 'gba', 'FRAM')).toBe(false);
     expect(isRamTypeSupportedByFirmware(STC_FIRMWARE_PROFILE, 'mbc5', 'FRAM')).toBe(true);

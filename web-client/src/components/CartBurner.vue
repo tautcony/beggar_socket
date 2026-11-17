@@ -165,6 +165,7 @@ import { getFirmwareProfile, inferFirmwareProfileFromPort } from '@/types/firmwa
 import { formatBytes, formatHex } from '@/utils/formatter-utils';
 import { CFIInfo } from '@/utils/parsers/cfi-parser';
 import { detectMbcTypeFromRom, parseRom } from '@/utils/parsers/rom-parser.ts';
+import { prepareRomImage } from '@/utils/transfer-plan';
 
 type ModeType = 'GBA' | 'MBC5';
 type RamType = 'SRAM' | 'FLASH';
@@ -523,14 +524,7 @@ async function writeRom() {
       const currentCfiInfo = cfiInfo.value;
       const currentRomData = romFileData.value;
       const romSize = parseInt(selectedRomSize.value, 16);
-
-      let alignedRomData = currentRomData;
-      if (currentRomData.length < romSize) {
-        const padded = new Uint8Array(romSize);
-        padded.set(currentRomData);
-        padded.fill(0xff, currentRomData.length);
-        alignedRomData = padded;
-      }
+      const alignedRomData = prepareRomImage(currentRomData, romSize);
 
       const option: CommandOptions = {
         baseAddress: parseInt(selectedBaseAddress.value, 16),

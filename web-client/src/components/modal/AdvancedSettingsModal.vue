@@ -543,6 +543,7 @@ const createDefaultSettings = (): ReturnType<typeof AdvancedSettings.getSettings
   },
   size: {
     romPageSize: 0x1000,
+    romReadPageSize: 0x1000,
     ramPageSize: 0x1000,
   },
   throttle: {

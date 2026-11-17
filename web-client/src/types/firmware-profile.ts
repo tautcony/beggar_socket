@@ -15,12 +15,14 @@ export interface FirmwareCapabilities {
 export interface FirmwareProfile {
   readonly id: FirmwareProfileId;
   readonly label: string;
+  readonly maxReadChunk: number;
   readonly capabilities: FirmwareCapabilities;
 }
 
 export const STM_FIRMWARE_PROFILE: FirmwareProfile = {
   id: 'stm',
   label: '丐中丐',
+  maxReadChunk: 0x1000,
   capabilities: {
     gbaSectorErase: true,
     gbaFramRam: true,
@@ -32,6 +34,7 @@ export const STM_FIRMWARE_PROFILE: FirmwareProfile = {
 export const STC_FIRMWARE_PROFILE: FirmwareProfile = {
   id: 'stc',
   label: '碳酸丐',
+  maxReadChunk: 0x8000,
   capabilities: {
     // GBA 扇区擦除通过 rom_write(0xf5) 透传解锁序列 + rom_read(0xf6) 轮询实现
     // （rom_erase_sector），不依赖碳酸丐固件未实现的专用命令 0xf3；
@@ -46,6 +49,7 @@ export const STC_FIRMWARE_PROFILE: FirmwareProfile = {
 export const UNKNOWN_FIRMWARE_PROFILE: FirmwareProfile = {
   id: 'unknown',
   label: 'Unknown',
+  maxReadChunk: 0x1000,
   capabilities: {
     gbaSectorErase: true,
     gbaFramRam: true,
@@ -83,12 +87,16 @@ export function inferFirmwareProfileFromPort(portInfo?: SerialPortInfo | null): 
     return STC_FIRMWARE_PROFILE;
   }
 
+  const vendorId = lower(portInfo?.vendorId);
+  const productId = lower(portInfo?.productId);
+  if (vendorId === '0483' && productId === '5740') {
+    return STC_FIRMWARE_PROFILE;
+  }
+
   if (serialNumber || /usbmodem[0-9a-f]{8,}$/i.test(portInfo?.path ?? '')) {
     return STM_FIRMWARE_PROFILE;
   }
 
-  const vendorId = lower(portInfo?.vendorId);
-  const productId = lower(portInfo?.productId);
   if (vendorId === '0483' && productId === '0721') {
     if (/usbmodem\d+$/i.test(portInfo?.path ?? '')) {
       return STC_FIRMWARE_PROFILE;

@@ -4,7 +4,7 @@ import { GBAAdapter } from '@/services/gba-adapter';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import type { CommandOptions } from '@/types/command-options';
 import type { DeviceInfo } from '@/types/device-info';
-import { STC_FIRMWARE_PROFILE } from '@/types/firmware-profile';
+import { STC_FIRMWARE_PROFILE, STM_FIRMWARE_PROFILE } from '@/types/firmware-profile';
 import type { CFIInfo } from '@/utils/parsers/cfi-parser';
 
 const { mockRomRead, mockRomProgram, mockRomEraseSector } = vi.hoisted(() => ({
@@ -30,6 +30,9 @@ vi.mock('@/utils/monitoring/sentry-tracker', () => ({
 }));
 
 function createCfiInfo(deviceSize = 0x8000): CFIInfo {
+  const sectorSize = 0x4000;
+  const sectorCount = Math.max(1, Math.ceil(deviceSize / sectorSize));
+  const totalSize = sectorCount * sectorSize;
   return {
     flashId: new Uint8Array([0x01, 0x02]),
     magic: 'QRY',
@@ -48,11 +51,11 @@ function createCfiInfo(deviceSize = 0x8000): CFIInfo {
     deviceSize,
     eraseSectorRegions: 1,
     eraseSectorBlocks: [{
-      sectorSize: 0x4000,
-      sectorCount: 2,
-      totalSize: 0x8000,
+      sectorSize,
+      sectorCount,
+      totalSize,
       startAddress: 0,
-      endAddress: 0x7fff,
+      endAddress: totalSize - 1,
     }],
     reverseSectorRegion: false,
     info: 'test-cfi',
@@ -291,5 +294,218 @@ describe('GBAAdapter firmware capability gates', () => {
     expect(result.success).toBe(true);
     expect(mockRomEraseSector).toHaveBeenCalledTimes(1);
     expect(mockRomProgram).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('GBAAdapter transfer planning, efficiency, and stateful recovery', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockRomRead.mockReset();
+    mockRomProgram.mockReset();
+    mockRomEraseSector.mockReset();
+    AdvancedSettings.resetToDefaults();
+  });
+
+  it('pads short input in writeROM and verifyROM so padding differences fail verify', async () => {
+    const storage = new Uint8Array(0x4000).fill(0xff);
+    const verifyLogs: unknown[] = [];
+    const adapter = new GBAAdapter(
+      createMockDevice(),
+      null,
+      null,
+      (key, params) => {
+        if (key === 'messages.rom.verifyFailedAt' && params) {
+          verifyLogs.push(params);
+        }
+        return key;
+      },
+    );
+    vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+    mockRomEraseSector.mockImplementation((_t, addr: number) => {
+      const start = Math.floor(addr / 0x4000) * 0x4000;
+      storage.fill(0xff, start, start + 0x4000);
+      return Promise.resolve();
+    });
+    mockRomProgram.mockImplementation((_t, chunk: Uint8Array, addr: number) => {
+      storage.set(chunk, addr);
+      return Promise.resolve();
+    });
+    mockRomRead.mockImplementation((_t, size: number, addr: number) => Promise.resolve(storage.slice(addr, addr + size)));
+
+    const shortInput = new Uint8Array([0x12, 0x34, 0x56, 0x78]);
+    const writeRes = await adapter.writeROM(shortInput, createOptions({ size: 8, romPageSize: 8 }));
+    expect(writeRes.success).toBe(true);
+    expect(Array.from(storage.subarray(0, 8))).toEqual([0x12, 0x34, 0x56, 0x78, 0xff, 0xff, 0xff, 0xff]);
+
+    // 破坏补齐区的 1 个字节，verifyROM 应发现差异
+    storage[6] = 0x00;
+    const verifyRes = await adapter.verifyROM(shortInput, createOptions({ size: 8, romPageSize: 8 }));
+    expect(verifyRes.success).toBe(false);
+    expect(verifyLogs).toHaveLength(1);
+    expect((verifyLogs[0] as { address: string }).address).toBe('0x00000006');
+  });
+
+  it('normalizes pageSize=1000 down to 512 and aligns F4 payload starts to bufferSize', async () => {
+    const adapter = new GBAAdapter(createMockDevice());
+    vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+    mockRomEraseSector.mockResolvedValue(undefined);
+    mockRomRead.mockResolvedValue(new Uint8Array([0xff]));
+    mockRomProgram.mockResolvedValue(undefined);
+
+    const cfi = createCfiInfo(0x8000);
+    cfi.bufferSize = 512;
+    const data = new Uint8Array(2048).fill(0x5a);
+
+    const result = await adapter.writeROM(data, createOptions({
+      baseAddress: 0x100,
+      size: 2048,
+      romPageSize: 1000,
+      cfiInfo: cfi,
+    }));
+
+    expect(result.success).toBe(true);
+    const lengths = mockRomProgram.mock.calls.map(([, chunk]) => (chunk as Uint8Array).byteLength);
+    const addresses = mockRomProgram.mock.calls.map(([, , addr]) => addr as number);
+    expect(lengths).toEqual([256, 512, 512, 512, 256]);
+    for (let i = 1; i < addresses.length; i++) {
+      expect(addresses[i] % 512).toBe(0);
+    }
+  });
+
+  it('skips all-0xFF chunks during writeROM and still verifies them', async () => {
+    const storage = new Uint8Array(0x200000).fill(0x00);
+    const summaries: Record<string, unknown>[] = [];
+    const adapter = new GBAAdapter(
+      createMockDevice(),
+      null,
+      null,
+      (key, params) => {
+        if (key === 'messages.rom.writeSummary' && params) {
+          summaries.push(params as Record<string, unknown>);
+        }
+        return key;
+      },
+    );
+    vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+    mockRomEraseSector.mockImplementation((_t, addr: number) => {
+      const start = Math.floor(addr / 0x4000) * 0x4000;
+      storage.fill(0xff, start, start + 0x4000);
+      return Promise.resolve();
+    });
+    mockRomProgram.mockImplementation((_t, chunk: Uint8Array, addr: number) => {
+      storage.set(chunk, addr);
+      return Promise.resolve();
+    });
+    mockRomRead.mockImplementation((_t, size: number, addr: number) => Promise.resolve(storage.slice(addr, addr + size)));
+
+    // 1MiB 有效数据 + 1MiB 全 0xFF 补齐（共 2MiB）
+    const total = 0x200000;
+    const cfi = createCfiInfo(total);
+    const rom = new Uint8Array(total).fill(0xff);
+    rom.fill(0xab, 0, 0x100000);
+
+    const writeRes = await adapter.writeROM(rom, createOptions({ size: total, romPageSize: 4096, cfiInfo: cfi }));
+    expect(writeRes.success).toBe(true);
+    // 只有前 1MiB（256 个 4KiB 块）发出 program 请求，后 1MiB 跳过
+    expect(mockRomProgram).toHaveBeenCalledTimes(256);
+
+    const verifyRes = await adapter.verifyROM(rom, createOptions({ size: total, romPageSize: 4096, cfiInfo: cfi }));
+    expect(verifyRes.success).toBe(true);
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0].programRequests).toBe(256);
+    expect(summaries[0].skippedBytes).toBe('1.0 MiB');
+  });
+
+  it('caps read chunk size by FirmwareProfile.maxReadChunk (4KiB on stm, 32KiB on stc)', async () => {
+    AdvancedSettings.romReadPageSize = 32768;
+
+    const stmAdapter = new GBAAdapter(createMockDevice({ firmwareProfile: STM_FIRMWARE_PROFILE }));
+    mockRomRead.mockImplementation((_t, size: number) => Promise.resolve(new Uint8Array(size).fill(0x11)));
+    await stmAdapter.readROM(65536, createOptions({ romPageSize: undefined, cfiInfo: createCfiInfo(65536) }));
+    expect(Math.max(...mockRomRead.mock.calls.map(([, s]) => s as number))).toBe(4096);
+
+    mockRomRead.mockClear();
+    const stcAdapter = new GBAAdapter(createMockDevice({ firmwareProfile: STC_FIRMWARE_PROFILE }));
+    await stcAdapter.readROM(65536, createOptions({ romPageSize: undefined, cfiInfo: createCfiInfo(65536) }));
+    expect(Math.max(...mockRomRead.mock.calls.map(([, s]) => s as number))).toBe(32768);
+    expect(mockRomRead).toHaveBeenCalledTimes(2);
+  });
+
+  it('recovers from partial-write timeout and lost ACK using max(sector.address, baseAddress) and logs retry summary', async () => {
+    const sectorSize = 0x4000;
+    const storage = new Uint8Array(sectorSize * 2).fill(0x00);
+    const summaryCalls: Record<string, unknown>[] = [];
+    const adapter = new GBAAdapter(
+      createMockDevice(),
+      null,
+      null,
+      (key, params) => {
+        if (key === 'messages.rom.writeSummary' && params) {
+          summaryCalls.push(params as Record<string, unknown>);
+        }
+        return key;
+      },
+    );
+    vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+    mockRomEraseSector.mockImplementation((_t, addr: number) => {
+      const start = Math.floor(addr / sectorSize) * sectorSize;
+      storage.fill(0xff, start, start + sectorSize);
+      return Promise.resolve();
+    });
+
+    let callNum = 0;
+    mockRomProgram.mockImplementation((_t, chunk: Uint8Array, addr: number) => {
+      callNum++;
+      if (callNum === 2) {
+        // 部分写入后超时
+        storage.set(chunk.subarray(0, 10), addr);
+        return Promise.reject(new Error('program timeout'));
+      }
+      if (callNum === 5) {
+        // 写入完成但 ACK 丢失
+        storage.set(chunk, addr);
+        return Promise.reject(new Error('ack lost'));
+      }
+      storage.set(chunk, addr);
+      return Promise.resolve();
+    });
+    mockRomRead.mockImplementation((_t, size: number, addr: number) => Promise.resolve(storage.slice(addr, addr + size)));
+
+    AdvancedSettings.romWriteRetryCount = 3;
+    const baseAddress = 0x2000; // 落在第 0 个扇区 [0, 0x4000) 中部
+    const total = 0x4000; // 跨越第 0 扇区尾部和第 1 扇区头部
+    const image = new Uint8Array(total).map((_, i) => (i * 7 + 3) & 0xff);
+
+    const writeRes = await adapter.writeROM(image, createOptions({
+      baseAddress,
+      size: total,
+      romPageSize: 4096,
+      cfiInfo: createCfiInfo(sectorSize * 2),
+    }));
+
+    expect(writeRes.success).toBe(true);
+    expect(storage.subarray(baseAddress, baseAddress + total)).toEqual(image);
+    expect(summaryCalls).toHaveLength(1);
+    expect(summaryCalls[0].retryCount).toBe(2);
+    expect(summaryCalls[0].totalSize).toBe('16.0 KiB');
+  });
+
+  it('returns failure naming sector address when stateful retries are exhausted', async () => {
+    const adapter = new GBAAdapter(createMockDevice());
+    vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+    mockRomEraseSector.mockResolvedValue(undefined);
+    mockRomRead.mockResolvedValue(new Uint8Array([0xff]));
+    mockRomProgram.mockRejectedValue(new Error('persistent program fault'));
+
+    AdvancedSettings.romWriteRetryCount = 1;
+    const writeRes = await adapter.writeROM(new Uint8Array(64).fill(0x33), createOptions({
+      baseAddress: 0x4000,
+      size: 64,
+      romPageSize: 64,
+      cfiInfo: createCfiInfo(0x8000),
+    }));
+
+    expect(writeRes.success).toBe(false);
+    expect(writeRes.message).toMatch(/0x0*4000/);
   });
 });

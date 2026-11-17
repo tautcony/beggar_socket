@@ -203,10 +203,15 @@ describe('重新设计的串口过滤器', () => {
       expect(filter(mockArduinoPort)).toBe(false);
 
       const webSerialFilters = filter.toWebSerialFilters?.();
-      expect(webSerialFilters).toEqual([{
-        usbVendorId: 0x0483,
-        usbProductId: 0x0721,
-      }]);
+      expect(webSerialFilters).toEqual([
+        { usbVendorId: 0x0483, usbProductId: 0x0721 },
+        { usbVendorId: 0x0483, usbProductId: 0x5740 },
+      ]);
+      expect(filter({
+        path: '/dev/cu.usbmodem101',
+        vendorId: '0483',
+        productId: '5740',
+      })).toBe(true);
     });
 
     it('Beggar Socket 预设在缺失 VID/PID 时仍可通过 manufacturer/product 命中', () => {

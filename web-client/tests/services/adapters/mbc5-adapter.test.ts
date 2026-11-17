@@ -303,3 +303,91 @@ describe('MBC5Adapter firmware capability gates', () => {
     expect(mockCartPower).toHaveBeenCalledWith(expect.anything(), 1);
   });
 });
+
+describe('MBC5Adapter transfer planning, efficiency, and stateful recovery', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockCartPower.mockReset();
+    mockGbcRead.mockReset();
+    mockGbcRomProgram.mockReset();
+    mockGbcRomEraseSector.mockReset();
+    AdvancedSettings.resetToDefaults();
+  });
+
+  it('caps MBC read/verify requests at 16KiB bank window even when STC maxReadChunk is 32KiB', async () => {
+    AdvancedSettings.romReadPageSize = 32768;
+    const adapter = new MBC5Adapter(createMockDevice({ firmwareProfile: STC_FIRMWARE_PROFILE }));
+    vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+    mockGbcRead.mockImplementation((_t, size: number) => Promise.resolve(new Uint8Array(size).fill(0x22)));
+
+    const res = await adapter.readROM(0x8000, createOptions('MBC5', { romPageSize: undefined }));
+    expect(res.success).toBe(true);
+    expect(mockGbcRead).toHaveBeenCalledTimes(2);
+    expect(mockGbcRead.mock.calls.map(([, s]) => s as number)).toEqual([0x4000, 0x4000]);
+  });
+
+  it('skips all-0xFF chunks and recovers from partial-write timeout / lost ACK with non-zero baseAddress', async () => {
+    const sectorSize = 0x10000;
+    const storage = new Uint8Array(sectorSize).fill(0x00);
+    const adapter = new MBC5Adapter(createMockDevice());
+    let currentBank = 0;
+    vi.spyOn(adapter, 'switchROMBank').mockImplementation((bank: number) => {
+      currentBank = bank;
+      return Promise.resolve();
+    });
+
+    mockGbcRomEraseSector.mockImplementation((_t, addr: number) => {
+      const globalAddr = currentBank * 0x4000 + (addr & 0x3fff);
+      const start = Math.floor(globalAddr / sectorSize) * sectorSize;
+      storage.fill(0xff, start, start + sectorSize);
+      return Promise.resolve();
+    });
+
+    let callNum = 0;
+    mockGbcRomProgram.mockImplementation((_t, chunk: Uint8Array, addr: number) => {
+      callNum++;
+      const globalOffset = currentBank * 0x4000 + (addr & 0x3fff);
+      if (callNum === 1) {
+        storage.set(chunk.subarray(0, 8), globalOffset);
+        return Promise.reject(new Error('partial write timeout'));
+      }
+      if (callNum === 2) {
+        storage.set(chunk, globalOffset);
+        return Promise.reject(new Error('ack lost'));
+      }
+      storage.set(chunk, globalOffset);
+      return Promise.resolve();
+    });
+    mockGbcRead.mockImplementation((_t, size: number, addr: number) => {
+      const globalOffset = currentBank * 0x4000 + (addr & 0x3fff);
+      return Promise.resolve(storage.slice(globalOffset, globalOffset + size));
+    });
+
+    AdvancedSettings.romWriteRetryCount = 2;
+    const baseAddress = 0x2000;
+    const total = 0x4000; // [0x2000, 0x6000) 跨越 0x4000 bank 边界；前 0x2000 有数据，后 0x2000 全 0xFF
+    const input = new Uint8Array(0x2000).map((_, i) => (i + 1) & 0xff);
+    const cfi = createCfiInfo();
+    cfi.deviceSize = sectorSize;
+    cfi.eraseSectorBlocks = [{
+      sectorSize,
+      sectorCount: 1,
+      totalSize: sectorSize,
+      startAddress: 0,
+      endAddress: sectorSize - 1,
+    }];
+
+    const writeRes = await adapter.writeROM(input, createOptions('MBC5', {
+      baseAddress,
+      size: total,
+      romPageSize: 4096,
+      cfiInfo: cfi,
+    }));
+
+    expect(writeRes.success).toBe(true);
+    // 重试前 2 次都在第一块 (0x2000..0x3000) 失败，第三次成功写 0x2000..0x3000 与 0x3000..0x4000，跳过 0x4000..0x6000 全 0xFF
+    expect(mockGbcRomProgram).toHaveBeenCalledTimes(4);
+    expect(storage.subarray(baseAddress, baseAddress + input.byteLength)).toEqual(input);
+    expect(storage.subarray(baseAddress + input.byteLength, baseAddress + total)).toEqual(new Uint8Array(0x2000).fill(0xff));
+  });
+});
