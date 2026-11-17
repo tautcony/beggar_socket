@@ -33,7 +33,8 @@ withDefaults(defineProps<Props>(), {
   border-radius: 4px;
   background: var(--retro-bg-surface);
   color: var(--retro-ink);
-  font-size: 11px;
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   font-weight: var(--font-weight-bold);
   line-height: 1.2;
 }

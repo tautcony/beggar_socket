@@ -243,8 +243,8 @@ function handleDrop(e: DragEvent, dropIndex: number) {
 }
 
 .index-badge {
-  font-family: var(--retro-font-mono);
-  font-size: 11px;
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   font-weight: var(--font-weight-bold);
   padding: 1px 5px;
   border-radius: 3px;
@@ -268,15 +268,16 @@ function handleDrop(e: DragEvent, dropIndex: number) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--font-size-xs);
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   font-weight: var(--font-weight-semibold);
   color: var(--retro-ink);
 }
 
 .rom-meta {
   flex-shrink: 0;
-  font-family: var(--retro-font-mono);
-  font-size: 11px;
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   color: var(--retro-ink-muted);
 }
 
@@ -305,7 +306,8 @@ function handleDrop(e: DragEvent, dropIndex: number) {
 }
 
 .config-field label {
-  font-size: 11px;
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   font-weight: var(--font-weight-semibold);
   color: var(--retro-ink-muted);
 }

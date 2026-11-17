@@ -916,8 +916,8 @@ function generateTestRam(): void {
   border-radius: 4px;
   border: 1.5px solid var(--retro-border);
   padding: 3px 8px;
-  font-family: var(--retro-font-mono);
-  font-size: 11px;
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   font-weight: var(--font-weight-bold);
   background: var(--retro-bg-surface);
   color: var(--retro-ink);
@@ -1157,8 +1157,8 @@ function generateTestRam(): void {
   border-radius: 4px;
   border: 1px solid var(--retro-border);
   padding: 2px 7px;
-  font-family: var(--retro-font-mono);
-  font-size: 11px;
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   font-weight: var(--font-weight-bold);
 }
 

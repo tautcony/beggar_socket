@@ -86,7 +86,8 @@ defineEmits<{
 .retro-btn.size-xs {
   padding: 3px 8px;
   min-height: 24px;
-  font-size: 11px;
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
 }
 
 .retro-btn.size-sm {
@@ -107,7 +108,7 @@ defineEmits<{
   min-height: 26px;
   padding: 0;
   border-radius: 3px;
-  font-size: 14px;
+  font-size: var(--font-size-sm);
 }
 
 .retro-btn.is-icon-only.size-sm {

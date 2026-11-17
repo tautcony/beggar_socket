@@ -31,9 +31,42 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'Ark Pixel 10px';
+  src: url('@/assets/fonts/ark-pixel/ark-pixel-10px-proportional-zh_hans.otf.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ark Pixel 10px TC';
+  src: url('@/assets/fonts/ark-pixel/ark-pixel-10px-proportional-zh_hant.otf.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ark Pixel 10px JA';
+  src: url('@/assets/fonts/ark-pixel/ark-pixel-10px-proportional-ja.otf.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ark Pixel 10px Latin';
+  src: url('@/assets/fonts/ark-pixel/ark-pixel-10px-proportional-latin.otf.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --app-font-sans: 'Ark Pixel 12px', system-ui, sans-serif;
   --retro-font-mono: 'Ark Pixel 12px', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --retro-font-micro: 'Ark Pixel 10px', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --font-family-primary: var(--app-font-sans);
   --font-family-mono: var(--retro-font-mono);
 }
@@ -41,13 +74,30 @@
 :root[data-font-family='system'] {
   --app-font-sans: system-ui, Avenir, Helvetica, Arial, sans-serif;
   --retro-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --retro-font-micro: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --font-family-primary: var(--app-font-sans);
   --font-family-mono: var(--retro-font-mono);
+}
+
+:root:not([data-font-family='system']) {
+  --font-size-xs: 12px;
+  --font-size-sm: 12px;
+  --font-size-base: 12px;
+  --font-size-lg: 18px;
+  --font-size-xl: 18px;
+  --letter-spacing-tight: 0;
+  --letter-spacing-wide: 0;
+
+  text-rendering: optimizeSpeed;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+  font-smooth: never;
 }
 
 :root[data-font-family='ark-pixel'] {
   --app-font-sans: 'Ark Pixel 12px', system-ui, sans-serif;
   --retro-font-mono: 'Ark Pixel 12px', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --retro-font-micro: 'Ark Pixel 10px', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --font-family-primary: var(--app-font-sans);
   --font-family-mono: var(--retro-font-mono);
 }
@@ -56,10 +106,12 @@
 :root:not([data-font-family='system']):lang(zh-Hant) {
   --app-font-sans: 'Ark Pixel 12px TC', 'Ark Pixel 12px', system-ui, sans-serif;
   --retro-font-mono: 'Ark Pixel 12px TC', 'Ark Pixel 12px', ui-monospace, monospace;
+  --retro-font-micro: 'Ark Pixel 10px TC', 'Ark Pixel 10px', ui-monospace, monospace;
 }
 
 :root[data-font-family='ark-pixel']:lang(ja),
 :root:not([data-font-family='system']):lang(ja) {
   --app-font-sans: 'Ark Pixel 12px JA', 'Ark Pixel 12px', system-ui, sans-serif;
   --retro-font-mono: 'Ark Pixel 12px JA', 'Ark Pixel 12px', ui-monospace, monospace;
+  --retro-font-micro: 'Ark Pixel 10px JA', 'Ark Pixel 10px', ui-monospace, monospace;
 }

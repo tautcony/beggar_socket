@@ -1093,8 +1093,8 @@ onMounted(() => {
 }
 
 .theme-option-hex {
-  font-family: var(--retro-font-mono);
-  font-size: 11px;
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   color: var(--retro-ink-muted);
 }
 

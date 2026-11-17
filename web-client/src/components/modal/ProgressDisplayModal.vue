@@ -506,8 +506,8 @@ onUnmounted(() => {
   margin-left: auto;
   padding: 3px 8px;
   border-radius: 4px;
-  font-family: var(--retro-font-mono);
-  font-size: 11px;
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   font-weight: typography-vars.$font-weight-bold;
   line-height: 1;
   border: 1.5px solid var(--retro-border);

@@ -404,8 +404,8 @@ function cleanup() {
   background: var(--retro-bg-surface);
   padding: 2px 7px;
   border-radius: 4px;
-  font-family: var(--retro-font-mono);
-  font-size: 11px;
+  font-family: var(--retro-font-micro);
+  font-size: 10px;
   color: var(--retro-ink);
   border: 1px solid var(--retro-border-subtle);
   white-space: nowrap;

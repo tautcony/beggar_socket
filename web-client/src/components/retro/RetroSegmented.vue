@@ -96,12 +96,12 @@ defineEmits<{
 }
 
 .retro-segment-icon {
-  font-size: 14px;
+  font-size: var(--font-size-sm);
   flex-shrink: 0;
 }
 
 .retro-segment-badge {
-  font-family: var(--retro-font-mono);
+  font-family: var(--retro-font-micro);
   font-size: 10px;
   padding: 1px 5px;
   border-radius: 3px;

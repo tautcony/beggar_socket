@@ -4,12 +4,12 @@
 $font-family-primary: system-ui, Avenir, Helvetica, Arial, sans-serif;
 $font-family-mono: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Menlo', 'Consolas', monospace;
 
-// 字体大小
-$font-size-xs: 0.75rem;   // 12px
-$font-size-sm: 0.875rem;  // 14px
-$font-size-base: 1rem;    // 16px
-$font-size-lg: 1.125rem;  // 18px
-$font-size-xl: 1.25rem;   // 20px
+// 字体大小（动态引用 CSS 变量，便于像素字体模式下统一对齐 12px 网格）
+$font-size-xs: var(--font-size-xs);
+$font-size-sm: var(--font-size-sm);
+$font-size-base: var(--font-size-base);
+$font-size-lg: var(--font-size-lg);
+$font-size-xl: var(--font-size-xl);
 $font-size-2xl: 1.5rem;   // 24px
 $font-size-3xl: 1.875rem; // 30px
 $font-size-4xl: 2.25rem;  // 36px
@@ -59,11 +59,11 @@ $font-weights: (
   --font-family-primary: #{$font-family-primary};
   --font-family-mono: #{$font-family-mono};
 
-  --font-size-xs: #{$font-size-xs};
-  --font-size-sm: #{$font-size-sm};
-  --font-size-base: #{$font-size-base};
-  --font-size-lg: #{$font-size-lg};
-  --font-size-xl: #{$font-size-xl};
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
   --font-size-2xl: #{$font-size-2xl};
   --font-size-3xl: #{$font-size-3xl};
   --font-size-4xl: #{$font-size-4xl};
