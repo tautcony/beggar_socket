@@ -82,9 +82,13 @@ flowchart TD
 
 **静态调用链确认这些入口可并发访问同一连接。** 并发操作可能改变 bank、Flash 状态机、供电状态或响应归属，进而干扰在途读写。
 
-建议让**同一连接共享一个操作入口**，在最外层获取所有权，覆盖整次读写、工具操作、连接重置及结束清理；内部的嵌套调用（如 `writeROM → eraseSectors`、`verifyRAM → readRAM`、免电存档读写 → `eraseSectors` / `readBatterylessSave`、PPB 解锁 → `getCartInfo` / `switchROMBank`）复用当前所有权，避免重入死锁。底层 `Transport` 互斥锁继续保留，调试请求与 ACK 后的 `flushInput()` 应纳入同一受保护临界区。忙碌时拒绝新操作并在 UI 统一禁用其他入口。
+建议让**同一连接共享一个操作入口**，在最外层获取所有权，覆盖整次读写、工具操作、连接重置及结束清理；内部的嵌套调用（如 `writeROM → eraseSectors`、`verifyRAM → readRAM`、免电存档读写 → `eraseSectors` / `readBatterylessSave`、PPB 解锁 → `getCartInfo` / `switchROMBank`）复用当前所有权，避免重入死锁。底层 `Transport` 互斥锁继续保留。
 
-取消与清理时序方面：`BurnerSession.abortOperation()` 会保持 `busy = true` 直至操作 Promise 结束（`BurnerSession.runWithTimeout()` 仅有单元测试调用，未接入生产代码）。`CartBurner.vue` 目前把 `withCommandBufferReset()` 包在传给 `executeOperation()` 的 `operation` 回调内部（即 `runBurnerFlow()` 的 `execute` 阶段内），因此在烧录主界面中 `resetCommandBuffer()` 先于 `completeOperation()` 执行；但 `runBurnerFlow()` 自身的 `finally` 块是先调用 `completeOperation()` 再执行 `onFinally`。收敛为统一连接级入口后，必须保证命令缓冲复位与 恢复默认 3.3V 供电等清理动作在释放连接所有权之前完成。[会话状态](../src/features/burner/application/burner-session.ts)、[流程生命周期](../src/features/burner/application/flow-template.ts)、[CartBurner 清理包装](../src/components/CartBurner.vue)
+调试请求可改用已有 `sendAndReceive()`。ACK 后的 `flushInput()` 要与对应请求共用 Transport 内部临界区，需要扩展原子操作契约，例如增加受控的读后清理选项或事务接口，并同步实现 Web、Tauri 和模拟 Transport。采用事务接口时，锁内应调用不重复获取同一把锁的收发原语，避免嵌套调用 `sendAndReceive()` 造成死锁。
+
+统一入口应返回可识别的 busy 结果，UI 共享忙碌状态并禁用冲突入口；仍到达执行入口的请求被拒绝时，应提供可见反馈。当前 `executeOperation()` 在 busy 时直接返回 `undefined`，烧录界面的读写按钮则已有 busy 禁用条件。[执行入口](../src/composables/cartburner/useCartBurnerSessionState.ts)、[烧录按钮](../src/components/operaiton/RomOperations.vue)
+
+取消与清理时序方面：`BurnerSession.abortOperation()` 会保持 `busy = true` 直至操作 Promise 结束（`BurnerSession.runWithTimeout()` 仅有单元测试调用，未接入生产代码）。`CartBurner.vue` 目前把 `withCommandBufferReset()` 包在传给 `executeOperation()` 的 `operation` 回调内部（即 `runBurnerFlow()` 的 `execute` 阶段内），因此在烧录主界面中 `resetCommandBuffer()` 先于 `completeOperation()` 执行；但 `runBurnerFlow()` 自身的 `finally` 块是先调用 `completeOperation()` 再执行 `onFinally`。收敛为统一连接级入口后，必须保证命令缓冲复位与恢复默认 3.3V 供电等清理动作在释放连接所有权之前完成。[会话状态](../src/features/burner/application/burner-session.ts)、[流程生命周期](../src/features/burner/application/flow-template.ts)、[CartBurner 清理包装](../src/components/CartBurner.vue)
 
 ### 4.2 `PlatformOps` 处于半迁移状态且子类实现存在偏差
 
@@ -105,11 +109,14 @@ flowchart TD
 
 同时，`MBC5Adapter` 存在以下写入与校验问题：
 
-- **写入分块使用了读取设置。** `writeROM()` 调用 `resolveRomReadPageSize()`，因此忽略 `AdvancedSettings.romPageSize` 的写入限制。在真实 STC 连接上，`romReadPageSize ≥ 8 KiB`、调用方未指定更小的 `options.romPageSize`，且数据、bank 和扇区剩余空间足够时，会发送 8 KiB 或 16 KiB 的编程数据块，超过仓库固件的 `cmdBuf[5500]` 接收容量。主界面写入未传入 `romPageSize`，可进入此路径。STM profile 将块限制为 4 KiB，但仍会忽略用户设置的更小写入块。应改用 `resolveRomPageSize()`；真实设备写入设置上限为 4 KiB，模拟设备另有放大块长的分支。
-- **校验没有执行请求的 5V 供电。** `verifyROM(enable5V: true)` 只检查能力，未调用 `withOptional5v()`。需要 5V 的卡带在独立校验时仍使用当前供电状态；应让校验过程拥有完整的供电切换与恢复生命周期。
+- **校验没有执行请求的 5V 供电。** `verifyROM(enable5V: true)` 只检查能力，未调用 `withOptional5v()`。主界面的 5V 开关会传入校验操作，需要 5V 的卡带在独立校验时仍使用当前供电状态；应让校验过程拥有完整的供电切换与恢复生命周期。
 - **校验缺少读取稳定化与重试。** 校验前未调用 `stabilizeCommandChannel()`，分块读取直接调用 `gbc_read()`。单块读取抛出异常时直接结束校验，配置的 `romReadRetryCount` 不生效。应复用读取恢复流程，并在通道复位后恢复当前 bank。
+- **写入分块忽略了写入设置。** `writeROM()` 调用 `resolveRomReadPageSize()`，主界面写入又未传入 `options.romPageSize`，因此用户通过高级设置将 `AdvancedSettings.romPageSize` 调小到 512 B 或 1 KiB 后，MBC 写入仍按默认读取设置使用 4 KiB 块。这个设置失效问题可通过现有 UI 触发。
+- **非默认读取配置可使 STC 写入超限。** `romReadPageSize` 默认为 4 KiB，当前弹窗没有独立编辑控件；通过持久化配置或程序化设置将其增大到 ≥ 8 KiB 后，在 STC profile、调用方未指定更小页大小，且数据、bank 和扇区剩余空间足够时，会产生 8 KiB 或 16 KiB 编程块，超过固件 `cmdBuf[5500]` 的接收容量。STC 的 `uart_cmdRecv()` 在剩余空间不足时直接返回，接收可能停滞并使主机等待超时，需要复位通道恢复。默认读取配置下块长为 4 KiB；STM profile 也将读取块限制为 4 KiB。[固件接收实现](../../stc/src/uart.c)
 
-建议先修复 `MBC5Adapter` 的 `writeROM()` 与 `verifyROM()` 缺陷；随后若继续推进读取模板统一，需先补齐上述三处平台差异并用命令序列测试验证；若暂不迁移，应直接删除基类未启用的 `readROM()` / `getCartInfo()` / `withPowerConfig()`、`PlatformOps` 中无调用方的 `romProgram` / `romEraseSector`，以及脱离生产链路的 `eraseChip` 相关死代码。
+写入修复应改用 `resolveRomPageSize()`，使块长遵守写入设置。当前 4 KiB 上限由设置层 `pageSize.max = 0x1000` 保证，配置加载、`setSettings()` 和属性 setter 均经过校验；解析函数再按调用方请求与已校验设置取较小值。验证应覆盖更小写入设置生效，以及读取设置增大后真实设备编程块仍 ≤ 4096 字节。模拟设备保留独立的块长放大分支。[设置校验](../src/settings/advanced-settings.ts)、[写入块解析](../src/services/cartridge-adapter.ts)
+
+建议先修复 `MBC5Adapter.verifyROM()` 的供电与读取恢复，再修复 `writeROM()` 的分块设置；随后若继续推进读取模板统一，需先补齐上述三处平台差异并用命令序列测试验证；若暂不迁移，应直接删除基类未启用的 `readROM()` / `getCartInfo()` / `withPowerConfig()`、`PlatformOps` 中无调用方的 `romProgram` / `romEraseSector`，以及脱离生产链路的 `eraseChip` 相关死代码。
 
 ### 4.3 用例与适配器之间存在重复接口和结果转换
 
@@ -147,7 +154,11 @@ CommandResult
 1. **生产连接采用手动配置。** `AdvancedSettings.firmwareProfile` 取 `'stm' | 'stc'`，默认为 `'stm'`。`DeviceConnectionManager` 建立或初始化连接时，将该设置解析为有效 profile 并写入设备对象。端口推断用于连接日志以及缺少已附加 profile 的设备对象的 fallback。两类设备可能共用 VID/PID，手动选择应保留。
 2. **设置变更在重连或重新初始化时应用。** `getFirmwareProfile(device)` 优先读取连接时写入的 `device.firmwareProfile ?? device.serialHandle?.firmwareProfile`。用户在设备已连接状态下打开高级设置切换 STM/STC 并保存时，仅更新了 `AdvancedSettings.firmwareProfile`，未同步更新当前 `device.firmwareProfile`，必须断开重连或点击“重置连接状态”才会生效。
 
-建议由连接上下文唯一持有 transport、端口信息及本次连接的有效 profile，并沿用连接编排已有的 generation 标识其生命周期。设置面板应显示当前生效 profile，并说明修改需重连或重新初始化。若提供对当前连接的应用操作，应在设备空闲时经统一操作入口更新，并为整次设备操作固定有效 profile。自动识别可作为独立产品选项评估；现有手动模式可继续使用。
+`withPortInfo()` 当前在更新端口信息时，还会将 `device` 和 `serialHandle` 的 profile 改为端口推断值；`connectWithSelectedPort()` 随后调用 `attachFirmwareProfile()` 才恢复手动配置。该顺序依赖可先局部消除：让 `withPortInfo()` 只更新端口信息，将 profile 的解析与附加职责集中到连接初始化流程。
+
+连接编排已在 `ConnectionContext` 和快照中维护 generation，但 `DeviceInfo`、`toDeviceInfo()` 及卡带操作链路尚未接入该标识。当前卡带会话的 `isActive` 只检查页面连接状态。需要在创建操作上下文时显式捕获连接 generation 或连接身份，并在执行时与当前连接比较，使旧会话在重连后保持失效。[连接上下文](../src/features/burner/application/domain/connection.ts)、[卡带会话装配](../src/components/CartBurner.vue)
+
+建议由连接上下文唯一持有 transport、端口信息及本次连接的有效 profile，并向操作链路提供连接生命周期校验。设置面板应显示当前生效 profile，并说明修改需重连或重新初始化。若提供对当前连接的应用操作，应在设备空闲时经统一操作入口更新，并为整次设备操作固定有效 profile。自动识别可作为独立产品选项评估；现有手动模式可继续使用。
 
 ## 5. 扩展性评估
 
@@ -171,7 +182,8 @@ UI（CartBurner / 卡带工具 / 调试工具 / 连接控制）
 → Beggar Socket 协议：组包、原子收发（含 ACK 后清理）、协议错误
 → Transport：Web / Tauri / 模拟字节通道
 
-连接上下文统一持有：transport、portInfo、有效 profile、操作状态与连接 generation
+连接上下文统一持有：transport、portInfo、有效 profile、操作状态
+操作上下文捕获并校验：连接 generation 或连接身份
 ```
 
 RTC、卡带工具与调试服务可保留自己的业务入口，但必须经过同一连接级操作入口。应用层依赖单一卡带操作契约，具体适配器由外部装配。操作上下文绑定所属连接的生命周期；连接断开或重连更换后，旧上下文立即失效。
@@ -180,11 +192,12 @@ RTC、卡带工具与调试服务可保留自己的业务入口，但必须经�
 
 | 顺序 | 工作项 | 需要保留/修正的行为 | 最小关键验证 |
 |---|---|---|---|
-| 1 | 修复 `MBC5Adapter` 的 `writeROM` 页大小计算与 `verifyROM` 供电/稳定化/重试缺失 | `MBC5Adapter.writeROM` 使用 `resolveRomPageSize`（真实设备 ≤ 4 KiB）；`verifyROM` 在 `enable5V` 时包裹 `withOptional5v`、读前执行 `stabilizeCommandChannel` 并使用 `readROMChunkWithRetry` | 在 STC profile、读取块 ≥ 8 KiB 且未指定调用方页大小时验证写入块仍 ≤ 4 KiB，同时遵守更小的写入设置；验证 MBC `verifyROM` 在 `enable5V` 下发送 `A0` 上下电序列且单块读失败可重试恢复 |
-| 2 | 为每个连接建立统一操作所有权，覆盖烧录、RTC、工具、调试、连接重置/断开及结束清理 | 取消后等待在途操作与清理（`resetCommandBuffer`、5V 恢复）全部结束后再释放所有权；嵌套调用复用所有权不死锁；调试命令与 ACK 后 `flushInput` 纳入 `Transport` 互斥 | 用可控 transport 暂停读取并尝试触发卡带工具/调试命令/连接重置，确认并发操作被拒绝；验证取消后清理完成前不可启动新操作，且 `writeROM → eraseSectors` 不死锁 |
-| 3 | 统一连接信息来源，明确 profile 生效时机与读取块设置入口 | 保留手动选择，显示当前有效 profile 和重连/初始化生效提示；读取块配置控件按需求补齐；整次操作内 profile 固定，旧连接上下文在重连后失效 | 保存设置后确认当前有效 profile 与提示一致，重连/初始化后应用新配置；验证已有读取块设置正常保存，重连后旧会话被拒绝 |
-| 4 | 处理 `PlatformOps` 半迁移状态并清理脱离生产链路的死代码 | 若收敛 `readROM` / `getCartInfo` 则保留 MBC3 bank 0（`0x0000`）与 MBC5（`0x4000`）映射、5V 能力前置拒绝、GBA/MBC 节流差异与默认参数；移除无调用方的 `romProgram` / `romEraseSector` 及未使用的 `eraseChip` / `rom_erase_sector_direct` | 对比 GBA、MBC5、MBC3 的命令序列；覆盖 bank 边界、失败重试、STM 拒绝 5V、STC 5V 恢复及 MBC1/2 未实现错误 |
-| 5 | 合并重复卡带操作接口，移除无效的 `CommandResult ↔ BurnerDomainResult` 往返转换 | 保留 `BurnerUseCase` 编排职责、会话活性检查、应用层依赖隔离及连接编排的 `BurnerDomainResult` 错误码契约 | 验证成功、超时、取消、设备断开和不支持能力的上层结果（含 `readCart` 失败原因保留），并运行架构依赖检查 |
+| 1 | 修复 MBC `verifyROM` 的供电、稳定化与重试 | `enable5V` 时包裹 `withOptional5v`；读前稳定通道，读取失败后复位并恢复 bank 再重试 | 验证 5V 校验发送正确的供电切换与默认供电恢复序列；覆盖成功、失败、取消后的清理，以及单块读取失败重试 |
+| 2 | 修复 MBC `writeROM` 页大小计算 | 使用写入页大小解析，遵守已校验的写入设置与调用方更小限制；真实设备写入设置上限为 4096 字节 | 写入设置为 512 B / 1 KiB 时验证块长匹配；人工设 STC 读取块为 32 KiB 且不传调用方页大小，验证编程块仍 ≤ 4096 字节 |
+| 3 | 统一连接级操作所有权与 Transport 原子操作能力 | 覆盖烧录、工具、调试、连接重置/断开及结束清理；扩展原子操作契约以覆盖 ACK 后清理，同步三个 Transport 实现；嵌套调用复用所有权 | 暂停读取后尝试其他操作，确认 busy 结果及可见反馈；验证清理完成前不释放所有权、ACK 清理不干扰下一请求、嵌套调用不死锁 |
+| 4 | 统一连接信息来源，明确 profile 生效时机并接入连接生命周期校验 | `withPortInfo` 只更新端口信息；保留手动 profile 及生效提示，整次操作内 profile 固定；操作上下文捕获 generation 或连接身份；读取块配置控件按需求补齐 | 验证更新端口信息保留有效 profile，重连/初始化应用新设置；确认旧会话在新设备连接后仍被拒绝，已有读取块设置正常保存 |
+| 5 | 处理 `PlatformOps` 半迁移状态并清理旧链路 | 统一读取时保留 MBC3/MBC5 地址映射、5V 能力检查、节流差异与默认参数；移除无调用方字段及未使用的擦除包装 | 对比 GBA、MBC5、MBC3 命令序列；覆盖 bank 边界、读取重试、STM 拒绝 5V、STC 供电恢复及 MBC1/2 未实现错误 |
+| 6 | 合并重复卡带操作接口和结果表达 | 保留用例编排、会话活性检查、应用层依赖隔离及连接错误契约 | 验证成功、超时、取消、断连和能力不支持的上层结果，包括 `readCart` 失败原因；运行架构依赖检查 |
 
 每一步单独验证。写入、RAM 和供电流程继续按实际差异逐项评估，避免一次性扩大模板接口。
 
@@ -198,7 +211,14 @@ npm run test:run -- tests/services/adapters tests/features/burner tests/protocol
 
 结果：**17 个测试文件、131 项测试全部通过**。覆盖适配器、烧录用例、协议、串口、固件 profile、分块规划与连接管理器的相关测试。
 
-验证覆盖现有软件行为基线。跨入口并发可达性、连接配置生效规则与旧擦除链路的调用范围已通过代码与调用链静态核查；浏览器并发复现、真机传输时序与大块读取可靠性尚待实机验证。本次另用临时 mock 测试执行了 4 项行为核验：STC 写入产生 16 KiB 块、STM 写入忽略更小的写入设置、MBC 5V 校验不发送供电及读前复位操作、校验读取失败不执行已配置重试，结果均与上述实现分析一致。临时测试已移除。建议方案实施时，按第 7 节补充修复后的行为与命令序列回归测试。
+验证覆盖现有软件行为基线。跨入口并发可达性、连接配置生效规则与旧擦除链路的调用范围已通过代码与调用链静态核查；浏览器并发复现、真机传输时序与大块读取可靠性尚待实机验证。另用临时 mock 测试完成了 4 项行为核验：
+
+- 人工设置 `romReadPageSize = 0x8000`、`romPageSize = 0x100`，不传调用方页大小，STC profile 下产生 16 KiB 编程块。
+- 使用相同设置，STM profile 下产生 4 KiB 编程块，忽略 256 B 写入设置。
+- MBC 校验设置 `enable5V: true`，没有调用供电控制和读前命令缓冲复位。
+- 配置读取重试次数为 2，MBC 校验仍在首次读取异常后结束。
+
+4 项结果均与上述实现分析一致，临时测试已移除。建议方案实施时，按第 7 节补充修复后的行为与命令序列回归测试。
 
 ## 9. 相关实现与设计记录
 
