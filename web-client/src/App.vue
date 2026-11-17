@@ -1,12 +1,12 @@
 <template>
   <div>
     <router-view />
-    <GlobalToast />
+    <RetroToast />
     <SystemNoticeModal />
   </div>
 </template>
 
 <script setup lang="ts">
-import GlobalToast from '@/components/common/GlobalToast.vue';
 import SystemNoticeModal from '@/components/modal/SystemNoticeModal.vue';
+import { RetroToast } from '@/components/retro';
 </script>
