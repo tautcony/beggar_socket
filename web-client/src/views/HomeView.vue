@@ -323,7 +323,7 @@ $title-color: #2c3e50;
 }
 
 .main-title {
-  font-size: typography-vars.$font-size-lg;
+  font-size: typography-vars.$font-size-xl;
   color: var(--retro-ink);
   margin: 0;
   font-weight: typography-vars.$font-weight-semibold;

@@ -1319,6 +1319,6 @@ defineExpose({
 
 .tab-icon {
   margin-right: var(--space-2);
-  font-size: 1.2em;
+  font-size: var(--font-size-base);
 }
 </style>

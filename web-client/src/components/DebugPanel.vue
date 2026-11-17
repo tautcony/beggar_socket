@@ -724,7 +724,7 @@ function generateTestRam(): void {
 }
 
 .debug-title__icon {
-  font-size: 1.1em;
+  font-size: var(--font-size-base);
   flex-shrink: 0;
   color: currentColor;
 }

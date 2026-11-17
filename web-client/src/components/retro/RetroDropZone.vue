@@ -109,7 +109,7 @@ function handleDrop(e: DragEvent) {
 }
 
 .retro-dropzone-icon {
-  font-size: 22px;
+  font-size: 24px;
   color: var(--retro-ink);
 }
 

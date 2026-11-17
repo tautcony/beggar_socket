@@ -34,13 +34,15 @@ withDefaults(defineProps<Props>(), {
   background: var(--retro-bg-surface);
   color: var(--retro-ink);
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   font-weight: var(--font-weight-bold);
   line-height: 1.2;
 }
 
 .retro-badge.is-mono {
   font-family: var(--retro-font-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
 }
 
 .retro-badge.is-pill {

@@ -130,7 +130,7 @@ function handleSaveFileDrop(e: DragEvent) {
 }
 
 .save-icon {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--retro-ink);
   flex-shrink: 0;
 }

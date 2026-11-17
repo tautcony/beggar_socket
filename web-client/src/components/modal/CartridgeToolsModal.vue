@@ -589,7 +589,7 @@ async function handlePPBUnlockMBC5() {
   padding: spacing-vars.$space-4;
 
   .clock-time {
-    font-size: 64px;
+    font-size: 60px;
     font-weight: typography-vars.$font-weight-bold;
     font-family: var(--retro-font-mono);
     color: var(--retro-ink);

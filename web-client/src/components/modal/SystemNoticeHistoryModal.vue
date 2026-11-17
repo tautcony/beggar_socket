@@ -589,7 +589,7 @@ watch(showTranslateButton, (enabled) => {
   padding: 0 0.25rem;
   border-radius: radius-vars.$radius-sm;
   font-family: var(--retro-font-mono);
-  font-size: 0.95em;
+  font-size: var(--font-size-xs);
 }
 
 .markdown-body :deep(pre) {
@@ -598,7 +598,7 @@ watch(showTranslateButton, (enabled) => {
   border-radius: radius-vars.$radius-md;
   overflow-x: auto;
   font-family: var(--retro-font-mono);
-  font-size: 0.95em;
+  font-size: var(--font-size-xs);
 }
 
 .markdown-body :deep(blockquote) {

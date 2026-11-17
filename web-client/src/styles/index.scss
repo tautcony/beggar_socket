@@ -49,10 +49,19 @@ a:hover {
 
 body {
   margin: 0;
+  font-size: var(--font-size-base);
   display: flex;
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+}
+
+:root:not([data-font-family='system']) :where(h1, h2) {
+  font-size: var(--font-size-xl);
+}
+
+:root:not([data-font-family='system']) :where(h3, h4, h5, h6) {
+  font-size: var(--font-size-base);
 }
 
 button,

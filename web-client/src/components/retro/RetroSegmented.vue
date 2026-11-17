@@ -106,6 +106,6 @@ defineEmits<{
   padding: 1px 5px;
   border-radius: 3px;
   background: rgba(128, 128, 128, 0.22);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--letter-spacing-wide);
 }
 </style>

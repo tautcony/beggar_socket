@@ -22,7 +22,7 @@ export class SimulatedTransport implements Transport {
   }
 
   async send(payload: Uint8Array, _timeoutMs?: number): Promise<boolean> {
-    await applySimulatedTransferDelay('write', payload.byteLength);
+    await applySimulatedTransferDelay('write', payload.byteLength, this.state);
     maybeThrowSimulatedTransportError('send');
     const result = executeSimulatedCommand(this.state, payload);
     if (result.response) {
@@ -32,7 +32,7 @@ export class SimulatedTransport implements Transport {
   }
 
   async read(length: number, _timeoutMs?: number, _mode: TransportReadMode = 'byob'): Promise<{ data: Uint8Array }> {
-    await applySimulatedTransferDelay('read', length);
+    await applySimulatedTransferDelay('read', length, this.state);
     maybeThrowSimulatedTransportError('read');
 
     const response = this.pendingResponses.shift();
