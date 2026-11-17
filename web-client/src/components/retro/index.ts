@@ -2,6 +2,7 @@ export { default as RetroBadge } from './RetroBadge.vue';
 export { default as RetroButton } from './RetroButton.vue';
 export { default as RetroCard } from './RetroCard.vue';
 export { default as RetroDropZone } from './RetroDropZone.vue';
+export { default as RetroIcon } from './RetroIcon.vue';
 export { default as RetroListItem } from './RetroListItem.vue';
 export { default as RetroModal } from './RetroModal.vue';
 export { default as RetroProgress } from './RetroProgress.vue';

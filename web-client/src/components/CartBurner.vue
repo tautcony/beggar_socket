@@ -21,8 +21,8 @@
       <RetroSegmented
         :model-value="mode"
         :options="[
-          { value: 'GBA', label: $t('ui.mode.gba'), icon: gameControllerOutline },
-          { value: 'MBC5', label: $t('ui.mode.mbc5'), icon: hardwareChipOutline },
+          { value: 'GBA', label: $t('ui.mode.gba'), icon: 'pixelarticons:gamepad' },
+          { value: 'MBC5', label: $t('ui.mode.mbc5'), icon: 'pixelarticons:cpu' },
         ]"
         @update:model-value="mode = $event as ModeType"
       />
@@ -137,7 +137,6 @@
 </template>
 
 <script setup lang="ts">
-import { gameControllerOutline, hardwareChipOutline } from 'ionicons/icons';
 import { DateTime } from 'luxon';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';

@@ -58,7 +58,7 @@
           @file-cleared="onFileCleared"
         >
           <template #icon>
-            <IonIcon :icon="folderOpenOutline" />
+            <RetroIcon icon="pixelarticons:folder" />
           </template>
         </FileDropZone>
         <RetroButton
@@ -66,7 +66,7 @@
           class="play-button"
           :disabled="busy"
           variant="success"
-          :icon="playOutline"
+          icon="pixelarticons:play"
           @click="playRom"
         />
       </div>
@@ -198,8 +198,6 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import { folderOpenOutline, playOutline } from 'ionicons/icons';
 import { DateTime } from 'luxon';
 import { computed, defineAsyncComponent, onErrorCaptured, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -207,7 +205,7 @@ import { useI18n } from 'vue-i18n';
 import FileDropZone from '@/components/common/FileDropZone.vue';
 import RomInfoPanel from '@/components/common/RomInfoPanel.vue';
 import { type GbaPreviewLaunch, type GbaPreviewSavePayload, type OperationFileEventPayload, ROM_OPERATION_EVENTS, type RomOperationsProps } from '@/components/operaiton/contracts';
-import { RetroButton, RetroCard, RetroModal, RetroSelect } from '@/components/retro';
+import { RetroButton, RetroCard, RetroIcon, RetroModal, RetroSelect } from '@/components/retro';
 import { useToast } from '@/composables/useToast';
 import { useRecentFileNamesStore } from '@/stores/recent-file-names-store';
 import { useRomAssemblyResultStore } from '@/stores/rom-assembly-store';
@@ -642,6 +640,12 @@ const hasAssembledRom = computed(() => {
   cursor: pointer;
   transition: transform 0.1s ease, box-shadow 0.1s ease;
   font-size: var(--font-size-lg);
+}
+
+.play-button :deep(.retro-btn-icon) {
+  width: 32px;
+  height: 32px;
+  font-size: 32px;
 }
 
 .play-button:hover:not(:disabled) {

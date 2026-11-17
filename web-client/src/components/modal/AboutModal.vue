@@ -36,42 +36,42 @@
       <h4>{{ $t('ui.about.techStack') }}</h4>
       <div class="tech-grid">
         <div class="tech-item">
-          <IonIcon :icon="logoVue" />
+          <RetroIcon icon="pixelarticons:code" />
           <span>Vue 3</span>
         </div>
         <div class="tech-item">
-          <IonIcon :icon="codeSlashOutline" />
+          <RetroIcon icon="pixelarticons:code" />
           <span>TypeScript</span>
         </div>
         <div class="tech-item">
-          <IonIcon :icon="globeOutline" />
+          <RetroIcon icon="pixelarticons:globe" />
           <span>Vite</span>
         </div>
         <div class="tech-item">
-          <IonIcon :icon="flashOutline" />
-          <span>Ionic Vue</span>
+          <RetroIcon icon="pixelarticons:zap" />
+          <span>Pixelarticons</span>
         </div>
         <div class="tech-item">
-          <IonIcon :icon="languageOutline" />
+          <RetroIcon icon="pixelarticons:globe" />
           <span>Vue I18n</span>
         </div>
         <div class="tech-item">
-          <IonIcon :icon="gitNetworkOutline" />
+          <RetroIcon icon="pixelarticons:git-branch" />
           <span>Vue Router</span>
         </div>
         <div class="tech-item">
-          <IonIcon :icon="layersOutline" />
+          <RetroIcon icon="pixelarticons:card-stack" />
           <span>Pinia</span>
         </div>
         <div
           v-if="isTauriEnv"
           class="tech-item"
         >
-          <IonIcon :icon="desktopOutline" />
+          <RetroIcon icon="pixelarticons:device-laptop" />
           <span>Tauri</span>
         </div>
         <div class="tech-item">
-          <IonIcon :icon="linkOutline" />
+          <RetroIcon icon="pixelarticons:link" />
           <span>Web Serial</span>
         </div>
       </div>
@@ -87,10 +87,10 @@
           rel="noopener noreferrer"
           class="project-link"
         >
-          <IonIcon :icon="logoGithub" />
+          <RetroIcon icon="pixelarticons:github" />
           <span>{{ $t('ui.about.sourceCode') }}</span>
-          <IonIcon
-            :icon="openOutline"
+          <RetroIcon
+            icon="pixelarticons:external-link"
             class="external-icon"
           />
         </a>
@@ -100,10 +100,10 @@
           rel="noopener noreferrer"
           class="project-link"
         >
-          <IonIcon :icon="bugOutline" />
+          <RetroIcon icon="pixelarticons:bug" />
           <span>{{ $t('ui.about.reportIssue') }}</span>
-          <IonIcon
-            :icon="openOutline"
+          <RetroIcon
+            icon="pixelarticons:external-link"
             class="external-icon"
           />
         </a>
@@ -122,10 +122,10 @@
         rel="noopener noreferrer"
         class="project-link"
       >
-        <IonIcon :icon="documentTextOutline" />
+        <RetroIcon icon="pixelarticons:file-text" />
         <span>{{ $t('ui.about.viewLicense') }}</span>
-        <IonIcon
-          :icon="openOutline"
+        <RetroIcon
+          icon="pixelarticons:external-link"
           class="external-icon"
         />
       </a>
@@ -142,25 +142,9 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import {
-  bugOutline,
-  codeSlashOutline,
-  desktopOutline,
-  documentTextOutline,
-  flashOutline,
-  gitNetworkOutline,
-  globeOutline,
-  languageOutline,
-  layersOutline,
-  linkOutline,
-  logoGithub,
-  logoVue,
-  openOutline,
-} from 'ionicons/icons';
 import { computed, onMounted, ref } from 'vue';
 
-import { RetroModal } from '@/components/retro';
+import { RetroIcon, RetroModal } from '@/components/retro';
 import { getPlatformDescription, getRuntimeAppVersion } from '@/platform/native';
 import { isTauriRuntime } from '@/platform/runtime';
 

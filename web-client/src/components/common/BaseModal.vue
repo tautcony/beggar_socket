@@ -22,7 +22,7 @@
               :disabled="closeDisabled"
               @click="hide"
             >
-              <IonIcon :icon="closeOutline" />
+              <RetroIcon icon="pixelarticons:close" />
             </button>
           </template>
         </div>
@@ -44,9 +44,9 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import { closeOutline } from 'ionicons/icons';
 import { computed, onMounted, onUnmounted } from 'vue';
+
+import { RetroIcon } from '@/components/retro';
 
 const props = withDefaults(defineProps<{
   modelValue?: boolean;

@@ -7,8 +7,8 @@
   >
     <div class="emulator-header">
       <h3 class="emulator-title">
-        <IonIcon
-          :icon="gameControllerOutline"
+        <RetroIcon
+          icon="pixelarticons:gamepad"
           class="emulator-icon"
         />
         {{ $t('ui.emulator.title') }} - {{ romName }}
@@ -17,7 +17,7 @@
         <RetroButton
           variant="secondary"
           size="sm"
-          :icon="isPaused ? play : pause"
+          :icon="isPaused ? 'pixelarticons:play' : 'pixelarticons:pause'"
           icon-only
           :title="$t('ui.emulator.pause')"
           @click="togglePause"
@@ -25,7 +25,7 @@
         <RetroButton
           variant="warning"
           size="sm"
-          :icon="refresh"
+          icon="pixelarticons:reload"
           icon-only
           :title="$t('ui.emulator.reset')"
           @click="resetGame"
@@ -33,7 +33,7 @@
         <RetroButton
           variant="danger"
           size="sm"
-          :icon="close"
+          icon="pixelarticons:close"
           icon-only
           :title="$t('ui.emulator.close')"
           @click="closeEmulator"
@@ -72,15 +72,13 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import { close, gameControllerOutline, pause, play, refresh } from 'ionicons/icons';
 import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { BinjgbRunner, type JoypadButton, type JoypadState } from '@/components/emulator/binjgb/binjgb-runner';
 import EmulatorLaunchTransition from '@/components/emulator/EmulatorLaunchTransition.vue';
 import EmulatorScreenViewport from '@/components/emulator/EmulatorScreenViewport.vue';
-import { RetroButton } from '@/components/retro';
+import { RetroButton, RetroIcon } from '@/components/retro';
 import { useToast } from '@/composables/useToast';
 
 const { t } = useI18n();
@@ -398,17 +396,19 @@ function cleanup() {
 .key-mappings {
   display: flex;
   flex-wrap: wrap;
-  gap: spacing-vars.$space-3;
+  gap: spacing-vars.$space-2;
   justify-content: center;
   align-items: center;
 }
 
 .key-mapping {
-  background: color-vars.$color-bg-tertiary;
-  padding: spacing-vars.$space-1 spacing-vars.$space-2;
-  border-radius: radius-vars.$radius-base;
-  font-size: typography-vars.$font-size-xs;
-  color: color-vars.$color-text;
-  border: 1px solid color-vars.$color-border;
+  background: var(--retro-bg-surface);
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: var(--retro-font-mono);
+  font-size: 11px;
+  color: var(--retro-ink);
+  border: 1px solid var(--retro-border-subtle);
+  white-space: nowrap;
 }
 </style>

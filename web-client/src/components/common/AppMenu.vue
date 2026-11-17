@@ -5,7 +5,7 @@
       :class="{ active: isMenuOpen }"
       @click="toggleMenu"
     >
-      <IonIcon :icon="menuOutline" />
+      <RetroIcon icon="pixelarticons:menu" />
       <span class="menu-text">{{ $t('ui.menu.tools') }}</span>
     </button>
 
@@ -28,7 +28,7 @@
           class="menu-item"
           @click="openRomTools"
         >
-          <IonIcon :icon="constructOutline" />
+          <RetroIcon icon="pixelarticons:sliders" />
           <div class="menu-item-content">
             <span class="menu-item-title">{{ $t('ui.menu.romTools') }}</span>
             <span class="menu-item-desc">{{ $t('ui.menu.romToolsDesc') }}</span>
@@ -40,7 +40,7 @@
           class="menu-item"
           @click="openDebugTool"
         >
-          <IonIcon :icon="terminalOutline" />
+          <RetroIcon icon="pixelarticons:command" />
           <div class="menu-item-content">
             <span class="menu-item-title">{{ $t('ui.menu.debugTool') }}</span>
             <span class="menu-item-desc">{{ $t('ui.menu.debugToolDesc') }}</span>
@@ -52,7 +52,7 @@
           class="menu-item"
           @click="openCartridgeTools"
         >
-          <IonIcon :icon="buildOutline" />
+          <RetroIcon icon="pixelarticons:cpu" />
           <div class="menu-item-content">
             <span class="menu-item-title">{{ $t('ui.menu.cartridgeTools') }}</span>
             <span class="menu-item-desc">{{ $t('ui.menu.cartridgeToolsDesc') }}</span>
@@ -67,7 +67,7 @@
           class="menu-item"
           @click="openSystemNoticeHistoryDialog"
         >
-          <IonIcon :icon="notificationsOutline" />
+          <RetroIcon icon="pixelarticons:notification" />
           <div class="menu-item-content">
             <span class="menu-item-title">{{ $t('ui.menu.systemNoticeHistory') }}</span>
             <span class="menu-item-desc">{{ $t('ui.menu.systemNoticeHistoryDesc') }}</span>
@@ -78,7 +78,7 @@
           class="menu-item"
           @click="openSerialTest"
         >
-          <IonIcon :icon="hardwareChipOutline" />
+          <RetroIcon icon="pixelarticons:cpu" />
           <div class="menu-item-content">
             <span class="menu-item-title">{{ $t('ui.menu.serialTest') }}</span>
             <span class="menu-item-desc">{{ $t('ui.menu.serialTestDesc') }}</span>
@@ -92,7 +92,7 @@
           class="menu-item"
           @click="openSettings"
         >
-          <IonIcon :icon="settingsOutline" />
+          <RetroIcon icon="pixelarticons:sliders" />
           <div class="menu-item-content">
             <span class="menu-item-title">{{ $t('ui.menu.settings') }}</span>
             <span class="menu-item-desc">{{ $t('ui.menu.settingsDesc') }}</span>
@@ -103,7 +103,7 @@
           class="menu-item"
           @click="openAbout"
         >
-          <IonIcon :icon="informationCircleOutline" />
+          <RetroIcon icon="pixelarticons:info-box" />
           <div class="menu-item-content">
             <span class="menu-item-title">{{ $t('ui.menu.about') }}</span>
             <span class="menu-item-desc">{{ $t('ui.menu.aboutDesc') }}</span>
@@ -148,16 +148,6 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import {
-  buildOutline,
-  constructOutline,
-  informationCircleOutline,
-  menuOutline,
-  notificationsOutline,
-  settingsOutline,
-  terminalOutline,
-} from 'ionicons/icons';
 import { onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -167,7 +157,7 @@ import AdvancedSettingsModal from '@/components/modal/AdvancedSettingsModal.vue'
 import CartridgeToolsModal from '@/components/modal/CartridgeToolsModal.vue';
 import DebugToolModal from '@/components/modal/DebugToolModal.vue';
 import SystemNoticeHistoryModal from '@/components/modal/SystemNoticeHistoryModal.vue';
-import { RetroBadge } from '@/components/retro';
+import { RetroBadge, RetroIcon } from '@/components/retro';
 import { useToast } from '@/composables/useToast';
 import type { DeviceInfo } from '@/types/device-info';
 

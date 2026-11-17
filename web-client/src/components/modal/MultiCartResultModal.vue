@@ -11,8 +11,8 @@
       v-if="results.length === 0"
       class="empty-state"
     >
-      <IonIcon
-        :icon="searchOutline"
+      <RetroIcon
+        icon="pixelarticons:search"
         class="empty-icon"
       />
       <p>{{ $t('ui.operation.noValidGameFound') }}</p>
@@ -25,7 +25,7 @@
     >
       <div class="summary-bar">
         <span class="summary-badge">
-          <IonIcon :icon="layersOutline" />
+          <RetroIcon icon="pixelarticons:card-stack" />
           {{ results.length === 1 && results[0].startAddress === 0
             ? $t('ui.operation.singleGameDetected')
             : $t('ui.multiCartResult.totalGames', { count: results.length }) }}
@@ -82,11 +82,9 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import { layersOutline, searchOutline } from 'ionicons/icons';
 import { ref, watch } from 'vue';
 
-import { RetroModal } from '@/components/retro';
+import { RetroIcon, RetroModal } from '@/components/retro';
 import type { GameDetectionResult } from '@/features/burner/application';
 import { formatHex } from '@/utils/formatter-utils';
 

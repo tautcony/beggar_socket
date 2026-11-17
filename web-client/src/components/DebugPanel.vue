@@ -20,8 +20,8 @@
         v-if="isCollapsed"
         class="debug-header__collapsed"
       >
-        <IonIcon
-          :icon="constructOutline"
+        <RetroIcon
+          icon="pixelarticons:sliders"
           class="debug-header__icon"
         />
         <span class="collapsed-label">{{ $t('ui.debug.panel') }}</span>
@@ -35,8 +35,8 @@
         class="debug-header__main"
       >
         <h3 class="debug-title">
-          <IonIcon
-            :icon="constructOutline"
+          <RetroIcon
+            icon="pixelarticons:sliders"
             class="debug-title__icon"
           />
           {{ $t('ui.debug.panel') }}
@@ -56,7 +56,7 @@
           :title="collapseActionTitle"
           @click.stop="togglePanelCollapsed"
         >
-          <IonIcon :icon="collapseActionIcon" />
+          <RetroIcon :icon="collapseActionIcon" />
         </button>
         <button
           type="button"
@@ -64,7 +64,7 @@
           :title="$t('ui.common.close')"
           @click.stop="handleClose"
         >
-          <IonIcon :icon="closeOutline" />
+          <RetroIcon icon="pixelarticons:close" />
         </button>
       </div>
     </div>
@@ -318,12 +318,10 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import { chevronBackOutline, chevronForwardOutline, closeOutline, constructOutline } from 'ionicons/icons';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { RetroButton } from '@/components/retro';
+import { RetroButton, RetroIcon } from '@/components/retro';
 import {
   DebugSettings,
   type SimulatedMemorySlot,
@@ -435,10 +433,10 @@ const memorySlots = computed(() => {
 const collapseActionIcon = computed(() => {
   const targetSide = dockSide.value ?? inferNearestDockSide();
   if (isCollapsed.value) {
-    return targetSide === 'right' ? chevronBackOutline : chevronForwardOutline;
+    return targetSide === 'right' ? 'pixelarticons:chevron-left' : 'pixelarticons:chevron-right';
   }
 
-  return targetSide === 'right' ? chevronForwardOutline : chevronBackOutline;
+  return targetSide === 'right' ? 'pixelarticons:chevron-right' : 'pixelarticons:chevron-left';
 });
 
 const collapseActionTitle = computed(() => {

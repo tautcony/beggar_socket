@@ -8,19 +8,14 @@
     @click="togglePanel"
   >
     <template #icon>
-      <IonIcon
-        :icon="bugOutline"
-        size="large"
-      />
+      <RetroIcon icon="pixelarticons:bug" />
     </template>
   </FloatingLink>
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import { bugOutline } from 'ionicons/icons';
-
 import FloatingLink from '@/components/common/FloatingLink.vue';
+import { RetroIcon } from '@/components/retro';
 
 const showDebugPanelModal = defineModel<boolean>('display', { default: false });
 

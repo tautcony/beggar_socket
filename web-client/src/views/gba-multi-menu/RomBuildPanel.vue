@@ -77,7 +77,7 @@
             <RetroButton
               size="xs"
               variant="secondary"
-              :icon="documentOutline"
+              icon="pixelarticons:file-alt"
               :text="$t('ui.file.browse')"
               @click="() => menuRomInput?.click()"
             />
@@ -112,7 +112,7 @@
             <RetroButton
               size="xs"
               variant="secondary"
-              :icon="imageOutline"
+              icon="pixelarticons:image"
               :text="$t('ui.file.browse')"
               @click="() => bgImageInput?.click()"
             />
@@ -146,7 +146,7 @@
           variant="primary"
           size="md"
           block
-          :icon="buildOutline"
+          icon="pixelarticons:sliders"
           :disabled="!canBuild"
           @click="buildRom"
         >
@@ -169,7 +169,7 @@
               variant="secondary"
               size="md"
               block
-              :icon="downloadOutline"
+              icon="pixelarticons:download"
               :text="$t('ui.gbaMultiMenu.downloadRom')"
               @click="downloadRom"
             />
@@ -177,7 +177,7 @@
               variant="primary"
               size="md"
               block
-              :icon="saveOutline"
+              icon="pixelarticons:save"
               :text="$t('ui.gbaMultiMenu.applyRom')"
               @click="applyRom"
             />
@@ -226,13 +226,6 @@
 </template>
 
 <script setup lang="ts">
-import {
-  buildOutline,
-  documentOutline,
-  downloadOutline,
-  imageOutline,
-  saveOutline,
-} from 'ionicons/icons';
 import { ref } from 'vue';
 
 import { RetroButton, RetroCard, RetroSelect } from '@/components/retro';

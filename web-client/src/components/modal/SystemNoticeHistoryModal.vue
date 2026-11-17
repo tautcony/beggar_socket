@@ -45,11 +45,11 @@
           </div>
           <div class="item-meta">
             <span class="item-meta-entry">
-              <IonIcon :icon="calendarOutline" />
+              <RetroIcon icon="pixelarticons:calendar" />
               {{ $t('ui.systemNoticeHistory.publishedAt') }}: {{ formatDate(notice.publishedAt) }}
             </span>
             <span class="item-meta-entry">
-              <IonIcon :icon="timeOutline" />
+              <RetroIcon icon="pixelarticons:clock" />
               {{ $t('ui.systemNoticeHistory.viewedAt') }}:
               <template v-if="notice.record?.lastViewedAt">
                 {{ formatDate(notice.record.lastViewedAt) }}
@@ -138,13 +138,11 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import { calendarOutline, timeOutline } from 'ionicons/icons';
 import { DateTime } from 'luxon';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { RetroButton, RetroModal } from '@/components/retro';
+import { RetroButton, RetroIcon, RetroModal } from '@/components/retro';
 import {
   fetchSystemNoticeConfig,
   fetchSystemNoticeMarkdown,

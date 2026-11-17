@@ -15,7 +15,7 @@
       style="display: none"
       @change="handleChange"
     >
-    <IonIcon
+    <RetroIcon
       v-if="icon"
       :icon="icon"
       class="retro-dropzone-icon"
@@ -31,8 +31,9 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
 import { ref } from 'vue';
+
+import RetroIcon from './RetroIcon.vue';
 
 interface Props {
   icon?: string;

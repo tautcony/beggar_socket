@@ -5,10 +5,10 @@
     :title="title"
     @click="handleClick"
   >
-    <IonIcon
+    <RetroIcon
       v-if="icon"
       class="button-icon"
-      :icon="icon"
+      :icon="String(icon)"
       :style="iconStyle"
     />
     <slot>{{ text }}</slot>
@@ -16,8 +16,9 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
 import { computed } from 'vue';
+
+import { RetroIcon } from '@/components/retro';
 
 export interface ButtonProps {
   variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'debug';

@@ -3,7 +3,7 @@
     class="retro-select-wrap"
     :class="[`size-${size}`, { 'is-disabled': disabled, 'is-full-width': fullWidth, 'has-prefix': Boolean(prefixIcon) }]"
   >
-    <IonIcon
+    <RetroIcon
       v-if="prefixIcon"
       :icon="prefixIcon"
       class="retro-select-prefix"
@@ -17,17 +17,17 @@
     >
       <slot />
     </select>
-    <IonIcon
-      :icon="chevronDown"
+    <RetroIcon
+      icon="pixelarticons:chevron-down"
       class="retro-select-arrow"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import { chevronDown } from 'ionicons/icons';
 import { computed } from 'vue';
+
+import RetroIcon from './RetroIcon.vue';
 
 defineOptions({
   inheritAttrs: false,

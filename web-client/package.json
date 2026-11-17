@@ -38,6 +38,8 @@
     "rom-builder": "npx tsx src/services/lk/cli.ts"
   },
   "dependencies": {
+    "@iconify-json/pixelarticons": "^1.2.10",
+    "@iconify/vue": "^5.0.5",
     "@ionic/vue": "^9.0.8",
     "@jimp/plugin-resize": "1.6.1",
     "@sentry/tracing": "^7.120.4",

@@ -8,19 +8,14 @@
     :right="20"
   >
     <template #icon>
-      <IonIcon
-        :icon="logoGithub"
-        size="large"
-      />
+      <RetroIcon icon="pixelarticons:github" />
     </template>
   </FloatingLink>
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import { logoGithub } from 'ionicons/icons';
-
 import FloatingLink from '@/components/common/FloatingLink.vue';
+import { RetroIcon } from '@/components/retro';
 </script>
 
 <style scoped>

@@ -6,7 +6,7 @@
           <RetroButton
             variant="ghost"
             size="sm"
-            :icon="arrowBackOutline"
+            icon="pixelarticons:arrow-left"
             :text="$t('ui.romTools.back')"
             @click="goBack"
           />
@@ -53,7 +53,6 @@
 </template>
 
 <script setup lang="ts">
-import { arrowBackOutline } from 'ionicons/icons';
 import { type Component, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
