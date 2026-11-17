@@ -102,7 +102,6 @@
       "environment": "実行環境",
       "platform": "プラットフォーム:",
       "userAgent": "ユーザーエージェント:",
-      "electronEnv": "Electron環境:",
       "webSerialSupport": "Web Serial APIサポート:",
       "yes": "はい",
       "no": "いいえ",

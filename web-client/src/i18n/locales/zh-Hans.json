@@ -112,7 +112,6 @@
       "environment": "运行环境",
       "platform": "平台:",
       "userAgent": "用户代理:",
-      "electronEnv": "Electron 环境:",
       "webSerialSupport": "Web Serial API 支持:",
       "yes": "是",
       "no": "否",
