@@ -126,21 +126,26 @@ static void uart_responData(const uint8_t *dat, uint16_t len)
 
     const USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)hUsbDeviceFS.pClassData;
 
-    // 分批发送
+    // 单次提交整包给 USB CDC（由 PCD 硬件/ISR 自动按 64B 分片），
+    // 避免按 512B 手动分批导致每包额外插入 ZLP，降低主机 USB CDC 驱动压力。
     uint16_t packSize = SIZE_CRC + len;
-    uint16_t transCount = 0;
-    while (transCount < packSize) {
-        uint16_t transLen = packSize - transCount;
-        if (transLen > BATCH_SIZE_RESPON) transLen = BATCH_SIZE_RESPON;
+    if (packSize > sizeof(responBuf)) {
+        packSize = sizeof(responBuf);
+    }
 
-        while (hcdc->TxState != 0) {
-            __WFI();
-            __NOP();
-        }
+    while (hcdc->TxState != 0) {
+        __WFI();
+        __NOP();
+    }
 
-        CDC_Transmit_FS(responBuf + transCount, transLen);
+    while (CDC_Transmit_FS(responBuf, packSize) == USBD_BUSY) {
+        __WFI();
+        __NOP();
+    }
 
-        transCount += transLen;
+    while (hcdc->TxState != 0) {
+        __WFI();
+        __NOP();
     }
 }
 
