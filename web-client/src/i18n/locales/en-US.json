@@ -512,6 +512,16 @@
         "stm": "丐中丐",
         "stc": "碳酸丐"
       },
+      "appearance": {
+        "title": "Appearance",
+        "colorTheme": "Color Theme",
+        "fontFamily": "Page Font",
+        "fontPreview": "Font Preview: Ark Pixel / Retro Workbench",
+        "fonts": {
+          "system": "System Default",
+          "arkPixel": "Ark Pixel (12px Proportional)"
+        }
+      },
       "size": {
         "title": "Read/Write Settings",
         "romPageSize": "ROM Read/Write Page Size",

@@ -210,7 +210,7 @@ function goBack() {
 }
 
 .alpha-badge {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--retro-font-mono);
   font-size: 10px;
   font-weight: var(--font-weight-semibold);
   padding: 1px 6px;

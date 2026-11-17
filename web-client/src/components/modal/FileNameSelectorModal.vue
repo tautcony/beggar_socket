@@ -161,7 +161,7 @@ watch(modelValue, (newValue) => {
   border-radius: radius-vars.$radius-base;
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: monospace;
+  font-family: var(--retro-font-mono);
   font-size: typography-vars.$font-size-sm;
   transition: border-color 0.2s, box-shadow 0.2s;
 
@@ -235,7 +235,7 @@ watch(modelValue, (newValue) => {
 }
 
 .rom-name {
-  font-family: monospace;
+  font-family: var(--retro-font-mono);
   font-weight: typography-vars.$font-weight-medium;
   color: var(--color-primary);
   flex: 1;
@@ -254,7 +254,7 @@ watch(modelValue, (newValue) => {
 }
 
 .sav-name {
-  font-family: monospace;
+  font-family: var(--retro-font-mono);
   color: var(--color-success);
   font-weight: typography-vars.$font-weight-medium;
   flex: 1;

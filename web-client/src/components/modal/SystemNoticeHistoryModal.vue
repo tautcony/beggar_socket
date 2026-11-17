@@ -588,7 +588,7 @@ watch(showTranslateButton, (enabled) => {
   background-color: var(--color-bg-secondary);
   padding: 0 0.25rem;
   border-radius: radius-vars.$radius-sm;
-  font-family: typography-vars.$font-family-mono;
+  font-family: var(--retro-font-mono);
   font-size: 0.95em;
 }
 
@@ -597,7 +597,7 @@ watch(showTranslateButton, (enabled) => {
   padding: spacing-vars.$space-3;
   border-radius: radius-vars.$radius-md;
   overflow-x: auto;
-  font-family: typography-vars.$font-family-mono;
+  font-family: var(--retro-font-mono);
   font-size: 0.95em;
 }
 

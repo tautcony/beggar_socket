@@ -486,7 +486,7 @@ function formatHexData(hexData: Uint8Array): string {
     border: 1px solid var(--color-border);
     border-radius: radius-vars.$radius-base;
     font-size: typography-vars.$font-size-sm;
-    font-family: 'Fira Code', 'Monaco', monospace;
+    font-family: var(--retro-font-mono);
 
     &:focus {
       outline: none;
@@ -538,7 +538,7 @@ function formatHexData(hexData: Uint8Array): string {
 }
 
 .data-hex {
-  font-family: 'Fira Code', 'Monaco', monospace;
+  font-family: var(--retro-font-mono);
   font-size: typography-vars.$font-size-xs;
   line-height: typography-vars.$line-height-normal;
   white-space: pre;
@@ -586,7 +586,7 @@ function formatHexData(hexData: Uint8Array): string {
   }
 
   .value {
-    font-family: 'Fira Code', 'Monaco', monospace;
+    font-family: var(--retro-font-mono);
     color: var(--color-text);
     font-weight: typography-vars.$font-weight-semibold;
   }

@@ -4,6 +4,7 @@ import { createPinia } from 'pinia';
 import { createApp } from 'vue';
 
 import App from '@/App.vue';
+import { initFont } from '@/composables/useFont';
 import { initTheme } from '@/composables/useTheme';
 import i18n from '@/i18n';
 import router from '@/router';
@@ -12,6 +13,7 @@ import { DebugSettings } from '@/settings/debug-settings';
 import { loadSentry } from '@/utils/monitoring/sentry-loader';
 
 initTheme();
+initFont();
 AdvancedSettings.loadSettings();
 DebugSettings.init();
 

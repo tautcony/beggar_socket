@@ -1,0 +1,65 @@
+// Ark Pixel Font (方舟像素字体 - SIL Open Font License 1.1)
+@font-face {
+  font-family: 'Ark Pixel 12px';
+  src: url('@/assets/fonts/ark-pixel/ark-pixel-12px-proportional-zh_hans.otf.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ark Pixel 12px TC';
+  src: url('@/assets/fonts/ark-pixel/ark-pixel-12px-proportional-zh_hant.otf.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ark Pixel 12px JA';
+  src: url('@/assets/fonts/ark-pixel/ark-pixel-12px-proportional-ja.otf.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ark Pixel 12px Latin';
+  src: url('@/assets/fonts/ark-pixel/ark-pixel-12px-proportional-latin.otf.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --app-font-sans: 'Ark Pixel 12px', system-ui, sans-serif;
+  --retro-font-mono: 'Ark Pixel 12px', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-family-primary: var(--app-font-sans);
+  --font-family-mono: var(--retro-font-mono);
+}
+
+:root[data-font-family='system'] {
+  --app-font-sans: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --retro-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-family-primary: var(--app-font-sans);
+  --font-family-mono: var(--retro-font-mono);
+}
+
+:root[data-font-family='ark-pixel'] {
+  --app-font-sans: 'Ark Pixel 12px', system-ui, sans-serif;
+  --retro-font-mono: 'Ark Pixel 12px', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-family-primary: var(--app-font-sans);
+  --font-family-mono: var(--retro-font-mono);
+}
+
+:root[data-font-family='ark-pixel']:lang(zh-Hant),
+:root:not([data-font-family='system']):lang(zh-Hant) {
+  --app-font-sans: 'Ark Pixel 12px TC', 'Ark Pixel 12px', system-ui, sans-serif;
+  --retro-font-mono: 'Ark Pixel 12px TC', 'Ark Pixel 12px', ui-monospace, monospace;
+}
+
+:root[data-font-family='ark-pixel']:lang(ja),
+:root:not([data-font-family='system']):lang(ja) {
+  --app-font-sans: 'Ark Pixel 12px JA', 'Ark Pixel 12px', system-ui, sans-serif;
+  --retro-font-mono: 'Ark Pixel 12px JA', 'Ark Pixel 12px', ui-monospace, monospace;
+}

@@ -200,7 +200,7 @@ function closeModal() {
 .col-title { min-width: 160px; }
 
 .addr-code {
-  font-family: monospace;
+  font-family: var(--retro-font-mono);
   font-size: 0.9em;
   background: var(--color-code-bg, #f0f0f0);
   padding: 1px 6px;

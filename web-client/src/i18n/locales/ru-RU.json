@@ -500,6 +500,16 @@
         "stm": "丐中丐",
         "stc": "碳酸丐"
       },
+      "appearance": {
+        "title": "Оформление",
+        "colorTheme": "Цветовая тема",
+        "fontFamily": "Шрифт страницы",
+        "fontPreview": "Предпросмотр: Ark Pixel / Ретро-верстак",
+        "fonts": {
+          "system": "Системный по умолчанию",
+          "arkPixel": "Ark Pixel (12px Proportional)"
+        }
+      },
       "size": {
         "title": "Настройки чтения/записи",
         "romPageSize": "Размер страницы чтения/записи ROM",

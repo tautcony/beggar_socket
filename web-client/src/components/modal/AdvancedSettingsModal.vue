@@ -65,6 +65,69 @@
           </div>
         </div>
 
+        <div
+          v-show="activeSection === 'appearance'"
+          class="setting-group"
+        >
+          <h4>{{ $t('ui.settings.appearance.title') }}</h4>
+
+          <div class="setting-item appearance-block">
+            <label>{{ $t('ui.settings.appearance.colorTheme') }}</label>
+            <div
+              class="theme-options"
+              role="radiogroup"
+              :aria-label="$t('ui.settings.appearance.colorTheme')"
+            >
+              <button
+                v-for="theme in themes"
+                :key="theme.id"
+                type="button"
+                class="theme-option-card"
+                :class="{ 'is-active': currentTheme === theme.id }"
+                role="radio"
+                :aria-checked="currentTheme === theme.id"
+                @click="setTheme(theme.id)"
+              >
+                <span
+                  class="theme-option-swatch"
+                  :style="{ backgroundColor: theme.swatch }"
+                />
+                <span class="theme-option-meta">
+                  <span class="theme-option-name">{{ $t(theme.labelKey) }}</span>
+                  <span class="theme-option-hex">{{ theme.swatch }}</span>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div class="setting-item appearance-block">
+            <label for="appearance-font-family">{{ $t('ui.settings.appearance.fontFamily') }}</label>
+            <div class="input-group">
+              <RetroSelect
+                id="appearance-font-family"
+                :model-value="currentFont"
+                size="md"
+                full-width
+                @update:model-value="onFontChange"
+              >
+                <option
+                  v-for="font in fonts"
+                  :key="font.id"
+                  :value="font.id"
+                >
+                  {{ $t(font.labelKey) }}
+                </option>
+              </RetroSelect>
+            </div>
+            <div
+              class="font-preview"
+              :class="{ 'is-pixel': currentFont === 'ark-pixel' }"
+            >
+              {{ $t('ui.settings.appearance.fontPreview') }} — ABC 0123 ChisFlash
+            </div>
+          </div>
+        </div>
+
         <!-- 页面大小设置 -->
         <div
           v-show="activeSection === 'size'"
@@ -511,13 +574,23 @@ import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { RetroButton, RetroModal, RetroSelect } from '@/components/retro';
+import { DEFAULT_FONT_FAMILY, type FontFamilyId, useFont } from '@/composables/useFont';
+import { DEFAULT_COLOR_THEME, useTheme } from '@/composables/useTheme';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import type { ConfigurableFirmwareProfileId } from '@/types/firmware-profile';
 import { formatBytes, formatTimeClock } from '@/utils/formatter-utils';
 
 const { t } = useI18n();
+const { currentTheme, themes, setTheme } = useTheme();
+const { currentFont, fonts, setFont } = useFont();
 
-type SettingsSectionId = 'firmware' | 'size' | 'timeout' | 'throttle' | 'retry';
+type SettingsSectionId = 'firmware' | 'appearance' | 'size' | 'timeout' | 'throttle' | 'retry';
+
+function onFontChange(value: string | number | undefined) {
+  if (typeof value === 'string') {
+    setFont(value as FontFamilyId);
+  }
+}
 
 // 定义 props
 const props = defineProps<{
@@ -622,39 +695,49 @@ const hasSectionError = (sectionId: SettingsSectionId): boolean => {
         || validationErrors.value.romEraseRetryDelay,
       );
     case 'firmware':
+    case 'appearance':
       return false;
   }
 };
 
-const settingsSections = computed(() => [
-  {
-    id: 'firmware' as const,
-    title: t('ui.settings.firmware.title'),
-    summary: localSettings.value.firmware.profile === 'stm'
-      ? t('ui.settings.firmware.stm')
-      : t('ui.settings.firmware.stc'),
-  },
-  {
-    id: 'size' as const,
-    title: t('ui.settings.size.title'),
-    summary: `${formatBytes(localSettings.value.size.romPageSize)} / ${formatBytes(localSettings.value.size.ramPageSize)}`,
-  },
-  {
-    id: 'timeout' as const,
-    title: t('ui.settings.timeout.title'),
-    summary: `${formatTimeClock(localSettings.value.timeout.default, 'ms')} / ${formatTimeClock(localSettings.value.timeout.operation, 'ms')}`,
-  },
-  {
-    id: 'throttle' as const,
-    title: t('ui.settings.throttle.title'),
-    summary: `${localSettings.value.throttle.romRead}ms / ${localSettings.value.throttle.ramRead}ms`,
-  },
-  {
-    id: 'retry' as const,
-    title: t('ui.settings.retry.title'),
-    summary: `${localSettings.value.retry.romReadCount}x / ${localSettings.value.retry.romWriteRetryCount}x`,
-  },
-]);
+const settingsSections = computed(() => {
+  const activeThemeOption = themes.find((item) => item.id === currentTheme.value);
+  const activeFontOption = fonts.find((item) => item.id === currentFont.value);
+  return [
+    {
+      id: 'firmware' as const,
+      title: t('ui.settings.firmware.title'),
+      summary: localSettings.value.firmware.profile === 'stm'
+        ? t('ui.settings.firmware.stm')
+        : t('ui.settings.firmware.stc'),
+    },
+    {
+      id: 'appearance' as const,
+      title: t('ui.settings.appearance.title'),
+      summary: `${activeThemeOption ? t(activeThemeOption.labelKey) : ''} / ${activeFontOption ? t(activeFontOption.labelKey) : ''}`,
+    },
+    {
+      id: 'size' as const,
+      title: t('ui.settings.size.title'),
+      summary: `${formatBytes(localSettings.value.size.romPageSize)} / ${formatBytes(localSettings.value.size.ramPageSize)}`,
+    },
+    {
+      id: 'timeout' as const,
+      title: t('ui.settings.timeout.title'),
+      summary: `${formatTimeClock(localSettings.value.timeout.default, 'ms')} / ${formatTimeClock(localSettings.value.timeout.operation, 'ms')}`,
+    },
+    {
+      id: 'throttle' as const,
+      title: t('ui.settings.throttle.title'),
+      summary: `${localSettings.value.throttle.romRead}ms / ${localSettings.value.throttle.ramRead}ms`,
+    },
+    {
+      id: 'retry' as const,
+      title: t('ui.settings.retry.title'),
+      summary: `${localSettings.value.retry.romReadCount}x / ${localSettings.value.retry.romWriteRetryCount}x`,
+    },
+  ];
+});
 
 // 验证单个值
 const validatePageSize = (value: number): string => {
@@ -742,6 +825,8 @@ const isValid = computed(() => {
 const resetToDefaults = () => {
   if (confirm(t('ui.settings.actions.resetConfirm'))) {
     localSettings.value = createDefaultSettings();
+    setTheme(DEFAULT_COLOR_THEME);
+    setFont(DEFAULT_FONT_FAMILY);
     validateAndUpdate();
   }
 };
@@ -950,6 +1035,83 @@ onMounted(() => {
   gap: spacing-vars.$space-3;
 }
 
+.appearance-block + .appearance-block {
+  margin-top: spacing-vars.$space-5;
+}
+
+.theme-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: spacing-vars.$space-3;
+}
+
+.theme-option-card {
+  display: flex;
+  align-items: center;
+  gap: spacing-vars.$space-2;
+  padding: 10px 12px;
+  border: 1.5px solid var(--retro-border);
+  border-radius: 4px;
+  background: var(--retro-bg-surface);
+  color: var(--retro-ink);
+  box-shadow: var(--retro-shadow-btn);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.12s ease;
+
+  &:hover {
+    background: var(--retro-bg-tint);
+    transform: translate(-1px, 1px);
+    box-shadow: var(--retro-shadow-btn-hover);
+  }
+
+  &.is-active {
+    background: var(--retro-bg-tint);
+    outline: 2px solid var(--retro-primary-bg);
+    outline-offset: -2px;
+  }
+}
+
+.theme-option-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  border: 1.5px solid var(--retro-border);
+  flex-shrink: 0;
+}
+
+.theme-option-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.theme-option-name {
+  font-size: typography-vars.$font-size-xs;
+  font-weight: typography-vars.$font-weight-semibold;
+  color: var(--retro-ink);
+}
+
+.theme-option-hex {
+  font-family: var(--retro-font-mono);
+  font-size: 11px;
+  color: var(--retro-ink-muted);
+}
+
+.font-preview {
+  margin-top: spacing-vars.$space-3;
+  padding: 10px 12px;
+  border: 1.5px dashed var(--retro-border-dashed);
+  border-radius: 4px;
+  background: var(--retro-bg-surface);
+  color: var(--retro-ink);
+  font-size: typography-vars.$font-size-sm;
+
+  &.is-pixel {
+    font-family: 'Ark Pixel 12px', system-ui, sans-serif;
+  }
+}
+
 @mixin btn-base {
   padding: spacing-vars.$space-2 spacing-vars.$space-4;
   border: 1px solid var(--color-border);
@@ -981,6 +1143,10 @@ onMounted(() => {
   }
 
   .setting-row {
+    grid-template-columns: 1fr;
+  }
+
+  .theme-options {
     grid-template-columns: 1fr;
   }
 }

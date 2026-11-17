@@ -16,8 +16,8 @@
 }
 
 // 字体族工具类
-.font-primary { font-family: typography-vars.$font-family-primary; }
-.font-mono { font-family: typography-vars.$font-family-mono; }
+.font-primary { font-family: var(--font-family-primary); }
+.font-mono { font-family: var(--font-family-mono); }
 
 // 行高工具类
 .leading-tight { line-height: typography-vars.$line-height-tight; }

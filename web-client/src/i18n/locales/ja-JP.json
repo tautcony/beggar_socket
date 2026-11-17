@@ -500,6 +500,16 @@
         "stm": "丐中丐",
         "stc": "碳酸丐"
       },
+      "appearance": {
+        "title": "外観とフォント",
+        "colorTheme": "カラーテーマ",
+        "fontFamily": "ページフォント",
+        "fontPreview": "フォントプレビュー：Ark Pixel / レトロワークベンチ",
+        "fonts": {
+          "system": "システムデフォルト",
+          "arkPixel": "Ark Pixel (12px Proportional)"
+        }
+      },
       "size": {
         "title": "読み書き設定",
         "romPageSize": "ROM読み書きページサイズ",
