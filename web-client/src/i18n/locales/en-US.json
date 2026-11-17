@@ -112,7 +112,6 @@
       "environment": "Runtime Environment",
       "platform": "Platform:",
       "userAgent": "User Agent:",
-      "electronEnv": "Electron Environment:",
       "webSerialSupport": "Web Serial API Support:",
       "yes": "Yes",
       "no": "No",

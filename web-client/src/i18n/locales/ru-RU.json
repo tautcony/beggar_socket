@@ -102,7 +102,6 @@
       "environment": "Среда выполнения",
       "platform": "Платформа:",
       "userAgent": "User Agent:",
-      "electronEnv": "Среда Electron:",
       "webSerialSupport": "Поддержка Web Serial API:",
       "yes": "Да",
       "no": "Нет",

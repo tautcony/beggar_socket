@@ -56,7 +56,6 @@ export default defineConfig({
   plugins: [vue()],
   base: './',
   define: {
-    __IS_ELECTRON__: 'false',
     global: 'globalThis',
     'import.meta.env.VITE_BUILD_BRANCH': JSON.stringify(buildBranch),
     'import.meta.env.VITE_BUILD_COMMIT': JSON.stringify(buildCommit),
