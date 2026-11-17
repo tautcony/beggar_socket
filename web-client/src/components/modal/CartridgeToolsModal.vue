@@ -1,5 +1,5 @@
 <template>
-  <BaseModal
+  <RetroModal
     v-model="localVisible"
     :title="$t('ui.tools.title')"
     width="900px"
@@ -142,7 +142,7 @@
         </div>
       </div>
     </div>
-  </BaseModal>
+  </RetroModal>
 
   <!-- RTC设置模态框 -->
   <RTCModal
@@ -158,8 +158,8 @@ import { DateTime } from 'luxon';
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import BaseModal from '@/components/common/BaseModal.vue';
 import RTCModal from '@/components/modal/RTCModal.vue';
+import { RetroModal } from '@/components/retro';
 import { useToast } from '@/composables/useToast';
 import type { GBARTCData, MBC3RTCData } from '@/services/rtc';
 import { ppbUnlockGBA, ppbUnlockMBC5, readRTC, rumbleTest, setRTC } from '@/services/tool-functions';

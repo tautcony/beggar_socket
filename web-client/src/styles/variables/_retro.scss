@@ -1,0 +1,70 @@
+// Retro 硬件工作台风格变量（支持日间 / 夜间模式）
+:root {
+  --retro-bg-canvas: #faf7f2;
+  --retro-bg-surface: #ffffff;
+  --retro-bg-elevated: #f8f5fa;
+  --retro-bg-tint: #e7e2f8;
+  --retro-bg-tint-hover: #d8d0f2;
+
+  --retro-ink: #2d243b;
+  --retro-ink-muted: #635975;
+  --retro-ink-subtle: #8b819e;
+
+  --retro-border: #2d243b;
+  --retro-border-subtle: #d5cee0;
+  --retro-border-dashed: #c8c1d4;
+  --retro-divider: #e2dce9;
+  --retro-shadow-color: #2d243b;
+
+  --retro-primary-bg: #2d243b;
+  --retro-primary-fg: #ffffff;
+  --retro-danger-bg: #ffe3e3;
+  --retro-danger-fg: #c92a2a;
+  --retro-success-bg: #d3f9d8;
+  --retro-warning-bg: #fff3bf;
+
+  --retro-overlay: rgba(250, 247, 242, 0.9);
+  --retro-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --retro-shadow-card: -3px 3px 0 var(--retro-shadow-color);
+  --retro-shadow-btn: -2px 2px 0 var(--retro-shadow-color);
+  --retro-shadow-btn-hover: -1px 1px 0 var(--retro-shadow-color);
+}
+
+@mixin retro-dark-tokens {
+  --retro-bg-canvas: #231d2f;
+  --retro-bg-surface: #2d253b;
+  --retro-bg-elevated: #362d47;
+  --retro-bg-tint: #453a5b;
+  --retro-bg-tint-hover: #53466d;
+
+  --retro-ink: #efeaf8;
+  --retro-ink-muted: #bfb4d6;
+  --retro-ink-subtle: #8d82a6;
+
+  --retro-border: #9d91b8;
+  --retro-border-subtle: #4b3f63;
+  --retro-border-dashed: #5d4f7a;
+  --retro-divider: #4b3f63;
+  --retro-shadow-color: #9d91b8;
+
+  --retro-primary-bg: #efeaf8;
+  --retro-primary-fg: #231d2f;
+  --retro-danger-bg: #4d2630;
+  --retro-danger-fg: #ff8787;
+  --retro-success-bg: #234232;
+  --retro-warning-bg: #473b1f;
+
+  --retro-overlay: rgba(35, 29, 47, 0.9);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    @include retro-dark-tokens;
+  }
+}
+
+:root[data-theme='dark'],
+:root.dark {
+  @include retro-dark-tokens;
+}

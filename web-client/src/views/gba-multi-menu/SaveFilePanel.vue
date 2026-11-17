@@ -1,231 +1,161 @@
 <template>
-  <div class="file-section">
-    <h4>{{ $t('ui.gbaMultiMenu.saveFiles') }}</h4>
-    <div class="file-upload-area">
-      <input
-        ref="saveFileInput"
-        type="file"
-        accept=".sav"
-        multiple
-        style="display: none"
-        @change="handleSaveFileChange"
-      >
+  <RetroCard
+    :title="$t('ui.gbaMultiMenu.saveFiles')"
+    :badge="saveFiles.size"
+    fill
+  >
+    <template #header-right>
+      <RetroButton
+        size="xs"
+        variant="secondary"
+        :icon="addOutline"
+        :text="$t('ui.file.browse')"
+        @click="() => saveFileInput?.click()"
+      />
+    </template>
+
+    <input
+      ref="saveFileInput"
+      type="file"
+      accept=".sav"
+      multiple
+      style="display: none"
+      @change="handleSaveFileChange"
+    >
+
+    <div
+      class="panel-drop-area"
+      @dragover.prevent
+      @drop.prevent="handleSaveFileDrop"
+    >
       <div
         v-if="saveFiles.size > 0"
-        class="file-list"
+        class="save-list"
       >
         <div
           v-for="[fileName, data] of saveFiles"
           :key="fileName"
-          class="file-item"
+          class="save-item-row"
         >
-          <IonIcon :icon="saveOutline" />
-          <span class="file-name">{{ fileName }}</span>
-          <span class="file-size">({{ formatFileSize(data.byteLength) }})</span>
-          <BaseButton
-            variant="error"
-            size="sm"
-            :icon="closeCircleOutline"
+          <IonIcon
+            :icon="saveOutline"
+            class="save-icon"
+          />
+          <span
+            class="save-name"
+            :title="fileName"
+          >
+            {{ fileName }}
+          </span>
+          <span class="save-size">{{ formatFileSize(data.byteLength) }}</span>
+          <RetroButton
+            variant="danger"
             icon-only
+            :icon="closeOutline"
             @click="removeSaveFile(fileName)"
           />
         </div>
       </div>
-      <div
+
+      <RetroDropZone
         v-else
-        class="file-drop-zone"
-        @click="() => saveFileInput?.click()"
-        @dragover.prevent
-        @drop.prevent="handleSaveFileDrop"
-      >
-        <div class="placeholder-content">
-          <IonIcon
-            :icon="saveOutline"
-            class="placeholder-icon"
-          />
-          <div class="placeholder-text">
-            <p>
-              {{ $t('ui.gbaMultiMenu.dropSaveFiles') }}
-            </p>
-            <p class="hint">
-              {{ $t('ui.file.browse') }}
-            </p>
-          </div>
-        </div>
-      </div>
+        :icon="saveOutline"
+        :title="$t('ui.gbaMultiMenu.dropSaveFiles')"
+        hint=".SAV"
+        accept=".sav"
+        multiple
+        compact
+        @files-selected="processSavFiles"
+      />
     </div>
-  </div>
+  </RetroCard>
 </template>
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import {
-  closeCircleOutline,
+  addOutline,
+  closeOutline,
   saveOutline,
 } from 'ionicons/icons';
 import { ref } from 'vue';
 
-import BaseButton from '@/components/common/BaseButton.vue';
+import { RetroButton, RetroCard, RetroDropZone } from '@/components/retro';
 import { useMultiMenu } from '@/composables/useMultiMenuState';
 
 const { saveFiles, processSaveFile, removeSaveFile, formatFileSize } = useMultiMenu();
 
 const saveFileInput = ref<HTMLInputElement>();
 
+function processSavFiles(files: File[]) {
+  files.forEach(file => {
+    if (file.name.toLowerCase().endsWith('.sav')) {
+      void processSaveFile(file);
+    }
+  });
+}
+
 function handleSaveFileChange(e: Event) {
   const input = e.target as HTMLInputElement;
-  const files = input.files;
-  if (files && files.length > 0) {
-    Array.from(files).forEach(file => {
-      if (file.name.toLowerCase().endsWith('.sav')) {
-        void processSaveFile(file);
-      }
-    });
+  if (input.files && input.files.length > 0) {
+    processSavFiles(Array.from(input.files));
+    input.value = '';
   }
 }
 
 function handleSaveFileDrop(e: DragEvent) {
-  const files = e.dataTransfer?.files;
-  if (files && files.length > 0) {
-    Array.from(files).forEach(file => {
-      if (file.name.toLowerCase().endsWith('.sav')) {
-        void processSaveFile(file);
-      }
-    });
+  if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+    processSavFiles(Array.from(e.dataTransfer.files));
   }
 }
 </script>
 
 <style scoped>
-.file-section {
+.panel-drop-area {
   flex: 1;
-  display: flex;
-  flex-direction: column;
   min-height: 0;
-}
-
-.file-upload-area {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  background-color: transparent;
-  padding: 0;
-  cursor: pointer;
-  transition: background-color 0.2s;
+  overflow-y: auto;
 }
 
-.file-upload-area:hover {
-  background-color: transparent;
-}
-
-.file-drop-zone {
-  flex: 1;
+.save-list {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
-  min-height: 120px;
-  border: var(--border-width) var(--border-style) var(--color-border);
-  border-radius: var(--radius-lg);
-  transition: all 0.3s ease;
-  cursor: pointer;
-  position: relative;
-  background-color: var(--color-bg-tertiary);
-  padding: var(--space-4);
+  gap: 6px;
 }
 
-.file-list {
-  border: var(--border-width) var(--border-style) var(--color-border-light);
-  border-radius: var(--radius-base);
-  background-color: var(--color-bg);
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
-  width: 100%;
-  margin-top: 0;
-  margin-bottom: auto;
-}
-
-.file-item {
+.save-item-row {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-bottom: var(--border-width) var(--border-style) var(--color-border-light);
-  background-color: var(--color-bg);
-  transition: all 0.2s ease;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1.5px solid var(--retro-border);
+  border-radius: 4px;
+  background: var(--retro-bg-surface);
 }
 
-.file-item:hover {
-  background-color: var(--color-bg-secondary);
+.save-icon {
+  font-size: 14px;
+  color: var(--retro-ink);
+  flex-shrink: 0;
 }
 
-.file-item:last-child {
-  border-bottom: none;
-}
-
-.file-name {
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
-  white-space: nowrap;
+.save-name {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 1;
-}
-
-.file-size {
-  color: var(--color-text-secondary);
+  white-space: nowrap;
   font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--retro-ink);
 }
 
-.placeholder-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-4);
-  flex: 1;
-  flex-direction: column;
-  text-align: center;
-}
-
-.placeholder-icon {
-  font-size: var(--font-size-3xl);
-  color: var(--color-primary);
+.save-size {
   flex-shrink: 0;
-  transition: all 0.2s ease;
-}
-
-.placeholder-text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  text-align: left;
-}
-
-.placeholder-text p {
-  margin: 0;
-}
-
-.hint {
-  background: var(--color-primary);
-  color: var(--color-bg);
-  padding: var(--space-2) var(--space-4);
-  border-radius: 20px;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  margin-top: var(--space-2);
-  box-shadow: var(--shadow-sm);
-  transition: all 0.2s ease;
-}
-
-.file-drop-zone:hover .hint {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.file-drop-zone:hover .placeholder-icon {
-  color: var(--color-primary-hover);
-  transform: scale(1.1);
+  font-family: var(--retro-font-mono);
+  font-size: 11px;
+  color: var(--retro-ink-muted);
 }
 </style>

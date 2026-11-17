@@ -1,5 +1,5 @@
 <template>
-  <BaseModal
+  <RetroModal
     v-model="localVisible"
     :title="$t('ui.multiCartResult.title')"
     width="700px"
@@ -78,7 +78,7 @@
         </table>
       </div>
     </div>
-  </BaseModal>
+  </RetroModal>
 </template>
 
 <script setup lang="ts">
@@ -86,7 +86,7 @@ import { IonIcon } from '@ionic/vue';
 import { layersOutline, searchOutline } from 'ionicons/icons';
 import { ref, watch } from 'vue';
 
-import BaseModal from '@/components/common/BaseModal.vue';
+import { RetroModal } from '@/components/retro';
 import type { GameDetectionResult } from '@/features/burner/application';
 import { formatHex } from '@/utils/formatter-utils';
 

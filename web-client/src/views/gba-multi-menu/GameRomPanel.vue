@@ -1,183 +1,194 @@
 <template>
-  <div class="file-section">
-    <h4>{{ $t('ui.gbaMultiMenu.gameRoms') }}</h4>
-    <div class="file-upload-area">
-      <input
-        ref="gameRomInput"
-        type="file"
-        accept=".gba"
-        multiple
-        style="display: none"
-        @change="onGameRomsSelected"
-      >
-      <div
-        class="file-drop-zone"
+  <RetroCard
+    :title="$t('ui.gbaMultiMenu.gameRoms')"
+    :badge="gameRomItems.length"
+    fill
+  >
+    <template #header-right>
+      <RetroButton
+        size="xs"
+        variant="secondary"
+        :icon="addOutline"
+        :text="$t('ui.file.browse')"
         @click="() => gameRomInput?.click()"
-        @dragover.prevent
-        @drop.prevent="handleGameRomDrop"
+      />
+    </template>
+
+    <input
+      ref="gameRomInput"
+      type="file"
+      accept=".gba"
+      multiple
+      style="display: none"
+      @change="onGameRomsSelected"
+    >
+
+    <div
+      class="panel-drop-area"
+      @dragover.prevent
+      @drop.prevent="handleGameRomDrop"
+    >
+      <div
+        v-if="gameRomItems.length > 0"
+        class="rom-list"
       >
         <div
-          v-if="gameRomItems.length > 0"
-          class="file-list"
+          v-for="(item, index) in gameRomItems"
+          :key="item.id"
+          class="rom-item-card"
+          draggable="true"
+          @dragstart="handleDragStart($event, index)"
+          @dragover.prevent
+          @drop.prevent="handleDrop($event, index)"
+          @dragenter.prevent
         >
-          <div
-            v-for="(item, index) in gameRomItems"
-            :key="item.id"
-            class="file-item-container"
-            draggable="true"
-            @dragstart="handleDragStart($event, index)"
-            @dragover.prevent
-            @drop.prevent="handleDrop($event, index)"
-            @dragenter.prevent
-          >
-            <div class="file-item">
-              <button
-                class="drag-handle"
-                :title="$t('ui.gbaMultiMenu.dragToReorder')"
-              >
-                <IonIcon :icon="menuOutline" />
-              </button>
-              <IonIcon :icon="gameControllerOutline" />
-              <div class="file-info">
-                <span class="file-name">{{ item.fileName }}</span>
-                <span class="file-size">({{ formatFileSize(item.data.byteLength) }})</span>
-              </div>
-              <div class="file-actions">
-                <BaseButton
-                  variant="secondary"
-                  size="sm"
-                  :icon="buildOutline"
-                  icon-only
-                  :title="$t('ui.gbaMultiMenu.configureGame')"
-                  @click.stop="toggleGameConfig(item.fileName)"
-                />
-                <BaseButton
-                  variant="error"
-                  size="sm"
-                  :icon="closeCircleOutline"
-                  icon-only
-                  @click.stop="removeGameRom(item.fileName)"
-                />
-              </div>
-            </div>
-
-            <!-- 游戏配置面板 -->
-            <div
-              v-if="expandedConfigs.has(item.fileName)"
-              class="game-config-panel"
-              @click.stop
+          <div class="rom-item-row">
+            <button
+              type="button"
+              class="drag-handle"
+              :title="$t('ui.gbaMultiMenu.dragToReorder')"
             >
-              <div class="config-row">
-                <label>{{ $t('ui.gbaMultiMenu.gameTitle') }}:</label>
-                <input
-                  v-model="item.config.title"
-                  type="text"
-                  maxlength="48"
-                  class="config-input"
-                >
-              </div>
-              <div class="config-row">
-                <label>{{ $t('ui.gbaMultiMenu.titleFont') }}:</label>
-                <select
-                  v-model.number="item.config.title_font"
-                  class="config-select"
-                >
-                  <option value="1">
-                    Font 1
-                  </option>
-                  <option value="2">
-                    Font 2
-                  </option>
-                </select>
-              </div>
-              <div class="config-row">
-                <label>{{ $t('ui.gbaMultiMenu.saveSlot') }}:</label>
-                <input
-                  v-model.number="item.config.save_slot"
-                  type="number"
-                  min="1"
-                  max="10"
-                  class="config-input"
-                >
-              </div>
-              <div class="config-row">
-                <label>
-                  <input
-                    v-model="item.config.enabled"
-                    type="checkbox"
-                  >
-                  {{ $t('ui.gbaMultiMenu.enabled') }}
-                </label>
-              </div>
+              <IonIcon :icon="menuOutline" />
+            </button>
+            <span class="index-badge">{{ String(index + 1).padStart(2, '0') }}</span>
+            <div class="rom-info">
+              <span
+                class="rom-name"
+                :title="item.fileName"
+              >
+                {{ item.fileName }}
+              </span>
+              <span class="rom-meta">
+                {{ formatFileSize(item.data.byteLength) }} · SLOT {{ item.config.save_slot }}
+              </span>
+            </div>
+            <div class="rom-actions">
+              <RetroButton
+                variant="ghost"
+                icon-only
+                :active="expandedConfigs.has(item.fileName)"
+                :icon="buildOutline"
+                :title="$t('ui.gbaMultiMenu.configureGame')"
+                @click.stop="toggleGameConfig(item.fileName)"
+              />
+              <RetroButton
+                variant="danger"
+                icon-only
+                :icon="closeOutline"
+                @click.stop="removeGameRom(item.fileName)"
+              />
             </div>
           </div>
-        </div>
-        <div
-          v-else
-          class="file-placeholder"
-        >
-          <div class="placeholder-content">
-            <IonIcon
-              :icon="gameControllerOutline"
-              class="placeholder-icon"
-            />
-            <div class="placeholder-text">
-              <p>
-                {{ $t('ui.gbaMultiMenu.dropGameRoms') }}
-              </p>
-              <p class="hint">
-                {{ $t('ui.file.browse') }}
-              </p>
+
+          <!-- 游戏配置面板 -->
+          <div
+            v-if="expandedConfigs.has(item.fileName)"
+            class="game-config-panel"
+            @click.stop
+          >
+            <div class="config-field config-field-wide">
+              <label>{{ $t('ui.gbaMultiMenu.gameTitle') }}</label>
+              <input
+                v-model="item.config.title"
+                type="text"
+                maxlength="48"
+                class="config-input"
+              >
             </div>
+            <div class="config-field">
+              <label>{{ $t('ui.gbaMultiMenu.titleFont') }}</label>
+              <select
+                v-model.number="item.config.title_font"
+                class="config-select"
+              >
+                <option value="1">
+                  Font 1
+                </option>
+                <option value="2">
+                  Font 2
+                </option>
+              </select>
+            </div>
+            <div class="config-field">
+              <label>{{ $t('ui.gbaMultiMenu.saveSlot') }}</label>
+              <input
+                v-model.number="item.config.save_slot"
+                type="number"
+                min="1"
+                max="10"
+                class="config-input"
+              >
+            </div>
+            <label class="config-checkbox">
+              <input
+                v-model="item.config.enabled"
+                type="checkbox"
+              >
+              <span>{{ $t('ui.gbaMultiMenu.enabled') }}</span>
+            </label>
           </div>
         </div>
       </div>
+
+      <RetroDropZone
+        v-else
+        :icon="gameControllerOutline"
+        :title="$t('ui.gbaMultiMenu.dropGameRoms')"
+        hint=".GBA"
+        accept=".gba"
+        multiple
+        @files-selected="processGbaFiles"
+      />
     </div>
-  </div>
+  </RetroCard>
 </template>
 
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import {
+  addOutline,
   buildOutline,
-  closeCircleOutline,
+  closeOutline,
   gameControllerOutline,
   menuOutline,
 } from 'ionicons/icons';
 import { ref } from 'vue';
 
-import BaseButton from '@/components/common/BaseButton.vue';
+import { RetroButton, RetroCard, RetroDropZone } from '@/components/retro';
 import { useMultiMenu } from '@/composables/useMultiMenuState';
 
 const {
-  gameRomItems, expandedConfigs,
-  processGameRomFile, removeGameRom, toggleGameConfig, reorderGameRom,
+  gameRomItems,
+  expandedConfigs,
+  processGameRomFile,
+  removeGameRom,
+  toggleGameConfig,
+  reorderGameRom,
   formatFileSize,
 } = useMultiMenu();
 
 const gameRomInput = ref<HTMLInputElement>();
 let draggedIndex = -1;
 
+function processGbaFiles(files: File[]) {
+  files.forEach(file => {
+    if (file.name.toLowerCase().endsWith('.gba')) {
+      void processGameRomFile(file);
+    }
+  });
+}
+
 function onGameRomsSelected(e: Event) {
   const input = e.target as HTMLInputElement;
-  const files = input.files;
-  if (files && files.length > 0) {
-    Array.from(files).forEach(file => {
-      if (file.name.toLowerCase().endsWith('.gba')) {
-        void processGameRomFile(file);
-      }
-    });
+  if (input.files && input.files.length > 0) {
+    processGbaFiles(Array.from(input.files));
+    input.value = '';
   }
 }
 
 function handleGameRomDrop(e: DragEvent) {
-  const files = e.dataTransfer?.files;
-  if (files && files.length > 0) {
-    Array.from(files).forEach(file => {
-      if (file.name.toLowerCase().endsWith('.gba')) {
-        void processGameRomFile(file);
-      }
-    });
+  if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+    processGbaFiles(Array.from(e.dataTransfer.files));
   }
 }
 
@@ -196,243 +207,150 @@ function handleDrop(e: DragEvent, dropIndex: number) {
 </script>
 
 <style scoped>
-.file-section {
+.panel-drop-area {
   flex: 1;
-  display: flex;
-  flex-direction: column;
   min-height: 0;
-}
-
-.file-upload-area {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  background-color: transparent;
-  padding: 0;
-  cursor: pointer;
-  transition: background-color 0.2s;
+  overflow-y: auto;
 }
 
-.file-upload-area:hover {
-  background-color: transparent;
-}
-
-.file-drop-zone {
-  flex: 1;
+.rom-list {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
-  min-height: 120px;
-  border: var(--border-width) var(--border-style) var(--color-border);
-  border-radius: var(--radius-lg);
-  transition: all 0.3s ease;
-  cursor: pointer;
-  position: relative;
-  background-color: var(--color-bg-tertiary);
-  padding: var(--space-4);
+  gap: 6px;
 }
 
-.file-drop-zone:has(.file-list) {
-  align-items: flex-start;
-  justify-content: flex-start;
-  padding: 0;
-}
-
-.file-list {
-  border: var(--border-width) var(--border-style) var(--color-border-light);
-  border-radius: var(--radius-base);
-  background-color: var(--color-bg);
+.rom-item-card {
+  border: 1.5px solid var(--retro-border);
+  border-radius: 4px;
+  background: var(--retro-bg-surface);
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
-  width: 100%;
-  margin-top: 0;
-  margin-bottom: auto;
 }
 
-.file-item-container {
-  border-bottom: var(--border-width) var(--border-style) var(--color-border-light);
-  cursor: move;
-  transition: all 0.2s ease;
-  background-color: var(--color-bg);
-  position: relative;
-}
-
-.file-item-container:hover {
-  background-color: var(--color-bg-secondary);
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-sm);
-}
-
-.file-item-container:last-child {
-  border-bottom: none;
-}
-
-.file-item {
+.rom-item-row {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-bottom: var(--border-width) var(--border-style) var(--color-border-light);
-  background-color: var(--color-bg);
-  transition: all 0.2s ease;
-}
-
-.file-item:hover {
-  background-color: var(--color-bg-secondary);
-}
-
-.file-item:last-child {
-  border-bottom: none;
-}
-
-.placeholder-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-4);
-  flex: 1;
-  flex-direction: column;
-  text-align: center;
-}
-
-.placeholder-icon {
-  font-size: var(--font-size-3xl);
-  color: var(--color-primary);
-  flex-shrink: 0;
-  transition: all 0.2s ease;
-}
-
-.placeholder-text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  text-align: left;
-}
-
-.placeholder-text p {
-  margin: 0;
-}
-
-.hint {
-  background: var(--color-primary);
-  color: var(--color-bg);
-  padding: var(--space-2) var(--space-4);
-  border-radius: 20px;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  margin-top: var(--space-2);
-  box-shadow: var(--shadow-sm);
-  transition: all 0.2s ease;
-}
-
-.file-drop-zone:hover .hint {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.file-drop-zone:hover .placeholder-icon {
-  color: var(--color-primary-hover);
-  transform: scale(1.1);
-}
-
-.file-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
-.file-name {
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.file-size {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
+  gap: 8px;
+  padding: 6px 8px;
 }
 
 .drag-handle {
-  background: none;
-  border: none;
-  color: var(--color-text-secondary);
-  cursor: grab;
-  padding: var(--space-1);
-  border-radius: var(--radius-sm);
-  transition: all 0.2s;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--font-size-base);
-}
-
-.drag-handle:hover {
-  background-color: var(--color-bg-tertiary);
-  color: var(--color-text);
+  border: none;
+  background: transparent;
+  color: var(--retro-ink-subtle);
+  cursor: grab;
+  padding: 2px;
 }
 
 .drag-handle:active {
   cursor: grabbing;
 }
 
-/* 游戏配置面板样式 */
+.index-badge {
+  font-family: var(--retro-font-mono);
+  font-size: 11px;
+  font-weight: var(--font-weight-bold);
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--retro-bg-tint);
+  color: var(--retro-ink);
+  border: 1px solid var(--retro-border);
+  flex-shrink: 0;
+}
+
+.rom-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rom-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--retro-ink);
+}
+
+.rom-meta {
+  flex-shrink: 0;
+  font-family: var(--retro-font-mono);
+  font-size: 11px;
+  color: var(--retro-ink-muted);
+}
+
+.rom-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
 .game-config-panel {
-  margin-top: var(--space-3);
-  padding: var(--space-4);
-  background-color: var(--color-bg-secondary);
-  border: var(--border-width) var(--border-style) var(--color-border);
-  border-radius: var(--radius-base);
-  border-top: var(--border-width-thick) var(--border-style) var(--color-primary);
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr auto;
+  align-items: end;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--retro-bg-elevated);
+  border-top: 1px dashed var(--retro-border-dashed);
 }
 
-.config-row {
+.config-field {
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
 }
 
-.config-row:last-child {
-  margin-bottom: 0;
-}
-
-.config-row label {
-  min-width: 80px;
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
-}
-
-.config-row label:has(input[type="checkbox"]) {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  cursor: pointer;
-  min-width: auto;
+.config-field label {
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--retro-ink-muted);
 }
 
 .config-input,
 .config-select {
-  flex: 1;
-  padding: var(--space-2) var(--space-3);
-  border: var(--border-width) var(--border-style) var(--color-border);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
-  background-color: var(--color-bg);
-  transition: border-color 0.2s;
+  width: 100%;
+  padding: 4px 6px;
+  border: 1.5px solid var(--retro-border);
+  border-radius: 4px;
+  background: var(--retro-bg-surface);
+  color: var(--retro-ink);
+  font-size: 12px;
 }
 
-.config-input:focus,
-.config-select:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-focus);
+.config-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding-bottom: 5px;
+  font-size: 12px;
+  color: var(--retro-ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.config-checkbox input {
+  accent-color: var(--retro-ink);
+}
+
+@media (max-width: 720px) {
+  .game-config-panel {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .config-field-wide {
+    grid-column: 1 / -1;
+  }
 }
 </style>

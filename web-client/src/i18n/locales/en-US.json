@@ -62,6 +62,8 @@
     },
     "menu": {
       "tools": "Tools",
+      "romTools": "ROM Tools",
+      "romToolsDesc": "ROM split, merge, and GBA multi-cart builder",
       "romAssembly": "ROM Assembly",
       "romAssemblyDesc": "Assemble multiple ROM files into a multi-cart",
       "romAnalyzer": "ROM Analyzer & Extractor",
@@ -82,6 +84,14 @@
       "systemNoticeHistoryDesc": "Review previously acknowledged system notices",
       "about": "About",
       "aboutDesc": "View application information and version"
+    },
+    "romTools": {
+      "title": "ROM Tools",
+      "back": "Back",
+      "tabs": {
+        "splitMerge": "ROM Split & Merge",
+        "multiMenu": "Multi-Cart"
+      }
     },
     "about": {
       "version": "Version",
@@ -774,7 +784,8 @@
       "assembledForMainInterface": "Assembled {romType} ROM, size: {size}, available in ROM operations interface",
       "applied": "ROM assembly has been applied to main interface",
       "returnedFromAssembly": "ROM assembly completed! {romType} ROM size: {size}MB, returned to home",
-      "downloadFailed": "ROM download failed: {error}"
+      "downloadFailed": "ROM download failed: {error}",
+      "multiRomLoaded": "Parsed multi-cart ROM and loaded {count} games into slots"
     },
     "ram": {
       "writing": "Writing RAM, size {size} bytes",

@@ -28,23 +28,12 @@
       <div class="menu-items">
         <button
           class="menu-item"
-          @click="openRomAssembly"
+          @click="openRomTools"
         >
           <IonIcon :icon="constructOutline" />
           <div class="menu-item-content">
-            <span class="menu-item-title">{{ $t('ui.menu.romAssembly') }}</span>
-            <span class="menu-item-desc">{{ $t('ui.menu.romAssemblyDesc') }}</span>
-          </div>
-        </button>
-
-        <button
-          class="menu-item"
-          @click="openRomAnalyzer"
-        >
-          <IonIcon :icon="analyticsOutline" />
-          <div class="menu-item-content">
-            <span class="menu-item-title">{{ $t('ui.menu.romAnalyzer') }}</span>
-            <span class="menu-item-desc">{{ $t('ui.menu.romAnalyzerDesc') }}</span>
+            <span class="menu-item-title">{{ $t('ui.menu.romTools') }}</span>
+            <span class="menu-item-desc">{{ $t('ui.menu.romToolsDesc') }}</span>
           </div>
         </button>
 
@@ -71,18 +60,6 @@
             <span class="menu-item-desc">{{ $t('ui.menu.cartridgeToolsDesc') }}</span>
           </div>
           <span class="beta-badge">BETA</span>
-        </button>
-
-        <button
-          class="menu-item"
-          @click="openGbaMultiMenu"
-        >
-          <IonIcon :icon="gameControllerOutline" />
-          <div class="menu-item-content">
-            <span class="menu-item-title">{{ $t('ui.menu.gbaMultiMenu') }}</span>
-            <span class="menu-item-desc">{{ $t('ui.menu.gbaMultiMenuDesc') }}</span>
-          </div>
-          <span class="alpha-badge">ALPHA</span>
         </button>
 
         <button
@@ -134,12 +111,6 @@
       </div>
     </div>
 
-    <!-- ROM分析器弹框 -->
-    <RomAnalyzerModal
-      v-model="isRomAnalyzerVisible"
-      @close="closeRomAnalyzer"
-    />
-
     <!-- 调试工具弹框 -->
     <DebugToolModal
       v-model="isDebugToolVisible"
@@ -178,10 +149,8 @@
 <script setup lang="ts">
 import { IonIcon } from '@ionic/vue';
 import {
-  analyticsOutline,
   buildOutline,
   constructOutline,
-  gameControllerOutline,
   informationCircleOutline,
   menuOutline,
   notificationsOutline,
@@ -196,7 +165,6 @@ import AboutModal from '@/components/modal/AboutModal.vue';
 import AdvancedSettingsModal from '@/components/modal/AdvancedSettingsModal.vue';
 import CartridgeToolsModal from '@/components/modal/CartridgeToolsModal.vue';
 import DebugToolModal from '@/components/modal/DebugToolModal.vue';
-import RomAnalyzerModal from '@/components/modal/RomAnalyzerModal.vue';
 import SystemNoticeHistoryModal from '@/components/modal/SystemNoticeHistoryModal.vue';
 import { useToast } from '@/composables/useToast';
 import type { DeviceInfo } from '@/types/device-info';
@@ -215,7 +183,6 @@ const props = withDefaults(defineProps<{
 });
 
 const isMenuOpen = ref(false);
-const isRomAnalyzerVisible = ref(false);
 const isDebugToolVisible = ref(false);
 const isCartridgeToolsVisible = ref(false);
 const isSettingsVisible = ref(false);
@@ -271,33 +238,15 @@ function openSystemNoticeHistoryDialog() {
   isSystemNoticeHistoryVisible.value = true;
 }
 
-function openRomAssembly() {
+function openRomTools() {
   closeMenu();
-
-  // 可以在这里使用 Pinia store 预设数据
-  // 例如：
-  // import { useRomAssemblyStore } from '@/stores/rom-assembly-store';
-  // const romAssemblyStore = useRomAssemblyStore();
-  // romAssemblyStore.presetData({
-  //   romType: currentMode,
-  //   fromExternal: true
-  // });
-
   void router.push({
-    path: '/rom-assembly',
+    name: 'rom-tools',
+    params: { tab: 'split-merge' },
     query: {
       romType: props.currentMode,
     },
   });
-}
-
-function openRomAnalyzer() {
-  closeMenu();
-  isRomAnalyzerVisible.value = true;
-}
-
-function closeRomAnalyzer() {
-  isRomAnalyzerVisible.value = false;
 }
 
 function openDebugTool() {
@@ -342,11 +291,6 @@ function openAbout() {
 
 function closeAbout() {
   isAboutVisible.value = false;
-}
-
-function openGbaMultiMenu() {
-  closeMenu();
-  void router.push({ name: 'gba-multi-menu' });
 }
 
 function openSerialTest() {
@@ -489,19 +433,6 @@ function openSerialTest() {
   height: 1px;
   background: #e9ecef;
   margin: 8px 20px;
-}
-
-.alpha-badge {
-  background: linear-gradient(45deg, #6a5acd, #8a2be2);
-  color: white;
-  font-size: typography-vars.$font-size-xs;
-  font-weight: typography-vars.$font-weight-bold;
-  padding: spacing-vars.$space-1 spacing-vars.$space-2;
-  border-radius: radius-vars.$radius-2xl;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  box-shadow: 0 2px 4px rgba(106, 90, 205, 0.3);
-  flex-shrink: 0;
 }
 
 .beta-badge {
