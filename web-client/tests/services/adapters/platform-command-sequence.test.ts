@@ -163,6 +163,131 @@ describe('Platform command sequence parity (GBA, MBC5, MBC3)', () => {
     expect(switchSpy).toHaveBeenCalledTimes(3);
   });
 
+  it('splits large ROM read chunks into smaller sub-chunks when retrying after a read timeout', async () => {
+    const adapter = new GBAAdapter(createDevice());
+    AdvancedSettings.romReadRetryCount = 1;
+
+    let calls = 0;
+    mockRomRead.mockImplementation((_t, size: number) => {
+      calls++;
+      if (calls === 1) {
+        return Promise.reject(new Error('Read package timeout in 3000ms (read#1, expected=4098B, received=4084B)'));
+      }
+      return Promise.resolve(new Uint8Array(size).fill(0x55));
+    });
+
+    const result = await adapter.readROM(0x1000, {
+      baseAddress: 0x01749000,
+      romPageSize: 0x1000,
+      cfiInfo: createCfiInfo(0x02000000),
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockRomRead.mock.calls.map(([, size, addr]) => [size, addr])).toEqual([
+      [0x1000, 0x01749000],
+      [0x0800, 0x01749000],
+      [0x0800, 0x01749800],
+    ]);
+  });
+
+  it('applies platform-optimal STM32 GBA read chunk sizes for windows, macos, and linux', async () => {
+    const originalPlatform = Object.getOwnPropertyDescriptor(navigator, 'platform');
+    try {
+      const cases = [
+        {
+          platform: 'Win32',
+          expectedCalls: [[0x1000, 0x00000000]],
+        },
+        {
+          platform: 'MacIntel',
+          expectedCalls: [
+            [0x0c00, 0x00000000],
+            [0x0400, 0x00000c00],
+          ],
+        },
+        {
+          platform: 'Linux x86_64',
+          expectedCalls: [
+            [0x0c00, 0x00000000],
+            [0x0400, 0x00000c00],
+          ],
+        },
+      ] as const;
+
+      for (const testCase of cases) {
+        mockRomRead.mockReset();
+        Object.defineProperty(navigator, 'platform', { value: testCase.platform, configurable: true });
+
+        const adapter = new GBAAdapter(createDevice(STM_FIRMWARE_PROFILE));
+        mockRomRead.mockImplementation((_t, size: number) => Promise.resolve(new Uint8Array(size).fill(0x11)));
+
+        const result = await adapter.readROM(0x1000, {
+          baseAddress: 0x00000000,
+          romPageSize: 0x1000,
+          cfiInfo: createCfiInfo(0x02000000),
+        });
+
+        expect(result.success).toBe(true);
+        expect(mockRomRead.mock.calls.map(([, size, addr]) => [size, addr])).toEqual(testCase.expectedCalls);
+      }
+    } finally {
+      if (originalPlatform) {
+        Object.defineProperty(navigator, 'platform', originalPlatform);
+      } else {
+        delete (navigator as { platform?: string }).platform;
+      }
+    }
+  });
+
+  it('applies platform-optimal STC8 GBA read chunk sizes (8KiB on Windows, 4KiB on macOS/Linux)', async () => {
+    const originalPlatform = Object.getOwnPropertyDescriptor(navigator, 'platform');
+    try {
+      const cases = [
+        {
+          platform: 'Win32',
+          expectedCalls: [[0x2000, 0x00000000]],
+        },
+        {
+          platform: 'MacIntel',
+          expectedCalls: [
+            [0x1000, 0x00000000],
+            [0x1000, 0x00001000],
+          ],
+        },
+        {
+          platform: 'Linux x86_64',
+          expectedCalls: [
+            [0x1000, 0x00000000],
+            [0x1000, 0x00001000],
+          ],
+        },
+      ] as const;
+
+      for (const testCase of cases) {
+        mockRomRead.mockReset();
+        Object.defineProperty(navigator, 'platform', { value: testCase.platform, configurable: true });
+        AdvancedSettings.resetToDefaults();
+
+        const adapter = new GBAAdapter(createDevice(STC_FIRMWARE_PROFILE));
+        mockRomRead.mockImplementation((_t, size: number) => Promise.resolve(new Uint8Array(size).fill(0x22)));
+
+        const result = await adapter.readROM(0x2000, {
+          baseAddress: 0x00000000,
+          cfiInfo: createCfiInfo(0x02000000),
+        });
+
+        expect(result.success).toBe(true);
+        expect(mockRomRead.mock.calls.map(([, size, addr]) => [size, addr])).toEqual(testCase.expectedCalls);
+      }
+    } finally {
+      if (originalPlatform) {
+        Object.defineProperty(navigator, 'platform', originalPlatform);
+      } else {
+        delete (navigator as { platform?: string }).platform;
+      }
+    }
+  });
+
   it('rejects 5V power on STM before cart_power and restores 3.3V on STC', async () => {
     const stmAdapter = new MBC5Adapter(createDevice(STM_FIRMWARE_PROFILE));
     const stmLogs: string[] = [];

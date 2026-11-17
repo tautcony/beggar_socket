@@ -1,15 +1,19 @@
+import { getOptimalPacketLimits } from '@/platform/serial/platform-packet-policy';
 import type { ConfigurableFirmwareProfileId } from '@/types/firmware-profile';
 import { floorPowerOfTwo } from '@/utils/transfer-plan';
+
+export interface SizeSettings {
+  romPageSize: number;
+  romReadPageSize: number;
+  ramPageSize: number;
+}
 
 export interface AdvancedSettingsConfig {
   firmware?: {
     profile?: ConfigurableFirmwareProfileId;
   };
-  size?: {
-    romPageSize?: number;
-    romReadPageSize?: number;
-    ramPageSize?: number;
-  };
+  size?: Partial<SizeSettings>;
+  profileSizes?: Partial<Record<ConfigurableFirmwareProfileId, Partial<SizeSettings>>>;
   throttle?: {
     romRead?: number;
     ramRead?: number;
@@ -88,6 +92,30 @@ const _storage: Record<string, number> = Object.fromEntries(
 );
 let _firmwareProfile: ConfigurableFirmwareProfileId = 'stm';
 
+function createDefaultProfileSizes(profile: ConfigurableFirmwareProfileId): SizeSettings {
+  const limits = getOptimalPacketLimits(profile);
+  return {
+    romPageSize: limits.romWrite,
+    romReadPageSize: limits.romRead,
+    ramPageSize: limits.ramPage,
+  };
+}
+
+const _profileSizes: Record<ConfigurableFirmwareProfileId, SizeSettings> = {
+  stm: createDefaultProfileSizes('stm'),
+  stc: createDefaultProfileSizes('stc'),
+};
+let _independentProfileSizes = false;
+
+function syncActiveProfileSizesToStorage(): void {
+  const active = _profileSizes[_firmwareProfile];
+  _storage.romPageSize = active.romPageSize;
+  _storage.romReadPageSize = active.romReadPageSize;
+  _storage.ramPageSize = active.ramPageSize;
+}
+
+syncActiveProfileSizesToStorage();
+
 const LEGACY_DEFAULTS = {
   romPageSize: 0x200,
   ramPageSize: 0x100,
@@ -109,7 +137,7 @@ function validateValue(value: number, type: ValidatorType): number {
     return max;
   }
 
-  if ((type === 'pageSize' || type === 'readPageSize') && (v & (v - 1)) !== 0) {
+  if ((type === 'pageSize' || type === 'readPageSize') && v !== 0x0c00 && (v & (v - 1)) !== 0) {
     const normalized = floorPowerOfTwo(v, min);
     console.warn(`${label} ${v} is not a power of two, normalizing down to ${normalized}`);
     return normalized;
@@ -163,15 +191,24 @@ export class AdvancedSettings {
   declare static packageReceiveTimeout: number;
   declare static operationTimeout: number;
 
+  static getProfileSizes(profile: ConfigurableFirmwareProfileId = _firmwareProfile): SizeSettings {
+    return { ..._profileSizes[profile] };
+  }
+
   static getSettings() {
+    syncActiveProfileSizesToStorage();
     return {
       firmware: {
         profile: _firmwareProfile,
       },
       size: {
-        romPageSize: _storage.romPageSize,
-        romReadPageSize: _storage.romReadPageSize,
-        ramPageSize: _storage.ramPageSize,
+        romPageSize: _profileSizes[_firmwareProfile].romPageSize,
+        romReadPageSize: _profileSizes[_firmwareProfile].romReadPageSize,
+        ramPageSize: _profileSizes[_firmwareProfile].ramPageSize,
+      },
+      profileSizes: {
+        stm: { ..._profileSizes.stm },
+        stc: { ..._profileSizes.stc },
       },
       throttle: {
         romRead: _storage.romReadThrottleMs,
@@ -201,23 +238,49 @@ export class AdvancedSettings {
       _firmwareProfile = validateFirmwareProfile(settings.firmware.profile);
     }
 
+    if (settings.profileSizes) {
+      _independentProfileSizes = true;
+      for (const profileId of ['stm', 'stc'] as const) {
+        const profileSize = settings.profileSizes[profileId];
+        if (!profileSize) continue;
+        if (profileSize.romPageSize !== undefined) {
+          _profileSizes[profileId].romPageSize = validateValue(profileSize.romPageSize, 'pageSize');
+        }
+        if (profileSize.romReadPageSize !== undefined) {
+          _profileSizes[profileId].romReadPageSize = validateValue(profileSize.romReadPageSize, 'readPageSize');
+        }
+        if (profileSize.ramPageSize !== undefined) {
+          _profileSizes[profileId].ramPageSize = validateValue(profileSize.ramPageSize, 'pageSize');
+        }
+      }
+    }
+
     for (const desc of SETTING_DESCRIPTORS) {
       const group = settings[desc.group as keyof AdvancedSettingsConfig];
       if (group) {
         const value = (group as Record<string, number | undefined>)[desc.field];
         if (value !== undefined) {
-          _storage[desc.key] = validateValue(value, desc.validator);
+          const validated = validateValue(value, desc.validator);
+          _storage[desc.key] = validated;
+          if (desc.group === 'size') {
+            _profileSizes[_firmwareProfile][desc.field as keyof SizeSettings] = validated;
+          }
         }
       }
     }
+    syncActiveProfileSizesToStorage();
     this.saveSettings();
   }
 
   static resetToDefaults(): void {
     _firmwareProfile = 'stm';
+    _independentProfileSizes = false;
+    _profileSizes.stm = createDefaultProfileSizes('stm');
+    _profileSizes.stc = createDefaultProfileSizes('stc');
     for (const desc of SETTING_DESCRIPTORS) {
       _storage[desc.key] = desc.default;
     }
+    syncActiveProfileSizesToStorage();
     this.saveSettings();
   }
 
@@ -293,6 +356,7 @@ Object.defineProperty(AdvancedSettings, 'firmwareProfile', {
   },
   set(value: ConfigurableFirmwareProfileId) {
     _firmwareProfile = validateFirmwareProfile(value);
+    syncActiveProfileSizesToStorage();
     AdvancedSettings.saveSettings();
   },
   enumerable: true,
@@ -303,10 +367,22 @@ Object.defineProperty(AdvancedSettings, 'firmwareProfile', {
 for (const desc of SETTING_DESCRIPTORS) {
   Object.defineProperty(AdvancedSettings, desc.key, {
     get(): number {
+      if (desc.group === 'size') {
+        return _profileSizes[_firmwareProfile][desc.field as keyof SizeSettings];
+      }
       return _storage[desc.key];
     },
     set(value: number) {
-      _storage[desc.key] = validateValue(value, desc.validator);
+      const validated = validateValue(value, desc.validator);
+      _storage[desc.key] = validated;
+      if (desc.group === 'size') {
+        const field = desc.field as keyof SizeSettings;
+        _profileSizes[_firmwareProfile][field] = validated;
+        if (!_independentProfileSizes) {
+          const otherProfile: ConfigurableFirmwareProfileId = _firmwareProfile === 'stm' ? 'stc' : 'stm';
+          _profileSizes[otherProfile][field] = validated;
+        }
+      }
       AdvancedSettings.saveSettings();
     },
     enumerable: true,

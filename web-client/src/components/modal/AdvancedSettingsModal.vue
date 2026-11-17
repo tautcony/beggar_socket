@@ -146,7 +146,25 @@
           v-show="activeSection === 'size'"
           class="setting-group"
         >
-          <h4>{{ $t('ui.settings.size.title') }}</h4>
+          <div class="size-section-header">
+            <h4>{{ $t('ui.settings.size.title') }}</h4>
+            <div
+              class="profile-switch"
+              data-testid="size-profile-switch"
+            >
+              <button
+                v-for="profileOption in firmwareProfileOptions"
+                :key="profileOption.id"
+                type="button"
+                class="profile-switch-btn"
+                :class="{ active: editingSizeProfile === profileOption.id }"
+                :data-testid="`size-profile-${profileOption.id}`"
+                @click="switchEditingSizeProfile(profileOption.id)"
+              >
+                {{ profileOption.label }}
+              </button>
+            </div>
+          </div>
 
           <div class="setting-row">
             <div class="setting-item">
@@ -612,9 +630,14 @@ import { useI18n } from 'vue-i18n';
 import { RetroButton, RetroModal, RetroSelect } from '@/components/retro';
 import { DEFAULT_FONT_FAMILY, type FontFamilyId, useFont } from '@/composables/useFont';
 import { DEFAULT_COLOR_THEME, useTheme } from '@/composables/useTheme';
+import { getOptimalPacketLimits } from '@/platform/serial/platform-packet-policy';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import type { DeviceInfo } from '@/types/device-info';
-import type { ConfigurableFirmwareProfileId } from '@/types/firmware-profile';
+import {
+  type ConfigurableFirmwareProfileId,
+  STC_FIRMWARE_PROFILE,
+  STM_FIRMWARE_PROFILE,
+} from '@/types/firmware-profile';
 import { formatBytes, formatTimeClock } from '@/utils/formatter-utils';
 
 const { t } = useI18n();
@@ -657,40 +680,82 @@ const localVisible = computed({
 // 获取限制值
 const limits = AdvancedSettings.getLimits();
 
-const createDefaultSettings = (): ReturnType<typeof AdvancedSettings.getSettings> => ({
-  firmware: {
-    profile: 'stm',
-  },
-  size: {
-    romPageSize: 0x1000,
-    romReadPageSize: 0x1000,
-    ramPageSize: 0x1000,
-  },
-  throttle: {
-    romRead: 0,
-    ramRead: 0,
-  },
-  retry: {
-    romReadCount: 1,
-    ramReadCount: 1,
-    romReadDelay: 0,
-    ramReadDelay: 0,
-    romWriteRetryCount: 1,
-    romWriteRetryDelay: 0,
-    romEraseRetryCount: 1,
-    romEraseRetryDelay: 0,
-  },
-  timeout: {
-    default: 3000,
-    packageSend: 3000,
-    packageReceive: 3000,
-    operation: 30000,
-  },
-});
+const createDefaultSettings = (): ReturnType<typeof AdvancedSettings.getSettings> => {
+  const stmLimits = getOptimalPacketLimits('stm');
+  const stcLimits = getOptimalPacketLimits('stc');
+  return {
+    firmware: {
+      profile: 'stm',
+    },
+    size: {
+      romPageSize: stmLimits.romWrite,
+      romReadPageSize: stmLimits.romRead,
+      ramPageSize: stmLimits.ramPage,
+    },
+    profileSizes: {
+      stm: {
+        romPageSize: stmLimits.romWrite,
+        romReadPageSize: stmLimits.romRead,
+        ramPageSize: stmLimits.ramPage,
+      },
+      stc: {
+        romPageSize: stcLimits.romWrite,
+        romReadPageSize: stcLimits.romRead,
+        ramPageSize: stcLimits.ramPage,
+      },
+    },
+    throttle: {
+      romRead: 0,
+      ramRead: 0,
+    },
+    retry: {
+      romReadCount: 1,
+      ramReadCount: 1,
+      romReadDelay: 0,
+      ramReadDelay: 0,
+      romWriteRetryCount: 1,
+      romWriteRetryDelay: 0,
+      romEraseRetryCount: 1,
+      romEraseRetryDelay: 0,
+    },
+    timeout: {
+      default: 3000,
+      packageSend: 3000,
+      packageReceive: 3000,
+      operation: 30000,
+    },
+  };
+};
 
 // 本地设置状态
 const localSettings = ref(createDefaultSettings());
+const editingSizeProfile = ref<ConfigurableFirmwareProfileId>('stm');
 const activeSection = ref<SettingsSectionId>('firmware');
+
+const firmwareProfileOptions = [
+  { id: 'stm' as const, label: `${STM_FIRMWARE_PROFILE.label} (STM32)` },
+  { id: 'stc' as const, label: `${STC_FIRMWARE_PROFILE.label} (STC8)` },
+];
+
+const syncCurrentSizeToProfile = () => {
+  localSettings.value.profileSizes[editingSizeProfile.value] = {
+    romPageSize: localSettings.value.size.romPageSize,
+    romReadPageSize: localSettings.value.size.romReadPageSize,
+    ramPageSize: localSettings.value.size.ramPageSize,
+  };
+};
+
+const switchEditingSizeProfile = (profile: ConfigurableFirmwareProfileId) => {
+  if (editingSizeProfile.value === profile) return;
+  syncCurrentSizeToProfile();
+  editingSizeProfile.value = profile;
+  localSettings.value.size = { ...localSettings.value.profileSizes[profile] };
+  validateAndUpdate();
+};
+
+watch(() => localSettings.value.firmware.profile, (nextProfile) => {
+  switchEditingSizeProfile(nextProfile);
+});
 
 // 验证错误
 const validationErrors = ref({
@@ -853,6 +918,7 @@ const validateRetryDelay = (value: number): string => {
 
 // 验证并更新
 const validateAndUpdate = () => {
+  syncCurrentSizeToProfile();
   // 验证页面大小
   validationErrors.value.romPageSize = validatePageSize(localSettings.value.size.romPageSize);
   validationErrors.value.romReadPageSize = validateReadPageSize(localSettings.value.size.romReadPageSize);
@@ -895,8 +961,13 @@ const applySettings = () => {
   if (!isValid.value) return;
 
   try {
-    // 应用设置
-    AdvancedSettings.setSettings(localSettings.value);
+    syncCurrentSizeToProfile();
+    const activeProfile = localSettings.value.firmware.profile;
+    const activeSizes = localSettings.value.profileSizes[activeProfile];
+    AdvancedSettings.setSettings({
+      ...localSettings.value,
+      size: { ...activeSizes },
+    });
 
     console.log(t('ui.settings.messages.saveSuccess'), AdvancedSettings.getSettings());
     emit('applied');
@@ -909,7 +980,9 @@ const applySettings = () => {
 
 // 组件挂载或打开时加载当前设置
 const loadCurrentSettings = () => {
-  localSettings.value = AdvancedSettings.getSettings();
+  const settings = AdvancedSettings.getSettings();
+  localSettings.value = settings;
+  editingSizeProfile.value = settings.firmware.profile;
   validateAndUpdate();
 };
 
@@ -1215,6 +1288,40 @@ watch(() => props.modelValue, (visible) => {
 
   .theme-options {
     grid-template-columns: 1fr;
+  }
+}
+
+.size-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: spacing-vars.$space-3;
+  flex-wrap: wrap;
+  margin-bottom: spacing-vars.$space-3;
+
+  h4 {
+    margin: 0;
+  }
+}
+
+.profile-switch {
+  display: inline-flex;
+  gap: spacing-vars.$space-1;
+}
+
+.profile-switch-btn {
+  padding: spacing-vars.$space-1 spacing-vars.$space-3;
+  border: 1px solid var(--retro-border-color, #4a5568);
+  border-radius: radius-vars.$radius-sm;
+  background: transparent;
+  color: inherit;
+  font-size: typography-vars.$font-size-xs;
+  cursor: pointer;
+
+  &.active {
+    background: var(--retro-accent-bg, rgba(102, 126, 234, 0.2));
+    border-color: var(--retro-accent-color, #667eea);
+    font-weight: typography-vars.$font-weight-semibold;
   }
 }
 </style>

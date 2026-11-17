@@ -7,5 +7,5 @@ export const DEFAULT_SERIAL_CONFIG = {
   parity: 'none',
   stopBits: 1,
   flowControl: 'none',
-  bufferSize: 8192,
+  bufferSize: 65536,
 } as const;
