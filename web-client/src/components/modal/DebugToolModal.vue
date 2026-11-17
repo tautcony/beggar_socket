@@ -123,7 +123,7 @@
         <div class="form-actions">
           <RetroButton
             variant="primary"
-            :icon="isSending ? hourglassOutline : sendOutline"
+            :icon="isSending ? 'pixelarticons:hourglass' : 'pixelarticons:play'"
             :text="isSending ? $t('ui.debug.tool.sending') : $t('ui.debug.tool.send')"
             :disabled="!canSend || isSending"
             @click="sendCommand"
@@ -131,7 +131,7 @@
 
           <RetroButton
             variant="secondary"
-            :icon="refreshOutline"
+            icon="pixelarticons:reload"
             :text="$t('ui.debug.tool.clear')"
             @click="clearForm"
           />
@@ -170,7 +170,7 @@
               v-else-if="errorMessage"
               class="data-error"
             >
-              <IonIcon :icon="alertCircleOutline" />
+              <RetroIcon icon="pixelarticons:alert" />
               {{ errorMessage }}
             </div>
             <div
@@ -204,17 +204,10 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import {
-  alertCircleOutline,
-  hourglassOutline,
-  refreshOutline,
-  sendOutline,
-} from 'ionicons/icons';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { RetroButton, RetroModal, RetroSelect } from '@/components/retro';
+import { RetroButton, RetroIcon, RetroModal, RetroSelect } from '@/components/retro';
 import { useToast } from '@/composables/useToast';
 import {
   type DebugCommandType,

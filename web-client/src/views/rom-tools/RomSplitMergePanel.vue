@@ -55,7 +55,7 @@
       <aside class="left-sidebar">
         <RetroCard>
           <RetroDropZone
-            :icon="documentsOutline"
+            icon="pixelarticons:file-multiple"
             :title="$t('ui.romAssembly.selectFiles')"
             hint=".rom, .gba, .gb, .gbc, .bin"
             accept=".rom,.gba,.gb,.gbc,.bin"
@@ -70,7 +70,7 @@
               variant="primary"
               size="md"
               block
-              :icon="buildOutline"
+              icon="pixelarticons:sliders"
               :disabled="!hasAnyFiles"
               @click="assembleAndApply"
             >
@@ -80,7 +80,7 @@
               variant="secondary"
               size="md"
               block
-              :icon="downloadOutline"
+              icon="pixelarticons:download"
               :disabled="!hasAnyFiles"
               @click="assembleAndDownload"
             >
@@ -90,7 +90,7 @@
               variant="danger"
               size="md"
               block
-              :icon="closeOutline"
+              icon="pixelarticons:close"
               :disabled="!hasAnyFiles"
               @click="clearAllSlots"
             >
@@ -133,7 +133,7 @@
               <RetroButton
                 variant="danger"
                 icon-only
-                :icon="closeOutline"
+                icon="pixelarticons:close"
                 :title="$t('ui.common.remove')"
                 @click="removePendingFile(file.name)"
               />
@@ -261,14 +261,14 @@
                   <RetroButton
                     variant="ghost"
                     icon-only
-                    :icon="downloadOutline"
+                    icon="pixelarticons:download"
                     :title="$t('ui.romAnalyzer.extract')"
                     @click.stop="extractSlotFile(entry.slot.file)"
                   />
                   <RetroButton
                     variant="danger"
                     icon-only
-                    :icon="closeOutline"
+                    icon="pixelarticons:close"
                     :title="$t('ui.common.remove')"
                     @click.stop="removeFileFromSlot(entry.slot.id)"
                   />
@@ -336,7 +336,6 @@
 </template>
 
 <script setup lang="ts">
-import { buildOutline, closeOutline, documentsOutline, downloadOutline } from 'ionicons/icons';
 import { DateTime } from 'luxon';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';

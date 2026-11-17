@@ -14,7 +14,7 @@
       :disabled="option.disabled"
       @click="$emit('update:modelValue', option.value)"
     >
-      <IonIcon
+      <RetroIcon
         v-if="option.icon"
         :icon="option.icon"
         class="retro-segment-icon"
@@ -31,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
+import RetroIcon from './RetroIcon.vue';
 
 export interface RetroSegmentOption {
   value: string;

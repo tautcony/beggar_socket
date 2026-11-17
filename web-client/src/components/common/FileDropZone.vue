@@ -65,7 +65,7 @@
               :disabled="disabled"
               @click.stop="clearFile"
             >
-              <IonIcon :icon="closeOutline" />
+              <RetroIcon icon="pixelarticons:close" />
             </button>
             <button
               class="download-file-btn"
@@ -74,7 +74,7 @@
               :aria-label="$t('ui.file.download')"
               @click.stop="downloadFile"
             >
-              <IonIcon :icon="downloadOutline" />
+              <RetroIcon icon="pixelarticons:download" />
             </button>
           </div>
         </div>
@@ -84,11 +84,10 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import { closeOutline, downloadOutline } from 'ionicons/icons';
 import { ref, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { RetroIcon } from '@/components/retro';
 import { useToast } from '@/composables/useToast';
 import { saveBinaryFile } from '@/platform/native';
 import { FileInfo } from '@/types/file-info';

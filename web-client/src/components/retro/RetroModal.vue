@@ -28,7 +28,7 @@
               <RetroButton
                 variant="ghost"
                 icon-only
-                :icon="closeOutline"
+                icon="pixelarticons:close"
                 :disabled="closeDisabled"
                 @click="hide"
               />
@@ -55,7 +55,6 @@
 </template>
 
 <script setup lang="ts">
-import { closeOutline } from 'ionicons/icons';
 import { computed, onMounted, onUnmounted } from 'vue';
 
 import RetroButton from './RetroButton.vue';

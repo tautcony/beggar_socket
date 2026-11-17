@@ -12,14 +12,14 @@
             class="refresh-button"
             @click="onRefresh"
           >
-            <IonIcon :icon="refreshOutline" />
+            <RetroIcon icon="pixelarticons:reload" />
             {{ $t('ui.device.portSelector.refresh') }}
           </button>
           <button
             class="close-button"
             @click="onCancel"
           >
-            <IonIcon :icon="close" />
+            <RetroIcon icon="pixelarticons:close" />
           </button>
         </div>
       </div>
@@ -38,7 +38,7 @@
             @click="selectedIndex = index"
           >
             <div class="port-icon">
-              <IonIcon :icon="hardwareChipOutline" />
+              <RetroIcon icon="pixelarticons:cpu" />
             </div>
             <div class="port-info">
               <div class="port-path">
@@ -58,9 +58,9 @@
               </div>
             </div>
             <div class="port-indicator">
-              <IonIcon
+              <RetroIcon
                 v-if="selectedIndex === index"
-                :icon="checkmarkCircle"
+                icon="pixelarticons:checkbox-on"
                 class="selected-icon"
               />
             </div>
@@ -88,11 +88,10 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import { checkmarkCircle, close, hardwareChipOutline, refreshOutline } from 'ionicons/icons';
 import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { RetroIcon } from '@/components/retro';
 import type { SerialPortInfo } from '@/types/serial';
 
 interface Props {

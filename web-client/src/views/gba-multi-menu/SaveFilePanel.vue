@@ -8,7 +8,7 @@
       <RetroButton
         size="xs"
         variant="secondary"
-        :icon="addOutline"
+        icon="pixelarticons:folder-plus"
         :text="$t('ui.file.browse')"
         @click="() => saveFileInput?.click()"
       />
@@ -37,8 +37,8 @@
           :key="fileName"
           class="save-item-row"
         >
-          <IonIcon
-            :icon="saveOutline"
+          <RetroIcon
+            icon="pixelarticons:save"
             class="save-icon"
           />
           <span
@@ -51,7 +51,7 @@
           <RetroButton
             variant="danger"
             icon-only
-            :icon="closeOutline"
+            icon="pixelarticons:close"
             @click="removeSaveFile(fileName)"
           />
         </div>
@@ -59,7 +59,7 @@
 
       <RetroDropZone
         v-else
-        :icon="saveOutline"
+        icon="pixelarticons:save"
         :title="$t('ui.gbaMultiMenu.dropSaveFiles')"
         hint=".SAV"
         accept=".sav"
@@ -72,15 +72,9 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import {
-  addOutline,
-  closeOutline,
-  saveOutline,
-} from 'ionicons/icons';
 import { ref } from 'vue';
 
-import { RetroButton, RetroCard, RetroDropZone } from '@/components/retro';
+import { RetroButton, RetroCard, RetroDropZone, RetroIcon } from '@/components/retro';
 import { useMultiMenu } from '@/composables/useMultiMenuState';
 
 const { saveFiles, processSaveFile, removeSaveFile, formatFileSize } = useMultiMenu();

@@ -15,7 +15,7 @@
         @mouseleave="resumeTimer(toast.id)"
       >
         <span class="retro-toast-indicator">
-          <IonIcon :icon="getIcon(toast.type)" />
+          <RetroIcon :icon="getIcon(toast.type)" />
         </span>
         <span class="retro-toast-message">{{ toast.message }}</span>
         <button
@@ -23,7 +23,7 @@
           class="retro-toast-close"
           @click="removeToast(toast.id)"
         >
-          <IonIcon :icon="closeOutline" />
+          <RetroIcon icon="pixelarticons:close" />
         </button>
       </div>
     </TransitionGroup>
@@ -31,15 +31,9 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import {
-  checkmarkCircleOutline,
-  closeCircleOutline,
-  closeOutline,
-  informationCircleOutline,
-  warningOutline,
-} from 'ionicons/icons';
 import { onMounted, onUnmounted, ref } from 'vue';
+
+import RetroIcon from './RetroIcon.vue';
 
 export type RetroToastType = 'info' | 'success' | 'warning' | 'error' | 'idle';
 
@@ -58,13 +52,13 @@ let toastIdCounter = 0;
 function getIcon(type: RetroToastType): string {
   switch (type) {
     case 'success':
-      return checkmarkCircleOutline;
+      return 'pixelarticons:checkbox-on';
     case 'error':
-      return closeCircleOutline;
+      return 'pixelarticons:close-box';
     case 'warning':
-      return warningOutline;
+      return 'pixelarticons:warning-box';
     default:
-      return informationCircleOutline;
+      return 'pixelarticons:info-box';
   }
 }
 

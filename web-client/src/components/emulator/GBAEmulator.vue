@@ -14,7 +14,7 @@
           variant="secondary"
           size="sm"
           :disabled="exportInProgress"
-          :icon="isPaused ? play : pause"
+          :icon="isPaused ? 'pixelarticons:play' : 'pixelarticons:pause'"
           icon-only
           :title="$t('ui.emulator.pause')"
           @click="togglePause"
@@ -23,7 +23,7 @@
           variant="warning"
           size="sm"
           :disabled="exportInProgress"
-          :icon="refresh"
+          icon="pixelarticons:reload"
           icon-only
           :title="$t('ui.emulator.reset')"
           @click="resetGame"
@@ -39,7 +39,7 @@
           variant="danger"
           size="sm"
           :disabled="exportInProgress"
-          :icon="close"
+          icon="pixelarticons:close"
           icon-only
           :title="$t('ui.emulator.close')"
           @click="closeEmulator"
@@ -53,8 +53,8 @@
         class="error-display"
       >
         <div class="error-icon">
-          <IonIcon
-            :icon="warning"
+          <RetroIcon
+            icon="pixelarticons:alert"
             class="error-icon"
           />
         </div>
@@ -105,9 +105,7 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
 import { Wrapper } from 'gbats';
-import { close, pause, play, refresh, warning } from 'ionicons/icons';
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -116,7 +114,7 @@ import EmulatorScreenViewport from '@/components/emulator/EmulatorScreenViewport
 import { attachSettledSaveListener, captureGbaSave, copyBytes, type GbaSaveCore, importGbaSave, inspectGbaSave, isGbaSaveSettled, type SaveCheckpoint } from '@/components/emulator/gba-save-bridge';
 import { applyGbatsArmCompatibility } from '@/components/emulator/gbats-arm-compat';
 import type { GbaPreviewLaunch } from '@/components/operaiton/contracts';
-import { RetroButton } from '@/components/retro';
+import { RetroButton, RetroIcon } from '@/components/retro';
 import { useToast } from '@/composables/useToast';
 import type { GbaPreviewSavePayload } from '@/features/gba-save/types';
 import { saveBinaryFile } from '@/platform/native';
@@ -1091,17 +1089,19 @@ function cleanup(isFinalUnmount = false) {
 .key-mappings {
   display: flex;
   flex-wrap: wrap;
-  gap: spacing-vars.$space-3;
+  gap: spacing-vars.$space-2;
   justify-content: center;
   align-items: center;
 }
 
 .key-mapping {
-  background: color-vars.$color-bg-tertiary;
-  padding: spacing-vars.$space-1 spacing-vars.$space-2;
-  border-radius: radius-vars.$radius-base;
-  font-size: typography-vars.$font-size-xs;
-  color: color-vars.$color-text;
-  border: 1px solid color-vars.$color-border;
+  background: var(--retro-bg-surface);
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: var(--retro-font-mono);
+  font-size: 11px;
+  color: var(--retro-ink);
+  border: 1px solid var(--retro-border-subtle);
+  white-space: nowrap;
 }
 </style>

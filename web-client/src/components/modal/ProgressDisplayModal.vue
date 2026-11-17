@@ -13,7 +13,7 @@
           class="status-badge"
           :class="statusBadgeClass"
         >
-          <IonIcon :icon="statusBadgeIcon" />
+          <RetroIcon :icon="statusBadgeIcon" />
           <span>{{ statusBadgeText }}</span>
         </span>
       </h3>
@@ -140,13 +140,11 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import { alertCircleOutline, checkmarkOutline, pauseCircleOutline, syncOutline } from 'ionicons/icons';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import SectorVisualization from '@/components/progress/SectorVisualization.vue';
-import { RetroButton, RetroModal } from '@/components/retro';
+import { RetroButton, RetroIcon, RetroModal } from '@/components/retro';
 import type { BurnerLogEntry } from '@/types/burner-log';
 import { ProgressInfo } from '@/types/progress-info';
 import { formatBurnerLogMessage } from '@/utils/burner-log';
@@ -283,10 +281,10 @@ const statusBadgeText = computed(() => {
 });
 
 const statusBadgeIcon = computed(() => {
-  if (props.state === 'error') return alertCircleOutline;
-  if (props.state === 'completed') return checkmarkOutline;
-  if (props.state === 'paused') return pauseCircleOutline;
-  return syncOutline;
+  if (props.state === 'error') return 'pixelarticons:alert';
+  if (props.state === 'completed') return 'pixelarticons:check';
+  if (props.state === 'paused') return 'pixelarticons:pause';
+  return 'pixelarticons:sync';
 });
 
 const statusBadgeClass = computed(() => {

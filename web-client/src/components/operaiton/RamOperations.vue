@@ -86,7 +86,7 @@
           @file-cleared="onFileCleared"
         >
           <template #icon>
-            <IonIcon :icon="saveOutline" />
+            <RetroIcon icon="pixelarticons:save" />
           </template>
         </FileDropZone>
         <div class="button-row">
@@ -140,14 +140,12 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import { saveOutline } from 'ionicons/icons';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import FileDropZone from '@/components/common/FileDropZone.vue';
 import { type OperationFileEventPayload, RAM_OPERATION_EVENTS, type RamOperationsProps } from '@/components/operaiton/contracts';
-import { RetroButton, RetroCard, RetroModal, RetroSelect } from '@/components/retro';
+import { RetroButton, RetroCard, RetroIcon, RetroModal, RetroSelect } from '@/components/retro';
 import { MBC5_RAM_BASE_ADDRESS } from '@/utils/address-utils';
 import { formatHex } from '@/utils/formatter-utils';
 

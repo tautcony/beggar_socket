@@ -6,7 +6,7 @@
     <RetroSelect
       v-model="currentLocale"
       class="language-select"
-      :prefix-icon="globeOutline"
+      prefix-icon="pixelarticons:globe"
       @change="changeLanguage"
     >
       <option value="zh-Hans">
@@ -29,7 +29,6 @@
 </template>
 
 <script setup lang="ts">
-import { globeOutline } from 'ionicons/icons';
 import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 

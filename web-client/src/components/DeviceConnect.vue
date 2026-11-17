@@ -36,7 +36,6 @@
 </template>
 
 <script setup lang="ts">
-import { checkmarkDoneOutline, flashOutline, reloadOutline } from 'ionicons/icons';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -290,9 +289,9 @@ const buttonText = computed(() => {
 });
 
 const buttonIcon = computed(() => {
-  if (isConnecting.value && !connected.value) return reloadOutline;
-  if (connected.value) return checkmarkDoneOutline;
-  return flashOutline;
+  if (isConnecting.value && !connected.value) return 'pixelarticons:reload';
+  if (connected.value) return 'pixelarticons:check-double';
+  return 'pixelarticons:zap';
 });
 
 const connectionTooltip = computed(() => {

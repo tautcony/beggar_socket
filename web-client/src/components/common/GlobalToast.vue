@@ -16,17 +16,17 @@
       >
         <div class="toast-content">
           <div class="toast-icon">
-            <IonIcon
+            <RetroIcon
               v-if="toast.type === 'success'"
-              :icon="checkmarkCircle"
+              icon="pixelarticons:checkbox-on"
             />
-            <IonIcon
+            <RetroIcon
               v-else-if="toast.type === 'error'"
-              :icon="closeCircle"
+              icon="pixelarticons:close-box"
             />
-            <IonIcon
+            <RetroIcon
               v-else
-              :icon="informationCircle"
+              icon="pixelarticons:info-box"
             />
           </div>
           <div class="toast-message">
@@ -39,9 +39,9 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import { checkmarkCircle, closeCircle, informationCircle } from 'ionicons/icons';
 import { onMounted, onUnmounted, ref } from 'vue';
+
+import { RetroIcon } from '@/components/retro';
 
 type ToastType = 'info' | 'success' | 'error' | 'idle';
 

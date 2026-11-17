@@ -4,13 +4,13 @@
       class="rom-info-title"
       @click="toggleCollapsed"
     >
-      <IonIcon
-        :icon="informationCircleOutline"
+      <RetroIcon
+        icon="pixelarticons:info-box"
         class="info-icon"
       />
       {{ $t('ui.rom.info') }}
-      <IonIcon
-        :icon="isCollapsed ? chevronDown : chevronUp"
+      <RetroIcon
+        :icon="isCollapsed ? 'pixelarticons:chevron-down' : 'pixelarticons:chevron-up'"
         class="collapse-icon"
       />
     </h3>
@@ -24,8 +24,8 @@
         class="rom-logo-section"
       >
         <h4 class="logo-title">
-          <IonIcon
-            :icon="imageOutline"
+          <RetroIcon
+            icon="pixelarticons:image"
             class="logo-icon"
           />
           {{ $t('ui.rom.logo') }}
@@ -195,10 +195,14 @@
         </div>
         <div class="rom-info-item">
           <span class="rom-info-label">{{ $t('ui.rom.valid') }}:</span>
-          <RetroBadge :variant="romInfo.isValid ? 'success' : 'danger'">
-            <IonIcon :icon="romInfo.isValid ? checkmarkCircle : closeCircle" />
-            <span>{{ romInfo.isValid ? $t('ui.common.yes') : $t('ui.common.no') }}</span>
-          </RetroBadge>
+          <span
+            class="rom-valid-indicator"
+            :class="romInfo.isValid ? 'is-valid' : 'is-invalid'"
+            :title="romInfo.isValid ? $t('ui.common.yes') : $t('ui.common.no')"
+            :aria-label="romInfo.isValid ? $t('ui.common.yes') : $t('ui.common.no')"
+          >
+            <RetroIcon :icon="romInfo.isValid ? 'pixelarticons:checkbox-on' : 'pixelarticons:close-box'" />
+          </span>
         </div>
       </div>
 
@@ -211,7 +215,7 @@
           v-if="!isEditing"
           variant="secondary"
           size="sm"
-          :icon="createOutline"
+          icon="pixelarticons:edit"
           :text="$t('ui.rom.edit')"
           @click="startEdit"
         />
@@ -222,14 +226,14 @@
           <RetroButton
             variant="primary"
             size="sm"
-            :icon="saveOutline"
+            icon="pixelarticons:save"
             :text="$t('ui.common.save')"
             @click="saveEdit"
           />
           <RetroButton
             variant="danger"
             size="sm"
-            :icon="closeOutline"
+            icon="pixelarticons:close"
             :text="$t('ui.common.cancel')"
             @click="cancelEdit"
           />
@@ -240,12 +244,10 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import { checkmarkCircle, chevronDown, chevronUp, closeCircle, closeOutline, createOutline, imageOutline, informationCircleOutline, saveOutline } from 'ionicons/icons';
 import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { RetroBadge, RetroButton, RetroSelect } from '@/components/retro';
+import { RetroButton, RetroIcon, RetroSelect } from '@/components/retro';
 import { useToast } from '@/composables/useToast';
 import { processGBALogoData } from '@/utils/compression-utils';
 import { formatBytes } from '@/utils/formatter-utils';
@@ -570,9 +572,6 @@ onMounted(async () => {
 }
 
 .logo-canvas {
-  border: 1.5px solid var(--retro-border);
-  border-radius: 4px;
-  background: #ffffff;
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
@@ -580,6 +579,21 @@ onMounted(async () => {
   max-height: 36px;
   width: auto;
   height: auto;
+}
+
+.rom-valid-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.rom-valid-indicator.is-valid {
+  color: var(--color-success, #2f9e44);
+}
+
+.rom-valid-indicator.is-invalid {
+  color: var(--retro-danger-fg);
 }
 
 /* ROM信息网格 */

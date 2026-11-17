@@ -8,7 +8,7 @@
       <RetroButton
         size="xs"
         variant="secondary"
-        :icon="addOutline"
+        icon="pixelarticons:folder-plus"
         :text="$t('ui.file.browse')"
         @click="() => gameRomInput?.click()"
       />
@@ -48,7 +48,7 @@
               class="drag-handle"
               :title="$t('ui.gbaMultiMenu.dragToReorder')"
             >
-              <IonIcon :icon="menuOutline" />
+              <RetroIcon icon="pixelarticons:menu" />
             </button>
             <span class="index-badge">{{ String(index + 1).padStart(2, '0') }}</span>
             <div class="rom-info">
@@ -67,14 +67,14 @@
                 variant="ghost"
                 icon-only
                 :active="expandedConfigs.has(item.fileName)"
-                :icon="buildOutline"
+                icon="pixelarticons:sliders"
                 :title="$t('ui.gbaMultiMenu.configureGame')"
                 @click.stop="toggleGameConfig(item.fileName)"
               />
               <RetroButton
                 variant="danger"
                 icon-only
-                :icon="closeOutline"
+                icon="pixelarticons:close"
                 @click.stop="removeGameRom(item.fileName)"
               />
             </div>
@@ -132,7 +132,7 @@
 
       <RetroDropZone
         v-else
-        :icon="gameControllerOutline"
+        icon="pixelarticons:gamepad"
         :title="$t('ui.gbaMultiMenu.dropGameRoms')"
         hint=".GBA"
         accept=".gba"
@@ -144,17 +144,9 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import {
-  addOutline,
-  buildOutline,
-  closeOutline,
-  gameControllerOutline,
-  menuOutline,
-} from 'ionicons/icons';
 import { ref } from 'vue';
 
-import { RetroButton, RetroCard, RetroDropZone, RetroSelect } from '@/components/retro';
+import { RetroButton, RetroCard, RetroDropZone, RetroIcon, RetroSelect } from '@/components/retro';
 import { useMultiMenu } from '@/composables/useMultiMenuState';
 
 const {

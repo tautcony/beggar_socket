@@ -7,7 +7,7 @@
           class="auto-scroll-button"
           :variant="autoScrollEnabled ? 'success' : 'primary'"
           size="sm"
-          :icon="chevronDownOutline"
+          icon="pixelarticons:chevron-down"
           icon-only
           :title="autoScrollEnabled ? $t('ui.log.autoScrollEnabled') : $t('ui.log.autoScrollDisabled')"
           @click="handleButtonClick"
@@ -73,7 +73,6 @@
 </template>
 
 <script setup lang="ts">
-import { chevronDownOutline } from 'ionicons/icons';
 import { nextTick, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 
 import { RetroButton } from '@/components/retro';

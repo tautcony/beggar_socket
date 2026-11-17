@@ -15,7 +15,7 @@
     :title="title"
     @click="$emit('click', $event)"
   >
-    <IonIcon
+    <RetroIcon
       v-if="icon"
       :icon="icon"
       class="retro-btn-icon"
@@ -30,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
+import RetroIcon from './RetroIcon.vue';
 
 interface Props {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'warning' | 'success';
