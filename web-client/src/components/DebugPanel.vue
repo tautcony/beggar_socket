@@ -4,36 +4,15 @@
     ref="panelRef"
     class="debug-panel"
     :class="{
-      'debug-panel--collapsed': isCollapsed,
       'debug-panel--dragging': isDragging,
-      'debug-panel--docked-left': dockSide === 'left',
-      'debug-panel--docked-right': dockSide === 'right',
     }"
     :style="panelStyle"
   >
     <div
       class="debug-header"
       @pointerdown="beginDrag"
-      @dblclick.stop="togglePanelCollapsed"
     >
-      <div
-        v-if="isCollapsed"
-        class="debug-header__collapsed"
-      >
-        <RetroIcon
-          icon="pixelarticons:sliders"
-          class="debug-header__icon"
-        />
-        <span class="collapsed-label">{{ $t('ui.debug.panel') }}</span>
-        <span
-          class="collapsed-status"
-          :class="debugEnabled ? 'collapsed-status--active' : 'collapsed-status--idle'"
-        />
-      </div>
-      <div
-        v-else
-        class="debug-header__main"
-      >
+      <div class="debug-header__main">
         <h3 class="debug-title">
           <RetroIcon
             icon="pixelarticons:sliders"
@@ -41,23 +20,15 @@
           />
           {{ $t('ui.debug.panel') }}
         </h3>
-        <span
-          class="status-pill"
-          :class="debugEnabled ? 'status-pill--active' : 'status-pill--idle'"
-        >
-          {{ debugEnabled ? $t('ui.debug.enabled') : $t('ui.debug.disabled') }}
-        </span>
+        <RetroSwitch
+          v-model="debugEnabled"
+          :tooltip="$t('ui.debug.enableDebugMode')"
+          @pointerdown.stop
+          @update:model-value="onDebugToggle"
+        />
       </div>
 
       <div class="panel-actions">
-        <button
-          type="button"
-          class="panel-icon-button"
-          :title="collapseActionTitle"
-          @click.stop="togglePanelCollapsed"
-        >
-          <RetroIcon :icon="collapseActionIcon" />
-        </button>
         <button
           type="button"
           class="panel-icon-button"
@@ -69,10 +40,7 @@
       </div>
     </div>
 
-    <div
-      v-if="!isCollapsed"
-      class="debug-content"
-    >
+    <div class="debug-content">
       <section class="debug-section">
         <div class="section-title-row">
           <h4>{{ $t('ui.debug.sessionStatus') }}</h4>
@@ -109,22 +77,13 @@
         </div>
       </section>
 
-      <section class="debug-section">
+      <section
+        v-if="debugEnabled"
+        class="debug-section"
+      >
         <h4>{{ $t('ui.debug.behaviorSettings') }}</h4>
 
-        <label class="debug-switch">
-          <input
-            v-model="debugEnabled"
-            type="checkbox"
-            @change="onDebugToggle"
-          >
-          <span class="slider">{{ $t('ui.debug.enableDebugMode') }}</span>
-        </label>
-
-        <div
-          v-if="debugEnabled"
-          class="control-stack"
-        >
+        <div class="control-stack">
           <div class="debug-control">
             <div class="control-head">
               <label>{{ $t('ui.debug.delayTime') }}</label>
@@ -321,7 +280,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { RetroButton, RetroIcon } from '@/components/retro';
+import { RetroButton, RetroIcon, RetroSwitch } from '@/components/retro';
 import {
   DebugSettings,
   type SimulatedMemorySlot,
@@ -332,18 +291,11 @@ import { GBA_NINTENDO_LOGO } from '@/utils/parsers/rom-parser';
 
 const PANEL_MARGIN = 16;
 const PANEL_WIDTH = 420;
-const PANEL_COLLAPSED_WIDTH = 56;
-const PANEL_EDGE_SNAP_THRESHOLD = 72;
-const PANEL_LAYOUT_STORAGE_KEY = 'chisflash:debug-panel-layout:v1';
-
-type DockSide = 'left' | 'right' | null;
-type CollapseReason = 'manual' | 'docked' | null;
+const PANEL_LAYOUT_STORAGE_KEY = 'chisflash:debug-panel-layout:v2';
 
 interface PanelLayoutState {
   x: number;
   y: number;
-  dockSide: DockSide;
-  collapseReason: CollapseReason;
 }
 
 const props = defineProps<{
@@ -373,8 +325,6 @@ const fileInputs = new Map<SimulatedMemorySlot, HTMLInputElement>();
 const viewportWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1440);
 const viewportHeight = ref(typeof window !== 'undefined' ? window.innerHeight : 900);
 const panelPosition = ref({ x: PANEL_MARGIN, y: PANEL_MARGIN });
-const dockSide = ref<DockSide>('left');
-const collapseReason = ref<CollapseReason>(null);
 const isDragging = ref(false);
 
 const dragPointerId = ref<number | null>(null);
@@ -382,11 +332,8 @@ const dragOffset = ref({ x: 0, y: 0 });
 
 const delayPresets = [0, 100, 300, 1000];
 
-const isCollapsed = computed(() => collapseReason.value !== null);
-
 const currentPanelWidth = computed(() => {
-  const targetWidth = isCollapsed.value ? PANEL_COLLAPSED_WIDTH : PANEL_WIDTH;
-  return Math.max(56, Math.min(targetWidth, viewportWidth.value - PANEL_MARGIN * 2));
+  return Math.max(56, Math.min(PANEL_WIDTH, viewportWidth.value - PANEL_MARGIN * 2));
 });
 
 const panelStyle = computed(() => ({
@@ -430,19 +377,6 @@ const memorySlots = computed(() => {
   });
 });
 
-const collapseActionIcon = computed(() => {
-  const targetSide = dockSide.value ?? inferNearestDockSide();
-  if (isCollapsed.value) {
-    return targetSide === 'right' ? 'pixelarticons:chevron-left' : 'pixelarticons:chevron-right';
-  }
-
-  return targetSide === 'right' ? 'pixelarticons:chevron-right' : 'pixelarticons:chevron-left';
-});
-
-const collapseActionTitle = computed(() => {
-  return isCollapsed.value ? t('ui.debug.expandPanel') : t('ui.debug.collapsePanel');
-});
-
 onMounted(() => {
   showDebugPanel.value = DebugSettings.showDebugPanel || import.meta.env.DEV;
   syncConfig();
@@ -465,11 +399,7 @@ onBeforeUnmount(() => {
 });
 
 function getPanelHeight(): number {
-  return panelRef.value?.offsetHeight ?? (isCollapsed.value ? 180 : 640);
-}
-
-function getPanelWidth(): number {
-  return panelRef.value?.offsetWidth ?? currentPanelWidth.value;
+  return panelRef.value?.offsetHeight ?? 640;
 }
 
 function updateViewportSize(): void {
@@ -477,42 +407,19 @@ function updateViewportSize(): void {
   viewportHeight.value = window.innerHeight;
 }
 
-function clampPanelPosition(
-  x: number,
-  y: number,
-  width = currentPanelWidth.value,
-  allowEdgeDock = false,
-): { x: number; y: number } {
+function clampPanelPosition(x: number, y: number, width = currentPanelWidth.value): { x: number; y: number } {
   const height = getPanelHeight();
-  const horizontalMargin = allowEdgeDock ? 0 : PANEL_MARGIN;
-  const minX = horizontalMargin;
-  const maxX = Math.max(minX, viewportWidth.value - width - horizontalMargin);
+  const maxX = Math.max(PANEL_MARGIN, viewportWidth.value - width - PANEL_MARGIN);
   const maxY = Math.max(PANEL_MARGIN, viewportHeight.value - height - PANEL_MARGIN);
 
   return {
-    x: Math.min(Math.max(minX, x), maxX),
+    x: Math.min(Math.max(PANEL_MARGIN, x), maxX),
     y: Math.min(Math.max(PANEL_MARGIN, y), maxY),
   };
 }
 
-function inferNearestDockSide(): Exclude<DockSide, null> {
-  const panelCenter = panelPosition.value.x + (getPanelWidth() / 2);
-  return panelCenter >= viewportWidth.value / 2 ? 'right' : 'left';
-}
-
-function applyDockedPosition(): void {
-  const width = currentPanelWidth.value;
-  if (dockSide.value === 'left') {
-    panelPosition.value = clampPanelPosition(0, panelPosition.value.y, width, true);
-  } else if (dockSide.value === 'right') {
-    panelPosition.value = clampPanelPosition(viewportWidth.value - width, panelPosition.value.y, width, true);
-  } else {
-    panelPosition.value = clampPanelPosition(panelPosition.value.x, panelPosition.value.y, width);
-  }
-}
-
 function normalizePanelWithinViewport(): void {
-  applyDockedPosition();
+  panelPosition.value = clampPanelPosition(panelPosition.value.x, panelPosition.value.y);
   persistPanelLayout();
 }
 
@@ -521,8 +428,6 @@ function persistPanelLayout(): void {
     const layout: PanelLayoutState = {
       x: panelPosition.value.x,
       y: panelPosition.value.y,
-      dockSide: dockSide.value,
-      collapseReason: collapseReason.value,
     };
     window.localStorage.setItem(PANEL_LAYOUT_STORAGE_KEY, JSON.stringify(layout));
   } catch {
@@ -541,20 +446,8 @@ function restorePanelLayout(): void {
     if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
       panelPosition.value = { x: parsed.x, y: parsed.y };
     }
-    if (parsed.dockSide === 'left' || parsed.dockSide === 'right') {
-      dockSide.value = parsed.dockSide;
-    } else {
-      dockSide.value = null;
-    }
-    if (parsed.collapseReason === 'manual' || parsed.collapseReason === 'docked') {
-      collapseReason.value = parsed.collapseReason;
-    } else {
-      collapseReason.value = null;
-    }
   } catch {
     panelPosition.value = { x: PANEL_MARGIN, y: PANEL_MARGIN };
-    dockSide.value = 'left';
-    collapseReason.value = null;
   }
 }
 
@@ -581,7 +474,6 @@ function beginDrag(event: PointerEvent): void {
     y: event.clientY - panelPosition.value.y,
   };
   isDragging.value = true;
-  dockSide.value = null;
   event.preventDefault();
 }
 
@@ -603,37 +495,7 @@ function handlePointerUp(event: PointerEvent): void {
 
   isDragging.value = false;
   dragPointerId.value = null;
-
-  const width = getPanelWidth();
-  const nearLeftEdge = panelPosition.value.x <= PANEL_MARGIN + PANEL_EDGE_SNAP_THRESHOLD;
-  const nearRightEdge = panelPosition.value.x + width >= viewportWidth.value - PANEL_MARGIN - PANEL_EDGE_SNAP_THRESHOLD;
-
-  if (nearLeftEdge || nearRightEdge) {
-    dockSide.value = nearLeftEdge ? 'left' : 'right';
-    collapseReason.value = 'docked';
-  } else {
-    dockSide.value = null;
-    if (collapseReason.value === 'docked') {
-      collapseReason.value = null;
-    }
-  }
-
-  void nextTick(() => {
-    normalizePanelWithinViewport();
-  });
-}
-
-function togglePanelCollapsed(): void {
-  if (isCollapsed.value) {
-    collapseReason.value = null;
-  } else {
-    collapseReason.value = 'manual';
-    dockSide.value = dockSide.value ?? inferNearestDockSide();
-  }
-
-  void nextTick(() => {
-    normalizePanelWithinViewport();
-  });
+  normalizePanelWithinViewport();
 }
 
 function handleClose(): void {
@@ -805,35 +667,23 @@ function generateTestRam(): void {
   color: var(--retro-ink);
   overflow: hidden;
   transition:
-    width 0.2s ease,
-    box-shadow 0.2s ease,
-    border-color 0.2s ease;
+    left 0.18s ease-out,
+    top 0.18s ease-out,
+    width 0.18s ease-out,
+    box-shadow 0.12s ease-out,
+    border-color 0.12s ease-out;
 }
 
 .debug-panel--dragging {
-  box-shadow: 0 28px 72px rgba(67, 48, 20, 0.24);
+  transition: none;
+  border-color: var(--retro-ink);
+  box-shadow: -5px 5px 0 var(--retro-shadow-color);
 }
 
-.debug-panel--collapsed {
-  border-color: rgba(180, 97, 25, 0.35);
-}
-
-.debug-panel--collapsed .debug-header {
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 8px;
-}
-
-.debug-panel--docked-left {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-}
-
-.debug-panel--docked-right {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
+@media (prefers-reduced-motion: reduce) {
+  .debug-panel {
+    transition: none;
+  }
 }
 
 .debug-header {
@@ -862,14 +712,6 @@ function generateTestRam(): void {
   min-width: 0;
 }
 
-.debug-header__collapsed {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  color: var(--retro-ink);
-}
-
 .debug-title {
   display: flex;
   align-items: center;
@@ -881,56 +723,10 @@ function generateTestRam(): void {
   color: var(--retro-ink);
 }
 
-.debug-title__icon,
-.debug-header__icon {
+.debug-title__icon {
   font-size: 1.1em;
   flex-shrink: 0;
   color: currentColor;
-}
-
-.collapsed-label {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  color: var(--retro-ink);
-  letter-spacing: 0.08em;
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-}
-
-.collapsed-status {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.2);
-}
-
-.collapsed-status--active {
-  background: #27ae60;
-}
-
-.collapsed-status--idle {
-  background: rgba(255, 255, 255, 0.35);
-}
-
-.status-pill {
-  border-radius: 4px;
-  border: 1.5px solid var(--retro-border);
-  padding: 3px 8px;
-  font-family: var(--retro-font-micro);
-  font-size: 10px;
-  font-weight: var(--font-weight-bold);
-  background: var(--retro-bg-surface);
-  color: var(--retro-ink);
-  white-space: nowrap;
-}
-
-.status-pill--active {
-  background: var(--retro-success-bg);
-}
-
-.status-pill--idle {
-  background: var(--retro-bg-surface);
-  color: var(--retro-ink-muted);
 }
 
 .panel-actions {
@@ -938,13 +734,6 @@ function generateTestRam(): void {
   align-items: center;
   gap: var(--space-2);
   flex-shrink: 0;
-}
-
-.debug-panel--collapsed .panel-actions {
-  flex-direction: column;
-  width: 100%;
-  align-items: center;
-  justify-content: center;
 }
 
 .panel-icon-button {
@@ -1207,7 +996,7 @@ function generateTestRam(): void {
     grid-template-columns: 1fr;
   }
 
-  .debug-panel:not(.debug-panel--collapsed) {
+  .debug-panel {
     width: calc(100vw - 32px) !important;
   }
 }
