@@ -17,36 +17,34 @@
       v-model="showMultiCartResultModal"
       :results="multiCartResults"
     />
-    <div class="mode-tabs-card">
-      <BaseButton
-        :variant="mode === 'GBA' ? 'primary' : 'secondary'"
-        :icon="gameControllerOutline"
-        :text="$t('ui.mode.gba')"
-        @click="mode = 'GBA'"
-      />
-      <BaseButton
-        :variant="mode === 'MBC5' ? 'primary' : 'secondary'"
-        :icon="hardwareChipOutline"
-        :text="$t('ui.mode.mbc5')"
-        @click="mode = 'MBC5'"
+    <div class="mode-tabs-bar">
+      <RetroSegmented
+        :model-value="mode"
+        :options="[
+          { value: 'GBA', label: $t('ui.mode.gba'), icon: gameControllerOutline },
+          { value: 'MBC5', label: $t('ui.mode.mbc5'), icon: hardwareChipOutline },
+        ]"
+        @update:model-value="mode = $event as ModeType"
       />
     </div>
-    <section
+    <RetroCard
       v-if="pendingPreviewResult"
       class="preview-save-recovery"
     >
       <p>{{ t('messages.emulator.pendingSaveRecovery', { rom: pendingPreviewResult.launch.romName, save: pendingPreviewResult.launch.saveName || defaultSaveName(pendingPreviewResult.launch.romName) }) }}</p>
-      <BaseButton
-        variant="primary"
-        :text="t('ui.emulator.exportSave')"
-        @click="exportPendingPreviewResult"
-      />
-      <BaseButton
-        variant="secondary"
-        :text="t('ui.emulator.discardSaveResult')"
-        @click="discardPendingPreviewResult"
-      />
-    </section>
+      <div class="preview-recovery-actions">
+        <RetroButton
+          variant="primary"
+          :text="t('ui.emulator.exportSave')"
+          @click="exportPendingPreviewResult"
+        />
+        <RetroButton
+          variant="secondary"
+          :text="t('ui.emulator.discardSaveResult')"
+          @click="discardPendingPreviewResult"
+        />
+      </div>
+    </RetroCard>
     <div class="main-layout">
       <div class="content-area">
         <TransitionGroup
@@ -127,12 +125,13 @@
         </TransitionGroup>
       </div>
 
-      <LogViewer
-        class="log-panel"
-        :logs="logs"
-        :title="t('ui.log.title')"
-        @clear-logs="clearLog"
-      />
+      <div class="log-panel">
+        <LogViewer
+          :logs="logs"
+          :title="t('ui.log.title')"
+          @clear-logs="clearLog"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -143,13 +142,13 @@ import { DateTime } from 'luxon';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import BaseButton from '@/components/common/BaseButton.vue';
 import LogViewer from '@/components/LogViewer.vue';
 import FileNameSelectorModal from '@/components/modal/FileNameSelectorModal.vue';
 import MultiCartResultModal from '@/components/modal/MultiCartResultModal.vue';
 import ProgressDisplayModal from '@/components/modal/ProgressDisplayModal.vue';
 import { ChipOperations, RamOperations, RomOperations } from '@/components/operaiton';
 import type { GbaPreviewSavePayload } from '@/components/operaiton/contracts';
+import { RetroButton, RetroCard, RetroSegmented } from '@/components/retro';
 import { runWithCommandBufferReset, useCartBurnerFileState, useCartBurnerSessionState } from '@/composables/cartburner';
 import { useToast } from '@/composables/useToast';
 import { createCartridgeProtocolSession } from '@/features/burner/adapters';
@@ -1068,18 +1067,39 @@ defineExpose({
 
 <style scoped>
 .flashburner-container {
-  --burner-max-width: 1520px;
-  --burner-column-gap: var(--space-5);
-  width: min(100%, var(--burner-max-width));
+  --burner-max-width: 100%;
+  --burner-column-gap: var(--space-4);
+  width: 100%;
   max-width: var(--burner-max-width);
-  margin: var(--space-4) auto;
-  padding: var(--space-6) clamp(var(--space-4), 2vw, var(--space-8));
-  background: var(--color-bg);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-sm);
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--retro-ink);
   box-sizing: border-box;
   container-type: inline-size;
   container-name: burner;
+}
+
+.mode-tabs-bar {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
+.preview-save-recovery {
+  margin-bottom: var(--space-4);
+}
+
+.preview-save-recovery p {
+  margin: 0 0 var(--space-2) 0;
+  font-size: var(--font-size-xs);
+}
+
+.preview-recovery-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
 }
 
 /* 主布局默认单列，避免可用宽度不足时压坏左侧操作区 */
@@ -1095,17 +1115,12 @@ defineExpose({
 
 /* 内容区域 */
 .content-area {
-  width: 102%;
+  width: 100%;
   min-width: 0;
   max-width: none;
   display: flex;
   flex-direction: column;
-  overflow-y: visible;
-  overflow-x: hidden;
-  /* Keep scaled upload borders inside the scroll clip without shifting panel content. */
-  margin-inline: -1%;
-  padding-inline: 1%;
-  scrollbar-gutter: stable;
+  overflow: visible;
   box-sizing: border-box;
 }
 
@@ -1113,8 +1128,10 @@ defineExpose({
 .operations-container {
   display: flex;
   flex-direction: column;
+  gap: var(--space-3);
   position: relative;
   min-width: 0;
+  padding: 0 0 6px 4px;
 }
 
 .log-panel {
@@ -1180,11 +1197,18 @@ defineExpose({
   .main-layout {
     grid-template-columns: 520px minmax(0, 1fr);
     gap: var(--burner-column-gap);
-    height: 760px;
+    align-items: stretch;
   }
 
-  .content-area {
-    overflow-y: auto;
+  .log-panel {
+    position: relative;
+    min-height: 520px;
+  }
+
+  .log-panel :deep(.log-section) {
+    position: absolute;
+    inset: 0;
+    height: 100%;
   }
 }
 
@@ -1193,21 +1217,6 @@ defineExpose({
   .main-layout {
     grid-template-columns: minmax(520px, 1fr) minmax(520px, 1fr);
     gap: var(--burner-column-gap);
-    height: 820px;
-  }
-}
-
-@media (max-width: 1280px) {
-  .flashburner-container {
-    width: 100%;
-    padding: var(--space-4) var(--space-5);
-  }
-}
-
-@media (max-width: 800px) {
-  .flashburner-container {
-    width: 100%;
-    padding: var(--space-4);
   }
 }
 

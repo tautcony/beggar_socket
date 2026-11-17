@@ -1,5 +1,5 @@
 <template>
-  <BaseModal
+  <RetroModal
     v-model="localVisible"
     :title="$t('ui.debug.tool.title')"
     width="1200px"
@@ -12,8 +12,10 @@
         <div class="form-row">
           <div class="form-group">
             <label>{{ $t('ui.debug.tool.commandType') }}</label>
-            <select
+            <RetroSelect
               v-model="selectedCommandType"
+              size="md"
+              full-width
               @change="onCommandTypeChange"
             >
               <option value="">
@@ -25,7 +27,7 @@
               <option value="GBC">
                 GBC (MBC5)
               </option>
-            </select>
+            </RetroSelect>
           </div>
 
           <div
@@ -33,8 +35,10 @@
             class="form-group"
           >
             <label>{{ $t('ui.debug.tool.command') }}</label>
-            <select
+            <RetroSelect
               v-model="selectedCommand"
+              size="md"
+              full-width
               @change="onCommandChange"
             >
               <option value="">
@@ -47,7 +51,7 @@
               >
                 {{ getCommandDisplayName(key, value) }}
               </option>
-            </select>
+            </RetroSelect>
           </div>
         </div>
 
@@ -117,7 +121,7 @@
         </div>
 
         <div class="form-actions">
-          <BaseButton
+          <RetroButton
             variant="primary"
             :icon="isSending ? hourglassOutline : sendOutline"
             :text="isSending ? $t('ui.debug.tool.sending') : $t('ui.debug.tool.send')"
@@ -125,7 +129,7 @@
             @click="sendCommand"
           />
 
-          <BaseButton
+          <RetroButton
             variant="secondary"
             :icon="refreshOutline"
             :text="$t('ui.debug.tool.clear')"
@@ -196,7 +200,7 @@
         </div>
       </div>
     </div>
-  </BaseModal>
+  </RetroModal>
 </template>
 
 <script setup lang="ts">
@@ -210,8 +214,7 @@ import {
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import BaseButton from '@/components/common/BaseButton.vue';
-import BaseModal from '@/components/common/BaseModal.vue';
+import { RetroButton, RetroModal, RetroSelect } from '@/components/retro';
 import { useToast } from '@/composables/useToast';
 import {
   type DebugCommandType,
@@ -484,7 +487,6 @@ function formatHexData(hexData: Uint8Array): string {
     font-size: typography-vars.$font-size-sm;
   }
 
-  select,
   input,
   textarea {
     padding: spacing-vars.$space-3;

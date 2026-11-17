@@ -9,13 +9,11 @@
       <span class="menu-text">{{ $t('ui.menu.tools') }}</span>
     </button>
 
-    <Teleport to="body">
-      <div
-        v-if="isMenuOpen"
-        class="menu-overlay"
-        @click="closeMenu"
-      />
-    </Teleport>
+    <div
+      v-if="isMenuOpen"
+      class="menu-overlay"
+      @click="closeMenu"
+    />
 
     <div
       v-if="isMenuOpen"
@@ -59,7 +57,10 @@
             <span class="menu-item-title">{{ $t('ui.menu.cartridgeTools') }}</span>
             <span class="menu-item-desc">{{ $t('ui.menu.cartridgeToolsDesc') }}</span>
           </div>
-          <span class="beta-badge">BETA</span>
+          <RetroBadge
+            variant="warning"
+            text="BETA"
+          />
         </button>
 
         <button
@@ -166,6 +167,7 @@ import AdvancedSettingsModal from '@/components/modal/AdvancedSettingsModal.vue'
 import CartridgeToolsModal from '@/components/modal/CartridgeToolsModal.vue';
 import DebugToolModal from '@/components/modal/DebugToolModal.vue';
 import SystemNoticeHistoryModal from '@/components/modal/SystemNoticeHistoryModal.vue';
+import { RetroBadge } from '@/components/retro';
 import { useToast } from '@/composables/useToast';
 import type { DeviceInfo } from '@/types/device-info';
 
@@ -314,25 +316,29 @@ function openSerialTest() {
   display: flex;
   align-items: center;
   gap: spacing-vars.$space-2;
-  padding: spacing-vars.$space-3 spacing-vars.$space-4;
-  background: color-vars.$color-bg-secondary;
-  border: 1px solid color-vars.$color-border-light;
-  border-radius: radius-vars.$radius-lg;
+  min-height: 38px;
+  padding: 8px 14px;
+  box-sizing: border-box;
+  outline: none;
+  background: var(--retro-bg-surface);
+  border: 1.5px solid var(--retro-border);
+  border-radius: 4px;
+  box-shadow: var(--retro-shadow-btn);
   cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: typography-vars.$font-size-sm;
-  color: color-vars.$color-text-secondary;
-  min-width: 120px;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.12s ease;
+  font-size: typography-vars.$font-size-xs;
+  font-weight: typography-vars.$font-weight-semibold;
+  color: var(--retro-ink);
 
   &:hover {
-    background: color-vars.$color-bg-tertiary;
-    border-color: color-vars.$color-border;
+    background: var(--retro-bg-tint);
+    transform: translate(-1px, 1px);
+    box-shadow: var(--retro-shadow-btn-hover);
   }
 
   &.active {
-    background: color-vars.$color-primary;
-    border-color: color-vars.$color-primary;
-    color: white;
+    background: var(--retro-primary-bg);
+    color: var(--retro-primary-fg);
   }
 }
 
@@ -353,10 +359,10 @@ function openSerialTest() {
   position: absolute;
   top: calc(100% + spacing-vars.$space-2);
   left: 0;
-  background: color-vars.$color-bg;
-  border: 1px solid color-vars.$color-border-light;
-  border-radius: radius-vars.$radius-xl;
-  box-shadow: color-vars.$shadow-lg;
+  background: var(--retro-bg-surface);
+  border: 1.5px solid var(--retro-border);
+  border-radius: 6px;
+  box-shadow: var(--retro-shadow-card);
   z-index: 1000;
   min-width: 320px;
   overflow: hidden;
@@ -433,18 +439,5 @@ function openSerialTest() {
   height: 1px;
   background: #e9ecef;
   margin: 8px 20px;
-}
-
-.beta-badge {
-  background: linear-gradient(45deg, #ff6b6b, #ff8e53);
-  color: white;
-  font-size: typography-vars.$font-size-xs;
-  font-weight: typography-vars.$font-weight-bold;
-  padding: spacing-vars.$space-1 spacing-vars.$space-2;
-  border-radius: radius-vars.$radius-2xl;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  box-shadow: 0 2px 4px rgba(255, 107, 107, 0.3);
-  flex-shrink: 0;
 }
 </style>

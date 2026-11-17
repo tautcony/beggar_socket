@@ -71,7 +71,7 @@ const hasHeader = computed(
 .retro-card {
   display: flex;
   flex-direction: column;
-  background: var(--retro-bg-canvas);
+  background: var(--retro-bg-surface);
   border: 1.5px solid var(--retro-border);
   border-radius: 6px;
   box-shadow: var(--retro-shadow-card);
@@ -96,8 +96,10 @@ const hasHeader = computed(
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: var(--space-2);
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  min-height: 32px;
+  margin-bottom: var(--space-3);
   flex-shrink: 0;
 }
 
@@ -129,6 +131,8 @@ const hasHeader = computed(
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
+  max-width: 100%;
   flex-shrink: 0;
 }
 

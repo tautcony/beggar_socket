@@ -1,14 +1,14 @@
 <template>
   <div class="rom-operations-container">
-    <section class="section">
-      <div class="section-header">
-        <div class="op-title-row">
-          <span :class="['op-title', { busy }]">{{ $t('ui.ram.title') }}</span>
-        </div>
+    <RetroCard>
+      <template #header-left>
+        <span :class="['op-title', { busy }]">{{ $t('ui.ram.title') }}</span>
+      </template>
+      <template #header-right>
         <div class="selector-container">
           <div class="type-selector">
             <label class="type-label">{{ $t('ui.ram.typeLabel') }}</label>
-            <select
+            <RetroSelect
               v-model="selectedRamType"
               :disabled="!deviceReady || busy"
               class="type-dropdown"
@@ -32,14 +32,14 @@
               >
                 {{ $t('ui.ram.typeBATLESS') }}
               </option>
-            </select>
+            </RetroSelect>
           </div>
           <div
             v-if="mode === 'MBC5'"
             class="base-address-selector"
           >
             <label class="base-address-label">{{ $t('ui.ram.baseAddressLabel') }}</label>
-            <select
+            <RetroSelect
               v-model="selectedBaseAddress"
               :disabled="!deviceReady || busy"
               class="base-address-dropdown"
@@ -52,11 +52,11 @@
               >
                 {{ option.text }}
               </option>
-            </select>
+            </RetroSelect>
           </div>
           <div class="size-selector">
             <label class="size-label">{{ $t('ui.ram.sizeLabel') }}</label>
-            <select
+            <RetroSelect
               v-model="selectedRamSize"
               :disabled="!deviceReady || busy || selectedRamType === 'BATLESS'"
               class="size-dropdown"
@@ -69,10 +69,10 @@
               >
                 {{ option.text }}
               </option>
-            </select>
+            </RetroSelect>
           </div>
         </div>
-      </div>
+      </template>
       <div class="ram-content">
         <FileDropZone
           :disabled="busy"
@@ -90,19 +90,19 @@
           </template>
         </FileDropZone>
         <div class="button-row">
-          <BaseButton
+          <RetroButton
             :disabled="!deviceReady || !ramFileData || busy"
             variant="primary"
             :text="$t('ui.ram.write')"
             @click="$emit('write-ram')"
           />
-          <BaseButton
+          <RetroButton
             :disabled="!deviceReady || busy"
-            variant="primary"
+            variant="secondary"
             :text="$t('ui.ram.read')"
             @click="$emit('read-ram')"
           />
-          <BaseButton
+          <RetroButton
             :disabled="!deviceReady || busy"
             variant="warning"
             :text="$t('ui.ram.verify')"
@@ -110,10 +110,10 @@
           />
         </div>
       </div>
-    </section>
+    </RetroCard>
 
     <!-- 空白检测模式选择对话框 -->
-    <BaseModal
+    <RetroModal
       v-model="showBlankCheckDialog"
       :title="$t('ui.ram.blankCheckTitle')"
       width="360px"
@@ -123,19 +123,19 @@
           {{ $t('ui.ram.blankCheckHint') }}
         </p>
         <div class="blank-check-buttons">
-          <BaseButton
+          <RetroButton
             variant="primary"
             :text="$t('ui.ram.blankFillFF')"
             @click="selectBlankPattern(0xFF)"
           />
-          <BaseButton
+          <RetroButton
             variant="secondary"
             :text="$t('ui.ram.blankFill00')"
             @click="selectBlankPattern(0x00)"
           />
         </div>
       </div>
-    </BaseModal>
+    </RetroModal>
   </div>
 </template>
 
@@ -145,10 +145,9 @@ import { saveOutline } from 'ionicons/icons';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import BaseButton from '@/components/common/BaseButton.vue';
-import BaseModal from '@/components/common/BaseModal.vue';
 import FileDropZone from '@/components/common/FileDropZone.vue';
 import { type OperationFileEventPayload, RAM_OPERATION_EVENTS, type RamOperationsProps } from '@/components/operaiton/contracts';
+import { RetroButton, RetroCard, RetroModal, RetroSelect } from '@/components/retro';
 import { MBC5_RAM_BASE_ADDRESS } from '@/utils/address-utils';
 import { formatHex } from '@/utils/formatter-utils';
 
@@ -253,28 +252,6 @@ function onBaseAddressChange() {
 </script>
 
 <style scoped>
-.section {
-  margin-bottom: var(--space-7);
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-top: var(--space-4);
-  margin-bottom: var(--space-2);
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.op-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  margin-bottom: var(--space-3);
-  min-width: 0;
-}
-
 .op-title {
   font-size: var(--font-size-lg);
   color: var(--color-text);
@@ -291,10 +268,9 @@ function onBaseAddressChange() {
 .selector-container {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
   flex-wrap: wrap;
   min-width: 0;
-  margin-bottom: var(--space-3);
 }
 
 .type-selector,
@@ -318,8 +294,9 @@ function onBaseAddressChange() {
 .type-label,
 .size-label,
 .base-address-label {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--retro-ink-muted);
   margin: 0;
   white-space: nowrap;
 }
@@ -327,32 +304,20 @@ function onBaseAddressChange() {
 .type-dropdown,
 .size-dropdown,
 .base-address-dropdown {
-  padding: var(--space-1) var(--space-2);
-  border: none;
-  border-radius: var(--radius-base);
-  box-shadow: var(--shadow-sm);
-  background: var(--color-bg);
-  font-size: var(--font-size-sm);
-  color: var(--color-text);
-  cursor: pointer;
-  transition: border-color 0.2s, box-shadow 0.2s;
   min-width: 80px;
   max-width: 180px;
-  white-space: nowrap;
 }
 
-.type-dropdown:hover:not(:disabled),
-.size-dropdown:hover:not(:disabled),
-.base-address-dropdown:hover:not(:disabled) {
-  box-shadow: var(--shadow-md);
+:deep(.file-drop-zone) {
+  border: 1.5px dashed var(--retro-border-dashed);
+  border-radius: 6px;
+  background: var(--retro-bg-surface);
+  color: var(--retro-ink);
 }
 
-.type-dropdown:disabled,
-.size-dropdown:disabled,
-.base-address-dropdown:disabled {
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-secondary);
-  cursor: not-allowed;
+:deep(.file-drop-zone:hover) {
+  border-color: var(--retro-border);
+  background: var(--retro-bg-elevated);
 }
 
 .button-row {

@@ -1,5 +1,5 @@
 <template>
-  <BaseModal
+  <RetroModal
     v-model="localVisible"
     :width="860"
     max-height="85vh"
@@ -69,7 +69,7 @@
               <h4 class="detail-title">
                 {{ selectedNotice.title }}
               </h4>
-              <BaseButton
+              <RetroButton
                 v-if="showTranslateButton"
                 size="sm"
                 variant="secondary"
@@ -77,7 +77,7 @@
                 @click="translateSelectedNotice"
               >
                 {{ translateButtonLabel }}
-              </BaseButton>
+              </RetroButton>
             </div>
             <p class="detail-meta">
               <span>{{ $t('ui.systemNoticeHistory.publishedAt') }}: {{ formatDate(selectedNotice.publishedAt) }}</span>
@@ -127,14 +127,14 @@
     </div>
 
     <template #footer>
-      <BaseButton
+      <RetroButton
         variant="secondary"
         @click="close"
       >
         {{ $t('ui.common.close') }}
-      </BaseButton>
+      </RetroButton>
     </template>
-  </BaseModal>
+  </RetroModal>
 </template>
 
 <script setup lang="ts">
@@ -144,8 +144,7 @@ import { DateTime } from 'luxon';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import BaseButton from '@/components/common/BaseButton.vue';
-import BaseModal from '@/components/common/BaseModal.vue';
+import { RetroButton, RetroModal } from '@/components/retro';
 import {
   fetchSystemNoticeConfig,
   fetchSystemNoticeMarkdown,
@@ -429,9 +428,8 @@ watch(showTranslateButton, (enabled) => {
   gap: spacing-vars.$space-3;
   max-height: 60vh;
   overflow-y: auto;
-  padding-top: spacing-vars.$space-2;
-  padding-right: spacing-vars.$space-2;
-  border-right: 1px solid color-vars.$color-border-light;
+  padding: 6px 8px 6px 4px;
+  border-right: 1px solid var(--retro-divider);
 }
 
 .notice-list-placeholder {
@@ -443,26 +441,28 @@ watch(showTranslateButton, (enabled) => {
 
 .notice-list-item {
   text-align: left;
-  border: 1px solid color-vars.$color-border-light;
-  border-radius: radius-vars.$radius-lg;
+  border: 1.5px solid var(--retro-border-subtle);
+  border-radius: 6px;
   padding: spacing-vars.$space-3;
-  background-color: color-vars.$color-bg-secondary;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  background-color: var(--retro-bg-surface);
+  color: var(--retro-ink);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, border-color 0.12s ease, background-color 0.12s ease;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   gap: spacing-vars.$space-2;
 
   &:hover {
-    border-color: color-vars.$color-primary;
-    box-shadow: color-vars.$shadow-sm;
-    transform: translateY(-1px);
+    border-color: var(--retro-border);
+    background: var(--retro-bg-elevated);
+    transform: translate(-1px, 1px);
+    box-shadow: var(--retro-shadow-btn-hover);
   }
 
   &.active {
-    border-color: color-vars.$color-primary;
-    box-shadow: color-vars.$shadow-md;
-    background: rgba(color-vars.$color-primary, 0.08);
+    border-color: var(--retro-border);
+    box-shadow: var(--retro-shadow-btn);
+    background: var(--retro-bg-tint);
   }
 }
 

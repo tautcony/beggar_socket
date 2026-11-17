@@ -12,10 +12,11 @@
       <div class="form-stack">
         <div class="form-field">
           <label for="cartridgeType">{{ $t('ui.gbaMultiMenu.cartridgeType') }}</label>
-          <select
+          <RetroSelect
             id="cartridgeType"
             v-model="cartridgeType"
-            class="retro-select"
+            size="md"
+            full-width
           >
             <option value="1">
               1. MSP55LV100S (64MB)
@@ -32,7 +33,7 @@
             <option value="5">
               5. ChisFlash 1.0G (128MB)
             </option>
-          </select>
+          </RetroSelect>
         </div>
 
         <div class="form-field">
@@ -234,7 +235,7 @@ import {
 } from 'ionicons/icons';
 import { ref } from 'vue';
 
-import { RetroButton, RetroCard } from '@/components/retro';
+import { RetroButton, RetroCard, RetroSelect } from '@/components/retro';
 import { useMultiMenu } from '@/composables/useMultiMenuState';
 
 const {
@@ -333,7 +334,6 @@ function handleBgImageChange(e: Event) {
   color: var(--retro-ink-muted);
 }
 
-.retro-select,
 .retro-input {
   width: 100%;
   padding: 6px 8px;
@@ -350,7 +350,6 @@ function handleBgImageChange(e: Event) {
   font-family: var(--retro-font-mono);
 }
 
-.retro-select:focus,
 .retro-input:focus {
   outline: none;
   box-shadow: var(--retro-shadow-btn);

@@ -1,5 +1,5 @@
 <template>
-  <BaseModal
+  <RetroModal
     v-if="activeNotice"
     v-model="visible"
     :width="520"
@@ -47,22 +47,22 @@
     </template>
 
     <template #footer>
-      <BaseButton
+      <RetroButton
         v-if="showTranslateButton"
         variant="secondary"
         :disabled="translationLoading || !activeNotice"
         @click="onTranslate"
       >
         {{ translateButtonLabel }}
-      </BaseButton>
-      <BaseButton
+      </RetroButton>
+      <RetroButton
         variant="primary"
         @click="onAcknowledge"
       >
         {{ $t('ui.systemNotice.acknowledge') }}
-      </BaseButton>
+      </RetroButton>
     </template>
-  </BaseModal>
+  </RetroModal>
 </template>
 
 <script setup lang="ts">
@@ -70,8 +70,7 @@ import { DateTime } from 'luxon';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import BaseButton from '@/components/common/BaseButton.vue';
-import BaseModal from '@/components/common/BaseModal.vue';
+import { RetroButton, RetroModal } from '@/components/retro';
 import {
   fetchSystemNoticeConfig,
   fetchSystemNoticeMarkdown,

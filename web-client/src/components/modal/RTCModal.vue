@@ -1,5 +1,5 @@
 <template>
-  <BaseModal
+  <RetroModal
     v-model="localVisible"
     :title="title"
     width="600px"
@@ -159,28 +159,30 @@
 
     <template #footer>
       <div class="current-time-toggle">
-        <ToggleSwitch
+        <RetroSwitch
           v-model="isRealTimeEnabled"
           :label="$t('ui.tools.rtc.setCurrentTime')"
         />
       </div>
       <div class="button-group">
-        <button
-          class="button secondary"
+        <RetroButton
+          variant="secondary"
+          size="sm"
           @click="closeModal"
         >
           {{ $t('ui.common.cancel') }}
-        </button>
-        <button
-          class="button primary"
+        </RetroButton>
+        <RetroButton
+          variant="primary"
+          size="sm"
           :disabled="!isDateValid"
           @click="confirm"
         >
           {{ $t('ui.common.confirm') }}
-        </button>
+        </RetroButton>
       </div>
     </template>
-  </BaseModal>
+  </RetroModal>
 </template>
 
 <script setup lang="ts">
@@ -188,8 +190,7 @@ import { DateTime } from 'luxon';
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import BaseModal from '@/components/common/BaseModal.vue';
-import ToggleSwitch from '@/components/common/ToggleSwitch.vue';
+import { RetroButton, RetroModal, RetroSwitch } from '@/components/retro';
 
 interface Props {
   isVisible: boolean;
@@ -462,9 +463,9 @@ onBeforeUnmount(() => {
 }
 
 .current-datetime-display {
-  background-color: color-vars.$color-bg-secondary;
-  border: 1px solid color-vars.$color-border-light;
-  border-radius: radius-vars.$radius-base;
+  background-color: var(--retro-bg-elevated);
+  border: 1.5px solid var(--retro-border-subtle);
+  border-radius: 6px;
   padding: spacing-vars.$space-3;
   margin-bottom: spacing-vars.$space-2;
 }
@@ -474,20 +475,20 @@ onBeforeUnmount(() => {
   gap: spacing-vars.$space-1;
 
   .label {
-    font-size: typography-vars.$font-size-sm;
-    font-weight: typography-vars.$font-weight-medium;
-    color: color-vars.$color-text-secondary;
+    font-size: typography-vars.$font-size-xs;
+    font-weight: typography-vars.$font-weight-semibold;
+    color: var(--retro-ink-muted);
   }
 }
 
 .datetime-value {
   font-size: typography-vars.$font-size-sm;
-  font-weight: typography-vars.$font-weight-semibold;
-  color: color-vars.$color-text;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-weight: typography-vars.$font-weight-bold;
+  color: var(--retro-ink);
+  font-family: var(--retro-font-mono);
 
   &.invalid {
-    color: color-vars.$color-error;
+    color: var(--retro-danger-fg);
   }
 }
 
@@ -509,28 +510,29 @@ onBeforeUnmount(() => {
 }
 
 @mixin input-base {
-  padding: spacing-vars.$space-2;
-  border: 1px solid color-vars.$color-border;
-  border-radius: radius-vars.$radius-sm;
+  padding: 6px 8px;
+  border: 1.5px solid var(--retro-border);
+  border-radius: 4px;
+  font-family: var(--retro-font-mono);
   font-size: typography-vars.$font-size-sm;
 }
 
 .number-input {
   @include input-base;
-  background: color-vars.$color-bg;
-  color: color-vars.$color-text;
+  background: var(--retro-bg-surface);
+  color: var(--retro-ink);
 
   &:focus {
     outline: none;
-    border-color: color-vars.$color-primary;
-    box-shadow: color-vars.$shadow-sm;
+    box-shadow: var(--retro-shadow-btn);
   }
 }
 
 .readonly-input {
   @include input-base;
-  background: color-vars.$color-bg-tertiary;
-  color: color-vars.$color-text-secondary;
+  background: var(--retro-bg-elevated);
+  border-color: var(--retro-border-subtle);
+  color: var(--retro-ink-muted);
   cursor: not-allowed;
 }
 
@@ -543,36 +545,5 @@ onBeforeUnmount(() => {
 .button-group {
   display: flex;
   gap: spacing-vars.$space-2;
-}
-
-.button {
-  padding: spacing-vars.$space-2 spacing-vars.$space-4;
-  border-radius: radius-vars.$radius-base;
-  border: 1px solid;
-  cursor: pointer;
-  font-size: typography-vars.$font-size-sm;
-  transition: all 0.2s ease;
-
-  &.primary {
-    @include mixins.button-variant(white, color-vars.$color-primary);
-
-    &:disabled {
-      background: color-vars.$color-bg-tertiary;
-      border-color: color-vars.$color-bg-tertiary;
-      cursor: not-allowed;
-      opacity: 0.6;
-    }
-  }
-
-  &.secondary {
-    background: color-vars.$color-bg;
-    border-color: color-vars.$color-border;
-    color: color-vars.$color-text;
-
-    &:hover {
-      background: color-vars.$color-bg-secondary;
-      border-color: color-vars.$color-border-light;
-    }
-  }
 }
 </style>

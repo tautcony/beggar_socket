@@ -1,16 +1,16 @@
 <template>
-  <section class="section">
-    <div class="section-header">
-      <div class="op-title-row">
-        <span :class="['op-title', { busy }]">{{ $t('ui.operation.title') }}</span>
-      </div>
-      <div
-        v-if="props.mode === 'MBC5'"
-        class="selector-container"
-      >
+  <RetroCard>
+    <template #header-left>
+      <span :class="['op-title', { busy }]">{{ $t('ui.operation.title') }}</span>
+    </template>
+    <template
+      v-if="props.mode === 'MBC5'"
+      #header-right
+    >
+      <div class="selector-container">
         <div class="mbc-type-selector">
           <label class="mbc-type-label">{{ $t('ui.mbc.typeLabel') }}</label>
-          <select
+          <RetroSelect
             :value="props.selectedMbcType"
             class="mbc-type-dropdown"
             :disabled="!deviceReady || busy"
@@ -23,10 +23,10 @@
             >
               {{ option }}
             </option>
-          </select>
+          </RetroSelect>
         </div>
         <div class="mbc-power-selector">
-          <ToggleSwitch
+          <RetroSwitch
             :model-value="props.mbcPower5V"
             :disabled="!deviceReady || busy || !supportsCartPowerControl"
             :label="$t('ui.mbc.power5vLabel')"
@@ -35,23 +35,23 @@
           />
         </div>
       </div>
-    </div>
+    </template>
     <div class="button-row">
-      <BaseButton
+      <RetroButton
         :disabled="!deviceReady || busy"
         variant="primary"
         :text="$t('ui.operation.readId')"
         @click="$emit('read-id')"
       />
-      <BaseButton
+      <RetroButton
         :disabled="!deviceReady || busy || !chipInfoValid"
-        variant="primary"
+        variant="secondary"
         :text="$t('ui.operation.readRom')"
         @click="$emit('read-rom-info')"
       />
-      <BaseButton
+      <RetroButton
         :disabled="!deviceReady || busy || !chipInfoValid"
-        variant="error"
+        variant="danger"
         :text="$t('ui.operation.eraseChip')"
         @click="$emit('erase-chip')"
       />
@@ -90,15 +90,14 @@
         >{{ sectorSizeStr }}</span>
       </div>
     </div>
-  </section>
+  </RetroCard>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import BaseButton from '@/components/common/BaseButton.vue';
-import ToggleSwitch from '@/components/common/ToggleSwitch.vue';
 import { CHIP_OPERATION_EVENTS, type ChipOperationsProps } from '@/components/operaiton/contracts';
+import { RetroButton, RetroCard, RetroSelect, RetroSwitch } from '@/components/retro';
 import type { MbcType } from '@/types/command-options';
 import { formatBytes } from '@/utils/formatter-utils';
 
@@ -163,27 +162,6 @@ defineEmits([...CHIP_OPERATION_EVENTS]);
 </script>
 
 <style scoped>
-.section {
-  margin-bottom: var(--space-7);
-}
-
-.section-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: var(--space-3);
-  gap: var(--space-4);
-  min-width: 0;
-}
-
-.op-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  margin-bottom: var(--space-3);
-  min-width: 0;
-}
-
 .op-title {
   font-size: var(--font-size-lg);
   color: var(--color-text);
@@ -210,12 +188,13 @@ defineEmits([...CHIP_OPERATION_EVENTS]);
 }
 
 .chip-info-display {
-  margin-top: var(--space-3);
-  background: var(--color-primary-light);
-  border-radius: var(--radius-base);
+  margin-top: var(--space-2);
+  background: var(--retro-bg-elevated);
+  border: 1px solid var(--retro-border-subtle);
+  border-radius: 4px;
   padding: var(--space-2) var(--space-3);
-  font-size: var(--font-size-sm);
-  color: var(--color-text);
+  font-size: var(--font-size-xs);
+  color: var(--retro-ink);
 }
 
 .chip-info-row {
@@ -233,7 +212,7 @@ defineEmits([...CHIP_OPERATION_EVENTS]);
   min-width: 60px;
   max-width: 80px;
   width: 60px;
-  color: var(--color-primary);
+  color: var(--retro-ink-muted);
   font-weight: var(--font-weight-semibold);
   font-size: var(--font-size-xs);
   white-space: nowrap;
@@ -256,14 +235,13 @@ defineEmits([...CHIP_OPERATION_EVENTS]);
   justify-content: flex-start;
 }
 
-/* MBC 设置样式 - 与 RamOperations 保持一致 */
+/* MBC 设置样式 - 与 RomOperations / RamOperations 保持一致 */
 .selector-container {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
   flex-wrap: wrap;
   min-width: 0;
-  margin-bottom: var(--space-3);
 }
 
 .mbc-type-selector,
@@ -283,34 +261,15 @@ defineEmits([...CHIP_OPERATION_EVENTS]);
 }
 
 .mbc-type-label {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--retro-ink-muted);
   margin: 0;
   white-space: nowrap;
 }
 
 .mbc-type-dropdown {
-  padding: var(--space-1) var(--space-2);
-  border: none;
-  border-radius: var(--radius-base);
-  box-shadow: var(--shadow-sm);
-  background: var(--color-bg);
-  font-size: var(--font-size-sm);
-  color: var(--color-text);
-  cursor: pointer;
-  transition: border-color 0.2s, box-shadow 0.2s;
   min-width: 80px;
   max-width: 180px;
-  white-space: nowrap;
-}
-
-.mbc-type-dropdown:hover:not(:disabled) {
-  box-shadow: var(--shadow-md);
-}
-
-.mbc-type-dropdown:disabled {
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-secondary);
-  cursor: not-allowed;
 }
 </style>

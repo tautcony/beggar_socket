@@ -10,20 +10,14 @@
     <div class="tool-operations-container">
       <!-- Tab 标签 -->
       <div class="tabs-header">
-        <button
-          class="tab-button"
-          :class="{ active: activeTab === 'rtc' }"
-          @click="activeTab = 'rtc'"
-        >
-          {{ $t('ui.tools.rtc.title') }}
-        </button>
-        <button
-          class="tab-button"
-          :class="{ active: activeTab === 'test' }"
-          @click="activeTab = 'test'"
-        >
-          {{ $t('ui.tools.test.title') }}
-        </button>
+        <RetroSegmented
+          :model-value="activeTab"
+          :options="[
+            { value: 'rtc', label: $t('ui.tools.rtc.title') },
+            { value: 'test', label: $t('ui.tools.test.title') },
+          ]"
+          @update:model-value="activeTab = $event as 'rtc' | 'test'"
+        />
       </div>
 
       <!-- Tab 内容 -->
@@ -36,30 +30,34 @@
           <div class="panel-layout">
             <div class="panel-left">
               <div class="button-group">
-                <button
+                <RetroButton
+                  variant="secondary"
+                  block
                   :disabled="!device || busy"
+                  :text="$t('ui.tools.rtc.readGBA')"
                   @click="() => handleReadRTC('GBA')"
-                >
-                  {{ $t('ui.tools.rtc.readGBA') }}
-                </button>
-                <button
+                />
+                <RetroButton
+                  variant="secondary"
+                  block
                   :disabled="!device || busy"
+                  :text="$t('ui.tools.rtc.setGBA')"
                   @click="() => handleSetRTC('GBA')"
-                >
-                  {{ $t('ui.tools.rtc.setGBA') }}
-                </button>
-                <button
+                />
+                <RetroButton
+                  variant="secondary"
+                  block
                   :disabled="!device || busy"
+                  :text="$t('ui.tools.rtc.readMBC3')"
                   @click="() => handleReadRTC('MBC3')"
-                >
-                  {{ $t('ui.tools.rtc.readMBC3') }}
-                </button>
-                <button
+                />
+                <RetroButton
+                  variant="secondary"
+                  block
                   :disabled="!device || busy"
+                  :text="$t('ui.tools.rtc.setMBC3')"
                   @click="() => handleSetRTC('MBC3')"
-                >
-                  {{ $t('ui.tools.rtc.setMBC3') }}
-                </button>
+                />
               </div>
             </div>
             <div class="panel-right">
@@ -94,24 +92,27 @@
           <div class="panel-layout">
             <div class="panel-left">
               <div class="button-group">
-                <button
+                <RetroButton
+                  variant="secondary"
+                  block
                   :disabled="!device || busy"
+                  :text="$t('ui.tools.test.rumble')"
                   @click="handleRumbleTest"
-                >
-                  {{ $t('ui.tools.test.rumble') }}
-                </button>
-                <button
+                />
+                <RetroButton
+                  variant="secondary"
+                  block
                   :disabled="!device || busy"
+                  :text="$t('ui.tools.test.ppbUnlockGBA')"
                   @click="handlePPBUnlockGBA"
-                >
-                  {{ $t('ui.tools.test.ppbUnlockGBA') }}
-                </button>
-                <button
+                />
+                <RetroButton
+                  variant="secondary"
+                  block
                   :disabled="!device || busy"
+                  :text="$t('ui.tools.test.ppbUnlockMBC5')"
                   @click="handlePPBUnlockMBC5"
-                >
-                  {{ $t('ui.tools.test.ppbUnlockMBC5') }}
-                </button>
+                />
               </div>
             </div>
             <div class="panel-right">
@@ -159,7 +160,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import RTCModal from '@/components/modal/RTCModal.vue';
-import { RetroModal } from '@/components/retro';
+import { RetroButton, RetroModal, RetroSegmented } from '@/components/retro';
 import { useToast } from '@/composables/useToast';
 import type { GBARTCData, MBC3RTCData } from '@/services/rtc';
 import { ppbUnlockGBA, ppbUnlockMBC5, readRTC, rumbleTest, setRTC } from '@/services/tool-functions';
@@ -514,32 +515,7 @@ async function handlePPBUnlockMBC5() {
 // Tab 标签头部
 .tabs-header {
   display: flex;
-  border-bottom: 2px solid color-vars.$color-border;
   margin-bottom: spacing-vars.$space-4;
-  gap: spacing-vars.$space-2;
-}
-
-.tab-button {
-  padding: spacing-vars.$space-3 spacing-vars.$space-6;
-  border: none;
-  background: transparent;
-  color: color-vars.$color-text-secondary;
-  cursor: pointer;
-  font-size: typography-vars.$font-size-base;
-  font-weight: typography-vars.$font-weight-medium;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
-  transition: all 0.2s ease;
-
-  &:hover:not(.active) {
-    color: color-vars.$color-text;
-    background: color-vars.$color-bg-secondary;
-  }
-
-  &.active {
-    color: color-vars.$color-primary;
-    border-bottom-color: color-vars.$color-primary;
-  }
 }
 
 // Tab 内容
@@ -569,47 +545,21 @@ async function handlePPBUnlockMBC5() {
 }
 
 .panel-left {
-  border: 1px solid color-vars.$color-border;
-  border-radius: radius-vars.$radius-base;
-  padding: spacing-vars.$space-4;
-  background: color-vars.$color-bg-secondary;
+  border: 1.5px solid var(--retro-border-subtle);
+  border-radius: 6px;
+  padding: spacing-vars.$space-3;
+  background: var(--retro-bg-elevated);
 }
 
 .panel-right {
-  border: 1px solid color-vars.$color-border;
-  border-radius: radius-vars.$radius-base;
-  background: color-vars.$color-bg;
+  border: 1.5px solid var(--retro-border-subtle);
+  border-radius: 6px;
+  background: var(--retro-bg-surface);
 }
 
 .button-group {
   @include mixins.flex-column;
   gap: spacing-vars.$space-2;
-
-  button {
-    padding: spacing-vars.$space-3 spacing-vars.$space-3;
-    border: 1px solid color-vars.$color-border;
-    border-radius: radius-vars.$radius-sm;
-    background: color-vars.$color-bg;
-    color: color-vars.$color-text;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: typography-vars.$font-size-sm;
-    font-weight: typography-vars.$font-weight-medium;
-
-    &:hover:not(:disabled) {
-      background: color-vars.$color-bg-secondary;
-      border-color: color-vars.$color-primary;
-    }
-
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    &:active:not(:disabled) {
-      transform: translateY(1px);
-    }
-  }
 }
 
 // 数字时钟样式
@@ -623,8 +573,8 @@ async function handlePPBUnlockMBC5() {
   .clock-time {
     font-size: 64px;
     font-weight: typography-vars.$font-weight-bold;
-    font-family: 'Courier New', monospace;
-    color: color-vars.$color-primary;
+    font-family: var(--retro-font-mono);
+    color: var(--retro-ink);
     margin-bottom: spacing-vars.$space-4;
     letter-spacing: 0.1em;
   }

@@ -1,46 +1,46 @@
 <template>
-  <div class="language-switcher">
-    <div class="select-container">
-      <select
-        v-model="currentLocale"
-        class="language-select"
-        @change="changeLanguage"
-      >
-        <option value="zh-Hans">
-          简体中文
-        </option>
-        <option value="zh-Hant">
-          繁體中文
-        </option>
-        <option value="en-US">
-          English
-        </option>
-        <option value="ja-JP">
-          日本語
-        </option>
-        <option value="ru-RU">
-          Русский
-        </option>
-      </select>
-      <IonIcon
-        :icon="globeOutline"
-        class="lang-icon"
-      />
-      <IonIcon
-        :icon="chevronDown"
-        class="dropdown-icon"
-      />
-    </div>
+  <div
+    class="language-switcher"
+    :class="{ 'is-inline': inline }"
+  >
+    <RetroSelect
+      v-model="currentLocale"
+      class="language-select"
+      :prefix-icon="globeOutline"
+      @change="changeLanguage"
+    >
+      <option value="zh-Hans">
+        简体中文
+      </option>
+      <option value="zh-Hant">
+        繁體中文
+      </option>
+      <option value="en-US">
+        English
+      </option>
+      <option value="ja-JP">
+        日本語
+      </option>
+      <option value="ru-RU">
+        Русский
+      </option>
+    </RetroSelect>
   </div>
 </template>
 
 <script setup lang="ts">
-import { IonIcon } from '@ionic/vue';
-import { chevronDown, globeOutline } from 'ionicons/icons';
+import { globeOutline } from 'ionicons/icons';
 import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { RetroSelect } from '@/components/retro';
 import { normalizeLocale } from '@/i18n';
+
+withDefaults(defineProps<{
+  inline?: boolean;
+}>(), {
+  inline: false,
+});
 
 const { locale } = useI18n();
 const currentLocale = ref(normalizeLocale(locale.value) ?? 'zh-Hans');
@@ -74,71 +74,14 @@ function changeLanguage() {
   z-index: 1000;
 }
 
-.select-container {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.lang-icon {
-  position: absolute;
-  left: var(--space-3);
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 1.2em;
-  color: var(--color-primary);
-  transition: color 0.2s ease;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.select-container:hover .lang-icon {
-  color: var(--color-primary-hover);
-}
-
-.dropdown-icon {
-  position: absolute;
-  right: var(--space-2);
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 1em;
-  color: var(--color-text-secondary);
-  transition: color 0.2s ease;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.select-container:hover .dropdown-icon {
-  color: var(--color-text);
+.language-switcher.is-inline {
+  position: static;
+  top: auto;
+  right: auto;
+  z-index: auto;
 }
 
 .language-select {
-  padding: var(--space-2) var(--space-8) var(--space-2) var(--space-10);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-md);
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-  box-shadow: var(--shadow-sm);
-  appearance: none;
-  transition: all 0.2s ease;
-  min-width: 120px;
-}
-
-.language-select:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
-}
-
-.language-select:hover {
-  border-color: var(--color-border-dark);
-  transform: translateY(-1px);
-}
-
-.language-select option {
-  background-color: var(--color-bg);
-  color: var(--color-text);
+  min-width: 112px;
 }
 </style>

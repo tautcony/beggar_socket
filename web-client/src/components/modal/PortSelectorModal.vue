@@ -154,14 +154,16 @@ const onRefresh = () => {
 }
 
 .port-selector-modal {
-  background: color-vars.$color-bg;
-  border-radius: radius-vars.$radius-xl;
-  box-shadow: color-vars.$shadow-lg;
+  background: var(--retro-bg-surface);
+  color: var(--retro-ink);
+  border: 1.5px solid var(--retro-border);
+  border-radius: 6px;
+  box-shadow: -4px 4px 0 var(--retro-shadow-color);
   max-width: 500px;
   width: 90%;
   max-height: 80vh;
   overflow: hidden;
-  animation: modalSlideIn 0.3s ease-out;
+  animation: modalSlideIn 0.2s ease-out;
 }
 
 @keyframes modalSlideIn {
@@ -177,14 +179,14 @@ const onRefresh = () => {
 
 .modal-header {
   @include mixins.flex-between;
-  padding: spacing-vars.$space-5 spacing-vars.$space-6;
-  border-bottom: 1px solid color-vars.$color-border-light;
+  padding: 10px spacing-vars.$space-4;
+  border-bottom: 1.5px solid var(--retro-border);
 
   h3 {
     margin: 0;
-    font-size: typography-vars.$font-size-xl;
-    font-weight: typography-vars.$font-weight-semibold;
-    color: color-vars.$color-text;
+    font-size: typography-vars.$font-size-base;
+    font-weight: typography-vars.$font-weight-bold;
+    color: var(--retro-ink);
   }
 }
 
@@ -198,18 +200,21 @@ const onRefresh = () => {
   display: flex;
   align-items: center;
   gap: spacing-vars.$space-1;
-  background: color-vars.$color-bg-tertiary;
-  border: 1px solid color-vars.$color-border;
-  border-radius: radius-vars.$radius-base;
-  padding: spacing-vars.$space-2 spacing-vars.$space-3;
+  background: var(--retro-bg-tint);
+  border: 1.5px solid var(--retro-border);
+  border-radius: 4px;
+  padding: 4px 10px;
   font-size: typography-vars.$font-size-xs;
-  color: color-vars.$color-text;
+  font-weight: typography-vars.$font-weight-semibold;
+  color: var(--retro-ink);
+  box-shadow: var(--retro-shadow-btn);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.12s ease;
 
   &:hover {
-    background: color-vars.$color-bg-secondary;
-    border-color: color-vars.$color-border-light;
+    background: var(--retro-bg-tint-hover);
+    transform: translate(-1px, 1px);
+    box-shadow: var(--retro-shadow-btn-hover);
   }
 }
 

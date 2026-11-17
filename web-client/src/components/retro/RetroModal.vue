@@ -159,7 +159,7 @@ onUnmounted(() => {
 .retro-modal-container {
   display: flex;
   flex-direction: column;
-  background: var(--retro-bg-canvas);
+  background: var(--retro-bg-surface);
   color: var(--retro-ink);
   border: 1.5px solid var(--retro-border);
   border-radius: 6px;
@@ -173,7 +173,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  padding: 10px var(--space-4);
   background: var(--retro-bg-surface);
   border-bottom: 1.5px solid var(--retro-border);
   flex-shrink: 0;

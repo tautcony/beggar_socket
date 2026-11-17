@@ -14,7 +14,7 @@
         {{ $t('ui.emulator.title') }} - {{ romName }}
       </h3>
       <div class="emulator-controls">
-        <BaseButton
+        <RetroButton
           variant="secondary"
           size="sm"
           :icon="isPaused ? play : pause"
@@ -22,7 +22,7 @@
           :title="$t('ui.emulator.pause')"
           @click="togglePause"
         />
-        <BaseButton
+        <RetroButton
           variant="warning"
           size="sm"
           :icon="refresh"
@@ -30,8 +30,8 @@
           :title="$t('ui.emulator.reset')"
           @click="resetGame"
         />
-        <BaseButton
-          variant="error"
+        <RetroButton
+          variant="danger"
           size="sm"
           :icon="close"
           icon-only
@@ -77,10 +77,10 @@ import { close, gameControllerOutline, pause, play, refresh } from 'ionicons/ico
 import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import BaseButton from '@/components/common/BaseButton.vue';
 import { BinjgbRunner, type JoypadButton, type JoypadState } from '@/components/emulator/binjgb/binjgb-runner';
 import EmulatorLaunchTransition from '@/components/emulator/EmulatorLaunchTransition.vue';
 import EmulatorScreenViewport from '@/components/emulator/EmulatorScreenViewport.vue';
+import { RetroButton } from '@/components/retro';
 import { useToast } from '@/composables/useToast';
 
 const { t } = useI18n();
@@ -314,9 +314,11 @@ function cleanup() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: spacing-vars.$space-4 spacing-vars.$space-5;
-  background: linear-gradient(135deg, #5bcffa 0%, #f5abb9 100%);
-  color: color-vars.$color-text-inverse;
+  gap: spacing-vars.$space-3;
+  padding: 10px spacing-vars.$space-4;
+  background: var(--retro-bg-elevated);
+  border-bottom: 1.5px solid var(--retro-border);
+  color: var(--retro-ink);
 }
 
 .emulator-title {

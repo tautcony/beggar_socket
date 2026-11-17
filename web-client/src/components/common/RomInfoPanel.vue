@@ -60,10 +60,10 @@
         </div>
         <div class="rom-info-item">
           <span class="rom-info-label">{{ $t('ui.rom.type') }}:</span>
-          <span
-            class="rom-info-value rom-type"
-            :class="romInfo.type.toLowerCase()"
-          >{{ romInfo.type }}</span>
+          <RetroBadge
+            :text="romInfo.type"
+            variant="info"
+          />
         </div>
         <div
           class="rom-info-item"
@@ -128,10 +128,11 @@
         >
           <span class="rom-info-label">{{ $t('ui.rom.region') }}:</span>
           <div class="rom-info-value-container">
-            <select
+            <RetroSelect
               v-if="isEditing && romInfo.type === 'GBA'"
               v-model="editData.region"
               class="rom-edit-select"
+              full-width
             >
               <option value="Japan">
                 Japan
@@ -154,11 +155,12 @@
               <option value="Spain">
                 Spain
               </option>
-            </select>
-            <select
+            </RetroSelect>
+            <RetroSelect
               v-else-if="isEditing && (romInfo.type === 'GB' || romInfo.type === 'GBC')"
               v-model="editData.region"
               class="rom-edit-select"
+              full-width
             >
               <option value="Japan">
                 Japan
@@ -166,7 +168,7 @@
               <option value="Non-Japan">
                 Non-Japan
               </option>
-            </select>
+            </RetroSelect>
             <span
               v-else
               class="rom-info-value"
@@ -193,16 +195,10 @@
         </div>
         <div class="rom-info-item">
           <span class="rom-info-label">{{ $t('ui.rom.valid') }}:</span>
-          <span
-            class="rom-info-value rom-validity"
-            :class="romInfo.isValid ? 'valid' : 'invalid'"
-          >
-            <IonIcon
-              :icon="romInfo.isValid ? checkmarkCircle : closeCircle"
-              class="validity-icon"
-            />
-            {{ romInfo.isValid ? $t('ui.common.yes') : $t('ui.common.no') }}
-          </span>
+          <RetroBadge :variant="romInfo.isValid ? 'success' : 'danger'">
+            <IonIcon :icon="romInfo.isValid ? checkmarkCircle : closeCircle" />
+            <span>{{ romInfo.isValid ? $t('ui.common.yes') : $t('ui.common.no') }}</span>
+          </RetroBadge>
         </div>
       </div>
 
@@ -211,32 +207,32 @@
         v-if="romData && (romInfo.type === 'GBA' || romInfo.type === 'GB' || romInfo.type === 'GBC')"
         class="rom-edit-actions"
       >
-        <button
+        <RetroButton
           v-if="!isEditing"
-          class="rom-edit-button"
+          variant="secondary"
+          size="sm"
+          :icon="createOutline"
+          :text="$t('ui.rom.edit')"
           @click="startEdit"
-        >
-          <IonIcon :icon="createOutline" />
-          {{ $t('ui.rom.edit') }}
-        </button>
+        />
         <div
           v-else
           class="rom-edit-buttons"
         >
-          <button
-            class="rom-save-button"
+          <RetroButton
+            variant="primary"
+            size="sm"
+            :icon="saveOutline"
+            :text="$t('ui.common.save')"
             @click="saveEdit"
-          >
-            <IonIcon :icon="saveOutline" />
-            {{ $t('ui.common.save') }}
-          </button>
-          <button
-            class="rom-cancel-button"
+          />
+          <RetroButton
+            variant="danger"
+            size="sm"
+            :icon="closeOutline"
+            :text="$t('ui.common.cancel')"
             @click="cancelEdit"
-          >
-            <IonIcon :icon="closeOutline" />
-            {{ $t('ui.common.cancel') }}
-          </button>
+          />
         </div>
       </div>
     </div>
@@ -249,6 +245,7 @@ import { checkmarkCircle, chevronDown, chevronUp, closeCircle, closeOutline, cre
 import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { RetroBadge, RetroButton, RetroSelect } from '@/components/retro';
 import { useToast } from '@/composables/useToast';
 import { processGBALogoData } from '@/utils/compression-utils';
 import { formatBytes } from '@/utils/formatter-utils';
@@ -482,11 +479,10 @@ onMounted(async () => {
 
 .rom-info-panel {
   margin-bottom: spacing-vars.$space-3;
-  padding: spacing-vars.$space-4;
-  background: linear-gradient(135deg, color-vars.$color-bg-secondary 0%, color-vars.$color-bg-tertiary 100%);
-  border: 1px solid color-vars.$color-border-light;
-  border-radius: radius-vars.$radius-lg;
-  box-shadow: color-vars.$shadow-sm;
+  padding: spacing-vars.$space-3;
+  background: var(--retro-bg-elevated);
+  border: 1.5px solid var(--retro-border-subtle);
+  border-radius: 6px;
 }
 
 .rom-info-title {
@@ -494,28 +490,28 @@ onMounted(async () => {
   align-items: center;
   gap: spacing-vars.$space-2;
   margin: 0;
-  font-size: typography-vars.$font-size-lg;
-  font-weight: typography-vars.$font-weight-semibold;
-  color: color-vars.$color-text-secondary;
+  font-size: typography-vars.$font-size-sm;
+  font-weight: typography-vars.$font-weight-bold;
+  color: var(--retro-ink);
   cursor: pointer;
-  transition: color 0.2s ease;
+  transition: color 0.15s ease;
   user-select: none;
 
   &:hover {
-    color: color-vars.$color-primary;
+    color: var(--retro-ink);
   }
 }
 
 .info-icon {
-  font-size: typography-vars.$font-size-lg;
-  color: color-vars.$color-primary;
+  font-size: typography-vars.$font-size-base;
+  color: var(--retro-ink);
 }
 
 .collapse-icon {
   margin-left: auto;
   font-size: typography-vars.$font-size-base;
   transition: transform 0.3s ease;
-  color: color-vars.$color-text-secondary;
+  color: var(--retro-ink-muted);
 }
 
 .rom-info-content {
@@ -539,100 +535,58 @@ onMounted(async () => {
 
 /* Logo部分样式 */
 .rom-logo-section {
-  margin-bottom: spacing-vars.$space-5;
-  padding: spacing-vars.$space-4;
-  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
-  border: 1px solid #ffcc02;
-  border-radius: radius-vars.$radius-lg;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: spacing-vars.$space-3;
+  margin-bottom: spacing-vars.$space-2;
+  padding: spacing-vars.$space-2 spacing-vars.$space-3;
+  background: var(--retro-bg-surface);
+  border: 1px solid var(--retro-border-subtle);
+  border-radius: 4px;
 }
 
 .logo-title {
   display: flex;
   align-items: center;
   gap: spacing-vars.$space-2;
-  margin: 0 0 spacing-vars.$space-3 0;
-  font-size: typography-vars.$font-size-base;
+  margin: 0;
+  font-size: typography-vars.$font-size-xs;
   font-weight: typography-vars.$font-weight-semibold;
-  color: #ef6c00;
+  color: var(--retro-ink-muted);
+  flex-shrink: 0;
 }
 
 .logo-icon {
-  font-size: typography-vars.$font-size-lg;
-  color: #ff9800;
+  font-size: typography-vars.$font-size-sm;
+  color: var(--retro-ink);
 }
 
 .logo-container {
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
   align-items: center;
+  min-width: 0;
 }
 
 .logo-canvas {
-  border: 2px solid color-vars.$color-border-light;
-  border-radius: radius-vars.$radius-lg;
-  background: color-vars.$color-bg;
+  border: 1.5px solid var(--retro-border);
+  border-radius: 4px;
+  background: #ffffff;
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
-  box-shadow: color-vars.$shadow-sm;
   max-width: 100%;
+  max-height: 36px;
+  width: auto;
   height: auto;
-}
-
-.logo-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: spacing-vars.$space-2;
-  min-width: 200px;
-}
-
-.logo-info-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: spacing-vars.$space-2 spacing-vars.$space-3;
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: radius-vars.$radius-base;
-  border-left: 3px solid #ff9800;
-  min-height: 40px;
-}
-
-.logo-info-label {
-  font-weight: typography-vars.$font-weight-medium;
-  color: #ef6c00;
-  font-size: typography-vars.$font-size-sm;
-  flex-shrink: 0;
-  margin-right: spacing-vars.$space-3;
-}
-
-.logo-info-value {
-  font-family: typography-vars.$font-family-mono;
-  color: #212529;
-  font-size: typography-vars.$font-size-sm;
-  text-align: right;
-  flex: 1;
-}
-
-.logo-validity {
-  display: flex;
-  align-items: center;
-  gap: spacing-vars.$space-1;
-
-  &.valid {
-    color: color-vars.$color-success;
-  }
-
-  &.invalid {
-    color: color-vars.$color-error;
-  }
 }
 
 /* ROM信息网格 */
 .rom-info-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: spacing-vars.$space-3;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: spacing-vars.$space-2;
 }
 
 .rom-info-item {
@@ -640,68 +594,24 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   padding: spacing-vars.$space-2 spacing-vars.$space-3;
-  background: color-vars.$color-bg-secondary;
-  border-radius: radius-vars.$radius-base;
-  border-left: 3px solid color-vars.$color-primary;
+  background: var(--retro-bg-surface);
+  border: 1px solid var(--retro-border-subtle);
+  border-radius: 4px;
 }
 
 .rom-info-label {
-  font-weight: typography-vars.$font-weight-medium;
-  color: color-vars.$color-text-secondary;
+  font-weight: typography-vars.$font-weight-semibold;
+  font-size: typography-vars.$font-size-xs;
+  color: var(--retro-ink-muted);
   white-space: nowrap;
 }
 
 .rom-info-value {
-  font-family: typography-vars.$font-family-mono;
-  color: #212529;
+  font-family: var(--retro-font-mono);
+  font-size: typography-vars.$font-size-xs;
+  color: var(--retro-ink);
   text-align: right;
   word-break: break-all;
-}
-
-.rom-type {
-  padding: spacing-vars.$space-1 spacing-vars.$space-2;
-  border-radius: radius-vars.$radius-2xl;
-  font-size: typography-vars.$font-size-xs;
-  font-weight: typography-vars.$font-weight-semibold;
-  text-transform: uppercase;
-
-  &.gba {
-    background: linear-gradient(45deg, #4e54c8, #8f94fb);
-    color: white;
-  }
-
-  &.gb {
-    background: linear-gradient(45deg, #90a955, #b8c77a);
-    color: white;
-  }
-
-  &.gbc {
-    background: linear-gradient(45deg, #ff6b6b, #ffa726);
-    color: white;
-  }
-
-  &.unknown {
-    background: linear-gradient(45deg, color-vars.$color-secondary, #adb5bd);
-    color: white;
-  }
-}
-
-.rom-validity {
-  display: flex;
-  align-items: center;
-  gap: spacing-vars.$space-1;
-
-  &.valid {
-    color: color-vars.$color-success;
-  }
-
-  &.invalid {
-    color: color-vars.$color-error;
-  }
-}
-
-.validity-icon {
-  font-size: typography-vars.$font-size-lg;
 }
 
 /* 编辑功能样式 */
@@ -711,86 +621,42 @@ onMounted(async () => {
   align-items: center;
   justify-content: flex-end;
   max-width: 150px;
-  max-height: 24px;
 }
 
-.rom-edit-input,
-.rom-edit-select {
+.rom-edit-input {
   width: 100%;
   max-width: 100%;
-  padding: spacing-vars.$space-1 spacing-vars.$space-2;
-  border: 1px solid color-vars.$color-border-light;
-  border-radius: radius-vars.$radius-base;
-  font-size: typography-vars.$font-size-base;
-  background: color-vars.$color-bg;
-  color: color-vars.$color-text;
+  padding: 3px 8px;
+  border: 1.5px solid var(--retro-border);
+  border-radius: 4px;
+  font-size: typography-vars.$font-size-xs;
+  background: var(--retro-bg-surface);
+  color: var(--retro-ink);
   text-align: right;
   box-sizing: border-box;
-  font-family: typography-vars.$font-family-mono;
+  font-family: var(--retro-font-mono);
 
   &:focus {
     outline: none;
-    border-color: color-vars.$color-primary;
-    box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+    box-shadow: var(--retro-shadow-btn);
   }
+}
+
+.rom-edit-select {
+  font-family: var(--retro-font-mono);
 }
 
 .rom-edit-actions {
-  margin-top: spacing-vars.$space-4;
-  padding-top: spacing-vars.$space-4;
-  border-top: 1px solid color-vars.$color-border-light;
-}
-
-.rom-edit-button,
-.rom-save-button,
-.rom-cancel-button {
-  display: inline-flex;
-  align-items: center;
-  gap: spacing-vars.$space-2;
-  padding: spacing-vars.$space-2 spacing-vars.$space-4;
-  border: none;
-  border-radius: radius-vars.$radius-md;
-  font-size: typography-vars.$font-size-sm;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:disabled {
-    background: color-vars.$color-border-light;
-    color: color-vars.$color-text-secondary;
-    cursor: not-allowed;
-  }
-}
-
-.rom-edit-button {
-  background: color-vars.$color-primary;
-  color: white;
-
-  &:hover {
-    background: color-vars.$color-primary-hover;
-  }
+  display: flex;
+  justify-content: flex-end;
+  margin-top: spacing-vars.$space-3;
+  padding-top: spacing-vars.$space-3;
+  border-top: 1px solid var(--retro-divider);
 }
 
 .rom-edit-buttons {
   display: flex;
   gap: spacing-vars.$space-2;
   justify-content: flex-end;
-}
-
-.rom-save-button {
-  background: color-vars.$color-success;
-  color: white;
-
-  &:hover {
-    background: #45a049;
-  }
-}
-
-.rom-cancel-button {
-  background: color-vars.$color-error;
-  color: white;
-
-  &:hover {
-    background: #d32f2f;
-  }
 }
 </style>

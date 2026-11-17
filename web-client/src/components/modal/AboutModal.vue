@@ -1,5 +1,5 @@
 <template>
-  <BaseModal
+  <RetroModal
     v-model="localVisible"
     :title="$t('ui.menu.about')"
     width="600px"
@@ -138,7 +138,7 @@
         {{ $t('ui.about.acknowledgmentsText') }}
       </p>
     </div>
-  </BaseModal>
+  </RetroModal>
 </template>
 
 <script setup lang="ts">
@@ -160,7 +160,7 @@ import {
 } from 'ionicons/icons';
 import { computed, onMounted, ref } from 'vue';
 
-import BaseModal from '@/components/common/BaseModal.vue';
+import { RetroModal } from '@/components/retro';
 import { getPlatformDescription, getRuntimeAppVersion } from '@/platform/native';
 import { isTauriRuntime } from '@/platform/runtime';
 
@@ -268,19 +268,22 @@ function closeModal() {
   @include mixins.flex-center;
   gap: spacing-vars.$space-2;
   padding: spacing-vars.$space-3 spacing-vars.$space-4;
-  background: color-vars.$color-bg-secondary;
-  border-radius: radius-vars.$radius-lg;
-  border: 1px solid color-vars.$color-border-light;
-  transition: all 0.2s ease;
+  background: var(--retro-bg-surface);
+  border-radius: 6px;
+  border: 1.5px solid var(--retro-border-subtle);
+  color: var(--retro-ink);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, border-color 0.12s ease, background-color 0.12s ease;
 
   &:hover {
-    background: color-vars.$color-bg-tertiary;
-    transform: translateY(-2px);
+    border-color: var(--retro-border);
+    background: var(--retro-bg-elevated);
+    transform: translate(-1px, 1px);
+    box-shadow: var(--retro-shadow-btn-hover);
   }
 
   span {
-    font-weight: typography-vars.$font-weight-medium;
-    color: color-vars.$color-text;
+    font-weight: typography-vars.$font-weight-semibold;
+    color: var(--retro-ink);
   }
 }
 
@@ -294,21 +297,22 @@ function closeModal() {
   align-items: center;
   gap: spacing-vars.$space-3;
   padding: spacing-vars.$space-2 spacing-vars.$space-3;
-  background: color-vars.$color-bg-secondary;
-  border-radius: radius-vars.$radius-lg;
-  border: 1px solid color-vars.$color-border-light;
+  background: var(--retro-bg-surface);
+  border-radius: 6px;
+  border: 1.5px solid var(--retro-border-subtle);
   text-decoration: none;
-  color: color-vars.$color-text;
-  transition: all 0.2s ease;
+  color: var(--retro-ink);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, border-color 0.12s ease, background-color 0.12s ease;
 
   &:hover {
-    background: color-vars.$color-bg-tertiary;
-    transform: translateY(-2px);
-    box-shadow: color-vars.$shadow-md;
+    border-color: var(--retro-border);
+    background: var(--retro-bg-tint);
+    transform: translate(-1px, 1px);
+    box-shadow: var(--retro-shadow-btn);
   }
 
   span {
-    font-weight: typography-vars.$font-weight-medium;
+    font-weight: typography-vars.$font-weight-semibold;
     flex: 1;
   }
 }

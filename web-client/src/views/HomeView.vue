@@ -1,58 +1,63 @@
 <template>
-  <div>
-    <div class="top-bar">
-      <div class="left-section">
-        <AppMenu
-          :current-mode="currentMode"
-          :device="device"
-        />
-        <DeviceConnect
-          ref="deviceConnectRef"
-          :compact="true"
-          @device-ready="onDeviceReady"
-          @device-disconnected="onDeviceDisconnected"
-        />
-        <div class="title-section">
-          <h1 class="main-title">
-            {{ $t('ui.app.title') }}
-          </h1>
-          <a
-            :href="titleBadgeHref"
-            target="_blank"
-            class="title-badge"
-            :class="{ 'title-badge--build-info': !isReleaseBuild }"
-            rel="noopener noreferrer"
-          >
-            <template v-if="isReleaseBuild">
-              for beggar_socket
-            </template>
-            <template v-else>
-              <span class="branch-name">{{ buildBranchDisplay }}</span>
-              <span v-if="buildCommitDisplay">@{{ buildCommitDisplay }}</span>
-            </template>
-          </a>
+  <div class="home-view">
+    <header class="page-header">
+      <div class="header-inner">
+        <div class="left-section">
+          <AppMenu
+            :current-mode="currentMode"
+            :device="device"
+          />
+          <DeviceConnect
+            ref="deviceConnectRef"
+            :compact="true"
+            @device-ready="onDeviceReady"
+            @device-disconnected="onDeviceDisconnected"
+          />
+          <div class="header-divider" />
+          <div class="title-section">
+            <h1 class="main-title">
+              {{ $t('ui.app.title') }}
+            </h1>
+            <a
+              :href="titleBadgeHref"
+              target="_blank"
+              class="title-badge"
+              :class="{ 'title-badge--build-info': !isReleaseBuild }"
+              rel="noopener noreferrer"
+            >
+              <template v-if="isReleaseBuild">
+                for beggar_socket
+              </template>
+              <template v-else>
+                <span class="branch-name">{{ buildBranchDisplay }}</span>
+                <span v-if="buildCommitDisplay">@{{ buildCommitDisplay }}</span>
+              </template>
+            </a>
+          </div>
+        </div>
+        <div class="right-section">
+          <LanguageSwitcher :inline="true" />
         </div>
       </div>
-      <div class="right-section">
-        <LanguageSwitcher />
+      <div class="morse-border-container">
+        <MorseBorder
+          :text="'CHISFLASH-BURNER'"
+          :height="4"
+          :stroke-width="3"
+          :dot-length="3"
+          :dash-length="9"
+          :spacing="3"
+          :letter-spacing="12"
+        />
       </div>
-    </div>
-    <div class="morse-border-container">
-      <MorseBorder
-        :text="'CHISFLASH-BURNER'"
-        :height="4"
-        :stroke-width="3"
-        :dot-length="3"
-        :dash-length="9"
-        :spacing="3"
-        :letter-spacing="12"
+    </header>
+    <main class="home-content">
+      <CartBurner
+        ref="cartBurnerRef"
+        :device-ready="deviceReady"
+        :device="device"
       />
-    </div>
-    <CartBurner
-      ref="cartBurnerRef"
-      :device-ready="deviceReady"
-      :device="device"
-    />
+    </main>
     <DebugPanel
       v-if="showDebugPanelModal"
       :device="device"
@@ -232,38 +237,51 @@ $title-color: #2c3e50;
   }
 }
 
-// 动画定义
-@keyframes wiggle {
-  0%, 100% {
-    transform: rotate(0deg);
-  }
-  25% {
-    transform: rotate(3deg);
-  }
-  75% {
-    transform: rotate(-3deg);
-  }
+.home-view {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-.top-bar {
-  @include mixins.flex-between;
-  @include mixins.transition();
+.page-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  width: 100%;
+  background: var(--retro-bg-surface);
+}
 
-  padding: spacing-vars.$space-3 0 spacing-vars.$space-3 0;
-  min-height: 60px;
+.header-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: spacing-vars.$space-3 spacing-vars.$space-6;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: spacing-vars.$space-4;
   flex-wrap: wrap;
-  gap: spacing-vars.$space-2;
-  min-width: 0;
+  box-sizing: border-box;
+}
 
-  @include mixins.respond-to(lg) {
-    padding: spacing-vars.$space-3 spacing-vars.$space-5;
-    flex-wrap: nowrap;
-  }
+.home-content {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: spacing-vars.$space-5 spacing-vars.$space-6;
+  box-sizing: border-box;
+}
+
+.header-divider {
+  width: 1px;
+  height: 22px;
+  background: var(--retro-divider);
+  flex-shrink: 0;
 }
 
 .morse-border-container {
   height: 4px;
   width: 100%;
+  background: var(--retro-bg-canvas);
   @include mixins.transition(all, 0.3s, ease);
 
   position: relative;
@@ -296,79 +314,46 @@ $title-color: #2c3e50;
 }
 
 .title-section {
-  position: relative;
-  @include mixins.flex-column;
-
-  align-items: flex-start;
-  gap: spacing-vars.$space-1;
-  margin-left: spacing-vars.$space-2;
-
-  @include mixins.respond-to(lg) {
-    @include mixins.flex-center;
-
-    justify-content: flex-start;
-    margin-left: spacing-vars.$space-4;
-    gap: 0;
-    padding-right: 132px;
-  }
+  display: flex;
+  align-items: center;
+  gap: spacing-vars.$space-2;
+  min-width: 0;
 }
 
 .main-title {
-  font-size: typography-vars.$font-size-xl;
-  color: $title-color;
+  font-size: typography-vars.$font-size-lg;
+  color: var(--retro-ink);
   margin: 0;
   font-weight: typography-vars.$font-weight-semibold;
+  letter-spacing: -0.01em;
   @include mixins.text-truncate;
-
-  @include mixins.respond-to(lg) {
-    font-size: typography-vars.$font-size-3xl;
-  }
 }
 
 .title-badge {
-  position: static;
-  top: auto;
-  right: auto;
-  align-self: flex-start;
-
-  @include badge-gradient();
-  @include badge-shadow(1);
-  @include mixins.transition(all, 0.3s, ease);
-  animation: wiggle 2s ease-in-out infinite;
-
-  color: white;
-  padding: spacing-vars.$space-1 spacing-vars.$space-2;
-  border-radius: radius-vars.$radius-2xl;
-  font-size: typography-vars.$font-size-xs;
-  font-weight: typography-vars.$font-weight-medium;
+  align-self: center;
+  background: var(--retro-bg-tint);
+  color: var(--retro-ink);
+  border: 1.5px solid var(--retro-border);
+  border-radius: 4px;
+  box-shadow: var(--retro-shadow-btn);
+  padding: 2px 8px;
+  font-family: var(--retro-font-mono);
+  font-size: 11px;
+  font-weight: typography-vars.$font-weight-bold;
   text-decoration: none;
-  @include mixins.text-truncate;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.12s ease;
+  flex-shrink: 0;
 
   &:hover {
-    @include badge-gradient($badge-secondary, $badge-primary);
-    @include badge-shadow(2);
-
-    transform: scale(1.05);
-    animation-play-state: paused;
-  }
-
-  @include mixins.respond-to(lg) {
-    position: absolute;
-    top: -8px;
-    right: 0;
+    background: var(--retro-bg-tint-hover);
+    transform: translate(-1px, 1px);
+    box-shadow: var(--retro-shadow-btn-hover);
   }
 }
 
 .title-badge--build-info {
-  @include mixins.gradient(135deg, #ff8a00 0%, #ffd54a 100%);
-  box-shadow: 0 4px 12px rgba(255, 138, 0, 0.45);
-  color: #2b1a00;
-  animation-duration: 1.2s;
-
-  &:hover {
-    @include mixins.gradient(135deg, #ffa726 0%, #ffe082 100%);
-    box-shadow: 0 6px 14px rgba(255, 138, 0, 0.55);
-  }
+  background: var(--retro-warning-bg);
+  color: var(--retro-ink);
 }
 
 .branch-name {

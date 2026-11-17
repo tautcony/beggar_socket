@@ -244,13 +244,14 @@ function handleDrop(e: DragEvent) {
 }
 
 .file-drop-zone {
-  border: 2px dashed color-vars.$color-border;
-  border-radius: radius-vars.$radius-lg;
+  border: 1.5px dashed var(--retro-border-dashed);
+  border-radius: 6px;
   padding: 0 !important;
   text-align: center;
   cursor: pointer;
-  transition: all 0.3s ease;
-  background: color-vars.$color-bg;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  background: var(--retro-bg-surface);
+  color: var(--retro-ink);
   min-height: 80px;
   display: flex;
   align-items: center;
@@ -268,29 +269,24 @@ function handleDrop(e: DragEvent) {
   }
 
   &:hover:not(.disabled) {
-    border-color: color-vars.$color-primary;
-    background: #f8faff;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(25, 118, 210, 0.1);
+    border-color: var(--retro-border);
+    background: var(--retro-bg-elevated);
   }
 
   &.drag-over {
-    border-color: color-vars.$color-primary;
-    background: #e3f2fd;
-    transform: scale(1.02);
+    border-color: var(--retro-border);
+    background: var(--retro-bg-tint);
   }
 
   &.has-file {
-    border-color: color-vars.$color-success;
-    background: #f1f8e9;
+    border-color: var(--retro-border);
+    background: var(--retro-bg-elevated);
     border-style: solid;
   }
 
   &.disabled {
     cursor: not-allowed;
     opacity: 0.6;
-    border-color: color-vars.$color-border-light;
-    background: color-vars.$color-bg-secondary;
   }
 }
 
@@ -350,9 +346,8 @@ function handleDrop(e: DragEvent) {
   min-width: 0;
   min-height: 80px;
   padding: spacing-vars.$space-4;
-  background: color-vars.$color-bg;
-  border-radius: radius-vars.$radius-md;
-  box-shadow: color-vars.$shadow-sm;
+  background: var(--retro-bg-surface);
+  border-radius: 6px;
   justify-content: flex-start;
   overflow: hidden;
   box-sizing: border-box;
@@ -360,7 +355,7 @@ function handleDrop(e: DragEvent) {
 
 .file-icon {
   font-size: 2.2em;
-  color: color-vars.$color-primary;
+  color: var(--retro-ink);
   margin-bottom: 0;
   margin-right: spacing-vars.$space-2;
   display: flex;
@@ -383,7 +378,7 @@ function handleDrop(e: DragEvent) {
 .file-name {
   font-size: typography-vars.$font-size-sm;
   font-weight: typography-vars.$font-weight-semibold;
-  color: #2c3e50;
+  color: var(--retro-ink);
   margin-bottom: spacing-vars.$space-1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -393,71 +388,76 @@ function handleDrop(e: DragEvent) {
 }
 
 .file-size {
+  font-family: var(--retro-font-mono);
   font-size: typography-vars.$font-size-xs;
-  color: color-vars.$color-text-secondary;
+  color: var(--retro-ink-muted);
   margin-bottom: spacing-vars.$space-half;
 }
 
 .file-title {
   font-size: typography-vars.$font-size-xs;
-  color: color-vars.$color-success;
+  color: var(--retro-ink);
   font-weight: typography-vars.$font-weight-medium;
 }
 
 .remove-file-btn {
   width: 24px;
   height: 24px;
-  border-radius: radius-vars.$radius-full;
-  border: 1px solid color-vars.$color-error;
-  background: color-vars.$color-bg;
-  color: color-vars.$color-error;
+  border-radius: 3px;
+  border: 1.5px solid var(--retro-border);
+  background: var(--retro-bg-surface);
+  color: var(--retro-danger-fg);
   font-size: typography-vars.$font-size-xs;
   font-weight: typography-vars.$font-weight-bold;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  box-shadow: var(--retro-shadow-btn);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.12s ease;
   padding: 0;
 
   &:hover:not(:disabled) {
-    background: color-vars.$color-error;
-    color: white;
-    transform: scale(1.1);
+    background: var(--retro-danger-bg);
+    transform: translate(-1px, 1px);
+    box-shadow: var(--retro-shadow-btn-hover);
   }
 
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    box-shadow: none;
   }
 }
 
 .download-file-btn {
   width: 24px;
   height: 24px;
-  border-radius: radius-vars.$radius-full;
-  border: 1px solid color-vars.$color-primary;
-  background: color-vars.$color-bg;
-  color: color-vars.$color-primary;
+  border-radius: 3px;
+  border: 1.5px solid var(--retro-border);
+  background: var(--retro-bg-surface);
+  color: var(--retro-ink);
   font-size: typography-vars.$font-size-xs;
   font-weight: typography-vars.$font-weight-bold;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  box-shadow: var(--retro-shadow-btn);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.12s ease;
   padding: 0;
   margin-right: spacing-vars.$space-2;
 
   &:hover:not(:disabled) {
-    background: color-vars.$color-primary;
-    color: white;
-    transform: scale(1.1);
+    background: var(--retro-bg-tint);
+    transform: translate(-1px, 1px);
+    box-shadow: var(--retro-shadow-btn-hover);
   }
 
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    box-shadow: none;
   }
 }
 
