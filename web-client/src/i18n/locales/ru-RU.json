@@ -3,6 +3,12 @@
     "app": {
       "title": "ChisFlash Burner"
     },
+    "theme": {
+      "label": "Тема страницы",
+      "lavender": "Лавандовый",
+      "sage": "Шалфейный",
+      "rose": "Пыльная роза"
+    },
     "systemNotice": {
       "title": "Системное уведомление",
       "publishedAt": "Дата публикации",

@@ -1,5 +1,7 @@
-// Retro 硬件工作台风格变量（支持日间 / 夜间模式）
+// Retro 硬件工作台风格变量（支持多色主题 + 日间 / 夜间模式）
 :root {
+  --retro-accent: #bfa9e2;
+
   --retro-bg-canvas: #faf7f2;
   --retro-bg-surface: #ffffff;
   --retro-bg-elevated: #f8f5fa;
@@ -31,7 +33,71 @@
   --retro-shadow-btn-hover: -1px 1px 0 var(--retro-shadow-color);
 }
 
+:root[data-color-theme='sage'] {
+  --retro-accent: #b4c3a1;
+
+  --retro-bg-canvas: #f7f8f4;
+  --retro-bg-surface: #ffffff;
+  --retro-bg-elevated: #f3f6ef;
+  --retro-bg-tint: #e6ecdd;
+  --retro-bg-tint-hover: #d8e1ca;
+
+  --retro-ink: #252d20;
+  --retro-ink-muted: #55614d;
+  --retro-ink-subtle: #7c8974;
+
+  --retro-border: #252d20;
+  --retro-border-subtle: #cfd8c4;
+  --retro-border-dashed: #c0cbb3;
+  --retro-divider: #dde4d4;
+  --retro-shadow-color: #252d20;
+
+  --retro-primary-bg: #546d3d;
+  --retro-primary-fg: #ffffff;
+
+  --retro-overlay: rgba(247, 248, 244, 0.9);
+}
+
+:root[data-color-theme='rose'] {
+  --retro-accent: #df9ab0;
+
+  --retro-bg-canvas: #fbf6f7;
+  --retro-bg-surface: #ffffff;
+  --retro-bg-elevated: #faf2f5;
+  --retro-bg-tint: #f7e3ea;
+  --retro-bg-tint-hover: #efd0db;
+
+  --retro-ink: #38222a;
+  --retro-ink-muted: #72535e;
+  --retro-ink-subtle: #9b7d88;
+
+  --retro-border: #38222a;
+  --retro-border-subtle: #e4cdd5;
+  --retro-border-dashed: #d6bac4;
+  --retro-divider: #ecdae0;
+  --retro-shadow-color: #38222a;
+
+  --retro-primary-bg: #a8496a;
+  --retro-primary-fg: #ffffff;
+
+  --retro-overlay: rgba(251, 246, 247, 0.9);
+}
+
+@mixin retro-dark-shared-semantic-tokens {
+  --retro-primary-fg: #ffffff;
+  --retro-danger-bg: #4d2630;
+  --retro-danger-fg: #ff8787;
+  --retro-success-bg: #234232;
+  --retro-warning-bg: #473b1f;
+
+  --color-success: #69db7c;
+  --color-warning: #ffd43b;
+  --color-error: #ff8787;
+}
+
 @mixin retro-dark-tokens {
+  @include retro-dark-shared-semantic-tokens;
+
   --retro-bg-canvas: #231d2f;
   --retro-bg-surface: #2d253b;
   --retro-bg-elevated: #362d47;
@@ -49,12 +115,6 @@
   --retro-shadow-color: #9d91b8;
 
   --retro-primary-bg: #6b5bb8;
-  --retro-primary-fg: #ffffff;
-  --retro-danger-bg: #4d2630;
-  --retro-danger-fg: #ff8787;
-  --retro-success-bg: #234232;
-  --retro-warning-bg: #473b1f;
-
   --retro-overlay: rgba(35, 29, 47, 0.9);
 
   // 兼容旧版通用语义变量，防止深色模式下出现深字深底或白底
@@ -70,21 +130,112 @@
   --color-border-dark: #9d91b8;
   --color-primary: #8b7ae0;
   --color-primary-hover: #a293eb;
-  --color-success: #69db7c;
-  --color-warning: #ffd43b;
-  --color-error: #ff8787;
   --color-scrollbar-track: #231d2f;
   --color-scrollbar-thumb: #5d4f7a;
   --color-scrollbar-thumb-hover: #9d91b8;
+}
+
+@mixin retro-dark-sage-tokens {
+  @include retro-dark-shared-semantic-tokens;
+
+  --retro-bg-canvas: #1d2219;
+  --retro-bg-surface: #252c20;
+  --retro-bg-elevated: #2e3628;
+  --retro-bg-tint: #3b4634;
+  --retro-bg-tint-hover: #495640;
+
+  --retro-ink: #eef2ea;
+  --retro-ink-muted: #bcc7b3;
+  --retro-ink-subtle: #8b9882;
+
+  --retro-border: #96a58b;
+  --retro-border-subtle: #424e3a;
+  --retro-border-dashed: #536249;
+  --retro-divider: #424e3a;
+  --retro-shadow-color: #96a58b;
+
+  --retro-primary-bg: #65804c;
+  --retro-overlay: rgba(29, 34, 25, 0.9);
+
+  --color-text: #eef2ea;
+  --color-text-secondary: #bcc7b3;
+  --color-text-tertiary: #8b9882;
+  --color-text-inverse: #1d2219;
+  --color-bg: #252c20;
+  --color-bg-secondary: #1d2219;
+  --color-bg-tertiary: #2e3628;
+  --color-border: #536249;
+  --color-border-light: #424e3a;
+  --color-border-dark: #96a58b;
+  --color-primary: #b4c3a1;
+  --color-primary-hover: #c5d1b6;
+  --color-scrollbar-track: #1d2219;
+  --color-scrollbar-thumb: #536249;
+  --color-scrollbar-thumb-hover: #96a58b;
+}
+
+@mixin retro-dark-rose-tokens {
+  @include retro-dark-shared-semantic-tokens;
+
+  --retro-bg-canvas: #281c21;
+  --retro-bg-surface: #33232a;
+  --retro-bg-elevated: #3e2b33;
+  --retro-bg-tint: #513842;
+  --retro-bg-tint-hover: #624451;
+
+  --retro-ink: #f8ecef;
+  --retro-ink-muted: #d5b8c2;
+  --retro-ink-subtle: #a4838f;
+
+  --retro-border: #bd93a2;
+  --retro-border-subtle: #573d47;
+  --retro-border-dashed: #6b4c58;
+  --retro-divider: #573d47;
+  --retro-shadow-color: #bd93a2;
+
+  --retro-primary-bg: #b45777;
+  --retro-overlay: rgba(40, 28, 33, 0.9);
+
+  --color-text: #f8ecef;
+  --color-text-secondary: #d5b8c2;
+  --color-text-tertiary: #a4838f;
+  --color-text-inverse: #281c21;
+  --color-bg: #33232a;
+  --color-bg-secondary: #281c21;
+  --color-bg-tertiary: #3e2b33;
+  --color-border: #6b4c58;
+  --color-border-light: #573d47;
+  --color-border-dark: #bd93a2;
+  --color-primary: #df9ab0;
+  --color-primary-hover: #eab2c4;
+  --color-scrollbar-track: #281c21;
+  --color-scrollbar-thumb: #6b4c58;
+  --color-scrollbar-thumb-hover: #bd93a2;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     @include retro-dark-tokens;
   }
+
+  :root[data-color-theme='sage']:not([data-theme='light']) {
+    @include retro-dark-sage-tokens;
+  }
+
+  :root[data-color-theme='rose']:not([data-theme='light']) {
+    @include retro-dark-rose-tokens;
+  }
 }
 
 :root[data-theme='dark'],
 :root.dark {
   @include retro-dark-tokens;
+
+  &[data-color-theme='sage'] {
+    @include retro-dark-sage-tokens;
+  }
+
+  &[data-color-theme='rose'] {
+    @include retro-dark-rose-tokens;
+  }
 }

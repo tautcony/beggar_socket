@@ -3,6 +3,12 @@
     "app": {
       "title": "ChisFlash Burner"
     },
+    "theme": {
+      "label": "頁面主題",
+      "lavender": "薰衣草紫",
+      "sage": "鼠尾草綠",
+      "rose": "復古玫瑰粉"
+    },
     "systemNotice": {
       "title": "系統通知",
       "publishedAt": "發布時間",

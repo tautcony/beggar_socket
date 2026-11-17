@@ -1,6 +1,7 @@
 // 混合器工具库
 @use "sass:color";
 @use "sass:map";
+@use "sass:meta";
 
 // 响应式断点混合器
 $breakpoints: (
@@ -46,12 +47,25 @@ $breakpoints: (
   border-color: $border;
 
   &:hover {
-    background-color: color.adjust($background, $lightness: -7.5%);
-    border-color: color.adjust($border, $lightness: -10%);
+    @if meta.type-of($background) == 'color' {
+      background-color: color.adjust($background, $lightness: -7.5%);
+    } @else {
+      background-color: color-mix(in srgb, #{$background} 85%, black);
+    }
+
+    @if meta.type-of($border) == 'color' {
+      border-color: color.adjust($border, $lightness: -10%);
+    } @else {
+      border-color: color-mix(in srgb, #{$border} 80%, black);
+    }
   }
 
   &:focus {
-    box-shadow: 0 0 0 0.2rem rgba($border, 0.5);
+    @if meta.type-of($border) == 'color' {
+      box-shadow: 0 0 0 0.2rem rgba($border, 0.5);
+    } @else {
+      box-shadow: 0 0 0 0.2rem color-mix(in srgb, #{$border} 50%, transparent);
+    }
   }
 }
 

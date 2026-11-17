@@ -170,7 +170,7 @@ const morsePattern = computed(() => {
     }
 
     &:hover {
-      color: var(--color-primary, #42b883);
+      color: var(--retro-primary-bg, var(--color-primary, #42b883));
       filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
     }
   }

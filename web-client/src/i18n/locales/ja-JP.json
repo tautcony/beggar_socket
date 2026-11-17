@@ -3,6 +3,12 @@
     "app": {
       "title": "ChisFlash Burner"
     },
+    "theme": {
+      "label": "ページテーマ",
+      "lavender": "ラベンダーパープル",
+      "sage": "セージグリーン",
+      "rose": "ダスティローズ"
+    },
     "systemNotice": {
       "title": "システム通知",
       "publishedAt": "公開日",
