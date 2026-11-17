@@ -9,6 +9,8 @@ export interface DeviceInfo {
   serialHandle?: DeviceHandle | null;
   portInfo?: SerialPortInfo;
   firmwareProfile?: FirmwareProfile;
+  connectionGeneration?: number;
+  connectionId?: string;
 }
 
 // Reader types for utility functions

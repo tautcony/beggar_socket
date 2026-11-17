@@ -4,11 +4,22 @@ import type { PortFilter } from '@/utils/port-filter';
 
 export type TransportReadMode = 'byob' | 'default';
 
+export interface SendAndReceiveOptions {
+  /** Flush any stray buffered input inside the same exclusive lock acquisition after reading. */
+  flushAfterRead?: boolean;
+}
+
 export interface Transport {
   send: (payload: Uint8Array, timeoutMs?: number) => Promise<boolean>;
   read: (length: number, timeoutMs?: number, mode?: TransportReadMode) => Promise<{ data: Uint8Array }>;
   /** Atomic send-then-read guarded by a mutex so concurrent callers are serialised. */
-  sendAndReceive: (payload: Uint8Array, readLength: number, sendTimeoutMs?: number, readTimeoutMs?: number) => Promise<{ data: Uint8Array }>;
+  sendAndReceive: (
+    payload: Uint8Array,
+    readLength: number,
+    sendTimeoutMs?: number,
+    readTimeoutMs?: number,
+    options?: SendAndReceiveOptions,
+  ) => Promise<{ data: Uint8Array }>;
   setSignals: (signals: SerialOutputSignals) => Promise<void>;
   flushInput?: () => Promise<void>;
   /**

@@ -509,6 +509,8 @@
       "firmware": {
         "title": "Firmware Type",
         "profile": "Current Device Firmware",
+        "activeProfile": "Active Connection Profile",
+        "reconnectNotice": "Changes take effect after reconnecting or re-initializing the connection.",
         "stm": "丐中丐",
         "stc": "碳酸丐"
       },
@@ -524,7 +526,8 @@
       },
       "size": {
         "title": "Read/Write Settings",
-        "romPageSize": "ROM Read/Write Page Size",
+        "romPageSize": "ROM Write Page Size",
+        "romReadPageSize": "ROM Read Page Size",
         "ramPageSize": "RAM Read/Write Page Size",
         "bytes": "bytes",
         "validation": {

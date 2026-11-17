@@ -1,5 +1,5 @@
 import type { Transport } from '@/platform/serial';
-import { createPayload, GBACommand, GBCCommand, getPackage, sendPackage } from '@/protocol';
+import { createPayload, GBACommand, GBCCommand, sendAndReceivePackage } from '@/protocol';
 
 export type DebugCommandType = 'GBA' | 'GBC';
 
@@ -61,8 +61,13 @@ export async function executeDebugCommand(input: ExecuteDebugCommandInput): Prom
   }
 
   const payload = payloadBuilder.build();
-  await sendPackage(input.transport, payload);
-  const result = await getPackage(input.transport, input.receiveLength, input.timeoutMs);
+  const result = await sendAndReceivePackage(
+    input.transport,
+    payload,
+    input.receiveLength,
+    undefined,
+    input.timeoutMs,
+  );
 
   if (!result.data) {
     throw new Error('No response data');

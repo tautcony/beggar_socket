@@ -1,4 +1,4 @@
-import type { Transport, TransportReadMode } from '@/platform/serial';
+import type { SendAndReceiveOptions, Transport, TransportReadMode } from '@/platform/serial';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 
 import { PROTOCOL_ACK } from './constants';
@@ -48,12 +48,14 @@ export async function sendAndReceivePackage(
   readLength: number,
   sendTimeoutMs?: number,
   readTimeoutMs?: number,
+  options?: SendAndReceiveOptions,
 ): Promise<{ data: Uint8Array }> {
   return input.sendAndReceive(
     payload,
     readLength,
     sendTimeoutMs ?? AdvancedSettings.packageSendTimeout,
     readTimeoutMs ?? AdvancedSettings.packageReceiveTimeout,
+    options,
   );
 }
 
@@ -63,10 +65,16 @@ export async function sendAndExpectAck(
   sendTimeoutMs?: number,
   readTimeoutMs?: number,
 ): Promise<boolean> {
-  const result = await sendAndReceivePackage(input, payload, 1, sendTimeoutMs, readTimeoutMs);
   // 对齐 C# 客户端读取 ACK 后的 DiscardInBuffer：协议上 ACK 之后不应再有字节，
-  // 立即丢弃已到达的杂散数据，避免残留字节使后续命令的响应帧错位。
-  await input.flushInput?.();
+  // 通过 Transport 原子选项在互斥锁内立即丢弃杂散数据，避免残留字节使后续命令的响应帧错位。
+  const result = await sendAndReceivePackage(
+    input,
+    payload,
+    1,
+    sendTimeoutMs,
+    readTimeoutMs,
+    { flushAfterRead: true },
+  );
   return result.data?.byteLength > 0 && result.data[0] === PROTOCOL_ACK;
 }
 

@@ -1,4 +1,3 @@
-import { CartridgeProtocolPortAdapter } from '../adapters/cartridge-protocol-port';
 import { type BurnerUseCase, BurnerUseCaseImpl } from './burner-use-case';
 
 export interface CreateBurnerUseCaseOptions {
@@ -7,6 +6,5 @@ export interface CreateBurnerUseCaseOptions {
 }
 
 export function createBurnerUseCase(options: CreateBurnerUseCaseOptions): BurnerUseCase {
-  const protocolPort = new CartridgeProtocolPortAdapter();
-  return new BurnerUseCaseImpl(protocolPort, options.translate, options.formatHex);
+  return new BurnerUseCaseImpl(options.translate, options.formatHex);
 }

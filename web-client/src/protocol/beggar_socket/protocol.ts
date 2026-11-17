@@ -109,14 +109,6 @@ export async function rom_get_id(input: ProtocolTransportInput): Promise<Uint8Ar
 }
 
 /**
- * GBA: Erase chip (0xf1)
- */
-export async function rom_erase_chip(input: ProtocolTransportInput): Promise<void> {
-  const ack = await sendAndExpectAck(input, createCommandPayload(GBACommand.ERASE_CHIP).build());
-  if (!ack) throw new Error('GBA Erase failed');
-}
-
-/**
  * GBA: ROM Sector Erase (0xf3)
  */
 export async function rom_erase_sector(input: ProtocolTransportInput, sectorAddress: number): Promise<boolean> {
@@ -132,13 +124,6 @@ export async function rom_erase_sector(input: ProtocolTransportInput, sectorAddr
   } catch (error) {
     throw new Error(`${errorPrefix}, Reason: ${error instanceof Error ? error.message : String(error)}`);
   }
-}
-
-export async function rom_erase_sector_direct(input: ProtocolTransportInput, sectorAddress: number): Promise<boolean> {
-  const payload = createCommandPayload(GBACommand.SECTOR_ERASE).addAddress(sectorAddress).build();
-  const ack = await sendAndExpectAck(input, payload);
-  if (!ack) throw new Error('GBA ROM sector erase failed');
-  return ack;
 }
 
 /**
@@ -330,17 +315,6 @@ export async function gbc_rom_get_id(input: ProtocolTransportInput): Promise<Uin
   return flashGetId(input, GBC_FLASH_CMD_SET, [
     { address: 0x00, size: 4 },
   ]);
-}
-
-/**
- */
-export async function gbc_rom_erase_chip(input: ProtocolTransportInput) {
-  await flashEraseCommand(input, GBC_FLASH_CMD_SET, GBC_FLASH_ADDR_1, FLASH_CMD_CHIP_ERASE);
-  await flashPollUntilReady(input, GBC_FLASH_CMD_SET, 0x00, {
-    pollBytes: 1,
-    pollIntervalMs: GBC_CHIP_ERASE_POLL_INTERVAL_MS,
-    timeoutMs: GBC_CHIP_ERASE_TIMEOUT_MS,
-  });
 }
 
 /**

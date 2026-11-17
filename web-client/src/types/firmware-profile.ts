@@ -139,9 +139,14 @@ export function isRamTypeSupportedByFirmware(
     : profile.capabilities.gbcFramRam;
 }
 
-export function firmwareUnsupportedResult(operation: string, profile: FirmwareProfile): { success: false; message: string } {
+export function firmwareUnsupportedResult(
+  operation: string,
+  profile: FirmwareProfile,
+): { success: false; message: string; errorCode: string; errorStage: string } {
   return {
     success: false,
     message: `${operation} is not supported by ${profile.label} firmware`,
+    errorCode: 'unsupported',
+    errorStage: 'protocol',
   };
 }

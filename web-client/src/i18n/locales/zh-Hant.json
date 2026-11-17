@@ -472,6 +472,8 @@
       "firmware": {
         "title": "韌體類型",
         "profile": "目前插入裝置韌體",
+        "activeProfile": "目前連線生效韌體",
+        "reconnectNotice": "修改將在重新連線或重新初始化連線後生效。",
         "stm": "丐中丐",
         "stc": "碳酸丐"
       },
@@ -487,7 +489,8 @@
       },
       "size": {
         "title": "讀寫設定",
-        "romPageSize": "ROM讀寫分頁大小",
+        "romPageSize": "ROM寫入分頁大小",
+        "romReadPageSize": "ROM讀取分頁大小",
         "ramPageSize": "RAM讀寫分頁大小",
         "bytes": "位元組",
         "validation": {

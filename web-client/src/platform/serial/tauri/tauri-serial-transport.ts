@@ -112,11 +112,16 @@ export class TauriSerialTransport implements Transport {
     readLength: number,
     sendTimeoutMs?: number,
     readTimeoutMs?: number,
+    options?: { flushAfterRead?: boolean },
   ): Promise<{ data: Uint8Array }> {
     const release = await this.mutex.acquire();
     try {
       await this.send(payload, sendTimeoutMs);
-      return await this.read(readLength, readTimeoutMs);
+      const result = await this.read(readLength, readTimeoutMs);
+      if (options?.flushAfterRead) {
+        await this.flushInput();
+      }
+      return result;
     } finally {
       release();
     }

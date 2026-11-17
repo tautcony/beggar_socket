@@ -61,6 +61,19 @@
                   </option>
                 </RetroSelect>
               </div>
+              <small
+                v-if="activeFirmwareProfile"
+                class="hint active-profile-status"
+                data-testid="active-firmware-profile"
+              >
+                {{ $t('ui.settings.firmware.activeProfile') }}: {{ activeFirmwareProfile.label }} ({{ activeFirmwareProfile.id }})
+              </small>
+              <small
+                class="hint firmware-reconnect-notice"
+                data-testid="firmware-reconnect-notice"
+              >
+                {{ $t('ui.settings.firmware.reconnectNotice') }}
+              </small>
             </div>
           </div>
         </div>
@@ -157,6 +170,29 @@
                 {{ validationErrors.romPageSize }}
               </div>
               <small class="hint">{{ formatBytes(localSettings.size.romPageSize) }}</small>
+            </div>
+
+            <div class="setting-item">
+              <label for="rom-read-page-size">{{ $t('ui.settings.size.romReadPageSize') }}</label>
+              <div class="input-group">
+                <input
+                  id="rom-read-page-size"
+                  v-model.number="localSettings.size.romReadPageSize"
+                  type="number"
+                  :min="limits.readPageSize.min"
+                  :max="limits.readPageSize.max"
+                  :step="64"
+                  @input="validateAndUpdate"
+                >
+                <span class="unit">{{ $t('ui.settings.size.bytes') }}</span>
+              </div>
+              <div
+                v-if="validationErrors.romReadPageSize"
+                class="validation-error"
+              >
+                {{ validationErrors.romReadPageSize }}
+              </div>
+              <small class="hint">{{ formatBytes(localSettings.size.romReadPageSize) }}</small>
             </div>
 
             <div class="setting-item">
@@ -570,13 +606,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { RetroButton, RetroModal, RetroSelect } from '@/components/retro';
 import { DEFAULT_FONT_FAMILY, type FontFamilyId, useFont } from '@/composables/useFont';
 import { DEFAULT_COLOR_THEME, useTheme } from '@/composables/useTheme';
 import { AdvancedSettings } from '@/settings/advanced-settings';
+import type { DeviceInfo } from '@/types/device-info';
 import type { ConfigurableFirmwareProfileId } from '@/types/firmware-profile';
 import { formatBytes, formatTimeClock } from '@/utils/formatter-utils';
 
@@ -593,9 +630,14 @@ function onFontChange(value: string | number | undefined) {
 }
 
 // 定义 props
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: boolean;
-}>();
+  device?: DeviceInfo | null;
+}>(), {
+  device: null,
+});
+
+const activeFirmwareProfile = computed(() => props.device?.firmwareProfile ?? null);
 
 // 定义事件
 const emit = defineEmits<{
@@ -653,6 +695,7 @@ const activeSection = ref<SettingsSectionId>('firmware');
 // 验证错误
 const validationErrors = ref({
   romPageSize: '',
+  romReadPageSize: '',
   ramPageSize: '',
   romReadThrottle: '',
   ramReadThrottle: '',
@@ -673,7 +716,11 @@ const validationErrors = ref({
 const hasSectionError = (sectionId: SettingsSectionId): boolean => {
   switch (sectionId) {
     case 'size':
-      return Boolean(validationErrors.value.romPageSize || validationErrors.value.ramPageSize);
+      return Boolean(
+        validationErrors.value.romPageSize
+        || validationErrors.value.romReadPageSize
+        || validationErrors.value.ramPageSize,
+      );
     case 'timeout':
       return Boolean(
         validationErrors.value.defaultTimeout
@@ -739,7 +786,18 @@ const settingsSections = computed(() => {
   ];
 });
 
-// 验证单个值
+const validateReadPageSize = (value: number): string => {
+  if (isNaN(value) || value < limits.readPageSize.min || value > limits.readPageSize.max) {
+    return t('ui.settings.size.validation.range', {
+      min: limits.readPageSize.min,
+      max: limits.readPageSize.max,
+    });
+  }
+  if (value % 64 !== 0) {
+    return t('ui.settings.size.validation.multiple', { multipler: 64 });
+  }
+  return '';
+};
 const validatePageSize = (value: number): string => {
   if (isNaN(value) || value < limits.pageSize.min || value > limits.pageSize.max) {
     return t('ui.settings.size.validation.range', {
@@ -797,6 +855,7 @@ const validateRetryDelay = (value: number): string => {
 const validateAndUpdate = () => {
   // 验证页面大小
   validationErrors.value.romPageSize = validatePageSize(localSettings.value.size.romPageSize);
+  validationErrors.value.romReadPageSize = validateReadPageSize(localSettings.value.size.romReadPageSize);
   validationErrors.value.ramPageSize = validatePageSize(localSettings.value.size.ramPageSize);
   validationErrors.value.romReadThrottle = validateThrottle(localSettings.value.throttle.romRead);
   validationErrors.value.ramReadThrottle = validateThrottle(localSettings.value.throttle.ramRead);
@@ -848,10 +907,18 @@ const applySettings = () => {
   }
 };
 
-// 组件挂载时加载当前设置
-onMounted(() => {
+// 组件挂载或打开时加载当前设置
+const loadCurrentSettings = () => {
   localSettings.value = AdvancedSettings.getSettings();
   validateAndUpdate();
+};
+
+onMounted(loadCurrentSettings);
+
+watch(() => props.modelValue, (visible) => {
+  if (visible) {
+    loadCurrentSettings();
+  }
 });
 </script>
 

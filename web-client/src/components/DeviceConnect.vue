@@ -9,7 +9,7 @@
     >
       <RetroButton
         :variant="connected ? 'secondary' : 'primary'"
-        :disabled="isConnecting"
+        :disabled="isConnecting || (connected && connectionBusy)"
         :title="connectionTooltip"
         :icon="buttonIcon"
         :text="buttonText"
@@ -19,7 +19,7 @@
       <RetroButton
         v-if="connected"
         variant="warning"
-        :disabled="isConnecting"
+        :disabled="isConnecting || connectionBusy"
         :text="t('ui.device.resetConnection')"
         @click="() => initializeSerialState(deviceInfo, true)"
       />
@@ -41,6 +41,7 @@ import { useI18n } from 'vue-i18n';
 
 import PortSelectorModal from '@/components/modal/PortSelectorModal.vue';
 import { RetroButton } from '@/components/retro';
+import { useConnectionOperationBusy } from '@/composables/useConnectionOperationBusy';
 import { useToast } from '@/composables/useToast';
 import { getRuntimeKind } from '@/platform/runtime';
 import { DeviceConnectionManager, PortSelectionRequiredError } from '@/services/device-connection-manager';
@@ -56,6 +57,7 @@ const props = withDefaults(defineProps<{
 
 const { showToast } = useToast();
 const { t } = useI18n();
+const { connectionBusy } = useConnectionOperationBusy();
 const emit = defineEmits<{
   'device-ready': [device: DeviceInfo]
   'device-disconnected': []
@@ -219,18 +221,26 @@ async function disconnect() {
   if (isProcessing.value || !deviceInfo.value) return;
   isProcessing.value = true;
   isConnecting.value = true;
+  let rejectedAsBusy = false;
   try {
     await deviceManager.disconnectDevice(deviceInfo.value);
     showToast(t('messages.device.disconnectionSuccess'), 'success');
   } catch (e) {
+    if (e && typeof e === 'object' && 'code' in e && (e as { code?: unknown }).code === 'busy') {
+      rejectedAsBusy = true;
+      showToast(t('ui.operation.busy'), 'error');
+      return;
+    }
     console.error(t('messages.device.disconnectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), e);
     showToast(t('messages.device.disconnectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
   } finally {
     isProcessing.value = false;
     isConnecting.value = false;
-    connected.value = false;
-    deviceInfo.value = null;
-    emit('device-disconnected');
+    if (!rejectedAsBusy) {
+      connected.value = false;
+      deviceInfo.value = null;
+      emit('device-disconnected');
+    }
   }
 }
 
@@ -246,6 +256,12 @@ async function initializeSerialState(device?: DeviceInfo | null, toast = false) 
       showToast(t('messages.device.initializationSuccess'), 'success');
     }
   } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error && (error as { code?: unknown }).code === 'busy') {
+      if (toast) {
+        showToast(t('ui.operation.busy'), 'error');
+      }
+      return;
+    }
     console.error('Failed to initialize device:', error);
     if (toast) {
       showToast(t('messages.device.initializationFailed', { error: error instanceof Error ? error.message : String(error) }), 'error');

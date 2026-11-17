@@ -114,6 +114,90 @@ describe('MBC5Adapter.verifyROM', () => {
     expect(result.success).toBe(true);
     expect(switchSpy).toHaveBeenCalledWith(1, mbcType);
   });
+
+  it('rejects enable5V when firmware profile does not support cartPowerControl', async () => {
+    const adapter = new MBC5Adapter(createMockDevice({ firmwareProfile: STM_FIRMWARE_PROFILE }));
+    const switchSpy = vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+
+    const result = await adapter.verifyROM(new Uint8Array([0xab]), createOptions('MBC5', { enable5V: true }));
+
+    expect(result.success).toBe(false);
+    expect(mockCartPower).not.toHaveBeenCalled();
+    expect(switchSpy).not.toHaveBeenCalled();
+    expect(mockGbcRead).not.toHaveBeenCalled();
+  });
+
+  it('enables 5V before verify and restores 3.3V on success, mismatch, error, and cancellation', async () => {
+    // 1. Success
+    const device = createMockDevice({ firmwareProfile: STC_FIRMWARE_PROFILE });
+    const adapter = new MBC5Adapter(device);
+    vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+    mockCartPower.mockResolvedValue(undefined);
+    mockGbcRead.mockResolvedValue(new Uint8Array([0xab]));
+
+    const okRes = await adapter.verifyROM(new Uint8Array([0xab]), createOptions('MBC5', { enable5V: true }));
+    expect(okRes.success).toBe(true);
+    expect(mockCartPower.mock.calls.map((c) => c[1])).toEqual([0, 2, 1]);
+
+    // 2. Mismatch failure
+    mockCartPower.mockClear();
+    mockGbcRead.mockResolvedValue(new Uint8Array([0xcd]));
+    const mismatchRes = await adapter.verifyROM(new Uint8Array([0xab]), createOptions('MBC5', { enable5V: true }));
+    expect(mismatchRes.success).toBe(false);
+    expect(mockCartPower.mock.calls.map((c) => c[1])).toEqual([0, 2, 1]);
+
+    // 3. Read error (with retries = 0)
+    mockCartPower.mockClear();
+    AdvancedSettings.romReadRetryCount = 0;
+    mockGbcRead.mockRejectedValue(new Error('read timeout'));
+    const errRes = await adapter.verifyROM(new Uint8Array([0xab]), createOptions('MBC5', { enable5V: true }));
+    expect(errRes.success).toBe(false);
+    expect(mockCartPower.mock.calls.map((c) => c[1])).toEqual([0, 2, 1]);
+
+    // 4. Cancellation during loop
+    mockCartPower.mockClear();
+    const controller = new AbortController();
+    mockGbcRead.mockImplementation(async () => {
+      controller.abort();
+      return new Uint8Array([0xab]);
+    });
+    const cancelRes = await adapter.verifyROM(
+      new Uint8Array([0xab, 0xcd]),
+      createOptions('MBC5', { enable5V: true, size: 2, romPageSize: 1 }),
+      controller.signal,
+    );
+    expect(cancelRes.success).toBe(false);
+    expect(mockCartPower.mock.calls.map((c) => c[1])).toEqual([0, 2, 1]);
+  });
+
+  it('stabilizes command channel, restores bank, and retries failed verify chunk reads', async () => {
+    const device = createMockDevice({ firmwareProfile: STC_FIRMWARE_PROFILE });
+    const adapter = new MBC5Adapter(device);
+    const stabilizeSpy = vi.spyOn(adapter as unknown as { stabilizeCommandChannel: (ms?: number) => Promise<void> }, 'stabilizeCommandChannel');
+    const switchSpy = vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+    AdvancedSettings.romReadRetryCount = 2;
+    AdvancedSettings.romReadRetryDelayMs = 0;
+
+    let attempts = 0;
+    mockGbcRead.mockImplementation(async () => {
+      attempts++;
+      if (attempts === 1) {
+        throw new Error('transient read error');
+      }
+      return new Uint8Array([0xab]);
+    });
+
+    const result = await adapter.verifyROM(new Uint8Array([0xab]), createOptions('MBC5'));
+
+    expect(result.success).toBe(true);
+    expect(mockGbcRead).toHaveBeenCalledTimes(2);
+    // Once at start of verifyROM, once on retry
+    expect(stabilizeSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+    // Initial bank switch + bank restore after transient error
+    expect(switchSpy).toHaveBeenCalledTimes(2);
+    expect(switchSpy).toHaveBeenNthCalledWith(1, 1, 'MBC5');
+    expect(switchSpy).toHaveBeenNthCalledWith(2, 1, 'MBC5');
+  });
 });
 
 describe('MBC5Adapter.writeROM recovery', () => {
@@ -389,5 +473,71 @@ describe('MBC5Adapter transfer planning, efficiency, and stateful recovery', () 
     expect(mockGbcRomProgram).toHaveBeenCalledTimes(4);
     expect(storage.subarray(baseAddress, baseAddress + input.byteLength)).toEqual(input);
     expect(storage.subarray(baseAddress + input.byteLength, baseAddress + total)).toEqual(new Uint8Array(0x2000).fill(0xff));
+  });
+
+  it.each([512, 1024])('honors AdvancedSettings.romPageSize = %d B during writeROM when options.romPageSize is omitted', async (configuredPageSize) => {
+    AdvancedSettings.romPageSize = configuredPageSize;
+    const adapter = new MBC5Adapter(createMockDevice({ firmwareProfile: STC_FIRMWARE_PROFILE }));
+    vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+    mockGbcRomEraseSector.mockResolvedValue(undefined);
+    mockGbcRomProgram.mockResolvedValue(undefined);
+
+    const input = new Uint8Array(2048).fill(0x5a);
+    const res = await adapter.writeROM(input, createOptions('MBC5', {
+      baseAddress: 0x0000,
+      size: 2048,
+      romPageSize: undefined,
+    }));
+
+    expect(res.success).toBe(true);
+    const chunkSizes = mockGbcRomProgram.mock.calls.map(([, chunk]) => (chunk as Uint8Array).byteLength);
+    expect(chunkSizes).toEqual(Array(2048 / configuredPageSize).fill(configuredPageSize));
+  });
+
+  it('caps real-device writeROM chunks at <= 4096 B even when STC romReadPageSize is 32 KiB and options.romPageSize is omitted', async () => {
+    AdvancedSettings.romReadPageSize = 0x8000;
+    AdvancedSettings.romPageSize = 4096;
+    const adapter = new MBC5Adapter(createMockDevice({ firmwareProfile: STC_FIRMWARE_PROFILE }));
+    vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+    mockGbcRomEraseSector.mockResolvedValue(undefined);
+    mockGbcRomProgram.mockResolvedValue(undefined);
+
+    const input = new Uint8Array(0x4000).fill(0x3c);
+    const res = await adapter.writeROM(input, createOptions('MBC5', {
+      baseAddress: 0x0000,
+      size: 0x4000,
+      romPageSize: undefined,
+    }));
+
+    expect(res.success).toBe(true);
+    const chunkSizes = mockGbcRomProgram.mock.calls.map(([, chunk]) => (chunk as Uint8Array).byteLength);
+    expect(chunkSizes.every((len) => len <= 4096)).toBe(true);
+    expect(chunkSizes).toEqual([4096, 4096, 4096, 4096]);
+  });
+
+  it('preserves independent simulated-device magnification branch in writeROM', async () => {
+    AdvancedSettings.romPageSize = 512;
+    const device = createMockDevice({
+      firmwareProfile: STC_FIRMWARE_PROFILE,
+    });
+    device.serialHandle = {
+      platform: 'simulated',
+      transport: device.transport,
+    } as unknown as DeviceInfo['serialHandle'];
+    const adapter = new MBC5Adapter(device);
+    vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+    mockGbcRomEraseSector.mockResolvedValue(undefined);
+    mockGbcRomProgram.mockResolvedValue(undefined);
+
+    const input = new Uint8Array(0x4000).fill(0x7e);
+    const res = await adapter.writeROM(input, createOptions('MBC5', {
+      baseAddress: 0x0000,
+      size: 0x4000,
+      romPageSize: undefined,
+    }));
+
+    expect(res.success).toBe(true);
+    const chunkSizes = mockGbcRomProgram.mock.calls.map(([, chunk]) => (chunk as Uint8Array).byteLength);
+    expect(chunkSizes).toEqual([0x4000]);
   });
 });

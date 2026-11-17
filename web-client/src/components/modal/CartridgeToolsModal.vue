@@ -161,7 +161,9 @@ import { useI18n } from 'vue-i18n';
 
 import RTCModal from '@/components/modal/RTCModal.vue';
 import { RetroButton, RetroModal, RetroSegmented } from '@/components/retro';
+import { useConnectionOperationBusy } from '@/composables/useConnectionOperationBusy';
 import { useToast } from '@/composables/useToast';
+import { DeviceConnectionManager } from '@/services/device-connection-manager';
 import type { GBARTCData, MBC3RTCData } from '@/services/rtc';
 import { ppbUnlockGBA, ppbUnlockMBC5, readRTC, rumbleTest, setRTC } from '@/services/tool-functions';
 import type { DeviceInfo } from '@/types/device-info';
@@ -191,7 +193,9 @@ const localVisible = computed({
   },
 });
 
-const busy = ref(false);
+const { connectionBusy } = useConnectionOperationBusy();
+const localBusy = ref(false);
+const busy = computed(() => localBusy.value || connectionBusy.value);
 const isRTCModalVisible = ref(false);
 const rtcType = ref<'GBA' | 'MBC3'>('GBA');
 const activeTab = ref<'rtc' | 'test'>('rtc');
@@ -307,37 +311,58 @@ function handleSetRTC(type: 'GBA' | 'MBC3') {
   isRTCModalVisible.value = true;
 }
 
+async function runToolOperation(fn: () => Promise<void>): Promise<void> {
+  localBusy.value = true;
+  try {
+    const opResult = await DeviceConnectionManager.getInstance().runConnectionOperation({
+      expectedGeneration: props.device?.connectionGeneration,
+      requireConnected: false,
+      fn,
+    });
+    if (!opResult.ok) {
+      if (opResult.reason === 'busy') {
+        showToast(t('ui.operation.busy'), 'error');
+        return;
+      }
+      throw opResult.error instanceof Error ? opResult.error : new Error(opResult.message);
+    }
+  } finally {
+    localBusy.value = false;
+  }
+}
+
 async function handleReadRTC(type: 'GBA' | 'MBC3') {
   if (!props.device) {
     showToast(t('messages.device.notConnected'), 'error');
     return;
   }
 
-  busy.value = true;
   try {
-    const result = await readRTC(props.device, type);
-    if (result.status && result.time) {
-      // 启动时钟显示，以读取的时间为基准
-      startClock(result.time);
+    await runToolOperation(async () => {
+      const result = await readRTC(props.device!, type);
+      if (result.status && result.time) {
+        // 启动时钟显示，以读取的时间为基准
+        startClock(result.time);
 
-      const timeDiff = calculateTimeDifference(result.time);
-      const timeText = timeDiff
-        ? `${result.time.toFormat('yyyy-MM-dd HH:mm:ss')} (${timeDiff})`
-        : result.time.toFormat('yyyy-MM-dd HH:mm:ss');
-      showToast(
-        t('messages.tools.rtc.readSuccess', {
-          time: timeText,
-        }),
-        'success',
-      );
-    } else {
-      showToast(
-        t('messages.tools.rtc.readFailed', {
-          error: result.error ?? '未知错误',
-        }),
-        'error',
-      );
-    }
+        const timeDiff = calculateTimeDifference(result.time);
+        const timeText = timeDiff
+          ? `${result.time.toFormat('yyyy-MM-dd HH:mm:ss')} (${timeDiff})`
+          : result.time.toFormat('yyyy-MM-dd HH:mm:ss');
+        showToast(
+          t('messages.tools.rtc.readSuccess', {
+            time: timeText,
+          }),
+          'success',
+        );
+      } else {
+        showToast(
+          t('messages.tools.rtc.readFailed', {
+            error: result.error ?? '未知错误',
+          }),
+          'error',
+        );
+      }
+    });
   } catch (error) {
     console.error(`读取${type} RTC失败:`, error);
     showToast(
@@ -346,8 +371,6 @@ async function handleReadRTC(type: 'GBA' | 'MBC3') {
       }),
       'error',
     );
-  } finally {
-    busy.value = false;
   }
 }
 
@@ -361,17 +384,18 @@ async function handleRTCConfirm(data: GBARTCData | MBC3RTCData) {
     return;
   }
 
-  busy.value = true;
   closeRTCModal();
 
   try {
-    if (rtcType.value === 'GBA') {
-      await setRTC(props.device, 'GBA', data);
-      showToast(t('messages.tools.rtc.gbaSuccess'), 'success');
-    } else {
-      await setRTC(props.device, 'MBC3', data);
-      showToast(t('messages.tools.rtc.mbc3Success'), 'success');
-    }
+    await runToolOperation(async () => {
+      if (rtcType.value === 'GBA') {
+        await setRTC(props.device!, 'GBA', data);
+        showToast(t('messages.tools.rtc.gbaSuccess'), 'success');
+      } else {
+        await setRTC(props.device!, 'MBC3', data);
+        showToast(t('messages.tools.rtc.mbc3Success'), 'success');
+      }
+    });
   } catch (error) {
     console.error('RTC setting failed:', error);
     showToast(
@@ -380,8 +404,6 @@ async function handleRTCConfirm(data: GBARTCData | MBC3RTCData) {
       }),
       'error',
     );
-  } finally {
-    busy.value = false;
   }
 }
 
@@ -391,12 +413,13 @@ async function handleRumbleTest() {
     return;
   }
 
-  busy.value = true;
   addLog(t('messages.tools.rumbleTest.start'), 'info');
   try {
-    await rumbleTest(props.device);
-    showToast(t('messages.tools.rumbleSuccess'), 'success');
-    addLog(t('messages.tools.rumbleSuccess'), 'success');
+    await runToolOperation(async () => {
+      await rumbleTest(props.device!);
+      showToast(t('messages.tools.rumbleSuccess'), 'success');
+      addLog(t('messages.tools.rumbleSuccess'), 'success');
+    });
   } catch (error) {
     console.error('Rumble test failed:', error);
     const errorMsg = error instanceof Error ? error.message : String(error);
@@ -407,8 +430,6 @@ async function handleRumbleTest() {
       'error',
     );
     addLog(t('messages.tools.rumbleFailed', { error: errorMsg }), 'error');
-  } finally {
-    busy.value = false;
   }
 }
 
@@ -418,29 +439,30 @@ async function handlePPBUnlockGBA() {
     return;
   }
 
-  busy.value = true;
   addLog(t('messages.tools.ppbUnlockGBA.start'), 'info');
   try {
-    const result = await ppbUnlockGBA(props.device, ({ progress, message, type }) => {
-      if (progress !== undefined) {
-        addLog(`${t('messages.tools.ppbUnlockGBA.progress')}: ${progress}%`, 'info');
-      } else if (message) {
-        addLog(message, type === 'warn' ? 'warning' : type ?? 'info');
+    await runToolOperation(async () => {
+      const result = await ppbUnlockGBA(props.device!, ({ progress, message, type }) => {
+        if (progress !== undefined) {
+          addLog(`${t('messages.tools.ppbUnlockGBA.progress')}: ${progress}%`, 'info');
+        } else if (message) {
+          addLog(message, type === 'warn' ? 'warning' : type ?? 'info');
+        }
+      });
+
+      if (result.success) {
+        showToast(t('messages.tools.ppbUnlockGBASuccess'), 'success');
+        addLog(t('messages.tools.ppbUnlockGBASuccess'), 'success');
+      } else {
+        showToast(
+          t('messages.tools.ppbUnlockGBAFailed', {
+            error: result.message,
+          }),
+          'error',
+        );
+        addLog(t('messages.tools.ppbUnlockGBAFailed', { error: result.message }), 'error');
       }
     });
-
-    if (result.success) {
-      showToast(t('messages.tools.ppbUnlockGBASuccess'), 'success');
-      addLog(t('messages.tools.ppbUnlockGBASuccess'), 'success');
-    } else {
-      showToast(
-        t('messages.tools.ppbUnlockGBAFailed', {
-          error: result.message,
-        }),
-        'error',
-      );
-      addLog(t('messages.tools.ppbUnlockGBAFailed', { error: result.message }), 'error');
-    }
   } catch (error) {
     console.error('GBA PPB unlock failed:', error);
     const errorMsg = error instanceof Error ? error.message : String(error);
@@ -451,8 +473,6 @@ async function handlePPBUnlockGBA() {
       'error',
     );
     addLog(t('messages.tools.ppbUnlockGBAFailed', { error: errorMsg }), 'error');
-  } finally {
-    busy.value = false;
   }
 }
 
@@ -462,29 +482,30 @@ async function handlePPBUnlockMBC5() {
     return;
   }
 
-  busy.value = true;
   addLog(t('messages.tools.ppbUnlockMBC5.start'), 'info');
   try {
-    const result = await ppbUnlockMBC5(props.device, ({ progress, message, type }) => {
-      if (progress !== undefined) {
-        addLog(`${t('messages.tools.ppbUnlockMBC5.progress')}: ${progress}%`, 'info');
-      } else if (message) {
-        addLog(message, type === 'warn' ? 'warning' : type ?? 'info');
+    await runToolOperation(async () => {
+      const result = await ppbUnlockMBC5(props.device!, ({ progress, message, type }) => {
+        if (progress !== undefined) {
+          addLog(`${t('messages.tools.ppbUnlockMBC5.progress')}: ${progress}%`, 'info');
+        } else if (message) {
+          addLog(message, type === 'warn' ? 'warning' : type ?? 'info');
+        }
+      });
+
+      if (result.success) {
+        showToast(t('messages.tools.ppbUnlockMBC5Success'), 'success');
+        addLog(t('messages.tools.ppbUnlockMBC5Success'), 'success');
+      } else {
+        showToast(
+          t('messages.tools.ppbUnlockMBC5Failed', {
+            error: result.message,
+          }),
+          'error',
+        );
+        addLog(t('messages.tools.ppbUnlockMBC5Failed', { error: result.message }), 'error');
       }
     });
-
-    if (result.success) {
-      showToast(t('messages.tools.ppbUnlockMBC5Success'), 'success');
-      addLog(t('messages.tools.ppbUnlockMBC5Success'), 'success');
-    } else {
-      showToast(
-        t('messages.tools.ppbUnlockMBC5Failed', {
-          error: result.message,
-        }),
-        'error',
-      );
-      addLog(t('messages.tools.ppbUnlockMBC5Failed', { error: result.message }), 'error');
-    }
   } catch (error) {
     console.error('MBC5 PPB unlock failed:', error);
     const errorMsg = error instanceof Error ? error.message : String(error);
@@ -495,8 +516,6 @@ async function handlePPBUnlockMBC5() {
       'error',
     );
     addLog(t('messages.tools.ppbUnlockMBC5Failed', { error: errorMsg }), 'error');
-  } finally {
-    busy.value = false;
   }
 }
 </script>

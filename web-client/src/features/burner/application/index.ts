@@ -4,6 +4,13 @@ export {
   BurnerUseCaseImpl,
   type GameDetectionResult,
 } from './burner-use-case';
+export {
+  ConnectionOperationCoordinator,
+  type ConnectionOperationFailureReason,
+  type ConnectionOperationResult,
+  type ConnectionOperationToken,
+  type RunConnectionOperationOptions,
+} from './connection-operation-coordinator';
 export { ConnectionOrchestrationUseCase } from './connection-use-case';
 export type {
   ConnectionCommandResult,
@@ -19,7 +26,6 @@ export type {
   BurnerConnectionHandle,
   BurnerConnectionPort,
   BurnerConnectionSelection,
-  BurnerProtocolPort,
   BurnerProtocolSession,
   BurnerSessionPort,
 } from './domain/ports';

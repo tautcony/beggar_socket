@@ -4,8 +4,9 @@ import type { CFIInfo } from '@/utils/parsers/cfi-parser';
 import { parseRom, type RomInfo } from '@/utils/parsers/rom-parser';
 import { calcSectorUsage } from '@/utils/sector-utils';
 
-import type { BurnerProtocolPort, BurnerProtocolSession } from './domain/ports';
-import type { BurnerDomainResult } from './domain/result';
+import { mapDomainError } from './domain/error-mapping';
+import type { BurnerProtocolSession } from './domain/ports';
+import type { BurnerErrorStage } from './domain/result';
 
 export interface GameDetectionResult {
   startAddress: number;
@@ -45,34 +46,8 @@ export interface BurnerOperationContext {
   signal?: AbortSignal;
 }
 
-function toFailureResult(result: BurnerDomainResult<unknown>, fallbackMessage: string): CommandResult {
-  if (result.ok) {
-    return {
-      success: true,
-      message: fallbackMessage,
-    };
-  }
-
-  return {
-    success: false,
-    message: result.error.message || fallbackMessage,
-  };
-}
-
-function toCommandResult(result: BurnerDomainResult<CommandResult>, fallbackMessage: string): CommandResult {
-  if (result.ok) {
-    return result.data;
-  }
-
-  return {
-    success: false,
-    message: result.error.message || fallbackMessage,
-  };
-}
-
 export class BurnerUseCaseImpl implements BurnerUseCase {
   constructor(
-    private readonly protocolPort: BurnerProtocolPort,
     private readonly translate: (key: string) => string,
     private readonly formatHex: (value: number, length?: number) => string,
   ) {}
@@ -82,10 +57,36 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
       return {
         success: false,
         message: 'Device not connected',
+        errorCode: 'not_connected',
+        errorStage: 'session',
       };
     }
 
     return null;
+  }
+
+  private async executeSessionCommand(
+    session: BurnerProtocolSession,
+    stage: BurnerErrorStage,
+    fallbackMessage: string,
+    operation: () => Promise<CommandResult>,
+  ): Promise<CommandResult> {
+    const inactive = this.ensureSessionActive(session);
+    if (inactive) {
+      return inactive;
+    }
+
+    try {
+      return await operation();
+    } catch (error) {
+      const mapped = mapDomainError(stage, error, fallbackMessage);
+      return {
+        success: false,
+        message: mapped.message,
+        errorCode: mapped.code,
+        errorStage: mapped.stage,
+      };
+    }
   }
 
   async readCart(session: BurnerProtocolSession, enable5V: boolean): Promise<BurnerReadCartResult> {
@@ -94,103 +95,114 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
       return inactive;
     }
 
-    const result = await this.protocolPort.readCartInfo(session, enable5V);
-    if (!result.ok) {
+    try {
+      const cfiInfo = await session.getCartInfo(enable5V);
+      if (!cfiInfo) {
+        const cause = session.getLastCartInfoError?.();
+        const message = cause
+          ? `${this.translate('messages.operation.readCartFailed')}: ${cause}`
+          : this.translate('messages.operation.readCartFailed');
+        const mapped = cause
+          ? mapDomainError('protocol', new Error(cause), cause)
+          : { code: 'runtime_error', stage: 'protocol' };
+        return {
+          success: false,
+          message,
+          errorCode: mapped.code,
+          errorStage: mapped.stage,
+        };
+      }
+
+      return {
+        success: true,
+        message: this.translate('messages.operation.readCartSuccess'),
+        cfiInfo,
+        chipId: cfiInfo.flashId ? Array.from(cfiInfo.flashId) : undefined,
+        romSizeHex: this.formatHex(cfiInfo.deviceSize, 4),
+      };
+    } catch (error) {
+      const mapped = mapDomainError('protocol', error, this.translate('messages.operation.readCartFailed'));
       return {
         success: false,
-        message: `${this.translate('messages.operation.readCartFailed')}: ${result.error.message}`,
+        message: `${this.translate('messages.operation.readCartFailed')}: ${mapped.message}`,
+        errorCode: mapped.code,
+        errorStage: mapped.stage,
       };
     }
-
-    return {
-      success: true,
-      message: this.translate('messages.operation.readCartSuccess'),
-      cfiInfo: result.data,
-      chipId: result.data.flashId ? Array.from(result.data.flashId) : undefined,
-      romSizeHex: this.formatHex(result.data.deviceSize, 4),
-    };
   }
 
   async eraseChip(context: BurnerOperationContext): Promise<CommandResult> {
-    const inactive = this.ensureSessionActive(context.session);
-    if (inactive) {
-      return inactive;
-    }
-
     const { session, cfiInfo, options, signal } = context;
     const sectorInfo = calcSectorUsage(cfiInfo.eraseSectorBlocks, cfiInfo.deviceSize, 0x00);
-    const result = await this.protocolPort.eraseSectors(session, sectorInfo, options, signal);
-    return toCommandResult(result, this.translate('messages.operation.eraseFailed'));
+    return this.executeSessionCommand(
+      session,
+      'protocol',
+      this.translate('messages.operation.eraseFailed'),
+      () => session.eraseSectors(sectorInfo, options, signal),
+    );
   }
 
   async writeRom(context: BurnerOperationContext & { data: Uint8Array }): Promise<CommandResult> {
-    const inactive = this.ensureSessionActive(context.session);
-    if (inactive) {
-      return inactive;
-    }
-
-    const result = await this.protocolPort.writeRom(context.session, context.data, context.options, context.signal);
-    return toCommandResult(result, this.translate('messages.rom.writeFailed'));
+    return this.executeSessionCommand(
+      context.session,
+      'transport',
+      this.translate('messages.rom.writeFailed'),
+      () => context.session.writeROM(context.data, context.options, context.signal),
+    );
   }
 
   async readRom(context: BurnerOperationContext & { size: number; showProgress?: boolean }): Promise<CommandResult> {
-    const inactive = this.ensureSessionActive(context.session);
-    if (inactive) {
-      return inactive;
-    }
-
-    const result = await this.protocolPort.readRom(
+    return this.executeSessionCommand(
       context.session,
-      context.size,
-      context.options,
-      context.signal,
-      context.showProgress ?? true,
+      'transport',
+      this.translate('messages.rom.readFailed'),
+      () => context.session.readROM(
+        context.size,
+        context.options,
+        context.signal,
+        context.showProgress ?? true,
+      ),
     );
-    return toCommandResult(result, this.translate('messages.rom.readFailed'));
   }
 
   async verifyRom(context: BurnerOperationContext & { data: Uint8Array }): Promise<CommandResult> {
-    const inactive = this.ensureSessionActive(context.session);
-    if (inactive) {
-      return inactive;
-    }
-
     if (!context.signal) {
       throw new Error('verifyRom requires abort signal');
     }
 
-    const result = await this.protocolPort.verifyRom(context.session, context.data, context.options, context.signal);
-    return toCommandResult(result, this.translate('messages.rom.verifyFailed'));
+    return this.executeSessionCommand(
+      context.session,
+      'protocol',
+      this.translate('messages.rom.verifyFailed'),
+      () => context.session.verifyROM(context.data, context.options, context.signal!),
+    );
   }
 
   async writeRam(context: BurnerOperationContext & { data: Uint8Array }): Promise<CommandResult> {
-    const inactive = this.ensureSessionActive(context.session);
-    if (inactive) {
-      return inactive;
-    }
-
-    const result = await this.protocolPort.writeRam(context.session, context.data, context.options);
-    return toCommandResult(result, this.translate('messages.ram.writeFailed'));
+    return this.executeSessionCommand(
+      context.session,
+      'transport',
+      this.translate('messages.ram.writeFailed'),
+      () => context.session.writeRAM(context.data, context.options),
+    );
   }
 
   async readRam(context: BurnerOperationContext & { size: number }): Promise<CommandResult> {
-    const inactive = this.ensureSessionActive(context.session);
-    if (inactive) {
-      return inactive;
-    }
-
-    const result = await this.protocolPort.readRam(context.session, context.size, context.options);
-    return toCommandResult(result, this.translate('messages.ram.readFailed'));
+    return this.executeSessionCommand(
+      context.session,
+      'transport',
+      this.translate('messages.ram.readFailed'),
+      () => context.session.readRAM(context.size, context.options),
+    );
   }
 
   async verifyRam(context: BurnerOperationContext & { data: Uint8Array }): Promise<CommandResult> {
-    const inactive = this.ensureSessionActive(context.session);
-    if (inactive) {
-      return inactive;
-    }
-
-    const result = await this.protocolPort.verifyRam(context.session, context.data, context.options);
-    return toCommandResult(result, this.translate('messages.ram.verifyFailed'));
+    return this.executeSessionCommand(
+      context.session,
+      'protocol',
+      this.translate('messages.ram.verifyFailed'),
+      () => context.session.verifyRAM(context.data, context.options),
+    );
   }
 
   async resetCommandBuffer(session: BurnerProtocolSession): Promise<void> {
@@ -199,9 +211,11 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
       throw new Error(inactive.message);
     }
 
-    const result = await this.protocolPort.resetCommandBuffer(session);
-    if (!result.ok) {
-      throw new Error(toFailureResult(result, 'Reset command buffer failed').message);
+    try {
+      await session.resetCommandBuffer();
+    } catch (error) {
+      const mapped = mapDomainError('transport', error, 'Reset command buffer failed');
+      throw new Error(mapped.message);
     }
   }
 
@@ -234,16 +248,16 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
 
     for (let i = 0; i < bankCount; i++) {
       const baseAddress = i * 0x400000;
-      const headerResult = await this.protocolPort.readRom(
+      const headerResult = await this.readRom({
         session,
-        0x150,
-        { baseAddress, cfiInfo: cfi, mbcType: 'MBC5', enable5V: false },
-        undefined,
-        false,
-      );
+        cfiInfo: cfi,
+        size: 0x150,
+        options: { baseAddress, cfiInfo: cfi, mbcType: 'MBC5', enable5V: false },
+        showProgress: false,
+      });
 
-      if (headerResult.ok && headerResult.data.success && headerResult.data.data) {
-        const romInfo = parseRom(headerResult.data.data);
+      if (headerResult.success && headerResult.data) {
+        const romInfo = parseRom(headerResult.data);
         if (romInfo.isValid) {
           results.push({
             startAddress: baseAddress,
@@ -273,21 +287,21 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
     for (const range of multiCardRanges) {
       if (range.from >= deviceSize) break;
 
-      const fullHeaderResult = await this.protocolPort.readRom(
+      const fullHeaderResult = await this.readRom({
         session,
-        0x150,
-        {
+        cfiInfo: cfi,
+        size: 0x150,
+        options: {
           baseAddress: range.from,
           cfiInfo: cfi,
           mbcType,
           enable5V,
         },
-        undefined,
-        false,
-      );
+        showProgress: false,
+      });
 
-      if (fullHeaderResult.ok && fullHeaderResult.data.success && fullHeaderResult.data.data) {
-        const romInfo = parseRom(fullHeaderResult.data.data);
+      if (fullHeaderResult.success && fullHeaderResult.data) {
+        const romInfo = parseRom(fullHeaderResult.data);
         if (romInfo.isValid) {
           results.push({
             startAddress: range.from,
