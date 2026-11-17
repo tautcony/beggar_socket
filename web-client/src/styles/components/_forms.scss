@@ -9,7 +9,7 @@
   width: 100%;
   padding: spacing-vars.$space-2 spacing-vars.$space-3;
   font-size: typography-vars.$font-size-base;
-  font-family: typography-vars.$font-family-primary;
+  font-family: var(--font-family-primary);
   line-height: typography-vars.$line-height-normal;
   border: 1px solid color-vars.$color-border;
   border-radius: radius.$radius-input;

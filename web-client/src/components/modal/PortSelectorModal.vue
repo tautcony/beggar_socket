@@ -310,7 +310,7 @@ const onRefresh = () => {
 .port-serial {
   color: var(--color-text-tertiary);
   font-size: typography-vars.$font-size-xs;
-  font-family: monospace;
+  font-family: var(--retro-font-mono);
 }
 
 .port-indicator {

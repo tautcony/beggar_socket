@@ -14,7 +14,7 @@
   padding: spacing-vars.$space-2 spacing-vars.$space-4;
   font-size: typography-vars.$font-size-sm;
   font-weight: typography-vars.$font-weight-medium;
-  font-family: typography-vars.$font-family-primary;
+  font-family: var(--font-family-primary);
   line-height: typography-vars.$line-height-normal;
   border-radius: radius.$radius-button;
   border: none;

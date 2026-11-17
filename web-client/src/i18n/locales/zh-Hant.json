@@ -475,6 +475,16 @@
         "stm": "丐中丐",
         "stc": "碳酸丐"
       },
+      "appearance": {
+        "title": "外觀與字體",
+        "colorTheme": "顏色主題",
+        "fontFamily": "頁面字體",
+        "fontPreview": "字體預覽：方舟像素 / 復古工作台",
+        "fonts": {
+          "system": "系統預設字體",
+          "arkPixel": "Ark Pixel（方舟像素 12px）"
+        }
+      },
       "size": {
         "title": "讀寫設定",
         "romPageSize": "ROM讀寫分頁大小",

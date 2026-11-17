@@ -581,7 +581,7 @@ async function handlePPBUnlockMBC5() {
   .clock-date {
     font-size: typography-vars.$font-size-lg;
     color: var(--color-text-secondary);
-    font-family: 'Courier New', monospace;
+    font-family: var(--retro-font-mono);
   }
 }
 
@@ -623,7 +623,7 @@ async function handlePPBUnlockMBC5() {
   flex: 1;
   overflow-y: auto;
   padding: spacing-vars.$space-3 spacing-vars.$space-4;
-  font-family: 'Courier New', monospace;
+  font-family: var(--retro-font-mono);
   font-size: typography-vars.$font-size-xs;
   line-height: 1.6;
 }

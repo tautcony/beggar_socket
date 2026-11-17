@@ -7,6 +7,7 @@
 @use 'variables/colors' as color-vars;
 @use 'variables/retro';
 @use 'variables/typography' as typography-vars;
+@use 'variables/fonts';
 @use 'variables/spacing' as spacing-vars;
 @use 'variables/radius';
 
@@ -23,7 +24,7 @@
 @use 'components/modals';
 
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: var(--app-font-sans);
   line-height: 1.5;
   font-weight: 400;
 
@@ -52,6 +53,20 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--retro-font-mono);
 }
 
 #app {

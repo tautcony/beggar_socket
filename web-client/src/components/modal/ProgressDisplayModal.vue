@@ -474,7 +474,7 @@ onUnmounted(() => {
   font-weight: typography-vars.$font-weight-semibold;
   font-size: typography-vars.$font-size-lg;
   color: var(--color-text);
-  font-family: monospace;
+  font-family: var(--retro-font-mono);
 }
 
 .stats-grid {
@@ -566,7 +566,7 @@ onUnmounted(() => {
   border-radius: radius-vars.$radius-lg;
   padding: spacing-vars.$space-2 spacing-vars.$space-3;
   font-size: typography-vars.$font-size-sm;
-  font-family: monospace;
+  font-family: var(--retro-font-mono);
   color: var(--color-text-secondary);
   border-left: 3px solid var(--color-border);
   word-break: break-word;
@@ -642,7 +642,7 @@ onUnmounted(() => {
   border: 1px solid var(--color-border-light);
   border-radius: radius-vars.$radius-md;
   color: var(--color-text-secondary);
-  font-family: monospace;
+  font-family: var(--retro-font-mono);
   font-size: typography-vars.$font-size-xs;
   white-space: pre-wrap;
   word-break: break-word;

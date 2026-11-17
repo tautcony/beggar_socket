@@ -273,7 +273,7 @@ async function onTranslate() {
 }
 
 .publish-time {
-  font-family: typography-vars.$font-family-mono;
+  font-family: var(--retro-font-mono);
 }
 
 .notice-content {
@@ -328,7 +328,7 @@ async function onTranslate() {
   background-color: var(--color-bg-secondary);
   padding: 0 0.25rem;
   border-radius: radius-vars.$radius-sm;
-  font-family: typography-vars.$font-family-mono;
+  font-family: var(--retro-font-mono);
   font-size: 0.95em;
 }
 
@@ -337,7 +337,7 @@ async function onTranslate() {
   padding: spacing-vars.$space-3;
   border-radius: radius-vars.$radius-md;
   overflow-x: auto;
-  font-family: typography-vars.$font-family-mono;
+  font-family: var(--retro-font-mono);
   font-size: 0.95em;
 }
 

@@ -758,7 +758,7 @@ function getUsageBarColor(percentage: number): string {
   border-radius: 2px;
   background: transparent;
   color: var(--color-text-secondary);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--retro-font-mono);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
   cursor: pointer;
@@ -771,7 +771,7 @@ function getUsageBarColor(percentage: number): string {
 }
 
 .spec-chip {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--retro-font-mono);
   font-size: 11px;
   color: var(--color-text-secondary);
   letter-spacing: 0.04em;
@@ -789,7 +789,7 @@ function getUsageBarColor(percentage: number): string {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--retro-font-mono);
   font-size: var(--font-size-xs);
 }
 
@@ -892,7 +892,7 @@ function getUsageBarColor(percentage: number): string {
 }
 
 .count-pill {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--retro-font-mono);
   font-size: 11px;
   color: var(--color-text-secondary);
   background: var(--color-bg-secondary);
@@ -947,7 +947,7 @@ function getUsageBarColor(percentage: number): string {
   align-items: center;
   gap: 6px;
   margin-top: 4px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--retro-font-mono);
   font-size: 11px;
   color: var(--color-text-secondary);
 }
@@ -1017,7 +1017,7 @@ function getUsageBarColor(percentage: number): string {
 }
 
 .split-cont-tag {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--retro-font-mono);
   font-size: 10px;
   font-weight: var(--font-weight-semibold);
   color: #4f465e;
@@ -1056,7 +1056,7 @@ function getUsageBarColor(percentage: number): string {
 }
 
 .cart-num {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--retro-font-mono);
   font-size: 11px;
   font-weight: var(--font-weight-semibold);
   color: #4f465e;
@@ -1087,7 +1087,7 @@ function getUsageBarColor(percentage: number): string {
   background-size: 8px 8px;
   border: 1.5px solid #2d243b;
   color: #f8fafc;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--retro-font-mono);
 }
 
 .label-top-meta {
@@ -1158,7 +1158,7 @@ function getUsageBarColor(percentage: number): string {
 .cart-file-name {
   min-width: 0;
   flex: 1;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--retro-font-mono);
   font-size: 12px;
   font-weight: var(--font-weight-medium);
   color: #2d243b;
@@ -1219,7 +1219,7 @@ function getUsageBarColor(percentage: number): string {
 }
 
 .socket-offset {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--retro-font-mono);
   font-size: 10px;
   color: var(--color-text-secondary);
 }
@@ -1233,7 +1233,7 @@ function getUsageBarColor(percentage: number): string {
   flex: 1;
   border: 1px dashed rgba(45, 36, 59, 0.18);
   padding: 12px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--retro-font-mono);
 }
 
 .socket-size {

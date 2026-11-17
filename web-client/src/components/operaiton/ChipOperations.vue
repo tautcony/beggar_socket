@@ -222,7 +222,7 @@ defineEmits([...CHIP_OPERATION_EVENTS]);
 
 .chip-info-value {
   flex: 1 1 0;
-  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Menlo', 'Consolas', monospace;
+  font-family: var(--retro-font-mono);
   color: var(--retro-ink);
   font-size: var(--font-size-xs);
   margin-right: 0;
