@@ -643,7 +643,6 @@ function ensureCanvasObserver(): void {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/variables/colors' as color-vars;
 @use '@/styles/variables/spacing' as spacing-vars;
 @use '@/styles/variables/typography' as typography-vars;
 @use '@/styles/variables/radius' as radius-vars;
@@ -662,7 +661,7 @@ function ensureCanvasObserver(): void {
   margin-bottom: spacing-vars.$space-3;
   font-size: typography-vars.$font-size-sm;
   font-weight: typography-vars.$font-weight-semibold;
-  color: color-vars.$color-text;
+  color: var(--color-text);
   gap: spacing-vars.$space-2;
 }
 
@@ -737,7 +736,7 @@ function ensureCanvasObserver(): void {
 /* 扇区状态颜色 */
 .sector-pending,
 .sector-pending-erase {
-  border: 1px solid color-vars.$color-border;
+  border: 1px solid var(--color-border);
 }
 
 .sector-pending {
@@ -751,13 +750,13 @@ function ensureCanvasObserver(): void {
   }
 
   &.sector-size-large {
-    background: color-vars.$color-bg-tertiary; /* 浅灰色 - 64KB+ */
+    background: var(--color-bg-tertiary); /* 浅灰色 - 64KB+ */
   }
 }
 
 .sector-pending-erase {
-  border-color: color-vars.$color-border;
-  background: color-vars.$color-bg-tertiary;
+  border-color: var(--color-border);
+  background: var(--color-bg-tertiary);
 }
 
 .sector-processing {
@@ -780,11 +779,11 @@ function ensureCanvasObserver(): void {
   }
 
   &.sector-size-medium {
-    background: color-vars.$color-primary; /* 蓝色 - 32KB 完成 */
+    background: var(--color-primary); /* 蓝色 - 32KB 完成 */
   }
 
   &.sector-size-large {
-    background: color-vars.$color-success; /* 绿色 - 64KB+ 完成 */
+    background: var(--color-success); /* 绿色 - 64KB+ 完成 */
   }
 }
 
@@ -810,12 +809,12 @@ function ensureCanvasObserver(): void {
 }
 
 .sector-error {
-  background: color-vars.$color-error;
+  background: var(--color-error);
   border: 1px solid #dc2626;
 }
 
 .sector-current {
-  box-shadow: 0 0 0 2px color-vars.$color-primary;
+  box-shadow: 0 0 0 2px var(--color-primary);
   z-index: 5;
 }
 
@@ -844,7 +843,7 @@ function ensureCanvasObserver(): void {
   @include mixins.flex-column;
   gap: spacing-vars.$space-2;
   font-size: typography-vars.$font-size-xs;
-  color: color-vars.$color-text-secondary;
+  color: var(--color-text-secondary);
 }
 
 .legend-row {
@@ -870,7 +869,7 @@ function ensureCanvasObserver(): void {
 
 .legend-size-label {
   font-weight: typography-vars.$font-weight-semibold;
-  color: color-vars.$color-text;
+  color: var(--color-text);
   font-size: typography-vars.$font-size-xs;
   margin-right: spacing-vars.$space-1;
   white-space: nowrap;
@@ -899,7 +898,7 @@ function ensureCanvasObserver(): void {
   border: 1px solid;
 
   &.sector-pending {
-    border-color: color-vars.$color-border;
+    border-color: var(--color-border);
 
     &.sector-size-small {
       background: #ddd6fe;
@@ -910,13 +909,13 @@ function ensureCanvasObserver(): void {
     }
 
     &.sector-size-large {
-      background: color-vars.$color-bg-tertiary;
+      background: var(--color-bg-tertiary);
     }
   }
 
   &.sector-pending-erase {
-    border-color: color-vars.$color-border;
-    background: color-vars.$color-bg-tertiary;
+    border-color: var(--color-border);
+    background: var(--color-bg-tertiary);
   }
 
   &.sector-processing {
@@ -935,7 +934,7 @@ function ensureCanvasObserver(): void {
   }
 
   &.sector-completed.sector-size-medium {
-    background: color-vars.$color-primary;
+    background: var(--color-primary);
     border-color: #15803d;
   }
 

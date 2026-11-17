@@ -320,19 +320,19 @@ function handleDrop(e: DragEvent) {
 .main-text {
   font-size: typography-vars.$font-size-sm;
   font-weight: typography-vars.$font-weight-semibold;
-  color: #2c3e50;
+  color: var(--retro-ink);
   margin: 0;
 }
 
 .sub-text {
   font-size: typography-vars.$font-size-xs;
-  color: color-vars.$color-text-secondary;
+  color: var(--retro-ink-muted);
   margin: 0;
 }
 
 .hint-text {
   font-size: typography-vars.$font-size-xs;
-  color: color-vars.$color-text-secondary;
+  color: var(--retro-ink-subtle);
   margin: 0;
 }
 

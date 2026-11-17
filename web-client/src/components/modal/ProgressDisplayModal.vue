@@ -437,7 +437,6 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/variables/colors' as color-vars;
 @use '@/styles/variables/spacing' as spacing-vars;
 @use '@/styles/variables/typography' as typography-vars;
 @use '@/styles/variables/radius' as radius-vars;
@@ -474,7 +473,7 @@ onUnmounted(() => {
   text-align: center;
   font-weight: typography-vars.$font-weight-semibold;
   font-size: typography-vars.$font-size-lg;
-  color: color-vars.$color-text;
+  color: var(--color-text);
   font-family: monospace;
 }
 
@@ -563,19 +562,19 @@ onUnmounted(() => {
   display: flex;
   align-items: flex-start;
   gap: spacing-vars.$space-2;
-  background: color-vars.$color-bg-secondary;
+  background: var(--color-bg-secondary);
   border-radius: radius-vars.$radius-lg;
   padding: spacing-vars.$space-2 spacing-vars.$space-3;
   font-size: typography-vars.$font-size-sm;
   font-family: monospace;
-  color: color-vars.$color-text-secondary;
-  border-left: 3px solid color-vars.$color-border;
+  color: var(--color-text-secondary);
+  border-left: 3px solid var(--color-border);
   word-break: break-word;
   white-space: pre-wrap;
 
-  &.log-level-success { border-left-color: color-vars.$color-success; }
-  &.log-level-warn    { border-left-color: color-vars.$color-warning; }
-  &.log-level-error   { border-left-color: color-vars.$color-error; }
+  &.log-level-success { border-left-color: var(--color-success); }
+  &.log-level-warn    { border-left-color: var(--color-warning); }
+  &.log-level-error   { border-left-color: var(--color-error); }
 }
 
 .latest-log-entry::-webkit-details-marker {
@@ -593,7 +592,7 @@ onUnmounted(() => {
 }
 
 .latest-log-entry--error {
-  color: color-vars.$color-error;
+  color: var(--color-error);
   background: rgba(239, 68, 68, 0.08);
 }
 
@@ -605,16 +604,16 @@ onUnmounted(() => {
   flex-shrink: 0;
   margin-left: auto;
   padding: 0 spacing-vars.$space-2;
-  border: 1px solid color-vars.$color-border;
+  border: 1px solid var(--color-border);
   border-radius: radius-vars.$radius-sm;
-  color: color-vars.$color-text-secondary;
+  color: var(--color-text-secondary);
   font-size: typography-vars.$font-size-xs;
   line-height: 20px;
 }
 
 .supplementary-disclosure[open] .latest-log-expand-button {
-  color: color-vars.$color-primary;
-  border-color: color-vars.$color-primary;
+  color: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .supplementary-subitems {
@@ -631,7 +630,7 @@ onUnmounted(() => {
 }
 
 .supplementary-subitem-label {
-  color: color-vars.$color-text-tertiary;
+  color: var(--color-text-tertiary);
   font-size: typography-vars.$font-size-xs;
   line-height: 1.6;
 }
@@ -639,10 +638,10 @@ onUnmounted(() => {
 .supplementary-subitem-content {
   margin: 0;
   padding: spacing-vars.$space-2 spacing-vars.$space-3;
-  background: color-vars.$color-bg-secondary;
-  border: 1px solid color-vars.$color-border-light;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-light);
   border-radius: radius-vars.$radius-md;
-  color: color-vars.$color-text-secondary;
+  color: var(--color-text-secondary);
   font-family: monospace;
   font-size: typography-vars.$font-size-xs;
   white-space: pre-wrap;
@@ -650,17 +649,17 @@ onUnmounted(() => {
 }
 
 .supplementary-subitem-content--error {
-  color: color-vars.$color-error;
+  color: var(--color-error);
   border-color: rgba(239, 68, 68, 0.24);
 }
 
 /* 超时状态颜色样式 */
 .time-warning {
-  color: color-vars.$color-warning !important;
+  color: var(--color-warning) !important;
 }
 
 .time-danger {
-  color: color-vars.$color-error !important;
+  color: var(--color-error) !important;
 }
 
 .time-timeout {

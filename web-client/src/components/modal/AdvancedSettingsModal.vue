@@ -771,7 +771,6 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/variables/colors' as color-vars;
 @use '@/styles/variables/spacing' as spacing-vars;
 @use '@/styles/variables/typography' as typography-vars;
 @use '@/styles/variables/radius' as radius-vars;
@@ -834,7 +833,7 @@ onMounted(() => {
 
 .nav-summary {
   overflow: hidden;
-  color: color-vars.$color-secondary;
+  color: var(--color-secondary);
   font-size: typography-vars.$font-size-xs;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -847,7 +846,7 @@ onMounted(() => {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: color-vars.$color-error;
+  background: var(--color-error);
 }
 
 .settings-content {
@@ -863,9 +862,9 @@ onMounted(() => {
 
   h4 {
     margin: 0 0 spacing-vars.$space-4 0;
-    color: color-vars.$color-text;
+    color: var(--retro-ink);
     font-size: typography-vars.$font-size-lg;
-    border-bottom: 1px solid color-vars.$color-border-light;
+    border-bottom: 1px solid var(--retro-divider);
     padding-bottom: spacing-vars.$space-2;
   }
 }
@@ -887,7 +886,7 @@ onMounted(() => {
   label {
     display: block;
     margin-bottom: spacing-vars.$space-2;
-    color: color-vars.$color-text-secondary;
+    color: var(--retro-ink-muted);
     font-weight: typography-vars.$font-weight-medium;
   }
 }
@@ -925,7 +924,7 @@ onMounted(() => {
   right: spacing-vars.$space-3;
   top: 50%;
   transform: translateY(-50%);
-  color: color-vars.$color-secondary;
+  color: var(--retro-ink-muted);
   font-size: typography-vars.$font-size-xs;
   white-space: nowrap;
   pointer-events: none;
@@ -935,14 +934,14 @@ onMounted(() => {
 .hint {
   display: block;
   margin-top: spacing-vars.$space-1;
-  color: color-vars.$color-secondary;
+  color: var(--retro-ink-muted);
   font-size: typography-vars.$font-size-xs;
   text-align: center;
 }
 
 .validation-error {
   margin-top: spacing-vars.$space-1;
-  color: color-vars.$color-error;
+  color: var(--retro-danger-fg);
   font-size: typography-vars.$font-size-xs;
 }
 
@@ -953,7 +952,7 @@ onMounted(() => {
 
 @mixin btn-base {
   padding: spacing-vars.$space-2 spacing-vars.$space-4;
-  border: 1px solid color-vars.$color-border;
+  border: 1px solid var(--color-border);
   border-radius: radius-vars.$radius-base;
   font-size: typography-vars.$font-size-sm;
   cursor: pointer;
@@ -974,7 +973,7 @@ onMounted(() => {
     padding-right: 0;
     padding-bottom: spacing-vars.$space-2;
     border-right: 0;
-    border-bottom: 1px solid color-vars.$color-border-light;
+    border-bottom: 1px solid var(--retro-divider);
   }
 
   .settings-nav-button {

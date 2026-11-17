@@ -221,15 +221,15 @@ const onRefresh = () => {
   background: none;
   border: none;
   font-size: typography-vars.$font-size-xl;
-  color: color-vars.$color-text-secondary;
+  color: var(--color-text-secondary);
   cursor: pointer;
   padding: spacing-vars.$space-1;
   border-radius: radius-vars.$radius-sm;
   transition: all 0.2s;
 
   &:hover {
-    background: color-vars.$color-bg-tertiary;
-    color: color-vars.$color-text;
+    background: var(--color-bg-tertiary);
+    color: var(--color-text);
   }
 }
 
@@ -241,7 +241,7 @@ const onRefresh = () => {
 
 .description {
   margin: 0 0 spacing-vars.$space-4 0;
-  color: color-vars.$color-text-secondary;
+  color: var(--color-text-secondary);
   font-size: typography-vars.$font-size-sm;
   line-height: typography-vars.$line-height-normal;
 }
@@ -255,25 +255,25 @@ const onRefresh = () => {
   display: flex;
   align-items: center;
   padding: spacing-vars.$space-4;
-  border: 2px solid color-vars.$color-border-light;
+  border: 2px solid var(--color-border-light);
   border-radius: radius-vars.$radius-lg;
   cursor: pointer;
   transition: all 0.2s;
-  background: color-vars.$color-bg;
+  background: var(--color-bg);
 
   &:hover {
-    border-color: color-vars.$color-primary;
-    background: rgba(color-vars.$color-primary, 0.1);
+    border-color: var(--color-primary);
+    background: var(--retro-bg-tint);
   }
 
   &.selected {
-    border-color: color-vars.$color-primary;
-    background: rgba(color-vars.$color-primary, 0.1);
+    border-color: var(--color-primary);
+    background: var(--retro-bg-tint);
     box-shadow: color-vars.$shadow-sm;
 
     .port-icon {
-      background: rgba(color-vars.$color-primary, 0.2);
-      color: color-vars.$color-primary;
+      background: var(--retro-bg-tint-hover);
+      color: var(--color-primary);
     }
   }
 }
@@ -282,10 +282,10 @@ const onRefresh = () => {
   @include mixins.flex-center;
   width: 40px;
   height: 40px;
-  background: color-vars.$color-bg-tertiary;
+  background: var(--color-bg-tertiary);
   border-radius: radius-vars.$radius-lg;
   margin-right: spacing-vars.$space-3;
-  color: color-vars.$color-text-secondary;
+  color: var(--color-text-secondary);
   font-size: typography-vars.$font-size-xl;
 }
 
@@ -296,19 +296,19 @@ const onRefresh = () => {
 
 .port-path {
   font-weight: typography-vars.$font-weight-semibold;
-  color: color-vars.$color-text;
+  color: var(--color-text);
   font-size: typography-vars.$font-size-sm;
   margin-bottom: spacing-vars.$space-1;
 }
 
 .port-manufacturer {
-  color: color-vars.$color-text-secondary;
+  color: var(--color-text-secondary);
   font-size: typography-vars.$font-size-xs;
   margin-bottom: spacing-vars.$space-1;
 }
 
 .port-serial {
-  color: color-vars.$color-text-tertiary;
+  color: var(--color-text-tertiary);
   font-size: typography-vars.$font-size-xs;
   font-family: monospace;
 }
@@ -320,7 +320,7 @@ const onRefresh = () => {
 }
 
 .selected-icon {
-  color: color-vars.$color-success;
+  color: var(--color-success);
   font-size: typography-vars.$font-size-xl;
 }
 
@@ -329,8 +329,8 @@ const onRefresh = () => {
   justify-content: flex-end;
   gap: spacing-vars.$space-3;
   padding: spacing-vars.$space-5 spacing-vars.$space-6;
-  border-top: 1px solid color-vars.$color-border-light;
-  background: color-vars.$color-bg-secondary;
+  border-top: 1px solid var(--color-border-light);
+  background: var(--color-bg-secondary);
 }
 
 .button {
@@ -348,18 +348,18 @@ const onRefresh = () => {
   }
 
   &.secondary {
-    background: color-vars.$color-bg;
-    color: color-vars.$color-text;
-    border: 1px solid color-vars.$color-border;
+    background: var(--color-bg);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
 
     &:hover:not(:disabled) {
-      background: color-vars.$color-bg-secondary;
-      border-color: color-vars.$color-border-light;
+      background: var(--color-bg-secondary);
+      border-color: var(--color-border-light);
     }
   }
 
   &.primary {
-    @include mixins.button-variant(white, color-vars.$color-primary);
+    @include mixins.button-variant(white, var(--color-primary));
   }
 }
 </style>

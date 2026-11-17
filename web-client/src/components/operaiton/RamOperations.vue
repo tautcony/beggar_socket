@@ -252,7 +252,7 @@ function onBaseAddressChange() {
 <style scoped>
 .op-title {
   font-size: var(--font-size-lg);
-  color: var(--color-text);
+  color: var(--retro-ink);
   font-weight: var(--font-weight-semibold);
   transition: color 0.2s, font-weight 0.2s;
   white-space: nowrap;
@@ -339,7 +339,7 @@ function onBaseAddressChange() {
 .blank-check-hint {
   margin: 0;
   font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  color: var(--retro-ink-muted);
   line-height: 1.5;
 }
 

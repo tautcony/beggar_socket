@@ -476,28 +476,28 @@ function formatHexData(hexData: Uint8Array): string {
 
   label {
     font-weight: typography-vars.$font-weight-semibold;
-    color: color-vars.$color-text;
+    color: var(--color-text);
     font-size: typography-vars.$font-size-sm;
   }
 
   input,
   textarea {
     padding: spacing-vars.$space-3;
-    border: 1px solid color-vars.$color-border;
+    border: 1px solid var(--color-border);
     border-radius: radius-vars.$radius-base;
     font-size: typography-vars.$font-size-sm;
     font-family: 'Fira Code', 'Monaco', monospace;
 
     &:focus {
       outline: none;
-      border-color: color-vars.$color-primary;
+      border-color: var(--color-primary);
       box-shadow: color-vars.$shadow-sm;
     }
   }
 }
 
 .form-hint {
-  color: color-vars.$color-text-secondary;
+  color: var(--color-text-secondary);
   font-size: typography-vars.$font-size-xs;
   margin-top: spacing-vars.$space-1;
 }
@@ -514,19 +514,19 @@ function formatHexData(hexData: Uint8Array): string {
 }
 
 .output-section {
-  background: color-vars.$color-bg-secondary;
-  border: 1px solid color-vars.$color-border;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
   border-radius: radius-vars.$radius-lg;
   overflow: hidden;
 
   h4 {
     margin: 0;
     padding: spacing-vars.$space-3 spacing-vars.$space-4;
-    background: color-vars.$color-bg-tertiary;
-    border-bottom: 1px solid color-vars.$color-border;
+    background: var(--color-bg-tertiary);
+    border-bottom: 1px solid var(--color-border);
     font-size: typography-vars.$font-size-sm;
     font-weight: typography-vars.$font-weight-semibold;
-    color: color-vars.$color-text;
+    color: var(--color-text);
   }
 }
 
@@ -542,16 +542,16 @@ function formatHexData(hexData: Uint8Array): string {
   font-size: typography-vars.$font-size-xs;
   line-height: typography-vars.$line-height-normal;
   white-space: pre;
-  color: color-vars.$color-text;
-  background: color-vars.$color-bg;
+  color: var(--color-text);
+  background: var(--color-bg);
   padding: spacing-vars.$space-3;
   border-radius: radius-vars.$radius-sm;
-  border: 1px solid color-vars.$color-border;
+  border: 1px solid var(--color-border);
 }
 
 .data-placeholder {
   @include mixins.flex-center;
-  color: color-vars.$color-text-secondary;
+  color: var(--color-text-secondary);
   font-style: italic;
   height: 68px;
 }
@@ -560,11 +560,11 @@ function formatHexData(hexData: Uint8Array): string {
   display: flex;
   align-items: center;
   gap: spacing-vars.$space-2;
-  color: color-vars.$color-error;
-  background: color-vars.$color-error-light;
+  color: var(--color-error);
+  background: var(--color-error-light);
   padding: spacing-vars.$space-3;
   border-radius: radius-vars.$radius-sm;
-  border: 1px solid color-vars.$color-error-light;
+  border: 1px solid var(--color-error-light);
 }
 
 .analysis-display {
@@ -574,7 +574,7 @@ function formatHexData(hexData: Uint8Array): string {
 .analysis-item {
   @include mixins.flex-between;
   padding: spacing-vars.$space-2 0;
-  border-bottom: 1px solid color-vars.$color-border-light;
+  border-bottom: 1px solid var(--color-border-light);
 
   &:last-child {
     border-bottom: none;
@@ -582,12 +582,12 @@ function formatHexData(hexData: Uint8Array): string {
 
   .label {
     font-weight: typography-vars.$font-weight-medium;
-    color: color-vars.$color-text;
+    color: var(--color-text);
   }
 
   .value {
     font-family: 'Fira Code', 'Monaco', monospace;
-    color: color-vars.$color-text;
+    color: var(--color-text);
     font-weight: typography-vars.$font-weight-semibold;
   }
 }

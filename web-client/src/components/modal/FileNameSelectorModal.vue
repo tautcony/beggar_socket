@@ -143,7 +143,7 @@ watch(modelValue, (newValue) => {
 
 .input-label {
   font-weight: typography-vars.$font-weight-semibold;
-  color: color-vars.$color-primary;
+  color: var(--color-primary);
   font-size: typography-vars.$font-size-sm;
 }
 
@@ -157,17 +157,17 @@ watch(modelValue, (newValue) => {
   width: 100%;
   padding: spacing-vars.$space-3 spacing-vars.$space-4;
   padding-right: 40px; /* 为清除按钮留出空间 */
-  border: 1px solid color-vars.$color-border;
+  border: 1px solid var(--color-border);
   border-radius: radius-vars.$radius-base;
-  background: color-vars.$color-bg;
-  color: color-vars.$color-text;
+  background: var(--color-bg);
+  color: var(--color-text);
   font-family: monospace;
   font-size: typography-vars.$font-size-sm;
   transition: border-color 0.2s, box-shadow 0.2s;
 
   &:focus {
     outline: none;
-    border-color: color-vars.$color-primary;
+    border-color: var(--color-primary);
     box-shadow: color-vars.$shadow-sm;
   }
 }
@@ -179,18 +179,18 @@ watch(modelValue, (newValue) => {
 
 .section-label {
   font-weight: typography-vars.$font-weight-semibold;
-  color: color-vars.$color-primary;
+  color: var(--color-primary);
   font-size: typography-vars.$font-size-sm;
 }
 
 .recent-list {
   @include mixins.flex-column;
-  border: 1px solid color-vars.$color-border;
+  border: 1px solid var(--color-border);
   border-radius: radius-vars.$radius-lg;
   overflow: hidden;
   max-height: 240px;
   overflow-y: auto;
-  background: color-vars.$color-bg;
+  background: var(--color-bg);
 
   /* 美化滚动条 */
   &::-webkit-scrollbar {
@@ -198,16 +198,16 @@ watch(modelValue, (newValue) => {
   }
 
   &::-webkit-scrollbar-track {
-    background: color-vars.$color-bg-secondary;
+    background: var(--color-bg-secondary);
     border-radius: radius-vars.$radius-sm;
   }
 
   &::-webkit-scrollbar-thumb {
-    background: color-vars.$color-secondary;
+    background: var(--color-secondary);
     border-radius: radius-vars.$radius-sm;
 
     &:hover {
-      background: color-vars.$color-text-secondary;
+      background: var(--color-text-secondary);
     }
   }
 }
@@ -217,9 +217,9 @@ watch(modelValue, (newValue) => {
   align-items: center;
   padding: spacing-vars.$space-4;
   border: none;
-  border-bottom: 1px solid color-vars.$color-border-light;
+  border-bottom: 1px solid var(--color-border-light);
   background: transparent;
-  color: color-vars.$color-text;
+  color: var(--color-text);
   text-align: left;
   cursor: pointer;
   transition: all 0.2s;
@@ -230,14 +230,14 @@ watch(modelValue, (newValue) => {
   }
 
   &:hover {
-    background-color: rgba(color-vars.$color-primary, 0.1);
+    background-color: var(--retro-bg-tint);
   }
 }
 
 .rom-name {
   font-family: monospace;
   font-weight: typography-vars.$font-weight-medium;
-  color: color-vars.$color-primary;
+  color: var(--color-primary);
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -246,7 +246,7 @@ watch(modelValue, (newValue) => {
 }
 
 .arrow {
-  color: color-vars.$color-text-secondary;
+  color: var(--color-text-secondary);
   font-weight: bold;
   flex-shrink: 0;
   margin: 0 spacing-vars.$space-1;
@@ -255,7 +255,7 @@ watch(modelValue, (newValue) => {
 
 .sav-name {
   font-family: monospace;
-  color: color-vars.$color-success;
+  color: var(--color-success);
   font-weight: typography-vars.$font-weight-medium;
   flex: 1;
   min-width: 0;
@@ -268,6 +268,6 @@ watch(modelValue, (newValue) => {
   display: flex;
   justify-content: flex-end;
   padding-top: spacing-vars.$space-2;
-  border-top: 1px solid color-vars.$color-border-light;
+  border-top: 1px solid var(--color-border-light);
 }
 </style>

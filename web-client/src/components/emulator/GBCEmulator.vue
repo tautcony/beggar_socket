@@ -302,7 +302,6 @@ function cleanup() {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/variables/colors' as color-vars;
 @use '@/styles/variables/spacing' as spacing-vars;
 @use '@/styles/variables/typography' as typography-vars;
 @use '@/styles/variables/radius' as radius-vars;
@@ -352,9 +351,9 @@ function cleanup() {
 }
 
 .game-canvas {
-  border: 2px solid color-vars.$color-border-light;
+  border: 2px solid var(--color-border-light);
   border-radius: radius-vars.$radius-lg;
-  background: color-vars.$color-bg-inverse;
+  background: var(--color-bg-inverse);
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
@@ -378,18 +377,19 @@ function cleanup() {
 }
 
 .emulator-footer {
-  background: color-vars.$color-bg-secondary;
-  padding: spacing-vars.$space-4 spacing-vars.$space-5;
-  border-top: 1px solid color-vars.$color-border-light;
+  background: var(--retro-bg-elevated);
+  color: var(--retro-ink);
+  padding: spacing-vars.$space-3 spacing-vars.$space-4;
+  border-top: 1px solid var(--retro-divider);
 }
 
 .controls-help {
   text-align: center;
 
   p {
-    margin: 0 0 spacing-vars.$space-3 0;
-    font-size: typography-vars.$font-size-sm;
-    color: color-vars.$color-text-secondary;
+    margin: 0 0 spacing-vars.$space-2 0;
+    font-size: typography-vars.$font-size-xs;
+    color: var(--retro-ink-muted);
   }
 }
 

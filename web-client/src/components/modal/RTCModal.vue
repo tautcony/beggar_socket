@@ -451,7 +451,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/variables/colors' as color-vars;
 @use '@/styles/variables/spacing' as spacing-vars;
 @use '@/styles/variables/typography' as typography-vars;
 @use '@/styles/variables/radius' as radius-vars;
@@ -505,7 +504,7 @@ onBeforeUnmount(() => {
   label {
     font-size: typography-vars.$font-size-sm;
     font-weight: typography-vars.$font-weight-medium;
-    color: color-vars.$color-text;
+    color: var(--color-text);
   }
 }
 

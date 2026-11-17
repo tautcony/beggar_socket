@@ -338,7 +338,7 @@ onUnmounted(() => {
 .log-message {
   flex: 1 1 auto;
   min-width: 0;
-  color: var(--color-text);
+  color: var(--retro-ink);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
