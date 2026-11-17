@@ -36,6 +36,7 @@
           </div>
         </div>
         <div class="right-section">
+          <ThemeSwitcher :inline="true" />
           <LanguageSwitcher :inline="true" />
         </div>
       </div>
@@ -86,6 +87,7 @@ import DeviceConnect from '@/components/DeviceConnect.vue';
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
 import DebugLink from '@/components/link/DebugLink.vue';
 import MorseBorder from '@/components/MorseBorder.vue';
+import ThemeSwitcher from '@/components/ThemeSwitcher.vue';
 import { useToast } from '@/composables/useToast';
 import { DebugSettings } from '@/settings/debug-settings';
 import { DeviceInfo } from '@/types/device-info';
