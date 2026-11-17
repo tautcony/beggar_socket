@@ -60,6 +60,10 @@ describe('AdvancedSettings', () => {
       expect(s).toEqual({
         firmware: { profile: 'stm' },
         size: { romPageSize: 0x1000, romReadPageSize: 0x1000, ramPageSize: 0x1000 },
+        profileSizes: {
+          stm: { romPageSize: 0x1000, romReadPageSize: 0x1000, ramPageSize: 0x1000 },
+          stc: { romPageSize: 0x1000, romReadPageSize: 0x2000, ramPageSize: 0x1000 },
+        },
         throttle: { romRead: 0, ramRead: 0 },
         retry: {
           romReadCount: 1, ramReadCount: 1,

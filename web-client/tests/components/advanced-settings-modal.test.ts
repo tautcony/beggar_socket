@@ -104,4 +104,30 @@ describe('AdvancedSettingsModal', () => {
     expect(activeDevice.firmwareProfile).toEqual(STM_FIRMWARE_PROFILE);
     expect(STC_FIRMWARE_PROFILE.id).toBe('stc');
   });
+
+  it('allows independent stm and stc page size configuration in size section', async () => {
+    const wrapper = mount(AdvancedSettingsModal, {
+      props: { modelValue: true },
+      global: globalConfig,
+    });
+    await nextTick();
+
+    const readInput = wrapper.get('#rom-read-page-size');
+    await readInput.setValue('3072');
+    await readInput.trigger('input');
+
+    await wrapper.get('[data-testid="size-profile-stc"]').trigger('click');
+    await nextTick();
+    expect((readInput.element as HTMLInputElement).value).toBe('8192');
+
+    await readInput.setValue('16384');
+    await readInput.trigger('input');
+
+    const buttons = wrapper.findAll('.footer button');
+    const applyButton = buttons[buttons.length - 1];
+    await applyButton.trigger('click');
+
+    expect(AdvancedSettings.getProfileSizes('stm').romReadPageSize).toBe(3072);
+    expect(AdvancedSettings.getProfileSizes('stc').romReadPageSize).toBe(16384);
+  });
 });

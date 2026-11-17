@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/require-await */
 import type { Transport } from '@/platform/serial';
+import { getOptimalPacketLimits } from '@/platform/serial/platform-packet-policy';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
@@ -279,42 +280,49 @@ export class CartridgeAdapter {
   }
 
   protected resolveRomPageSize(requestedPageSize?: number): number {
+    const profileKey = this.firmwareProfile.id === 'stc' ? 'stc' : 'stm';
+    const profileSizes = AdvancedSettings.getProfileSizes(profileKey);
     const configuredPageSize = floorPowerOfTwo(
-      Math.min(requestedPageSize ?? AdvancedSettings.romPageSize, AdvancedSettings.romPageSize),
+      Math.min(requestedPageSize ?? profileSizes.romPageSize, profileSizes.romPageSize),
       1,
     );
-    if (!this.isSimulatedDevice()) {
-      return configuredPageSize;
+    if (this.isSimulatedDevice()) {
+      // Simulated transports already execute the full protocol path. Use larger logical chunks so
+      // async command overhead does not dwarf the configured throughput controls in debug mode.
+      return Math.max(configuredPageSize, CartridgeAdapter.SIMULATED_TRANSFER_CHUNK_SIZE);
     }
-
-    // Simulated transports already execute the full protocol path. Use larger logical chunks so
-    // async command overhead does not dwarf the configured throughput controls in debug mode.
-    return Math.max(configuredPageSize, CartridgeAdapter.SIMULATED_TRANSFER_CHUNK_SIZE);
+    const limits = getOptimalPacketLimits(this.firmwareProfile.id);
+    return Math.min(requestedPageSize ?? profileSizes.romPageSize, configuredPageSize === profileSizes.romPageSize ? profileSizes.romPageSize : configuredPageSize, limits.romWrite);
   }
 
   protected resolveRomReadPageSize(requestedPageSize?: number): number {
-    const configuredPageSize = floorPowerOfTwo(
-      Math.min(
-        requestedPageSize ?? AdvancedSettings.romReadPageSize,
-        AdvancedSettings.romReadPageSize,
-        this.firmwareProfile.maxReadChunk,
-      ),
-      1,
+    const profileKey = this.firmwareProfile.id === 'stc' ? 'stc' : 'stm';
+    const profileSizes = AdvancedSettings.getProfileSizes(profileKey);
+    const limits = getOptimalPacketLimits(this.firmwareProfile.id);
+    const maxAllowed = this.firmwareProfile.id === 'stc'
+      ? this.firmwareProfile.maxReadChunk
+      : Math.min(this.firmwareProfile.maxReadChunk, limits.romRead);
+    const rawTarget = Math.min(
+      requestedPageSize ?? profileSizes.romReadPageSize,
+      profileSizes.romReadPageSize,
+      maxAllowed,
     );
-    if (!this.isSimulatedDevice()) {
-      return configuredPageSize;
+    if (this.isSimulatedDevice()) {
+      return Math.max(floorPowerOfTwo(rawTarget, 1), CartridgeAdapter.SIMULATED_TRANSFER_CHUNK_SIZE);
     }
-
-    return Math.max(configuredPageSize, CartridgeAdapter.SIMULATED_TRANSFER_CHUNK_SIZE);
+    // 保留 3072B (0x0c00) 作为平台最佳非2的幂步长，其它情况向下对齐到 2 的幂
+    return rawTarget === 0x0c00 ? rawTarget : floorPowerOfTwo(rawTarget, 1);
   }
 
   protected resolveRamPageSize(requestedPageSize?: number): number {
-    const configuredPageSize = Math.min(requestedPageSize ?? AdvancedSettings.ramPageSize, AdvancedSettings.ramPageSize);
-    if (!this.isSimulatedDevice()) {
-      return configuredPageSize;
+    const profileKey = this.firmwareProfile.id === 'stc' ? 'stc' : 'stm';
+    const profileSizes = AdvancedSettings.getProfileSizes(profileKey);
+    const configuredPageSize = Math.min(requestedPageSize ?? profileSizes.ramPageSize, profileSizes.ramPageSize);
+    if (this.isSimulatedDevice()) {
+      return Math.max(configuredPageSize, CartridgeAdapter.SIMULATED_TRANSFER_CHUNK_SIZE);
     }
-
-    return Math.max(configuredPageSize, CartridgeAdapter.SIMULATED_TRANSFER_CHUNK_SIZE);
+    const limits = getOptimalPacketLimits(this.firmwareProfile.id);
+    return Math.min(configuredPageSize, limits.ramPage);
   }
 
   protected summarizeLogMessage(message: BurnerLogInput): string {
@@ -348,6 +356,11 @@ export class CartridgeAdapter {
 
   // --- Shared helper methods ---
 
+  private static isReadTimeoutError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+    return /timeout|incomplete package read/i.test(message);
+  }
+
   protected async readROMChunkWithRetry(
     chunkSize: number,
     logicalAddress: number,
@@ -360,12 +373,31 @@ export class CartridgeAdapter {
     const attempts = retries + 1;
     const retryDelayMs = AdvancedSettings.romReadRetryDelayMs;
     let lastError: unknown;
+    let subChunkSplitDepth = 0;
 
     for (let attempt = 1; attempt <= attempts; attempt++) {
       try {
-        return await this.ops.flashCmdSet.read(this.transport, chunkSize, cartAddress);
+        if (subChunkSplitDepth === 0 || chunkSize <= 512) {
+          return await this.ops.flashCmdSet.read(this.transport, chunkSize, cartAddress);
+        }
+
+        // 遇到读包超时/丢字节时，将大块拆分为更小的子块（如 4096B -> 2048B -> 1024B），
+        // 避免 macOS USB CDC / tty 内核缓冲区在 >4KB 突发传输时再次溢出丢字节。
+        const subChunkSize = Math.max(512, (chunkSize >> subChunkSplitDepth) & ~1);
+        const combined = new Uint8Array(chunkSize);
+        let offset = 0;
+        while (offset < chunkSize) {
+          const subSize = Math.min(subChunkSize, chunkSize - offset);
+          const part = await this.ops.flashCmdSet.read(this.transport, subSize, cartAddress + offset);
+          combined.set(part, offset);
+          offset += subSize;
+        }
+        return combined;
       } catch (error) {
         lastError = error;
+        if (CartridgeAdapter.isReadTimeoutError(error)) {
+          subChunkSplitDepth += 1;
+        }
         this.log(
           errorToBurnerLog(
             `ROM read retry ${attempt}/${attempts} @ ${formatHex(logicalAddress, 4)} (${chunkSize}B)`,
