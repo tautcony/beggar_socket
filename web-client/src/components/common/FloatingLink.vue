@@ -78,25 +78,24 @@ const buttonStyle = computed<Record<string, string | number>>(() => ({
 .floating-button {
   display: flex;
   align-items: center;
-  background: color-vars.$color-primary;
-  color: #ffffff;
+  background: var(--retro-bg-surface);
+  color: var(--retro-ink);
   padding: spacing-vars.$space-2 spacing-vars.$space-3;
-  border-radius: 25px;
-  border: none;
-  font-size: typography-vars.$font-size-sm;
-  font-weight: typography-vars.$font-weight-medium;
-  box-shadow: color-vars.$shadow-md;
-  transition: all 0.3s ease;
-  transform: translateX(calc(100% - 40px));
+  border-radius: 6px;
+  border: 1.5px solid var(--retro-border);
+  font-size: typography-vars.$font-size-xs;
+  font-weight: typography-vars.$font-weight-semibold;
+  box-shadow: var(--retro-shadow-btn);
+  transition: transform 0.2s ease, box-shadow 0.12s ease, background-color 0.12s ease;
+  transform: translateX(calc(100% - 42px));
   overflow: hidden;
   white-space: nowrap;
   cursor: pointer;
   text-decoration: none;
 
   &:hover {
-    background: color-vars.$color-primary-hover;
     transform: translateX(0);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    box-shadow: var(--retro-shadow-card);
 
     .floating-text {
       opacity: 1;

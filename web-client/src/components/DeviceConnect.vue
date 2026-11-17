@@ -7,7 +7,7 @@
       class="device-connect"
       :class="{ 'compact': props.compact }"
     >
-      <BaseButton
+      <RetroButton
         :variant="connected ? 'secondary' : 'primary'"
         :disabled="isConnecting"
         :title="connectionTooltip"
@@ -16,7 +16,7 @@
         @click="handleConnectDisconnect"
       />
       <!-- 重置连接状态按钮，仅在已连接时显示 -->
-      <BaseButton
+      <RetroButton
         v-if="connected"
         variant="warning"
         :disabled="isConnecting"
@@ -40,8 +40,8 @@ import { checkmarkDoneOutline, flashOutline, reloadOutline } from 'ionicons/icon
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import BaseButton from '@/components/common/BaseButton.vue';
 import PortSelectorModal from '@/components/modal/PortSelectorModal.vue';
+import { RetroButton } from '@/components/retro';
 import { useToast } from '@/composables/useToast';
 import { getRuntimeKind } from '@/platform/runtime';
 import { DeviceConnectionManager, PortSelectionRequiredError } from '@/services/device-connection-manager';

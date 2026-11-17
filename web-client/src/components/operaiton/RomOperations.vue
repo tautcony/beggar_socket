@@ -1,14 +1,14 @@
 <template>
   <div class="rom-operations-container">
-    <section class="section">
-      <div class="section-header">
-        <div class="op-title-row">
-          <span :class="['op-title', { busy }]">{{ $t('ui.rom.title') }}</span>
-        </div>
+    <RetroCard>
+      <template #header-left>
+        <span :class="['op-title', { busy }]">{{ $t('ui.rom.title') }}</span>
+      </template>
+      <template #header-right>
         <div class="selector-container">
           <div class="base-address-selector">
             <label class="base-address-label">{{ $t('ui.rom.baseAddressLabel') }}</label>
-            <select
+            <RetroSelect
               v-model="selectedBaseAddress"
               :disabled="!deviceReady || busy"
               class="base-address-dropdown"
@@ -21,11 +21,11 @@
               >
                 {{ option.text }}
               </option>
-            </select>
+            </RetroSelect>
           </div>
           <div class="size-selector">
             <label class="size-label">{{ $t('ui.rom.sizeLabel') }}</label>
-            <select
+            <RetroSelect
               v-model="selectedRomSize"
               :disabled="!deviceReady || busy"
               class="size-dropdown"
@@ -38,10 +38,10 @@
               >
                 {{ option.text }}
               </option>
-            </select>
+            </RetroSelect>
           </div>
         </div>
-      </div>
+      </template>
       <div
         class="file-upload-container"
         :class="{ 'has-play-button': romFileData && romInfo && canPreview }"
@@ -61,7 +61,7 @@
             <IonIcon :icon="folderOpenOutline" />
           </template>
         </FileDropZone>
-        <BaseButton
+        <RetroButton
           v-if="romFileData && romInfo && canPreview"
           class="play-button"
           :disabled="busy"
@@ -81,35 +81,35 @@
       />
 
       <div class="button-row">
-        <BaseButton
+        <RetroButton
           v-if="hasAssembledRom"
           variant="secondary"
           :text="$t('ui.rom.useAssembledRom')"
           @click="useAssembledRom"
         />
-        <BaseButton
+        <RetroButton
           :disabled="!deviceReady || !romFileData || busy"
           variant="primary"
           :text="$t('ui.rom.write')"
           @click="$emit('write-rom')"
         />
-        <BaseButton
+        <RetroButton
           :disabled="!deviceReady || busy"
-          variant="primary"
+          variant="secondary"
           :text="$t('ui.rom.read')"
           @click="$emit('read-rom')"
         />
-        <BaseButton
+        <RetroButton
           :disabled="!deviceReady || busy"
-          variant="primary"
+          variant="secondary"
           :text="$t('ui.rom.verify')"
           @click="onVerifyClick"
         />
       </div>
-    </section>
+    </RetroCard>
 
     <!-- 空白检测模式选择对话框 -->
-    <BaseModal
+    <RetroModal
       v-model="showBlankCheckDialog"
       :title="$t('ui.rom.blankCheckTitle')"
       width="360px"
@@ -119,21 +119,21 @@
           {{ $t('ui.rom.blankCheckHint') }}
         </p>
         <div class="blank-check-buttons">
-          <BaseButton
+          <RetroButton
             variant="primary"
             :text="$t('ui.rom.blankFillFF')"
             @click="selectBlankPattern(0xFF)"
           />
-          <BaseButton
+          <RetroButton
             variant="secondary"
             :text="$t('ui.rom.blankFill00')"
             @click="selectBlankPattern(0x00)"
           />
         </div>
       </div>
-    </BaseModal>
+    </RetroModal>
 
-    <BaseModal
+    <RetroModal
       v-model="showSaveAssociationDialog"
       :title="$t('ui.emulator.saveAssociationTitle')"
       width="420px"
@@ -143,19 +143,19 @@
           {{ $t('ui.emulator.saveAssociationMessage', { rom: romFileName, save: ramFileName }) }}
         </p>
         <div class="blank-check-buttons">
-          <BaseButton
+          <RetroButton
             variant="primary"
             :text="$t('ui.emulator.useSelectedSave')"
             @click="launchGbaPreview(true)"
           />
-          <BaseButton
+          <RetroButton
             variant="secondary"
             :text="$t('ui.emulator.startWithoutSave')"
             @click="launchGbaPreview(false)"
           />
         </div>
       </div>
-    </BaseModal>
+    </RetroModal>
 
     <!-- Game Boy Color Emulator -->
     <Suspense>
@@ -204,11 +204,10 @@ import { DateTime } from 'luxon';
 import { computed, defineAsyncComponent, onErrorCaptured, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import BaseButton from '@/components/common/BaseButton.vue';
-import BaseModal from '@/components/common/BaseModal.vue';
 import FileDropZone from '@/components/common/FileDropZone.vue';
 import RomInfoPanel from '@/components/common/RomInfoPanel.vue';
 import { type GbaPreviewLaunch, type GbaPreviewSavePayload, type OperationFileEventPayload, ROM_OPERATION_EVENTS, type RomOperationsProps } from '@/components/operaiton/contracts';
+import { RetroButton, RetroCard, RetroModal, RetroSelect } from '@/components/retro';
 import { useToast } from '@/composables/useToast';
 import { useRecentFileNamesStore } from '@/stores/recent-file-names-store';
 import { useRomAssemblyResultStore } from '@/stores/rom-assembly-store';
@@ -531,18 +530,6 @@ const hasAssembledRom = computed(() => {
 </script>
 
 <style scoped>
-.section {
-  margin-bottom: var(--space-7);
-}
-
-.op-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  margin-bottom: var(--space-3);
-  min-width: 0;
-}
-
 .op-title {
   font-size: var(--font-size-lg);
   color: var(--color-text);
@@ -556,23 +543,12 @@ const hasAssembledRom = computed(() => {
   font-weight: bold;
 }
 
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-top: var(--space-4);
-  margin-bottom: var(--space-2);
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
 .selector-container {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
   flex-wrap: wrap;
   min-width: 0;
-  margin-bottom: var(--space-3);
 }
 
 .size-selector,
@@ -593,38 +569,29 @@ const hasAssembledRom = computed(() => {
 
 .size-label,
 .base-address-label {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--retro-ink-muted);
   margin: 0;
   white-space: nowrap;
 }
 
 .size-dropdown,
 .base-address-dropdown {
-  padding: var(--space-1) var(--space-2);
-  border: none;
-  border-radius: var(--radius-base);
-  box-shadow: var(--shadow-sm);
-  background: var(--color-bg);
-  font-size: var(--font-size-sm);
-  color: var(--color-text);
-  cursor: pointer;
-  transition: border-color 0.2s, box-shadow 0.2s;
   min-width: 80px;
   max-width: 180px;
-  white-space: nowrap;
 }
 
-.size-dropdown:hover:not(:disabled),
-.base-address-dropdown:hover:not(:disabled) {
-  box-shadow: var(--shadow-md);
+:deep(.file-drop-zone) {
+  border: 1.5px dashed var(--retro-border-dashed);
+  border-radius: 6px;
+  background: var(--retro-bg-surface);
+  color: var(--retro-ink);
 }
 
-.size-dropdown:disabled,
-.base-address-dropdown:disabled {
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-secondary);
-  cursor: not-allowed;
+:deep(.file-drop-zone:hover) {
+  border-color: var(--retro-border);
+  background: var(--retro-bg-elevated);
 }
 
 .file-upload-container {
@@ -667,19 +634,19 @@ const hasAssembledRom = computed(() => {
   padding: var(--space-3);
   min-width: 48px;
   width: auto;
-  background: linear-gradient(135deg, var(--color-success) 0%, #45a049 100%) !important;
-  color: white !important;
-  border: none !important;
-  border-radius: var(--radius-lg);
+  background: var(--retro-success-bg) !important;
+  color: var(--retro-ink) !important;
+  border: 1.5px solid var(--retro-border) !important;
+  border-radius: 6px !important;
+  box-shadow: var(--retro-shadow-btn) !important;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
   font-size: var(--font-size-lg);
 }
 
 .play-button:hover:not(:disabled) {
-  background: linear-gradient(135deg, #45a049 0%, #3e8e41 100%) !important;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+  transform: translate(-1px, 1px);
+  box-shadow: var(--retro-shadow-btn-hover) !important;
 }
 
 .play-button:disabled {

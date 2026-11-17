@@ -1,5 +1,5 @@
 <template>
-  <BaseModal
+  <RetroModal
     v-model="localVisible"
     :title="$t('ui.settings.title')"
     width="92%"
@@ -46,9 +46,11 @@
             <div class="setting-item">
               <label for="firmware-profile">{{ $t('ui.settings.firmware.profile') }}</label>
               <div class="input-group">
-                <select
+                <RetroSelect
                   id="firmware-profile"
                   v-model="localSettings.firmware.profile"
+                  size="md"
+                  full-width
                   @change="validateAndUpdate"
                 >
                   <option value="stm">
@@ -57,7 +59,7 @@
                   <option value="stc">
                     {{ $t('ui.settings.firmware.stc') }}
                   </option>
-                </select>
+                </RetroSelect>
               </div>
             </div>
           </div>
@@ -476,36 +478,39 @@
     </div>
 
     <template #footer>
-      <button
-        class="btn-secondary"
+      <RetroButton
+        variant="ghost"
+        size="sm"
         @click="resetToDefaults"
       >
         {{ $t('ui.settings.actions.reset') }}
-      </button>
+      </RetroButton>
       <div class="footer-right">
-        <button
-          class="btn-secondary"
+        <RetroButton
+          variant="secondary"
+          size="sm"
           @click="$emit('close')"
         >
           {{ $t('ui.settings.actions.close') }}
-        </button>
-        <button
-          class="btn-primary"
+        </RetroButton>
+        <RetroButton
+          variant="primary"
+          size="sm"
           :disabled="!isValid"
           @click="applySettings"
         >
           {{ $t('ui.settings.actions.apply') }}
-        </button>
+        </RetroButton>
       </div>
     </template>
-  </BaseModal>
+  </RetroModal>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import BaseModal from '@/components/common/BaseModal.vue';
+import { RetroButton, RetroModal, RetroSelect } from '@/components/retro';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import type { ConfigurableFirmwareProfileId } from '@/types/firmware-profile';
 import { formatBytes, formatTimeClock } from '@/utils/formatter-utils';
@@ -784,7 +789,7 @@ onMounted(() => {
   flex-direction: column;
   gap: spacing-vars.$space-2;
   padding-right: spacing-vars.$space-4;
-  border-right: 1px solid color-vars.$color-border-light;
+  border-right: 1px solid var(--retro-divider);
 }
 
 .settings-nav-button {
@@ -794,27 +799,31 @@ onMounted(() => {
   width: 100%;
   min-height: 58px;
   padding: spacing-vars.$space-3;
-  border: 1px solid transparent;
-  border-radius: radius-vars.$radius-base;
-  background: transparent;
-  color: color-vars.$color-text;
+  border: 1.5px solid var(--retro-border-subtle);
+  border-radius: 6px;
+  background: var(--retro-bg-surface);
+  color: var(--retro-ink);
   text-align: left;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, border-color 0.12s ease, background-color 0.12s ease;
 
   &:hover {
-    background: color-vars.$color-bg-secondary;
-    border-color: color-vars.$color-border-light;
+    border-color: var(--retro-border);
+    background: var(--retro-bg-elevated);
+    transform: translate(-1px, 1px);
+    box-shadow: var(--retro-shadow-btn-hover);
   }
 
   &.active {
-    background: rgba(0, 123, 255, 0.08);
-    border-color: color-vars.$color-primary;
-    color: color-vars.$color-primary;
+    background: var(--retro-bg-tint);
+    border-color: var(--retro-border);
+    color: var(--retro-ink);
+    box-shadow: var(--retro-shadow-btn);
   }
 
   &.invalid {
-    border-color: color-vars.$color-error;
+    border-color: var(--retro-danger-fg);
+    background: var(--retro-danger-bg);
   }
 }
 
@@ -890,39 +899,23 @@ onMounted(() => {
 
   input {
     width: 100%;
-    padding: spacing-vars.$space-2 70px spacing-vars.$space-2 spacing-vars.$space-3;
-    border: 1px solid color-vars.$color-border;
-    border-radius: radius-vars.$radius-base;
-    background: color-vars.$color-bg;
-    color: color-vars.$color-text;
+    box-sizing: border-box;
+    padding: 7px 52px 7px 10px;
+    border: 1.5px solid var(--retro-border);
+    border-radius: 4px;
+    background: var(--retro-bg-surface);
+    color: var(--retro-ink);
+    font-family: var(--retro-font-mono);
     font-size: typography-vars.$font-size-sm;
-    transition: border-color 0.2s;
+    transition: box-shadow 0.12s ease;
 
     &:focus {
       outline: none;
-      border-color: color-vars.$color-primary;
-      box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+      box-shadow: var(--retro-shadow-btn);
     }
 
     &:invalid {
-      border-color: color-vars.$color-error;
-    }
-  }
-
-  select {
-    width: 100%;
-    padding: spacing-vars.$space-2 spacing-vars.$space-3;
-    border: 1px solid color-vars.$color-border;
-    border-radius: radius-vars.$radius-base;
-    background: color-vars.$color-bg;
-    color: color-vars.$color-text;
-    font-size: typography-vars.$font-size-sm;
-    transition: border-color 0.2s;
-
-    &:focus {
-      outline: none;
-      border-color: color-vars.$color-primary;
-      box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+      border-color: var(--retro-danger-fg);
     }
   }
 }
@@ -965,27 +958,6 @@ onMounted(() => {
   font-size: typography-vars.$font-size-sm;
   cursor: pointer;
   transition: all 0.2s;
-}
-
-.btn-primary {
-  @include btn-base;
-  @include mixins.button-variant(white, color-vars.$color-primary);
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-.btn-secondary {
-  @include btn-base;
-  background: color-vars.$color-bg;
-  color: color-vars.$color-text;
-
-  &:hover {
-    background: color-vars.$color-bg-secondary;
-    border-color: color-vars.$color-border-dark;
-  }
 }
 
 @media (max-width: 720px) {

@@ -4,7 +4,6 @@
     class="emulator-overlay"
     :class="{ 'is-covered': isCovered }"
     :style="{ '--wipe-theme-color': themeColor }"
-    @click.self="handleOverlayClick"
   >
     <!-- Stepped SVG Boustrophedon Snake Wipe Layer (0ms -> 500ms) -->
     <svg
@@ -68,7 +67,6 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-  close: [];
   covered: [isCovered: boolean];
 }>();
 
@@ -83,10 +81,6 @@ const { isCovered, handleAnimationEnd } = useEmulatorTransition({
     emit('covered', false);
   },
 });
-
-function handleOverlayClick() {
-  emit('close');
-}
 
 defineExpose({
   isCovered,
@@ -152,9 +146,10 @@ defineExpose({
 }
 
 .emulator-container {
-  background: color-vars.$color-bg;
-  border-radius: radius-vars.$radius-xl;
-  box-shadow: color-vars.$shadow-lg;
+  background: var(--retro-bg-surface);
+  border: 1.5px solid var(--retro-border);
+  border-radius: 6px;
+  box-shadow: -4px 4px 0 var(--retro-shadow-color);
   overflow: hidden;
   width: min(540px, calc(100vw - 2rem));
   max-width: 90vw;

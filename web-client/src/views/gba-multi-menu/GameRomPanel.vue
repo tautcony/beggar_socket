@@ -97,17 +97,17 @@
             </div>
             <div class="config-field">
               <label>{{ $t('ui.gbaMultiMenu.titleFont') }}</label>
-              <select
+              <RetroSelect
                 v-model.number="item.config.title_font"
-                class="config-select"
+                full-width
               >
-                <option value="1">
+                <option :value="1">
                   Font 1
                 </option>
-                <option value="2">
+                <option :value="2">
                   Font 2
                 </option>
-              </select>
+              </RetroSelect>
             </div>
             <div class="config-field">
               <label>{{ $t('ui.gbaMultiMenu.saveSlot') }}</label>
@@ -154,7 +154,7 @@ import {
 } from 'ionicons/icons';
 import { ref } from 'vue';
 
-import { RetroButton, RetroCard, RetroDropZone } from '@/components/retro';
+import { RetroButton, RetroCard, RetroDropZone, RetroSelect } from '@/components/retro';
 import { useMultiMenu } from '@/composables/useMultiMenuState';
 
 const {
@@ -318,8 +318,7 @@ function handleDrop(e: DragEvent, dropIndex: number) {
   color: var(--retro-ink-muted);
 }
 
-.config-input,
-.config-select {
+.config-input {
   width: 100%;
   padding: 4px 6px;
   border: 1.5px solid var(--retro-border);

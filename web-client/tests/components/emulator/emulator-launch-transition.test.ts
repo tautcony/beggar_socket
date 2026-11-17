@@ -261,7 +261,7 @@ describe('EmulatorLaunchTransition.vue', () => {
     }
   });
 
-  it('emits close when clicking emulator-overlay background directly', async () => {
+  it('does not emit close when clicking emulator-overlay background directly', async () => {
     const wrapper = mount(EmulatorLaunchTransition, {
       props: {
         isVisible: true,
@@ -271,7 +271,7 @@ describe('EmulatorLaunchTransition.vue', () => {
     const overlay = wrapper.find('.emulator-overlay');
     await overlay.trigger('click');
 
-    expect(wrapper.emitted('close')).toHaveLength(1);
+    expect(wrapper.emitted('close')).toBeUndefined();
   });
 });
 

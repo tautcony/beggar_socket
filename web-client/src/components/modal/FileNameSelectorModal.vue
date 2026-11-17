@@ -1,5 +1,5 @@
 <template>
-  <BaseModal
+  <RetroModal
     v-model="modelValue"
     :title="$t('ui.ram.selectFileName')"
     width="500px"
@@ -16,9 +16,9 @@
             :placeholder="$t('ui.ram.enterFileName')"
             @keyup.enter="downloadFile"
           >
-          <BaseButton
+          <RetroButton
             v-if="selectedFileName !== defaultFileName"
-            variant="error"
+            variant="danger"
             size="sm"
             text="✕"
             :title="$t('ui.ram.resetToDefault')"
@@ -47,7 +47,7 @@
       </div>
 
       <div class="action-section">
-        <BaseButton
+        <RetroButton
           variant="primary"
           :text="$t('ui.ram.download')"
           :disabled="!selectedFileName.trim()"
@@ -55,7 +55,7 @@
         />
       </div>
     </div>
-  </BaseModal>
+  </RetroModal>
 </template>
 
 <script setup lang="ts">
@@ -63,8 +63,7 @@ import { DateTime } from 'luxon';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import BaseButton from '@/components/common/BaseButton.vue';
-import BaseModal from '@/components/common/BaseModal.vue';
+import { RetroButton, RetroModal } from '@/components/retro';
 import { useRecentFileNamesStore } from '@/stores/recent-file-names-store';
 
 const { t } = useI18n();

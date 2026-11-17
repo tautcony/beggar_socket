@@ -11,7 +11,7 @@
           {{ sectorProgress?.completedSectors ?? 0 }} / {{ sectorProgress?.totalSectors ?? 0 }}
         </span>
         <div class="render-mode-wrap">
-          <ToggleSwitch
+          <RetroSwitch
             v-model="useCanvasRenderer"
             :label="$t('ui.progress.rendererCanvas')"
           />
@@ -167,7 +167,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import ToggleSwitch from '@/components/common/ToggleSwitch.vue';
+import { RetroSwitch } from '@/components/retro';
 import { type ProgressInfo, type SectorProgressInfo, type SectorSizeClass, type SectorStateCode } from '@/types/progress-info';
 import { formatBytes, formatHex } from '@/utils/formatter-utils';
 
@@ -650,11 +650,11 @@ function ensureCanvasObserver(): void {
 @use '@/styles/mixins' as mixins;
 
 .sector-visualization {
-  margin: spacing-vars.$space-5 0;
-  padding: spacing-vars.$space-4;
-  background: color-vars.$color-bg-secondary;
-  border-radius: radius-vars.$radius-lg;
-  border: 1px solid color-vars.$color-border-light;
+  margin: spacing-vars.$space-4 0;
+  padding: spacing-vars.$space-3;
+  background: var(--retro-bg-elevated);
+  border-radius: 6px;
+  border: 1.5px solid var(--retro-border-subtle);
 }
 
 .sector-title {
@@ -679,12 +679,13 @@ function ensureCanvasObserver(): void {
 }
 
 .sector-counter {
-  font-family: monospace;
-  background: color-vars.$color-bg-tertiary;
-  padding: spacing-vars.$space-1 spacing-vars.$space-2;
-  border-radius: radius-vars.$radius-base;
+  font-family: var(--retro-font-mono);
+  background: var(--retro-bg-surface);
+  border: 1px solid var(--retro-border-subtle);
+  padding: 2px 7px;
+  border-radius: 4px;
   font-size: typography-vars.$font-size-xs;
-  color: color-vars.$color-text-secondary;
+  color: var(--retro-ink-muted);
 }
 
 .sector-grid {

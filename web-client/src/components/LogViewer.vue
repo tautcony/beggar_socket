@@ -3,7 +3,7 @@
     <div class="log-header">
       <h2>{{ $t('ui.log.title') }}</h2>
       <div class="log-header-actions">
-        <BaseButton
+        <RetroButton
           class="auto-scroll-button"
           :variant="autoScrollEnabled ? 'success' : 'primary'"
           size="sm"
@@ -13,9 +13,10 @@
           @click="handleButtonClick"
           @dblclick="handleButtonDoubleClick"
         />
-        <BaseButton
+        <RetroButton
           class="log-clear"
           size="sm"
+          variant="danger"
           :text="$t('ui.log.clear')"
           @click="clearLog"
         />
@@ -75,10 +76,9 @@
 import { chevronDownOutline } from 'ionicons/icons';
 import { nextTick, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 
+import { RetroButton } from '@/components/retro';
 import type { BurnerLogEntry } from '@/types/burner-log';
 import { resolveAutoScrollEnabled } from '@/utils/log-viewer';
-
-import BaseButton from './common/BaseButton.vue';
 
 const props = withDefaults(defineProps<{
   title?: string;
@@ -242,6 +242,11 @@ onUnmounted(() => {
   flex-direction: column;
   min-height: 320px;
   height: min(56vh, 520px);
+  background: var(--retro-bg-surface);
+  border: 1.5px solid var(--retro-border);
+  border-radius: 6px;
+  padding: var(--space-3);
+  box-shadow: var(--retro-shadow-card);
   box-sizing: border-box;
 }
 
@@ -258,8 +263,9 @@ onUnmounted(() => {
 
 .log-header h2 {
   margin: 0;
-  font-size: var(--font-size-lg);
-  color: var(--color-text);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--retro-ink);
 }
 
 .log-header-actions {
@@ -268,32 +274,18 @@ onUnmounted(() => {
   gap: var(--space-2);
 }
 
-.log-clear {
-  background-color: var(--color-error);
-  color: white;
-  border: none;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-base);
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.log-clear:hover {
-  background-color: #b71c1c;
-}
-
 .log-area-scroll {
-  background-color: var(--color-bg-secondary);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
+  background-color: var(--retro-bg-surface);
+  color: var(--retro-ink);
+  border-radius: 4px;
+  border: 1.5px solid var(--retro-border);
   padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
   flex: 1;
   min-width: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-sm);
+  font-family: var(--retro-font-mono);
+  font-size: var(--font-size-xs);
   line-height: var(--line-height-relaxed);
   word-break: break-all;
   white-space: pre-wrap;

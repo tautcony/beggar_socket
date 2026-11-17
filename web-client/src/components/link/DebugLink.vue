@@ -2,7 +2,7 @@
   <FloatingLink
     :text="$t('ui.debug.panel')"
     :title="$t('ui.debug.panel')"
-    :color="'#e67e22'"
+    :color="'var(--retro-warning-bg)'"
     :bottom="80"
     :right="20"
     @click="togglePanel"

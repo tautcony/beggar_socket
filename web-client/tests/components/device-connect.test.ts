@@ -85,7 +85,7 @@ describe('DeviceConnect', () => {
     const wrapper = mount(DeviceConnect, {
       global: {
         stubs: {
-          BaseButton: {
+          RetroButton: {
             template: '<button @click="$emit(\'click\')" />',
           },
           PortSelectorModal: true,

@@ -10,7 +10,7 @@
         {{ $t('ui.emulator.title') }} - {{ romName }}
       </h3>
       <div class="emulator-controls">
-        <BaseButton
+        <RetroButton
           variant="secondary"
           size="sm"
           :disabled="exportInProgress"
@@ -19,7 +19,7 @@
           :title="$t('ui.emulator.pause')"
           @click="togglePause"
         />
-        <BaseButton
+        <RetroButton
           variant="warning"
           size="sm"
           :disabled="exportInProgress"
@@ -28,15 +28,15 @@
           :title="$t('ui.emulator.reset')"
           @click="resetGame"
         />
-        <BaseButton
+        <RetroButton
           variant="secondary"
           size="sm"
           :text="$t('ui.emulator.exportSave')"
           :disabled="!latestCheckpoint || exportInProgress"
           @click="exportSave"
         />
-        <BaseButton
-          variant="error"
+        <RetroButton
+          variant="danger"
           size="sm"
           :disabled="exportInProgress"
           :icon="close"
@@ -60,12 +60,12 @@
         </div>
         <h4>{{ $t('ui.emulator.errors.error') }}</h4>
         <p>{{ errorMessage }}</p>
-        <BaseButton
+        <RetroButton
           variant="primary"
           :text="$t('ui.emulator.retry')"
           @click="retryInitialization"
         />
-        <BaseButton
+        <RetroButton
           v-if="launch?.saveData && !skipSelectedSave"
           variant="secondary"
           :text="$t('ui.emulator.startWithoutSave')"
@@ -111,12 +111,12 @@ import { close, pause, play, refresh, warning } from 'ionicons/icons';
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import BaseButton from '@/components/common/BaseButton.vue';
 import EmulatorLaunchTransition from '@/components/emulator/EmulatorLaunchTransition.vue';
 import EmulatorScreenViewport from '@/components/emulator/EmulatorScreenViewport.vue';
 import { attachSettledSaveListener, captureGbaSave, copyBytes, type GbaSaveCore, importGbaSave, inspectGbaSave, isGbaSaveSettled, type SaveCheckpoint } from '@/components/emulator/gba-save-bridge';
 import { applyGbatsArmCompatibility } from '@/components/emulator/gbats-arm-compat';
 import type { GbaPreviewLaunch } from '@/components/operaiton/contracts';
+import { RetroButton } from '@/components/retro';
 import { useToast } from '@/composables/useToast';
 import type { GbaPreviewSavePayload } from '@/features/gba-save/types';
 import { saveBinaryFile } from '@/platform/native';
@@ -979,12 +979,14 @@ function cleanup(isFinalUnmount = false) {
 @use '@/styles/mixins' as mixins;
 
 .emulator-header {
-  background: linear-gradient(135deg, #5bcffa 0%, #f5abb9 100%);
-  color: #ffffff;
-  padding: spacing-vars.$space-4 spacing-vars.$space-5;
+  background: var(--retro-bg-elevated);
+  color: var(--retro-ink);
+  border-bottom: 1.5px solid var(--retro-border);
+  padding: 10px spacing-vars.$space-4;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: spacing-vars.$space-3;
 }
 
 .emulator-title {

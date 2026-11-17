@@ -76,7 +76,7 @@
       <section class="debug-section">
         <div class="section-title-row">
           <h4>{{ $t('ui.debug.sessionStatus') }}</h4>
-          <BaseButton
+          <RetroButton
             variant="secondary"
             size="sm"
             :text="$t('ui.debug.connectMockDevice')"
@@ -265,13 +265,13 @@
                 class="hidden-file-input"
                 @change="event => onMemoryFileSelected(slot.slot, event)"
               >
-              <BaseButton
-                variant="debug"
+              <RetroButton
+                variant="warning"
                 size="sm"
                 :text="$t('ui.debug.uploadImage')"
                 @click="openFilePicker(slot.slot)"
               />
-              <BaseButton
+              <RetroButton
                 variant="secondary"
                 size="sm"
                 :text="$t('ui.debug.clearImage')"
@@ -286,26 +286,26 @@
       <section class="debug-section">
         <h4>{{ $t('ui.debug.sessionActions') }}</h4>
         <div class="debug-buttons debug-buttons--wide">
-          <BaseButton
+          <RetroButton
             variant="secondary"
             size="sm"
             :text="$t('ui.debug.refreshSimulatedSession')"
             :disabled="!simulatedConnected"
             @click="refreshSimulatedSession"
           />
-          <BaseButton
-            variant="debug"
+          <RetroButton
+            variant="warning"
             size="sm"
             :text="$t('ui.debug.generateTestRom')"
             @click="generateTestRom"
           />
-          <BaseButton
-            variant="debug"
+          <RetroButton
+            variant="warning"
             size="sm"
             :text="$t('ui.debug.generateTestRam')"
             @click="generateTestRam"
           />
-          <BaseButton
+          <RetroButton
             variant="secondary"
             size="sm"
             :text="$t('ui.debug.clearMockData')"
@@ -323,7 +323,7 @@ import { chevronBackOutline, chevronForwardOutline, closeOutline, constructOutli
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import BaseButton from '@/components/common/BaseButton.vue';
+import { RetroButton } from '@/components/retro';
 import {
   DebugSettings,
   type SimulatedMemorySlot,
@@ -799,13 +799,12 @@ function generateTestRam(): void {
 <style scoped>
 .debug-panel {
   position: fixed;
-  background: rgba(255, 251, 245, 0.96);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(209, 157, 52, 0.35);
-  border-radius: var(--radius-xl);
-  box-shadow: 0 20px 60px rgba(67, 48, 20, 0.18);
+  background: var(--retro-bg-surface);
+  border: 1.5px solid var(--retro-border);
+  border-radius: 6px;
+  box-shadow: var(--retro-shadow-card);
   z-index: 1000;
-  color: var(--color-text);
+  color: var(--retro-ink);
   overflow: hidden;
   transition:
     width 0.2s ease,
@@ -844,10 +843,9 @@ function generateTestRam(): void {
   justify-content: space-between;
   align-items: flex-start;
   gap: var(--space-3);
-  padding: var(--space-4);
-  background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.35), transparent 45%),
-    linear-gradient(135deg, #f6b84c 0%, #e47b32 100%);
+  padding: var(--space-3) var(--space-4);
+  background: var(--retro-bg-elevated);
+  border-bottom: 1.5px solid var(--retro-border);
   cursor: grab;
   user-select: none;
   touch-action: none;
@@ -871,7 +869,7 @@ function generateTestRam(): void {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  color: rgba(255, 255, 255, 0.94);
+  color: var(--retro-ink);
 }
 
 .debug-title {
@@ -881,7 +879,8 @@ function generateTestRam(): void {
   margin: 0;
   min-width: 0;
   font-size: var(--font-size-base);
-  color: #fff;
+  font-weight: var(--font-weight-bold);
+  color: var(--retro-ink);
 }
 
 .debug-title__icon,
@@ -893,7 +892,8 @@ function generateTestRam(): void {
 
 .collapsed-label {
   font-size: var(--font-size-xs);
-  color: rgba(255, 255, 255, 0.94);
+  font-weight: var(--font-weight-bold);
+  color: var(--retro-ink);
   letter-spacing: 0.08em;
   writing-mode: vertical-rl;
   text-orientation: mixed;
@@ -915,21 +915,24 @@ function generateTestRam(): void {
 }
 
 .status-pill {
-  border-radius: 999px;
-  padding: 6px 10px;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  background: rgba(255, 255, 255, 0.18);
-  color: #fff;
+  border-radius: 4px;
+  border: 1.5px solid var(--retro-border);
+  padding: 3px 8px;
+  font-family: var(--retro-font-mono);
+  font-size: 11px;
+  font-weight: var(--font-weight-bold);
+  background: var(--retro-bg-surface);
+  color: var(--retro-ink);
   white-space: nowrap;
 }
 
 .status-pill--active {
-  background: rgba(39, 174, 96, 0.22);
+  background: var(--retro-success-bg);
 }
 
 .status-pill--idle {
-  background: rgba(0, 0, 0, 0.12);
+  background: var(--retro-bg-surface);
+  color: var(--retro-ink-muted);
 }
 
 .panel-actions {
@@ -950,26 +953,28 @@ function generateTestRam(): void {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  width: 26px;
+  height: 26px;
+  border: 1.5px solid var(--retro-border);
+  border-radius: 3px;
+  background: var(--retro-bg-surface);
+  color: var(--retro-ink);
+  box-shadow: var(--retro-shadow-btn);
   cursor: pointer;
-  transition: background 0.2s ease, transform 0.2s ease;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.12s ease;
 }
 
 .panel-icon-button:hover {
-  background: rgba(255, 255, 255, 0.28);
-  transform: translateY(-1px);
+  background: var(--retro-bg-tint);
+  transform: translate(-1px, 1px);
+  box-shadow: var(--retro-shadow-btn-hover);
 }
 
 .debug-content {
   padding: var(--space-4);
   overflow-y: auto;
   max-height: calc(100vh - 140px);
-  background: linear-gradient(180deg, rgba(255, 248, 239, 0.96) 0%, rgba(250, 250, 248, 0.98) 100%);
+  background: var(--retro-bg-surface);
 }
 
 .debug-section {
@@ -1008,9 +1013,9 @@ function generateTestRam(): void {
 
 .status-card {
   padding: var(--space-3);
-  border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.74);
-  border: 1px solid rgba(214, 214, 214, 0.8);
+  border-radius: 6px;
+  background: var(--retro-bg-elevated);
+  border: 1.5px solid var(--retro-border-subtle);
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -1046,13 +1051,18 @@ function generateTestRam(): void {
   align-items: center;
   gap: var(--space-2);
   cursor: pointer;
+  color: var(--retro-ink);
+}
+
+.debug-switch input[type='checkbox'] {
+  accent-color: var(--retro-ink);
 }
 
 .debug-control {
   padding: var(--space-3);
-  border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(214, 214, 214, 0.8);
+  border-radius: 6px;
+  background: var(--retro-bg-elevated);
+  border: 1.5px solid var(--retro-border-subtle);
 }
 
 .control-head {
@@ -1065,18 +1075,20 @@ function generateTestRam(): void {
 
 .debug-control label {
   font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  font-weight: var(--font-weight-medium);
+  color: var(--retro-ink-muted);
+  font-weight: var(--font-weight-semibold);
 }
 
 .debug-control input[type='range'] {
   width: 100%;
+  accent-color: var(--retro-ink);
 }
 
 .debug-value {
+  font-family: var(--retro-font-mono);
   font-size: var(--font-size-xs);
-  color: #b46119;
-  font-weight: var(--font-weight-semibold);
+  color: var(--retro-ink);
+  font-weight: var(--font-weight-bold);
 }
 
 .preset-row {
@@ -1087,19 +1099,28 @@ function generateTestRam(): void {
 }
 
 .preset-chip {
-  border: 1px solid rgba(180, 97, 25, 0.18);
-  background: rgba(246, 184, 76, 0.12);
-  color: #8d4d17;
-  border-radius: 999px;
-  padding: 4px 10px;
+  border: 1.5px solid var(--retro-border);
+  background: var(--retro-bg-surface);
+  color: var(--retro-ink);
+  border-radius: 4px;
+  padding: 3px 9px;
+  font-family: var(--retro-font-mono);
   font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  box-shadow: var(--retro-shadow-btn);
   cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.12s ease;
+}
+
+.preset-chip:hover:not(.preset-chip--active) {
+  background: var(--retro-bg-tint);
+  transform: translate(-1px, 1px);
+  box-shadow: var(--retro-shadow-btn-hover);
 }
 
 .preset-chip--active {
-  background: #e47b32;
-  color: #fff;
-  border-color: #e47b32;
+  background: var(--retro-primary-bg);
+  color: var(--retro-primary-fg);
 }
 
 .memory-grid {
@@ -1109,9 +1130,9 @@ function generateTestRam(): void {
 
 .memory-card {
   padding: var(--space-3);
-  border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.76);
-  border: 1px solid rgba(214, 214, 214, 0.8);
+  border-radius: 6px;
+  background: var(--retro-bg-elevated);
+  border: 1.5px solid var(--retro-border-subtle);
 }
 
 .memory-card__head {
@@ -1135,20 +1156,22 @@ function generateTestRam(): void {
 }
 
 .memory-badge {
-  border-radius: 999px;
-  padding: 4px 8px;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
+  border-radius: 4px;
+  border: 1px solid var(--retro-border);
+  padding: 2px 7px;
+  font-family: var(--retro-font-mono);
+  font-size: 11px;
+  font-weight: var(--font-weight-bold);
 }
 
 .memory-badge--custom {
-  background: rgba(39, 174, 96, 0.16);
-  color: var(--color-success);
+  background: var(--retro-success-bg);
+  color: var(--retro-ink);
 }
 
 .memory-badge--default {
-  background: rgba(120, 120, 120, 0.12);
-  color: var(--color-text-secondary);
+  background: var(--retro-bg-surface);
+  color: var(--retro-ink-muted);
 }
 
 .memory-card__body {

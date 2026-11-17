@@ -33,7 +33,7 @@
 import { IonIcon } from '@ionic/vue';
 
 interface Props {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'warning' | 'success';
   size?: 'xs' | 'sm' | 'md';
   icon?: string;
   text?: string;
@@ -47,7 +47,7 @@ interface Props {
 
 withDefaults(defineProps<Props>(), {
   variant: 'secondary',
-  size: 'sm',
+  size: 'md',
   icon: undefined,
   text: undefined,
   title: undefined,
@@ -85,25 +85,35 @@ defineEmits<{
 
 .retro-btn.size-xs {
   padding: 3px 8px;
+  min-height: 24px;
   font-size: 11px;
 }
 
 .retro-btn.size-sm {
-  padding: 5px 10px;
-  font-size: var(--font-size-xs);
+  padding: 5px 12px;
+  min-height: 32px;
+  font-size: var(--font-size-sm);
 }
 
 .retro-btn.size-md {
-  padding: 8px 12px;
-  font-size: var(--font-size-xs);
+  padding: 8px 16px;
+  min-height: 38px;
+  font-size: var(--font-size-sm);
 }
 
 .retro-btn.is-icon-only {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
+  min-height: 26px;
   padding: 0;
   border-radius: 3px;
-  font-size: 13px;
+  font-size: 14px;
+}
+
+.retro-btn.is-icon-only.size-sm {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
 }
 
 .retro-btn.variant-primary {
@@ -136,6 +146,16 @@ defineEmits<{
 
 .retro-btn.variant-danger:hover:not(:disabled) {
   background: var(--retro-danger-bg);
+}
+
+.retro-btn.variant-warning {
+  background: var(--retro-warning-bg);
+  color: var(--retro-ink);
+}
+
+.retro-btn.variant-success {
+  background: var(--retro-success-bg);
+  color: var(--retro-ink);
 }
 
 .retro-btn.is-active {

@@ -1,5 +1,5 @@
 <template>
-  <BaseModal
+  <RetroModal
     v-model="localVisible"
     :title="modalTitle"
     :close-disabled="true"
@@ -119,22 +119,24 @@
       </div>
     </div>
     <template #footer>
-      <button
-        class="stop-button"
+      <RetroButton
+        variant="danger"
+        size="sm"
         :disabled="(!allowCancel) || state === 'completed' || state === 'error'"
         @click="handleStop"
       >
         {{ $t('ui.progress.stop') }}
-      </button>
-      <button
-        class="close-button"
+      </RetroButton>
+      <RetroButton
+        variant="secondary"
+        size="sm"
         :disabled="state === 'running'"
         @click="handleClose"
       >
         {{ $t('ui.progress.close') }}
-      </button>
+      </RetroButton>
     </template>
-  </BaseModal>
+  </RetroModal>
 </template>
 
 <script setup lang="ts">
@@ -143,8 +145,8 @@ import { alertCircleOutline, checkmarkOutline, pauseCircleOutline, syncOutline }
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import BaseModal from '@/components/common/BaseModal.vue';
 import SectorVisualization from '@/components/progress/SectorVisualization.vue';
+import { RetroButton, RetroModal } from '@/components/retro';
 import type { BurnerLogEntry } from '@/types/burner-log';
 import { ProgressInfo } from '@/types/progress-info';
 import { formatBurnerLogMessage } from '@/utils/burner-log';
@@ -448,42 +450,26 @@ onUnmounted(() => {
 }
 
 .progress-bar-container {
-  background: color-vars.$color-bg-tertiary;
-  border-radius: radius-vars.$radius-md;
+  background: var(--retro-bg-elevated);
+  border: 1.5px solid var(--retro-border);
+  border-radius: 4px;
   height: 12px;
   overflow: hidden;
   margin-bottom: spacing-vars.$space-2;
 }
 
 .progress-bar-fill {
-  background: linear-gradient(90deg, color-vars.$color-primary, #1d4ed8);
+  background: var(--retro-primary-bg);
   height: 100%;
   width: 0;
-  border-radius: radius-vars.$radius-md;
   transition: width 0.08s linear;
   position: relative;
   will-change: width;
   backface-visibility: hidden;
-
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-    animation: progressShimmer 2s infinite;
-  }
 }
 
 .progress-bar-fill--instant {
   transition: none;
-}
-
-@keyframes progressShimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
 }
 
 .progress-percentage {
@@ -509,6 +495,10 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: spacing-vars.$space-3;
+  margin: 0;
+  font-size: typography-vars.$font-size-base;
+  font-weight: typography-vars.$font-weight-bold;
+  color: var(--retro-ink);
   line-height: 1.2;
 }
 
@@ -517,62 +507,58 @@ onUnmounted(() => {
   align-items: center;
   gap: spacing-vars.$space-1;
   margin-left: auto;
-  padding: spacing-vars.$space-1 spacing-vars.$space-2;
-  border-radius: radius-vars.$radius-full;
-  font-size: typography-vars.$font-size-xs;
-  font-weight: typography-vars.$font-weight-semibold;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: var(--retro-font-mono);
+  font-size: 11px;
+  font-weight: typography-vars.$font-weight-bold;
   line-height: 1;
-  border: 1px solid transparent;
+  border: 1.5px solid var(--retro-border);
+  color: var(--retro-ink);
+  background: var(--retro-bg-surface);
 
   :deep(svg) {
-    font-size: typography-vars.$font-size-base;
+    font-size: typography-vars.$font-size-sm;
   }
 }
 
 .status-badge--running {
-  color: color-vars.$color-primary;
-  background: rgba(59, 130, 246, 0.12);
-  border-color: rgba(59, 130, 246, 0.24);
+  background: var(--retro-bg-tint);
 }
 
 .status-badge--completed {
-  color: color-vars.$color-success;
-  background: rgba(34, 197, 94, 0.12);
-  border-color: rgba(34, 197, 94, 0.24);
+  background: var(--retro-success-bg);
 }
 
 .status-badge--paused {
-  color: color-vars.$color-warning;
-  background: rgba(245, 158, 11, 0.12);
-  border-color: rgba(245, 158, 11, 0.24);
+  background: var(--retro-warning-bg);
 }
 
 .status-badge--error {
-  color: color-vars.$color-error;
-  background: rgba(239, 68, 68, 0.12);
-  border-color: rgba(239, 68, 68, 0.24);
+  color: var(--retro-danger-fg);
+  background: var(--retro-danger-bg);
 }
 
 .stat-item {
   @include mixins.flex-between;
-  padding: spacing-vars.$space-3;
-  background: color-vars.$color-bg-secondary;
-  border-radius: radius-vars.$radius-lg;
-  border: 1px solid color-vars.$color-border-light;
+  padding: spacing-vars.$space-2 spacing-vars.$space-3;
+  background: var(--retro-bg-elevated);
+  border-radius: 4px;
+  border: 1px solid var(--retro-border-subtle);
 }
 
 .stat-label {
-  font-size: typography-vars.$font-size-sm;
-  color: color-vars.$color-text-secondary;
-  font-weight: typography-vars.$font-weight-medium;
+  font-size: typography-vars.$font-size-xs;
+  color: var(--retro-ink-muted);
+  font-weight: typography-vars.$font-weight-semibold;
 }
 
 .stat-value {
-  font-size: typography-vars.$font-size-sm;
-  color: color-vars.$color-text;
-  font-weight: typography-vars.$font-weight-semibold;
+  font-size: typography-vars.$font-size-xs;
+  color: var(--retro-ink);
+  font-weight: typography-vars.$font-weight-bold;
   font-variant-numeric: tabular-nums;
-  font-family: monospace;
+  font-family: var(--retro-font-mono);
 }
 
 .latest-log-entry {
@@ -668,52 +654,6 @@ onUnmounted(() => {
 .supplementary-subitem-content--error {
   color: color-vars.$color-error;
   border-color: rgba(239, 68, 68, 0.24);
-}
-
-@mixin button-base {
-  border: none;
-  padding: spacing-vars.$space-3 spacing-vars.$space-5;
-  border-radius: radius-vars.$radius-md;
-  font-weight: typography-vars.$font-weight-medium;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: typography-vars.$font-size-sm;
-
-  &:active:not(:disabled) {
-    transform: translateY(0);
-  }
-
-  &:disabled {
-    background: color-vars.$color-border;
-    color: color-vars.$color-text-secondary;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-  }
-}
-
-.stop-button {
-  @include button-base;
-  background: color-vars.$color-error;
-  color: white;
-
-  &:hover:not(:disabled) {
-    background: color-vars.$color-error-hover;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-  }
-}
-
-.close-button {
-  @include button-base;
-  background: color-vars.$color-secondary;
-  color: white;
-
-  &:hover:not(:disabled) {
-    background: #4b5563;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
-  }
 }
 
 /* 超时状态颜色样式 */
