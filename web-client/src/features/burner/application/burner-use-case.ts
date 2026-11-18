@@ -258,7 +258,6 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
           mbcType: 'MBC5',
           enable5V: false,
           skipChannelStabilize: i > 0,
-          quiet: true,
         },
         showProgress: false,
       });
@@ -305,7 +304,6 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
           mbcType,
           enable5V,
           skipChannelStabilize: index > 0,
-          quiet: true,
         },
         showProgress: false,
       });

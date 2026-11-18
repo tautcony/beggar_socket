@@ -41,8 +41,6 @@ export class GBAAdapter extends CartridgeAdapter {
   private static readonly ROM_BANK_SIZE = 1 << 25;
   private static readonly RAM_BANK_SWITCH_SETTLE_MS = 100;
   private static readonly CHIP_ERASE_TIMEOUT_MS = 120_000;
-  private activeRomBank: number | null = null;
-  private suppressRomBankLog = false;
 
   /**
    * 构造函数
@@ -546,12 +544,10 @@ export class GBAAdapter extends CartridgeAdapter {
     const retryDelayMs = AdvancedSettings.romReadRetryDelayMs;
     const timeoutMs = AdvancedSettings.packageReceiveTimeout;
 
-    if (!options.quiet) {
-      this.log(this.t('messages.operation.startReadROM', {
-        size,
-        baseAddress: formatHex(baseAddress, 4),
-      }), 'info');
-    }
+    this.log(this.t('messages.operation.startReadROM', {
+      size,
+      baseAddress: formatHex(baseAddress, 4),
+    }), 'info');
 
     return PerformanceTracker.trackAsyncOperation(
       'gba.readROM',
@@ -573,134 +569,120 @@ export class GBAAdapter extends CartridgeAdapter {
             };
           }
 
-          const prevSuppressRomBankLog = this.suppressRomBankLog;
-          this.suppressRomBankLog = Boolean(options.quiet);
-          try {
-            if (!options.skipChannelStabilize) {
-              await this.stabilizeCommandChannel(GBAAdapter.ROM_READ_START_SETTLE_MS);
-            }
-            if (!options.quiet) {
-              this.log(this.t('messages.rom.reading'), 'info');
-            }
-            let totalRead = 0;
+          await this.stabilizeReadChannel(options, GBAAdapter.ROM_READ_START_SETTLE_MS);
+          this.log(this.t('messages.rom.reading'), 'info');
+          let totalRead = 0;
 
-            const data = new Uint8Array(size);
+          const data = new Uint8Array(size);
 
-            // 使用速度计算器
-            const speedCalculator = new SpeedCalculator();
+          // 使用速度计算器
+          const speedCalculator = new SpeedCalculator();
 
-            // 创建进度报告器
-            const progressReporter = new ProgressReporter(
-              'read',
-              size,
-              (progressInfo) => { this.updateProgress(progressInfo); },
-              (key, params) => this.t(key, params),
-              showProgress,
-            );
+          // 创建进度报告器
+          const progressReporter = new ProgressReporter(
+            'read',
+            size,
+            (progressInfo) => { this.updateProgress(progressInfo); },
+            (key, params) => this.t(key, params),
+            showProgress,
+          );
 
-            // 报告开始状态
-            progressReporter.reportStart(this.t('messages.rom.reading'));
+          // 报告开始状态
+          progressReporter.reportStart(this.t('messages.rom.reading'));
 
-            // 分块读取以便计算速度统计
-            let lastLoggedProgress = -1; // 初始化为 -1，确保第一次 0% 会被记录
-            let chunkCount = 0; // 记录已处理的块数
-            let currentBank = -1;
+          // 分块读取以便计算速度统计
+          let lastLoggedProgress = -1; // 初始化为 -1，确保第一次 0% 会被记录
+          let chunkCount = 0; // 记录已处理的块数
+          let currentBank = -1;
 
-            while (totalRead < size) {
+          while (totalRead < size) {
             // 检查是否已被取消
-              if (signal?.aborted) {
-                progressReporter.reportError(this.t('messages.operation.cancelled'));
-                return {
-                  success: false,
-                  message: this.t('messages.operation.cancelled'),
-                };
+            if (signal?.aborted) {
+              progressReporter.reportError(this.t('messages.operation.cancelled'));
+              return {
+                success: false,
+                message: this.t('messages.operation.cancelled'),
+              };
+            }
+
+            const currentAddress = baseAddress + totalRead;
+            const isMultiCard = options.cfiInfo.deviceSize > (1 << 25);
+            const { bank, cartAddress, chunkSize } = planBankChunk(currentAddress, size - totalRead, pageSize, { platform: 'gba', memory: 'rom' });
+            if (isMultiCard) {
+              if (bank !== currentBank) {
+                currentBank = bank;
+                await this.ensureRomBank(`gba:${bank}`, () => this.switchROMBank(bank));
               }
+            }
 
-              const currentAddress = baseAddress + totalRead;
-              const isMultiCard = options.cfiInfo.deviceSize > (1 << 25);
-              const { bank, cartAddress, chunkSize } = planBankChunk(currentAddress, size - totalRead, pageSize, { platform: 'gba', memory: 'rom' });
-              if (isMultiCard) {
-                if (bank !== currentBank) {
-                  currentBank = bank;
-                  if (this.activeRomBank !== bank) {
-                    await this.switchROMBank(bank);
-                  }
-                }
-              }
+            // 读取数据
+            const restoreState = options.cfiInfo.deviceSize > (1 << 25)
+              ? async () => { await this.switchROMBank(bank); }
+              : undefined;
+            const chunk = await this.readROMChunkWithRetry(
+              chunkSize,
+              currentAddress,
+              cartAddress,
+              Math.floor(totalRead / pageSize) + 1,
+              bank,
+              restoreState,
+              signal,
+            );
+            const chunkEndTime = Date.now();
+            data.set(chunk, totalRead);
 
-              // 读取数据
-              const restoreState = options.cfiInfo.deviceSize > (1 << 25)
-                ? async () => { await this.switchROMBank(bank); }
-                : undefined;
-              const chunk = await this.readROMChunkWithRetry(
-                chunkSize,
-                currentAddress,
-                cartAddress,
-                Math.floor(totalRead / pageSize) + 1,
-                bank,
-                restoreState,
-                signal,
-              );
-              const chunkEndTime = Date.now();
-              data.set(chunk, totalRead);
+            totalRead += chunkSize;
+            chunkCount++;
 
-              totalRead += chunkSize;
-              chunkCount++;
+            // 添加数据点到速度计算
+            speedCalculator.addDataPoint(chunkSize, chunkEndTime);
 
-              // 添加数据点到速度计算
-              speedCalculator.addDataPoint(chunkSize, chunkEndTime);
-
-              // 每10次操作或最后一次更新进度
-              if (chunkCount % 10 === 0 || totalRead >= size) {
+            // 每10次操作或最后一次更新进度
+            if (chunkCount % 10 === 0 || totalRead >= size) {
               // 计算当前速度
-                const currentSpeed = speedCalculator.getCurrentSpeed();
+              const currentSpeed = speedCalculator.getCurrentSpeed();
 
-                // 报告进度
-                progressReporter.reportProgress(
-                  totalRead,
-                  currentSpeed,
-                  this.t('messages.progress.readSpeed', { speed: formatSpeed(currentSpeed) }),
-                );
-              }
-
-              // 每 5 个百分比记录一次日志
-              const progress = Math.floor((totalRead / size) * 100);
-              if (!options.quiet && progress % 5 === 0 && progress !== lastLoggedProgress) {
-                this.log(this.t('messages.rom.readingAt', { address: formatHex(currentAddress, 4), progress }), 'info');
-                lastLoggedProgress = progress;
-              }
-
-              if (totalRead < size && readThrottleMs > 0) {
-                await timeout(readThrottleMs);
-              }
+              // 报告进度
+              progressReporter.reportProgress(
+                totalRead,
+                currentSpeed,
+                this.t('messages.progress.readSpeed', { speed: formatSpeed(currentSpeed) }),
+              );
             }
 
-            const totalTime = speedCalculator.getTotalTime();
-            const avgSpeed = totalTime > 0 ? size / totalTime : speedCalculator.getAverageSpeed();
-            const maxSpeed = speedCalculator.getMaxSpeed();
-
-            if (!options.quiet) {
-              this.log(this.t('messages.rom.readSuccess', { size: data.length }), 'success');
-              this.log(this.t('messages.rom.readSummary', {
-                totalTime: formatTimeDuration(totalTime),
-                avgSpeed: formatSpeed(avgSpeed),
-                maxSpeed: formatSpeed(maxSpeed),
-                totalSize: formatBytes(size),
-                requestCount: chunkCount,
-              }), 'info');
+            // 每 5 个百分比记录一次日志
+            const progress = Math.floor((totalRead / size) * 100);
+            if (progress % 5 === 0 && progress !== lastLoggedProgress) {
+              this.log(this.t('messages.rom.readingAt', { address: formatHex(currentAddress, 4), progress }), 'info');
+              lastLoggedProgress = progress;
             }
 
-            // 报告完成状态
-            progressReporter.reportCompleted(this.t('messages.rom.readSuccess', { size: data.length }), avgSpeed);
-
-            return {
-              success: true,
-              data: data,
-              message: this.t('messages.rom.readSuccess', { size: data.length }),
-            };
-          } finally {
-            this.suppressRomBankLog = prevSuppressRomBankLog;
+            if (totalRead < size && readThrottleMs > 0) {
+              await timeout(readThrottleMs);
+            }
           }
+
+          const totalTime = speedCalculator.getTotalTime();
+          const avgSpeed = totalTime > 0 ? size / totalTime : speedCalculator.getAverageSpeed();
+          const maxSpeed = speedCalculator.getMaxSpeed();
+
+          this.log(this.t('messages.rom.readSuccess', { size: data.length }), 'success');
+          this.log(this.t('messages.rom.readSummary', {
+            totalTime: formatTimeDuration(totalTime),
+            avgSpeed: formatSpeed(avgSpeed),
+            maxSpeed: formatSpeed(maxSpeed),
+            totalSize: formatBytes(size),
+            requestCount: chunkCount,
+          }), 'info');
+
+          // 报告完成状态
+          progressReporter.reportCompleted(this.t('messages.rom.readSuccess', { size: data.length }), avgSpeed);
+
+          return {
+            success: true,
+            data: data,
+            message: this.t('messages.rom.readSuccess', { size: data.length }),
+          };
         } catch (e) {
           const progressReporter = new ProgressReporter(
             'read',
@@ -779,16 +761,10 @@ export class GBAAdapter extends CartridgeAdapter {
           const image = prepareRomImage(fileData, total);
           let verified = 0;
           let success = true;
-          let failedAddress = -1;
+          let mismatchMessage = '';
           let lastLoggedProgress = -1; // 初始化为 -1，确保第一次 0% 会被记录
           let currentBank = -1;
-          let activeSectorIndex = -1;
-          let completedSectorIndex = -1;
           const isMultiCard = options.cfiInfo.deviceSize > (1 << 25);
-
-          // 初始化扇区进度信息 (用于显示校验进度可视化)
-          const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, total, baseAddress);
-          const sectors = this.initializeSectorProgress(sectorInfo);
 
           // 使用速度计算器
           const speedCalculator = new SpeedCalculator();
@@ -800,7 +776,6 @@ export class GBAAdapter extends CartridgeAdapter {
             (progressInfo) => { this.updateProgress(progressInfo); },
             (key, params) => this.t(key, params),
           );
-          progressReporter.setSectors(sectors);
 
           // 报告开始状态
           progressReporter.reportStart(this.t('messages.rom.verifying'));
@@ -820,31 +795,10 @@ export class GBAAdapter extends CartridgeAdapter {
             const currentAddress = baseAddress + verified;
             const { bank, cartAddress, chunkSize } = planBankChunk(currentAddress, total - verified, pageSize, { platform: 'gba', memory: 'rom' });
 
-            while (
-              activeSectorIndex + 1 < sectors.length
-              && currentAddress >= sectors[activeSectorIndex + 1].address
-            ) {
-              activeSectorIndex++;
-            }
-
-            const enteredNewSector = activeSectorIndex >= 0
-              && progressReporter.markSectorState(sectors[activeSectorIndex].address, 'processing') >= 0
-              && (verified === 0 || verified === sectors[activeSectorIndex].address - baseAddress);
-
-            if (enteredNewSector) {
-              const currentSpeedBeforeVerify = speedCalculator.getCurrentSpeed();
-              progressReporter.emitProgress(
-                verified,
-                currentSpeedBeforeVerify,
-                this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeedBeforeVerify) }),
-                currentAddress,
-              );
-            }
-
             if (isMultiCard) {
               if (bank !== currentBank) {
                 currentBank = bank;
-                await this.switchROMBank(bank);
+                await this.ensureRomBank(`gba:${bank}`, () => this.switchROMBank(bank));
               }
             }
 
@@ -869,15 +823,13 @@ export class GBAAdapter extends CartridgeAdapter {
               const actualByte = actualChunk[i];
               if (expectedByte !== actualByte) {
                 success = false;
-                failedAddress = verified + i;
-                this.log(this.t('messages.rom.verifyFailedAt', {
+                const failedAddress = baseAddress + verified + i;
+                mismatchMessage = this.t('messages.rom.verifyFailedAt', {
                   address: formatHex(failedAddress, 4),
                   expected: formatHex(expectedByte, 1),
                   actual: formatHex(actualByte, 1),
-                }), 'error');
-                if (activeSectorIndex >= 0) {
-                  progressReporter.markSectorState(sectors[activeSectorIndex].address, 'error');
-                }
+                });
+                this.log(mismatchMessage, 'error');
                 break;
               }
             }
@@ -886,18 +838,6 @@ export class GBAAdapter extends CartridgeAdapter {
 
             verified += chunkSize;
             chunkCount++;
-
-            const verifiedEndAddress = baseAddress + verified - 1;
-            while (completedSectorIndex + 1 < sectors.length) {
-              const nextSector = sectors[completedSectorIndex + 1];
-              const nextSectorEnd = nextSector.address + nextSector.size - 1;
-              if (nextSectorEnd > verifiedEndAddress) {
-                break;
-              }
-
-              completedSectorIndex++;
-              progressReporter.markSectorState(nextSector.address, 'completed');
-            }
 
             // 添加数据点到速度计算
             speedCalculator.addDataPoint(chunkSize, chunkEndTime);
@@ -908,11 +848,10 @@ export class GBAAdapter extends CartridgeAdapter {
               const currentSpeed = speedCalculator.getCurrentSpeed();
 
               // 报告进度
-              progressReporter.emitProgress(
+              progressReporter.reportProgress(
                 verified,
                 currentSpeed,
                 this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeed) }),
-                currentAddress,
               );
             }
 
@@ -936,11 +875,6 @@ export class GBAAdapter extends CartridgeAdapter {
           const maxSpeed = speedCalculator.getMaxSpeed();
 
           if (success) {
-            while (completedSectorIndex + 1 < sectors.length) {
-              completedSectorIndex++;
-              progressReporter.markSectorState(sectors[completedSectorIndex].address, 'completed');
-            }
-
             this.log(this.t('messages.rom.verifySuccess'), 'success');
             this.log(this.t('messages.rom.verifySummary', {
               totalTime: formatTimeDuration(totalTime),
@@ -953,11 +887,14 @@ export class GBAAdapter extends CartridgeAdapter {
             // 报告完成状态
             progressReporter.reportCompleted(this.t('messages.rom.verifySuccess'), avgSpeed);
           } else {
-            this.log(this.t('messages.rom.verifyFailed'), 'error');
-            progressReporter.reportError(this.t('messages.rom.verifyFailed'));
+            const failureMessage = mismatchMessage || this.t('messages.rom.verifyFailed');
+            if (!mismatchMessage) {
+              this.log(failureMessage, 'error');
+            }
+            progressReporter.reportError(failureMessage);
           }
 
-          const message = success ? this.t('messages.rom.verifySuccess') : this.t('messages.rom.verifyFailed');
+          const message = success ? this.t('messages.rom.verifySuccess') : (mismatchMessage || this.t('messages.rom.verifyFailed'));
           return {
             success: success,
             message: message,
@@ -1301,25 +1238,36 @@ export class GBAAdapter extends CartridgeAdapter {
         try {
           this.log(this.t('messages.ram.verifying'), 'info');
           let success = true;
+          let mismatchMessage = '';
 
           const readResult = await this.readRAM(size, options);
-          if (readResult.success && readResult.data) {
-            const ramData = readResult.data;
-            for (let i = 0; i < size; i++) {
-              if (fileData[i] !== ramData[i]) {
-                this.log(this.t('messages.ram.verifyFailedAt', {
-                  address: formatHex(i, 4),
-                  expected: formatHex(fileData[i], 1),
-                  actual: formatHex(ramData[i], 1),
-                }), 'error');
-                success = false;
-                break;
-              }
+          if (!readResult.success || !readResult.data) {
+            const failureMessage = readResult.message || this.t('messages.ram.verifyFailed');
+            this.log(`${this.t('messages.ram.verify')}: ${failureMessage}`, 'error');
+            return {
+              success: false,
+              message: failureMessage,
+            };
+          }
+
+          const ramData = readResult.data;
+          for (let i = 0; i < size; i++) {
+            if (fileData[i] !== ramData[i]) {
+              mismatchMessage = this.t('messages.ram.verifyFailedAt', {
+                address: formatHex(baseAddress + i, 4),
+                expected: formatHex(fileData[i], 1),
+                actual: formatHex(ramData[i], 1),
+              });
+              this.log(mismatchMessage, 'error');
+              success = false;
+              break;
             }
           }
 
-          const message = success ? this.t('messages.ram.verifySuccess') : this.t('messages.ram.verifyFailed');
-          this.log(`${this.t('messages.ram.verify')}: ${message}`, success ? 'success' : 'error');
+          const message = success ? this.t('messages.ram.verifySuccess') : (mismatchMessage || this.t('messages.ram.verifyFailed'));
+          if (success || !mismatchMessage) {
+            this.log(`${this.t('messages.ram.verify')}: ${message}`, success ? 'success' : 'error');
+          }
 
           return {
             success: success,
@@ -1400,11 +1348,6 @@ export class GBAAdapter extends CartridgeAdapter {
     );
   }
 
-  override async resetCommandBuffer(): Promise<void> {
-    this.activeRomBank = null;
-    await super.resetCommandBuffer();
-  }
-
   /**
    * ROM Bank 切换
    */
@@ -1414,11 +1357,9 @@ export class GBAAdapter extends CartridgeAdapter {
 
     await ram_write(this.transport, new Uint8Array([h]), 0x02);
     await ram_write(this.transport, new Uint8Array([0x40]), 0x03);
-    this.activeRomBank = bank;
+    this.setActiveRomBankKey(`gba:${bank}`);
 
-    if (!this.suppressRomBankLog) {
-      this.log(this.t('messages.rom.bankSwitch', { bank }), 'info');
-    }
+    this.log(this.t('messages.rom.bankSwitch', { bank }), 'info');
   }
 
   romBankRelevantAddress(address: number) {
@@ -1500,7 +1441,7 @@ export class GBAAdapter extends CartridgeAdapter {
       // 切换到相应的bank
       if (isMultiCard) {
         const { bank } = this.romBankRelevantAddress(baseAddress);
-        await this.switchROMBank(bank);
+        await this.ensureRomBank(`gba:${bank}`, () => this.switchROMBank(bank));
       }
 
       // 读取启动向量
@@ -1517,7 +1458,7 @@ export class GBAAdapter extends CartridgeAdapter {
       // 切换到启动向量对应的bank
       if (isMultiCard) {
         const { bank } = this.romBankRelevantAddress(baseAddress + bootVectorAddr);
-        await this.switchROMBank(bank);
+        await this.ensureRomBank(`gba:${bank}`, () => this.switchROMBank(bank));
       }
 
       // 读取8KB数据用于搜索

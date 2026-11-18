@@ -104,7 +104,7 @@
           />
           <RetroButton
             :disabled="!deviceReady || busy"
-            variant="warning"
+            variant="secondary"
             :text="$t('ui.ram.verify')"
             @click="onVerifyClick"
           />

@@ -893,11 +893,6 @@ async function verifyRam() {
           data: currentRamData,
         });
         showToast(response.message, response.success ? 'success' : 'error');
-        if (response.success) {
-          log(t('messages.ram.verifySuccess'), 'success');
-        } else {
-          log(t('messages.ram.verifyFailed'), 'error');
-        }
       });
     },
     onError: (error) => {
@@ -943,11 +938,6 @@ async function verifyRamBlank(fillByte: number) {
           data: blankData,
         });
         showToast(response.message, response.success ? 'success' : 'error');
-        if (response.success) {
-          log(t('messages.ram.verifySuccess'), 'success');
-        } else {
-          log(t('messages.ram.verifyFailed'), 'error');
-        }
       });
     },
     onError: (error) => {
