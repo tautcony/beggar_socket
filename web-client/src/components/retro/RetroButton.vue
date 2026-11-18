@@ -69,6 +69,8 @@ defineEmits<{
   align-items: center;
   justify-content: center;
   gap: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
   border: 1.5px solid var(--retro-border);
   border-radius: 4px;
   font-weight: var(--font-weight-semibold);

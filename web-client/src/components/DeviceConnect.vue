@@ -350,6 +350,7 @@ defineExpose({
 .device-connect-container.compact {
   width: auto;
   position: static;
+  flex-shrink: 0;
 }
 
 .device-connect.compact {
