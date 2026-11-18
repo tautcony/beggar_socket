@@ -114,7 +114,7 @@
     },
     "serialTest": {
       "title": "串口测试工具",
-      "description": "???????????? Web Serial API ? Tauri ????",
+      "description": "测试统一串口服务，支持 Web Serial API 和 Tauri 原生串口",
       "environment": "运行环境",
       "platform": "平台:",
       "userAgent": "用户代理:",
@@ -235,7 +235,16 @@
           "invalidHexData": "无效的16进制数据格式",
           "noResponse": "未收到设备响应",
           "commandFailed": "命令执行失败"
-        }
+        },
+        "copy": "复制",
+        "copied": "已复制",
+        "viewHex": "HEX",
+        "viewDump": "HEX+ASCII",
+        "history": "最近命令",
+        "clearHistory": "清空",
+        "shortcutHint": "Ctrl/Cmd + Enter 发送",
+        "deviceConnected": "设备已连接",
+        "deviceDisconnected": "未连接设备，请先连接烧录器"
       }
     },
     "chip": {
@@ -407,9 +416,9 @@
       "read": "导出RAM",
       "verify": "校验RAM",
       "blankCheckTitle": "选择空白模式",
-      "blankCheckHint": "未加载RAM文件。请选择用于比較的空白字节模式：",
+      "blankCheckHint": "未加载RAM文件。请选择用于比较的空白字节模式：",
       "blankFillFF": "全0xFF",
-      "blankFill00": "全0x00（空直状态）",
+      "blankFill00": "全0x00（空白状态）",
       "testWrite": "写入测试数据",
       "testRead": "读取测试数据",
       "testVerify": "验证测试数据",
@@ -780,7 +789,7 @@
       "areaNotBlank": "区域不为空白",
       "verifyBlankStart": "开始校验空白 - 大小: {size}，填充字节: {fill}",
       "exportSuccess": "ROM文件已导出为 {name}",
-      "writeSummary": "ROM写入完成摘要 - 总墙钟耗时: {totalTime}, 擦除耗时: {eraseTime}, 数据写入耗时: {transferTime}, 平均写入速度: {avgSpeed}, 最高写入速度: {maxSpeed}, 总大小: {totalSize}, 请求数: {programRequests}, 重试次数: {retryCount}, 跳过字节: {skippedBytes}",
+      "writeSummary": "ROM写入完成摘要 - 总耗时: {totalTime}, 擦除耗时: {eraseTime}, 数据写入耗时: {transferTime}, 平均写入速度: {avgSpeed}, 最高写入速度: {maxSpeed}, 总大小: {totalSize}, 请求数: {programRequests}, 重试次数: {retryCount}, 跳过字节: {skippedBytes}",
       "readSummary": "ROM读取完成摘要 - 总耗时: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 总大小: {totalSize}, 请求数: {requestCount}",
       "assembledRomApplied": "组装ROM已应用",
       "assembledRomTypeMismatch": "组装ROM类型({assembled})与当前模式({current})不匹配",
