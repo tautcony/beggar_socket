@@ -664,6 +664,6 @@ onUnmounted(() => {
 
 .time-timeout {
   color: #dc2626 !important;
-  font-weight: bold !important;
+  font-weight: var(--font-weight-bold);
 }
 </style>

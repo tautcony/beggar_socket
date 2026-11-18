@@ -33,10 +33,10 @@ withDefaults(defineProps<Props>(), {
   border-radius: 4px;
   background: var(--retro-bg-surface);
   color: var(--retro-ink);
-  font-family: var(--retro-font-micro);
-  font-size: var(--font-size-micro);
+  font-family: var(--app-font-sans);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
-  line-height: 1.2;
+  line-height: 1.4;
 }
 
 .retro-badge.is-mono {

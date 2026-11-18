@@ -99,11 +99,22 @@
   --line-height-normal: 1.5;
   --line-height-relaxed: 1.5;
   --line-height-loose: 2;
+  --font-weight-medium: 400;
+  --font-weight-semibold: 400;
+  --font-weight-bold: 400;
+}
 
+:root:not([data-font-family='system']) :where(#app, .retro-modal-overlay, .retro-toast-container, .emulator-overlay) {
+  font-synthesis: none;
+  font-synthesis-weight: none;
   text-rendering: optimizeSpeed;
   -webkit-font-smoothing: none;
   -moz-osx-font-smoothing: unset;
   font-smooth: never;
+}
+
+:root:not([data-font-family='system']) :where(#app, .retro-modal-overlay, .retro-toast-container, .emulator-overlay) :where(strong, b) {
+  font-weight: var(--font-weight-bold);
 }
 
 :root[data-font-family='ark-pixel'] {
