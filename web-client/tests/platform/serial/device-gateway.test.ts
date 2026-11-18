@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDeviceGateway, resetDeviceGatewayForTests } from '@/platform/serial';
 import { TauriDeviceGateway } from '@/platform/serial/tauri/device-gateway';
+import { TauriSerialTransport } from '@/platform/serial/tauri/tauri-serial-transport';
 import { WebDeviceGateway } from '@/platform/serial/web/device-gateway';
 import { DebugSettings } from '@/settings/debug-settings';
 import { PortSelectionRequiredError } from '@/utils/errors/PortSelectionRequiredError';
@@ -14,6 +15,16 @@ interface MockAvailablePort {
   productId: string;
   serialNumber: string;
   vendorId: string;
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
 }
 
 interface NativeState {
@@ -69,6 +80,7 @@ vi.mock('@/platform/native', () => {
 describe('Device gateway integration', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.clearAllMocks();
     resetDeviceGatewayForTests();
     DebugSettings.debugMode = false;
     nativeState.availablePorts = [
@@ -328,6 +340,103 @@ describe('Device gateway integration', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it.each([false, true])('TauriDeviceGateway reclaims late open with cleanup failure=%s', async (cleanupFails) => {
+    vi.useFakeTimers();
+    const cleanupError = new Error('native cleanup failed');
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const lateOpen = deferred<{ sessionId: number }>();
+      const cleanup = deferred<undefined>();
+      nativeState.openNativeSerialPort.mockReturnValueOnce(lateOpen.promise);
+      nativeState.closeNativeSerial.mockReturnValueOnce(cleanup.promise);
+      const gateway = new TauriDeviceGateway();
+      const selection = { portInfo: { path: '/dev/tty.usbmodem1' } };
+      const connection = gateway.connect(selection);
+      const rejected = expect(connection).rejects.toThrow('connect timeout after 5000ms');
+      await vi.advanceTimersByTimeAsync(5000);
+      await rejected;
+
+      // A later healthy attempt must keep its own session while the timed-out one is reclaimed.
+      nativeState.openNativeSerialPort.mockResolvedValueOnce({ sessionId: 2 });
+      const healthyDevice = await gateway.connect(selection);
+      expect(nativeState.closeNativeSerial).not.toHaveBeenCalled();
+      lateOpen.resolve({ sessionId: 77 });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(nativeState.closeNativeSerial).toHaveBeenCalledExactlyOnceWith(77);
+      if (cleanupFails) {
+        cleanup.reject(cleanupError);
+      } else {
+        cleanup.resolve(undefined);
+      }
+      await vi.advanceTimersByTimeAsync(0);
+      if (cleanupFails) {
+        expect(errorLog).toHaveBeenCalledWith('[TauriDeviceGateway] late open cleanup failed', {
+          port: selection.portInfo.path,
+          sessionId: 77,
+          error: cleanupError,
+        });
+      } else {
+        expect(errorLog).not.toHaveBeenCalled();
+      }
+      await healthyDevice.transport.send(new Uint8Array([1]));
+      expect(nativeState.writeNativeSerial).toHaveBeenLastCalledWith(2, new Uint8Array([1]), expect.any(Number));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('TauriDeviceGateway handles late native open rejection after timeout', async () => {
+    vi.useFakeTimers();
+    try {
+      const lateOpen = deferred<{ sessionId: number }>();
+      nativeState.openNativeSerialPort.mockReturnValueOnce(lateOpen.promise);
+      const connection = new TauriDeviceGateway().connect({ portInfo: { path: '/dev/late' } });
+      const rejected = expect(connection).rejects.toThrow('connect timeout after 5000ms');
+      await vi.advanceTimersByTimeAsync(5000);
+      await rejected;
+      lateOpen.reject(new Error('late open failed'));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(nativeState.closeNativeSerial).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('TauriDeviceGateway preserves an open completed just before the deadline', async () => {
+    vi.useFakeTimers();
+    try {
+      const open = deferred<{ sessionId: number }>();
+      nativeState.openNativeSerialPort.mockReturnValueOnce(open.promise);
+      const connection = new TauriDeviceGateway().connect({ portInfo: { path: '/dev/healthy' } });
+      await vi.advanceTimersByTimeAsync(4999);
+      open.resolve({ sessionId: 88 });
+      const device = await connection;
+      await vi.advanceTimersByTimeAsync(5001);
+      expect(nativeState.closeNativeSerial).not.toHaveBeenCalled();
+      await device.transport.send(new Uint8Array([1]));
+      expect(nativeState.writeNativeSerial).toHaveBeenLastCalledWith(88, new Uint8Array([1]), expect.any(Number));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('TauriDeviceGateway diagnoses cleanup failure after listener attachment fails', async () => {
+    const attachError = new Error('listener attach failed');
+    const cleanupError = new Error('close failed');
+    vi.spyOn(TauriSerialTransport.prototype, 'attachListener').mockRejectedValueOnce(attachError);
+    nativeState.closeNativeSerial.mockRejectedValueOnce(cleanupError);
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(new TauriDeviceGateway().connect({ portInfo: { path: '/dev/listener' } }))
+      .rejects.toThrow('Tauri serial listener attach failed for /dev/listener: listener attach failed');
+    expect(nativeState.closeNativeSerial).toHaveBeenCalledExactlyOnceWith(1);
+    expect(errorLog).toHaveBeenCalledWith('[TauriDeviceGateway] listener attach cleanup failed', {
+      port: '/dev/listener',
+      sessionId: 1,
+      error: cleanupError,
+    });
   });
 
   it('TauriDeviceGateway rolls signals back low when init fails mid-sequence', async () => {
