@@ -2,7 +2,9 @@
 
 ## Purpose
 TBD - created by archiving change web-client-write-erase-retry-recovery. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Sector-scoped ROM write recovery
 The system SHALL recover ROM write failures at sector scope rather than aborting the whole write immediately when the failed sector can be safely re-erased and retried.
 
@@ -70,3 +72,17 @@ The system SHALL expose erase-oriented sector progress states so UI can distingu
 - **WHEN** the workflow is in its normal post-erase ROM programming phase
 - **THEN** sector progress MAY continue using the existing write-oriented pending/processing/completed semantics for the active write cursor, and SHALL NOT require an erasing legend unless a recovery erase is actually in progress
 
+### Requirement: Recovery replay from physical sector within write range
+The system SHALL, after a program failure, re-erase the physical sector at its true `sector.address`, resume programming from `max(sector.address, baseAddress)`, replay using the same padded image and erased-chunk skip rule as the original write, and return failure once the per-sector retry budget is exhausted.
+
+#### Scenario: Replay in a partially covered first sector
+- **WHEN** a write starts at `0x8000` inside a 64 KiB sector at `0x0000` and programming fails in that sector
+- **THEN** the sector at `0x0000` is re-erased and programming resumes at `0x8000`, not at a negative offset
+
+#### Scenario: Stateful mock verifies stored bytes after recovery
+- **WHEN** a program request mutates simulated flash and then times out or loses its ACK
+- **THEN** after recovery the simulated flash in the target range equals the expected image byte-for-byte
+
+#### Scenario: Retries exhausted
+- **WHEN** every attempt for a sector fails
+- **THEN** `writeROM` returns a failure result naming the sector address

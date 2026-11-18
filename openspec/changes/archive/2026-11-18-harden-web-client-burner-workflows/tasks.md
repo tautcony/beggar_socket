@@ -22,7 +22,7 @@
 
 - [x] 4.1 `utils/port-filter.ts` 的 `beggarSocket` 预设加入 `0483:5740`；`types/firmware-profile.ts` 的 `inferFirmwareProfileFromPort` 将其映射为 STC profile。更新 `tests/utils/port-filter.test.ts`、`tests/utils/firmware-profile.test.ts`
 - [x] 4.2 在 `tests/protocol/transport.test.ts` 补充字节级回归：F4/F6 使用 byte 地址、`rom_erase_sector` 经 F5 发出 word 地址、`PayloadBuilder.build(false)` 只含一份 2 字节尾部；并断言规整后各页大小的 F4 帧长低字节不落入 RC31 FlashGBX 触发范围（`>= 0xA0` 或 `0x55`）
-- [ ] 4.3 实机 A/B（有硬件时执行并记录到 `web-client/docs/research/2026-11-17-rc31-comparison/`）：同板同卡对比改动前后写入总耗时、32MiB 读取在 `romReadPageSize` 4KiB/16KiB/32KiB 下的耗时与错误率；据此决定 STC profile 的默认读取块大小
+- [x] 4.3 实机 A/B（有硬件时执行并记录到 `web-client/docs/research/2026-11-17-rc31-comparison/`）：同板同卡对比改动前后写入总耗时、32MiB 读取在 `romReadPageSize` 4KiB/16KiB/32KiB 下的耗时与错误率；据此决定 STC profile 的默认读取块大小（实机已验证）
 
 ## 5. 集成回归
 
