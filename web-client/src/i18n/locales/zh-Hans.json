@@ -516,6 +516,10 @@
       },
       "appearance": {
         "title": "外观与字体",
+        "colorMode": "显示模式",
+        "colorModeSystem": "跟随系统",
+        "colorModeLight": "浅色",
+        "colorModeDark": "深色",
         "colorTheme": "颜色主题",
         "fontFamily": "页面字体",
         "fontPreview": "字体预览：方舟像素 / 复古工作台",
@@ -538,6 +542,9 @@
           "range": "大小必须在 {min} - {max} 字节之间",
           "multiple": "大小必须是{multipler}的倍数"
         }
+      },
+      "control": {
+        "title": "读写异常控制"
       },
       "timeout": {
         "title": "超时设置",

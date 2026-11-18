@@ -130,4 +130,30 @@ describe('AdvancedSettingsModal', () => {
     expect(AdvancedSettings.getProfileSizes('stm').romReadPageSize).toBe(3072);
     expect(AdvancedSettings.getProfileSizes('stc').romReadPageSize).toBe(16384);
   });
+
+  it('switches light/dark/system color modes and consolidates timeout, throttle, and retry under control section', async () => {
+    const wrapper = mount(AdvancedSettingsModal, {
+      props: { modelValue: true },
+      global: globalConfig,
+    });
+    await nextTick();
+
+    // 4 navigation tabs: firmware, appearance, size, control
+    expect(wrapper.findAll('.settings-nav-button')).toHaveLength(4);
+
+    await wrapper.get('[data-testid="color-mode-dark"]').trigger('click');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+
+    await wrapper.get('[data-testid="color-mode-light"]').trigger('click');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+
+    await wrapper.get('[data-testid="color-mode-system"]').trigger('click');
+    expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
+
+    // Control section contains timeout, throttle, and retry inputs together
+    const controlSection = wrapper.get('.control-sections');
+    expect(controlSection.find('#default-timeout').exists()).toBe(true);
+    expect(controlSection.find('#rom-read-throttle').exists()).toBe(true);
+    expect(controlSection.find('#rom-read-retry-count').exists()).toBe(true);
+  });
 });

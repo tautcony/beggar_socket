@@ -255,6 +255,7 @@ export class AdvancedSettings {
       }
     }
 
+    const hasProfileSizes = Boolean(settings.profileSizes);
     for (const desc of SETTING_DESCRIPTORS) {
       const group = settings[desc.group as keyof AdvancedSettingsConfig];
       if (group) {
@@ -262,7 +263,7 @@ export class AdvancedSettings {
         if (value !== undefined) {
           const validated = validateValue(value, desc.validator);
           _storage[desc.key] = validated;
-          if (desc.group === 'size') {
+          if (desc.group === 'size' && !hasProfileSizes) {
             _profileSizes[_firmwareProfile][desc.field as keyof SizeSettings] = validated;
           }
         }

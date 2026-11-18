@@ -85,6 +85,29 @@
           <h4>{{ $t('ui.settings.appearance.title') }}</h4>
 
           <div class="setting-item appearance-block">
+            <label>{{ $t('ui.settings.appearance.colorMode') }}</label>
+            <div
+              class="color-mode-options"
+              role="radiogroup"
+              :aria-label="$t('ui.settings.appearance.colorMode')"
+            >
+              <button
+                v-for="mode in colorModes"
+                :key="mode.id"
+                type="button"
+                class="color-mode-btn"
+                :class="{ 'is-active': currentColorMode === mode.id }"
+                :data-testid="`color-mode-${mode.id}`"
+                role="radio"
+                :aria-checked="currentColorMode === mode.id"
+                @click="setColorMode(mode.id)"
+              >
+                {{ $t(mode.labelKey) }}
+              </button>
+            </div>
+          </div>
+
+          <div class="setting-item appearance-block">
             <label>{{ $t('ui.settings.appearance.colorTheme') }}</label>
             <div
               class="theme-options"
@@ -172,7 +195,7 @@
               <div class="input-group">
                 <input
                   id="rom-page-size"
-                  v-model.number="localSettings.size.romPageSize"
+                  v-model.number="localSettings.profileSizes[editingSizeProfile].romPageSize"
                   type="number"
                   :min="limits.pageSize.min"
                   :max="limits.pageSize.max"
@@ -187,7 +210,7 @@
               >
                 {{ validationErrors.romPageSize }}
               </div>
-              <small class="hint">{{ formatBytes(localSettings.size.romPageSize) }}</small>
+              <small class="hint">{{ formatBytes(localSettings.profileSizes[editingSizeProfile].romPageSize) }}</small>
             </div>
 
             <div class="setting-item">
@@ -195,7 +218,7 @@
               <div class="input-group">
                 <input
                   id="rom-read-page-size"
-                  v-model.number="localSettings.size.romReadPageSize"
+                  v-model.number="localSettings.profileSizes[editingSizeProfile].romReadPageSize"
                   type="number"
                   :min="limits.readPageSize.min"
                   :max="limits.readPageSize.max"
@@ -210,7 +233,7 @@
               >
                 {{ validationErrors.romReadPageSize }}
               </div>
-              <small class="hint">{{ formatBytes(localSettings.size.romReadPageSize) }}</small>
+              <small class="hint">{{ formatBytes(localSettings.profileSizes[editingSizeProfile].romReadPageSize) }}</small>
             </div>
 
             <div class="setting-item">
@@ -218,7 +241,7 @@
               <div class="input-group">
                 <input
                   id="ram-page-size"
-                  v-model.number="localSettings.size.ramPageSize"
+                  v-model.number="localSettings.profileSizes[editingSizeProfile].ramPageSize"
                   type="number"
                   :min="limits.pageSize.min"
                   :max="limits.pageSize.max"
@@ -233,17 +256,18 @@
               >
                 {{ validationErrors.ramPageSize }}
               </div>
-              <small class="hint">{{ formatBytes(localSettings.size.ramPageSize) }}</small>
+              <small class="hint">{{ formatBytes(localSettings.profileSizes[editingSizeProfile].ramPageSize) }}</small>
             </div>
           </div>
         </div>
 
-        <!-- 超时设置 -->
+        <!-- 读写异常控制（超时、节流、重试） -->
         <div
-          v-show="activeSection === 'timeout'"
-          class="setting-group"
+          v-show="activeSection === 'control'"
+          class="control-sections"
         >
-          <h4>{{ $t('ui.settings.timeout.title') }}</h4>
+          <div class="setting-group">
+            <h4>{{ $t('ui.settings.timeout.title') }}</h4>
 
           <div class="setting-row">
             <div class="setting-item">
@@ -342,11 +366,8 @@
           </div>
         </div>
 
-        <div
-          v-show="activeSection === 'throttle'"
-          class="setting-group"
-        >
-          <h4>{{ $t('ui.settings.throttle.title') }}</h4>
+          <div class="setting-group">
+            <h4>{{ $t('ui.settings.throttle.title') }}</h4>
 
           <div class="setting-row">
             <div class="setting-item">
@@ -397,11 +418,8 @@
           </div>
         </div>
 
-        <div
-          v-show="activeSection === 'retry'"
-          class="setting-group"
-        >
-          <h4>{{ $t('ui.settings.retry.title') }}</h4>
+          <div class="setting-group">
+            <h4>{{ $t('ui.settings.retry.title') }}</h4>
 
           <div class="setting-row">
             <div class="setting-item">
@@ -590,6 +608,7 @@
               <small class="hint">{{ formatTimeClock(localSettings.retry.romEraseRetryDelay, 'ms') }}</small>
             </div>
           </div>
+          </div>
         </div>
       </div>
     </div>
@@ -629,7 +648,7 @@ import { useI18n } from 'vue-i18n';
 
 import { RetroButton, RetroModal, RetroSelect } from '@/components/retro';
 import { DEFAULT_FONT_FAMILY, type FontFamilyId, useFont } from '@/composables/useFont';
-import { DEFAULT_COLOR_THEME, useTheme } from '@/composables/useTheme';
+import { DEFAULT_COLOR_MODE, DEFAULT_COLOR_THEME, useTheme } from '@/composables/useTheme';
 import { getOptimalPacketLimits } from '@/platform/serial/platform-packet-policy';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import type { DeviceInfo } from '@/types/device-info';
@@ -641,10 +660,10 @@ import {
 import { formatBytes, formatTimeClock } from '@/utils/formatter-utils';
 
 const { t } = useI18n();
-const { currentTheme, themes, setTheme } = useTheme();
+const { currentTheme, themes, setTheme, currentColorMode, colorModes, setColorMode } = useTheme();
 const { currentFont, fonts, setFont } = useFont();
 
-type SettingsSectionId = 'firmware' | 'appearance' | 'size' | 'timeout' | 'throttle' | 'retry';
+type SettingsSectionId = 'firmware' | 'appearance' | 'size' | 'control';
 
 function onFontChange(value: string | number | undefined) {
   if (typeof value === 'string') {
@@ -737,19 +756,9 @@ const firmwareProfileOptions = [
   { id: 'stc' as const, label: `${STC_FIRMWARE_PROFILE.label} (STC8)` },
 ];
 
-const syncCurrentSizeToProfile = () => {
-  localSettings.value.profileSizes[editingSizeProfile.value] = {
-    romPageSize: localSettings.value.size.romPageSize,
-    romReadPageSize: localSettings.value.size.romReadPageSize,
-    ramPageSize: localSettings.value.size.ramPageSize,
-  };
-};
-
 const switchEditingSizeProfile = (profile: ConfigurableFirmwareProfileId) => {
   if (editingSizeProfile.value === profile) return;
-  syncCurrentSizeToProfile();
   editingSizeProfile.value = profile;
-  localSettings.value.size = { ...localSettings.value.profileSizes[profile] };
   validateAndUpdate();
 };
 
@@ -786,18 +795,15 @@ const hasSectionError = (sectionId: SettingsSectionId): boolean => {
         || validationErrors.value.romReadPageSize
         || validationErrors.value.ramPageSize,
       );
-    case 'timeout':
+    case 'control':
       return Boolean(
         validationErrors.value.defaultTimeout
         || validationErrors.value.packageSendTimeout
         || validationErrors.value.packageReceiveTimeout
-        || validationErrors.value.operationTimeout,
-      );
-    case 'throttle':
-      return Boolean(validationErrors.value.romReadThrottle || validationErrors.value.ramReadThrottle);
-    case 'retry':
-      return Boolean(
-        validationErrors.value.romReadRetryCount
+        || validationErrors.value.operationTimeout
+        || validationErrors.value.romReadThrottle
+        || validationErrors.value.ramReadThrottle
+        || validationErrors.value.romReadRetryCount
         || validationErrors.value.ramReadRetryCount
         || validationErrors.value.romReadRetryDelay
         || validationErrors.value.ramReadRetryDelay
@@ -813,6 +819,7 @@ const hasSectionError = (sectionId: SettingsSectionId): boolean => {
 };
 
 const settingsSections = computed(() => {
+  const activeColorModeOption = colorModes.find((item) => item.id === currentColorMode.value);
   const activeThemeOption = themes.find((item) => item.id === currentTheme.value);
   const activeFontOption = fonts.find((item) => item.id === currentFont.value);
   return [
@@ -826,27 +833,17 @@ const settingsSections = computed(() => {
     {
       id: 'appearance' as const,
       title: t('ui.settings.appearance.title'),
-      summary: `${activeThemeOption ? t(activeThemeOption.labelKey) : ''} / ${activeFontOption ? t(activeFontOption.labelKey) : ''}`,
+      summary: `${activeColorModeOption ? t(activeColorModeOption.labelKey) : ''} / ${activeThemeOption ? t(activeThemeOption.labelKey) : ''} / ${activeFontOption ? t(activeFontOption.labelKey) : ''}`,
     },
     {
       id: 'size' as const,
       title: t('ui.settings.size.title'),
-      summary: `${formatBytes(localSettings.value.size.romPageSize)} / ${formatBytes(localSettings.value.size.ramPageSize)}`,
+      summary: `${formatBytes(localSettings.value.profileSizes[editingSizeProfile.value].romPageSize)} / ${formatBytes(localSettings.value.profileSizes[editingSizeProfile.value].ramPageSize)}`,
     },
     {
-      id: 'timeout' as const,
-      title: t('ui.settings.timeout.title'),
-      summary: `${formatTimeClock(localSettings.value.timeout.default, 'ms')} / ${formatTimeClock(localSettings.value.timeout.operation, 'ms')}`,
-    },
-    {
-      id: 'throttle' as const,
-      title: t('ui.settings.throttle.title'),
-      summary: `${localSettings.value.throttle.romRead}ms / ${localSettings.value.throttle.ramRead}ms`,
-    },
-    {
-      id: 'retry' as const,
-      title: t('ui.settings.retry.title'),
-      summary: `${localSettings.value.retry.romReadCount}x / ${localSettings.value.retry.romWriteRetryCount}x`,
+      id: 'control' as const,
+      title: t('ui.settings.control.title'),
+      summary: `${formatTimeClock(localSettings.value.timeout.default, 'ms')} / ${localSettings.value.throttle.romRead}ms / ${localSettings.value.retry.romReadCount}x`,
     },
   ];
 });
@@ -918,11 +915,11 @@ const validateRetryDelay = (value: number): string => {
 
 // 验证并更新
 const validateAndUpdate = () => {
-  syncCurrentSizeToProfile();
+  const activeProfileSize = localSettings.value.profileSizes[editingSizeProfile.value];
   // 验证页面大小
-  validationErrors.value.romPageSize = validatePageSize(localSettings.value.size.romPageSize);
-  validationErrors.value.romReadPageSize = validateReadPageSize(localSettings.value.size.romReadPageSize);
-  validationErrors.value.ramPageSize = validatePageSize(localSettings.value.size.ramPageSize);
+  validationErrors.value.romPageSize = validatePageSize(activeProfileSize.romPageSize);
+  validationErrors.value.romReadPageSize = validateReadPageSize(activeProfileSize.romReadPageSize);
+  validationErrors.value.ramPageSize = validatePageSize(activeProfileSize.ramPageSize);
   validationErrors.value.romReadThrottle = validateThrottle(localSettings.value.throttle.romRead);
   validationErrors.value.ramReadThrottle = validateThrottle(localSettings.value.throttle.ramRead);
   validationErrors.value.romReadRetryCount = validateRetryCount(localSettings.value.retry.romReadCount);
@@ -949,7 +946,9 @@ const isValid = computed(() => {
 // 重置为默认值
 const resetToDefaults = () => {
   if (confirm(t('ui.settings.actions.resetConfirm'))) {
+    editingSizeProfile.value = 'stm';
     localSettings.value = createDefaultSettings();
+    setColorMode(DEFAULT_COLOR_MODE);
     setTheme(DEFAULT_COLOR_THEME);
     setFont(DEFAULT_FONT_FAMILY);
     validateAndUpdate();
@@ -961,7 +960,6 @@ const applySettings = () => {
   if (!isValid.value) return;
 
   try {
-    syncCurrentSizeToProfile();
     const activeProfile = localSettings.value.firmware.profile;
     const activeSizes = localSettings.value.profileSizes[activeProfile];
     AdvancedSettings.setSettings({
@@ -1289,6 +1287,34 @@ watch(() => props.modelValue, (visible) => {
   .theme-options {
     grid-template-columns: 1fr;
   }
+}
+
+.color-mode-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: spacing-vars.$space-2;
+}
+
+.color-mode-btn {
+  padding: spacing-vars.$space-2 spacing-vars.$space-3;
+  border: 1px solid var(--retro-border-color, #4a5568);
+  border-radius: radius-vars.$radius-sm;
+  background: transparent;
+  color: inherit;
+  font-size: typography-vars.$font-size-xs;
+  cursor: pointer;
+
+  &.is-active {
+    background: var(--retro-accent-bg, rgba(102, 126, 234, 0.2));
+    border-color: var(--retro-accent-color, #667eea);
+    font-weight: typography-vars.$font-weight-semibold;
+  }
+}
+
+.control-sections {
+  display: flex;
+  flex-direction: column;
+  gap: spacing-vars.$space-5;
 }
 
 .size-section-header {
