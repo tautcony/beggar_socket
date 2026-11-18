@@ -71,14 +71,12 @@
         :sector-progress="sectorProgress"
       />
 
-      <div
-        v-if="supplementaryEntry"
-        class="detail-section"
-      >
-        <details
-          v-if="supplementaryEntry.error || supplementaryEntry.details"
-          class="supplementary-disclosure"
-        >
+      <div class="detail-section">
+        <template v-if="supplementaryEntry">
+          <details
+            v-if="supplementaryEntry.error || supplementaryEntry.details"
+            class="supplementary-disclosure"
+          >
           <summary
             class="latest-log-entry"
             :class="[
@@ -106,16 +104,17 @@
             </div>
           </div>
         </details>
-        <div
-          v-else
-          class="latest-log-entry"
-          :class="[
-            `log-level-${supplementaryEntry.level}`,
-            { 'latest-log-entry--error': supplementaryEntry.level === 'error' },
-          ]"
-        >
-          {{ supplementaryEntry.message }}
-        </div>
+          <div
+            v-else
+            class="latest-log-entry"
+            :class="[
+              `log-level-${supplementaryEntry.level}`,
+              { 'latest-log-entry--error': supplementaryEntry.level === 'error' },
+            ]"
+          >
+            {{ supplementaryEntry.message }}
+          </div>
+        </template>
       </div>
     </div>
     <template #footer>
@@ -486,6 +485,7 @@ onUnmounted(() => {
 
 .detail-section {
   margin-top: spacing-vars.$space-3;
+  min-height: 44px;
 }
 
 .modal-title {

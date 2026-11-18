@@ -28,6 +28,7 @@ export function useCartBurnerSessionState(
   const logs = ref<BurnerLogEntry[]>([]);
   const progressInfo = ref<ProgressInfo>({ ...DEFAULT_PROGRESS });
   const keepProgressModalOpen = ref(false);
+  const progressDismissed = ref(false);
 
   // Abort any in-progress operation when the component scope is destroyed
   onScopeDispose(() => {
@@ -62,6 +63,9 @@ export function useCartBurnerSessionState(
 
   function updateProgress(info: ProgressInfo) {
     if (info.showProgress === true) {
+      if (progressDismissed.value) {
+        return;
+      }
       if (keepProgressModalOpen.value && progressInfo.value.state === 'paused' && info.state === 'running') {
         return;
       }
@@ -76,6 +80,7 @@ export function useCartBurnerSessionState(
   }
 
   function handleProgressClose() {
+    progressDismissed.value = true;
     keepProgressModalOpen.value = false;
     resetProgress();
   }
@@ -128,6 +133,7 @@ export function useCartBurnerSessionState(
       expectedGeneration,
       requireConnected: false,
       fn: async () => {
+        progressDismissed.value = false;
         keepProgressModalOpen.value = false;
         burnerSession.resetProgress();
         syncProgressState();
@@ -137,9 +143,15 @@ export function useCartBurnerSessionState(
           resetProgressOnFinish: options.resetProgressOnFinish,
           updateProgress: options.updateProgress,
           syncState: () => {
+            if (progressDismissed.value) {
+              sessionBusy.value = burnerSession.snapshot.busy;
+              cancelling.value = burnerSession.snapshot.cancelling;
+              logs.value = [...burnerSession.snapshot.logs];
+              return;
+            }
             syncSessionState();
-            // 操作因错误结束时（不论是抛出异常还是返回失败结果），保持弹窗打开
-            if (progressInfo.value.state === 'error') {
+            // 操作因错误结束时（不论是抛出异常还是返回失败结果），保持弹窗打开；已取消/已关闭时不再重新弹出
+            if (progressInfo.value.state === 'error' && !burnerSession.snapshot.cancelling) {
               keepProgressModalOpen.value = true;
             }
           },
@@ -147,6 +159,9 @@ export function useCartBurnerSessionState(
           cancelLogMessage: translate('messages.operation.cancelled'),
           execute: ({ signal }) => options.operation(signal),
           onError: async (error) => {
+            if (progressDismissed.value || burnerSession.snapshot.cancelling) {
+              return;
+            }
             // 抛出异常路径：适配器来不及将进度置为 error，在此补充设置
             burnerSession.updateProgress({ state: 'error', allowCancel: false, showProgress: true });
             await options.onError(error);

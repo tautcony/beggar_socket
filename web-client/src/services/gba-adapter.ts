@@ -694,6 +694,7 @@ export class GBAAdapter extends CartridgeAdapter {
               Math.floor(totalRead / pageSize) + 1,
               bank,
               restoreState,
+              signal,
             );
             const chunkEndTime = Date.now();
             data.set(chunk, totalRead);
@@ -914,6 +915,7 @@ export class GBAAdapter extends CartridgeAdapter {
               Math.floor(verified / pageSize) + 1,
               bank,
               restoreState,
+              signal,
             );
             const chunkEndTime = Date.now();
 

@@ -241,6 +241,6 @@ onUnmounted(() => {
 
 .retro-modal-enter-from .retro-modal-container,
 .retro-modal-leave-to .retro-modal-container {
-  transform: translate(3px, -3px) scale(0.98);
+  transform: scale(0.98);
 }
 </style>
