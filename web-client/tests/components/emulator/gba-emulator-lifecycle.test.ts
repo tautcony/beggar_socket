@@ -496,13 +496,22 @@ describe('GBA emulator save lifecycle', () => {
   });
 
   it('delivers the last checkpoint on unmount and restores the core save hook once', async () => {
-    const wrapper = mountEmulator(new Uint8Array(32768).fill(0x5a));
+    const onSaveResult = vi.fn();
+    const wrapper = mount(GBAEmulator, {
+      props: {
+        isVisible: true,
+        romData: makeRom(),
+        romName: 'game.gba',
+        launch: launch(new Uint8Array(32768).fill(0x5a)),
+        'onSave-result': onSaveResult,
+      },
+    });
     await wrapper.vm.$nextTick();
     const { core, originalStore } = emulatorHarness.instances[0];
     new Uint8Array(core.mmu.save.buffer)[0] = 0x42;
     wrapper.unmount();
-    expect(wrapper.emitted('save-result')).toHaveLength(1);
-    expect(new Uint8Array((wrapper.emitted('save-result')?.[0][0] as GbaPreviewSavePayload).data)[0]).toBe(0x42);
+    expect(onSaveResult).toHaveBeenCalledTimes(1);
+    expect(new Uint8Array((onSaveResult.mock.calls[0][0] as GbaPreviewSavePayload).data)[0]).toBe(0x42);
     expect(core.storeSavedata).toBe(originalStore);
     expect(core.paused).toBe(true);
   });

@@ -14,7 +14,10 @@ vi.mock('@/platform/runtime', () => ({ isTauriRuntime: () => false, isWebRuntime
 vi.mock('@/composables/useToast', () => ({ useToast: () => ({ showToast: vi.fn() }) }));
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
 vi.mock('@/services', () => ({ CartridgeAdapter: class {}, GBAAdapter: class {}, MBC5Adapter: class {} }));
-vi.mock('@/features/burner/adapters', () => ({ createCartridgeProtocolSession: vi.fn() }));
+vi.mock('@/features/burner/adapters', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/features/burner/adapters')>();
+  return { ...actual, createCartridgeProtocolSession: vi.fn() };
+});
 vi.mock('@/features/burner/application', async () => {
   const actual = await vi.importActual<typeof import('@/features/burner/application')>('@/features/burner/application');
   return { ...actual, createBurnerUseCase: () => ({}) };
