@@ -492,6 +492,8 @@ void romProgram()
                 cmdEnd)
             {
                 cmdEnd = 0;
+                uart_clearRecvBuf();
+                endpointClear();
                 return;
             }
 
@@ -554,6 +556,8 @@ void romProgram()
                 cmdEnd)
             {
                 cmdEnd = 0;
+                uart_clearRecvBuf();
+                endpointClear();
                 return;
             }
 
@@ -565,6 +569,7 @@ void romProgram()
     } while (writtenCount < byteCount);
 
     // 回复ack
+    LED_WR = 1;
     uart_responAck();
     uart_clearRecvBuf();
     endpointClear();
@@ -635,6 +640,7 @@ void romWrite()
     CART_CS1 = 1;
 
     // 回复ack
+    LED_WR = 1;
     uart_responAck();
     uart_clearRecvBuf();
     endpointClear();
@@ -744,6 +750,7 @@ void ramWrite()
     } while (writtenCount < byteCount); // 数据还没发完
 
     // 回复ack
+    LED_WR = 1;
     uart_responAck();
     uart_clearRecvBuf();
     endpointClear();
@@ -937,6 +944,7 @@ void gbcWrite()
     } while (writtenCount < byteCount); // 数据还没发完
 
     // 回复ack
+    LED_WR = 1;
     uart_responAck();
     uart_clearRecvBuf();
     endpointClear();
@@ -1135,6 +1143,7 @@ void gbcRomProgram()
     } while (writtenCount < byteCount);
 
     // 回复ack
+    LED_WR = 1;
     uart_responAck();
     uart_clearRecvBuf();
     endpointClear();
@@ -1207,6 +1216,7 @@ void gbcWrite_forFram()
     } while (writtenCount < byteCount); // 数据还没发完
 
     // 回复ack
+    LED_WR = 1;
     uart_responAck();
     uart_clearRecvBuf();
     endpointClear();

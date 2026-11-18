@@ -70,7 +70,7 @@ export class ConnectionOperationCoordinator {
     }
 
     if (options.token) {
-      if (this.currentToken && this.currentToken.id === options.token.id) {
+      if (this.currentToken?.id === options.token.id) {
         try {
           const value = await options.fn(this.currentToken);
           return { ok: true, value };

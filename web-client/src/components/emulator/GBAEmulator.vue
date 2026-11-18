@@ -276,7 +276,7 @@ watch(() => props.isVisible, async (newVisible) => {
 });
 
 watch(() => [props.romData, props.launch?.sessionId] as const, async ([newRomData], [oldRomData, oldSessionId]) => {
-  if ((newRomData !== oldRomData || props.launch?.sessionId !== oldSessionId) && gba.value) {
+  if (newRomData !== oldRomData || props.launch?.sessionId !== oldSessionId) {
     finishSessionBeforeReplacement();
   }
   if (newRomData && props.isVisible) {
@@ -964,6 +964,13 @@ function cleanup(isFinalUnmount = false) {
     resultDelivered = true;
   }
   disposeCore();
+  initialBytes = null;
+  latestCheckpoint.value = null;
+  importedCapacity = undefined;
+  sessionOverride = null;
+  skipSelectedSave.value = false;
+  hasError.value = false;
+  isPaused.value = false;
   isCovered.value = false;
 }
 </script>

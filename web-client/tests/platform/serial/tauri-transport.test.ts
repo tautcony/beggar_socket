@@ -204,8 +204,9 @@ describe('TauriSerialTransport', () => {
     await transport.attachListener();
     const events: string[] = [];
 
-    nativeState.writeNativeSerial.mockImplementation(async (_id: number, payload: Uint8Array) => {
+    nativeState.writeNativeSerial.mockImplementation((_id: number, payload: Uint8Array) => {
       events.push(`send-${payload[0]}`);
+      return Promise.resolve();
     });
     nativeState.readNativeSerial
       .mockResolvedValueOnce(new Uint8Array([0xaa]))

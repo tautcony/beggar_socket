@@ -77,33 +77,33 @@
             v-if="supplementaryEntry.error || supplementaryEntry.details"
             class="supplementary-disclosure"
           >
-          <summary
-            class="latest-log-entry"
-            :class="[
-              `log-level-${supplementaryEntry.level}`,
-              { 'latest-log-entry--error': supplementaryEntry.level === 'error' },
-            ]"
-          >
-            <span class="latest-log-message">{{ supplementaryEntry.message }}</span>
-            <span class="latest-log-expand-button">{{ $t('ui.common.details') }}</span>
-          </summary>
-          <div class="supplementary-subitems">
-            <div
-              v-if="supplementaryEntry.error"
-              class="supplementary-subitem"
+            <summary
+              class="latest-log-entry"
+              :class="[
+                `log-level-${supplementaryEntry.level}`,
+                { 'latest-log-entry--error': supplementaryEntry.level === 'error' },
+              ]"
             >
-              <span class="supplementary-subitem-label">{{ $t('ui.common.error') }}</span>
-              <pre class="supplementary-subitem-content supplementary-subitem-content--error">{{ supplementaryEntry.error }}</pre>
+              <span class="latest-log-message">{{ supplementaryEntry.message }}</span>
+              <span class="latest-log-expand-button">{{ $t('ui.common.details') }}</span>
+            </summary>
+            <div class="supplementary-subitems">
+              <div
+                v-if="supplementaryEntry.error"
+                class="supplementary-subitem"
+              >
+                <span class="supplementary-subitem-label">{{ $t('ui.common.error') }}</span>
+                <pre class="supplementary-subitem-content supplementary-subitem-content--error">{{ supplementaryEntry.error }}</pre>
+              </div>
+              <div
+                v-if="supplementaryEntry.details"
+                class="supplementary-subitem"
+              >
+                <span class="supplementary-subitem-label">{{ $t('ui.common.detail') }}</span>
+                <pre class="supplementary-subitem-content">{{ supplementaryEntry.details }}</pre>
+              </div>
             </div>
-            <div
-              v-if="supplementaryEntry.details"
-              class="supplementary-subitem"
-            >
-              <span class="supplementary-subitem-label">{{ $t('ui.common.detail') }}</span>
-              <pre class="supplementary-subitem-content">{{ supplementaryEntry.details }}</pre>
-            </div>
-          </div>
-        </details>
+          </details>
           <div
             v-else
             class="latest-log-entry"

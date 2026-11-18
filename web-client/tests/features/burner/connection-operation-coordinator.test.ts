@@ -53,10 +53,10 @@ describe('ConnectionOperationCoordinator', () => {
         const nested = await coordinator.runExclusive({
           token,
           currentGeneration: () => 1,
-          fn: async (nestedToken) => {
+          fn: (nestedToken) => {
             expect(nestedToken).toBe(token);
             events.push('nested');
-            return 42;
+            return Promise.resolve(42);
           },
         });
         expect(nested).toEqual({ ok: true, value: 42 });

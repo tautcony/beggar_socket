@@ -106,7 +106,6 @@ void uart_setControlLine(uint8_t rts, uint8_t dtr)
         cmdBuf_p = 0;
         memset(cmdBuf, 0, sizeof(cmdBuf));
         memset(responBuf, 0, sizeof(responBuf));
-        busy = 0;
         resetRequested = 1;
 
         USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)hUsbDeviceFS.pClassData;
@@ -126,6 +125,11 @@ void uart_setControlLine(uint8_t rts, uint8_t dtr)
 static uint8_t uart_waitTxReady(USBD_CDC_HandleTypeDef *hcdc)
 {
     if (hcdc == NULL) return 0;
+    if (resetRequested) {
+        USBD_LL_FlushEP(&hUsbDeviceFS, CDC_IN_EP);
+        hcdc->TxState = 0;
+        return 0;
+    }
 
     uint32_t startTick = HAL_GetTick();
     while (hcdc->TxState != 0) {
@@ -426,6 +430,10 @@ static void romEraseSector()
     cart_romWrite(sectorAddress, &cmd, 1);
 
     romWaitForDone(sectorAddress, 0xffff);
+    if (cmdBuf_p == 0 || resetRequested) {
+        uart_clearRecvBuf();
+        return;
+    }
 
     uart_clearRecvBuf();
     uart_responAck();
@@ -648,6 +656,10 @@ static void ramProgramFlash()
         cart_ramWrite((uint16_t)(baseAddress + i), dataBuf + i, 1);
 
         ramWaitForDone((uint16_t)(baseAddress + i), dataBuf[i]);
+        if (cmdBuf_p == 0 || resetRequested) {
+            uart_clearRecvBuf();
+            return;
+        }
     }
 
     // 回复ack

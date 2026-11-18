@@ -283,7 +283,7 @@ export class DeviceConnectionManager {
     const opResult = await this.runConnectionOperation({
       requireConnected: false,
       fn: async () => {
-        const ensureResult = await this.connectionUseCase.ensureConnected();
+        const ensureResult = await this.connectionUseCase.reinitializeConnection();
         if (!ensureResult.success || !ensureResult.context.handle) {
           console.error('[DeviceConnectionManager] initializeDevice failed', {
             device: this.describePort(device.portInfo),

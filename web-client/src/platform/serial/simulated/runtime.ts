@@ -343,7 +343,7 @@ function handleFlashControlWrite(params: {
     cfiEntryAddress,
     unlock1Address,
     unlock2Address,
-    targetAddressTransform = rawAddress => rawAddress,
+    targetAddressTransform = (rawAddress: number): number => rawAddress,
     onBankSwitch,
   } = params;
 
@@ -657,13 +657,18 @@ export function closeSimulatedDeviceState(state: SimulatedDeviceState): void {
   state.closed = true;
 }
 
+const SIMULATED_COMMANDS = new Map<number, GBACommand | GBCCommand>([
+  ...Object.values(GBACommand).filter((value): value is GBACommand => typeof value === 'number').map((value): [number, GBACommand] => [value, value]),
+  ...Object.values(GBCCommand).filter((value): value is GBCCommand => typeof value === 'number').map((value): [number, GBCCommand] => [value, value]),
+]);
+
 export function validateSimulatedCommandPayload(payload: Uint8Array): void {
   if (payload.byteLength < 5 || payload.byteLength > MAX_PROTOCOL_FRAME_SIZE
     || readUInt16(payload, 0) !== payload.byteLength) {
     throw new Error('Invalid simulated command frame length');
   }
 
-  const command: GBACommand | GBCCommand = payload[2];
+  const command = SIMULATED_COMMANDS.get(payload[2]);
   let minimumSize: number;
   let exactSize = false;
   switch (command) {
@@ -702,7 +707,7 @@ export function validateSimulatedCommandPayload(payload: Uint8Array): void {
       exactSize = true;
       break;
     default:
-      throw new Error(`Unsupported simulated command: 0x${command.toString(16)}`);
+      throw new Error(`Unsupported simulated command: 0x${payload[2].toString(16)}`);
   }
   if (payload.byteLength < minimumSize || (exactSize && payload.byteLength !== minimumSize)) {
     throw new Error('Invalid simulated command payload layout');
@@ -712,7 +717,7 @@ export function validateSimulatedCommandPayload(payload: Uint8Array): void {
 export function executeSimulatedCommand(state: SimulatedDeviceState, payload: Uint8Array): CommandResult {
   ensureSessionOpen(state);
   validateSimulatedCommandPayload(payload);
-  const command: GBACommand | GBCCommand = payload[2];
+  const command = SIMULATED_COMMANDS.get(payload[2]);
 
   switch (command) {
     case GBACommand.ERASE_CHIP:
@@ -820,6 +825,6 @@ export function executeSimulatedCommand(state: SimulatedDeviceState, payload: Ui
     }
 
     default:
-      throw new Error(`Unsupported simulated command: 0x${command.toString(16)}`);
+      throw new Error(`Unsupported simulated command: 0x${payload[2].toString(16)}`);
   }
 }
