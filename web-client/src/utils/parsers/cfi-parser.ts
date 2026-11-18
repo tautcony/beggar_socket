@@ -267,7 +267,7 @@ export class CFIParser {
     this.detectFlashCharacteristics(workBuffer, info);
 
     if (!info.cfiDetected) {
-      printBufferAsASCII(buffer, 'CFI Buffer内容');
+      printBufferAsASCII(buffer.subarray(0, 0x100), 'CFI Buffer内容 (最多 256 字节)');
       return false;
     }
 
@@ -302,7 +302,9 @@ export class CFIParser {
       this.parsePriExtended(workBuffer, info);
 
       // 解析设备几何信息（大小、擦除区域）
-      this.parseDeviceGeometry(workBuffer, info);
+      if (!this.parseDeviceGeometry(workBuffer, info)) {
+        return false;
+      }
 
       // 生成信息摘要
       info.info = this.generateInfoString(info as CFIInfo);
@@ -404,15 +406,23 @@ export class CFIParser {
     }
   }
 
-  private parseDeviceGeometry(buf: Uint8Array, info: Partial<CFIInfo>): void {
+  private parseDeviceGeometry(buf: Uint8Array, info: Partial<CFIInfo>): boolean {
     // 解析设备大小
     info.deviceSize = Math.pow(2, buf[CFI_OFFSETS.DEVICE_SIZE]);
+    if (!Number.isSafeInteger(info.deviceSize) || info.deviceSize <= 0) {
+      console.error(`Invalid CFI device size exponent: ${buf[CFI_OFFSETS.DEVICE_SIZE]}`);
+      return false;
+    }
 
     // 解析缓冲区大小
     const bufferSizeValue = (buf[CFI_OFFSETS.BUFFER_SIZE_HIGH] << 8) | buf[CFI_OFFSETS.BUFFER_SIZE_LOW];
     if (bufferSizeValue > 1) {
-      info.bufferWrite = true;
       info.bufferSize = Math.pow(2, bufferSizeValue);
+      if (!Number.isSafeInteger(info.bufferSize) || info.bufferSize > info.deviceSize) {
+        console.error(`Invalid CFI buffer size exponent: ${bufferSizeValue}`);
+        return false;
+      }
+      info.bufferWrite = true;
     } else {
       info.bufferWrite = false;
     }
@@ -420,18 +430,32 @@ export class CFIParser {
     // 解析擦除扇区区域
     info.eraseSectorRegions = buf[CFI_OFFSETS.ERASE_REGIONS];
     info.eraseSectorBlocks = [];
+    // Zero regions is valid bulk-only CFI. Preserve detection, without inventing sectors.
+    if (info.eraseSectorRegions === 0) return true;
+    const lastRegionByte = CFI_OFFSETS.REGION_BASE +
+      (info.eraseSectorRegions - 1) * CFI_OFFSETS.REGION_STRIDE + 6;
+    if (lastRegionByte >= buf.length) {
+      console.error(`Incomplete CFI erase descriptors: ${info.eraseSectorRegions} regions, ${buf.length} bytes`);
+      return false;
+    }
 
     const regionInfo: { sectorCount: number; sectorSize: number; totalSize: number }[] = [];
     let totalSize = 0;
 
-    for (let i = 0; i < Math.min(4, info.eraseSectorRegions); i++) {
+    for (let i = 0; i < info.eraseSectorRegions; i++) {
       const base = CFI_OFFSETS.REGION_BASE + i * CFI_OFFSETS.REGION_STRIDE;
       const sectorCount = ((buf[base + 2] << 8) | buf[base]) + 1;
-      const sectorSize = ((buf[base + 6] << 8) | buf[base + 4]) * 256;
+      const sectorSizeValue = (buf[base + 6] << 8) | buf[base + 4];
+      // CFI specifies zero as 128 bytes (Microchip CoreCFI Handbook table 4-4).
+      const sectorSize = sectorSizeValue === 0 ? 128 : sectorSizeValue * 256;
       const regionTotalSize = sectorCount * sectorSize;
 
       regionInfo.push({ sectorCount, sectorSize, totalSize: regionTotalSize });
       totalSize += regionTotalSize;
+    }
+    if (totalSize !== info.deviceSize) {
+      console.error(`Inconsistent CFI erase capacity: ${totalSize} bytes, device ${info.deviceSize} bytes`);
+      return false;
     }
 
     const createSectorBlock = (region: typeof regionInfo[0], startAddr: number): SectorBlock => ({
@@ -458,6 +482,7 @@ export class CFIParser {
         currentAddr += region.totalSize;
       }
     }
+    return true;
   }
 
   /**
@@ -507,10 +532,10 @@ export class CFIParser {
     }
 
     // 扇区区域信息 - 使用新的eraseSectorBlocks数据
-    for (let i = 0; i < info.eraseSectorRegions; i++) {
+    for (let i = 0; i < info.eraseSectorBlocks.length; i++) {
       const block = info.eraseSectorBlocks[i];
 
-      const addressRange = formatHex(block.startAddress, 3) + '-' + formatHex(block.endAddress - 1, 3);
+      const addressRange = formatHex(block.startAddress, 3) + '-' + formatHex(block.endAddress, 3);
       const sectorSizeHex = formatHex(block.sectorSize, 2);
       const regionInfo = `Region ${i + 1}: ${addressRange} @ ${sectorSizeHex} Bytes × ${block.sectorCount}${info.reverseSectorRegion ? ' (reversed)' : ''}`;
       lines.push(regionInfo);
