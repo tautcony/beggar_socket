@@ -211,7 +211,7 @@ onUnmounted(() => {
 
 .retro-modal-badge {
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.5;
   padding: 2px 8px;
   border-radius: 4px;
   border: 1px solid var(--retro-border-subtle);

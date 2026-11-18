@@ -247,7 +247,7 @@ watch(modelValue, (newValue) => {
 
 .arrow {
   color: var(--color-text-secondary);
-  font-weight: bold;
+  font-weight: var(--font-weight-bold);
   flex-shrink: 0;
   margin: 0 spacing-vars.$space-1;
   font-size: typography-vars.$font-size-base;

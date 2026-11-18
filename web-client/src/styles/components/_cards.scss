@@ -32,7 +32,7 @@
   .card-title {
     margin: 0;
     font-size: typography-vars.$font-size-lg;
-    font-weight: 600;
+    font-weight: typography-vars.$font-weight-semibold;
     color: color-vars.$color-text;
   }
 

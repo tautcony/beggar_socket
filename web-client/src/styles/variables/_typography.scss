@@ -17,10 +17,10 @@ $font-size-4xl: var(--font-size-4xl);
 $font-size-5xl: var(--font-size-5xl);
 
 // 字体权重
-$font-weight-normal: 400;
-$font-weight-medium: 500;
-$font-weight-semibold: 600;
-$font-weight-bold: 700;
+$font-weight-normal: var(--font-weight-normal);
+$font-weight-medium: var(--font-weight-medium);
+$font-weight-semibold: var(--font-weight-semibold);
+$font-weight-bold: var(--font-weight-bold);
 
 // 行高
 $line-height-tight: 1.25;
@@ -72,10 +72,10 @@ $font-weights: (
   --font-size-4xl: 36px;
   --font-size-5xl: 48px;
 
-  --font-weight-normal: #{$font-weight-normal};
-  --font-weight-medium: #{$font-weight-medium};
-  --font-weight-semibold: #{$font-weight-semibold};
-  --font-weight-bold: #{$font-weight-bold};
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
 
   --line-height-tight: #{$line-height-tight};
   --line-height-snug: #{$line-height-snug};

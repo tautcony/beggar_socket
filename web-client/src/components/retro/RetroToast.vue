@@ -212,7 +212,7 @@ defineExpose({
 .retro-toast-message {
   flex: 1;
   min-width: 0;
-  line-height: 1.35;
+  line-height: 1.5;
   word-break: break-word;
 }
 

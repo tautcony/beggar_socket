@@ -537,7 +537,7 @@ const hasAssembledRom = computed(() => {
 
 .op-title.busy {
   color: var(--color-warning);
-  font-weight: bold;
+  font-weight: var(--font-weight-bold);
 }
 
 .selector-container {

@@ -976,7 +976,7 @@ function generateTestRam(): void {
   background: transparent;
   color: var(--color-text-secondary);
   font-family: var(--retro-font-micro);
-  font-size: 11px;
+  font-size: var(--font-size-micro);
   font-weight: var(--font-weight-bold);
   cursor: pointer;
 

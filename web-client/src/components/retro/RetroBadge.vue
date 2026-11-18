@@ -36,7 +36,7 @@ withDefaults(defineProps<Props>(), {
   font-family: var(--app-font-sans);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .retro-badge.is-mono {
