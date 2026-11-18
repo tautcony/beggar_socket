@@ -516,6 +516,10 @@
       },
       "appearance": {
         "title": "Appearance",
+        "colorMode": "Color Mode",
+        "colorModeSystem": "System",
+        "colorModeLight": "Light",
+        "colorModeDark": "Dark",
         "colorTheme": "Color Theme",
         "fontFamily": "Page Font",
         "fontPreview": "Font Preview: Ark Pixel / Retro Workbench",
@@ -538,6 +542,9 @@
           "range": "Size must be between {min} - {max} bytes",
           "multiple": "Size must be a multiple of {multipler}"
         }
+      },
+      "control": {
+        "title": "Transfer Control"
       },
       "timeout": {
         "title": "Timeout Settings",

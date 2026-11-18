@@ -479,6 +479,10 @@
       },
       "appearance": {
         "title": "外觀與字體",
+        "colorMode": "顯示模式",
+        "colorModeSystem": "跟隨系統",
+        "colorModeLight": "淺色",
+        "colorModeDark": "深色",
         "colorTheme": "顏色主題",
         "fontFamily": "頁面字體",
         "fontPreview": "字體預覽：方舟像素 / 復古工作台",
@@ -501,6 +505,9 @@
           "range": "大小必須在 {min} - {max} 位元組之間",
           "multiple": "大小必須是{multipler}的倍數"
         }
+      },
+      "control": {
+        "title": "讀寫異常控制"
       },
       "timeout": {
         "title": "逾時設定",

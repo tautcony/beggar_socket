@@ -504,6 +504,10 @@
       },
       "appearance": {
         "title": "Оформление",
+        "colorMode": "Режим отображения",
+        "colorModeSystem": "Как в системе",
+        "colorModeLight": "Светлая",
+        "colorModeDark": "Тёмная",
         "colorTheme": "Цветовая тема",
         "fontFamily": "Шрифт страницы",
         "fontPreview": "Предпросмотр: Ark Pixel / Ретро-верстак",
@@ -525,6 +529,9 @@
           "invalid": "Введите допустимое значение",
           "step": "Должно быть кратно {step}"
         }
+      },
+      "control": {
+        "title": "Контроль сбоев чтения/записи"
       },
       "timeout": {
         "title": "Настройки таймаута",

@@ -504,6 +504,10 @@
       },
       "appearance": {
         "title": "外観とフォント",
+        "colorMode": "表示モード",
+        "colorModeSystem": "システムに従う",
+        "colorModeLight": "ライト",
+        "colorModeDark": "ダーク",
         "colorTheme": "カラーテーマ",
         "fontFamily": "ページフォント",
         "fontPreview": "フォントプレビュー：Ark Pixel / レトロワークベンチ",
@@ -526,6 +530,9 @@
           "range": "サイズは {min} - {max} バイトの間で入力してください",
           "multiple": "サイズは{multipler}の倍数である必要があります"
         }
+      },
+      "control": {
+        "title": "読み書き異常制御"
       },
       "timeout": {
         "title": "タイムアウト設定",
