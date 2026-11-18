@@ -219,3 +219,14 @@ Operation contexts created for a connection SHALL capture the connection's gener
 #### Scenario: Stale session rejected after reconnect
 - **WHEN** an operation context or protocol session created before disconnect/reconnect is invoked after a new connection is established
 - **THEN** the operation is rejected with a stale-connection failure before touching the new device transport
+
+### Requirement: Operation lock held until in-flight work settles
+The system SHALL keep the burner session busy after a user cancel or an operation timeout until the running operation's promise settles, SHALL show a cancelling state meanwhile, and SHALL NOT start another device operation before the lock is released.
+
+#### Scenario: Next operation blocked during cancel
+- **WHEN** the user stops a ROM write while a program request is in flight
+- **THEN** the session stays busy in a cancelling state, a new operation cannot start, and busy clears only after the adapter returns
+
+#### Scenario: Timeout does not release early
+- **WHEN** `runWithTimeout` reaches its deadline while the operation is still running
+- **THEN** the abort signal is raised and the lock is released only after the operation returns
