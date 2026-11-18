@@ -513,6 +513,6 @@ describe('MBC5Adapter transfer planning, efficiency, and stateful recovery', () 
 
     expect(res.success).toBe(true);
     const chunkSizes = mockGbcRomProgram.mock.calls.map(([, chunk]) => (chunk as Uint8Array).byteLength);
-    expect(chunkSizes).toEqual([0x4000]);
+    expect(chunkSizes).toEqual([0x2000, 0x2000]);
   });
 });
