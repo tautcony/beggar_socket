@@ -87,7 +87,9 @@
       "systemNoticeHistory": "歷史通知",
       "systemNoticeHistoryDesc": "檢視已閱讀的系統通知",
       "about": "關於",
-      "aboutDesc": "檢視應用程式資訊和版本"
+      "aboutDesc": "檢視應用程式資訊和版本",
+      "romTools": "ROM 工具",
+      "romToolsDesc": "ROM 拆分、ROM 合併與 GBA 合卡製作"
     },
     "about": {
       "version": "版本",
@@ -104,7 +106,7 @@
     },
     "serialTest": {
       "title": "序列埠測試工具",
-      "description": "????????????? Web Serial API ? Tauri ?????",
+      "description": "測試統一序列埠服務，支援 Web Serial API 與 Tauri 原生序列埠",
       "environment": "執行環境",
       "platform": "平台:",
       "userAgent": "使用者代理:",
@@ -200,7 +202,41 @@
           "invalidHexData": "無效的16進位資料格式",
           "noResponse": "未收到裝置回應",
           "commandFailed": "命令執行失敗"
-        }
+        },
+        "copy": "複製",
+        "copied": "已複製",
+        "viewHex": "HEX",
+        "viewDump": "HEX+ASCII",
+        "history": "最近命令",
+        "clearHistory": "清空",
+        "shortcutHint": "Ctrl/Cmd + Enter 發送",
+        "deviceConnected": "裝置已連接",
+        "deviceDisconnected": "未連接裝置，請先連接燒錄器"
+      },
+      "readSpeed": "讀取速度",
+      "writeSpeed": "寫入速度",
+      "sessionStatus": "工作階段狀態",
+      "currentSession": "目前工作階段",
+      "simulatedConnected": "模擬裝置已連線",
+      "disconnected": "未連線",
+      "currentPlatform": "目前平台",
+      "customResources": "自訂資源",
+      "behaviorSettings": "行為設定",
+      "simulationData": "模擬資料",
+      "appliesNextSession": "修改後即時生效",
+      "capacity": "容量",
+      "customImage": "自訂",
+      "defaultImage": "預設",
+      "noCustomImage": "未設定自訂映像檔，使用預設模擬資料",
+      "uploadImage": "匯入映像檔",
+      "clearImage": "清空映像檔",
+      "sessionActions": "工作階段操作",
+      "refreshSimulatedSession": "重新整理模擬工作階段",
+      "memory": {
+        "gbaRom": "GBA ROM",
+        "gbaRam": "GBA RAM",
+        "gbcRom": "GBC ROM",
+        "gbcRam": "GBC RAM"
       }
     },
     "chip": {
@@ -434,14 +470,16 @@
             "day": "天"
           }
         },
-        "invalidDate": "無效日期"
+        "invalidDate": "無效日期",
+        "clockPlaceholder": "讀取 RTC 時間後，此處將顯示時鐘"
       },
       "test": {
         "title": "測試功能",
         "rumble": "震動測試",
         "ppbUnlock": "PPB解鎖",
         "ppbUnlockGBA": "PPB解鎖(GBA)",
-        "ppbUnlockMBC5": "PPB解鎖(MBC5)"
+        "ppbUnlockMBC5": "PPB解鎖(MBC5)",
+        "noLogs": "暫無日誌"
       },
       "ppb": {
         "sectorCountPrompt": "請輸入要檢查的扇區數量 (1-{max}):",
@@ -587,7 +625,13 @@
         "skippedErase": "已跳過擦除",
         "error": "錯誤"
       },
-      "rendererCanvas": "畫布"
+      "rendererCanvas": "畫布",
+      "status": {
+        "running": "處理中",
+        "completed": "已完成",
+        "paused": "已停止",
+        "error": "執行失敗"
+      }
     },
     "common": {
       "yes": "是",
@@ -639,7 +683,18 @@
       "libraryLoaded": "圖像處理程式庫載入完成",
       "libraryLoadFailed": "圖像處理程式庫載入失敗",
       "loadingDescription": "正在初始化必要的元件，請稍候...",
-      "noFileSelected": "未選擇檔案"
+      "noFileSelected": "未選擇檔案",
+      "imagePreview": "圖像預覽",
+      "originalImage": "原圖",
+      "processedImage": "處理後圖像"
+    },
+    "romTools": {
+      "title": "ROM 工具",
+      "back": "返回",
+      "tabs": {
+        "splitMerge": "ROM 拆分與合併",
+        "multiMenu": "合卡製作"
+      }
     }
   },
   "messages": {
@@ -699,7 +754,8 @@
       "cfiParseSuccess": "CFI解析成功",
       "cfiParseFailed": "CFI解析失敗",
       "eraseSectorFailed": "扇區擦除失敗",
-      "eraseSummary": "擦除完成 - 總耗時: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 總扇區數: {totalSectors}"
+      "eraseSummary": "擦除完成 - 總耗時: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 總扇區數: {totalSectors}",
+      "cancelling": "正在取消..."
     },
     "rom": {
       "writing": "正在寫入ROM，大小 {size} 位元組",
@@ -721,7 +777,7 @@
       "verifyClampedToDevice": "配置校驗大小({configured})超過晶片容量({device})，實際校驗範圍截斷至 {actual}",
       "verifyClampedToFile": "配置校驗大小({configured})超過檔案大小({file})，實際校驗範圍截斷至 {actual}",
       "verifyFailedAt": "位址{address}校驗失敗，期望值{expected}，實際值{actual}",
-      "verifySummary": "校驗完成 - 總時間: {totalTime}，平均速度: {avgSpeed}，最大速度: {maxSpeed}，總大小: {totalSize}",
+      "verifySummary": "校驗完成 - 總時間: {totalTime}，平均速度: {avgSpeed}，最大速度: {maxSpeed}，總大小: {totalSize}，請求數: {requestCount}",
       "sizeChanged": "ROM大小已更改為 {size}",
       "baseAddressChanged": "ROM基址已更改為 {address}",
       "bankSwitch": "切換到ROM Bank {bank}",
@@ -733,8 +789,8 @@
       "areaNotBlank": "區域不為空白",
       "verifyBlankStart": "開始校驗空白 - 大小: {size}，填充位元組: {fill}",
       "exportSuccess": "ROM檔案已匯出為 {name}",
-      "writeSummary": "ROM寫入完成摘要 - 總牆鐘耗時: {totalTime}, 擦除耗時: {eraseTime}, 資料寫入耗時: {transferTime}, 平均寫入速度: {avgSpeed}, 最高寫入速度: {maxSpeed}, 總大小: {totalSize}",
-      "readSummary": "ROM讀取完成摘要 - 總耗時: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 總大小: {totalSize}",
+      "writeSummary": "ROM寫入完成摘要 - 總耗時: {totalTime}, 擦除耗時: {eraseTime}, 資料寫入耗時: {transferTime}, 平均寫入速度: {avgSpeed}, 最高寫入速度: {maxSpeed}, 總大小: {totalSize}, 請求數: {programRequests}, 重試次數: {retryCount}, 略過位元組: {skippedBytes}",
+      "readSummary": "ROM讀取完成摘要 - 總耗時: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 總大小: {totalSize}, 請求數: {requestCount}",
       "assembledRomApplied": "組裝ROM已應用",
       "assembledRomTypeMismatch": "組裝ROM類型({assembled})與目前模式({current})不相符",
       "noAssembledRom": "沒有可用的組裝ROM",
@@ -762,7 +818,8 @@
       "assembledForMainInterface": "已組裝{romType} ROM，大小: {size}，可在ROM操作介面使用",
       "applied": "ROM組裝已應用到主介面",
       "returnedFromAssembly": "ROM組裝完成！{romType} ROM 大小: {size}MB，已返回首頁",
-      "downloadFailed": "ROM下載失敗: {error}"
+      "downloadFailed": "ROM下載失敗: {error}",
+      "multiRomLoaded": "已解析合卡 ROM 並載入 {count} 個子遊戲到槽位"
     },
     "ram": {
       "writing": "正在寫入RAM，大小 {size} 位元組",
@@ -894,7 +951,10 @@
       },
       "ppbUnlockMBC5Success": "MBC5 PPB解鎖成功",
       "ppbUnlockMBC5Failed": "MBC5 PPB解鎖失敗: {error}",
-      "notImplemented": "功能尚未實作"
+      "notImplemented": "功能尚未實作",
+      "rumbleTest": {
+        "start": "開始震動測試..."
+      }
     },
     "debug": {
       "mockModeEnabled": "除錯模式已啟用 - 使用模擬裝置",

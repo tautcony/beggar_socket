@@ -87,7 +87,9 @@
       "systemNoticeHistory": "История уведомлений",
       "systemNoticeHistoryDesc": "Просмотреть ранее прочитанные системные уведомления",
       "about": "О программе",
-      "aboutDesc": "Просмотреть информацию о приложении и версию"
+      "aboutDesc": "Просмотреть информацию о приложении и версию",
+      "romTools": "Инструменты ROM",
+      "romToolsDesc": "Разделение, объединение ROM и создание мультикартриджа GBA"
     },
     "about": {
       "version": "Версия",
@@ -104,7 +106,7 @@
     },
     "serialTest": {
       "title": "Инструмент тестирования последовательного порта",
-      "description": "??????????? ??????????????? ???????????????? ????, ?????????????? Web Serial API ? ???????? ???????????????? ???? Tauri",
+      "description": "Тестирование единого последовательного сервиса (поддержка Web Serial API и нативного порта Tauri)",
       "environment": "Среда выполнения",
       "platform": "Платформа:",
       "userAgent": "User Agent:",
@@ -225,7 +227,16 @@
           "invalidHexData": "Неверный формат 16-ричных данных",
           "noResponse": "Не получен ответ от устройства",
           "commandFailed": "Выполнение команды не удалось"
-        }
+        },
+        "copy": "Копировать",
+        "copied": "Скопировано",
+        "viewHex": "HEX",
+        "viewDump": "HEX+ASCII",
+        "history": "История",
+        "clearHistory": "Очистить",
+        "shortcutHint": "Ctrl/Cmd + Enter — отправить",
+        "deviceConnected": "Устройство подключено",
+        "deviceDisconnected": "Устройство не подключено"
       }
     },
     "chip": {
@@ -453,20 +464,22 @@
           "fast": "Быстро",
           "slow": "Медленно",
           "units": {
-            "seconds": "секунд",
-            "minutes": "минут",
-            "hours": "часов",
-            "days": "дней"
+            "second": "секунда",
+            "minute": "минута",
+            "hour": "час",
+            "day": "день"
           }
         },
-        "invalidDate": "Недействительная дата"
+        "invalidDate": "Недействительная дата",
+        "clockPlaceholder": "Часы отобразятся здесь после чтения времени RTC"
       },
       "test": {
         "title": "Тестовые функции",
         "rumble": "Тест вибрации",
         "ppbUnlock": "Разблокировка PPB",
         "ppbUnlockGBA": "Разблокировка PPB (GBA)",
-        "ppbUnlockMBC5": "Разблокировка PPB (MBC5)"
+        "ppbUnlockMBC5": "Разблокировка PPB (MBC5)",
+        "noLogs": "Логов пока нет"
       },
       "ppb": {
         "sectorCountPrompt": "Введите количество секторов для проверки (1-{max}):",
@@ -527,7 +540,8 @@
           "min": "Минимальное значение {min} байт",
           "max": "Максимальное значение {max} байт",
           "invalid": "Введите допустимое значение",
-          "step": "Должно быть кратно {step}"
+          "range": "Размер должен быть от {min} до {max} байт",
+          "multiple": "Размер должен быть кратен {multipler}"
         }
       },
       "control": {
@@ -544,7 +558,8 @@
           "required": "Это поле обязательно",
           "min": "Минимальное значение {min} мс",
           "max": "Максимальное значение {max} мс",
-          "invalid": "Введите допустимое значение"
+          "invalid": "Введите допустимое значение",
+          "range": "Тайм-аут должен быть от {min} до {max} мс"
         }
       },
       "throttle": {
@@ -610,7 +625,13 @@
         "skippedErase": "Стирание пропущено",
         "error": "Ошибка"
       },
-      "rendererCanvas": "Холст"
+      "rendererCanvas": "Холст",
+      "status": {
+        "running": "Выполняется",
+        "completed": "Завершено",
+        "paused": "Остановлено",
+        "error": "Ошибка"
+      }
     },
     "common": {
       "yes": "Да",
@@ -662,7 +683,18 @@
       "libraryLoaded": "Библиотека обработки изображений загружена",
       "libraryLoadFailed": "Не удалось загрузить библиотеку обработки изображений",
       "loadingDescription": "Инициализация необходимых компонентов, пожалуйста, подождите...",
-      "noFileSelected": "Файл не выбран"
+      "noFileSelected": "Файл не выбран",
+      "imagePreview": "Предпросмотр изображения",
+      "originalImage": "Исходное изображение",
+      "processedImage": "Обработанное изображение"
+    },
+    "romTools": {
+      "title": "Инструменты ROM",
+      "back": "Назад",
+      "tabs": {
+        "splitMerge": "Разделение и объединение",
+        "multiMenu": "Мультикартридж"
+      }
     }
   },
   "messages": {
@@ -722,7 +754,8 @@
       "cfiParseSuccess": "CFI разбор успешен",
       "cfiParseFailed": "Ошибка CFI разбора",
       "eraseSectorFailed": "Ошибка стирания сектора",
-      "eraseSummary": "Стирание завершено - общее время: {totalTime}, средняя скорость: {avgSpeed}, максимальная скорость: {maxSpeed}, общее количество секторов: {totalSectors}"
+      "eraseSummary": "Стирание завершено - общее время: {totalTime}, средняя скорость: {avgSpeed}, максимальная скорость: {maxSpeed}, общее количество секторов: {totalSectors}",
+      "cancelling": "Отмена..."
     },
     "rom": {
       "writing": "Запись ROM, размер {size} байт",
@@ -744,7 +777,7 @@
       "verifyClampedToDevice": "Настроенный размер проверки ({configured}) превышает емкость чипа ({device}), диапазон проверки ограничен до {actual}",
       "verifyClampedToFile": "Настроенный размер проверки ({configured}) превышает размер файла ({file}), диапазон проверки ограничен до {actual}",
       "verifyFailedAt": "Ошибка проверки по адресу {address}, ожидалось {expected}, получено {actual}",
-      "verifySummary": "Проверка завершена - общее время: {totalTime}, средняя скорость: {avgSpeed}, максимальная скорость: {maxSpeed}, общий размер: {totalSize}",
+      "verifySummary": "Проверка завершена - общее время: {totalTime}, средняя скорость: {avgSpeed}, максимальная скорость: {maxSpeed}, общий размер: {totalSize}, запросов: {requestCount}",
       "sizeChanged": "Размер ROM изменен на {size}",
       "baseAddressChanged": "Базовый адрес ROM изменен на {address}",
       "bankSwitch": "Переключение на ROM Bank {bank}",
@@ -756,8 +789,8 @@
       "areaNotBlank": "Область не пустая",
       "verifyBlankStart": "Начало проверки пустого - Размер: {size}, Шаблон: {fill}",
       "exportSuccess": "ROM-файл экспортирован как {name}",
-      "writeSummary": "Запись ROM завершена - полное время по часам: {totalTime}, время стирания: {eraseTime}, время записи данных: {transferTime}, средняя скорость записи: {avgSpeed}, максимальная скорость записи: {maxSpeed}, общий размер: {totalSize}",
-      "readSummary": "Чтение ROM завершено - общее время: {totalTime}, средняя скорость: {avgSpeed}, максимальная скорость: {maxSpeed}, общий размер: {totalSize}",
+      "writeSummary": "Запись ROM завершена - общее время: {totalTime}, время стирания: {eraseTime}, время записи данных: {transferTime}, средняя скорость записи: {avgSpeed}, максимальная скорость записи: {maxSpeed}, общий размер: {totalSize}, запросов: {programRequests}, повторов: {retryCount}, пропущено байт: {skippedBytes}",
+      "readSummary": "Чтение ROM завершено - общее время: {totalTime}, средняя скорость: {avgSpeed}, максимальная скорость: {maxSpeed}, общий размер: {totalSize}, запросов: {requestCount}",
       "assembledRomApplied": "Собранный ROM применен",
       "assembledRomTypeMismatch": "Тип собранного ROM ({assembled}) не соответствует текущему режиму ({current})",
       "noAssembledRom": "Нет доступного собранного ROM",
@@ -785,7 +818,8 @@
       "assembledForMainInterface": "Собран {romType} ROM, размер: {size}, доступен в интерфейсе операций с ROM",
       "applied": "Сборка ROM применена к главному интерфейсу",
       "returnedFromAssembly": "Сборка ROM завершена! {romType} ROM размер: {size}MB, возврат на главную страницу",
-      "downloadFailed": "Ошибка скачивания ROM: {error}"
+      "downloadFailed": "Ошибка скачивания ROM: {error}",
+      "multiRomLoaded": "Мультикартридж ROM разобран, загружено игр в слоты: {count}"
     },
     "ram": {
       "writing": "Запись RAM, размер {size} байт",
@@ -917,7 +951,10 @@
       },
       "ppbUnlockMBC5Success": "Разблокировка PPB MBC5 успешна",
       "ppbUnlockMBC5Failed": "Ошибка разблокировка PPB MBC5: {error}",
-      "notImplemented": "Функция еще не реализована"
+      "notImplemented": "Функция еще не реализована",
+      "rumbleTest": {
+        "start": "Запуск теста вибрации..."
+      }
     },
     "debug": {
       "mockModeEnabled": "Режим отладки включен - используется симулированное устройство",

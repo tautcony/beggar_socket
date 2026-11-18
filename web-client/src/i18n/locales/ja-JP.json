@@ -87,7 +87,9 @@
       "systemNoticeHistory": "通知履歴",
       "systemNoticeHistoryDesc": "既読のシステム通知を再確認する",
       "about": "アバウト",
-      "aboutDesc": "アプリケーション情報とバージョンを表示します"
+      "aboutDesc": "アプリケーション情報とバージョンを表示します",
+      "romTools": "ROMツール",
+      "romToolsDesc": "ROM分割、ROM結合、GBAマルチカート作成"
     },
     "about": {
       "version": "バージョン",
@@ -104,7 +106,7 @@
     },
     "serialTest": {
       "title": "シリアルテストツール",
-      "description": "????????????????Web Serial API?Tauri?????????????????",
+      "description": "統合シリアルサービスをテストします（Web Serial API および Tauri ネイティブシリアルに対応）",
       "environment": "実行環境",
       "platform": "プラットフォーム:",
       "userAgent": "ユーザーエージェント:",
@@ -225,7 +227,16 @@
           "invalidHexData": "無効な16進データ形式",
           "noResponse": "デバイスからの応答なし",
           "commandFailed": "コマンドの実行に失敗しました"
-        }
+        },
+        "copy": "コピー",
+        "copied": "コピー済み",
+        "viewHex": "HEX",
+        "viewDump": "HEX+ASCII",
+        "history": "履歴",
+        "clearHistory": "クリア",
+        "shortcutHint": "Ctrl/Cmd + Enter で送信",
+        "deviceConnected": "デバイス接続済み",
+        "deviceDisconnected": "デバイス未接続"
       }
     },
     "chip": {
@@ -459,14 +470,16 @@
             "day": "日"
           }
         },
-        "invalidDate": "無効な日付"
+        "invalidDate": "無効な日付",
+        "clockPlaceholder": "RTC時刻を読み取ると、ここに時計が表示されます"
       },
       "test": {
         "title": "テスト機能",
         "rumble": "振動テスト",
         "ppbUnlock": "PPBアンロック",
         "ppbUnlockGBA": "PPBアンロック(GBA)",
-        "ppbUnlockMBC5": "PPBアンロック(MBC5)"
+        "ppbUnlockMBC5": "PPBアンロック(MBC5)",
+        "noLogs": "ログはまだありません"
       },
       "ppb": {
         "sectorCountPrompt": "チェックするセクタ数を入力してください (1-{max}):",
@@ -612,7 +625,13 @@
         "skippedErase": "消去スキップ",
         "error": "エラー"
       },
-      "rendererCanvas": "キャンバス"
+      "rendererCanvas": "キャンバス",
+      "status": {
+        "running": "処理中",
+        "completed": "完了",
+        "paused": "停止",
+        "error": "失敗"
+      }
     },
     "common": {
       "yes": "はい",
@@ -664,7 +683,18 @@
       "libraryLoaded": "画像処理ライブラリが読み込まれました",
       "libraryLoadFailed": "画像処理ライブラリの読み込みに失敗しました",
       "loadingDescription": "必要なコンポーネントを初期化しています。お待ちください...",
-      "noFileSelected": "ファイルが選択されていません"
+      "noFileSelected": "ファイルが選択されていません",
+      "imagePreview": "画像プレビュー",
+      "originalImage": "元画像",
+      "processedImage": "処理後の画像"
+    },
+    "romTools": {
+      "title": "ROMツール",
+      "back": "戻る",
+      "tabs": {
+        "splitMerge": "ROM分割・結合",
+        "multiMenu": "マルチカート"
+      }
     }
   },
   "messages": {
@@ -724,7 +754,8 @@
       "cfiParseSuccess": "CFI解析成功",
       "cfiParseFailed": "CFI解析失敗",
       "eraseSectorFailed": "セクター消去失敗",
-      "eraseSummary": "消去完了 - 総時間: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 総セクター数: {totalSectors}"
+      "eraseSummary": "消去完了 - 総時間: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 総セクター数: {totalSectors}",
+      "cancelling": "キャンセル中..."
     },
     "rom": {
       "writing": "ROMを書き込み中、サイズ {size} バイト",
@@ -746,7 +777,7 @@
       "verifyClampedToDevice": "設定された検証サイズ({configured})がチップ容量({device})を超えています。検証範囲を {actual} に切り詰めます",
       "verifyClampedToFile": "設定された検証サイズ({configured})がファイルサイズ({file})を超えています。検証範囲を {actual} に切り詰めます",
       "verifyFailedAt": "アドレス{address}で検証失敗、期待値{expected}、実際値{actual}",
-      "verifySummary": "検証完了 - 総時間: {totalTime}、平均速度: {avgSpeed}、最大速度: {maxSpeed}、総サイズ: {totalSize}",
+      "verifySummary": "検証完了 - 総時間: {totalTime}、平均速度: {avgSpeed}、最大速度: {maxSpeed}、総サイズ: {totalSize}、リクエスト数: {requestCount}",
       "sizeChanged": "ROMサイズが {size} に変更されました",
       "baseAddressChanged": "ROMベースアドレスが {address} に変更されました",
       "bankSwitch": "ROMバンク {bank} に切り替え",
@@ -758,8 +789,8 @@
       "areaNotBlank": "領域は空白ではありません",
       "verifyBlankStart": "空白検証開始 - サイズ: {size}、フィルバイト: {fill}",
       "exportSuccess": "ROMファイルを {name} として出力しました",
-      "writeSummary": "ROM書き込み完了サマリー - 総壁時計時間: {totalTime}, 消去時間: {eraseTime}, データ書き込み時間: {transferTime}, 平均書き込み速度: {avgSpeed}, 最高書き込み速度: {maxSpeed}, 総サイズ: {totalSize}",
-      "readSummary": "ROM読み取り完了サマリー - 総時間: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 総サイズ: {totalSize}",
+      "writeSummary": "ROM書き込み完了サマリー - 総所要時間: {totalTime}, 消去時間: {eraseTime}, データ書き込み時間: {transferTime}, 平均書き込み速度: {avgSpeed}, 最高書き込み速度: {maxSpeed}, 総サイズ: {totalSize}, リクエスト数: {programRequests}, リトライ回数: {retryCount}, スキップバイト: {skippedBytes}",
+      "readSummary": "ROM読み取り完了サマリー - 総時間: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 総サイズ: {totalSize}, リクエスト数: {requestCount}",
       "assembledRomApplied": "組み立てROMが適用されました",
       "assembledRomTypeMismatch": "組み立てROMタイプ({assembled})が現在のモード({current})と一致しません",
       "noAssembledRom": "利用可能な組み立てROMがありません",
@@ -787,7 +818,8 @@
       "assembledForMainInterface": "{romType} ROMを組み立てました、サイズ: {size}、ROM操作画面で利用可能です",
       "applied": "ROM組み立てがメイン画面に適用されました",
       "returnedFromAssembly": "ROM組み立て完了！{romType} ROMサイズ: {size}MB、ホームに戻りました",
-      "downloadFailed": "ROMダウンロード失敗: {error}"
+      "downloadFailed": "ROMダウンロード失敗: {error}",
+      "multiRomLoaded": "マルチカートROMを解析し、{count}個のゲームをスロットに読み込みました"
     },
     "ram": {
       "writing": "RAMを書き込み中、サイズ {size} バイト",
@@ -919,7 +951,10 @@
       },
       "ppbUnlockMBC5Success": "MBC5 PPBアンロック成功",
       "ppbUnlockMBC5Failed": "MBC5 PPBアンロック失敗: {error}",
-      "notImplemented": "機能未実装"
+      "notImplemented": "機能未実装",
+      "rumbleTest": {
+        "start": "振動テストを開始します..."
+      }
     },
     "debug": {
       "mockModeEnabled": "デバッグモードが有効 - シミュレートされたデバイスを使用",

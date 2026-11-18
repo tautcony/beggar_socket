@@ -298,6 +298,182 @@ class I18nChecker {
     });
     
     console.log(`\n总计发现 ${totalIssues} 个未 i18n 化的问题。`);
+    return totalIssues;
+  }
+}
+
+/**
+ * 检查语言包（JSON）的键一致性、占位符一致性、乱码与简繁混杂
+ */
+class LocaleChecker {
+  constructor() {
+    this.localesDir = path.join(__dirname, '../src/i18n/locales');
+    this.referenceLocale = 'en-US.json';
+    this.errors = [];
+    this.cjkRegex = /[\u4e00-\u9fff]/;
+  }
+
+  /**
+   * 基于内置 TextDecoder 生成 GB2312 (6763 汉字) 字符集
+   * 用于校验 zh-Hans 中是否混入非 GB2312 繁体字
+   */
+  buildGb2312Set() {
+    const decoder = new TextDecoder('gb2312', { fatal: true });
+    const set = new Set();
+    for (let b1 = 0xB0; b1 <= 0xF7; b1++) {
+      for (let b2 = 0xA1; b2 <= 0xFE; b2++) {
+        try {
+          const ch = decoder.decode(Uint8Array.of(b1, b2));
+          if (ch.length === 1 && this.cjkRegex.test(ch)) {
+            set.add(ch);
+          }
+        } catch {}
+      }
+    }
+    return set;
+  }
+
+  /**
+   * 基于内置 TextDecoder 生成 Big5 汉字字符集
+   * 用于校验 zh-Hant 中是否混入非 Big5 简体字
+   */
+  buildBig5Set() {
+    const decoder = new TextDecoder('big5', { fatal: true });
+    const set = new Set();
+    for (let b1 = 0xA4; b1 <= 0xF9; b1++) {
+      if (b1 === 0xC7 || b1 === 0xC8) continue;
+      for (let b2 = 0x40; b2 <= 0xFE; b2++) {
+        if (b2 > 0x7E && b2 < 0xA1) continue;
+        try {
+          const ch = decoder.decode(Uint8Array.of(b1, b2));
+          if (ch.length === 1 && this.cjkRegex.test(ch)) {
+            set.add(ch);
+          }
+        } catch {}
+      }
+    }
+    return set;
+  }
+
+  flatten(obj, prefix = '') {
+    const out = {};
+    for (const [k, v] of Object.entries(obj)) {
+      const key = prefix ? `${prefix}.${k}` : k;
+      if (v && typeof v === 'object' && !Array.isArray(v)) {
+        Object.assign(out, this.flatten(v, key));
+      } else {
+        out[key] = v;
+      }
+    }
+    return out;
+  }
+
+  extractPlaceholders(str) {
+    return (String(str).match(/\{[^}]+\}/g) || []).sort();
+  }
+
+  checkAllLocales() {
+    if (!fs.existsSync(this.localesDir)) {
+      this.errors.push(`语言包目录不存在: ${this.localesDir}`);
+      return this.printResults();
+    }
+
+    const files = fs.readdirSync(this.localesDir).filter(f => f.endsWith('.json')).sort();
+    const localeMaps = {};
+
+    for (const file of files) {
+      const fullPath = path.join(this.localesDir, file);
+      try {
+        const parsed = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+        localeMaps[file] = this.flatten(parsed);
+      } catch (err) {
+        this.errors.push(`[${file}] JSON 解析失败: ${err.message}`);
+      }
+    }
+
+    const loadedFiles = Object.keys(localeMaps);
+    if (loadedFiles.length === 0) {
+      this.errors.push('未找到有效的语言包 JSON 文件');
+      return this.printResults();
+    }
+
+    const allKeys = [...new Set(loadedFiles.flatMap(f => Object.keys(localeMaps[f])))];
+
+    // 1. 键一致性 & 空值 & 乱码检查
+    for (const file of loadedFiles) {
+      const map = localeMaps[file];
+      const missing = allKeys.filter(k => !(k in map));
+      if (missing.length > 0) {
+        this.errors.push(`[${file}] 缺失 ${missing.length} 个键: ${missing.slice(0, 10).join(', ')}${missing.length > 10 ? ' ...' : ''}`);
+      }
+
+      for (const [k, v] of Object.entries(map)) {
+        if (typeof v !== 'string' || v.trim() === '') {
+          this.errors.push(`[${file}] 键 "${k}" 的值为空或非字符串`);
+          continue;
+        }
+        if (/\?{2,}/.test(v) || v.includes('\uFFFD')) {
+          this.errors.push(`[${file}] 键 "${k}" 疑似存在乱码/编码损坏: "${v}"`);
+        }
+      }
+    }
+
+    // 2. 占位符一致性检查
+    const refMap = localeMaps[this.referenceLocale] || localeMaps[loadedFiles[0]];
+    const refName = localeMaps[this.referenceLocale] ? this.referenceLocale : loadedFiles[0];
+    for (const key of allKeys) {
+      if (!(key in refMap)) continue;
+      const refPh = this.extractPlaceholders(refMap[key]);
+      for (const file of loadedFiles) {
+        if (file === refName || !(key in localeMaps[file])) continue;
+        const ph = this.extractPlaceholders(localeMaps[file][key]);
+        if (ph.join(',') !== refPh.join(',')) {
+          this.errors.push(`[${file}] 键 "${key}" 占位符不一致: 期望 [${refPh.join(', ')}]，实际 [${ph.join(', ')}]`);
+        }
+      }
+    }
+
+    // 3. 简繁体混杂检查（基于 GB2312 与 Big5 字符集范围）
+    if (localeMaps['zh-Hans.json']) {
+      const gb2312Set = this.buildGb2312Set();
+      for (const [k, v] of Object.entries(localeMaps['zh-Hans.json'])) {
+        if (typeof v !== 'string') continue;
+        const hits = [...new Set([...v].filter(c => this.cjkRegex.test(c) && !gb2312Set.has(c)))];
+        if (hits.length > 0) {
+          this.errors.push(`[zh-Hans.json] 键 "${k}" 包含非 GB2312 字符（疑似繁体字） [${hits.join('')}]: "${v}"`);
+        }
+      }
+    }
+
+    if (localeMaps['zh-Hant.json']) {
+      const big5Set = this.buildBig5Set();
+      for (const [k, v] of Object.entries(localeMaps['zh-Hant.json'])) {
+        if (typeof v !== 'string') continue;
+        const hits = [...new Set([...v].filter(c => this.cjkRegex.test(c) && !big5Set.has(c)))];
+        if (hits.length > 0) {
+          this.errors.push(`[zh-Hant.json] 键 "${k}" 包含非 Big5 字符（疑似简体字） [${hits.join('')}]: "${v}"`);
+        }
+      }
+    }
+
+    return this.printResults(loadedFiles.length, allKeys.length);
+  }
+
+  printResults(fileCount = 0, keyCount = 0) {
+    console.log('\n' + '='.repeat(50));
+    console.log(`语言包检查汇总（共 ${fileCount} 个文件，${keyCount} 个键）`);
+    console.log('='.repeat(50));
+
+    if (this.errors.length === 0) {
+      console.log('✅ 所有语言包键一致性、占位符、编码与简繁校验均通过。');
+      return 0;
+    }
+
+    console.log(`❌ 发现 ${this.errors.length} 个语言包问题：\n`);
+    for (const err of this.errors) {
+      console.log(`  - ${err}`);
+    }
+    return this.errors.length;
   }
 }
 
@@ -310,5 +486,18 @@ try {
 }
 
 // 运行检查
-const checker = new I18nChecker();
-checker.checkAllFiles().catch(console.error);
+(async () => {
+  const checker = new I18nChecker();
+  await checker.checkAllFiles();
+  const vueIssues = checker.results.reduce((sum, r) => sum + r.issues.length, 0);
+
+  const localeChecker = new LocaleChecker();
+  const localeIssues = localeChecker.checkAllLocales();
+
+  if (vueIssues > 0 || localeIssues > 0) {
+    process.exitCode = 1;
+  }
+})().catch(err => {
+  console.error(err);
+  process.exit(1);
+});

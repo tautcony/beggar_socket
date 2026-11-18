@@ -235,7 +235,16 @@
           "invalidHexData": "Invalid hex data format",
           "noResponse": "No response from device",
           "commandFailed": "Command execution failed"
-        }
+        },
+        "copy": "Copy",
+        "copied": "Copied",
+        "viewHex": "HEX",
+        "viewDump": "HEX+ASCII",
+        "history": "Recent",
+        "clearHistory": "Clear",
+        "shortcutHint": "Ctrl/Cmd + Enter to send",
+        "deviceConnected": "Device connected",
+        "deviceDisconnected": "No device connected"
       }
     },
     "chip": {
