@@ -269,345 +269,345 @@
           <div class="setting-group">
             <h4>{{ $t('ui.settings.timeout.title') }}</h4>
 
-          <div class="setting-row">
-            <div class="setting-item">
-              <label for="default-timeout">{{ $t('ui.settings.timeout.defaultTimeout') }}</label>
-              <div class="input-group">
-                <input
-                  id="default-timeout"
-                  v-model.number="localSettings.timeout.default"
-                  type="number"
-                  :min="limits.timeout.min"
-                  :max="limits.timeout.max"
-                  :step="100"
-                  @input="validateAndUpdate"
+            <div class="setting-row">
+              <div class="setting-item">
+                <label for="default-timeout">{{ $t('ui.settings.timeout.defaultTimeout') }}</label>
+                <div class="input-group">
+                  <input
+                    id="default-timeout"
+                    v-model.number="localSettings.timeout.default"
+                    type="number"
+                    :min="limits.timeout.min"
+                    :max="limits.timeout.max"
+                    :step="100"
+                    @input="validateAndUpdate"
+                  >
+                  <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+                </div>
+                <div
+                  v-if="validationErrors.defaultTimeout"
+                  class="validation-error"
                 >
-                <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+                  {{ validationErrors.defaultTimeout }}
+                </div>
+                <small class="hint">{{ formatTimeClock(localSettings.timeout.default, 'ms') }}</small>
               </div>
-              <div
-                v-if="validationErrors.defaultTimeout"
-                class="validation-error"
-              >
-                {{ validationErrors.defaultTimeout }}
+
+              <div class="setting-item">
+                <label for="package-send-timeout">{{ $t('ui.settings.timeout.packageSendTimeout') }}</label>
+                <div class="input-group">
+                  <input
+                    id="package-send-timeout"
+                    v-model.number="localSettings.timeout.packageSend"
+                    type="number"
+                    :min="limits.timeout.min"
+                    :max="limits.timeout.max"
+                    :step="100"
+                    @input="validateAndUpdate"
+                  >
+                  <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+                </div>
+                <div
+                  v-if="validationErrors.packageSendTimeout"
+                  class="validation-error"
+                >
+                  {{ validationErrors.packageSendTimeout }}
+                </div>
+                <small class="hint">{{ formatTimeClock(localSettings.timeout.packageSend, 'ms') }}</small>
               </div>
-              <small class="hint">{{ formatTimeClock(localSettings.timeout.default, 'ms') }}</small>
             </div>
 
-            <div class="setting-item">
-              <label for="package-send-timeout">{{ $t('ui.settings.timeout.packageSendTimeout') }}</label>
-              <div class="input-group">
-                <input
-                  id="package-send-timeout"
-                  v-model.number="localSettings.timeout.packageSend"
-                  type="number"
-                  :min="limits.timeout.min"
-                  :max="limits.timeout.max"
-                  :step="100"
-                  @input="validateAndUpdate"
+            <div class="setting-row">
+              <div class="setting-item">
+                <label for="package-receive-timeout">{{ $t('ui.settings.timeout.packageReceiveTimeout') }}</label>
+                <div class="input-group">
+                  <input
+                    id="package-receive-timeout"
+                    v-model.number="localSettings.timeout.packageReceive"
+                    type="number"
+                    :min="limits.timeout.min"
+                    :max="limits.timeout.max"
+                    :step="100"
+                    @input="validateAndUpdate"
+                  >
+                  <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+                </div>
+                <div
+                  v-if="validationErrors.packageReceiveTimeout"
+                  class="validation-error"
                 >
-                <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+                  {{ validationErrors.packageReceiveTimeout }}
+                </div>
+                <small class="hint">{{ formatTimeClock(localSettings.timeout.packageReceive, 'ms') }}</small>
               </div>
-              <div
-                v-if="validationErrors.packageSendTimeout"
-                class="validation-error"
-              >
-                {{ validationErrors.packageSendTimeout }}
+
+              <div class="setting-item">
+                <label for="operation-timeout">{{ $t('ui.settings.timeout.operationTimeout') }}</label>
+                <div class="input-group">
+                  <input
+                    id="operation-timeout"
+                    v-model.number="localSettings.timeout.operation"
+                    type="number"
+                    :min="limits.timeout.min"
+                    :max="limits.timeout.max"
+                    :step="1000"
+                    @input="validateAndUpdate"
+                  >
+                  <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+                </div>
+                <div
+                  v-if="validationErrors.operationTimeout"
+                  class="validation-error"
+                >
+                  {{ validationErrors.operationTimeout }}
+                </div>
+                <small class="hint">{{ formatTimeClock(localSettings.timeout.operation, 'ms') }}</small>
               </div>
-              <small class="hint">{{ formatTimeClock(localSettings.timeout.packageSend, 'ms') }}</small>
             </div>
           </div>
-
-          <div class="setting-row">
-            <div class="setting-item">
-              <label for="package-receive-timeout">{{ $t('ui.settings.timeout.packageReceiveTimeout') }}</label>
-              <div class="input-group">
-                <input
-                  id="package-receive-timeout"
-                  v-model.number="localSettings.timeout.packageReceive"
-                  type="number"
-                  :min="limits.timeout.min"
-                  :max="limits.timeout.max"
-                  :step="100"
-                  @input="validateAndUpdate"
-                >
-                <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
-              </div>
-              <div
-                v-if="validationErrors.packageReceiveTimeout"
-                class="validation-error"
-              >
-                {{ validationErrors.packageReceiveTimeout }}
-              </div>
-              <small class="hint">{{ formatTimeClock(localSettings.timeout.packageReceive, 'ms') }}</small>
-            </div>
-
-            <div class="setting-item">
-              <label for="operation-timeout">{{ $t('ui.settings.timeout.operationTimeout') }}</label>
-              <div class="input-group">
-                <input
-                  id="operation-timeout"
-                  v-model.number="localSettings.timeout.operation"
-                  type="number"
-                  :min="limits.timeout.min"
-                  :max="limits.timeout.max"
-                  :step="1000"
-                  @input="validateAndUpdate"
-                >
-                <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
-              </div>
-              <div
-                v-if="validationErrors.operationTimeout"
-                class="validation-error"
-              >
-                {{ validationErrors.operationTimeout }}
-              </div>
-              <small class="hint">{{ formatTimeClock(localSettings.timeout.operation, 'ms') }}</small>
-            </div>
-          </div>
-        </div>
 
           <div class="setting-group">
             <h4>{{ $t('ui.settings.throttle.title') }}</h4>
 
-          <div class="setting-row">
-            <div class="setting-item">
-              <label for="rom-read-throttle">{{ $t('ui.settings.throttle.romRead') }}</label>
-              <div class="input-group">
-                <input
-                  id="rom-read-throttle"
-                  v-model.number="localSettings.throttle.romRead"
-                  type="number"
-                  :min="limits.throttle.min"
-                  :max="limits.throttle.max"
-                  :step="1"
-                  @input="validateAndUpdate"
+            <div class="setting-row">
+              <div class="setting-item">
+                <label for="rom-read-throttle">{{ $t('ui.settings.throttle.romRead') }}</label>
+                <div class="input-group">
+                  <input
+                    id="rom-read-throttle"
+                    v-model.number="localSettings.throttle.romRead"
+                    type="number"
+                    :min="limits.throttle.min"
+                    :max="limits.throttle.max"
+                    :step="1"
+                    @input="validateAndUpdate"
+                  >
+                  <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+                </div>
+                <div
+                  v-if="validationErrors.romReadThrottle"
+                  class="validation-error"
                 >
-                <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+                  {{ validationErrors.romReadThrottle }}
+                </div>
+                <small class="hint">{{ formatTimeClock(localSettings.throttle.romRead, 'ms') }}</small>
               </div>
-              <div
-                v-if="validationErrors.romReadThrottle"
-                class="validation-error"
-              >
-                {{ validationErrors.romReadThrottle }}
-              </div>
-              <small class="hint">{{ formatTimeClock(localSettings.throttle.romRead, 'ms') }}</small>
-            </div>
 
-            <div class="setting-item">
-              <label for="ram-read-throttle">{{ $t('ui.settings.throttle.ramRead') }}</label>
-              <div class="input-group">
-                <input
-                  id="ram-read-throttle"
-                  v-model.number="localSettings.throttle.ramRead"
-                  type="number"
-                  :min="limits.throttle.min"
-                  :max="limits.throttle.max"
-                  :step="1"
-                  @input="validateAndUpdate"
+              <div class="setting-item">
+                <label for="ram-read-throttle">{{ $t('ui.settings.throttle.ramRead') }}</label>
+                <div class="input-group">
+                  <input
+                    id="ram-read-throttle"
+                    v-model.number="localSettings.throttle.ramRead"
+                    type="number"
+                    :min="limits.throttle.min"
+                    :max="limits.throttle.max"
+                    :step="1"
+                    @input="validateAndUpdate"
+                  >
+                  <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+                </div>
+                <div
+                  v-if="validationErrors.ramReadThrottle"
+                  class="validation-error"
                 >
-                <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+                  {{ validationErrors.ramReadThrottle }}
+                </div>
+                <small class="hint">{{ formatTimeClock(localSettings.throttle.ramRead, 'ms') }}</small>
               </div>
-              <div
-                v-if="validationErrors.ramReadThrottle"
-                class="validation-error"
-              >
-                {{ validationErrors.ramReadThrottle }}
-              </div>
-              <small class="hint">{{ formatTimeClock(localSettings.throttle.ramRead, 'ms') }}</small>
             </div>
           </div>
-        </div>
 
           <div class="setting-group">
             <h4>{{ $t('ui.settings.retry.title') }}</h4>
 
-          <div class="setting-row">
-            <div class="setting-item">
-              <label for="rom-read-retry-count">{{ $t('ui.settings.retry.romReadCount') }}</label>
-              <div class="input-group">
-                <input
-                  id="rom-read-retry-count"
-                  v-model.number="localSettings.retry.romReadCount"
-                  type="number"
-                  :min="limits.retryCount.min"
-                  :max="limits.retryCount.max"
-                  :step="1"
-                  @input="validateAndUpdate"
+            <div class="setting-row">
+              <div class="setting-item">
+                <label for="rom-read-retry-count">{{ $t('ui.settings.retry.romReadCount') }}</label>
+                <div class="input-group">
+                  <input
+                    id="rom-read-retry-count"
+                    v-model.number="localSettings.retry.romReadCount"
+                    type="number"
+                    :min="limits.retryCount.min"
+                    :max="limits.retryCount.max"
+                    :step="1"
+                    @input="validateAndUpdate"
+                  >
+                  <span class="unit">x</span>
+                </div>
+                <div
+                  v-if="validationErrors.romReadRetryCount"
+                  class="validation-error"
                 >
-                <span class="unit">x</span>
+                  {{ validationErrors.romReadRetryCount }}
+                </div>
               </div>
-              <div
-                v-if="validationErrors.romReadRetryCount"
-                class="validation-error"
-              >
-                {{ validationErrors.romReadRetryCount }}
+
+              <div class="setting-item">
+                <label for="ram-read-retry-count">{{ $t('ui.settings.retry.ramReadCount') }}</label>
+                <div class="input-group">
+                  <input
+                    id="ram-read-retry-count"
+                    v-model.number="localSettings.retry.ramReadCount"
+                    type="number"
+                    :min="limits.retryCount.min"
+                    :max="limits.retryCount.max"
+                    :step="1"
+                    @input="validateAndUpdate"
+                  >
+                  <span class="unit">x</span>
+                </div>
+                <div
+                  v-if="validationErrors.ramReadRetryCount"
+                  class="validation-error"
+                >
+                  {{ validationErrors.ramReadRetryCount }}
+                </div>
               </div>
             </div>
 
-            <div class="setting-item">
-              <label for="ram-read-retry-count">{{ $t('ui.settings.retry.ramReadCount') }}</label>
-              <div class="input-group">
-                <input
-                  id="ram-read-retry-count"
-                  v-model.number="localSettings.retry.ramReadCount"
-                  type="number"
-                  :min="limits.retryCount.min"
-                  :max="limits.retryCount.max"
-                  :step="1"
-                  @input="validateAndUpdate"
+            <div class="setting-row">
+              <div class="setting-item">
+                <label for="rom-erase-retry-count">{{ $t('ui.settings.retry.romEraseRetryCount') }}</label>
+                <div class="input-group">
+                  <input
+                    id="rom-erase-retry-count"
+                    v-model.number="localSettings.retry.romEraseRetryCount"
+                    type="number"
+                    :min="limits.retryCount.min"
+                    :max="limits.retryCount.max"
+                    :step="1"
+                    @input="validateAndUpdate"
+                  >
+                  <span class="unit">x</span>
+                </div>
+                <div
+                  v-if="validationErrors.romEraseRetryCount"
+                  class="validation-error"
                 >
-                <span class="unit">x</span>
+                  {{ validationErrors.romEraseRetryCount }}
+                </div>
               </div>
-              <div
-                v-if="validationErrors.ramReadRetryCount"
-                class="validation-error"
-              >
-                {{ validationErrors.ramReadRetryCount }}
-              </div>
-            </div>
-          </div>
 
-          <div class="setting-row">
-            <div class="setting-item">
-              <label for="rom-erase-retry-count">{{ $t('ui.settings.retry.romEraseRetryCount') }}</label>
-              <div class="input-group">
-                <input
-                  id="rom-erase-retry-count"
-                  v-model.number="localSettings.retry.romEraseRetryCount"
-                  type="number"
-                  :min="limits.retryCount.min"
-                  :max="limits.retryCount.max"
-                  :step="1"
-                  @input="validateAndUpdate"
+              <div class="setting-item">
+                <label for="rom-write-retry-count">{{ $t('ui.settings.retry.romWriteRetryCount') }}</label>
+                <div class="input-group">
+                  <input
+                    id="rom-write-retry-count"
+                    v-model.number="localSettings.retry.romWriteRetryCount"
+                    type="number"
+                    :min="limits.retryCount.min"
+                    :max="limits.retryCount.max"
+                    :step="1"
+                    @input="validateAndUpdate"
+                  >
+                  <span class="unit">x</span>
+                </div>
+                <div
+                  v-if="validationErrors.romWriteRetryCount"
+                  class="validation-error"
                 >
-                <span class="unit">x</span>
+                  {{ validationErrors.romWriteRetryCount }}
+                </div>
               </div>
-              <div
-                v-if="validationErrors.romEraseRetryCount"
-                class="validation-error"
-              >
-                {{ validationErrors.romEraseRetryCount }}
-              </div>
-            </div>
-
-            <div class="setting-item">
-              <label for="rom-write-retry-count">{{ $t('ui.settings.retry.romWriteRetryCount') }}</label>
-              <div class="input-group">
-                <input
-                  id="rom-write-retry-count"
-                  v-model.number="localSettings.retry.romWriteRetryCount"
-                  type="number"
-                  :min="limits.retryCount.min"
-                  :max="limits.retryCount.max"
-                  :step="1"
-                  @input="validateAndUpdate"
-                >
-                <span class="unit">x</span>
-              </div>
-              <div
-                v-if="validationErrors.romWriteRetryCount"
-                class="validation-error"
-              >
-                {{ validationErrors.romWriteRetryCount }}
-              </div>
-            </div>
-          </div>
-
-          <div class="setting-row">
-            <div class="setting-item">
-              <label for="rom-read-retry-delay">{{ $t('ui.settings.retry.romReadDelay') }}</label>
-              <div class="input-group">
-                <input
-                  id="rom-read-retry-delay"
-                  v-model.number="localSettings.retry.romReadDelay"
-                  type="number"
-                  :min="limits.retryDelay.min"
-                  :max="limits.retryDelay.max"
-                  :step="1"
-                  @input="validateAndUpdate"
-                >
-                <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
-              </div>
-              <div
-                v-if="validationErrors.romReadRetryDelay"
-                class="validation-error"
-              >
-                {{ validationErrors.romReadRetryDelay }}
-              </div>
-              <small class="hint">{{ formatTimeClock(localSettings.retry.romReadDelay, 'ms') }}</small>
             </div>
 
-            <div class="setting-item">
-              <label for="ram-read-retry-delay">{{ $t('ui.settings.retry.ramReadDelay') }}</label>
-              <div class="input-group">
-                <input
-                  id="ram-read-retry-delay"
-                  v-model.number="localSettings.retry.ramReadDelay"
-                  type="number"
-                  :min="limits.retryDelay.min"
-                  :max="limits.retryDelay.max"
-                  :step="1"
-                  @input="validateAndUpdate"
+            <div class="setting-row">
+              <div class="setting-item">
+                <label for="rom-read-retry-delay">{{ $t('ui.settings.retry.romReadDelay') }}</label>
+                <div class="input-group">
+                  <input
+                    id="rom-read-retry-delay"
+                    v-model.number="localSettings.retry.romReadDelay"
+                    type="number"
+                    :min="limits.retryDelay.min"
+                    :max="limits.retryDelay.max"
+                    :step="1"
+                    @input="validateAndUpdate"
+                  >
+                  <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+                </div>
+                <div
+                  v-if="validationErrors.romReadRetryDelay"
+                  class="validation-error"
                 >
-                <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+                  {{ validationErrors.romReadRetryDelay }}
+                </div>
+                <small class="hint">{{ formatTimeClock(localSettings.retry.romReadDelay, 'ms') }}</small>
               </div>
-              <div
-                v-if="validationErrors.ramReadRetryDelay"
-                class="validation-error"
-              >
-                {{ validationErrors.ramReadRetryDelay }}
-              </div>
-              <small class="hint">{{ formatTimeClock(localSettings.retry.ramReadDelay, 'ms') }}</small>
-            </div>
-          </div>
 
-          <div class="setting-row">
-            <div class="setting-item">
-              <label for="rom-erase-retry-delay">{{ $t('ui.settings.retry.romEraseRetryDelay') }}</label>
-              <div class="input-group">
-                <input
-                  id="rom-erase-retry-delay"
-                  v-model.number="localSettings.retry.romEraseRetryDelay"
-                  type="number"
-                  :min="limits.retryDelay.min"
-                  :max="limits.retryDelay.max"
-                  :step="1"
-                  @input="validateAndUpdate"
+              <div class="setting-item">
+                <label for="ram-read-retry-delay">{{ $t('ui.settings.retry.ramReadDelay') }}</label>
+                <div class="input-group">
+                  <input
+                    id="ram-read-retry-delay"
+                    v-model.number="localSettings.retry.ramReadDelay"
+                    type="number"
+                    :min="limits.retryDelay.min"
+                    :max="limits.retryDelay.max"
+                    :step="1"
+                    @input="validateAndUpdate"
+                  >
+                  <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+                </div>
+                <div
+                  v-if="validationErrors.ramReadRetryDelay"
+                  class="validation-error"
                 >
-                <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+                  {{ validationErrors.ramReadRetryDelay }}
+                </div>
+                <small class="hint">{{ formatTimeClock(localSettings.retry.ramReadDelay, 'ms') }}</small>
               </div>
-              <div
-                v-if="validationErrors.romEraseRetryDelay"
-                class="validation-error"
-              >
-                {{ validationErrors.romEraseRetryDelay }}
-              </div>
-              <small class="hint">{{ formatTimeClock(localSettings.retry.romEraseRetryDelay, 'ms') }}</small>
             </div>
 
-            <div class="setting-item">
-              <label for="rom-write-retry-delay">{{ $t('ui.settings.retry.romWriteRetryDelay') }}</label>
-              <div class="input-group">
-                <input
-                  id="rom-write-retry-delay"
-                  v-model.number="localSettings.retry.romWriteRetryDelay"
-                  type="number"
-                  :min="limits.retryDelay.min"
-                  :max="limits.retryDelay.max"
-                  :step="1"
-                  @input="validateAndUpdate"
+            <div class="setting-row">
+              <div class="setting-item">
+                <label for="rom-erase-retry-delay">{{ $t('ui.settings.retry.romEraseRetryDelay') }}</label>
+                <div class="input-group">
+                  <input
+                    id="rom-erase-retry-delay"
+                    v-model.number="localSettings.retry.romEraseRetryDelay"
+                    type="number"
+                    :min="limits.retryDelay.min"
+                    :max="limits.retryDelay.max"
+                    :step="1"
+                    @input="validateAndUpdate"
+                  >
+                  <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+                </div>
+                <div
+                  v-if="validationErrors.romEraseRetryDelay"
+                  class="validation-error"
                 >
-                <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+                  {{ validationErrors.romEraseRetryDelay }}
+                </div>
+                <small class="hint">{{ formatTimeClock(localSettings.retry.romEraseRetryDelay, 'ms') }}</small>
               </div>
-              <div
-                v-if="validationErrors.romWriteRetryDelay"
-                class="validation-error"
-              >
-                {{ validationErrors.romWriteRetryDelay }}
+
+              <div class="setting-item">
+                <label for="rom-write-retry-delay">{{ $t('ui.settings.retry.romWriteRetryDelay') }}</label>
+                <div class="input-group">
+                  <input
+                    id="rom-write-retry-delay"
+                    v-model.number="localSettings.retry.romWriteRetryDelay"
+                    type="number"
+                    :min="limits.retryDelay.min"
+                    :max="limits.retryDelay.max"
+                    :step="1"
+                    @input="validateAndUpdate"
+                  >
+                  <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+                </div>
+                <div
+                  v-if="validationErrors.romWriteRetryDelay"
+                  class="validation-error"
+                >
+                  {{ validationErrors.romWriteRetryDelay }}
+                </div>
+                <small class="hint">{{ formatTimeClock(localSettings.retry.romWriteRetryDelay, 'ms') }}</small>
               </div>
-              <small class="hint">{{ formatTimeClock(localSettings.retry.romWriteRetryDelay, 'ms') }}</small>
             </div>
-          </div>
           </div>
         </div>
       </div>
@@ -755,16 +755,6 @@ const firmwareProfileOptions = [
   { id: 'stm' as const, label: `${STM_FIRMWARE_PROFILE.label} (STM32)` },
   { id: 'stc' as const, label: `${STC_FIRMWARE_PROFILE.label} (STC8)` },
 ];
-
-const switchEditingSizeProfile = (profile: ConfigurableFirmwareProfileId) => {
-  if (editingSizeProfile.value === profile) return;
-  editingSizeProfile.value = profile;
-  validateAndUpdate();
-};
-
-watch(() => localSettings.value.firmware.profile, (nextProfile) => {
-  switchEditingSizeProfile(nextProfile);
-});
 
 // 验证错误
 const validationErrors = ref({
@@ -937,6 +927,16 @@ const validateAndUpdate = () => {
   validationErrors.value.packageReceiveTimeout = validateTimeout(localSettings.value.timeout.packageReceive);
   validationErrors.value.operationTimeout = validateTimeout(localSettings.value.timeout.operation);
 };
+
+const switchEditingSizeProfile = (profile: ConfigurableFirmwareProfileId) => {
+  if (editingSizeProfile.value === profile) return;
+  editingSizeProfile.value = profile;
+  validateAndUpdate();
+};
+
+watch(() => localSettings.value.firmware.profile, (nextProfile) => {
+  switchEditingSizeProfile(nextProfile);
+});
 
 // 检查是否有效
 const isValid = computed(() => {

@@ -211,7 +211,7 @@ watch(() => props.isVisible, async (newVal) => {
 
 // 监听 ROM 数据 / 会话变化
 watch(() => [props.romData, props.launch?.sessionId] as const, async ([newData], [oldData, oldSessionId]) => {
-  if ((newData !== oldData || props.launch?.sessionId !== oldSessionId) && runnerInstance) {
+  if (newData !== oldData || props.launch?.sessionId !== oldSessionId) {
     finishSessionBeforeReplacement();
   }
   if (props.isVisible && newData) {
@@ -653,6 +653,11 @@ function cleanup(isFinalUnmount = false) {
     resultDelivered = true;
   }
   disposeCore();
+  initialBytes = null;
+  latestCheckpoint.value = null;
+  sessionOverride = null;
+  skipSelectedSave.value = false;
+  hasError.value = false;
   isPaused.value = false;
   isCovered.value = false;
 }

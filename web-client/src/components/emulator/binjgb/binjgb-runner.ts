@@ -112,7 +112,15 @@ export class BinjgbRunner {
       this.initAudio();
     }
 
-    this.initEmulatorCore();
+    try {
+      this.initEmulatorCore();
+    } catch (error) {
+      if (this.audioContext && this.audioContext.state !== 'closed') {
+        void this.audioContext.close().catch(() => {});
+      }
+      this.audioContext = null;
+      throw error;
+    }
   }
 
   static async create(options: BinjgbRunnerOptions): Promise<BinjgbRunner> {

@@ -286,6 +286,27 @@ export class ConnectionOrchestrationUseCase {
     return this.prepareConnection();
   }
 
+  async reinitializeConnection(): Promise<ConnectionCommandResult> {
+    return this.enqueueLifecycle(async () => {
+      if (this.snapshotState.state === 'connected' && this.snapshotState.context.handle) {
+        try {
+          const initResult = await this.connectionPort.init(this.snapshotState.context.handle);
+          if (!initResult.ok) {
+            const failure = normalizeFailure('init', initResult.error, 'init_failed');
+            const result = this.markFailure(failure);
+            return toFailure(result.state, result.context, failure);
+          }
+          return toSuccess('connected', this.snapshotState.context, 'Connection initialized');
+        } catch (error) {
+          const failure = normalizeFailure('init', error, 'init_failed');
+          const result = this.markFailure(failure);
+          return toFailure(result.state, result.context, failure);
+        }
+      }
+      return this._prepareConnection();
+    });
+  }
+
   async disconnect(): Promise<ConnectionCommandResult> {
     return this.enqueueLifecycle(() => this._disconnect());
   }

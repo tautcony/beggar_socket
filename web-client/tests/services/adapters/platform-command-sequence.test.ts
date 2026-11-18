@@ -10,10 +10,10 @@ import NotImplementedError from '@/utils/errors/NotImplementedError';
 import type { CFIInfo } from '@/utils/parsers/cfi-parser';
 
 const { mockCartPower, mockRomRead, mockGbcRead, mockGbcWrite } = vi.hoisted(() => ({
-  mockCartPower: vi.fn(),
-  mockRomRead: vi.fn(),
-  mockGbcRead: vi.fn(),
-  mockGbcWrite: vi.fn(),
+  mockCartPower: vi.fn<(_dev: unknown, state: number) => Promise<void>>(),
+  mockRomRead: vi.fn<(_dev: unknown, size: number, addr: number) => Promise<Uint8Array>>(),
+  mockGbcRead: vi.fn<(_dev: unknown, size: number, addr: number) => Promise<Uint8Array>>(),
+  mockGbcWrite: vi.fn<(...args: unknown[]) => Promise<void>>(),
 }));
 
 vi.mock('@/protocol', async () => {

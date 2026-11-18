@@ -1023,193 +1023,193 @@ export class MBC5Adapter extends CartridgeAdapter {
             await this.stabilizeCommandChannel(MBC5Adapter.ROM_READ_START_SETTLE_MS);
             this.log(this.t('messages.rom.verifying'), 'info');
 
-          const configuredSize = options.size ?? fileData.byteLength;
-          const deviceSize = options.cfiInfo.deviceSize;
-          const availableDeviceSize = Math.max(0, deviceSize - baseAddress);
-          const total = Math.min(configuredSize, availableDeviceSize);
-          if (configuredSize > availableDeviceSize) {
-            this.log(this.t('messages.rom.verifyClampedToDevice', {
-              configured: formatBytes(configuredSize),
-              device: formatBytes(deviceSize),
-              actual: formatBytes(total),
-            }), 'warn');
-          }
-          const image = prepareRomImage(fileData, total);
-          let verified = 0;
-          let success = true;
-          let failedAddress = -1;
-          let lastLoggedProgress = -1; // 鍒濆鍖栦负-1锛岀‘淇濈涓€娆?%浼氳璁板綍
-          let currentBank = -1;
-          let activeSectorIndex = -1;
-          let completedSectorIndex = -1;
+            const configuredSize = options.size ?? fileData.byteLength;
+            const deviceSize = options.cfiInfo.deviceSize;
+            const availableDeviceSize = Math.max(0, deviceSize - baseAddress);
+            const total = Math.min(configuredSize, availableDeviceSize);
+            if (configuredSize > availableDeviceSize) {
+              this.log(this.t('messages.rom.verifyClampedToDevice', {
+                configured: formatBytes(configuredSize),
+                device: formatBytes(deviceSize),
+                actual: formatBytes(total),
+              }), 'warn');
+            }
+            const image = prepareRomImage(fileData, total);
+            let verified = 0;
+            let success = true;
+            let failedAddress = -1;
+            let lastLoggedProgress = -1; // 鍒濆鍖栦负-1锛岀‘淇濈涓€娆?%浼氳璁板綍
+            let currentBank = -1;
+            let activeSectorIndex = -1;
+            let completedSectorIndex = -1;
 
-          // 鍒濆鍖栨墖鍖鸿繘搴︿俊鎭?(鐢ㄤ簬鏄剧ず鏍￠獙杩涘害鍙鍖?
-          const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, total, baseAddress);
-          const sectors = this.initializeSectorProgress(sectorInfo);
+            // 鍒濆鍖栨墖鍖鸿繘搴︿俊鎭?(鐢ㄤ簬鏄剧ず鏍￠獙杩涘害鍙鍖?
+            const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, total, baseAddress);
+            const sectors = this.initializeSectorProgress(sectorInfo);
 
-          // 浣跨敤閫熷害璁＄畻鍣?
-          const speedCalculator = new SpeedCalculator();
+            // 浣跨敤閫熷害璁＄畻鍣?
+            const speedCalculator = new SpeedCalculator();
 
-          // 鍒涘缓杩涘害鎶ュ憡鍣?
-          const progressReporter = new ProgressReporter(
-            'verify',
-            total,
-            (progressInfo) => { this.updateProgress(progressInfo); },
-            (key, params) => this.t(key, params),
-          );
-          progressReporter.setSectors(sectors);
+            // 鍒涘缓杩涘害鎶ュ憡鍣?
+            const progressReporter = new ProgressReporter(
+              'verify',
+              total,
+              (progressInfo) => { this.updateProgress(progressInfo); },
+              (key, params) => this.t(key, params),
+            );
+            progressReporter.setSectors(sectors);
 
-          // 鎶ュ憡寮€濮嬬姸鎬?
-          progressReporter.reportStart(this.t('messages.rom.verifying'));
+            // 鎶ュ憡寮€濮嬬姸鎬?
+            progressReporter.reportStart(this.t('messages.rom.verifying'));
 
-          // 鍒嗗潡鏍￠獙骞舵洿鏂拌繘搴?
-          let chunkCount = 0; // 璁板綍宸插鐞嗙殑鍧楁暟
-          while (verified < total && success) {
+            // 鍒嗗潡鏍￠獙骞舵洿鏂拌繘搴?
+            let chunkCount = 0; // 璁板綍宸插鐞嗙殑鍧楁暟
+            while (verified < total && success) {
             // 妫€鏌ユ槸鍚﹀凡琚彇娑?
-            if (signal?.aborted) {
-              progressReporter.reportError(this.t('messages.operation.cancelled'));
-              return {
-                success: false,
-                message: this.t('messages.operation.cancelled'),
-              };
-            }
+              if (signal?.aborted) {
+                progressReporter.reportError(this.t('messages.operation.cancelled'));
+                return {
+                  success: false,
+                  message: this.t('messages.operation.cancelled'),
+                };
+              }
 
-            const currentAddress = baseAddress + verified;
-            const { bank, cartAddress, chunkSize } = planBankChunk(currentAddress, total - verified, pageSize, { platform: 'mbc', memory: 'rom', mbcType });
+              const currentAddress = baseAddress + verified;
+              const { bank, cartAddress, chunkSize } = planBankChunk(currentAddress, total - verified, pageSize, { platform: 'mbc', memory: 'rom', mbcType });
 
-            while (
-              activeSectorIndex + 1 < sectors.length
+              while (
+                activeSectorIndex + 1 < sectors.length
               && currentAddress >= sectors[activeSectorIndex + 1].address
-            ) {
-              activeSectorIndex++;
-            }
+              ) {
+                activeSectorIndex++;
+              }
 
-            const enteredNewSector = activeSectorIndex >= 0
+              const enteredNewSector = activeSectorIndex >= 0
               && progressReporter.markSectorState(sectors[activeSectorIndex].address, 'processing') >= 0
               && (verified === 0 || verified === sectors[activeSectorIndex].address - baseAddress);
 
-            if (enteredNewSector) {
-              const currentSpeedBeforeVerify = speedCalculator.getCurrentSpeed();
-              progressReporter.emitProgress(
-                verified,
-                currentSpeedBeforeVerify,
-                this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeedBeforeVerify) }),
+              if (enteredNewSector) {
+                const currentSpeedBeforeVerify = speedCalculator.getCurrentSpeed();
+                progressReporter.emitProgress(
+                  verified,
+                  currentSpeedBeforeVerify,
+                  this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeedBeforeVerify) }),
+                  currentAddress,
+                );
+              }
+
+              if (bank !== currentBank) {
+                currentBank = bank;
+                await this.switchROMBank(bank, mbcType);
+              }
+
+              // 璇诲彇鏁版嵁
+              const actualChunk = await this.readROMChunkWithRetry(
+                chunkSize,
                 currentAddress,
+                cartAddress,
+                Math.floor(verified / pageSize) + 1,
+                bank,
+                async () => { await this.switchROMBank(bank, mbcType); },
+                signal,
               );
-            }
+              const chunkEndTime = Date.now();
 
-            if (bank !== currentBank) {
-              currentBank = bank;
-              await this.switchROMBank(bank, mbcType);
-            }
-
-            // 璇诲彇鏁版嵁
-            const actualChunk = await this.readROMChunkWithRetry(
-              chunkSize,
-              currentAddress,
-              cartAddress,
-              Math.floor(verified / pageSize) + 1,
-              bank,
-              async () => { await this.switchROMBank(bank, mbcType); },
-              signal,
-            );
-            const chunkEndTime = Date.now();
-
-            // 閫愬瓧鑺傛瘮杈?
-            for (let i = 0; i < chunkSize; i++) {
-              const expectedByte = image[verified + i];
-              const actualByte = actualChunk[i];
-              if (expectedByte !== actualByte) {
-                success = false;
-                failedAddress = verified + i;
-                this.log(this.t('messages.rom.verifyFailedAt', {
-                  address: formatHex(failedAddress, 4),
-                  expected: formatHex(expectedByte, 1),
-                  actual: formatHex(actualByte, 1),
-                }), 'error');
-                if (activeSectorIndex >= 0) {
-                  progressReporter.markSectorState(sectors[activeSectorIndex].address, 'error');
+              // 閫愬瓧鑺傛瘮杈?
+              for (let i = 0; i < chunkSize; i++) {
+                const expectedByte = image[verified + i];
+                const actualByte = actualChunk[i];
+                if (expectedByte !== actualByte) {
+                  success = false;
+                  failedAddress = verified + i;
+                  this.log(this.t('messages.rom.verifyFailedAt', {
+                    address: formatHex(failedAddress, 4),
+                    expected: formatHex(expectedByte, 1),
+                    actual: formatHex(actualByte, 1),
+                  }), 'error');
+                  if (activeSectorIndex >= 0) {
+                    progressReporter.markSectorState(sectors[activeSectorIndex].address, 'error');
+                  }
+                  break;
                 }
-                break;
-              }
-            }
-
-            if (!success) break;
-
-            verified += chunkSize;
-            chunkCount++;
-
-            const verifiedEndAddress = baseAddress + verified - 1;
-            while (completedSectorIndex + 1 < sectors.length) {
-              const nextSector = sectors[completedSectorIndex + 1];
-              const nextSectorEnd = nextSector.address + nextSector.size - 1;
-              if (nextSectorEnd > verifiedEndAddress) {
-                break;
               }
 
-              completedSectorIndex++;
-              progressReporter.markSectorState(nextSector.address, 'completed');
-            }
+              if (!success) break;
 
-            // 娣诲姞鏁版嵁鐐瑰埌閫熷害璁＄畻鍣?
-            speedCalculator.addDataPoint(chunkSize, chunkEndTime);
+              verified += chunkSize;
+              chunkCount++;
 
-            // 姣?0娆℃搷浣滄垨鏈€鍚庝竴娆℃洿鏂拌繘搴?
-            if (chunkCount % 10 === 0 || verified >= total) {
+              const verifiedEndAddress = baseAddress + verified - 1;
+              while (completedSectorIndex + 1 < sectors.length) {
+                const nextSector = sectors[completedSectorIndex + 1];
+                const nextSectorEnd = nextSector.address + nextSector.size - 1;
+                if (nextSectorEnd > verifiedEndAddress) {
+                  break;
+                }
+
+                completedSectorIndex++;
+                progressReporter.markSectorState(nextSector.address, 'completed');
+              }
+
+              // 娣诲姞鏁版嵁鐐瑰埌閫熷害璁＄畻鍣?
+              speedCalculator.addDataPoint(chunkSize, chunkEndTime);
+
+              // 姣?0娆℃搷浣滄垨鏈€鍚庝竴娆℃洿鏂拌繘搴?
+              if (chunkCount % 10 === 0 || verified >= total) {
               // 璁＄畻褰撳墠閫熷害
-              const currentSpeed = speedCalculator.getCurrentSpeed();
+                const currentSpeed = speedCalculator.getCurrentSpeed();
 
-              // 鎶ュ憡杩涘害
-              progressReporter.emitProgress(
-                verified,
-                currentSpeed,
-                this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeed) }),
-                currentAddress,
-              );
+                // 鎶ュ憡杩涘害
+                progressReporter.emitProgress(
+                  verified,
+                  currentSpeed,
+                  this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeed) }),
+                  currentAddress,
+                );
+              }
+
+              // 姣?%璁板綍涓€娆℃棩蹇?
+              const progress = Math.floor((verified / total) * 100);
+              if (progress % 5 === 0 && progress !== lastLoggedProgress) {
+                this.log(this.t('messages.rom.verifyingAt', {
+                  address: formatHex(currentAddress, 4),
+                  progress,
+                }), 'info');
+                lastLoggedProgress = progress;
+              }
             }
 
-            // 姣?%璁板綍涓€娆℃棩蹇?
-            const progress = Math.floor((verified / total) * 100);
-            if (progress % 5 === 0 && progress !== lastLoggedProgress) {
-              this.log(this.t('messages.rom.verifyingAt', {
-                address: formatHex(currentAddress, 4),
-                progress,
+            const totalTime = speedCalculator.getTotalTime();
+            const avgSpeed = totalTime > 0 ? total / totalTime : speedCalculator.getAverageSpeed();
+            const maxSpeed = speedCalculator.getMaxSpeed();
+
+            if (success) {
+              while (completedSectorIndex + 1 < sectors.length) {
+                completedSectorIndex++;
+                progressReporter.markSectorState(sectors[completedSectorIndex].address, 'completed');
+              }
+
+              this.log(this.t('messages.rom.verifySuccess'), 'success');
+              this.log(this.t('messages.rom.verifySummary', {
+                totalTime: formatTimeDuration(totalTime),
+                avgSpeed: formatSpeed(avgSpeed),
+                maxSpeed: formatSpeed(maxSpeed),
+                totalSize: formatBytes(total),
+                requestCount: chunkCount,
               }), 'info');
-              lastLoggedProgress = progress;
-            }
-          }
 
-          const totalTime = speedCalculator.getTotalTime();
-          const avgSpeed = totalTime > 0 ? total / totalTime : speedCalculator.getAverageSpeed();
-          const maxSpeed = speedCalculator.getMaxSpeed();
-
-          if (success) {
-            while (completedSectorIndex + 1 < sectors.length) {
-              completedSectorIndex++;
-              progressReporter.markSectorState(sectors[completedSectorIndex].address, 'completed');
+              // 鎶ュ憡瀹屾垚鐘舵€?
+              progressReporter.reportCompleted(this.t('messages.rom.verifySuccess'), avgSpeed);
+            } else {
+              this.log(this.t('messages.rom.verifyFailed'), 'error');
+              progressReporter.reportError(this.t('messages.rom.verifyFailed'));
             }
 
-            this.log(this.t('messages.rom.verifySuccess'), 'success');
-            this.log(this.t('messages.rom.verifySummary', {
-              totalTime: formatTimeDuration(totalTime),
-              avgSpeed: formatSpeed(avgSpeed),
-              maxSpeed: formatSpeed(maxSpeed),
-              totalSize: formatBytes(total),
-              requestCount: chunkCount,
-            }), 'info');
-
-            // 鎶ュ憡瀹屾垚鐘舵€?
-            progressReporter.reportCompleted(this.t('messages.rom.verifySuccess'), avgSpeed);
-          } else {
-            this.log(this.t('messages.rom.verifyFailed'), 'error');
-            progressReporter.reportError(this.t('messages.rom.verifyFailed'));
-          }
-
-          const message = success ? this.t('messages.rom.verifySuccess') : this.t('messages.rom.verifyFailed');
-          return {
-            success: success,
-            message: message,
-          };
+            const message = success ? this.t('messages.rom.verifySuccess') : this.t('messages.rom.verifyFailed');
+            return {
+              success: success,
+              message: message,
+            };
           });
         } catch (e) {
           const progressReporter = new ProgressReporter(

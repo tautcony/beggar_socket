@@ -8,10 +8,10 @@ import { STC_FIRMWARE_PROFILE, STM_FIRMWARE_PROFILE } from '@/types/firmware-pro
 import type { CFIInfo } from '@/utils/parsers/cfi-parser';
 
 const { mockCartPower, mockGbcRead, mockGbcRomProgram, mockGbcRomEraseSector } = vi.hoisted(() => ({
-  mockCartPower: vi.fn(),
-  mockGbcRead: vi.fn(),
-  mockGbcRomProgram: vi.fn(),
-  mockGbcRomEraseSector: vi.fn(),
+  mockCartPower: vi.fn<(_dev: unknown, state: number) => Promise<boolean | undefined>>(),
+  mockGbcRead: vi.fn<(_dev: unknown, size: number, addr: number) => Promise<Uint8Array>>(),
+  mockGbcRomProgram: vi.fn<(_dev: unknown, chunk: Uint8Array, addr: number) => Promise<void>>(),
+  mockGbcRomEraseSector: vi.fn<(_dev: unknown, addr: number) => Promise<void>>(),
 }));
 
 vi.mock('@/protocol', async () => {
@@ -157,9 +157,9 @@ describe('MBC5Adapter.verifyROM', () => {
     // 4. Cancellation during loop
     mockCartPower.mockClear();
     const controller = new AbortController();
-    mockGbcRead.mockImplementation(async () => {
+    mockGbcRead.mockImplementation(() => {
       controller.abort();
-      return new Uint8Array([0xab]);
+      return Promise.resolve(new Uint8Array([0xab]));
     });
     const cancelRes = await adapter.verifyROM(
       new Uint8Array([0xab, 0xcd]),
@@ -179,12 +179,12 @@ describe('MBC5Adapter.verifyROM', () => {
     AdvancedSettings.romReadRetryDelayMs = 0;
 
     let attempts = 0;
-    mockGbcRead.mockImplementation(async () => {
+    mockGbcRead.mockImplementation(() => {
       attempts++;
       if (attempts === 1) {
-        throw new Error('transient read error');
+        return Promise.reject(new Error('transient read error'));
       }
-      return new Uint8Array([0xab]);
+      return Promise.resolve(new Uint8Array([0xab]));
     });
 
     const result = await adapter.verifyROM(new Uint8Array([0xab]), createOptions('MBC5'));
@@ -394,7 +394,7 @@ describe('MBC5Adapter transfer planning, efficiency, and stateful recovery', () 
     const res = await adapter.readROM(0x8000, createOptions('MBC5', { romPageSize: undefined }));
     expect(res.success).toBe(true);
     expect(mockGbcRead).toHaveBeenCalledTimes(2);
-    expect(mockGbcRead.mock.calls.map(([, s]) => s as number)).toEqual([0x4000, 0x4000]);
+    expect(mockGbcRead.mock.calls.map(([, s]) => s)).toEqual([0x4000, 0x4000]);
   });
 
   it('skips all-0xFF chunks and recovers from partial-write timeout / lost ACK with non-zero baseAddress', async () => {
@@ -465,7 +465,7 @@ describe('MBC5Adapter transfer planning, efficiency, and stateful recovery', () 
     }));
 
     expect(res.success).toBe(true);
-    const chunkSizes = mockGbcRomProgram.mock.calls.map(([, chunk]) => (chunk as Uint8Array).byteLength);
+    const chunkSizes = mockGbcRomProgram.mock.calls.map(([, chunk]) => (chunk).byteLength);
     expect(chunkSizes).toEqual(Array(2048 / configuredPageSize).fill(configuredPageSize));
   });
 
@@ -485,7 +485,7 @@ describe('MBC5Adapter transfer planning, efficiency, and stateful recovery', () 
     }));
 
     expect(res.success).toBe(true);
-    const chunkSizes = mockGbcRomProgram.mock.calls.map(([, chunk]) => (chunk as Uint8Array).byteLength);
+    const chunkSizes = mockGbcRomProgram.mock.calls.map(([, chunk]) => (chunk).byteLength);
     expect(chunkSizes.every((len) => len <= 4096)).toBe(true);
     expect(chunkSizes).toEqual([4096, 4096, 4096, 4096]);
   });
@@ -512,7 +512,7 @@ describe('MBC5Adapter transfer planning, efficiency, and stateful recovery', () 
     }));
 
     expect(res.success).toBe(true);
-    const chunkSizes = mockGbcRomProgram.mock.calls.map(([, chunk]) => (chunk as Uint8Array).byteLength);
+    const chunkSizes = mockGbcRomProgram.mock.calls.map(([, chunk]) => (chunk).byteLength);
     expect(chunkSizes).toEqual([0x2000, 0x2000]);
   });
 });
