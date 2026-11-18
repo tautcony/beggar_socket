@@ -1,7 +1,9 @@
 ## Purpose
 
 Define the connection orchestration use case contract for Burner-facing workflows so connection lifecycle behavior is centralized, deterministic, and recoverable.
+
 ## Requirements
+
 ### Requirement: Application-layer connection use case orchestration
 The system SHALL provide a connection orchestration use case that centralizes `list`, `select`, `connect`, `init`, and `disconnect` lifecycle steps for Burner-facing workflows.
 
@@ -61,3 +63,17 @@ The system SHALL provide orchestration-level tests for disconnect cleanup and re
 - **WHEN** an orchestration test injects a gateway disconnect failure and then retries connection
 - **THEN** the suite verifies the retry starts from a clean state and can reach `connected` without a manual page reset
 
+### Requirement: Single authoritative connection context state
+Connection orchestration SHALL maintain a single authoritative connection context holding `transport`, `portInfo`, effective `firmwareProfile`, and connection `generation`/identity, eliminating duplicated mutable copies across `DeviceInfo` and `serialHandle` and inconsistent fallback reads.
+
+#### Scenario: Port info update preserves effective firmware profile
+- **WHEN** `withPortInfo()` updates port metadata during connection setup
+- **THEN** it updates only port metadata and does not overwrite the connection's resolved manual `firmwareProfile`
+
+#### Scenario: Effective firmware profile fixed for connection and operation lifetime
+- **WHEN** a connection is initialized with a resolved manual `firmwareProfile`
+- **THEN** all operations on that connection read the same authoritative `firmwareProfile`, and modifying `AdvancedSettings.firmwareProfile` in settings does not alter the active connection's profile until reconnect or re-initialization
+
+#### Scenario: Disconnect clears active transport and connection identity
+- **WHEN** a device is disconnected
+- **THEN** the authoritative connection context clears active transport and connection handles and invalidates the prior connection generation so subsequent stale reads or operations fail deterministically
