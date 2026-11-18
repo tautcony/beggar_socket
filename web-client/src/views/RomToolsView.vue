@@ -65,7 +65,7 @@ type RomToolTab = 'split-merge' | 'multi-menu';
 
 const tabs: readonly { id: RomToolTab; labelKey: string; badge?: string }[] = [
   { id: 'split-merge', labelKey: 'ui.romTools.tabs.splitMerge' },
-  { id: 'multi-menu', labelKey: 'ui.romTools.tabs.multiMenu', badge: 'ALPHA' },
+  { id: 'multi-menu', labelKey: 'ui.romTools.tabs.multiMenu', badge: 'BETA' },
 ];
 
 const PANEL_MAP: Record<RomToolTab, Component> = {

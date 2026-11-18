@@ -57,10 +57,6 @@
             <span class="menu-item-title">{{ $t('ui.menu.cartridgeTools') }}</span>
             <span class="menu-item-desc">{{ $t('ui.menu.cartridgeToolsDesc') }}</span>
           </div>
-          <RetroBadge
-            variant="warning"
-            text="BETA"
-          />
         </button>
 
         <button
@@ -158,7 +154,7 @@ import AdvancedSettingsModal from '@/components/modal/AdvancedSettingsModal.vue'
 import CartridgeToolsModal from '@/components/modal/CartridgeToolsModal.vue';
 import DebugToolModal from '@/components/modal/DebugToolModal.vue';
 import SystemNoticeHistoryModal from '@/components/modal/SystemNoticeHistoryModal.vue';
-import { RetroBadge, RetroIcon } from '@/components/retro';
+import { RetroIcon } from '@/components/retro';
 import { useToast } from '@/composables/useToast';
 import type { DeviceInfo } from '@/types/device-info';
 
