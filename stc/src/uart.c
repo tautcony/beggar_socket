@@ -145,17 +145,26 @@ void endpointClear()
 void uart_responAck()
 {
     uint8_t csr;
+    uint32_t timeoutCount = 0;
+
+    // 等待fifo已空，期间保持USB中断使能以响应DTR/RTS软复位
+    do
+    {
+        IE2 &= ~EUSB;
+        usb_write_reg(INDEX, 1);
+        csr = usb_read_reg(INCSR1);
+        IE2 |= EUSB;
+
+        if (cmdEnd || (++timeoutCount > 1000000UL))
+        {
+            return;
+        }
+    } while ((csr & INFIFONE) != 0);
 
     // 禁用 USB 中断
     IE2 &= ~EUSB;
 
     usb_write_reg(INDEX, 1);
-    // 等待fifo已空
-    do
-    {
-        csr = usb_read_reg(INCSR1);
-    } while ((csr & INFIFONE) != 0);
-
     usb_write_reg(FIFO1, 0xaa);     // ack
     usb_write_reg(INCSR1, INIPRDY); // in端点数据包就绪
 
@@ -290,22 +299,28 @@ void uart_cmdHandler()
     }
 }
 
-void romWaitForDone(uint32_t addr, uint16_t expectedValue)
+BOOL romWaitForDone(uint32_t addr, uint16_t expectedValue)
 {
     uint16_t value;
+    uint32_t timeoutCount = 0;
     while (1)
     {
+        if (cmdEnd)
+            return 0;
+
         cart_romRead(addr, (uint8_t *)(&value), 1);
         value = reverse2(value);
 
         if ((value & 0x0080) == (expectedValue & 0x0080))
         {
             cart_romRead(addr, (uint8_t *)(&value), 1);
-            return;
+            if (cmdEnd)
+                return 0;
+            return 1;
         }
 
-        if (cmdEnd)
-            return;
+        if (++timeoutCount > 4000000UL)
+            return 0;
     }
 }
 
@@ -323,7 +338,13 @@ void romGetID()
     ((uint8_t *)&packSize)[1] = *(cmdBuf + 0);
     // 等待命令接收完成
     while (cmdBuf_i_wr < packSize)
-        ;
+    {
+        if (cmdEnd)
+        {
+            cmdEnd = 0;
+            return;
+        }
+    }
     endpointClear();
 
     /* Issue Autoselect Command Sequence */
@@ -362,7 +383,13 @@ void romEraseChip()
     ((uint8_t *)&packSize)[1] = *(cmdBuf + 0);
     // 等待命令接收完成
     while (cmdBuf_i_wr < packSize)
-        ;
+    {
+        if (cmdEnd)
+        {
+            cmdEnd = 0;
+            return;
+        }
+    }
     endpointClear();
 
     /* Issue inlock sequence command */
@@ -402,7 +429,13 @@ void romProgram()
 
     // 等待命令头接收完成
     while (cmdBuf_i_wr < (SIZE_CMD_HEADER + SIZE_BASE_ADDRESS + SIZE_BUFF_SIZE))
-        ;
+    {
+        if (cmdEnd)
+        {
+            cmdEnd = 0;
+            return;
+        }
+    }
 
     // 基地址
     baseAddress = reverse4(*((uint32_t *)(cmdBuf + SIZE_CMD_HEADER)));
@@ -429,7 +462,7 @@ void romProgram()
                 IE2 |= EUSB;                       // 使能 USB 中断
 
                 // 命令包收完了
-                if (cmdBuf_i_wr == packSize)
+                if (cmdBuf_i_wr >= packSize)
                     break;
 
                 // 被主机复位了
@@ -454,8 +487,13 @@ void romProgram()
                           dataBuf,
                           1);
 
-            romWaitForDone(baseAddress >> 1,
-                           reverse2(*((uint16_t *)dataBuf)));
+            if (!romWaitForDone(baseAddress >> 1,
+                                reverse2(*((uint16_t *)dataBuf))) ||
+                cmdEnd)
+            {
+                cmdEnd = 0;
+                return;
+            }
 
             baseAddress += 2;
             dataBuf += 2;
@@ -473,7 +511,7 @@ void romProgram()
                 IE2 |= EUSB;                       // 使能 USB 中断
 
                 // 命令包收完了
-                if (cmdBuf_i_wr == packSize)
+                if (cmdBuf_i_wr >= packSize)
                     break;
 
                 // 被主机复位了
@@ -510,9 +548,14 @@ void romProgram()
             cmd[0] = 0x29;
             cart_romWrite(baseAddress >> 1, cmd, 1);
 
-            romWaitForDone(
-                (baseAddress + wrLen - 2) >> 1,
-                reverse2(*((uint16_t *)(dataBuf + wrLen - 2))));
+            if (!romWaitForDone(
+                    (baseAddress + wrLen - 2) >> 1,
+                    reverse2(*((uint16_t *)(dataBuf + wrLen - 2)))) ||
+                cmdEnd)
+            {
+                cmdEnd = 0;
+                return;
+            }
 
             baseAddress += wrLen;
             dataBuf += wrLen;
@@ -564,7 +607,7 @@ void romWrite()
             IE2 |= EUSB;
 
             // 命令包收完了
-            if (cmdBuf_i_wr == packSize)
+            if (cmdBuf_i_wr >= packSize)
                 break;
 
             // 被主机复位了
@@ -612,7 +655,13 @@ void romRead()
 
     // 等待命令接收完成
     while (cmdBuf_i_wr < packSize)
-        ;
+    {
+        if (cmdEnd)
+        {
+            cmdEnd = 0;
+            return;
+        }
+    }
     uart_responData(responCrc, 2);
 
     // 基地址
@@ -673,7 +722,7 @@ void ramWrite()
             IE2 |= EUSB;
 
             // 命令包收完了
-            if (cmdBuf_i_wr == packSize)
+            if (cmdBuf_i_wr >= packSize)
                 break;
 
             // 被主机复位了
@@ -715,7 +764,13 @@ void ramRead()
 
     // 等待命令接收完成
     while (cmdBuf_i_wr < packSize)
-        ;
+    {
+        if (cmdEnd)
+        {
+            cmdEnd = 0;
+            return;
+        }
+    }
     uart_responData(responCrc, 2);
 
     // 基地址
@@ -754,7 +809,13 @@ void ramProgramFlash()
 
     // 等待命令头接收完成
     while (cmdBuf_i_wr < (SIZE_CMD_HEADER + SIZE_BASE_ADDRESS))
-        ;
+    {
+        if (cmdEnd)
+        {
+            cmdEnd = 0;
+            return;
+        }
+    }
 
     // 基地址
     baseAddress = reverse4(*((uint32_t *)(cmdBuf + SIZE_CMD_HEADER)));
@@ -776,7 +837,7 @@ void ramProgramFlash()
             IE2 |= EUSB;
 
             // 命令包收完了
-            if (cmdBuf_i_wr == packSize)
+            if (cmdBuf_i_wr >= packSize)
                 break;
 
             // 被主机复位了
@@ -854,7 +915,7 @@ void gbcWrite()
             IE2 |= EUSB;
 
             // 命令包收完了
-            if (cmdBuf_i_wr == packSize)
+            if (cmdBuf_i_wr >= packSize)
                 break;
 
             // 被主机复位了
@@ -893,7 +954,13 @@ void gbcRead()
 
     // 等待命令接收完成
     while (cmdBuf_i_wr < packSize)
-        ;
+    {
+        if (cmdEnd)
+        {
+            cmdEnd = 0;
+            return;
+        }
+    }
     uart_responData(responCrc, 2);
 
     // 基地址
@@ -934,7 +1001,13 @@ void gbcRomProgram()
 
     // 等待命令头接收完成
     while (cmdBuf_i_wr < (SIZE_CMD_HEADER + SIZE_BASE_ADDRESS + SIZE_BUFF_SIZE))
-        ;
+    {
+        if (cmdEnd)
+        {
+            cmdEnd = 0;
+            return;
+        }
+    }
 
     // 基地址
     baseAddress = reverse4(*((uint32_t *)(cmdBuf + SIZE_CMD_HEADER)));
@@ -961,7 +1034,7 @@ void gbcRomProgram()
                 IE2 |= EUSB;                       // 使能 USB 中断
 
                 // 命令包收完了
-                if (cmdBuf_i_wr == packSize)
+                if (cmdBuf_i_wr >= packSize)
                     break;
 
                 // 被主机复位了
@@ -986,8 +1059,9 @@ void gbcRomProgram()
                 cart_gbcRead(baseAddress, &cmd, 1);
 
                 // 被主机复位了
-                if (cmdBuf_i_wr == 0)
+                if (cmdEnd || (cmdBuf_i_wr == 0))
                 {
+                    cmdEnd = 0;
                     return;
                 }
             } while (cmd != *dataBuf);
@@ -1008,7 +1082,7 @@ void gbcRomProgram()
                 IE2 |= EUSB;                       // 使能 USB 中断
 
                 // 命令包收完了
-                if (cmdBuf_i_wr == packSize)
+                if (cmdBuf_i_wr >= packSize)
                     break;
 
                 // 被主机复位了
@@ -1045,8 +1119,9 @@ void gbcRomProgram()
                 cart_gbcRead(baseAddress + wrLen - 1, &cmd, 1);
 
                 // 被主机复位了
-                if (cmdBuf_i_wr == 0)
+                if (cmdEnd || (cmdBuf_i_wr == 0))
                 {
+                    cmdEnd = 0;
                     return;
                 }
             } while (cmd != *(dataBuf + wrLen - 1));
@@ -1079,7 +1154,13 @@ void gbcWrite_forFram()
 
     // 等待命令头接收完成
     while (cmdBuf_i_wr < (SIZE_CMD_HEADER + SIZE_BASE_ADDRESS + SIZE_LATENCY))
-        ;
+    {
+        if (cmdEnd)
+        {
+            cmdEnd = 0;
+            return;
+        }
+    }
 
     // 基地址
     baseAddress = reverse4(*((uint32_t *)(cmdBuf + SIZE_CMD_HEADER)));
@@ -1102,7 +1183,7 @@ void gbcWrite_forFram()
             IE2 |= EUSB;
 
             // 命令包收完了
-            if (cmdBuf_i_wr == packSize)
+            if (cmdBuf_i_wr >= packSize)
                 break;
 
             // 被主机复位了
@@ -1144,7 +1225,13 @@ void gbcRead_forFram()
 
     // 等待命令接收完成
     while (cmdBuf_i_wr < packSize)
-        ;
+    {
+        if (cmdEnd)
+        {
+            cmdEnd = 0;
+            return;
+        }
+    }
     uart_responData(responCrc, 2);
 
     // 基地址
@@ -1190,7 +1277,13 @@ void cart_power()
 
     // 等待命令接收完成
     while (cmdBuf_i_wr < packSize)
-        ;
+    {
+        if (cmdEnd)
+        {
+            cmdEnd = 0;
+            return;
+        }
+    }
 
     val = cmdBuf[3];
 
@@ -1231,7 +1324,13 @@ void cart_phi()
 
     // 等待命令接收完成
     while (cmdBuf_i_wr < packSize)
-        ;
+    {
+        if (cmdEnd)
+        {
+            cmdEnd = 0;
+            return;
+        }
+    }
 
     val = cmdBuf[3];
 

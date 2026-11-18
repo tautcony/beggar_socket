@@ -38,6 +38,7 @@ export class CartridgeAdapter {
   // 子类共享时序常量
   protected static readonly ROM_READ_START_SETTLE_MS = 100;
   protected static readonly ROM_READ_RETRY_RESET_MS = 120;
+  protected static readonly ROM_WRITE_RETRY_RESET_MS = 120;
   protected static readonly ROM_ERASE_RETRY_RESET_MS = 150;
   protected static readonly RAM_READ_START_SETTLE_MS = 150;
   protected static readonly RAM_READ_RETRY_RESET_MS = 150;
@@ -466,8 +467,14 @@ export class CartridgeAdapter {
           ),
           'warn',
         );
-        if (attempt < attempts && retryDelayMs > 0) {
-          await timeout(retryDelayMs * attempt);
+        if (attempt < attempts) {
+          await this.stabilizeCommandChannel(CartridgeAdapter.ROM_WRITE_RETRY_RESET_MS);
+          if (signal?.aborted) {
+            throw CartridgeAdapter.createAbortError();
+          }
+          if (retryDelayMs > 0) {
+            await timeout(retryDelayMs * attempt);
+          }
         }
       }
     }

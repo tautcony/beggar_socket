@@ -15,7 +15,9 @@ export interface PlatformPacketLimits {
  *   - macOS (`AppleUSBCDCACMData`) / Linux (`cdc_acm` / `n_tty`): 内核 tty 缓冲约 4KB，
  *     收敛至 3072B（0x0c00，含协议头尾 3074B/3083B）留出 ~1KB 余量。
  * - STC8 (`stc`):
- *   - 写入支持流式消费 + USB OUT NAK 流控，保持 4096B；
+ *   - Windows (`usbser.sys`): 写入支持流式消费 + USB OUT NAK 流控，保持 4096B；
+ *   - macOS (`AppleUSBCDCACMData`): 内核 tty 缓冲约 4KB，4096B 写入包加协议头尾会跨越 4KB 边界并叠加
+ *     NAK 反压导致超时锁死，收敛至 3072B（0x0c00，含协议头尾 3074B/3083B）留出 ~1KB 余量；
  *   - 读取以 62B/包流式回传（受限于单缓冲 ~500 KiB/s 硬件上限），无需过大包长：
  *     Windows 下设为 8KB（0x2000）减少命令往返即可，macOS / Linux 下设为 4KB（0x1000）兼顾稳定与取消响应。
  */
@@ -28,8 +30,8 @@ const STM_PACKET_LIMITS: Readonly<Record<HostPlatform, PlatformPacketLimits>> = 
 
 const STC_PACKET_LIMITS: Readonly<Record<HostPlatform, PlatformPacketLimits>> = {
   windows: { romWrite: 0x1000, romRead: 0x2000, ramPage: 0x1000 },
-  macos: { romWrite: 0x1000, romRead: 0x1000, ramPage: 0x1000 },
-  linux: { romWrite: 0x1000, romRead: 0x1000, ramPage: 0x1000 },
+  macos: { romWrite: 0x0c00, romRead: 0x1000, ramPage: 0x0c00 },
+  linux: { romWrite: 0x0c00, romRead: 0x1000, ramPage: 0x0c00 },
   unknown: { romWrite: 0x1000, romRead: 0x2000, ramPage: 0x1000 },
 };
 
