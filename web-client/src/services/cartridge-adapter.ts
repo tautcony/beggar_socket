@@ -361,6 +361,12 @@ export class CartridgeAdapter {
     return /timeout|incomplete package read/i.test(message);
   }
 
+  private static createAbortError(): Error {
+    const error = new Error('Operation cancelled');
+    error.name = 'AbortError';
+    return error;
+  }
+
   protected async readROMChunkWithRetry(
     chunkSize: number,
     logicalAddress: number,
@@ -368,6 +374,7 @@ export class CartridgeAdapter {
     _chunkIndex: number,
     _bank: number,
     restoreState?: () => Promise<void>,
+    signal?: AbortSignal,
   ): Promise<Uint8Array> {
     const retries = AdvancedSettings.romReadRetryCount;
     const attempts = retries + 1;
@@ -376,6 +383,9 @@ export class CartridgeAdapter {
     let subChunkSplitDepth = 0;
 
     for (let attempt = 1; attempt <= attempts; attempt++) {
+      if (signal?.aborted) {
+        throw CartridgeAdapter.createAbortError();
+      }
       try {
         if (subChunkSplitDepth === 0 || chunkSize <= 512) {
           return await this.ops.flashCmdSet.read(this.transport, chunkSize, cartAddress);
@@ -387,6 +397,9 @@ export class CartridgeAdapter {
         const combined = new Uint8Array(chunkSize);
         let offset = 0;
         while (offset < chunkSize) {
+          if (signal?.aborted) {
+            throw CartridgeAdapter.createAbortError();
+          }
           const subSize = Math.min(subChunkSize, chunkSize - offset);
           const part = await this.ops.flashCmdSet.read(this.transport, subSize, cartAddress + offset);
           combined.set(part, offset);
@@ -394,6 +407,9 @@ export class CartridgeAdapter {
         }
         return combined;
       } catch (error) {
+        if (signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
+          throw CartridgeAdapter.createAbortError();
+        }
         lastError = error;
         if (CartridgeAdapter.isReadTimeoutError(error)) {
           subChunkSplitDepth += 1;
@@ -407,6 +423,9 @@ export class CartridgeAdapter {
         );
         if (attempt < attempts) {
           await this.stabilizeCommandChannel(CartridgeAdapter.ROM_READ_RETRY_RESET_MS);
+          if (signal?.aborted) {
+            throw CartridgeAdapter.createAbortError();
+          }
           if (restoreState) await restoreState();
           if (retryDelayMs > 0) await timeout(retryDelayMs * attempt);
         }

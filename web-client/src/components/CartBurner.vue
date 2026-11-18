@@ -491,6 +491,9 @@ async function eraseChip() {
             enable5V: mbcPower5V.value,
           },
         });
+        if (signal?.aborted) {
+          return;
+        }
         showToast(response.message, response.success ? 'success' : 'error');
       });
     },
@@ -543,6 +546,9 @@ async function writeRom() {
           data: alignedRomData,
           signal,
         });
+        if (signal?.aborted) {
+          return;
+        }
         showToast(response.message, response.success ? 'success' : 'error');
       });
     },
@@ -591,6 +597,9 @@ async function readRom() {
           size: romSize,
           signal,
         });
+        if (signal?.aborted) {
+          return;
+        }
         if (response.success) {
           showToast(response.message, 'success');
           if (response.data) {
@@ -674,6 +683,9 @@ async function verifyRom() {
           data: currentRomData,
           signal,
         });
+        if (signal?.aborted) {
+          return;
+        }
         showToast(response.message, response.success ? 'success' : 'error');
       });
     },
@@ -729,6 +741,9 @@ async function verifyBlank(fillByte: number) {
           data: blankData,
           signal,
         });
+        if (signal?.aborted) {
+          return;
+        }
         showToast(response.message, response.success ? 'success' : 'error');
       });
     },

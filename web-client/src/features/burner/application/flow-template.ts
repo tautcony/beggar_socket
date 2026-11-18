@@ -38,7 +38,7 @@ export async function runBurnerFlow<TResult>(options: BurnerFlowOptions<TResult>
     await options.onSuccess?.(result);
     return result;
   } catch (error) {
-    if (isAbortError(error)) {
+    if (isAbortError(error) || signal?.aborted) {
       if (options.cancelLogMessage && options.log) {
         options.log(options.cancelLogMessage, 'warn');
       }

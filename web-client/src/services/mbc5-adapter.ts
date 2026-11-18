@@ -958,6 +958,7 @@ export class MBC5Adapter extends CartridgeAdapter {
                 Math.floor(totalRead / pageSize) + 1,
                 bank,
                 async () => { await this.switchROMBank(bank, mbcType); },
+                signal,
               );
               const chunkEndTime = Date.now();
               data.set(chunk, totalRead);
@@ -1180,6 +1181,7 @@ export class MBC5Adapter extends CartridgeAdapter {
               Math.floor(verified / pageSize) + 1,
               bank,
               async () => { await this.switchROMBank(bank, mbcType); },
+              signal,
             );
             const chunkEndTime = Date.now();
 
