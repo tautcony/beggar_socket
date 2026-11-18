@@ -268,13 +268,17 @@ $title-color: #2c3e50;
 .header-inner {
   max-width: 1280px;
   margin: 0 auto;
-  padding: spacing-vars.$space-3 spacing-vars.$space-6;
+  padding: spacing-vars.$space-3 spacing-vars.$space-4;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: spacing-vars.$space-4;
+  gap: spacing-vars.$space-2 spacing-vars.$space-4;
   flex-wrap: wrap;
   box-sizing: border-box;
+
+  @include mixins.respond-to(md) {
+    padding: spacing-vars.$space-3 spacing-vars.$space-6;
+  }
 }
 
 .home-content {
@@ -286,10 +290,15 @@ $title-color: #2c3e50;
 }
 
 .header-divider {
+  display: none;
   width: 1px;
   height: 22px;
   background: var(--retro-divider);
   flex-shrink: 0;
+
+  @include mixins.respond-to(lg) {
+    display: block;
+  }
 }
 
 .morse-border-container {
@@ -306,11 +315,13 @@ $title-color: #2c3e50;
   @include mixins.flex-center;
 
   justify-content: flex-start;
+  flex-wrap: wrap;
   gap: spacing-vars.$space-2;
-  flex: 1;
+  flex: 1 1 0%;
   min-width: 0;
 
   @include mixins.respond-to(lg) {
+    flex-wrap: nowrap;
     gap: spacing-vars.$space-3;
   }
 }
@@ -321,6 +332,7 @@ $title-color: #2c3e50;
   gap: spacing-vars.$space-2;
   min-width: 0;
   flex-shrink: 0;
+  margin-left: auto;
 
   @include mixins.respond-to(lg) {
     gap: spacing-vars.$space-3;
@@ -332,6 +344,7 @@ $title-color: #2c3e50;
   align-items: center;
   gap: spacing-vars.$space-2;
   min-width: 0;
+  max-width: 100%;
 }
 
 .main-title {
@@ -340,7 +353,8 @@ $title-color: #2c3e50;
   margin: 0;
   font-weight: typography-vars.$font-weight-semibold;
   letter-spacing: var(--letter-spacing-tight);
-  @include mixins.text-truncate;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .title-badge {
@@ -356,7 +370,9 @@ $title-color: #2c3e50;
   font-weight: typography-vars.$font-weight-bold;
   text-decoration: none;
   transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.12s ease;
-  flex-shrink: 0;
+  min-width: 0;
+  max-width: 100%;
+  @include mixins.text-truncate;
 
   &:hover {
     background: var(--retro-bg-tint-hover);
