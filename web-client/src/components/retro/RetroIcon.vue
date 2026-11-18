@@ -2,6 +2,7 @@
   <Icon
     :icon="icon"
     class="retro-icon"
+    shape-rendering="crispEdges"
     aria-hidden="true"
   />
 </template>
@@ -23,5 +24,14 @@ defineProps<{
   height: 1em;
   flex-shrink: 0;
   vertical-align: middle;
+  shape-rendering: crispEdges;
+}
+
+.retro-icon :deep(path),
+.retro-icon :deep(rect),
+.retro-icon :deep(polygon),
+.retro-icon :deep(polyline),
+.retro-icon :deep(line) {
+  shape-rendering: crispEdges;
 }
 </style>

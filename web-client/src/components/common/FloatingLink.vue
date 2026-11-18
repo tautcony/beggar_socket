@@ -75,7 +75,15 @@ const buttonStyle = computed<Record<string, string | number>>(() => ({
 @use '@/styles/variables/radius' as radius-vars;
 @use '@/styles/mixins' as mixins;
 
+.floating-link {
+  pointer-events: none;
+  overflow-x: clip;
+  overflow-y: visible;
+  padding: 6px 0 6px 6px;
+}
+
 .floating-button {
+  pointer-events: auto;
   display: flex;
   align-items: center;
   background: var(--retro-bg-surface);
@@ -104,13 +112,13 @@ const buttonStyle = computed<Record<string, string | number>>(() => ({
 }
 
 .floating-icon {
-  width: 20px;
-  height: 20px;
+  width: 12px;
+  height: 12px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: typography-vars.$font-size-base;
+  font-size: 12px;
 }
 
 .floating-text {

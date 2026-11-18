@@ -31,14 +31,13 @@ export type TranslateFunction = (key: string, params?: any) => string;
  * 定义所有适配器必须实现的方法
  */
 export class CartridgeAdapter {
-  private static readonly COMMAND_RESET_PULSE_MS = 10;
-  private static readonly COMMAND_RESET_SETTLE_MS = 200;
+  private static readonly COMMAND_RESET_PULSE_MS = 50;
+  private static readonly COMMAND_RESET_SETTLE_MS = 250;
   private static readonly SIMULATED_TRANSFER_CHUNK_SIZE = 0xfffd;
 
   // 子类共享时序常量
   protected static readonly ROM_READ_START_SETTLE_MS = 100;
   protected static readonly ROM_READ_RETRY_RESET_MS = 120;
-  protected static readonly ROM_WRITE_RETRY_RESET_MS = 150;
   protected static readonly ROM_ERASE_RETRY_RESET_MS = 150;
   protected static readonly RAM_READ_START_SETTLE_MS = 150;
   protected static readonly RAM_READ_RETRY_RESET_MS = 150;
@@ -431,6 +430,48 @@ export class CartridgeAdapter {
         }
       }
     }
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  }
+
+  /**
+   * Direct command retry for ROM programming: retries the program call itself
+   * without re-erasing the sector.
+   */
+  protected async programRomChunkWithRetry(
+    programFn: () => Promise<void>,
+    logicalAddress: number,
+    signal?: AbortSignal,
+  ): Promise<{ attemptsUsed: number; retriesPerformed: number }> {
+    const retries = AdvancedSettings.romWriteRetryCount;
+    const attempts = retries + 1;
+    const retryDelayMs = AdvancedSettings.romWriteRetryDelayMs;
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      if (signal?.aborted) {
+        throw CartridgeAdapter.createAbortError();
+      }
+      try {
+        await programFn();
+        return { attemptsUsed: attempt, retriesPerformed: attempt - 1 };
+      } catch (error) {
+        if (signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
+          throw CartridgeAdapter.createAbortError();
+        }
+        lastError = error;
+        this.log(
+          errorToBurnerLog(
+            `ROM write retry ${attempt}/${attempts} @ ${formatHex(logicalAddress, 4)}`,
+            error,
+          ),
+          'warn',
+        );
+        if (attempt < attempts && retryDelayMs > 0) {
+          await timeout(retryDelayMs * attempt);
+        }
+      }
+    }
+
     throw lastError instanceof Error ? lastError : new Error(String(lastError));
   }
 }

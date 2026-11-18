@@ -182,7 +182,7 @@
       "customResources": "Custom Resources",
       "behaviorSettings": "Behavior Settings",
       "simulationData": "Simulation Data",
-      "appliesNextSession": "Image configuration applies to the next simulated session",
+      "appliesNextSession": "Changes apply immediately",
       "capacity": "Capacity",
       "customImage": "Custom",
       "defaultImage": "Default",

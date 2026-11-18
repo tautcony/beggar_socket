@@ -181,6 +181,18 @@ defineEmits<{
 }
 
 .retro-btn-icon {
+  width: 12px;
+  height: 12px;
   flex-shrink: 0;
+}
+
+.retro-btn--icon-sm .retro-btn-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.retro-btn--icon-md .retro-btn-icon {
+  width: 24px;
+  height: 24px;
 }
 </style>

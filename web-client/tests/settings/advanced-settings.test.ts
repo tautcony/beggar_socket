@@ -45,10 +45,10 @@ describe('AdvancedSettings', () => {
       expect(AdvancedSettings.ramReadRetryCount).toBe(1);
       expect(AdvancedSettings.romReadRetryDelayMs).toBe(0);
       expect(AdvancedSettings.ramReadRetryDelayMs).toBe(0);
-      expect(AdvancedSettings.romWriteRetryCount).toBe(1);
-      expect(AdvancedSettings.romWriteRetryDelayMs).toBe(0);
       expect(AdvancedSettings.romEraseRetryCount).toBe(1);
       expect(AdvancedSettings.romEraseRetryDelayMs).toBe(0);
+      expect(AdvancedSettings.romWriteRetryCount).toBe(1);
+      expect(AdvancedSettings.romWriteRetryDelayMs).toBe(0);
       expect(AdvancedSettings.defaultTimeout).toBe(3000);
       expect(AdvancedSettings.packageSendTimeout).toBe(3000);
       expect(AdvancedSettings.packageReceiveTimeout).toBe(3000);
@@ -68,8 +68,8 @@ describe('AdvancedSettings', () => {
         retry: {
           romReadCount: 1, ramReadCount: 1,
           romReadDelay: 0, ramReadDelay: 0,
-          romWriteRetryCount: 1, romWriteRetryDelay: 0,
           romEraseRetryCount: 1, romEraseRetryDelay: 0,
+          romWriteRetryCount: 1, romWriteRetryDelay: 0,
         },
         timeout: { default: 3000, packageSend: 3000, packageReceive: 3000, operation: 30000 },
       });
@@ -164,19 +164,15 @@ describe('AdvancedSettings', () => {
   });
 
   describe('setSettings and getSettings roundtrip', () => {
-    it('persists ROM write and erase retry settings through getSettings', () => {
+    it('persists ROM erase retry settings through getSettings', () => {
       AdvancedSettings.setSettings({
         retry: {
-          romWriteRetryCount: 3,
-          romWriteRetryDelay: 250,
           romEraseRetryCount: 2,
           romEraseRetryDelay: 400,
         },
       });
 
       expect(AdvancedSettings.getSettings().retry).toEqual(expect.objectContaining({
-        romWriteRetryCount: 3,
-        romWriteRetryDelay: 250,
         romEraseRetryCount: 2,
         romEraseRetryDelay: 400,
       }));
@@ -204,11 +200,9 @@ describe('AdvancedSettings', () => {
   });
 
   describe('loadSettings', () => {
-    it('loads ROM write and erase retry settings from storage', () => {
+    it('loads ROM erase retry settings from storage', () => {
       localStorageMock.advanced_settings = JSON.stringify({
         retry: {
-          romWriteRetryCount: 4,
-          romWriteRetryDelay: 125,
           romEraseRetryCount: 5,
           romEraseRetryDelay: 300,
         },
@@ -216,8 +210,6 @@ describe('AdvancedSettings', () => {
 
       AdvancedSettings.loadSettings();
 
-      expect(AdvancedSettings.romWriteRetryCount).toBe(4);
-      expect(AdvancedSettings.romWriteRetryDelayMs).toBe(125);
       expect(AdvancedSettings.romEraseRetryCount).toBe(5);
       expect(AdvancedSettings.romEraseRetryDelayMs).toBe(300);
     });
@@ -266,23 +258,19 @@ describe('AdvancedSettings', () => {
   });
 
   describe('validateSettings', () => {
-    it('validates ROM write and erase retry ranges', () => {
+    it('validates ROM erase retry ranges', () => {
       const result = AdvancedSettings.validateSettings({
         retry: {
           romReadCount: 1,
           ramReadCount: 1,
           romReadDelay: 0,
           ramReadDelay: 0,
-          romWriteRetryCount: 99,
-          romWriteRetryDelay: -1,
           romEraseRetryCount: -2,
           romEraseRetryDelay: 9000,
         },
       });
 
       expect(result.valid).toBe(false);
-      expect(result.errors).toContain('ROM write retry count must be between 0 and 10');
-      expect(result.errors).toContain('ROM write retry delay must be between 0ms and 5000ms');
       expect(result.errors).toContain('ROM erase retry count must be between 0 and 10');
       expect(result.errors).toContain('ROM erase retry delay must be between 0ms and 5000ms');
     });

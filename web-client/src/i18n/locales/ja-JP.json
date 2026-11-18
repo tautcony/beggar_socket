@@ -172,7 +172,7 @@
       "customResources": "カスタムリソース",
       "behaviorSettings": "動作設定",
       "simulationData": "シミュレーションデータ",
-      "appliesNextSession": "イメージ設定は次回のシミュレートセッションに適用されます",
+      "appliesNextSession": "変更は即座に反映されます",
       "capacity": "容量",
       "customImage": "カスタム",
       "defaultImage": "既定",

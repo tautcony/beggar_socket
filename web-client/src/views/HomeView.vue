@@ -65,6 +65,7 @@
       :device-ready="deviceReady"
       @close="showDebugPanelModal = false"
       @connect-simulated-device="onConnectSimulatedDevice"
+      @disconnect-simulated-device="onDisconnectSimulatedDevice"
       @clear-simulated-data="onClearSimulatedData"
       @refresh-simulated-device="onRefreshSimulatedDevice"
     />
@@ -189,6 +190,17 @@ async function onRefreshSimulatedDevice() {
 
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   await deviceConnectRef.value.connect();
+}
+
+async function onDisconnectSimulatedDevice() {
+  if (!deviceConnectRef.value || !deviceReady.value || device.value?.serialHandle?.platform !== 'simulated') {
+    return;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+  await deviceConnectRef.value.disconnect();
+
+  getCartBurnerExpose()?.resetState();
 }
 
 function onClearSimulatedData() {

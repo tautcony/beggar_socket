@@ -388,6 +388,10 @@ function openSerialTest() {
   cursor: pointer;
   transition: background 0.2s ease;
   text-align: left;
+
+  :deep(.retro-icon) {
+    font-size: 12px;
+  }
   color: var(--retro-ink);
 
   &:hover:not(:disabled) {

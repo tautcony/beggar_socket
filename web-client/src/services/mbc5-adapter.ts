@@ -627,66 +627,7 @@ export class MBC5Adapter extends CartridgeAdapter {
             let retryCount = 0;
             let skippedBytes = 0;
             let currentBank = -1;
-            const sectorWriteRetryCounts = new Map<number, number>();
             const writeEndAddressExclusive = baseAddress + total;
-
-            const recoverSectorWrite = async (sectorIndex: number, reason: unknown): Promise<void> => {
-              const sector = sectors[sectorIndex];
-              const retriesUsed = sectorWriteRetryCounts.get(sector.address) ?? 0;
-              const maxRetries = AdvancedSettings.romWriteRetryCount;
-              const retryLog = errorToBurnerLog(
-                `ROM write retry ${retriesUsed + 1}/${maxRetries + 1} @ ${formatHex(sector.address, 4)}`,
-                reason,
-              );
-              const writeFailureMessage = this.summarizeLogMessage(
-                errorToBurnerLog(this.t('messages.rom.writeFailed'), reason),
-              );
-
-              if (retriesUsed >= maxRetries) {
-                throw new Error(`ROM write retries exhausted @ ${formatHex(sector.address, 4)}: ${this.describeError(reason)}`);
-              }
-
-              const nextRetry = retriesUsed + 1;
-              retryCount++;
-              sectorWriteRetryCounts.set(sector.address, nextRetry);
-              this.log(retryLog, 'warn');
-
-              progressReporter.emitProgress(
-                written,
-                speedCalculator.getCurrentSpeed(),
-                writeFailureMessage,
-                sector.address,
-              );
-
-              await this.stabilizeCommandChannel(MBC5Adapter.ROM_WRITE_RETRY_RESET_MS);
-              // 上次失败的编程命令可能被中途打断，flash 芯片会停留在命令序列中间；
-              // 先发 reset(0xF0) 让其回到读取阵列状态，再执行擦除重写。
-              try {
-                await gbc_write(this.transport, new Uint8Array([FLASH_CMD_RESET]), 0x00);
-              } catch (resetError) {
-                this.log(errorToBurnerLog(`Flash reset before retry failed @ ${formatHex(sector.address, 4)}`, resetError), 'warn');
-              }
-              if (AdvancedSettings.romWriteRetryDelayMs > 0) {
-                await timeout(AdvancedSettings.romWriteRetryDelayMs * nextRetry);
-              }
-              progressReporter.markSectorState(sector.address, 'erasing');
-              progressReporter.emitProgress(
-                written,
-                speedCalculator.getCurrentSpeed(),
-                this.t('messages.operation.eraseSector', {
-                  from: formatHex(sector.address, 4),
-                  to: formatHex(sector.address + sector.size - 1, 4),
-                }),
-                sector.address,
-              );
-              const { bank } = this.romBankRelevantAddress(sector.address, mbcType);
-              await this.switchROMBank(bank, mbcType);
-              await this.eraseRomSectorWithRetry(sector, mbcType, 'recover', signal);
-              progressReporter.markSectorState(sector.address, 'pending');
-              written = Math.max(sector.address, baseAddress) - baseAddress;
-              chunkCount = 0;
-              currentBank = -1;
-            };
 
             while (written < total) {
               if (signal?.aborted) {
@@ -758,13 +699,13 @@ export class MBC5Adapter extends CartridgeAdapter {
                 await this.switchROMBank(bank, mbcType);
               }
 
-              try {
-                programRequests++;
-                await gbc_rom_program(this.transport, chunk, cartAddress, bufferSize);
-              } catch (error) {
-                await recoverSectorWrite(currentSectorIndex, error);
-                continue;
-              }
+              const { attemptsUsed, retriesPerformed } = await this.programRomChunkWithRetry(
+                () => gbc_rom_program(this.transport, chunk, cartAddress, bufferSize),
+                currentAddress,
+                signal,
+              );
+              programRequests += attemptsUsed;
+              retryCount += retriesPerformed;
               const chunkEndTime = Date.now();
 
               written += chunkSize;
