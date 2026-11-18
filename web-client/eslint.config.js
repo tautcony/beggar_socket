@@ -75,8 +75,8 @@ const commonRules = {
       },
       {
         target: './src/protocol',
-        from: './src/platform/serial/electron',
-        message: 'protocol 层禁止依赖 runtime-specific serial 实现（electron），请改为依赖 platform/serial Transport 合约。',
+        from: './src/platform/serial/tauri',
+        message: 'protocol 层禁止依赖 runtime-specific serial 实现（tauri），请改为依赖 platform/serial Transport 合约。',
       },
       {
         target: './src/protocol',
