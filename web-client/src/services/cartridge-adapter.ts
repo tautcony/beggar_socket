@@ -33,7 +33,9 @@ export type TranslateFunction = (key: string, params?: any) => string;
 export class CartridgeAdapter {
   private static readonly COMMAND_RESET_PULSE_MS = 50;
   private static readonly COMMAND_RESET_SETTLE_MS = 250;
-  private static readonly SIMULATED_TRANSFER_CHUNK_SIZE = 0xfffd;
+  // Aligned chunks fit the smallest cartridge bank window (MBC5 RAM: 8 KiB)
+  // and leave room for every command's header and CRC trailer.
+  private static readonly SIMULATED_TRANSFER_CHUNK_SIZE = 0x2000;
 
   // 子类共享时序常量
   protected static readonly ROM_READ_START_SETTLE_MS = 100;

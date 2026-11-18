@@ -40,3 +40,6 @@ export const GBC_FLASH_ADDR_2 = 0x555;
 // --- 协议 ACK ---
 /** 协议应答字节 */
 export const PROTOCOL_ACK = 0xaa;
+
+/** The two-byte command frame size includes the header and CRC trailer. */
+export const MAX_PROTOCOL_FRAME_SIZE = 0xffff;
