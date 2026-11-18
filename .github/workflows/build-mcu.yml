@@ -19,86 +19,89 @@ jobs:
   build-stm32:
     name: Build STM32F103 Firmware
     runs-on: ubuntu-latest
-    
-    strategy:
-      matrix:
-        config:
-          - name: "Debug Build"
-            build_type: "Debug"
-            debug: 1
-          - name: "Release Build"
-            build_type: "Release"
-            debug: 0
-    
+
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         submodules: recursive
-        fetch-depth: 0
 
-    - name: Install ARM Toolchain and Dependencies
+    - name: Cache ARM Toolchain
+      id: cache-arm-toolchain
+      uses: actions/cache@v6
+      with:
+        path: /opt/arm-none-eabi-gcc
+        key: arm-gnu-toolchain-13.3.rel1-x86_64-arm-none-eabi
+
+    - name: Install ARM Toolchain
+      if: steps.cache-arm-toolchain.outputs.cache-hit != 'true'
       run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          gcc-arm-none-eabi \
-          binutils-arm-none-eabi \
-          libnewlib-arm-none-eabi \
-          libstdc++-arm-none-eabi-newlib \
-          ninja-build \
-          cmake \
-          build-essential
+        sudo mkdir -p /opt/arm-none-eabi-gcc
+        sudo chown -R "$(id -u):$(id -g)" /opt/arm-none-eabi-gcc
+        curl -fsSL "https://developer.arm.com/-/media/Files/downloads/gnu/13.3.rel1/binrel/arm-gnu-toolchain-13.3.rel1-x86_64-arm-none-eabi.tar.xz" \
+          | tar -xJ --strip-components=1 -C /opt/arm-none-eabi-gcc
+
+    - name: Add ARM Toolchain to PATH
+      run: echo "/opt/arm-none-eabi-gcc/bin" >> "$GITHUB_PATH"
 
     - name: Verify Toolchain Installation
       run: |
         arm-none-eabi-gcc --version
         arm-none-eabi-objcopy --version
-        ninja --version
         cmake --version
-        # Test compilation of a simple program
         echo 'int main() { return 0; }' > test.c
         arm-none-eabi-gcc -mcpu=cortex-m3 -mthumb -c test.c -o test.o
         rm -f test.c test.o
 
-    - name: Set Build Environment
-      run: |
-        echo "BUILD_TYPE=${{ matrix.config.build_type }}" >> $GITHUB_ENV
-
-    - name: Build Firmware
+    - name: Build Firmware (Debug & Release)
       working-directory: mcu
       run: |
-        ./cmake-build.sh build ${{ matrix.config.build_type }}
+        ./cmake-build.sh build Debug
+        ./cmake-build.sh build Release
 
     - name: Check Build Artifacts
       working-directory: mcu/chis_flash_burner
       run: |
-        echo "Build artifacts for ${{ matrix.config.build_type }}:"
-        ls -la build/${{ matrix.config.build_type }}/ || echo "No build directory found"
-        if [ -f "build/${{ matrix.config.build_type }}/chis_flash_burner.elf" ]; then
-          echo "=== Size Information ==="
-          arm-none-eabi-size build/${{ matrix.config.build_type }}/chis_flash_burner.elf
-          echo "=== Section Headers ==="
-          arm-none-eabi-objdump -h build/${{ matrix.config.build_type }}/chis_flash_burner.elf
-        fi
+        for build_type in Debug Release; do
+          echo "Build artifacts for ${build_type}:"
+          ls -la "build/${build_type}/" || echo "No build directory found"
+          if [ -f "build/${build_type}/chis_flash_burner.elf" ]; then
+            echo "=== Size Information (${build_type}) ==="
+            arm-none-eabi-size "build/${build_type}/chis_flash_burner.elf"
+            echo "=== Section Headers (${build_type}) ==="
+            arm-none-eabi-objdump -h "build/${build_type}/chis_flash_burner.elf"
+          fi
+        done
 
-    - name: Upload Firmware Artifacts
-      uses: actions/upload-artifact@v4
+    - name: Upload Debug Firmware Artifacts
+      uses: actions/upload-artifact@v7
       with:
-        name: stm32-firmware-${{ matrix.config.build_type }}-${{ github.sha }}
+        name: stm32-firmware-Debug-${{ github.sha }}
         path: |
-          mcu/chis_flash_burner/build/${{ matrix.config.build_type }}/*.elf
-          mcu/chis_flash_burner/build/${{ matrix.config.build_type }}/*.hex
-          mcu/chis_flash_burner/build/${{ matrix.config.build_type }}/*.bin
-          mcu/chis_flash_burner/build/${{ matrix.config.build_type }}/*.map
+          mcu/chis_flash_burner/build/Debug/*.elf
+          mcu/chis_flash_burner/build/Debug/*.hex
+          mcu/chis_flash_burner/build/Debug/*.bin
+          mcu/chis_flash_burner/build/Debug/*.map
+        retention-days: 30
+
+    - name: Upload Release Firmware Artifacts
+      uses: actions/upload-artifact@v7
+      with:
+        name: stm32-firmware-Release-${{ github.sha }}
+        path: |
+          mcu/chis_flash_burner/build/Release/*.elf
+          mcu/chis_flash_burner/build/Release/*.hex
+          mcu/chis_flash_burner/build/Release/*.bin
+          mcu/chis_flash_burner/build/Release/*.map
         retention-days: 30
 
     - name: Archive Build Logs
       if: failure()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
-        name: build-logs-${{ matrix.config.build_type }}-${{ github.sha }}
+        name: build-logs-${{ github.sha }}
         path: |
-          mcu/chis_flash_burner/build/${{ matrix.config.build_type }}/*.lst
+          mcu/chis_flash_burner/build/*/*.lst
         retention-days: 7
 
   # Static analysis job
@@ -108,7 +111,7 @@ jobs:
     
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Install Dependencies
       run: |
@@ -191,7 +194,7 @@ jobs:
 
     - name: Upload Analysis Results
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: static-analysis-${{ github.sha }}
         path: |
