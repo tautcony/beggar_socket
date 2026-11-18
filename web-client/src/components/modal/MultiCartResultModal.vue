@@ -2,6 +2,7 @@
   <RetroModal
     v-model="localVisible"
     :title="$t('ui.multiCartResult.title')"
+    :badge="summaryBadge"
     width="700px"
     max-height="85vh"
     @close="closeModal"
@@ -18,21 +19,11 @@
       <p>{{ $t('ui.operation.noValidGameFound') }}</p>
     </div>
 
-    <!-- 摘要信息 -->
+    <!-- ROM 布局表格 -->
     <div
       v-else
       class="result-content"
     >
-      <div class="summary-bar">
-        <span class="summary-badge">
-          <RetroIcon icon="pixelarticons:card-stack" />
-          {{ results.length === 1 && results[0].startAddress === 0
-            ? $t('ui.operation.singleGameDetected')
-            : $t('ui.multiCartResult.totalGames', { count: results.length }) }}
-        </span>
-      </div>
-
-      <!-- ROM 布局表格 -->
       <div class="layout-table-wrapper">
         <table class="layout-table">
           <thead>
@@ -82,7 +73,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { RetroIcon, RetroModal } from '@/components/retro';
 import type { GameDetectionResult } from '@/features/burner/application';
@@ -91,6 +83,16 @@ import { formatHex } from '@/utils/formatter-utils';
 const props = defineProps<{
   results: GameDetectionResult[];
 }>();
+
+const { t } = useI18n();
+
+const summaryBadge = computed(() => {
+  if (props.results.length === 0) return '';
+  if (props.results.length === 1 && props.results[0].startAddress === 0) {
+    return t('ui.operation.singleGameDetected');
+  }
+  return t('ui.multiCartResult.totalGames', { count: props.results.length });
+});
 
 const modelValue = defineModel<boolean>({ default: false });
 const localVisible = ref(modelValue.value);
@@ -122,26 +124,6 @@ function closeModal() {
 .result-content {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-}
-
-.summary-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) 0;
-}
-
-.summary-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  background: var(--color-primary-light, #e3f2fd);
-  color: var(--color-primary);
-  border-radius: var(--radius-md);
-  padding: var(--space-1) var(--space-3);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
 }
 
 /* 表格 */

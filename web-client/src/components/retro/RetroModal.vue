@@ -55,8 +55,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue';
+import { computed, onMounted, onUnmounted, watch } from 'vue';
 
+import { isTopmostModal, pushModalToStack, removeModalFromStack } from './modal-stack';
 import RetroButton from './RetroButton.vue';
 
 const props = withDefaults(defineProps<{
@@ -88,6 +89,8 @@ const emit = defineEmits<{
   close: [];
 }>();
 
+const modalId = Symbol('retro-modal');
+
 const containerStyle = computed(() => ({
   width: typeof props.width === 'number' ? `${props.width}px` : props.width,
   maxWidth: typeof props.maxWidth === 'number' ? `${props.maxWidth}px` : props.maxWidth,
@@ -105,7 +108,9 @@ function onOverlayClick() {
 }
 
 function handleKeydown(e: KeyboardEvent) {
-  if (props.modelValue && props.escClosable && !props.closeDisabled && e.key === 'Escape') {
+  if (e.key !== 'Escape' || !props.modelValue) return;
+  if (!isTopmostModal(modalId)) return;
+  if (props.escClosable && !props.closeDisabled) {
     hide();
   }
 }
@@ -133,11 +138,20 @@ defineExpose({
   toggle,
 });
 
+watch(() => props.modelValue, (isOpen) => {
+  if (isOpen) {
+    pushModalToStack(modalId);
+  } else {
+    removeModalFromStack(modalId);
+  }
+}, { immediate: true });
+
 onMounted(() => {
   document.addEventListener('keydown', handleKeydown);
 });
 
 onUnmounted(() => {
+  removeModalFromStack(modalId);
   document.removeEventListener('keydown', handleKeydown);
 });
 </script>
@@ -196,9 +210,9 @@ onUnmounted(() => {
 }
 
 .retro-modal-badge {
-  font-family: var(--retro-font-micro);
-  font-size: 10px;
-  padding: 1px 7px;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 2px 8px;
   border-radius: 4px;
   border: 1px solid var(--retro-border-subtle);
   background: var(--retro-bg-elevated);
