@@ -1,4 +1,4 @@
-import { listNativeSerialPorts, openNativeSerialPort } from '@/platform/native';
+import { closeNativeSerial, listNativeSerialPorts, openNativeSerialPort } from '@/platform/native';
 import type { SerialPortInfo } from '@/types/serial';
 import { withTimeout } from '@/utils/async-utils';
 import { PortSelectionRequiredError } from '@/utils/errors/PortSelectionRequiredError';
@@ -108,10 +108,25 @@ export class TauriDeviceGateway implements DeviceGateway {
     let sessionId: number;
     try {
       console.info('[TauriDeviceGateway] open', describePort(selectedPort));
+      let timedOut = false;
       const session = await withTimeout(
-        openNativeSerialPort(selectedPort.path),
+        openNativeSerialPort(selectedPort.path).then(async (openedSession) => {
+          if (timedOut) {
+            try {
+              await closeNativeSerial(openedSession.sessionId);
+            } catch (error) {
+              console.error('[TauriDeviceGateway] late open cleanup failed', {
+                port: selectedPort.path,
+                sessionId: openedSession.sessionId,
+                error,
+              });
+            }
+          }
+          return openedSession;
+        }),
         TauriDeviceGateway.OPEN_TIMEOUT_MS,
         `Tauri serial connect timeout after ${TauriDeviceGateway.OPEN_TIMEOUT_MS}ms for ${selectedPort.path}`,
+        { onTimeout: () => { timedOut = true; } },
       );
       sessionId = session.sessionId;
     } catch (error) {
@@ -122,7 +137,13 @@ export class TauriDeviceGateway implements DeviceGateway {
     try {
       await transport.attachListener();
     } catch (error) {
-      await transport.close().catch(() => {});
+      await transport.close().catch((cleanupError: unknown) => {
+        console.error('[TauriDeviceGateway] listener attach cleanup failed', {
+          port: selectedPort.path,
+          sessionId,
+          error: cleanupError,
+        });
+      });
       throw new Error(`Tauri serial listener attach failed for ${selectedPort.path}: ${errorMessage(error)}`);
     }
 
