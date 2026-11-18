@@ -15,14 +15,14 @@ export interface GBARTCData {
 }
 
 /**
- * GBA RTC鎿嶄綔绫?
+ * GBA RTC操作
  */
 export class GBARTC extends BaseRTC {
   /**
-   * GBA RTC GPIO 鍐欏瓧鑺傛搷浣?
+   * GBA RTC GPIO 写字节操作
    */
   private async s3511_writeByte(value: number): Promise<void> {
-    // 璁剧疆SIO涓鸿緭鍑?
+    // SIO为输出
     await rom_write(this.transport, toLittleEndian(0x07, 2), 0xc6 >> 1); // sio out
 
     for (let i = 0; i < 8; i++) {
@@ -35,12 +35,12 @@ export class GBARTC extends BaseRTC {
   }
 
   /**
-   * GBA RTC GPIO 璇诲瓧鑺傛搷浣?
+   * GBA RTC GPIO 读字节操作
    */
   private async s3511_readByte(): Promise<number> {
     let value = 0;
 
-    // 璁剧疆SIO涓鸿緭鍏?
+    // SIO为输入
     await rom_write(this.transport, toLittleEndian(0x05, 2), 0xc6 >> 1); // sio in
 
     for (let i = 0; i < 8; i++) {
@@ -60,7 +60,7 @@ export class GBARTC extends BaseRTC {
   }
 
   /**
-   * 鍒濆鍖朑PIO
+   * 初始化GPIO
    */
   private async initializeGPIO(): Promise<void> {
     await rom_write(this.transport, toLittleEndian(0x01, 2), 0xc4 >> 1); // cs 0, sck 1
@@ -69,7 +69,7 @@ export class GBARTC extends BaseRTC {
   }
 
   /**
-   * 娓呯悊GPIO鐘舵€?
+   * GPIO状态
    */
   private async cleanupGPIO(): Promise<void> {
     const errors: unknown[] = [];
@@ -89,15 +89,15 @@ export class GBARTC extends BaseRTC {
   }
 
   /**
-   * 璇诲彇RTC鐘舵€佸苟澶勭悊鐢垫睜娌＄數鐨勬儏鍐?
+   * 读取RTC状态并处理电池没电的情况
    */
   private async checkAndResetIfNeeded(normalize24Hour = false): Promise<number> {
-    // 璇诲彇RTC鐘舵€?
+    // 读取RTC状态
     await this.s3511_writeByte(0xc6);
     const status = await this.s3511_readByte();
     await rom_write(this.transport, toLittleEndian(0x01, 2), 0xc4 >> 1); // cs 0, sck 1
 
-    // 濡傛灉鐢垫睜娌＄數锛岄噸缃甊TC
+    // 如果电池没电，重置RTC
     if ((status & 0x80) !== 0) {
       await this.s3511_writeByte(0x06); // reset
       await rom_write(this.transport, toLittleEndian(0x01, 2), 0xc4 >> 1); // cs 0, sck 1
@@ -116,7 +116,7 @@ export class GBARTC extends BaseRTC {
   }
 
   /**
-   * 楠岃瘉鍐欏叆鏃堕棿锛堝湪宸插垵濮嬪寲鐨凣PIO鐘舵€佷笅杩涜锛?
+   * 验证写入时间（在已初始化 GPIO 状态下进行）
    */
   private async verifyWrittenTime(target: GBARTCData, reference: RTCWriteReference): Promise<void> {
     const epoch = DateTime.utc(2000, 1, 1).toSeconds();
@@ -156,12 +156,12 @@ export class GBARTC extends BaseRTC {
   async checkCapability(): Promise<boolean> {
     try {
       return await this.withCleanup(async () => {
-        // 妫€娴婫PIO鍔熻兘
+        // 检测GPIO
         const read1 = await rom_read(this.transport, 6, 0xc4);
         await rom_write(this.transport, toLittleEndian(0x01, 2), 0xc8 >> 1); // enable gpio
         const read2 = await rom_read(this.transport, 6, 0xc4);
 
-        // 妫€鏌ユ槸鍚︽湁GPIO鍔熻兘
+        // 检查是否有GPIO
         for (let i = 0; i < 6; i++) {
           if (read1[i] !== read2[i]) {
             return true;
@@ -170,13 +170,13 @@ export class GBARTC extends BaseRTC {
         return false;
       }, [() => this.cleanupGPIO()]);
     } catch (error) {
-      console.error('妫€鏌BA GPIO鍔熻兘鏃跺嚭閿?', error);
+      console.error('检查 GBA GPIO 功能时出错', error);
       return false;
     }
   }
 
   /**
-   * 璁剧疆GBA RTC鏃堕棿
+   * 设置GBA RTC时间
    */
   async setTime(timeData: unknown): Promise<void> {
     const rtcData: GBARTCData = BaseRTC.snapshotTimeFields(timeData, ['year', 'month', 'date', 'day', 'hour', 'minute', 'second']);
@@ -206,8 +206,8 @@ export class GBARTC extends BaseRTC {
         await this.initializeGPIO();
         await this.checkAndResetIfNeeded(true);
 
-        // 璁剧疆鏃堕棿
-        const year = this.intToCompressedBCD(rtcData.year % 100); // 鍙彇鍚庝袱浣?
+        // 设置时间
+        const year = this.intToCompressedBCD(rtcData.year % 100); // 只取后两位
         const month = this.intToCompressedBCD(rtcData.month);
         const date = this.intToCompressedBCD(rtcData.date);
         const day = this.intToCompressedBCD(rtcData.day);
@@ -227,10 +227,10 @@ export class GBARTC extends BaseRTC {
         await rom_write(this.transport, toLittleEndian(0x01, 2), 0xc4 >> 1); // cs 0, sck 1
         const completed = performance.now();
 
-        // 绛夊緟鍐欏叆瀹屾垚
+        // 等待写入完成
         await this.delay(1000);
 
-        // 楠岃瘉鍐欏叆锛堜娇鐢ㄤ笓闂ㄧ殑楠岃瘉鏂规硶锛屼笉閲嶆柊鍒濆鍖朑PIO锛?
+        // 验证写入（使用专门的验证方法，不重新初始化 GPIO）
         await this.verifyWrittenTime(rtcData, { started, completed });
 
       }, [() => this.cleanupGPIO()]);
@@ -240,7 +240,7 @@ export class GBARTC extends BaseRTC {
   }
 
   /**
-   * 浠庣壒瀹氭椂鍖虹殑DateTime璁剧疆RTC鏃堕棿
+   * 从特定时区的DateTime设置RTC时间
    */
   async setTimeFromDateTime(dt: DateTime): Promise<void> {
     if (!DateTime.isDateTime(dt) || !dt.isValid) {
@@ -260,7 +260,7 @@ export class GBARTC extends BaseRTC {
   }
 
   /**
-   * 璁剧疆褰撳墠鏃堕棿鍒癛TC
+   * 设置当前时间到RTC
    */
   async setCurrentTime(timezone?: string): Promise<void> {
     const now = timezone ? DateTime.now().setZone(timezone) : DateTime.now();
@@ -268,7 +268,7 @@ export class GBARTC extends BaseRTC {
   }
 
   /**
-   * 璇诲彇GBA RTC鏃堕棿
+   * 读取GBA RTC时间
    */
   async readTime(): Promise<{ status: boolean; time?: DateTime; error?: string }> {
     try {
@@ -282,7 +282,7 @@ export class GBARTC extends BaseRTC {
 
         console.log(`RTC Status: 0x${status.toString(16)}`);
 
-        // 璇诲彇鏃堕棿鏁版嵁
+        // 读取时间数据
         await this.s3511_writeByte(0xa6); // read time command
         const year = this.compressedBCDToInt(await this.s3511_readByte());
         const month = this.compressedBCDToInt(await this.s3511_readByte() & 0x1f);
@@ -294,7 +294,7 @@ export class GBARTC extends BaseRTC {
 
         await rom_write(this.transport, toLittleEndian(0x01, 2), 0xc4 >> 1); // cs 0, sck 1
 
-        // 浣跨敤luxon鍒涘缓DateTime瀵硅薄
+        // 使用luxon创建DateTime对象
         const time = DateTime.fromObject({
           year: 2000 + year,
           month: month,
@@ -311,8 +311,8 @@ export class GBARTC extends BaseRTC {
         return { status: true, time };
       }, [() => this.cleanupGPIO()]);
     } catch (error) {
-      console.error('璇诲彇GBA RTC鏃跺嚭閿?', error);
-      return { status: false, error: error instanceof Error ? error.message : '鏈煡閿欒' };
+      console.error('读取GBA RTC时出错:', error);
+      return { status: false, error: error instanceof Error ? error.message : '未知错误' };
     }
   }
 }

@@ -252,7 +252,14 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
         session,
         cfiInfo: cfi,
         size: 0x150,
-        options: { baseAddress, cfiInfo: cfi, mbcType: 'MBC5', enable5V: false },
+        options: {
+          baseAddress,
+          cfiInfo: cfi,
+          mbcType: 'MBC5',
+          enable5V: false,
+          skipChannelStabilize: i > 0,
+          quiet: true,
+        },
         showProgress: false,
       });
 
@@ -284,7 +291,8 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
       multiCardRanges.push({ from: 0x200000 * i, name: `Game ${(i + 1).toString().padStart(2, '0')}` });
     }
 
-    for (const range of multiCardRanges) {
+    for (let index = 0; index < multiCardRanges.length; index++) {
+      const range = multiCardRanges[index];
       if (range.from >= deviceSize) break;
 
       const fullHeaderResult = await this.readRom({
@@ -296,6 +304,8 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
           cfiInfo: cfi,
           mbcType,
           enable5V,
+          skipChannelStabilize: index > 0,
+          quiet: true,
         },
         showProgress: false,
       });
