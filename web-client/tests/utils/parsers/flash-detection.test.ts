@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseCFI } from '@/utils/parsers/cfi-parser';
+import { parseCFI, swapD0D1 } from '@/utils/parsers/cfi-parser';
 
 describe('Flash检测功能测试', () => {
   // 创建一个基础的CFI数据缓冲区
@@ -67,6 +67,11 @@ describe('Flash检测功能测试', () => {
     buffer[0x22] = 0x51; // 'R' with D0D1 swapped
     buffer[0x24] = 0x5A; // 'Y' with D0D1 swapped
 
+    // Physical data-line swapping also affects every geometry/interface byte.
+    for (let i = 0; i < buffer.length; i++) {
+      if (![0x20, 0x22, 0x24].includes(i)) buffer[i] = swapD0D1(buffer[i]);
+    }
+
     const result = parseCFI(buffer);
 
     expect(result).toBeTruthy();
@@ -99,6 +104,10 @@ describe('Flash检测功能测试', () => {
     buffer[0x20] = 0x52; // 'Q' with D0D1 swapped
     buffer[0x22] = 0x51; // 'R' with D0D1 swapped
     buffer[0x24] = 0x5A; // 'Y' with D0D1 swapped
+
+    for (let i = 0; i < buffer.length; i++) {
+      if (![0x20, 0x22, 0x24].includes(i)) buffer[i] = swapD0D1(buffer[i]);
+    }
 
     const result = parseCFI(buffer);
 
