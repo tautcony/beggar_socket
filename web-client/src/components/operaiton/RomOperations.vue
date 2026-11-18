@@ -146,12 +146,12 @@
           <RetroButton
             variant="primary"
             :text="$t('ui.emulator.useSelectedSave')"
-            @click="launchGbaPreview(true)"
+            @click="launchPreview(pendingLaunchType ?? 'GBA', true)"
           />
           <RetroButton
             variant="secondary"
             :text="$t('ui.emulator.startWithoutSave')"
-            @click="launchGbaPreview(false)"
+            @click="launchPreview(pendingLaunchType ?? 'GBA', false)"
           />
         </div>
       </div>
@@ -164,6 +164,10 @@
         :is-visible="currentEmulator === 'GBC' || currentEmulator === 'GB'"
         :rom-data="emulatorRomData"
         :rom-name="emulatorRomName"
+        :launch="previewLaunch"
+        @save-checkpoint="onPreviewSaveCheckpoint"
+        @save-result="onPreviewSaveResult"
+        @save-use-changed="onPreviewSaveUseChanged"
         @close="closeEmulator"
       />
       <template #fallback>
@@ -181,10 +185,10 @@
         :is-visible="currentEmulator === 'GBA'"
         :rom-data="emulatorRomData"
         :rom-name="emulatorRomName"
-        :launch="gbaLaunch"
-        @save-checkpoint="onGbaSaveCheckpoint"
-        @save-result="onGbaSaveResult"
-        @save-use-changed="onGbaSaveUseChanged"
+        :launch="previewLaunch"
+        @save-checkpoint="onPreviewSaveCheckpoint"
+        @save-result="onPreviewSaveResult"
+        @save-use-changed="onPreviewSaveUseChanged"
         @close="closeEmulator"
       />
       <template #fallback>
@@ -284,9 +288,10 @@ function selectBlankPattern(fillByte: number) {
 
 // 模拟器相关状态
 const currentEmulator = ref<'GB' | 'GBC' | 'GBA' | null>(null); // 当前显示的模拟器类型
+const pendingLaunchType = ref<'GB' | 'GBC' | 'GBA' | null>(null);
 const emulatorRomData = ref<Uint8Array | null>(null);
 const emulatorRomName = ref('');
-const gbaLaunch = ref<GbaPreviewLaunch | null>(null);
+const previewLaunch = ref<GbaPreviewLaunch | null>(null);
 const showSaveAssociationDialog = ref(false);
 
 onErrorCaptured((err, instance, info) => {
@@ -394,20 +399,13 @@ function playRom() {
     showToast(t('messages.emulator.resolveSaveResultFirst'), 'error');
     return;
   }
-  if (romInfo.value.type === 'GBA' && props.ramFileData && props.ramFileName
-    && !sameBasename(props.romFileName, props.ramFileName)) {
+  const romType = romInfo.value.type;
+  if (props.ramFileData && props.ramFileName && !sameBasename(props.romFileName, props.ramFileName)) {
+    pendingLaunchType.value = romType;
     showSaveAssociationDialog.value = true;
     return;
   }
-  if (romInfo.value.type === 'GBA') {
-    launchGbaPreview(Boolean(props.ramFileData && props.ramFileName));
-    return;
-  }
-
-  emulatorRomData.value = new Uint8Array(props.romFileData);
-  emulatorRomName.value = props.romFileName;
-  currentEmulator.value = romInfo.value.type;
-  showToast(t('messages.emulator.launched', { name: props.romFileName }), 'success');
+  launchPreview(romType, Boolean(props.ramFileData && props.ramFileName));
 }
 
 function sameBasename(left: string, right: string): boolean {
@@ -415,11 +413,11 @@ function sameBasename(left: string, right: string): boolean {
   return basename(left) === basename(right);
 }
 
-function launchGbaPreview(usesSelectedSave: boolean) {
+function launchPreview(emulatorType: 'GB' | 'GBC' | 'GBA', usesSelectedSave: boolean) {
   if (!props.romFileData || !props.romFileName) return;
   const saveData = usesSelectedSave && props.ramFileData ? new Uint8Array(props.ramFileData) : undefined;
   const launch: GbaPreviewLaunch = {
-    sessionId: `gba-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    sessionId: `${emulatorType.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     romData: new Uint8Array(props.romFileData),
     romName: props.romFileName,
     romRevision: props.romRevision ?? 0,
@@ -429,36 +427,37 @@ function launchGbaPreview(usesSelectedSave: boolean) {
     usesSelectedSave: Boolean(saveData),
     ramWasEmptyAtLaunch: !props.ramFileData,
   };
-  gbaLaunch.value = launch;
+  previewLaunch.value = launch;
   emit('preview-session-started', launch);
   emulatorRomData.value = new Uint8Array(launch.romData);
   emulatorRomName.value = launch.romName;
+  pendingLaunchType.value = null;
   showSaveAssociationDialog.value = false;
-  currentEmulator.value = 'GBA';
+  currentEmulator.value = emulatorType;
   showToast(t('messages.emulator.launched', { name: launch.romName }), 'success');
 }
 
-function onGbaSaveCheckpoint(payload: GbaPreviewSavePayload) {
+function onPreviewSaveCheckpoint(payload: GbaPreviewSavePayload) {
   emit('preview-save-checkpoint', payload);
 }
 
-function onGbaSaveResult(payload: GbaPreviewSavePayload) {
+function onPreviewSaveResult(payload: GbaPreviewSavePayload) {
   emit('preview-save-result', payload);
 }
 
-function onGbaSaveUseChanged(sessionId: string) {
-  if (gbaLaunch.value?.sessionId !== sessionId) return;
-  gbaLaunch.value = { ...gbaLaunch.value, saveData: undefined, saveName: undefined, usesSelectedSave: false };
+function onPreviewSaveUseChanged(sessionId: string) {
+  if (previewLaunch.value?.sessionId !== sessionId) return;
+  previewLaunch.value = { ...previewLaunch.value, saveData: undefined, saveName: undefined, usesSelectedSave: false };
 }
 
 function closeEmulator(sessionId?: string) {
-  if (sessionId && gbaLaunch.value?.sessionId !== sessionId) return;
-  const endedSessionId = gbaLaunch.value?.sessionId;
+  if (sessionId && previewLaunch.value?.sessionId !== sessionId) return;
+  const endedSessionId = previewLaunch.value?.sessionId;
   if (endedSessionId) emit('preview-session-ended', endedSessionId);
   currentEmulator.value = null;
   emulatorRomData.value = null;
   emulatorRomName.value = '';
-  gbaLaunch.value = null;
+  previewLaunch.value = null;
   showToast(t('messages.emulator.closed'), 'success');
 }
 

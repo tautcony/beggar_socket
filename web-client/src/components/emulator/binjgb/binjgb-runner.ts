@@ -12,6 +12,7 @@ export const EVENT_NEW_FRAME = 1;
 export const EVENT_AUDIO_BUFFER_FULL = 2;
 export const EVENT_UNTIL_TICKS = 4;
 export const CGB_COLOR_CURVE = 2; // SameBoy / GBC true color correction curve
+const EXT_RAM_SETTLE_FRAMES = 6;
 
 export type JoypadButton = 'up' | 'down' | 'left' | 'right' | 'a' | 'b' | 'start' | 'select';
 
@@ -31,6 +32,7 @@ export interface BinjgbRunnerOptions {
   romData: Uint8Array;
   module?: BinjgbModule;
   audioEnabled?: boolean;
+  onExtRamSettled?: () => void;
 }
 
 let cachedModulePromise: Promise<BinjgbModule> | null = null;
@@ -67,10 +69,12 @@ export class BinjgbRunner {
 
   private emuPtr = 0;
   private joypadPtr = 0;
-  private romPtr = 0;
   private romSize = 0;
+  private extRamSize = 0;
+  private extRamFileDataPtr = 0;
   private readonly originalRomData: Uint8Array;
   private readonly audioEnabled: boolean;
+  private readonly onExtRamSettled?: () => void;
 
   private joypadState: JoypadState = {
     up: false,
@@ -89,12 +93,15 @@ export class BinjgbRunner {
   private lastRafMs = 0;
   private leftoverTicks = 0;
   private audioStartSec = 0;
+  private extRamDirty = false;
+  private framesSinceLastExtRamWrite = 0;
 
   constructor(module: BinjgbModule, options: BinjgbRunnerOptions) {
     this.module = module;
     this.canvas = options.canvas;
     this.originalRomData = options.romData;
     this.audioEnabled = options.audioEnabled !== false;
+    this.onExtRamSettled = options.onExtRamSettled;
 
     this.ctx = this.canvas.getContext('2d');
     if (this.ctx) {
@@ -138,17 +145,18 @@ export class BinjgbRunner {
     // 32KB alignment (2^15)
     const alignedSize = Math.max(0x8000, Math.ceil(this.originalRomData.byteLength / 0x8000) * 0x8000);
     this.romSize = alignedSize;
-    this.romPtr = this.module._malloc(alignedSize);
-    if (!this.romPtr) {
+    const romPtr = this.module._malloc(alignedSize);
+    if (!romPtr) {
       throw new Error('Failed to allocate WASM memory for ROM');
     }
 
-    this.module.HEAPU8.fill(0, this.romPtr, this.romPtr + alignedSize);
-    this.module.HEAPU8.set(this.originalRomData, this.romPtr);
+    this.module.HEAPU8.fill(0, romPtr, romPtr + alignedSize);
+    this.module.HEAPU8.set(this.originalRomData, romPtr);
 
     const sampleRate = this.audioContext?.sampleRate ?? 44100;
+    // _emulator_new_simple takes ownership of romPtr and frees it internally.
     this.emuPtr = this.module._emulator_new_simple(
-      this.romPtr,
+      romPtr,
       this.romSize,
       sampleRate,
       AUDIO_FRAMES,
@@ -156,12 +164,42 @@ export class BinjgbRunner {
     );
 
     if (this.emuPtr === 0) {
-      this.module._free(this.romPtr);
-      this.romPtr = 0;
       throw new RangeError('Failed to initialize binjgb emulator: invalid ROM');
     }
 
     this.attachJoypad();
+    this.extRamSize = this.detectExtRamSize();
+  }
+
+  private romHeaderSupportsExtRam(): boolean {
+    if (this.originalRomData.byteLength < 0x150) return false;
+    const cartType = this.originalRomData[0x147];
+    // MBC2 (0x05, 0x06) has built-in 512x4-bit RAM even when header byte 0x149 is 0x00.
+    if (cartType === 0x05 || cartType === 0x06) return true;
+    const ramCartTypes = new Set([0x02, 0x03, 0x08, 0x09, 0x0c, 0x0d, 0x10, 0x12, 0x13, 0x1a, 0x1b, 0x1d, 0x1e, 0x22, 0xff]);
+    const ramSizeCode = this.originalRomData[0x149];
+    return ramCartTypes.has(cartType) && ramSizeCode >= 1 && ramSizeCode <= 5;
+  }
+
+  private detectExtRamSize(): number {
+    if (!this.emuPtr || !this.romHeaderSupportsExtRam()) return 0;
+    const fileDataPtr = this.ensureExtRamFileData();
+    return fileDataPtr ? this.module._get_file_data_size(fileDataPtr) : 0;
+  }
+
+  private ensureExtRamFileData(): number {
+    if (this.isDestroyed || !this.emuPtr) return 0;
+    if (!this.extRamFileDataPtr) {
+      this.extRamFileDataPtr = this.module._ext_ram_file_data_new(this.emuPtr);
+    }
+    return this.extRamFileDataPtr;
+  }
+
+  private releaseExtRamFileData(): void {
+    if (this.extRamFileDataPtr) {
+      this.module._file_data_delete(this.extRamFileDataPtr);
+      this.extRamFileDataPtr = 0;
+    }
   }
 
   private attachJoypad(): void {
@@ -223,6 +261,59 @@ export class BinjgbRunner {
     if (this.audioContext?.state === 'running') {
       this.audioContext.suspend().catch(() => {});
     }
+
+    this.flushPendingExtRamUpdate();
+  }
+
+  getExtRamSize(): number {
+    if (this.isDestroyed || !this.emuPtr) return 0;
+    return this.extRamSize;
+  }
+
+  readExtRam(): Uint8Array {
+    if (this.isDestroyed || !this.emuPtr) {
+      throw new Error('Emulator is not initialized.');
+    }
+    const fileDataPtr = this.ensureExtRamFileData();
+    if (!fileDataPtr) {
+      throw new Error('Failed to allocate external RAM buffer.');
+    }
+    const size = this.module._get_file_data_size(fileDataPtr);
+    if (size <= 0) return new Uint8Array(0);
+    const result = this.module._emulator_write_ext_ram(this.emuPtr, fileDataPtr);
+    if (result !== 0) {
+      throw new Error('Failed to read external RAM from emulator.');
+    }
+    const dataPtr = this.module._get_file_data_ptr(fileDataPtr);
+    return new Uint8Array(this.module.HEAPU8.buffer.slice(dataPtr, dataPtr + size));
+  }
+
+  writeExtRam(data: Uint8Array): void {
+    if (this.isDestroyed || !this.emuPtr) {
+      throw new Error('Emulator is not initialized.');
+    }
+    const fileDataPtr = this.ensureExtRamFileData();
+    if (!fileDataPtr) {
+      throw new Error('Failed to allocate external RAM buffer.');
+    }
+    const size = this.module._get_file_data_size(fileDataPtr);
+    if (size <= 0) {
+      throw new Error('The ROM RAM is unavailable.');
+    }
+    // Seed with current core backing so short raw images preserve remaining bytes.
+    const readResult = this.module._emulator_write_ext_ram(this.emuPtr, fileDataPtr);
+    if (readResult !== 0) {
+      throw new Error('Failed to read external RAM backing.');
+    }
+    const dataPtr = this.module._get_file_data_ptr(fileDataPtr);
+    this.module.HEAPU8.set(data.subarray(0, size), dataPtr);
+    const writeResult = this.module._emulator_read_ext_ram(this.emuPtr, fileDataPtr);
+    if (writeResult !== 0) {
+      throw new Error('Failed to write external RAM to emulator.');
+    }
+    this.module._emulator_was_ext_ram_updated(this.emuPtr);
+    this.extRamDirty = false;
+    this.framesSinceLastExtRamWrite = 0;
   }
 
   reset(): void {
@@ -230,6 +321,7 @@ export class BinjgbRunner {
 
     const wasRunning = this.isRunning;
     this.pause();
+    this.releaseExtRamFileData();
 
     if (this.joypadPtr) {
       this.module._joypad_delete(this.joypadPtr);
@@ -241,23 +333,18 @@ export class BinjgbRunner {
       this.emuPtr = 0;
     }
 
-    if (this.romPtr) {
-      this.module._free(this.romPtr);
-      this.romPtr = 0;
-    }
-
-    this.romPtr = this.module._malloc(this.romSize);
-    if (!this.romPtr) {
+    const romPtr = this.module._malloc(this.romSize);
+    if (!romPtr) {
       throw new Error('Failed to allocate WASM memory for ROM');
     }
 
     // Restore original ROM in memory
-    this.module.HEAPU8.fill(0, this.romPtr, this.romPtr + this.romSize);
-    this.module.HEAPU8.set(this.originalRomData, this.romPtr);
+    this.module.HEAPU8.fill(0, romPtr, romPtr + this.romSize);
+    this.module.HEAPU8.set(this.originalRomData, romPtr);
 
     const sampleRate = this.audioContext?.sampleRate ?? 44100;
     this.emuPtr = this.module._emulator_new_simple(
-      this.romPtr,
+      romPtr,
       this.romSize,
       sampleRate,
       AUDIO_FRAMES,
@@ -269,9 +356,12 @@ export class BinjgbRunner {
     }
 
     this.attachJoypad();
+    this.extRamSize = this.detectExtRamSize();
     this.lastRafMs = 0;
     this.leftoverTicks = 0;
     this.audioStartSec = 0;
+    this.extRamDirty = false;
+    this.framesSinceLastExtRamWrite = 0;
 
     if (wasRunning) {
       this.play();
@@ -282,6 +372,8 @@ export class BinjgbRunner {
     if (this.isDestroyed) return;
     this.isDestroyed = true;
     this.isRunning = false;
+    this.extRamDirty = false;
+    this.framesSinceLastExtRamWrite = 0;
 
     if (this.rafId !== null && typeof cancelAnimationFrame === 'function') {
       cancelAnimationFrame(this.rafId);
@@ -293,6 +385,8 @@ export class BinjgbRunner {
       this.audioContext = null;
     }
 
+    this.releaseExtRamFileData();
+
     if (this.joypadPtr) {
       this.module._joypad_delete(this.joypadPtr);
       this.joypadPtr = 0;
@@ -301,11 +395,6 @@ export class BinjgbRunner {
     if (this.emuPtr) {
       this.module._emulator_delete(this.emuPtr);
       this.emuPtr = 0;
-    }
-
-    if (this.romPtr) {
-      this.module._free(this.romPtr);
-      this.romPtr = 0;
     }
   }
 
@@ -349,11 +438,13 @@ export class BinjgbRunner {
   private runUntil(untilTicks: number): void {
     if (!this.emuPtr) return;
 
+    let framesRendered = 0;
     let iterations = 0;
     while (!this.isDestroyed && iterations < 1000) {
       iterations++;
       const event = this.module._emulator_run_until_f64(this.emuPtr, untilTicks);
       if (event & EVENT_NEW_FRAME) {
+        framesRendered += 1;
         this.renderFrame();
       }
       if (event & EVENT_AUDIO_BUFFER_FULL) {
@@ -363,6 +454,28 @@ export class BinjgbRunner {
         break;
       }
     }
+    this.pollExtRamUpdates(framesRendered);
+  }
+
+  private pollExtRamUpdates(framesRendered: number): void {
+    if (this.isDestroyed || !this.emuPtr) return;
+    if (this.module._emulator_was_ext_ram_updated(this.emuPtr)) {
+      this.extRamDirty = true;
+      this.framesSinceLastExtRamWrite = 0;
+      return;
+    }
+    if (!this.extRamDirty) return;
+    this.framesSinceLastExtRamWrite += Math.max(1, framesRendered);
+    if (this.framesSinceLastExtRamWrite >= EXT_RAM_SETTLE_FRAMES) {
+      this.flushPendingExtRamUpdate();
+    }
+  }
+
+  private flushPendingExtRamUpdate(): void {
+    if (!this.extRamDirty || this.isDestroyed) return;
+    this.extRamDirty = false;
+    this.framesSinceLastExtRamWrite = 0;
+    this.onExtRamSettled?.();
   }
 
   private renderFrame(): void {

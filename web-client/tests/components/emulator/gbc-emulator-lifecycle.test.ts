@@ -16,8 +16,21 @@ const toastMock = vi.hoisted(() => ({
   showToast: vi.fn(),
 }));
 
+const nativeMock = vi.hoisted(() => ({
+  saveBinaryFile: vi.fn(() => Promise.resolve({ saved: true })),
+}));
+
 vi.mock('@/composables/useToast', () => ({
   useToast: () => toastMock,
+}));
+
+vi.mock('@/platform/native', () => ({
+  saveBinaryFile: nativeMock.saveBinaryFile,
+}));
+
+vi.mock('@/platform/runtime', () => ({
+  isTauriRuntime: () => false,
+  isWebRuntime: () => true,
 }));
 
 vi.mock('vue-i18n', () => ({
@@ -232,6 +245,44 @@ describe('BinjgbRunner', () => {
     }).not.toThrow();
     runner.destroy();
   });
+
+  it('reads, writes, and detects settled external RAM updates', async () => {
+    const rom = makeValidGbRom();
+    rom[0x147] = 0x1b; // MBC5 + RAM + BATTERY
+    rom[0x149] = 0x03; // 32 KiB RAM
+    // 0x0100: nop; jp 0x0150
+    rom.set([0x00, 0xc3, 0x50, 0x01], 0x100);
+    // 0x0150: ld a, 0x0a; ld (0x0000), a; ld a, 0x77; ld (0xa000), a; jr -2
+    rom.set([0x3e, 0x0a, 0xea, 0x00, 0x00, 0x3e, 0x77, 0xea, 0x00, 0xa0, 0x18, 0xfe], 0x150);
+    let checksum = 0;
+    for (let index = 0x134; index <= 0x14c; index += 1) {
+      checksum = (checksum - rom[index] - 1) & 0xff;
+    }
+    rom[0x14d] = checksum;
+
+    const onExtRamSettled = vi.fn();
+    const canvas = createMockCanvas();
+    const runner = await BinjgbRunner.create({
+      canvas,
+      romData: rom,
+      onExtRamSettled,
+    });
+
+    expect(runner.getExtRamSize()).toBe(32768);
+    const seed = new Uint8Array(32768);
+    seed[1] = 0x33;
+    runner.writeExtRam(seed);
+    expect(runner.readExtRam()[1]).toBe(0x33);
+
+    // Boot + execute write to 0xA000 + advance past settle threshold
+    runner.stepFrame(120);
+    const ram = runner.readExtRam();
+    expect(ram[0]).toBe(0x77);
+    expect(ram[1]).toBe(0x33);
+    expect(onExtRamSettled).toHaveBeenCalled();
+
+    runner.destroy();
+  });
 });
 
 describe('GBCEmulator.vue Lifecycle & UI', () => {
@@ -427,6 +478,120 @@ describe('GBCEmulator.vue Lifecycle & UI', () => {
     await wrapper.setProps({ isVisible: false });
     await flushPromises();
     expect(wrapper.find('.emulator-overlay').exists()).toBe(false);
+
+    wrapper.unmount();
+  });
+
+  it('imports launch saveData, exports .sav, preserves save across reset, and emits save-result on close', async () => {
+    const rom = makeValidGbRom();
+    rom[0x147] = 0x1b; // MBC5 + RAM + BATTERY
+    rom[0x149] = 0x03; // 32 KiB RAM
+    let checksum = 0;
+    for (let index = 0x134; index <= 0x14c; index += 1) {
+      checksum = (checksum - rom[index] - 1) & 0xff;
+    }
+    rom[0x14d] = checksum;
+
+    const initialSave = new Uint8Array(32768);
+    initialSave[0] = 0x42;
+    initialSave[100] = 0x99;
+
+    nativeMock.saveBinaryFile.mockClear();
+
+    const wrapper = mount(GBCEmulator, {
+      props: {
+        isVisible: true,
+        romData: rom,
+        romName: 'pokemon.gbc',
+        launch: {
+          sessionId: 'gbc-test-1',
+          romData: rom,
+          romName: 'pokemon.gbc',
+          romRevision: 1,
+          ramRevision: 1,
+          saveData: initialSave,
+          saveName: 'pokemon.sav',
+          usesSelectedSave: true,
+          ramWasEmptyAtLaunch: false,
+        },
+      },
+    });
+
+    await flushPromises();
+    expect(toastMock.showToast).toHaveBeenCalledWith('ui.emulator.initSuccess', 'success');
+
+    // Export save button should be enabled and export the imported bytes
+    const exportBtn = wrapper.findAll('button').find(btn => btn.text() === 'ui.emulator.exportSave');
+    expect(exportBtn?.attributes('disabled')).toBeUndefined();
+    await exportBtn?.trigger('click');
+    await flushPromises();
+    expect(nativeMock.saveBinaryFile).toHaveBeenCalledTimes(1);
+    const exportedCall = nativeMock.saveBinaryFile.mock.calls[0] as unknown as [Uint8Array, string];
+    expect(exportedCall[0][0]).toBe(0x42);
+    expect(exportedCall[0][100]).toBe(0x99);
+    expect(exportedCall[1]).toBe('pokemon.sav');
+
+    // Reset should preserve the save
+    const resetBtn = wrapper.find('button[title="ui.emulator.reset"]');
+    await resetBtn.trigger('click');
+    await flushPromises();
+
+    // Close should emit save-result and close with sessionId
+    const closeBtn = wrapper.find('button[title="ui.emulator.close"]');
+    await closeBtn.trigger('click');
+    await flushPromises();
+
+    const saveResultEvents = wrapper.emitted('save-result');
+    expect(saveResultEvents).toHaveLength(1);
+    const resultPayload = saveResultEvents?.[0]?.[0] as { data: Uint8Array; capacity: number; changed: boolean; launch: { sessionId: string } };
+    expect(resultPayload.launch.sessionId).toBe('gbc-test-1');
+    expect(resultPayload.capacity).toBe(32768);
+    expect(resultPayload.data[0]).toBe(0x42);
+    expect(resultPayload.changed).toBe(false);
+    expect(wrapper.emitted('close')?.[0]).toEqual(['gbc-test-1']);
+
+    wrapper.unmount();
+  });
+
+  it('rejects empty saveData and allows starting without save', async () => {
+    const rom = makeValidGbRom();
+    rom[0x147] = 0x1b; // MBC5 + RAM + BATTERY
+    rom[0x149] = 0x03; // 32 KiB RAM
+    let checksum = 0;
+    for (let index = 0x134; index <= 0x14c; index += 1) {
+      checksum = (checksum - rom[index] - 1) & 0xff;
+    }
+    rom[0x14d] = checksum;
+
+    const wrapper = mount(GBCEmulator, {
+      props: {
+        isVisible: true,
+        romData: rom,
+        romName: 'pokemon.gbc',
+        launch: {
+          sessionId: 'gbc-test-empty',
+          romData: rom,
+          romName: 'pokemon.gbc',
+          romRevision: 1,
+          ramRevision: 1,
+          saveData: new Uint8Array(0),
+          saveName: 'empty.sav',
+          usesSelectedSave: true,
+          ramWasEmptyAtLaunch: false,
+        },
+      },
+    });
+
+    await flushPromises();
+    expect(wrapper.find('.error-display').exists()).toBe(true);
+
+    const startWithoutSaveBtn = wrapper.findAll('button').find(btn => btn.text() === 'ui.emulator.startWithoutSave');
+    expect(startWithoutSaveBtn).toBeDefined();
+    await startWithoutSaveBtn?.trigger('click');
+    await flushPromises();
+
+    expect(wrapper.emitted('save-use-changed')?.[0]).toEqual(['gbc-test-empty']);
+    expect(wrapper.find('.error-display').exists()).toBe(false);
 
     wrapper.unmount();
   });
