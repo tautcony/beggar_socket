@@ -19,6 +19,7 @@
 #define SIZE_LATENCY 1
 
 #define OPERATION_TIMEOUT 10000
+#define TX_WAIT_TIMEOUT 1000
 
 // 命令头
 typedef struct __attribute__((packed)) {
@@ -56,6 +57,7 @@ Desc_cmdHeader_t *uart_cmd = (Desc_cmdHeader_t *)cmdBuf;
 Desc_respon_t *uart_respon = (Desc_respon_t *)responBuf;
 
 volatile uint8_t busy = 0;
+volatile uint8_t resetRequested = 0;
 
 extern USBD_HandleTypeDef hUsbDeviceFS;
 
@@ -105,17 +107,42 @@ void uart_setControlLine(uint8_t rts, uint8_t dtr)
         memset(cmdBuf, 0, sizeof(cmdBuf));
         memset(responBuf, 0, sizeof(responBuf));
         busy = 0;
-        // 提示重置
-        for (int i = 0; i < 3; i++) {
-            HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);  // LED on
-            for (volatile int j = 0; j < 80000; j++);
-            HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 1);  // LED off
-            for (volatile int j = 0; j < 80000; j++);
+        resetRequested = 1;
+
+        USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)hUsbDeviceFS.pClassData;
+        if (hcdc != NULL && hcdc->TxState != 0) {
+            USBD_LL_FlushEP(&hUsbDeviceFS, CDC_IN_EP);
+            hcdc->TxState = 0;
         }
+
+        // 提示重置（避免在 USB 中断上下文中长阻塞）
+        HAL_GPIO_TogglePin(led_GPIO_Port, led_Pin);
     }
 
     currentRts = rts;
     currentDtr = dtr;
+}
+
+static uint8_t uart_waitTxReady(USBD_CDC_HandleTypeDef *hcdc)
+{
+    if (hcdc == NULL) return 0;
+
+    uint32_t startTick = HAL_GetTick();
+    while (hcdc->TxState != 0) {
+        if (resetRequested) {
+            USBD_LL_FlushEP(&hUsbDeviceFS, CDC_IN_EP);
+            hcdc->TxState = 0;
+            return 0;
+        }
+        if ((HAL_GetTick() - startTick) > TX_WAIT_TIMEOUT) {
+            USBD_LL_FlushEP(&hUsbDeviceFS, CDC_IN_EP);
+            hcdc->TxState = 0;
+            return 1;
+        }
+        __WFI();
+        __NOP();
+    }
+    return 1;
 }
 
 static void uart_responData(const uint8_t *dat, uint16_t len)
@@ -124,7 +151,7 @@ static void uart_responData(const uint8_t *dat, uint16_t len)
 
     if (dat != NULL) memcpy(uart_respon->payload, dat, len);  // 填充数据
 
-    const USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)hUsbDeviceFS.pClassData;
+    USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)hUsbDeviceFS.pClassData;
 
     // 单次提交整包给 USB CDC（由 PCD 硬件/ISR 自动按 64B 分片），
     // 避免按 512B 手动分批导致每包额外插入 ZLP，降低主机 USB CDC 驱动压力。
@@ -133,32 +160,25 @@ static void uart_responData(const uint8_t *dat, uint16_t len)
         packSize = sizeof(responBuf);
     }
 
-    while (hcdc->TxState != 0) {
-        __WFI();
-        __NOP();
-    }
+    if (!uart_waitTxReady(hcdc)) return;
 
     while (CDC_Transmit_FS(responBuf, packSize) == USBD_BUSY) {
-        __WFI();
-        __NOP();
+        if (!uart_waitTxReady(hcdc)) return;
     }
 
-    while (hcdc->TxState != 0) {
-        __WFI();
-        __NOP();
-    }
+    uart_waitTxReady(hcdc);
 }
 
 static void uart_responAck()
 {
-    const USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)hUsbDeviceFS.pClassData;
+    static uint8_t ack = 0xaa;
+    USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)hUsbDeviceFS.pClassData;
 
-    while (hcdc->TxState != 0) {
-        __WFI();  // Wait for interrupt
+    if (!uart_waitTxReady(hcdc)) return;
+
+    while (CDC_Transmit_FS(&ack, 1) == USBD_BUSY) {
+        if (!uart_waitTxReady(hcdc)) return;
     }
-
-    uint8_t ack = 0xaa;
-    CDC_Transmit_FS(&ack, 1);
 }
 
 // usb 接收回调
@@ -194,6 +214,7 @@ void uart_cmdHandler()
     //     uart_clearRecvBuf();
 
     busy = 1;
+    resetRequested = 0;
     HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, 0);
 
     // execute cmd
@@ -289,7 +310,7 @@ static void romWaitForDone(uint32_t addr, uint16_t expectedValue)
             cart_romRead(addr, (uint16_t *)&value, 1);
             break;
         }
-        if (cmdBuf_p == 0) break;
+        if (cmdBuf_p == 0 || resetRequested) break;
         if ((HAL_GetTick() - startTick) > OPERATION_TIMEOUT) break;
         __WFI();
     }
@@ -304,7 +325,7 @@ static void ramWaitForDone(uint32_t addr, uint8_t expectedValue)
         cart_ramRead((uint16_t)(addr), (uint8_t *)&value, 1);
         MEMORY_BARRIER();
         if (value == expectedValue) break;
-        if (cmdBuf_p == 0) break;
+        if (cmdBuf_p == 0 || resetRequested) break;
         if ((HAL_GetTick() - startTick) > OPERATION_TIMEOUT) break;
         __WFI();
     }
@@ -450,7 +471,7 @@ static void romProgram()
             cart_romWrite(startingAddress, dataBuf + writtenCount, 1);
 
             romWaitForDone(startingAddress, *(dataBuf + writtenCount));
-            if (cmdBuf_p == 0) {
+            if (cmdBuf_p == 0 || resetRequested) {
                 uart_clearRecvBuf();
                 return;
             }
@@ -485,7 +506,7 @@ static void romProgram()
             cart_romWrite(startingAddress, &cmd, 1);
 
             romWaitForDone(startingAddress + writeLen - 1, *(dataBuf + writtenCount + writeLen - 1));
-            if (cmdBuf_p == 0) {
+            if (cmdBuf_p == 0 || resetRequested) {
                 uart_clearRecvBuf();
                 return;
             }
@@ -733,7 +754,7 @@ static void gbcRomWaitForDone(uint16_t addr, uint8_t expectedValue)
         MEMORY_BARRIER();
 
         if (value == expectedValue) break;
-        if (cmdBuf_p == 0) break;
+        if (cmdBuf_p == 0 || resetRequested) break;
         if ((HAL_GetTick() - startTick) > OPERATION_TIMEOUT) break;
         __WFI();
     }
@@ -772,7 +793,7 @@ static void gbcRomProgram()
 
             // wait for done
             gbcRomWaitForDone((uint16_t)(startingAddress), dataBuf[writtenCount]);
-            if (cmdBuf_p == 0) {
+            if (cmdBuf_p == 0 || resetRequested) {
                 uart_clearRecvBuf();
                 return;
             }
@@ -800,7 +821,7 @@ static void gbcRomProgram()
             // wait for done
             gbcRomWaitForDone((uint16_t)(startingAddress + writeLen - 1),
                               dataBuf[writtenCount + writeLen - 1]);
-            if (cmdBuf_p == 0) {
+            if (cmdBuf_p == 0 || resetRequested) {
                 uart_clearRecvBuf();
                 return;
             }
