@@ -51,6 +51,8 @@ export class CartridgeAdapter {
   protected t: TranslateFunction;
   protected currentSectorProgress: SectorProgressInfo[] = [];
   protected lastCartInfoError?: string;
+  private channelRecentlyReset = false;
+  private activeRomBankKey: string | null = null;
 
   getLastCartInfoError(): string | undefined {
     return this.lastCartInfoError;
@@ -243,6 +245,7 @@ export class CartridgeAdapter {
   }
 
   async resetCommandBuffer(): Promise<void> {
+    this.activeRomBankKey = null;
     const transport = this.device.transport ?? this.device.serialHandle?.transport ?? null;
 
     await transport?.flushInput?.();
@@ -270,11 +273,48 @@ export class CartridgeAdapter {
     } else {
       await transport?.flushInput?.();
     }
+    this.channelRecentlyReset = true;
   }
 
-  protected async stabilizeCommandChannel(settleMs = 100): Promise<void> {
+  protected async stabilizeCommandChannel(settleMs = 100, force = false): Promise<void> {
+    if (!force && this.channelRecentlyReset) {
+      this.channelRecentlyReset = false;
+      return;
+    }
+    this.channelRecentlyReset = false;
     await this.resetCommandBuffer();
+    this.channelRecentlyReset = false;
     await timeout(settleMs);
+  }
+
+  protected markChannelBusy(): void {
+    this.channelRecentlyReset = false;
+  }
+
+  protected async stabilizeReadChannel(
+    options: Pick<CommandOptions, 'skipChannelStabilize'>,
+    settleMs: number,
+  ): Promise<void> {
+    if (options.skipChannelStabilize) {
+      this.markChannelBusy();
+      return;
+    }
+    await this.stabilizeCommandChannel(settleMs);
+  }
+
+  protected setActiveRomBankKey(bankKey: string): void {
+    this.activeRomBankKey = bankKey;
+  }
+
+  protected async ensureRomBank(
+    bankKey: string,
+    switchBank: () => Promise<void>,
+  ): Promise<void> {
+    if (this.activeRomBankKey === bankKey) {
+      return;
+    }
+    await switchBank();
+    this.activeRomBankKey = bankKey;
   }
 
   protected isSimulatedDevice(): boolean {

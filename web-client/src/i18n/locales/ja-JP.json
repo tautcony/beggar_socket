@@ -776,7 +776,7 @@
       "verifyFailed": "ROM検証失敗",
       "verifyClampedToDevice": "設定された検証サイズ({configured})がチップ容量({device})を超えています。検証範囲を {actual} に切り詰めます",
       "verifyClampedToFile": "設定された検証サイズ({configured})がファイルサイズ({file})を超えています。検証範囲を {actual} に切り詰めます",
-      "verifyFailedAt": "アドレス{address}で検証失敗、期待値{expected}、実際値{actual}",
+      "verifyFailedAt": "アドレス{address}で検証失敗、期待値 {expected}、実際の値 {actual}",
       "verifySummary": "検証完了 - 総時間: {totalTime}、平均速度: {avgSpeed}、最大速度: {maxSpeed}、総サイズ: {totalSize}、リクエスト数: {requestCount}",
       "sizeChanged": "ROMサイズが {size} に変更されました",
       "baseAddressChanged": "ROMベースアドレスが {address} に変更されました",

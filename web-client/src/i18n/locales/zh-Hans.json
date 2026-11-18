@@ -776,7 +776,7 @@
       "verifyFailed": "ROM校验失败",
       "verifyClampedToDevice": "配置校验大小({configured})超过芯片容量({device})，实际校验范围截断至 {actual}",
       "verifyClampedToFile": "配置校验大小({configured})超过文件大小({file})，实际校验范围截断至 {actual}",
-      "verifyFailedAt": "地址{address}校验失败，期望值{expected}，实际值{actual}",
+      "verifyFailedAt": "地址{address}校验失败，期望值 {expected}，实际值 {actual}",
       "verifySummary": "校验完成 - 总时间: {totalTime}，平均速度: {avgSpeed}，最大速度: {maxSpeed}，总大小: {totalSize}，请求数: {requestCount}",
       "sizeChanged": "ROM大小已更改为 {size}",
       "baseAddressChanged": "ROM基址已更改为 {address}",
