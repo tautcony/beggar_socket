@@ -305,7 +305,7 @@ function handleDrop(e: DragEvent) {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32px;
+  font-size: 48px;
   margin-bottom: spacing-vars.$space-1;
   opacity: 0.7;
 }
@@ -353,15 +353,15 @@ function handleDrop(e: DragEvent) {
 }
 
 .file-icon {
-  font-size: 32px;
+  font-size: 24px;
   color: var(--retro-ink);
   margin-bottom: 0;
   margin-right: spacing-vars.$space-2;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
 }
 

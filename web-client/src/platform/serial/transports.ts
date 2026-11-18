@@ -7,7 +7,6 @@ import { createReadTimeoutError } from './transport-errors';
 import type { Transport, TransportReadMode } from './types';
 
 const WEB_SERIAL_CLOSE_WAIT_TIMEOUT_MS = 2_000;
-const WEB_SERIAL_TX_CHUNK_BYTES = 512;
 
 export class WebSerialTransport implements Transport {
   private reader: DefaultReader | null = null;
@@ -93,17 +92,7 @@ export class WebSerialTransport implements Transport {
 
     try {
       await withTimeout(
-        (async () => {
-          if (payload.byteLength <= WEB_SERIAL_TX_CHUNK_BYTES) {
-            await writer.write(payload);
-            return;
-          }
-          // 存量 STM32 固件的 USB CDC 接收缓冲 (UserRxBufferFS) 仅 1024B，
-          // 按 512B 分片写入可避免 macOS tty 输出队列一次涌入 >4KB 突发数据。
-          for (let offset = 0; offset < payload.byteLength; offset += WEB_SERIAL_TX_CHUNK_BYTES) {
-            await writer.write(payload.subarray(offset, offset + WEB_SERIAL_TX_CHUNK_BYTES));
-          }
-        })(),
+        writer.write(payload),
         timeout,
         `Send package timeout in ${timeout}ms`,
         {

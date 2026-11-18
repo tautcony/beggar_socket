@@ -91,7 +91,7 @@ describe('WebSerialTransport atomic sendAndReceive', () => {
     expect(events).toEqual(['send-1', 'flush-start', 'flush-end', 'send-2']);
   });
 
-  it('chunks large TX payloads into 512B slices and clears stale RX bytes before sendAndReceive', async () => {
+  it('clears stale RX bytes before sendAndReceive', async () => {
     const { port, written, pushInput } = createFakeWebSerialPort();
     const transport = new WebSerialTransport(port);
 
@@ -110,6 +110,6 @@ describe('WebSerialTransport atomic sendAndReceive', () => {
 
     const res = await transport.sendAndReceive(payload, 1, 200, 200);
     expect(Array.from(res.data)).toEqual([0xaa]);
-    expect(written.map((chunk) => chunk.byteLength)).toEqual([512, 512, 176]);
+    expect(written.map((chunk) => chunk.byteLength)).toEqual([1200]);
   });
 });

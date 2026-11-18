@@ -23,10 +23,10 @@ export interface AdvancedSettingsConfig {
     ramReadCount?: number;
     romReadDelay?: number;
     ramReadDelay?: number;
-    romWriteRetryCount?: number;
-    romWriteRetryDelay?: number;
     romEraseRetryCount?: number;
     romEraseRetryDelay?: number;
+    romWriteRetryCount?: number;
+    romWriteRetryDelay?: number;
   };
   timeout?: {
     default?: number;
@@ -77,10 +77,10 @@ const SETTING_DESCRIPTORS: readonly SettingDescriptor[] = [
   { key: 'ramReadRetryCount', group: 'retry', field: 'ramReadCount', default: 1, validator: 'retryCount', errorLabel: 'RAM read retry count' },
   { key: 'romReadRetryDelayMs', group: 'retry', field: 'romReadDelay', default: 0, validator: 'retryDelay', errorLabel: 'ROM read retry delay' },
   { key: 'ramReadRetryDelayMs', group: 'retry', field: 'ramReadDelay', default: 0, validator: 'retryDelay', errorLabel: 'RAM read retry delay' },
-  { key: 'romWriteRetryCount', group: 'retry', field: 'romWriteRetryCount', default: 1, validator: 'retryCount', errorLabel: 'ROM write retry count' },
-  { key: 'romWriteRetryDelayMs', group: 'retry', field: 'romWriteRetryDelay', default: 0, validator: 'retryDelay', errorLabel: 'ROM write retry delay' },
   { key: 'romEraseRetryCount', group: 'retry', field: 'romEraseRetryCount', default: 1, validator: 'retryCount', errorLabel: 'ROM erase retry count' },
   { key: 'romEraseRetryDelayMs', group: 'retry', field: 'romEraseRetryDelay', default: 0, validator: 'retryDelay', errorLabel: 'ROM erase retry delay' },
+  { key: 'romWriteRetryCount', group: 'retry', field: 'romWriteRetryCount', default: 1, validator: 'retryCount', errorLabel: 'ROM write retry count' },
+  { key: 'romWriteRetryDelayMs', group: 'retry', field: 'romWriteRetryDelay', default: 0, validator: 'retryDelay', errorLabel: 'ROM write retry delay' },
   { key: 'defaultTimeout', group: 'timeout', field: 'default', default: 3000, validator: 'timeout', errorLabel: 'default timeout' },
   { key: 'packageSendTimeout', group: 'timeout', field: 'packageSend', default: 3000, validator: 'timeout', errorLabel: 'packageSend timeout' },
   { key: 'packageReceiveTimeout', group: 'timeout', field: 'packageReceive', default: 3000, validator: 'timeout', errorLabel: 'packageReceive timeout' },
@@ -182,10 +182,10 @@ export class AdvancedSettings {
   declare static ramReadRetryCount: number;
   declare static romReadRetryDelayMs: number;
   declare static ramReadRetryDelayMs: number;
-  declare static romWriteRetryCount: number;
-  declare static romWriteRetryDelayMs: number;
   declare static romEraseRetryCount: number;
   declare static romEraseRetryDelayMs: number;
+  declare static romWriteRetryCount: number;
+  declare static romWriteRetryDelayMs: number;
   declare static defaultTimeout: number;
   declare static packageSendTimeout: number;
   declare static packageReceiveTimeout: number;
@@ -219,10 +219,10 @@ export class AdvancedSettings {
         ramReadCount: _storage.ramReadRetryCount,
         romReadDelay: _storage.romReadRetryDelayMs,
         ramReadDelay: _storage.ramReadRetryDelayMs,
-        romWriteRetryCount: _storage.romWriteRetryCount,
-        romWriteRetryDelay: _storage.romWriteRetryDelayMs,
         romEraseRetryCount: _storage.romEraseRetryCount,
         romEraseRetryDelay: _storage.romEraseRetryDelayMs,
+        romWriteRetryCount: _storage.romWriteRetryCount,
+        romWriteRetryDelay: _storage.romWriteRetryDelayMs,
       },
       timeout: {
         default: _storage.defaultTimeout,

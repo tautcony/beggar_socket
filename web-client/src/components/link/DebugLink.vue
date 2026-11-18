@@ -4,7 +4,7 @@
     :title="$t('ui.debug.panel')"
     :color="'var(--retro-warning-bg)'"
     :bottom="80"
-    :right="20"
+    :right="0"
     @click="togglePanel"
   >
     <template #icon>

@@ -210,7 +210,6 @@ describe('MBC5Adapter.writeROM recovery', () => {
     mockGbcRead.mockResolvedValue(new Uint8Array([0xff, 0xff, 0xff, 0xff]));
     AdvancedSettings.resetToDefaults();
     AdvancedSettings.romEraseRetryCount = 1;
-    AdvancedSettings.romWriteRetryCount = 1;
   });
 
   it('erases the sector before writing', async () => {
@@ -267,7 +266,7 @@ describe('MBC5Adapter.writeROM recovery', () => {
     expect(mockGbcRomEraseSector.mock.invocationCallOrder[0]).toBeLessThan(mockGbcRomProgram.mock.invocationCallOrder[0]);
   });
 
-  it('retries the current sector from its start after a program failure', async () => {
+  it('retries the write command directly without re-erasing on a transient program failure', async () => {
     const adapter = new MBC5Adapter(createMockDevice());
     vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
 
@@ -283,39 +282,27 @@ describe('MBC5Adapter.writeROM recovery', () => {
     );
 
     expect(result.success).toBe(true);
-    // 写前擦除 1 次 + 恢复重试时再擦除 1 次
-    expect(mockGbcRomEraseSector).toHaveBeenCalledTimes(2);
+    expect(mockGbcRomEraseSector).toHaveBeenCalledTimes(1);
     expect(mockGbcRomProgram).toHaveBeenCalledTimes(2);
   });
 
-  it('rolls back to the sector start after a dirty partial write', async () => {
+  it('returns failure without re-erasing when direct write retries are exhausted', async () => {
     const adapter = new MBC5Adapter(createMockDevice());
     vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
 
     mockGbcRomEraseSector.mockResolvedValue(undefined);
     mockGbcRead.mockResolvedValue(new Uint8Array([0xff]));
-    mockGbcRomProgram
-      .mockResolvedValueOnce(undefined)
-      .mockRejectedValueOnce(new Error('chunk timeout'))
-      .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce(undefined);
+    mockGbcRomProgram.mockRejectedValue(new Error('program timeout'));
 
-    const fileData = new Uint8Array([0x11, 0x22, 0x33, 0x44]);
     const result = await adapter.writeROM(
-      fileData,
-      createOptions('MBC5', { romPageSize: 2, size: 4 }),
+      new Uint8Array([0xaa]),
+      createOptions('MBC5'),
     );
 
-    expect(result.success).toBe(true);
-    // 写前擦除 1 次 + 恢复重试时再擦除 1 次
-    expect(mockGbcRomEraseSector).toHaveBeenCalledTimes(2);
-    expect(mockGbcRomProgram).toHaveBeenCalledTimes(4);
-    expect(mockGbcRomProgram.mock.calls.map(([_, chunk]) => Array.from(chunk as Uint8Array))).toEqual([
-      [0x11, 0x22],
-      [0x33, 0x44],
-      [0x11, 0x22],
-      [0x33, 0x44],
-    ]);
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('program timeout');
+    expect(mockGbcRomEraseSector).toHaveBeenCalledTimes(1);
+    expect(mockGbcRomProgram).toHaveBeenCalledTimes(2);
   });
 
   it('fails deterministically when erase retries are exhausted', async () => {
@@ -427,18 +414,8 @@ describe('MBC5Adapter transfer planning, efficiency, and stateful recovery', () 
       return Promise.resolve();
     });
 
-    let callNum = 0;
     mockGbcRomProgram.mockImplementation((_t, chunk: Uint8Array, addr: number) => {
-      callNum++;
       const globalOffset = currentBank * 0x4000 + (addr & 0x3fff);
-      if (callNum === 1) {
-        storage.set(chunk.subarray(0, 8), globalOffset);
-        return Promise.reject(new Error('partial write timeout'));
-      }
-      if (callNum === 2) {
-        storage.set(chunk, globalOffset);
-        return Promise.reject(new Error('ack lost'));
-      }
       storage.set(chunk, globalOffset);
       return Promise.resolve();
     });
@@ -447,7 +424,6 @@ describe('MBC5Adapter transfer planning, efficiency, and stateful recovery', () 
       return Promise.resolve(storage.slice(globalOffset, globalOffset + size));
     });
 
-    AdvancedSettings.romWriteRetryCount = 2;
     const baseAddress = 0x2000;
     const total = 0x4000; // [0x2000, 0x6000) 跨越 0x4000 bank 边界；前 0x2000 有数据，后 0x2000 全 0xFF
     const input = new Uint8Array(0x2000).map((_, i) => (i + 1) & 0xff);
@@ -469,8 +445,7 @@ describe('MBC5Adapter transfer planning, efficiency, and stateful recovery', () 
     }));
 
     expect(writeRes.success).toBe(true);
-    // 重试前 2 次都在第一块 (0x2000..0x3000) 失败，第三次成功写 0x2000..0x3000 与 0x3000..0x4000，跳过 0x4000..0x6000 全 0xFF
-    expect(mockGbcRomProgram).toHaveBeenCalledTimes(4);
+    expect(mockGbcRomProgram).toHaveBeenCalledTimes(2);
     expect(storage.subarray(baseAddress, baseAddress + input.byteLength)).toEqual(input);
     expect(storage.subarray(baseAddress + input.byteLength, baseAddress + total)).toEqual(new Uint8Array(0x2000).fill(0xff));
   });

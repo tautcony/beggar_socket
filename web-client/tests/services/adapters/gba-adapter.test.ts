@@ -97,7 +97,6 @@ describe('GBAAdapter.writeROM recovery', () => {
     mockRomRead.mockResolvedValue(new Uint8Array([0xff, 0xff, 0xff, 0xff]));
     AdvancedSettings.resetToDefaults();
     AdvancedSettings.romEraseRetryCount = 1;
-    AdvancedSettings.romWriteRetryCount = 1;
   });
 
   it('erases the sector before writing', async () => {
@@ -172,9 +171,9 @@ describe('GBAAdapter.writeROM recovery', () => {
     expect(switchSpy).toHaveBeenCalledWith(0);
   });
 
-  it('retries the current sector after a program failure on a multi-bank cartridge', async () => {
+  it('retries the write command directly without re-erasing on a transient program failure', async () => {
     const adapter = new GBAAdapter(createMockDevice());
-    const switchSpy = vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
+    vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
 
     mockRomEraseSector.mockResolvedValue(undefined);
     mockRomRead.mockResolvedValue(new Uint8Array([0xff]));
@@ -191,40 +190,8 @@ describe('GBAAdapter.writeROM recovery', () => {
     );
 
     expect(result.success).toBe(true);
-    // 写前擦除 1 次 + 恢复重试时再擦除 1 次
-    expect(mockRomEraseSector).toHaveBeenCalledTimes(2);
+    expect(mockRomEraseSector).toHaveBeenCalledTimes(1);
     expect(mockRomProgram).toHaveBeenCalledTimes(2);
-    expect(switchSpy).toHaveBeenCalledWith(1);
-  });
-
-  it('rolls back to the sector start after a dirty partial write', async () => {
-    const adapter = new GBAAdapter(createMockDevice());
-    vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
-
-    mockRomEraseSector.mockResolvedValue(undefined);
-    mockRomRead.mockResolvedValue(new Uint8Array([0xff]));
-    mockRomProgram
-      .mockResolvedValueOnce(undefined)
-      .mockRejectedValueOnce(new Error('chunk timeout'))
-      .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce(undefined);
-
-    const fileData = new Uint8Array([0x11, 0x22, 0x33, 0x44]);
-    const result = await adapter.writeROM(
-      fileData,
-      createOptions({ romPageSize: 2, size: 4 }),
-    );
-
-    expect(result.success).toBe(true);
-    // 写前擦除 1 次 + 恢复重试时再擦除 1 次
-    expect(mockRomEraseSector).toHaveBeenCalledTimes(2);
-    expect(mockRomProgram).toHaveBeenCalledTimes(4);
-    expect(mockRomProgram.mock.calls.map(([_, chunk]) => Array.from(chunk as Uint8Array))).toEqual([
-      [0x11, 0x22],
-      [0x33, 0x44],
-      [0x11, 0x22],
-      [0x33, 0x44],
-    ]);
   });
 
   it('fails deterministically when erase retries are exhausted', async () => {
@@ -431,7 +398,7 @@ describe('GBAAdapter transfer planning, efficiency, and stateful recovery', () =
     expect(mockRomRead).toHaveBeenCalledTimes(2);
   });
 
-  it('recovers from partial-write timeout and lost ACK using max(sector.address, baseAddress) and logs retry summary', async () => {
+  it('writes across sectors and logs writeSummary with retryCount 0', async () => {
     const sectorSize = 0x4000;
     const storage = new Uint8Array(sectorSize * 2).fill(0x00);
     const summaryCalls: Record<string, unknown>[] = [];
@@ -452,26 +419,12 @@ describe('GBAAdapter transfer planning, efficiency, and stateful recovery', () =
       storage.fill(0xff, start, start + sectorSize);
       return Promise.resolve();
     });
-
-    let callNum = 0;
     mockRomProgram.mockImplementation((_t, chunk: Uint8Array, addr: number) => {
-      callNum++;
-      if (callNum === 2) {
-        // 部分写入后超时
-        storage.set(chunk.subarray(0, 10), addr);
-        return Promise.reject(new Error('program timeout'));
-      }
-      if (callNum === 5) {
-        // 写入完成但 ACK 丢失
-        storage.set(chunk, addr);
-        return Promise.reject(new Error('ack lost'));
-      }
       storage.set(chunk, addr);
       return Promise.resolve();
     });
     mockRomRead.mockImplementation((_t, size: number, addr: number) => Promise.resolve(storage.slice(addr, addr + size)));
 
-    AdvancedSettings.romWriteRetryCount = 3;
     const baseAddress = 0x2000; // 落在第 0 个扇区 [0, 0x4000) 中部
     const total = 0x4000; // 跨越第 0 扇区尾部和第 1 扇区头部
     const image = new Uint8Array(total).map((_, i) => (i * 7 + 3) & 0xff);
@@ -486,18 +439,17 @@ describe('GBAAdapter transfer planning, efficiency, and stateful recovery', () =
     expect(writeRes.success).toBe(true);
     expect(storage.subarray(baseAddress, baseAddress + total)).toEqual(image);
     expect(summaryCalls).toHaveLength(1);
-    expect(summaryCalls[0].retryCount).toBe(2);
+    expect(summaryCalls[0].retryCount).toBe(0);
     expect(summaryCalls[0].totalSize).toBe('16.0 KiB');
   });
 
-  it('returns failure naming sector address when stateful retries are exhausted', async () => {
+  it('returns failure without re-erasing when direct write retries are exhausted', async () => {
     const adapter = new GBAAdapter(createMockDevice());
     vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
     mockRomEraseSector.mockResolvedValue(undefined);
     mockRomRead.mockResolvedValue(new Uint8Array([0xff]));
     mockRomProgram.mockRejectedValue(new Error('persistent program fault'));
 
-    AdvancedSettings.romWriteRetryCount = 1;
     const writeRes = await adapter.writeROM(new Uint8Array(64).fill(0x33), createOptions({
       baseAddress: 0x4000,
       size: 64,
@@ -506,6 +458,8 @@ describe('GBAAdapter transfer planning, efficiency, and stateful recovery', () =
     }));
 
     expect(writeRes.success).toBe(false);
-    expect(writeRes.message).toMatch(/0x0*4000/);
+    expect(writeRes.message).toContain('persistent program fault');
+    expect(mockRomEraseSector).toHaveBeenCalledTimes(1);
+    expect(mockRomProgram).toHaveBeenCalledTimes(2);
   });
 });

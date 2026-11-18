@@ -469,28 +469,6 @@
 
           <div class="setting-row">
             <div class="setting-item">
-              <label for="rom-write-retry-count">{{ $t('ui.settings.retry.romWriteRetryCount') }}</label>
-              <div class="input-group">
-                <input
-                  id="rom-write-retry-count"
-                  v-model.number="localSettings.retry.romWriteRetryCount"
-                  type="number"
-                  :min="limits.retryCount.min"
-                  :max="limits.retryCount.max"
-                  :step="1"
-                  @input="validateAndUpdate"
-                >
-                <span class="unit">x</span>
-              </div>
-              <div
-                v-if="validationErrors.romWriteRetryCount"
-                class="validation-error"
-              >
-                {{ validationErrors.romWriteRetryCount }}
-              </div>
-            </div>
-
-            <div class="setting-item">
               <label for="rom-erase-retry-count">{{ $t('ui.settings.retry.romEraseRetryCount') }}</label>
               <div class="input-group">
                 <input
@@ -509,6 +487,28 @@
                 class="validation-error"
               >
                 {{ validationErrors.romEraseRetryCount }}
+              </div>
+            </div>
+
+            <div class="setting-item">
+              <label for="rom-write-retry-count">{{ $t('ui.settings.retry.romWriteRetryCount') }}</label>
+              <div class="input-group">
+                <input
+                  id="rom-write-retry-count"
+                  v-model.number="localSettings.retry.romWriteRetryCount"
+                  type="number"
+                  :min="limits.retryCount.min"
+                  :max="limits.retryCount.max"
+                  :step="1"
+                  @input="validateAndUpdate"
+                >
+                <span class="unit">x</span>
+              </div>
+              <div
+                v-if="validationErrors.romWriteRetryCount"
+                class="validation-error"
+              >
+                {{ validationErrors.romWriteRetryCount }}
               </div>
             </div>
           </div>
@@ -563,29 +563,6 @@
 
           <div class="setting-row">
             <div class="setting-item">
-              <label for="rom-write-retry-delay">{{ $t('ui.settings.retry.romWriteRetryDelay') }}</label>
-              <div class="input-group">
-                <input
-                  id="rom-write-retry-delay"
-                  v-model.number="localSettings.retry.romWriteRetryDelay"
-                  type="number"
-                  :min="limits.retryDelay.min"
-                  :max="limits.retryDelay.max"
-                  :step="1"
-                  @input="validateAndUpdate"
-                >
-                <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
-              </div>
-              <div
-                v-if="validationErrors.romWriteRetryDelay"
-                class="validation-error"
-              >
-                {{ validationErrors.romWriteRetryDelay }}
-              </div>
-              <small class="hint">{{ formatTimeClock(localSettings.retry.romWriteRetryDelay, 'ms') }}</small>
-            </div>
-
-            <div class="setting-item">
               <label for="rom-erase-retry-delay">{{ $t('ui.settings.retry.romEraseRetryDelay') }}</label>
               <div class="input-group">
                 <input
@@ -606,6 +583,29 @@
                 {{ validationErrors.romEraseRetryDelay }}
               </div>
               <small class="hint">{{ formatTimeClock(localSettings.retry.romEraseRetryDelay, 'ms') }}</small>
+            </div>
+
+            <div class="setting-item">
+              <label for="rom-write-retry-delay">{{ $t('ui.settings.retry.romWriteRetryDelay') }}</label>
+              <div class="input-group">
+                <input
+                  id="rom-write-retry-delay"
+                  v-model.number="localSettings.retry.romWriteRetryDelay"
+                  type="number"
+                  :min="limits.retryDelay.min"
+                  :max="limits.retryDelay.max"
+                  :step="1"
+                  @input="validateAndUpdate"
+                >
+                <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+              </div>
+              <div
+                v-if="validationErrors.romWriteRetryDelay"
+                class="validation-error"
+              >
+                {{ validationErrors.romWriteRetryDelay }}
+              </div>
+              <small class="hint">{{ formatTimeClock(localSettings.retry.romWriteRetryDelay, 'ms') }}</small>
             </div>
           </div>
           </div>
@@ -732,10 +732,10 @@ const createDefaultSettings = (): ReturnType<typeof AdvancedSettings.getSettings
       ramReadCount: 1,
       romReadDelay: 0,
       ramReadDelay: 0,
-      romWriteRetryCount: 1,
-      romWriteRetryDelay: 0,
       romEraseRetryCount: 1,
       romEraseRetryDelay: 0,
+      romWriteRetryCount: 1,
+      romWriteRetryDelay: 0,
     },
     timeout: {
       default: 3000,
@@ -777,10 +777,10 @@ const validationErrors = ref({
   ramReadRetryCount: '',
   romReadRetryDelay: '',
   ramReadRetryDelay: '',
-  romWriteRetryCount: '',
-  romWriteRetryDelay: '',
   romEraseRetryCount: '',
   romEraseRetryDelay: '',
+  romWriteRetryCount: '',
+  romWriteRetryDelay: '',
   defaultTimeout: '',
   packageSendTimeout: '',
   packageReceiveTimeout: '',
@@ -807,10 +807,10 @@ const hasSectionError = (sectionId: SettingsSectionId): boolean => {
         || validationErrors.value.ramReadRetryCount
         || validationErrors.value.romReadRetryDelay
         || validationErrors.value.ramReadRetryDelay
-        || validationErrors.value.romWriteRetryCount
-        || validationErrors.value.romWriteRetryDelay
         || validationErrors.value.romEraseRetryCount
-        || validationErrors.value.romEraseRetryDelay,
+        || validationErrors.value.romEraseRetryDelay
+        || validationErrors.value.romWriteRetryCount
+        || validationErrors.value.romWriteRetryDelay,
       );
     case 'firmware':
     case 'appearance':
@@ -926,10 +926,10 @@ const validateAndUpdate = () => {
   validationErrors.value.ramReadRetryCount = validateRetryCount(localSettings.value.retry.ramReadCount);
   validationErrors.value.romReadRetryDelay = validateRetryDelay(localSettings.value.retry.romReadDelay);
   validationErrors.value.ramReadRetryDelay = validateRetryDelay(localSettings.value.retry.ramReadDelay);
-  validationErrors.value.romWriteRetryCount = validateRetryCount(localSettings.value.retry.romWriteRetryCount);
-  validationErrors.value.romWriteRetryDelay = validateRetryDelay(localSettings.value.retry.romWriteRetryDelay);
   validationErrors.value.romEraseRetryCount = validateRetryCount(localSettings.value.retry.romEraseRetryCount);
   validationErrors.value.romEraseRetryDelay = validateRetryDelay(localSettings.value.retry.romEraseRetryDelay);
+  validationErrors.value.romWriteRetryCount = validateRetryCount(localSettings.value.retry.romWriteRetryCount);
+  validationErrors.value.romWriteRetryDelay = validateRetryDelay(localSettings.value.retry.romWriteRetryDelay);
 
   // 验证超时
   validationErrors.value.defaultTimeout = validateTimeout(localSettings.value.timeout.default);

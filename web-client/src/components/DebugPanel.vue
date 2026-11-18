@@ -84,7 +84,7 @@
         <h4>{{ $t('ui.debug.behaviorSettings') }}</h4>
 
         <div class="control-stack">
-          <div class="debug-control">
+          <div class="debug-control debug-control--wide">
             <div class="control-head">
               <label>{{ $t('ui.debug.delayTime') }}</label>
               <span class="debug-value">{{ simulatedDelay }}ms</span>
@@ -141,7 +141,7 @@
             >
           </div>
 
-          <div class="debug-control">
+          <div class="debug-control debug-control--wide">
             <label class="debug-switch">
               <input
                 v-model="simulateErrors"
@@ -154,7 +154,7 @@
 
           <div
             v-if="simulateErrors"
-            class="debug-control"
+            class="debug-control debug-control--wide"
           >
             <div class="control-head">
               <label>{{ $t('ui.debug.errorProbability') }}</label>
@@ -175,12 +175,37 @@
       <section class="debug-section">
         <div class="section-title-row">
           <h4>{{ $t('ui.debug.simulationData') }}</h4>
-          <span class="section-subtitle">{{ $t('ui.debug.appliesNextSession') }}</span>
+          <div
+            class="memory-platform-tabs"
+            role="tablist"
+            aria-label="Simulated memory platform"
+          >
+            <button
+              type="button"
+              role="tab"
+              class="memory-platform-tab"
+              :class="{ 'is-active': activeMemoryPlatform === 'gba' }"
+              :aria-selected="activeMemoryPlatform === 'gba'"
+              @click="activeMemoryPlatform = 'gba'"
+            >
+              GBA
+            </button>
+            <button
+              type="button"
+              role="tab"
+              class="memory-platform-tab"
+              :class="{ 'is-active': activeMemoryPlatform === 'gbc' }"
+              :aria-selected="activeMemoryPlatform === 'gbc'"
+              @click="activeMemoryPlatform = 'gbc'"
+            >
+              GBC
+            </button>
+          </div>
         </div>
 
         <div class="memory-grid">
           <article
-            v-for="slot in memorySlots"
+            v-for="slot in filteredMemorySlots"
             :key="slot.slot"
             class="memory-card"
           >
@@ -306,6 +331,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: [];
   'connect-simulated-device': [];
+  'disconnect-simulated-device': [];
   'clear-simulated-data': [];
   'refresh-simulated-device': [];
 }>();
@@ -360,6 +386,8 @@ const configuredResourceCountLabel = computed(() => {
   return `${count}/${DebugSettings.getSimulatedMemorySlots().length}`;
 });
 
+const activeMemoryPlatform = ref<'gba' | 'gbc'>('gba');
+
 const memorySlots = computed(() => {
   if (stateVersion.value < 0) {
     return [];
@@ -376,6 +404,10 @@ const memorySlots = computed(() => {
     };
   });
 });
+
+const filteredMemorySlots = computed(() =>
+  memorySlots.value.filter((item) => item.slot.startsWith(activeMemoryPlatform.value)),
+);
 
 onMounted(() => {
   showDebugPanel.value = DebugSettings.showDebugPanel || import.meta.env.DEV;
@@ -519,6 +551,9 @@ function syncConfig(): void {
 function onDebugToggle(): void {
   DebugSettings.debugMode = debugEnabled.value;
   bumpStateVersion();
+  if (!debugEnabled.value && simulatedConnected.value) {
+    emit('disconnect-simulated-device');
+  }
 }
 
 function updateDelay(): void {
@@ -605,6 +640,9 @@ function clearSimulatedData(): void {
   DebugSettings.clearAllSimulatedMemoryImages();
   syncConfig();
   emit('clear-simulated-data');
+  if (simulatedConnected.value) {
+    emit('refresh-simulated-device');
+  }
 }
 
 function generateTestRom(): void {
@@ -758,14 +796,14 @@ function generateTestRam(): void {
 }
 
 .debug-content {
-  padding: var(--space-4);
+  padding: var(--space-3);
   overflow-y: auto;
   max-height: calc(100vh - 140px);
   background: var(--retro-bg-surface);
 }
 
 .debug-section {
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-3);
 }
 
 .debug-section:last-child {
@@ -777,7 +815,7 @@ function generateTestRam(): void {
   justify-content: space-between;
   align-items: center;
   gap: var(--space-2);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-2);
 }
 
 .section-subtitle {
@@ -799,13 +837,14 @@ function generateTestRam(): void {
 }
 
 .status-card {
-  padding: var(--space-3);
+  padding: 6px var(--space-2);
   border-radius: 6px;
   background: var(--retro-bg-elevated);
   border: 1.5px solid var(--retro-border-subtle);
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
 }
 
 .status-label {
@@ -814,9 +853,10 @@ function generateTestRam(): void {
 }
 
 .status-value {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text);
+  text-align: right;
 }
 
 .status-value.active {
@@ -828,9 +868,13 @@ function generateTestRam(): void {
 }
 
 .control-stack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.debug-control--wide {
+  grid-column: 1 / -1;
 }
 
 .debug-switch {
@@ -846,7 +890,7 @@ function generateTestRam(): void {
 }
 
 .debug-control {
-  padding: var(--space-3);
+  padding: var(--space-2);
   border-radius: 6px;
   background: var(--retro-bg-elevated);
   border: 1.5px solid var(--retro-border-subtle);
@@ -857,7 +901,7 @@ function generateTestRam(): void {
   justify-content: space-between;
   align-items: center;
   gap: var(--space-2);
-  margin-bottom: var(--space-2);
+  margin-bottom: 4px;
 }
 
 .debug-control label {
@@ -881,8 +925,8 @@ function generateTestRam(): void {
 .preset-row {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
+  gap: 4px;
+  margin-top: 4px;
 }
 
 .preset-chip {
@@ -890,7 +934,7 @@ function generateTestRam(): void {
   background: var(--retro-bg-surface);
   color: var(--retro-ink);
   border-radius: 4px;
-  padding: 3px 9px;
+  padding: 2px 7px;
   font-family: var(--retro-font-mono);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
@@ -910,16 +954,52 @@ function generateTestRam(): void {
   color: var(--retro-primary-fg);
 }
 
-.memory-grid {
-  display: grid;
-  gap: var(--space-3);
+.section-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.memory-card {
-  padding: var(--space-3);
+.memory-platform-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 2px;
   border-radius: 6px;
   background: var(--retro-bg-elevated);
   border: 1.5px solid var(--retro-border-subtle);
+}
+
+.memory-platform-tab {
+  padding: 2px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: var(--retro-font-micro);
+  font-size: 11px;
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+
+  &.is-active {
+    background: var(--retro-primary-bg);
+    color: var(--retro-primary-fg);
+  }
+}
+
+.memory-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.memory-card {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2);
+  border-radius: 6px;
+  background: var(--retro-bg-elevated);
+  border: 1.5px solid var(--retro-border-subtle);
+  min-width: 0;
 }
 
 .memory-card__head {
@@ -962,12 +1042,20 @@ function generateTestRam(): void {
 }
 
 .memory-card__body {
-  margin-bottom: var(--space-3);
+  flex: 1;
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+  margin-bottom: var(--space-2);
+  min-height: 2.8em;
 }
 
 .memory-line {
   font-size: var(--font-size-xs);
+  line-height: 1.4;
   color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .memory-line--muted {

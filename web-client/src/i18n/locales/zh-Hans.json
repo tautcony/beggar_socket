@@ -182,7 +182,7 @@
       "customResources": "自定义资源",
       "behaviorSettings": "行为设置",
       "simulationData": "模拟数据",
-      "appliesNextSession": "镜像配置会作用于下一次模拟会话",
+      "appliesNextSession": "修改后实时生效",
       "capacity": "容量",
       "customImage": "自定义",
       "defaultImage": "默认",

@@ -172,7 +172,7 @@
       "customResources": "Пользовательские ресурсы",
       "behaviorSettings": "Параметры поведения",
       "simulationData": "Данные симуляции",
-      "appliesNextSession": "Конфигурация образов применяется к следующему симулированному сеансу",
+      "appliesNextSession": "Изменения применяются сразу",
       "capacity": "Ёмкость",
       "customImage": "Пользовательский",
       "defaultImage": "По умолчанию",
