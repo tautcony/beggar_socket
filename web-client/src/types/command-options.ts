@@ -14,4 +14,6 @@ export interface CommandOptions {
   framLatency?: number;
   mbcType?: MbcType;
   enable5V?: boolean;
+  skipChannelStabilize?: boolean;
+  quiet?: boolean;
 }

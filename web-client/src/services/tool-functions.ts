@@ -13,7 +13,7 @@ import { MBC5Adapter } from './mbc5-adapter';
 import { type GBARTCData, type MBC3RTCData, RTCManager } from './rtc';
 
 /**
- * PPB 鎿嶄綔杩涘害淇℃伅
+ * PPB 操作进度信息
  */
 export interface PPBProgress {
   progress?: number;
@@ -22,7 +22,7 @@ export interface PPBProgress {
 }
 
 /**
- * 鍒涘缓鏃ュ織鍥炶皟鍑芥暟
+ * 创建日志回调函数
  */
 function createLogCallback(onProgress?: (progress: PPBProgress) => void): LogCallback {
   return (message: BurnerLogInput, type: 'info' | 'success' | 'warn' | 'error') => {
@@ -32,7 +32,7 @@ function createLogCallback(onProgress?: (progress: PPBProgress) => void): LogCal
 }
 
 /**
- * 鍒涘缓杩涘害鍥炶皟鍑芥暟
+ * 创建进度回调函数
  */
 function createProgressCallback(onProgress?: (progress: PPBProgress) => void): ProgressCallback {
   return (progressInfo: ProgressInfo) => {
@@ -49,10 +49,10 @@ function requireDeviceTransport(device: DeviceInfo): Transport {
   return transport;
 }
 /**
- * 璁剧疆RTC鏃堕棿
- * @param device - 璁惧淇℃伅
- * @param type - RTC绫诲瀷锛?GBA' 鎴?'MBC3'
- * @param rtcData - RTC鏁版嵁
+ * 设置RTC时间
+ * @param device - 设备信息
+ * @param type - RTC 类型，'GBA' 或 'MBC3'
+ * @param rtcData - RTC数据
  */
 export async function setRTC(device: DeviceInfo, type: 'GBA' | 'MBC3', rtcData: GBARTCData | MBC3RTCData): Promise<void> {
   const rtcManager = new RTCManager(type, device);
@@ -60,9 +60,9 @@ export async function setRTC(device: DeviceInfo, type: 'GBA' | 'MBC3', rtcData: 
 }
 
 /**
- * 璇诲彇RTC淇℃伅
- * @param device - 璁惧淇℃伅
- * @param type - RTC绫诲瀷锛?GBA' 鎴?'MBC3'
+ * 读取RTC信息
+ * @param device - 设备信息
+ * @param type - RTC 类型，'GBA' 或 'MBC3'
  */
 export async function readRTC(device: DeviceInfo, type: 'GBA' | 'MBC3'): Promise<{ status: boolean; time?: DateTime; error?: string }> {
   const rtcManager = new RTCManager(type, device);
@@ -70,13 +70,13 @@ export async function readRTC(device: DeviceInfo, type: 'GBA' | 'MBC3'): Promise
 }
 
 /**
- * 闇囧姩娴嬭瘯 (GBA)
+ * 震动测试 (GBA)
  */
 export async function rumbleTest(device: DeviceInfo): Promise<void> {
   const transport = requireDeviceTransport(device);
 
-  console.log('GPIO 鎸囦护');
-  // GPIO 闇囧姩鎺у埗搴忓垪
+  console.log('GPIO 指令');
+  // GPIO 震动控制序列
   await rom_write(transport, toLittleEndian(0x01, 2), 0xc8 >> 1); // enable gpio
   await rom_write(transport, toLittleEndian(0x08, 2), 0xc6 >> 1); // gpio3 output
   await rom_write(transport, toLittleEndian(0x08, 2), 0xc4 >> 1); // gpio3 1
@@ -85,8 +85,8 @@ export async function rumbleTest(device: DeviceInfo): Promise<void> {
   await rom_write(transport, toLittleEndian(0x00, 2), 0xc8 >> 1); // disable gpio
   await new Promise(resolve => setTimeout(resolve, 250));
 
-  console.log('EZODE 鎸囦护');
-  // EZODE 闇囧姩鎺у埗搴忓垪
+  console.log('EZODE 指令');
+  // EZODE 震动控制序列
   for (let i = 0; i < 10; i++) {
     await rom_write(transport, toLittleEndian(0xd200, 2), 0xff0000);
     await rom_write(transport, toLittleEndian(0x1500, 2), 0x000000);
@@ -101,20 +101,20 @@ export async function rumbleTest(device: DeviceInfo): Promise<void> {
 }
 
 /**
- * PPB瑙ｉ攣鍔熻兘 - GBA妯″紡
- * @param device - 璁惧淇℃伅
- * @param onProgress - 杩涘害鍥炶皟鍑芥暟
+ * PPB解锁功能 - GBA模式
+ * @param device - 设备信息
+ * @param onProgress - 进度回调函数
  */
 export async function ppbUnlockGBA(device: DeviceInfo, onProgress?: (progress: PPBProgress) => void): Promise<{ success: boolean; message: string }> {
   const t = i18n.global.t;
   const transport = requireDeviceTransport(device);
 
   try {
-    // 鍒涘缓鍥炶皟鍑芥暟
+    // 创建回调函数
     const logCallback = createLogCallback(onProgress);
     const progressCallback = createProgressCallback(onProgress);
 
-    // 鍒涘缓 GBA Adapter
+    // 创建 GBA Adapter
     const gbaAdapter = new GBAAdapter(
       device,
       logCallback,
@@ -125,7 +125,7 @@ export async function ppbUnlockGBA(device: DeviceInfo, onProgress?: (progress: P
     onProgress?.({ message: t('messages.tools.ppbUnlockGBA.starting'), type: 'info' });
     onProgress?.({ progress: 5 });
 
-    // 鑾峰彇璁惧淇℃伅
+    // 获取设备信息
     const cartInfo = await gbaAdapter.getCartInfo();
     if (!cartInfo) {
       return { success: false, message: t('messages.tools.ppbUnlockGBA.flashDetectionFailed') };
@@ -144,12 +144,12 @@ export async function ppbUnlockGBA(device: DeviceInfo, onProgress?: (progress: P
       'info',
     );
 
-    // 妫€鏌ヨ澶囧閲?
+    // 检查设备容量
     if (deviceSize > 512 * 1024 * 1024) {
       return { success: false, message: t('messages.tools.ppbUnlockGBA.flashDetectionFailed') };
     }
 
-    // 鍒ゆ柇鏄惁涓哄鍗?(>32MB)
+    // 判断是否为多卡 (>32MB)
     const isMultiCard = deviceSize > (32 * 1024 * 1024);
 
     // Reset
@@ -159,7 +159,7 @@ export async function ppbUnlockGBA(device: DeviceInfo, onProgress?: (progress: P
 
     onProgress?.({ progress: 10 });
 
-    // 妫€鏌PB Lock鐘舵€?
+    // 检查 PPB Lock 状态
     // Global Non-Volatile Sector Protection Freeze Command Set Definitions
     await rom_write(transport, toLittleEndian(0xaa, 2), 0x000555);
     await rom_write(transport, toLittleEndian(0x55, 2), 0x0002aa);
@@ -181,15 +181,15 @@ export async function ppbUnlockGBA(device: DeviceInfo, onProgress?: (progress: P
 
     onProgress?.({ progress: 20 });
 
-    // 浣跨敤瀹為檯鎵囧尯鏁伴噺
+    // 使用实际扇区数量
     onProgress?.({ message: t('messages.tools.ppbUnlockGBA.checkingSectors', { count: actualSectorCount }), type: 'info' });
     let currentBank = -1;
     let needToUnlock = false;
     let ppbStatusMsg = '';
 
-    // 妫€鏌ユ寚瀹氭暟閲忔墖鍖虹殑PPB鐘舵€?
+    // 检查指定数量扇区的PPB状态
     for (let i = 0; i < actualSectorCount; i++) {
-      // 濡傛灉鏄鍗★紝闇€瑕佸垏鎹?bank
+      // 如果是多卡，需要切换 bank
       if (isMultiCard) {
         const bank = Math.floor((i * sectorSize) / (32 * 1024 * 1024));
         if (bank !== currentBank) {
@@ -216,7 +216,7 @@ export async function ppbUnlockGBA(device: DeviceInfo, onProgress?: (progress: P
       }
       ppbStatusMsg += `${ppb.toString(16).padStart(4, '0')}  `;
 
-      // 姣?6涓墖鍖鸿緭鍑轰竴娆℃棩蹇?
+      // 每16个扇区输出一次日志
       if (i !== 0 && ((i + 1) % 16 === 0)) {
         onProgress?.({ message: ppbStatusMsg, type: 'info' });
         ppbStatusMsg = '';
@@ -243,7 +243,7 @@ export async function ppbUnlockGBA(device: DeviceInfo, onProgress?: (progress: P
 
     onProgress?.({ progress: 70 });
 
-    // 绛夊緟鎿﹂櫎瀹屾垚
+    // 等待擦除完成
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     await rom_write(transport, toLittleEndian(0x90, 2), 0);
@@ -252,11 +252,11 @@ export async function ppbUnlockGBA(device: DeviceInfo, onProgress?: (progress: P
 
     onProgress?.({ progress: 90 });
 
-    // 楠岃瘉PPB鎿﹂櫎缁撴灉
+    // 验证PPB擦除结果
     currentBank = -1;
     let verifyMsg = '';
     for (let i = 0; i < actualSectorCount; i++) {
-      // 濡傛灉鏄鍗★紝闇€瑕佸垏鎹?bank
+      // 如果是多卡，需要切换 bank
       if (isMultiCard) {
         const bank = Math.floor((i * sectorSize) / (32 * 1024 * 1024));
         if (bank !== currentBank) {
@@ -280,7 +280,7 @@ export async function ppbUnlockGBA(device: DeviceInfo, onProgress?: (progress: P
       const ppb = (sectorLockBit[1] << 8) | sectorLockBit[0];
       verifyMsg += `${ppb.toString(16).padStart(4, '0')}  `;
 
-      // 姣?6涓墖鍖鸿緭鍑轰竴娆℃棩蹇?
+      // 每16个扇区输出一次日志
       if (i !== 0 && ((i + 1) % 16 === 0)) {
         onProgress?.({ message: verifyMsg, type: 'info' });
         verifyMsg = '';
@@ -302,20 +302,20 @@ export async function ppbUnlockGBA(device: DeviceInfo, onProgress?: (progress: P
 }
 
 /**
- * PPB瑙ｉ攣鍔熻兘 - MBC5妯″紡
- * @param device - 璁惧淇℃伅
- * @param onProgress - 杩涘害鍥炶皟鍑芥暟
+ * PPB解锁功能 - MBC5模式
+ * @param device - 设备信息
+ * @param onProgress - 进度回调函数
  */
 export async function ppbUnlockMBC5(device: DeviceInfo, onProgress?: (progress: PPBProgress) => void): Promise<{ success: boolean; message: string }> {
   const t = i18n.global.t;
   const transport = requireDeviceTransport(device);
 
   try {
-    // 鍒涘缓鍥炶皟鍑芥暟
+    // 创建回调函数
     const logCallback = createLogCallback(onProgress);
     const progressCallback = createProgressCallback(onProgress);
 
-    // 鍒涘缓 MBC5 Adapter
+    // 创建 MBC5 Adapter
     const mbc5Adapter = new MBC5Adapter(
       device,
       logCallback,
@@ -326,7 +326,7 @@ export async function ppbUnlockMBC5(device: DeviceInfo, onProgress?: (progress: 
     logCallback(t('messages.tools.ppbUnlockMBC5.starting'), 'info');
     onProgress?.({ progress: 5 });
 
-    // 鑾峰彇璁惧淇℃伅
+    // 获取设备信息
     const cartInfo = await mbc5Adapter.getCartInfo();
     if (!cartInfo) {
       return { success: false, message: t('messages.tools.ppbUnlockMBC5.flashDetectionFailed') };
@@ -345,7 +345,7 @@ export async function ppbUnlockMBC5(device: DeviceInfo, onProgress?: (progress: 
       'info',
     );
 
-    // 妫€鏌ヨ澶囧閲?
+    // 检查设备容量
     if (deviceSize > 512 * 1024 * 1024) {
       return { success: false, message: t('messages.tools.ppbUnlockMBC5.flashDetectionFailed') };
     }
@@ -357,7 +357,7 @@ export async function ppbUnlockMBC5(device: DeviceInfo, onProgress?: (progress: 
 
     onProgress?.({ progress: 10 });
 
-    // 妫€鏌PB Lock鐘舵€?
+    // 检查 PPB Lock 状态
     // Global Non-Volatile Sector Protection Freeze Command Set Definitions
     await gbc_write(transport, new Uint8Array([0xaa]), 0xaaa);
     await gbc_write(transport, new Uint8Array([0x55]), 0x555);
@@ -378,14 +378,14 @@ export async function ppbUnlockMBC5(device: DeviceInfo, onProgress?: (progress: 
 
     onProgress?.({ progress: 20 });
 
-    // 浣跨敤瀹為檯鎵囧尯鏁伴噺
+    // 使用实际扇区数量
     logCallback(t('messages.tools.ppbUnlockMBC5.checkingSectors', { count: actualSectorCount }), 'info');
     let currentBank = -1;
     let needUnlock = false;
     let ppbStatusMsg = '';
 
     for (let i = 0; i < actualSectorCount; i++) {
-      // 璁＄畻bank鍜宑artridge鍦板潃
+      // 计算bank和cartridge地址
       const bank = Math.floor((i * sectorSize) / 0x4000);
       let cartAddress: number;
 
@@ -395,7 +395,7 @@ export async function ppbUnlockMBC5(device: DeviceInfo, onProgress?: (progress: 
         cartAddress = 0x4000 + ((i * sectorSize) & 0x3fff);
       }
 
-      // 鍒囨崲 ROM bank锛堝鏋滈渶瑕侊級
+      // 切换 ROM bank（如果需要）
       if (bank !== currentBank) {
         await mbc5Adapter.switchROMBank(bank);
         currentBank = bank;
@@ -418,7 +418,7 @@ export async function ppbUnlockMBC5(device: DeviceInfo, onProgress?: (progress: 
       }
       ppbStatusMsg += `${sectorLockBit[0].toString(16).padStart(2, '0')}  `;
 
-      // 姣?6涓墖鍖鸿緭鍑轰竴娆℃棩蹇?
+      // 每16个扇区输出一次日志
       if (i !== 0 && ((i + 1) % 16 === 0)) {
         logCallback(ppbStatusMsg, 'info');
         ppbStatusMsg = '';
@@ -445,7 +445,7 @@ export async function ppbUnlockMBC5(device: DeviceInfo, onProgress?: (progress: 
 
     onProgress?.({ progress: 70 });
 
-    // 绛夊緟鎿﹂櫎瀹屾垚
+    // 等待擦除完成
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     await gbc_write(transport, new Uint8Array([0x90]), 0);
@@ -454,11 +454,11 @@ export async function ppbUnlockMBC5(device: DeviceInfo, onProgress?: (progress: 
 
     onProgress?.({ progress: 90 });
 
-    // 楠岃瘉PPB鎿﹂櫎缁撴灉
+    // 验证PPB擦除结果
     currentBank = -1;
     let verifyMsg = '';
     for (let i = 0; i < actualSectorCount; i++) {
-      // 璁＄畻bank鍜宑artridge鍦板潃
+      // 计算bank和cartridge地址
       const bank = Math.floor((i * sectorSize) / 0x4000);
       let cartAddress: number;
 
@@ -468,7 +468,7 @@ export async function ppbUnlockMBC5(device: DeviceInfo, onProgress?: (progress: 
         cartAddress = 0x4000 + ((i * sectorSize) & 0x3fff);
       }
 
-      // 鍒囨崲 ROM bank锛堝鏋滈渶瑕侊級
+      // 切换 ROM bank（如果需要）
       if (bank !== currentBank) {
         await mbc5Adapter.switchROMBank(bank);
         currentBank = bank;
@@ -488,7 +488,7 @@ export async function ppbUnlockMBC5(device: DeviceInfo, onProgress?: (progress: 
 
       verifyMsg += `${sectorLockBit[0].toString(16).padStart(2, '0')}  `;
 
-      // 姣?6涓墖鍖鸿緭鍑轰竴娆℃棩蹇?
+      // 每16个扇区输出一次日志
       if (i !== 0 && ((i + 1) % 16 === 0)) {
         logCallback(verifyMsg, 'info');
         verifyMsg = '';
