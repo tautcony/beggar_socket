@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+定义高级设置的声明式数据源，使参数的新增、校验、持久化与表单呈现由同一份描述符驱动，避免设置字段在存储、服务和界面之间重复维护。
+
+## Requirements
 
 ### Requirement: SettingDescriptor 映射表
 `AdvancedSettings` SHALL 维护一个 `SettingDescriptor[]` 数组，每个元素声明一个配置属性的 key、分组、字段名、默认值和验证函数。
