@@ -1,4 +1,5 @@
 import type { DeviceHandle, Transport } from '@/platform/serial';
+import type { FlashgbxFirmwareInfo } from '@/protocol/flashgbx';
 import type { FirmwareProfile } from '@/types/firmware-profile';
 import type { SerialPortInfo } from '@/types/serial';
 
@@ -9,6 +10,7 @@ export interface DeviceInfo {
   serialHandle?: DeviceHandle | null;
   portInfo?: SerialPortInfo;
   firmwareProfile?: FirmwareProfile;
+  flashgbxInfo?: FlashgbxFirmwareInfo;
   connectionGeneration?: number;
   connectionId?: string;
 }

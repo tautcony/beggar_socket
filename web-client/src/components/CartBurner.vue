@@ -65,11 +65,15 @@
             :selected-mbc-type="selectedMbcType"
             :mbc-power5-v="mbcPower5V"
             :firmware-profile="props.device?.firmwareProfile"
+            :flashcart-profiles="flashcartProfiles"
+            :selected-flashcart-profile-id="selectedFlashcartProfileId"
+            :ambiguous-flashcart-profiles="ambiguousFlashcartProfiles"
             @read-id="readCart"
             @erase-chip="eraseChip"
             @read-rom-info="readRomInfo"
             @mbc-type-change="(value: string) => selectedMbcType = value as MbcType"
             @mbc-power-change="mbcPower5V = $event"
+            @flashcart-profile-change="onFlashcartProfileChange"
           />
 
           <RomOperations
@@ -153,13 +157,15 @@ import { useToast } from '@/composables/useToast';
 import { createCartridgeProtocolSession } from '@/features/burner/adapters';
 import { type BurnerProtocolSession, createBurnerUseCase, type GameDetectionResult } from '@/features/burner/application';
 import { isTauriRuntime } from '@/platform/runtime';
-import { CartridgeAdapter, GBAAdapter, MBC5Adapter } from '@/services';
+import { CartridgeAdapter, FlashgbxGbaAdapter, FlashgbxMbcAdapter, GBAAdapter, MBC5Adapter } from '@/services';
+import { FlashcartProfileService } from '@/services/flashcart-profile-service';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { useRecentFileNamesStore } from '@/stores/recent-file-names-store';
 import { CommandOptions, DeviceInfo } from '@/types';
 import type { BurnerLogEntry } from '@/types/burner-log';
 import type { MbcType } from '@/types/command-options';
 import { getFirmwareProfile, inferFirmwareProfileFromPort } from '@/types/firmware-profile';
+import type { FlashcartProfileSummary } from '@/types/flashcart-profile';
 import { formatBytes, formatHex } from '@/utils/formatter-utils';
 import { CFIInfo } from '@/utils/parsers/cfi-parser';
 import { detectMbcTypeFromRom, parseRom } from '@/utils/parsers/rom-parser.ts';
@@ -180,6 +186,29 @@ const props = defineProps<{
 const mode = ref<ModeType>('GBA');
 const selectedMbcType = ref<MbcType>('MBC5');
 const mbcPower5V = ref(false);
+const flashcartProfiles = ref<FlashcartProfileSummary[]>([]);
+const selectedFlashcartProfileId = ref<string>('');
+const ambiguousFlashcartProfiles = ref<FlashcartProfileSummary[]>([]);
+
+watch(
+  [mode, () => props.device?.firmwareProfile?.capabilities.nativeFlashgbxProtocol],
+  async ([currentMode, isFlashgbx]) => {
+    selectedFlashcartProfileId.value = '';
+    ambiguousFlashcartProfiles.value = [];
+    if (!isFlashgbx) {
+      flashcartProfiles.value = [];
+      return;
+    }
+    const list = await FlashcartProfileService.loadByMode(currentMode);
+    flashcartProfiles.value = list.map(profile => FlashcartProfileService.toSummary(profile));
+  },
+  { immediate: true },
+);
+
+function onFlashcartProfileChange(profileId: string) {
+  selectedFlashcartProfileId.value = profileId;
+  ambiguousFlashcartProfiles.value = [];
+}
 const burnerUseCase = createBurnerUseCase({ translate: key => t(key), formatHex: value => formatHex(value, 4) });
 const {
   burnerSession,
@@ -269,6 +298,7 @@ const sectorCounts = computed(() => {
 // Adapter
 const gbaAdapter = ref<BurnerProtocolSession | null>();
 const mbc5Adapter = ref<BurnerProtocolSession | null>();
+let flashgbxBaseAdapterRef: FlashgbxGbaAdapter | null = null;
 
 function createSession(adapter: CartridgeAdapter, modeName: string): BurnerProtocolSession {
   return createCartridgeProtocolSession(adapter, modeName.toLowerCase(), {
@@ -279,6 +309,16 @@ function createSession(adapter: CartridgeAdapter, modeName: string): BurnerProto
 watch(mode, (newMode) => {
   if (newMode !== 'MBC5') {
     mbcPower5V.value = false;
+  }
+  const isFlashgbx = Boolean(
+    props.device?.firmwareProfile?.id === 'flashgbx'
+    || props.device?.firmwareProfile?.capabilities.nativeFlashgbxProtocol,
+  );
+  if (isFlashgbx && props.deviceReady && !busy.value && flashgbxBaseAdapterRef) {
+    void flashgbxBaseAdapterRef.syncHardwareMode(newMode).catch((error: unknown) => {
+      const msg = error instanceof Error ? error.message : String(error);
+      log(`Failed to sync FlashGBX hardware mode (${newMode}): ${msg}`, 'warn');
+    });
   }
 });
 
@@ -332,6 +372,25 @@ function initializeAdapters() {
       return;
     }
 
+    if (props.device.firmwareProfile?.id === 'flashgbx' || props.device.firmwareProfile?.capabilities.nativeFlashgbxProtocol) {
+      const gbaRuntimeAdapter = new FlashgbxGbaAdapter(
+        props.device,
+        (msg, level) => { log(msg, level); },
+        updateProgress,
+        t,
+      );
+      flashgbxBaseAdapterRef = gbaRuntimeAdapter;
+      gbaAdapter.value = createSession(gbaRuntimeAdapter, 'flashgbx-gba');
+      const mbcRuntimeAdapter = new FlashgbxMbcAdapter(
+        props.device,
+        (msg, level) => { log(msg, level); },
+        updateProgress,
+        t,
+      );
+      mbc5Adapter.value = createSession(mbcRuntimeAdapter, 'flashgbx-mbc');
+      return;
+    }
+
     const gbaRuntimeAdapter = new GBAAdapter(
       props.device,
       (msg, level) => { log(msg, level); },
@@ -351,6 +410,7 @@ function initializeAdapters() {
     if (gbaAdapter.value || mbc5Adapter.value) {
       gbaAdapter.value = null;
       mbc5Adapter.value = null;
+      flashgbxBaseAdapterRef = null;
       console.log('[CartBurner] 清空适配器');
     }
   }
@@ -430,6 +490,7 @@ async function withCommandBufferReset<T>(adapter: BurnerProtocolSession, operati
 
 async function readCart() {
   clearChipInfo();
+  ambiguousFlashcartProfiles.value = [];
   await executeOperation({
     operation: async () => {
       const adapter = getAdapter();
@@ -438,7 +499,9 @@ async function readCart() {
       }
 
       await withCommandBufferReset(adapter, async () => {
-        const result = await burnerUseCase.readCart(adapter, mbcPower5V.value);
+        const result = await burnerUseCase.readCart(adapter, mbcPower5V.value, {
+          flashcartProfileId: selectedFlashcartProfileId.value || undefined,
+        });
         if (result.success && result.cfiInfo) {
           cfiInfo.value = result.cfiInfo;
           chipId.value = result.chipId;
@@ -448,8 +511,18 @@ async function readCart() {
           showToast(result.message, 'success');
           log(result.message, 'success');
         } else {
-          showToast(result.message, 'error');
-          log(result.message, 'error');
+          if (result.errorCode === 'profile_ambiguous') {
+            const details = result.details as { candidates?: FlashcartProfileSummary[] } | undefined;
+            ambiguousFlashcartProfiles.value = details?.candidates ?? [];
+            showToast(t('messages.operation.profileAmbiguous'), 'error');
+            log(t('messages.operation.profileAmbiguous'), 'warn');
+          } else if (result.errorCode === 'profile_not_found') {
+            showToast(t('messages.operation.profileNotFound'), 'error');
+            log(result.message, 'error');
+          } else {
+            showToast(result.message, 'error');
+            log(result.message, 'error');
+          }
           cfiInfo.value = null;
         }
       });
@@ -489,6 +562,7 @@ async function eraseChip() {
             cfiInfo: currentCfiInfo,
             mbcType: selectedMbcType.value,
             enable5V: mbcPower5V.value,
+            flashcartProfileId: selectedFlashcartProfileId.value || undefined,
           },
         });
         if (signal?.aborted) {
@@ -536,6 +610,7 @@ async function writeRom() {
         size: romSize,
         mbcType: selectedMbcType.value,
         enable5V: mbcPower5V.value,
+        flashcartProfileId: selectedFlashcartProfileId.value || undefined,
       };
 
       await withCommandBufferReset(adapter, async () => {

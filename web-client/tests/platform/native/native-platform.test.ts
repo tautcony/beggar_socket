@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  flushNativeSerialOutput,
   getNativeRuntimeMetadata,
   listNativeSerialPorts,
+  openNativeSerialPort,
+  readAvailableNativeSerial,
   saveBinaryFile,
 } from '@/platform/native';
 
@@ -101,5 +104,25 @@ describe('native platform facade', () => {
         productId: '0721',
       },
     ]);
+  });
+
+  it('forwards baudRate, readAvailable, and flushOutput commands to Tauri invoke', async () => {
+    invokeMock.mockResolvedValueOnce({ sessionId: 7 });
+    await expect(openNativeSerialPort('/dev/ttyUSB0', 1_500_000)).resolves.toEqual({ sessionId: 7 });
+    expect(invokeMock).toHaveBeenLastCalledWith('native_open_serial_port', {
+      path: '/dev/ttyUSB0',
+      baudRate: 1_500_000,
+    });
+
+    invokeMock.mockResolvedValueOnce([0x4a, 0x6f, 0x65, 0x79]);
+    await expect(readAvailableNativeSerial(7, 75)).resolves.toEqual(new Uint8Array([0x4a, 0x6f, 0x65, 0x79]));
+    expect(invokeMock).toHaveBeenLastCalledWith('native_serial_read_available', {
+      sessionId: 7,
+      timeoutMs: 75,
+    });
+
+    invokeMock.mockResolvedValueOnce(undefined);
+    await expect(flushNativeSerialOutput(7)).resolves.toBeUndefined();
+    expect(invokeMock).toHaveBeenLastCalledWith('native_serial_flush_output', { sessionId: 7 });
   });
 });

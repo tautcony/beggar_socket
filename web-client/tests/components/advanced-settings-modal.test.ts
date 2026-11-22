@@ -178,4 +178,44 @@ describe('AdvancedSettingsModal', () => {
     expect(controlSection.find('#rom-read-throttle').exists()).toBe(true);
     expect(controlSection.find('#rom-read-retry-count').exists()).toBe(true);
   });
+
+  it('supports flashgbx profile, baud rate selection, and independent flashgbx packet size tab', async () => {
+    const wrapper = mount(AdvancedSettingsModal, {
+      props: { modelValue: true },
+      global: globalConfig,
+    });
+    await nextTick();
+
+    const profileSelect = wrapper.get('#firmware-profile');
+    await profileSelect.setValue('flashgbx');
+    await profileSelect.trigger('change');
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="flashgbx-baud-option"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="flashgbx-ack-option"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="stm-boost-option"]').exists()).toBe(false);
+
+    const baudSelect = wrapper.get('#flashgbx-baud-rate');
+    await baudSelect.setValue('1500000');
+    await nextTick();
+
+    await wrapper.get('[data-testid="size-profile-flashgbx"]').trigger('click');
+    await nextTick();
+    const romPageInput = wrapper.get('#rom-page-size');
+    await romPageInput.setValue('8192');
+    await romPageInput.trigger('input');
+    const readInput = wrapper.get('#rom-read-page-size');
+    expect((readInput.element as HTMLInputElement).value).toBe('256');
+    await readInput.setValue('512');
+    await readInput.trigger('input');
+
+    const buttons = wrapper.findAll('.footer button');
+    await buttons[buttons.length - 1].trigger('click');
+
+    expect(AdvancedSettings.firmwareProfile).toBe('flashgbx');
+    expect(AdvancedSettings.flashgbxBaudRate).toBe(1500000);
+    expect(AdvancedSettings.getProfileSizes('flashgbx').romPageSize).toBe(8192);
+    expect(AdvancedSettings.getProfileSizes('flashgbx').romReadPageSize).toBe(512);
+    expect(AdvancedSettings.getProfileSizes('stm').romReadPageSize).toBe(4096);
+  });
 });

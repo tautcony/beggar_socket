@@ -9,7 +9,17 @@ import type {
   ConnectionState,
   ConnectionUseCaseResult,
 } from './domain/connection';
-import type { BurnerConnectionPort } from './domain/ports';
+import type { BurnerConnectionPort, BurnerConnectionSelectOptions } from './domain/ports';
+
+function hasWebPort(selection: ConnectionContext['selection']): boolean {
+  return Boolean(
+    selection
+    && typeof selection.context === 'object'
+    && selection.context !== null
+    && 'webPort' in selection.context
+    && (selection.context as { webPort?: unknown }).webPort,
+  );
+}
 
 function normalizeFailure(
   stage: ConnectionFailureStage,
@@ -139,16 +149,16 @@ export class ConnectionOrchestrationUseCase {
     };
   }
 
-  async prepareConnection(): Promise<ConnectionCommandResult> {
+  async prepareConnection(options?: BurnerConnectionSelectOptions): Promise<ConnectionCommandResult> {
     return this.enqueueLifecycle(async () => {
       if (this.snapshotState.state === 'connected' && this.snapshotState.context.handle) {
         return toSuccess('connected', this.snapshotState.context, 'Connection already ready');
       }
-      return this._prepareConnection();
+      return this._prepareConnection(options);
     });
   }
 
-  private async _prepareConnection(): Promise<ConnectionCommandResult> {
+  private async _prepareConnection(options?: BurnerConnectionSelectOptions): Promise<ConnectionCommandResult> {
     const listResult = await this.connectionPort.list();
     if (!listResult.ok) {
       const failure = normalizeFailure('list', listResult.error, 'list_failed');
@@ -157,7 +167,7 @@ export class ConnectionOrchestrationUseCase {
     }
 
     this.setState('selecting');
-    const selectResult = await this.connectionPort.select();
+    const selectResult = await this.connectionPort.select(options);
     if (!selectResult.ok) {
       const failure = normalizeFailure('select', selectResult.error, 'select_failed');
       const result = this.markFailure(failure);
@@ -239,7 +249,11 @@ export class ConnectionOrchestrationUseCase {
   ): Promise<ConnectionCommandResult> {
     const cleanup = await this.closeHandle(handle);
     const failureWithCleanup = appendCleanupCause(failure, cleanup?.error);
-    const result = this.markFailure(failureWithCleanup, cleanup ? { selection, handle } : { selection: null, handle: null });
+    const preservedSelection = hasWebPort(selection) ? selection : null;
+    const result = this.markFailure(
+      failureWithCleanup,
+      cleanup ? { selection, handle } : { selection: preservedSelection, handle: null },
+    );
     return toFailure(result.state, result.context, failureWithCleanup);
   }
 
@@ -344,13 +358,17 @@ export class ConnectionOrchestrationUseCase {
     return toSuccess(this.snapshotState.state, this.snapshotState.context, 'Disconnected');
   }
 
-  async retryConnection(): Promise<ConnectionCommandResult> {
+  async retryConnection(options?: BurnerConnectionSelectOptions): Promise<ConnectionCommandResult> {
     return this.enqueueLifecycle(async () => {
       if (this.snapshotState.context.handle) {
         const disconnectResult = await this._disconnect();
         if (!disconnectResult.success) return disconnectResult;
       }
-      return this._prepareConnection();
+      const preserved = this.snapshotState.context.selection;
+      if (hasWebPort(preserved)) {
+        return this._prepareConnectionWithSelection(preserved);
+      }
+      return this._prepareConnection(options);
     });
   }
 }

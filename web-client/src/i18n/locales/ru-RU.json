@@ -54,7 +54,10 @@
         "cancel": "Отмена",
         "serialNumber": "Серийный номер"
       },
-      "resetConnection": "Сброс"
+      "resetConnection": "Сброс",
+      "flashgbxPowerCapable": "Управление питанием",
+      "flashgbxNoPowerControl": "Без управления питанием",
+      "flashgbxReadOnlyNotice": "Устройство FlashGBX подключено; операции чтения/записи появятся в следующем обновлении."
     },
     "mode": {
       "gba": "GBA",
@@ -236,14 +239,18 @@
         "clearHistory": "Очистить",
         "shortcutHint": "Ctrl/Cmd + Enter — отправить",
         "deviceConnected": "Устройство подключено",
-        "deviceDisconnected": "Устройство не подключено"
+        "deviceDisconnected": "Устройство не подключено",
+        "flashgbxDisabled": "Отключено для устройств FlashGBX"
       }
     },
     "chip": {
       "deviceSize": "Размер устройства",
       "sectorCount": "Количество секторов",
       "sectorSize": "Размер сектора",
-      "bufferWrite": "Буферная запись"
+      "bufferWrite": "Буферная запись",
+      "flashcartProfile": "Профиль флеш-картриджа",
+      "flashcartProfileAuto": "Авто (CFI)",
+      "flashcartProfileAmbiguous": "Найдено несколько подходящих профилей. Выберите нужный:"
     },
     "rom": {
       "title": "Операции с ROM",
@@ -484,7 +491,8 @@
       "ppb": {
         "sectorCountPrompt": "Введите количество секторов для проверки (1-{max}):",
         "sectorCountError": "Количество секторов должно быть целым числом от {min} до {max}"
-      }
+      },
+      "flashgbxDisabled": "Отключено для устройств FlashGBX"
     },
     "file": {
       "dropArea": "Или перетащите файл сюда",
@@ -515,7 +523,11 @@
         "stm": "丐中丐",
         "stc": "碳酸丐",
         "stmBoost": "Включить улучшение Boost",
-        "stmBoostHint": "Использует прошивку ChisFlash-Beggar-Boost для ускоренной передачи данных, аппаратной проверки и нативных расширений протокола."
+        "stmBoostHint": "Использует прошивку ChisFlash-Beggar-Boost для ускоренной передачи данных, аппаратной проверки и нативных расширений протокола.",
+        "flashgbx": "FlashGBX",
+        "flashgbxBaudRate": "Скорость (FlashGBX)",
+        "flashgbxBaudAuto": "Авто",
+        "flashgbxBaudHint": "Авто использует 2M для CH340 GBFlash и игнорирует скорость на CDC-устройствах."
       },
       "appearance": {
         "title": "Оформление",
@@ -715,6 +727,8 @@
       "readIdFailed": "Ошибка чтения ID",
       "readCartSuccess": "Чтение информации о картридже успешно",
       "readCartFailed": "Ошибка чтения информации о картридже",
+      "profileAmbiguous": "Найдено несколько профилей; выберите профиль вручную",
+      "profileNotFound": "Подходящий профиль флеш-картриджа не найден",
       "startEraseSectors": "Начало стирания секторов - начальный адрес: {startAddress}, конечный адрес: {endAddress}, размер сектора: {sectorSize} байт",
       "startWriteROM": "Начало записи ROM - размер данных: {fileSize} байт, базовый адрес: {baseAddress}, размер страницы: {pageSize} байт, размер буфера: {bufferSize} байт",
       "startReadROM": "Начало чтения ROM - размер: {size} байт, базовый адрес: {baseAddress}",

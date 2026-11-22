@@ -2,6 +2,8 @@ import { getOptimalPacketLimits } from '@/platform/serial/platform-packet-policy
 import type { ConfigurableFirmwareProfileId } from '@/types/firmware-profile';
 import { floorPowerOfTwo } from '@/utils/transfer-plan';
 
+export type FlashgbxBaudRate = 'auto' | 1000000 | 1500000 | 2000000;
+
 export interface SizeSettings {
   romPageSize: number;
   romReadPageSize: number;
@@ -12,6 +14,7 @@ export interface AdvancedSettingsConfig {
   firmware?: {
     profile?: ConfigurableFirmwareProfileId;
     stmBoost?: boolean;
+    flashgbxBaudRate?: FlashgbxBaudRate;
   };
   size?: Partial<SizeSettings>;
   profileSizes?: Partial<Record<ConfigurableFirmwareProfileId, Partial<SizeSettings>>>;
@@ -51,7 +54,7 @@ interface SettingDescriptor {
 }
 
 const LIMITS = {
-  pageSize: { min: 0x40, max: 0x1000 },
+  pageSize: { min: 0x40, max: 0x2000 },
   readPageSize: { min: 0x40, max: 0x8000 },
   throttle: { min: 0, max: 1000 },
   retryCount: { min: 0, max: 10 },
@@ -93,7 +96,8 @@ const _storage: Record<string, number> = Object.fromEntries(
 );
 let _firmwareProfile: ConfigurableFirmwareProfileId = 'stm';
 let _stmBoost = true;
-const CONFIGURABLE_PROFILES: readonly ConfigurableFirmwareProfileId[] = ['stm', 'stc'];
+let _flashgbxBaudRate: FlashgbxBaudRate = 'auto';
+const CONFIGURABLE_PROFILES: readonly ConfigurableFirmwareProfileId[] = ['stm', 'stc', 'flashgbx'];
 
 function createDefaultProfileSizes(profile: ConfigurableFirmwareProfileId): SizeSettings {
   const limits = getOptimalPacketLimits(profile);
@@ -107,6 +111,7 @@ function createDefaultProfileSizes(profile: ConfigurableFirmwareProfileId): Size
 const _profileSizes: Record<ConfigurableFirmwareProfileId, SizeSettings> = {
   stm: createDefaultProfileSizes('stm'),
   stc: createDefaultProfileSizes('stc'),
+  flashgbx: createDefaultProfileSizes('flashgbx'),
 };
 let _independentProfileSizes = false;
 
@@ -164,7 +169,7 @@ function formatErrorRange(min: number, max: number, type: ValidatorType): string
 }
 
 function validateFirmwareProfile(value: unknown): ConfigurableFirmwareProfileId {
-  if (value === 'stm' || value === 'stc') {
+  if (value === 'stm' || value === 'stc' || value === 'flashgbx') {
     return value;
   }
 
@@ -172,11 +177,21 @@ function validateFirmwareProfile(value: unknown): ConfigurableFirmwareProfileId 
   return 'stm';
 }
 
+function validateFlashgbxBaudRate(value: unknown): FlashgbxBaudRate {
+  if (value === 'auto' || value === 1000000 || value === 1500000 || value === 2000000) {
+    return value;
+  }
+
+  console.warn(`FlashGBX baud rate ${String(value)} is not supported, falling back to auto`);
+  return 'auto';
+}
+
 // --- AdvancedSettings class ---
 
 export class AdvancedSettings {
   declare static firmwareProfile: ConfigurableFirmwareProfileId;
   declare static stmBoost: boolean;
+  declare static flashgbxBaudRate: FlashgbxBaudRate;
   declare static romPageSize: number;
   declare static romReadPageSize: number;
   declare static ramPageSize: number;
@@ -205,6 +220,7 @@ export class AdvancedSettings {
       firmware: {
         profile: _firmwareProfile,
         stmBoost: _stmBoost,
+        flashgbxBaudRate: _flashgbxBaudRate,
       },
       size: {
         romPageSize: _profileSizes[_firmwareProfile].romPageSize,
@@ -214,6 +230,7 @@ export class AdvancedSettings {
       profileSizes: {
         stm: { ..._profileSizes.stm },
         stc: { ..._profileSizes.stc },
+        flashgbx: { ..._profileSizes.flashgbx },
       },
       throttle: {
         romRead: _storage.romReadThrottleMs,
@@ -244,6 +261,9 @@ export class AdvancedSettings {
     }
     if (settings.firmware?.stmBoost !== undefined) {
       _stmBoost = settings.firmware.stmBoost;
+    }
+    if (settings.firmware?.flashgbxBaudRate !== undefined) {
+      _flashgbxBaudRate = validateFlashgbxBaudRate(settings.firmware.flashgbxBaudRate);
     }
 
     if (settings.profileSizes) {
@@ -284,9 +304,11 @@ export class AdvancedSettings {
   static resetToDefaults(): void {
     _firmwareProfile = 'stm';
     _stmBoost = true;
+    _flashgbxBaudRate = 'auto';
     _independentProfileSizes = false;
-    _profileSizes.stm = createDefaultProfileSizes('stm');
-    _profileSizes.stc = createDefaultProfileSizes('stc');
+    for (const profileId of CONFIGURABLE_PROFILES) {
+      _profileSizes[profileId] = createDefaultProfileSizes(profileId);
+    }
     for (const desc of SETTING_DESCRIPTORS) {
       _storage[desc.key] = desc.default;
     }
@@ -299,6 +321,9 @@ export class AdvancedSettings {
       const saved = localStorage.getItem('advanced_settings');
       if (saved) {
         const settings = JSON.parse(saved) as AdvancedSettingsConfig;
+        if (settings.firmware?.flashgbxBaudRate === undefined) {
+          _flashgbxBaudRate = 'auto';
+        }
         if (settings.size?.romPageSize === LEGACY_DEFAULTS.romPageSize) {
           settings.size.romPageSize = _storage.romPageSize;
         }
@@ -385,6 +410,18 @@ Object.defineProperty(AdvancedSettings, 'stmBoost', {
   configurable: true,
 });
 
+Object.defineProperty(AdvancedSettings, 'flashgbxBaudRate', {
+  get(): FlashgbxBaudRate {
+    return _flashgbxBaudRate;
+  },
+  set(value: FlashgbxBaudRate) {
+    _flashgbxBaudRate = validateFlashgbxBaudRate(value);
+    AdvancedSettings.saveSettings();
+  },
+  enumerable: true,
+  configurable: true,
+});
+
 // Register getter/setter properties from descriptors
 for (const desc of SETTING_DESCRIPTORS) {
   Object.defineProperty(AdvancedSettings, desc.key, {
@@ -400,9 +437,9 @@ for (const desc of SETTING_DESCRIPTORS) {
       if (desc.group === 'size') {
         const field = desc.field as keyof SizeSettings;
         _profileSizes[_firmwareProfile][field] = validated;
-        if (!_independentProfileSizes) {
+        if (!_independentProfileSizes && _firmwareProfile !== 'flashgbx') {
           for (const otherProfile of CONFIGURABLE_PROFILES) {
-            if (otherProfile !== _firmwareProfile) {
+            if (otherProfile !== _firmwareProfile && otherProfile !== 'flashgbx') {
               _profileSizes[otherProfile][field] = validated;
             }
           }

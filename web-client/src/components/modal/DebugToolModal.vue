@@ -202,7 +202,7 @@
               variant="primary"
               :icon="isSending ? 'pixelarticons:hourglass' : 'pixelarticons:play'"
               :text="isSending ? $t('ui.debug.tool.sending') : $t('ui.debug.tool.send')"
-              :disabled="!canSend || isSending || connectionBusy || !hasDevice"
+              :disabled="!canSend || isSending || connectionBusy || !hasDevice || isFlashgbx"
               @click="sendCommand"
             />
 
@@ -433,6 +433,7 @@ let copyFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
 let historyIdCounter = 0;
 
 const hasDevice = computed(() => Boolean(props.device?.transport ?? props.device?.serialHandle?.transport));
+const isFlashgbx = computed(() => props.device?.firmwareProfile?.id === 'flashgbx' || Boolean(props.device?.firmwareProfile?.capabilities.nativeFlashgbxProtocol));
 const deviceLabel = computed(() => {
   if (!props.device) return '';
   return props.device.firmwareProfile?.label ?? props.device.portInfo?.path ?? '';

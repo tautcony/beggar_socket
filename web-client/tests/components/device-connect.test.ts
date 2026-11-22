@@ -2,6 +2,8 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import DeviceConnect from '@/components/DeviceConnect.vue';
+import { AdvancedSettings } from '@/settings/advanced-settings';
+import { FLASHGBX_FIRMWARE_PROFILE } from '@/types/firmware-profile';
 
 const { showToastMock, requestDeviceMock, connectWithSelectedPortMock, disconnectDeviceMock, initializeDeviceMock, listAvailablePortsMock, isDeviceConnectedMock } = vi.hoisted(() => ({
   showToastMock: vi.fn(),
@@ -103,5 +105,73 @@ describe('DeviceConnect', () => {
     pending.resolve({ port: null, transport: {}, connection: null });
     await firstConnect;
     await secondConnect;
+  });
+
+  it('uses flashgbx port filter and logs device name, firmware, and power capability without rendering permanent summary text', async () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+    AdvancedSettings.firmwareProfile = 'flashgbx';
+    requestDeviceMock.mockResolvedValue({
+      port: null,
+      transport: {},
+      connection: null,
+      firmwareProfile: {
+        ...FLASHGBX_FIRMWARE_PROFILE,
+        label: 'GBFlash',
+        firmwareVersion: 'L14',
+        capabilities: {
+          ...FLASHGBX_FIRMWARE_PROFILE.capabilities,
+          cartPowerControl: true,
+        },
+      },
+      flashgbxInfo: {
+        family: 'gbflash',
+        cfwId: 'L',
+        fwVer: 14,
+        pcbVer: 13,
+        fwTs: 0,
+        ofwVer: null,
+        pcbName: 'GBFlash',
+        cartPowerCtrl: true,
+        cartPresenceSwitch: false,
+        cartModeSwitch: false,
+        bootloaderReset: true,
+        hasDeviceSerial: false,
+        unregistered: false,
+        audioWePin: true,
+        isCdc: false,
+      },
+    });
+
+    const wrapper = mount(DeviceConnect, {
+      global: {
+        stubs: {
+          RetroButton: {
+            template: '<button @click="$emit(\'click\')" />',
+          },
+          PortSelectorModal: true,
+        },
+      },
+    });
+
+    const vm = wrapper.vm as unknown as { connect: () => Promise<void> };
+    await vm.connect();
+    await flushPromises();
+
+    expect(requestDeviceMock).toHaveBeenCalledTimes(1);
+    const passedFilter = requestDeviceMock.mock.calls[0][0] as { config?: { devices?: unknown[] } };
+    expect(passedFilter?.config?.devices).toHaveLength(2);
+
+    expect(wrapper.find('[data-testid="flashgbx-device-summary"]').exists()).toBe(false);
+    expect(infoSpy).toHaveBeenCalledWith(
+      '[DeviceConnect] FlashGBX device connected',
+      expect.objectContaining({
+        name: 'GBFlash',
+        firmware: 'L14',
+        powerControl: true,
+      }),
+    );
+
+    infoSpy.mockRestore();
+    AdvancedSettings.resetToDefaults();
   });
 });

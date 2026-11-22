@@ -15,4 +15,5 @@ export interface CommandOptions {
   mbcType?: MbcType;
   enable5V?: boolean;
   skipChannelStabilize?: boolean;
+  flashcartProfileId?: string;
 }

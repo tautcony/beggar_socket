@@ -80,8 +80,8 @@ export async function listNativeSerialPorts(): Promise<SerialPortInfo[]> {
   return ports.map(toSerialPortInfo);
 }
 
-export function openNativeSerialPort(path: string): Promise<NativeSerialSessionInfo> {
-  return invoke<NativeSerialSessionInfo>('native_open_serial_port', { path });
+export function openNativeSerialPort(path: string, baudRate?: number): Promise<NativeSerialSessionInfo> {
+  return invoke<NativeSerialSessionInfo>('native_open_serial_port', { path, baudRate });
 }
 
 export function writeNativeSerial(sessionId: number, bytes: Uint8Array, timeoutMs?: number): Promise<void> {
@@ -101,6 +101,14 @@ export async function readNativeSerial(sessionId: number, length: number, timeou
   return new Uint8Array(data);
 }
 
+export async function readAvailableNativeSerial(sessionId: number, timeoutMs?: number): Promise<Uint8Array> {
+  const data = await invoke<number[]>('native_serial_read_available', {
+    sessionId,
+    timeoutMs,
+  });
+  return new Uint8Array(data);
+}
+
 export function setNativeSerialSignals(sessionId: number, signals: SerialOutputSignals): Promise<void> {
   return invoke('native_serial_set_signals', {
     sessionId,
@@ -111,6 +119,10 @@ export function setNativeSerialSignals(sessionId: number, signals: SerialOutputS
 
 export function flushNativeSerialInput(sessionId: number): Promise<void> {
   return invoke('native_serial_flush_input', { sessionId });
+}
+
+export function flushNativeSerialOutput(sessionId: number): Promise<void> {
+  return invoke('native_serial_flush_output', { sessionId });
 }
 
 export function closeNativeSerial(sessionId: number): Promise<void> {

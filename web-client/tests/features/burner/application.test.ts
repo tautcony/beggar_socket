@@ -356,6 +356,47 @@ describe('BurnerUseCaseImpl', () => {
     expect(result.message).toContain('boom');
   });
 
+  it('readCart should forward CommandOptions and surface profile_ambiguous / profile_not_found with details', async () => {
+    const cfi = createFakeCfi();
+    const getCartInfo = vi.fn().mockResolvedValue(cfi);
+    const session = createSession({ getCartInfo });
+    const useCase = createUseCase();
+
+    await useCase.readCart(session, false, { flashcartProfileId: 'agb:custom' });
+    expect(getCartInfo).toHaveBeenCalledWith(false, { flashcartProfileId: 'agb:custom' });
+
+    const candidates = [{ id: 'agb:a', names: ['Cart A'] }, { id: 'agb:b', names: ['Cart B'] }];
+    const ambiguousSession = createSession({
+      getCartInfo: vi.fn().mockResolvedValue(false),
+      getLastCartInfoError: () => 'Multiple flashcart profiles matched',
+      getLastCartInfoErrorCode: () => 'profile_ambiguous',
+      getLastCartInfoErrorDetails: () => ({ candidates }),
+    });
+    const ambiguousRes = await useCase.readCart(ambiguousSession, false);
+    expect(ambiguousRes.success).toBe(false);
+    expect(ambiguousRes.errorCode).toBe('profile_ambiguous');
+    expect(ambiguousRes.details).toEqual({ candidates });
+
+    const notFoundSession = createSession({
+      getCartInfo: vi.fn().mockResolvedValue(false),
+      getLastCartInfoError: () => 'No matching flashcart profile found',
+      getLastCartInfoErrorCode: () => 'profile_not_found',
+    });
+    const notFoundRes = await useCase.readCart(notFoundSession, true);
+    expect(notFoundRes.success).toBe(false);
+    expect(notFoundRes.errorCode).toBe('profile_not_found');
+
+    const thrownAmbiguousSession = createSession({
+      getCartInfo: vi.fn().mockRejectedValue(
+        Object.assign(new Error('Ambiguous profile'), { code: 'profile_ambiguous', details: { candidates } }),
+      ),
+    });
+    const thrownRes = await useCase.readCart(thrownAmbiguousSession, false);
+    expect(thrownRes.success).toBe(false);
+    expect(thrownRes.errorCode).toBe('profile_ambiguous');
+    expect(thrownRes.details).toEqual({ candidates });
+  });
+
   it('write/read rom and ram flows should preserve command result contracts', async () => {
     const cfi = createFakeCfi();
     const session = createSession({

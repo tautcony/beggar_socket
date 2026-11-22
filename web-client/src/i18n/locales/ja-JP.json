@@ -54,7 +54,10 @@
         "cancel": "キャンセル",
         "serialNumber": "シリアル番号"
       },
-      "resetConnection": "リセット"
+      "resetConnection": "リセット",
+      "flashgbxPowerCapable": "電源制御あり",
+      "flashgbxNoPowerControl": "電源制御なし",
+      "flashgbxReadOnlyNotice": "FlashGBX デバイスが接続されました。読み書き機能は今後のアップデートで提供されます。"
     },
     "mode": {
       "gba": "GBA",
@@ -236,14 +239,18 @@
         "clearHistory": "クリア",
         "shortcutHint": "Ctrl/Cmd + Enter で送信",
         "deviceConnected": "デバイス接続済み",
-        "deviceDisconnected": "デバイス未接続"
+        "deviceDisconnected": "デバイス未接続",
+        "flashgbxDisabled": "FlashGBX デバイスでは無効"
       }
     },
     "chip": {
       "deviceSize": "デバイスサイズ",
       "sectorCount": "セクター数",
       "sectorSize": "セクターサイズ",
-      "bufferWrite": "バッファ書き込み"
+      "bufferWrite": "バッファ書き込み",
+      "flashcartProfile": "フラッシュカート設定",
+      "flashcartProfileAuto": "自動 (CFI)",
+      "flashcartProfileAmbiguous": "複数のフラッシュカート設定が一致しました。選択してください："
     },
     "rom": {
       "title": "ROM操作",
@@ -484,7 +491,8 @@
       "ppb": {
         "sectorCountPrompt": "チェックするセクタ数を入力してください (1-{max}):",
         "sectorCountError": "セクタ数は{min}～{max}の間の整数である必要があります"
-      }
+      },
+      "flashgbxDisabled": "FlashGBX デバイスでは無効"
     },
     "file": {
       "dropArea": "またはここにファイルをドロップ",
@@ -515,7 +523,11 @@
         "stm": "丐中丐",
         "stc": "碳酸丐",
         "stmBoost": "Boost 拡張を有効にする",
-        "stmBoostHint": "有効にすると ChisFlash-Beggar-Boost ファームウェアによる高速転送・ハードウェア検証・ネイティブプロトコル高速化を利用します。"
+        "stmBoostHint": "有効にすると ChisFlash-Beggar-Boost ファームウェアによる高速転送・ハードウェア検証・ネイティブプロトコル高速化を利用します。",
+        "flashgbx": "FlashGBX",
+        "flashgbxBaudRate": "FlashGBX ボーレート",
+        "flashgbxBaudAuto": "自動",
+        "flashgbxBaudHint": "自動では CH340 GBFlash に 2M を使用し、CDC デバイスではボーレートを無視します。"
       },
       "appearance": {
         "title": "外観とフォント",
@@ -715,6 +727,8 @@
       "readIdFailed": "ID読み取り失敗",
       "readCartSuccess": "カートリッジ情報読み取り成功",
       "readCartFailed": "カートリッジ情報読み取り失敗",
+      "profileAmbiguous": "複数のフラッシュカート設定が一致しました。手動で選択してください",
+      "profileNotFound": "一致するフラッシュカート設定が見つかりません",
       "startEraseSectors": "セクタ消去を開始 - 開始アドレス: {startAddress}, 終了アドレス: {endAddress}, セクタサイズ: {sectorSize} バイト",
       "startWriteROM": "ROM書き込みを開始 - データサイズ: {fileSize} バイト, ベースアドレス: {baseAddress}, ページサイズ: {pageSize} バイト, バッファサイズ: {bufferSize} バイト",
       "startReadROM": "ROM読み取りを開始 - サイズ: {size} バイト, ベースアドレス: {baseAddress}",

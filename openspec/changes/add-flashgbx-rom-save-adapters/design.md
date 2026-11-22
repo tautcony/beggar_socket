@@ -6,7 +6,7 @@
 
 ## Goals / Non-Goals
 
-**Goals**：完整命令集、帧层（ACK）、两个适配器、清理/恢复、串行化、取消。
+**Goals**：完整命令集、帧层上限、两个适配器、清理/恢复、串行化、取消。
 
 **Non-Goals**：`fc_*.txt` profile（第 3 步）；修改 ChisFlash 适配器；e-Reader、3D Memory、MBC7、Pocket Camera、`SET_PIN` 等非核心命令。
 
@@ -23,11 +23,25 @@
 - Flash：`SET_FLASH_CMD 0xA7`、`DMG_FLASH_WRITE_BYTE 0xD1`、`AGB_FLASH_WRITE_SHORT 0xD2`、`FLASH_PROGRAM 0xD3`、`CART_WRITE_FLASH_CMD 0xD4`；MBC：`DMG_MBC_RESET 0xB4`、`DMG_SET_BANK_CHANGE_CMD 0xB8`；校验 `CALC_CRC32 0xD5`。
 - 协议细节：AGB 地址按字（`>>1`）；`FLASH_PROGRAM` 的 `0x03` 响应处理；`CALC_CRC32` 以 `0x20000` 为单位分块；`wait` 参数依据 `fw_ver >= 12`。
 
-### Decision 3：帧层与 ACK 流控
-GBxCart 的 `GBxCartSerial` 需实现 `Synchronize`（`\xFF\x18` 序列）、`ConfigureACK`、可选 RLE；仅在 `pcb ∈ {5,6}`、`cfw_id=='L'`、`fw_ver>=16` 时启用。上限：ACK 开启 → 读 `0x2000`/写 `0x100`；1M 且无 ACK → 读 `0x100`/写 `0x100`；其余 → 读 `0x1000`/写 `0x400`。`advanced-settings.ts` 的 `pageSize` 上限放宽到 `0x2000`。ACK 开关随本步交付。
+### Decision 3：帧层与读写上限
+`FlashgbxFramingLayer` 提供直接传输读写与缓冲复位。上限：CH340 GBFlash → 读 `0x1000`/写 `0x80`；CDC GBFlash → 读 `0x1000`/写 `0x400`。`advanced-settings.ts` 的 `pageSize` 上限放宽到 `0x2000`。
 
 ### Decision 4：能力门槛
-`CALC_CRC32`、电源命令等按第 1 步探测的 `fw_ver`/能力位门控；不足时降级为回读校验或 `unsupported`。门槛值实现前自 `LK_Device.py` 核对写入测试。Joey Jr V2 仅拨码控压：不下发电压命令，提示用户手动切换。
+`CALC_CRC32`、电源命令等按第 1 步探测的 `fw_ver`/能力位门控；不足时降级为回读校验或 `unsupported`。
+
+已从 `FlashGBX/FlashGBX/LK_Device.py`、`hw_GBFlash.py` 及 `/dev/cu.usbserial-110`（L14 GBFlash）实机核对的 `fw_ver` 门槛：
+
+| 功能 / 命令 | `fw_ver` / 能力门槛 | 低于门槛的行为 |
+|---|---|---|
+| `CART_WRITE_FLASH_CMD` (`0xD4`) | `>= 6`（含 `flashcart` 标志与 `>H` 值） | `< 6` 退回逐条 `_cart_write` |
+| `CALC_CRC32` (`0xD5`) | `>= 10`（部分调用点 `>= 12`） | `< 10` 降级为回读后本地 CRC32 校验 |
+| `GET_VARIABLE` (`0xAD`) | `>= 10` | `< 10` 直接返回 `0` |
+| `SET_VARIABLE` (`0xA6`) | 任意版本可发送；`>= 12` 等待 `0x01`/`0x03` ACK | `< 12` 无 ACK |
+| `SET_MODE_AGB/DMG` (`0xA2`/`0xA3`)、`SET_VOLTAGE_3_3V/5V` (`0xA4`/`0xA5`)、`AGB_BOOTUP_SEQUENCE` (`0xC9`)、`SET_ADDR_AS_INPUTS` (`0xA8`) | 任意版本可发送；`>= 12` 等待 `0x01`/`0x03` ACK | `< 12` 无 ACK |
+| `CART_PWR_ON/OFF/QUERY` (`0xF2`/`0xF3`/`0xF4`) | `cartPowerCtrl`（`fw_ver >= 12` `flags1` bit0）；`>= 12` 校验 `0xF4` 与等待 `0xF3` ACK | `cartPowerCtrl = false` 时不下发电源命令，改用 `SET_ADDR_AS_INPUTS` 或提示手动供电 |
+| `AUTO_POWEROFF_TIME/ENABLED`、`AGB_READ_GPIO_RTC` (`0xCA`)、`SET_PIN` (`0xF5`) | `>= 12`（`AUTO_POWEROFF` 需 `cartPowerCtrl`） | `< 12` 跳过自动断电 / 回退 GPIO 逐位读取 |
+| `DMG_AUDIO_ENABLED` | `>= 14` | `< 14` 不设置 |
+| `PING` (`0xFE`)、`GET_SWITCH_STATE` (`0xF6`) | `>= 15`（实机 L14 GBFlash 对 `PING` 返回 `02 02`） | `< 15` 不支持 |
 
 ### Decision 5：串行化与取消
 - 会话级互斥锁覆盖多步 LK 事务（设置变量 → 命令 → 读取），而不仅是单次 `sendAndReceive`。
@@ -40,7 +54,6 @@ GBxCart 的 `GBxCartSerial` 需实现 `Synchronize`（`\xFF\x18` 序列）、`Co
 ## Risks / Trade-offs
 
 - 字节流错位会让设备卡死：互斥锁 + 超时后重新握手。
-- ACK/RLE 实现复杂：先上线非 RLE 的 ACK，RLE 若无必要可延后（记录为已知限制）。
 - DMG 5V/电源循环行为因硬件而异：以 `cartPowerControl` 为准。
 
 ## Migration Plan

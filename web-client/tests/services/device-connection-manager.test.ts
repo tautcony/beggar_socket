@@ -330,4 +330,169 @@ describe('DeviceConnectionManager', () => {
     });
     expect(touchNewTransport).not.toHaveBeenCalled();
   });
+
+  it('performs GBFlash CH340 handshake at 2M, runtime profile generation, and disconnect cleanup', async () => {
+    const { isTauriRuntime } = await import('@/platform/runtime');
+    vi.mocked(isTauriRuntime).mockReturnValue(false);
+    AdvancedSettings.firmwareProfile = 'flashgbx';
+    AdvancedSettings.flashgbxBaudRate = 'auto';
+
+    const sent: number[][] = [];
+    let rx = [
+      // 0xA1 -> size=8, L, fw=14, pcb=13, ts, nameLen=8, "GBFlash\0", flags1=0x01, flags2=0x01
+      0x08, 0x4c, 0x00, 0x0e, 0x0d, 0x68, 0x30, 0x3d, 0x4c,
+      0x08, 0x47, 0x42, 0x46, 0x6c, 0x61, 0x73, 0x68, 0x00,
+      0x01, 0x01,
+      0x01, // disconnect CART_PWR_OFF ACK
+    ];
+    const transport = {
+      send: vi.fn((p: Uint8Array) => { sent.push(Array.from(p)); return Promise.resolve(true); }),
+      read: vi.fn((len: number) => {
+        const chunk = rx.slice(0, len);
+        rx = rx.slice(len);
+        return Promise.resolve({ data: new Uint8Array(chunk) });
+      }),
+      setSignals: vi.fn(),
+      flushInput: vi.fn(() => Promise.resolve(undefined)),
+      flushOutput: vi.fn(() => Promise.resolve(undefined)),
+    };
+
+    const fakeWebPort = { id: 'gbflash-web-port' } as unknown as SerialPort;
+    connectionUseCaseState.prepareConnection.mockResolvedValueOnce({
+      success: true,
+      context: {
+        generation: 1,
+        handle: {
+          id: 'web:1',
+          platform: 'web',
+          portInfo: { path: 'web-serial', vendorId: '1a86', productId: '7523' },
+          context: {
+            platform: 'web',
+            transport,
+            port: fakeWebPort,
+            connection: null,
+            portInfo: { path: 'web-serial', vendorId: '1a86', productId: '7523' },
+          },
+        },
+      },
+    });
+
+    const { DeviceConnectionManager } = await import('@/services/device-connection-manager');
+    const manager = DeviceConnectionManager.getInstance();
+    const device = await manager.requestDevice(PortFilters.presets.flashgbx());
+
+    expect(connectionUseCaseState.prepareConnection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baudRate: 2_000_000,
+        skipSignalInit: true,
+      }),
+    );
+    expect(sent).toEqual([[0xa1]]);
+    expect(sent.flat()).not.toContain(0x3e);
+    expect(transport.setSignals).not.toHaveBeenCalled();
+    expect(device.firmwareProfile?.id).toBe('flashgbx');
+    expect(device.firmwareProfile?.label).toBe('GBFlash');
+    expect(device.firmwareProfile?.firmwareVersion).toBe('L14');
+    expect(device.firmwareProfile?.capabilities.nativeFlashgbxProtocol).toBe(true);
+    expect(device.firmwareProfile?.capabilities.cartPowerControl).toBe(true);
+    expect(device.firmwareProfile?.capabilities.audioWePin).toBe(true);
+
+    await manager.disconnectDevice(device);
+    expect(sent).toEqual([[0xa1], [0xf3]]);
+    expect(connectionUseCaseState.disconnect).toHaveBeenCalledOnce();
+  });
+
+  it('connects CH340 GBFlash at configured baud rate and cleans up on handshake failure', async () => {
+    const { isTauriRuntime } = await import('@/platform/runtime');
+    vi.mocked(isTauriRuntime).mockReturnValue(true);
+    AdvancedSettings.firmwareProfile = 'flashgbx';
+    AdvancedSettings.flashgbxBaudRate = 1_500_000;
+
+    const sent: number[][] = [];
+    let rx = [
+      0x08, 0x4c, 0x00, 0x0e, 0x0d, 0x68, 0x30, 0x3d, 0x4c,
+      0x08, 0x47, 0x42, 0x46, 0x6c, 0x61, 0x73, 0x68, 0x00,
+      0x01, 0x01,
+    ];
+    const transport = {
+      send: vi.fn((p: Uint8Array) => { sent.push(Array.from(p)); return Promise.resolve(true); }),
+      read: vi.fn((len: number) => {
+        const chunk = rx.slice(0, len);
+        rx = rx.slice(len);
+        return Promise.resolve({ data: new Uint8Array(chunk) });
+      }),
+      setSignals: vi.fn(),
+      flushInput: vi.fn(() => Promise.resolve(undefined)),
+      flushOutput: vi.fn(() => Promise.resolve(undefined)),
+    };
+
+    connectionUseCaseState.reconnectWithSelection.mockResolvedValueOnce({
+      success: true,
+      context: {
+        generation: 1,
+        handle: {
+          id: 'tauri:1',
+          platform: 'tauri',
+          portInfo: { path: '/dev/cu.usbserial-110', vendorId: '1a86', productId: '7523' },
+          context: {
+            platform: 'tauri',
+            transport,
+            port: null,
+            connection: null,
+            portInfo: { path: '/dev/cu.usbserial-110', vendorId: '1a86', productId: '7523' },
+          },
+        },
+      },
+    });
+
+    const { DeviceConnectionManager } = await import('@/services/device-connection-manager');
+    const manager = DeviceConnectionManager.getInstance();
+    const device = await manager.connectWithSelectedPort({
+      path: '/dev/cu.usbserial-110',
+      vendorId: '1a86',
+      productId: '7523',
+    });
+
+    expect(sent).toEqual([[0xa1]]);
+    expect(connectionUseCaseState.reconnectWithSelection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({ baudRate: 1_500_000, skipSignalInit: true }),
+      }),
+    );
+    expect(device.firmwareProfile?.label).toBe('GBFlash');
+    expect(device.firmwareProfile?.firmwareVersion).toBe('L14');
+    expect(device.firmwareProfile?.capabilities.cartPowerControl).toBe(true);
+
+    // Handshake failure cleanup
+    const failingTransport = {
+      send: vi.fn(() => Promise.resolve(true)),
+      read: vi.fn(() => Promise.resolve({ data: new Uint8Array([0x04]) })), // invalid size != 8
+      setSignals: vi.fn(),
+      flushInput: vi.fn(() => Promise.resolve(undefined)),
+      flushOutput: vi.fn(() => Promise.resolve(undefined)),
+    };
+    connectionUseCaseState.reconnectWithSelection.mockResolvedValueOnce({
+      success: true,
+      context: {
+        generation: 2,
+        handle: {
+          id: 'tauri:2',
+          platform: 'tauri',
+          portInfo: { path: '/dev/cu.usbmodem1', vendorId: '16c0', productId: '27dd' },
+          context: {
+            platform: 'tauri',
+            transport: failingTransport,
+            port: null,
+            connection: null,
+            portInfo: { path: '/dev/cu.usbmodem1', vendorId: '16c0', productId: '27dd' },
+          },
+        },
+      },
+    });
+
+    await expect(
+      manager.connectWithSelectedPort({ path: '/dev/cu.usbmodem1', vendorId: '16c0', productId: '27dd' }),
+    ).rejects.toMatchObject({ stage: 'fw_info_header' });
+    expect(connectionUseCaseState.disconnect).toHaveBeenCalled();
+  });
 });

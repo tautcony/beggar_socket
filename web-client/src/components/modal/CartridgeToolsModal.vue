@@ -102,14 +102,14 @@
                 <RetroButton
                   variant="secondary"
                   block
-                  :disabled="!device || busy"
+                  :disabled="!device || busy || isFlashgbx"
                   :text="$t('ui.tools.test.ppbUnlockGBA')"
                   @click="handlePPBUnlockGBA"
                 />
                 <RetroButton
                   variant="secondary"
                   block
-                  :disabled="!device || busy"
+                  :disabled="!device || busy || isFlashgbx"
                   :text="$t('ui.tools.test.ppbUnlockMBC5')"
                   @click="handlePPBUnlockMBC5"
                 />
@@ -195,6 +195,7 @@ const localVisible = computed({
 
 const { connectionBusy } = useConnectionOperationBusy();
 const localBusy = ref(false);
+const isFlashgbx = computed(() => props.device?.firmwareProfile?.id === 'flashgbx' || Boolean(props.device?.firmwareProfile?.capabilities.nativeFlashgbxProtocol));
 const busy = computed(() => localBusy.value || connectionBusy.value);
 const isRTCModalVisible = ref(false);
 const rtcType = ref<'GBA' | 'MBC3'>('GBA');

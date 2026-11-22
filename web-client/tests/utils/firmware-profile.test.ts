@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  FLASHGBX_FIRMWARE_PROFILE,
   getFirmwareProfileById,
   inferFirmwareProfileFromPort,
   isRamTypeSupportedByFirmware,
@@ -13,7 +14,19 @@ describe('firmware profile detection', () => {
   it('resolves profiles by configured id', () => {
     expect(getFirmwareProfileById('stm')).toBe(STM_FIRMWARE_PROFILE);
     expect(getFirmwareProfileById('stc')).toBe(STC_FIRMWARE_PROFILE);
+    expect(getFirmwareProfileById('flashgbx')).toBe(FLASHGBX_FIRMWARE_PROFILE);
     expect(getFirmwareProfileById('unknown')).toBe(UNKNOWN_FIRMWARE_PROFILE);
+  });
+
+  it('exposes nativeFlashgbxProtocol and audioWePin capabilities per profile', () => {
+    expect(FLASHGBX_FIRMWARE_PROFILE.capabilities.nativeFlashgbxProtocol).toBe(true);
+    expect(FLASHGBX_FIRMWARE_PROFILE.capabilities.audioWePin).toBe(false);
+    expect(STM_FIRMWARE_PROFILE.capabilities.nativeFlashgbxProtocol).toBe(false);
+    expect(STM_FIRMWARE_PROFILE.capabilities.audioWePin).toBe(false);
+    expect(STC_FIRMWARE_PROFILE.capabilities.nativeFlashgbxProtocol).toBe(false);
+    expect(STC_FIRMWARE_PROFILE.capabilities.audioWePin).toBe(false);
+    expect(UNKNOWN_FIRMWARE_PROFILE.capabilities.nativeFlashgbxProtocol).toBe(false);
+    expect(UNKNOWN_FIRMWARE_PROFILE.capabilities.audioWePin).toBe(false);
   });
 
   it('detects STC by descriptor text before VID/PID fallback', () => {
@@ -73,13 +86,25 @@ describe('firmware profile detection', () => {
     expect(profile.capabilities.gbaSectorErase).toBe(true);
   });
 
-  it('maps RC31 legacy 0483:5740 port to STC profile even with serialNumber', () => {
+  it('maps RC31 legacy 0483:5740 port to STC profile even with serialNumber when flashgbx is not selected', () => {
+    const portInfo = {
+      path: '/dev/cu.usbmodem1234',
+      vendorId: '0483',
+      productId: '5740',
+      serialNumber: 'RC31-001',
+    };
+
+    expect(inferFirmwareProfileFromPort(portInfo)).toBe(STC_FIRMWARE_PROFILE);
+    expect(inferFirmwareProfileFromPort(portInfo, 'stm')).toBe(STC_FIRMWARE_PROFILE);
+  });
+
+  it('always treats 0483:5740 as STC even when flashgbx profile is selected', () => {
     const profile = inferFirmwareProfileFromPort({
       path: '/dev/cu.usbmodem1234',
       vendorId: '0483',
       productId: '5740',
       serialNumber: 'RC31-001',
-    });
+    }, 'flashgbx');
 
     expect(profile).toBe(STC_FIRMWARE_PROFILE);
   });

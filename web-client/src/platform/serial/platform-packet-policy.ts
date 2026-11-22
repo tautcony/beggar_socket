@@ -35,9 +35,17 @@ const STC_PACKET_LIMITS: Readonly<Record<HostPlatform, PlatformPacketLimits>> = 
   unknown: { romWrite: 0x1000, romRead: 0x2000, ramPage: 0x1000 },
 };
 
+const FLASHGBX_PACKET_LIMITS: Readonly<Record<HostPlatform, PlatformPacketLimits>> = {
+  windows: { romWrite: 0x100, romRead: 0x100, ramPage: 0x100 },
+  macos: { romWrite: 0x100, romRead: 0x100, ramPage: 0x100 },
+  linux: { romWrite: 0x100, romRead: 0x100, ramPage: 0x100 },
+  unknown: { romWrite: 0x100, romRead: 0x100, ramPage: 0x100 },
+};
+
 export const PLATFORM_PACKET_LIMITS: Readonly<Record<FirmwareProfileId, Readonly<Record<HostPlatform, PlatformPacketLimits>>>> = {
   stm: STM_PACKET_LIMITS,
   stc: STC_PACKET_LIMITS,
+  flashgbx: FLASHGBX_PACKET_LIMITS,
   unknown: STM_PACKET_LIMITS,
 };
 

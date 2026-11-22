@@ -126,6 +126,42 @@ export class WebSerialTransport implements Transport {
     return this.readFromBuffer(length, timeoutMs);
   }
 
+  async readAvailable(timeoutMs?: number): Promise<{ data: Uint8Array }> {
+    if (!this.port.readable) {
+      throw new Error('Port readable stream is not available');
+    }
+
+    this.ensurePumpStarted();
+    if (this.streamError) {
+      throw this.streamError instanceof Error ? this.streamError : new Error('Serial read pump failed');
+    }
+
+    const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
+    if (this.bufferedLength === 0 && !this.streamDone) {
+      try {
+        await this.waitForData(timeout);
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('Read package timeout')) {
+          return { data: new Uint8Array(0) };
+        }
+        throw error;
+      }
+    }
+
+    if (this.streamError) {
+      throw this.streamError instanceof Error ? this.streamError : new Error('Serial read pump failed');
+    }
+
+    const available = this.bufferedLength;
+    if (available === 0) {
+      return { data: new Uint8Array(0) };
+    }
+
+    const result = new Uint8Array(available);
+    this.consumeBufferedData(result, 0);
+    return { data: result };
+  }
+
   async sendAndReceive(
     payload: Uint8Array,
     readLength: number,
@@ -155,6 +191,10 @@ export class WebSerialTransport implements Transport {
   flushInput(): Promise<void> {
     this.clearBuffer();
     return Promise.resolve();
+  }
+
+  async flushOutput(): Promise<void> {
+    await this.waitForWriterRecovery();
   }
 
   async drainInput(quietMs = 50, maxWaitMs = 500): Promise<void> {

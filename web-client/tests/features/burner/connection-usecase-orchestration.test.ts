@@ -504,4 +504,37 @@ describe('ConnectionOrchestrationUseCase', () => {
     expect(result.failure?.code).toBe('list_failed');
     expect(result.failure?.message).toContain('permission denied');
   });
+
+  it('passes select options through prepareConnection and preserves webPort on rollback/retry', async () => {
+    const fakeWebPort = { id: 'authorized-web-port' } as unknown as SerialPort;
+    const webSelection: BurnerConnectionSelection = {
+      portInfo: { path: 'web-serial', vendorId: '1a86', productId: '7523' },
+      context: { webPort: fakeWebPort, baudRate: 1_000_000, skipSignalInit: true },
+    };
+    const select = vi.fn().mockResolvedValue({ ok: true, data: webSelection });
+    const init = vi.fn()
+      .mockResolvedValueOnce({ ok: false, error: { stage: 'init', code: 'init_failed', message: 'boom' } })
+      .mockResolvedValueOnce({ ok: true, data: undefined });
+    const connect = vi.fn((selected?: BurnerConnectionSelection | null) => Promise.resolve({
+      ok: true as const,
+      data: {
+        id: `web:${connect.mock.calls.length}`,
+        platform: 'web' as const,
+        portInfo: selected?.portInfo,
+        context: { webPort: fakeWebPort },
+      },
+    }));
+
+    const useCase = new ConnectionOrchestrationUseCase(createPortMock({ select, connect, init }));
+    const failed = await useCase.prepareConnection({ baudRate: 1_000_000, skipSignalInit: true });
+    expect(failed.success).toBe(false);
+    expect(select).toHaveBeenCalledWith({ baudRate: 1_000_000, skipSignalInit: true });
+    expect(failed.context.selection).toBe(webSelection);
+    expect(failed.context.handle).toBeNull();
+
+    const retried = await useCase.retryConnection();
+    expect(retried.success).toBe(true);
+    expect(select).toHaveBeenCalledTimes(1);
+    expect(connect).toHaveBeenNthCalledWith(2, webSelection);
+  });
 });

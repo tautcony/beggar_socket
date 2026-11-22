@@ -228,6 +228,22 @@ describe('重新设计的串口过滤器', () => {
         product: 'Other Board',
       })).toBe(false);
     });
+
+    it('FlashGBX 预设过滤器应该仅匹配 GBFlash (CH340 / CDC)', () => {
+      const filter = PortFilters.presets.flashgbx();
+
+      expect(filter({ path: '/dev/cu.usbserial-1', vendorId: '1A86', productId: '7523' })).toBe(true);
+      expect(filter({ path: '/dev/cu.usbmodem-2', vendorId: '16c0', productId: '27dd' })).toBe(true);
+      expect(filter({ path: '/dev/cu.usbmodem-3', vendorId: '0483', productId: '5740' })).toBe(false);
+
+      expect(filter(mockSTM32Port)).toBe(false);
+      expect(filter(mockArduinoPort)).toBe(false);
+
+      expect(filter.toWebSerialFilters?.()).toEqual([
+        { usbVendorId: 0x1a86, usbProductId: 0x7523 },
+        { usbVendorId: 0x16c0, usbProductId: 0x27dd },
+      ]);
+    });
   });
 
   describe('字符串和数字 ID 转换', () => {

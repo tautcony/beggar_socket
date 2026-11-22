@@ -64,11 +64,21 @@ export class CartridgeAdapter {
   protected t: TranslateFunction;
   protected currentSectorProgress: SectorProgressInfo[] = [];
   protected lastCartInfoError?: string;
+  protected lastCartInfoErrorCode?: string;
+  protected lastCartInfoErrorDetails?: unknown;
   private channelRecentlyReset = false;
   private activeRomBankKey: string | null = null;
 
   getLastCartInfoError(): string | undefined {
     return this.lastCartInfoError;
+  }
+
+  getLastCartInfoErrorCode(): string | undefined {
+    return this.lastCartInfoErrorCode;
+  }
+
+  getLastCartInfoErrorDetails(): unknown {
+    return this.lastCartInfoErrorDetails;
   }
 
   /**
@@ -127,7 +137,7 @@ export class CartridgeAdapter {
   /**
    * 获取卡带信息
    */
-  async getCartInfo(enable5V?: boolean): Promise<CFIInfo | false> {
+  async getCartInfo(enable5V?: boolean, _options?: Partial<CommandOptions>): Promise<CFIInfo | false> {
     throw new NotImplementedError();
   }
 
@@ -148,7 +158,7 @@ export class CartridgeAdapter {
    * @param options - 选项对象
    * @returns - 包含成功状态和消息的对象
    */
-  async writeRAM(data: Uint8Array, options?: CommandOptions): Promise<CommandResult> {
+  async writeRAM(data: Uint8Array, options?: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     throw new NotImplementedError();
   }
 
@@ -158,7 +168,7 @@ export class CartridgeAdapter {
    * @param ramType - RAM类型
    * @returns - 包含成功状态、数据和消息的对象
    */
-  async readRAM(size: number, options?: CommandOptions): Promise<CommandResult> {
+  async readRAM(size: number, options?: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     throw new NotImplementedError();
   }
 
@@ -168,7 +178,7 @@ export class CartridgeAdapter {
    * @param options - RAM类型或选项对象
    * @returns - 包含成功状态和消息的对象
    */
-  async verifyRAM(data: Uint8Array, options?: CommandOptions): Promise<CommandResult> {
+  async verifyRAM(data: Uint8Array, options?: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     throw new NotImplementedError();
   }
 

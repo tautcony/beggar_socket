@@ -54,7 +54,10 @@
         "cancel": "取消",
         "serialNumber": "識別碼"
       },
-      "resetConnection": "重置"
+      "resetConnection": "重置",
+      "flashgbxPowerCapable": "支援電源控制",
+      "flashgbxNoPowerControl": "無電源控制",
+      "flashgbxReadOnlyNotice": "FlashGBX 裝置已連線，讀寫功能將在後續版本提供。"
     },
     "mode": {
       "gba": "GBA",
@@ -211,7 +214,8 @@
         "clearHistory": "清空",
         "shortcutHint": "Ctrl/Cmd + Enter 發送",
         "deviceConnected": "設備已連接",
-        "deviceDisconnected": "未連接設備，請先連接燒錄器"
+        "deviceDisconnected": "未連接設備，請先連接燒錄器",
+        "flashgbxDisabled": "FlashGBX 設備下已停用"
       },
       "readSpeed": "讀取速度",
       "writeSpeed": "寫入速度",
@@ -243,7 +247,10 @@
       "deviceSize": "設備大小",
       "sectorCount": "扇區數量",
       "sectorSize": "扇區大小",
-      "bufferWrite": "緩衝寫入"
+      "bufferWrite": "緩衝寫入",
+      "flashcartProfile": "燒錄卡設定檔",
+      "flashcartProfileAuto": "自動 (CFI)",
+      "flashcartProfileAmbiguous": "符合多個燒錄卡設定檔，請手動選擇："
     },
     "rom": {
       "title": "ROM操作",
@@ -484,7 +491,8 @@
       "ppb": {
         "sectorCountPrompt": "請輸入要檢查的扇區數量 (1-{max}):",
         "sectorCountError": "扇區數量必須是{min}-{max}之間的整數"
-      }
+      },
+      "flashgbxDisabled": "FlashGBX 裝置下已停用"
     },
     "file": {
       "dropArea": "或移入檔案到此處",
@@ -515,7 +523,11 @@
         "stm": "丐中丐",
         "stc": "碳酸丐",
         "stmBoost": "啟用 Boost 增強",
-        "stmBoostHint": "啟用後可利用 ChisFlash-Beggar-Boost 固件的高速傳輸、硬體校驗及原生協定加速能力。"
+        "stmBoostHint": "啟用後可利用 ChisFlash-Beggar-Boost 固件的高速傳輸、硬體校驗及原生協定加速能力。",
+        "flashgbx": "FlashGBX",
+        "flashgbxBaudRate": "FlashGBX 鮑率",
+        "flashgbxBaudAuto": "自動",
+        "flashgbxBaudHint": "自動模式對 CH340 GBFlash 使用 2M，CDC 設備忽略鮑率。"
       },
       "appearance": {
         "title": "外觀與字體",
@@ -715,6 +727,8 @@
       "readIdFailed": "讀取ID失敗",
       "readCartSuccess": "讀取卡帶資訊成功",
       "readCartFailed": "讀取卡帶資訊失敗",
+      "profileAmbiguous": "符合多個燒錄卡設定檔，請手動選擇",
+      "profileNotFound": "找不到符合的燒錄卡設定檔",
       "startEraseSectors": "開始扇區擦除 - 起始位址: {startAddress}, 結束位址: {endAddress}, 扇區大小: {sectorSize} 位元組",
       "startWriteROM": "開始寫入ROM - 資料大小: {fileSize} 位元組, 基址: {baseAddress}, 頁大小: {pageSize} 位元組, 緩衝區大小: {bufferSize} 位元組",
       "startReadROM": "開始讀取ROM - 大小: {size} 位元組, 基址: {baseAddress}",
