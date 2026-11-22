@@ -268,28 +268,66 @@ export async function performFlashgbxHandshake(
   return handshakeGbflash(transport, options, isCdc);
 }
 
+/** A single safety command that failed during teardown; the transport still closes. */
+export interface FlashgbxTeardownFailure {
+  readonly command: 'cart-power-off' | 'set-voltage-3v3';
+  readonly error: unknown;
+}
+
+export interface FlashgbxTeardownResult {
+  readonly failures: readonly FlashgbxTeardownFailure[];
+}
+
+async function sendSafetyCommand(
+  transport: Transport,
+  command: number,
+  label: FlashgbxTeardownFailure['command'],
+  ackExpected: boolean,
+  timeoutMs: number,
+  failures: FlashgbxTeardownFailure[],
+): Promise<void> {
+  try {
+    const sent = await transport.send(new Uint8Array([command]), timeoutMs);
+    if (sent === false) {
+      throw new Error(`FlashGBX teardown command 0x${command.toString(16)} was not sent`);
+    }
+    if (ackExpected) {
+      await transport.read(1, timeoutMs).catch(() => undefined);
+    }
+  } catch (error) {
+    failures.push({ command: label, error });
+  }
+}
+
+/**
+ * Normative teardown: `CART_PWR_OFF` then `SET_VOLTAGE_3_3V` when the handshake
+ * confirmed cartridge power control, `SET_VOLTAGE_3_3V` alone otherwise.
+ *
+ * A failing safety command never aborts the sequence; every failure is reported so the
+ * caller can record a `disconnect` diagnostic and still close the port.
+ */
+export async function performFlashgbxTeardown(
+  transport: Transport,
+  fwInfo?: FlashgbxFirmwareInfo | null,
+  timeoutMs = HANDSHAKE_TIMEOUT_MS,
+): Promise<FlashgbxTeardownResult> {
+  if (!fwInfo) {
+    return { failures: [] };
+  }
+
+  const failures: FlashgbxTeardownFailure[] = [];
+  const ackExpected = fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK;
+  if (fwInfo.cartPowerCtrl) {
+    await sendSafetyCommand(transport, FLASHGBX_CMD.CART_PWR_OFF, 'cart-power-off', ackExpected, timeoutMs, failures);
+  }
+  await sendSafetyCommand(transport, FLASHGBX_CMD.SET_VOLTAGE_3_3V, 'set-voltage-3v3', ackExpected, timeoutMs, failures);
+  return { failures };
+}
+
 export async function performFlashgbxDisconnect(
   transport: Transport,
   fwInfo?: FlashgbxFirmwareInfo | null,
   timeoutMs = HANDSHAKE_TIMEOUT_MS,
 ): Promise<void> {
-  if (!fwInfo) {
-    return;
-  }
-
-  try {
-    if (fwInfo.cartPowerCtrl) {
-      await transport.send(new Uint8Array([FLASHGBX_CMD.CART_PWR_OFF]), timeoutMs);
-      if (fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK) {
-        await transport.read(1, timeoutMs).catch(() => undefined);
-      }
-    } else {
-      await transport.send(new Uint8Array([FLASHGBX_CMD.SET_VOLTAGE_3_3V]), timeoutMs);
-      if (fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK) {
-        await transport.read(1, timeoutMs).catch(() => undefined);
-      }
-    }
-  } catch {
-    // Best-effort disconnect sequence before closing port
-  }
+  await performFlashgbxTeardown(transport, fwInfo, timeoutMs);
 }

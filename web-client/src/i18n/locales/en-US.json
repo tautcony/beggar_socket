@@ -54,6 +54,7 @@
         "cancel": "Cancel",
         "serialNumber": "Serial Number"
       },
+      "selectOtherPort": "Other port",
       "resetConnection": "Reset",
       "flashgbxPowerCapable": "Power Control",
       "flashgbxNoPowerControl": "No Power Control",

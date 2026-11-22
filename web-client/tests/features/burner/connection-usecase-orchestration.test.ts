@@ -537,4 +537,105 @@ describe('ConnectionOrchestrationUseCase', () => {
     expect(select).toHaveBeenCalledTimes(1);
     expect(connect).toHaveBeenNthCalledWith(2, webSelection);
   });
+
+  describe('session establishment', () => {
+    const session = {
+      connectionId: 'handle:1',
+      profile: { variantId: 'beggar-stm' } as never,
+      diagnostics: [
+        { code: 'port-mismatch', severity: 'warning' as const, message: 'mismatch', stage: 'transport' as const },
+      ],
+    };
+
+    it('commits the session returned by the port and forwards its diagnostics', async () => {
+      const establishSession = vi.fn().mockResolvedValue({ ok: true, data: session });
+      const useCase = new ConnectionOrchestrationUseCase(createPortMock({ establishSession }));
+
+      const result = await useCase.prepareConnection();
+
+      expect(result.success).toBe(true);
+      expect(result.context.session).toBe(session);
+      expect(result.diagnostics).toEqual(session.diagnostics);
+      expect(establishSession).toHaveBeenCalledWith(
+        expect.objectContaining({ id: expect.stringContaining('mock:') }),
+      );
+    });
+
+    it('rolls back the port and keeps no session when the probe stage fails', async () => {
+      const establishSession = vi.fn().mockResolvedValue({
+        ok: false,
+        error: {
+          stage: 'probe',
+          code: 'boost-unsupported',
+          message: 'Boost handshake did not answer',
+          diagnostics: [{ code: 'boost-probe-failed', severity: 'error', message: 'failed', stage: 'probe' }],
+        },
+      });
+      const disconnect = vi.fn().mockResolvedValue({ ok: true, data: undefined });
+      const useCase = new ConnectionOrchestrationUseCase(createPortMock({ establishSession, disconnect }));
+
+      const result = await useCase.prepareConnection();
+
+      expect(result.success).toBe(false);
+      expect(result.failure).toMatchObject({ stage: 'probe', code: 'boost-unsupported' });
+      expect(result.context.session).toBeNull();
+      expect(result.context.handle).toBeNull();
+      expect(result.failure?.diagnostics?.[0].code).toBe('boost-probe-failed');
+      // The pending transport is closed by the orchestration after cleanupPending ran.
+      expect(disconnect).toHaveBeenCalledTimes(1);
+    });
+
+    it('surfaces teardown diagnostics returned by disconnect', async () => {
+      const teardownDiagnostics = [
+        { code: 'teardown-failed', severity: 'warning' as const, message: 'power off refused', stage: 'disconnect' as const },
+      ];
+      const useCase = new ConnectionOrchestrationUseCase(createPortMock({
+        establishSession: vi.fn().mockResolvedValue({ ok: true, data: session }),
+        disconnect: vi.fn().mockResolvedValue({ ok: true, data: undefined, diagnostics: teardownDiagnostics }),
+      }));
+
+      await useCase.prepareConnection();
+      const result = await useCase.disconnect();
+
+      expect(result.success).toBe(true);
+      expect(result.state).toBe('idle');
+      expect(result.diagnostics).toEqual(teardownDiagnostics);
+      expect(result.context.session).toBeNull();
+    });
+
+    it('serialises a concurrent reconnect behind the whole session transaction', async () => {
+      const establishing = deferred<Awaited<ReturnType<NonNullable<BurnerConnectionPort['establishSession']>>>>();
+      const establishSession = vi.fn(() => establishing.promise);
+      const connect = vi.fn((selected?: BurnerConnectionSelection | null) => Promise.resolve({
+        ok: true as const,
+        data: {
+          id: `mock:${connect.mock.calls.length}`,
+          platform: 'web' as const,
+          portInfo: selected?.portInfo,
+          context: { portInfo: selected?.portInfo, transport: {}, port: null, connection: null },
+        },
+      }));
+      const useCase = new ConnectionOrchestrationUseCase(createPortMock({ establishSession, connect }));
+
+      const first = useCase.reconnectWithSelection({
+        portInfo: { path: '/dev/first' },
+        context: { portInfo: { path: '/dev/first' } },
+      });
+      const second = useCase.reconnectWithSelection({
+        portInfo: { path: '/dev/second' },
+        context: { portInfo: { path: '/dev/second' } },
+      });
+
+      // The late completion must not publish a session for the superseded attempt until it ends.
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(connect).toHaveBeenCalledTimes(1);
+      establishing.resolve({ ok: true, data: session });
+      await first;
+      await second;
+
+      expect(establishSession).toHaveBeenCalledTimes(2);
+      expect(connect).toHaveBeenCalledTimes(2);
+      expect(connect.mock.calls[1][0]?.portInfo?.path).toBe('/dev/second');
+    });
+  });
 });

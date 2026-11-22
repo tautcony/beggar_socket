@@ -7,6 +7,7 @@ export {
   BOOST_MAX_WRITE_CHUNK,
   BOOST_PROBE_ACK,
   BOOST_PROBE_REQUEST,
+  BOOST_PROBE_TIMEOUT_MS,
   BoostCommand,
 } from './boost-constants';
 export type { BoostProbeResult, BoostWriteUnit } from './boost-protocol';

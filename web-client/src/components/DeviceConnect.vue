@@ -15,6 +15,14 @@
         :text="buttonText"
         @click="handleConnectDisconnect"
       />
+      <!-- 手动选择其他串口：自动发现只接受 match，用户在无过滤器列表里显式选择才算数 -->
+      <RetroButton
+        v-if="!connected"
+        variant="secondary"
+        :disabled="isConnecting || connectionBusy"
+        :text="t('ui.device.selectOtherPort')"
+        @click="connectWithAnyPort"
+      />
       <!-- 重置连接状态按钮，仅在已连接时显示 -->
       <RetroButton
         v-if="connected"
@@ -43,12 +51,16 @@ import PortSelectorModal from '@/components/modal/PortSelectorModal.vue';
 import { RetroButton } from '@/components/retro';
 import { useConnectionOperationBusy } from '@/composables/useConnectionOperationBusy';
 import { useToast } from '@/composables/useToast';
+import {
+  type ConnectionLogEntry,
+  buildConnectionLogReport,
+  type ConnectionFailureReport,
+} from '@/device-runtime/connection-report';
+import type { ConnectionFailure } from '@/features/burner/application';
 import { getRuntimeKind } from '@/platform/runtime';
 import { DeviceConnectionManager, PortSelectionRequiredError } from '@/services/device-connection-manager';
-import { AdvancedSettings } from '@/settings/advanced-settings';
 import { DeviceInfo } from '@/types/device-info';
 import type { SerialPortInfo } from '@/types/serial';
-import { PortFilters } from '@/utils/port-filter';
 
 const props = withDefaults(defineProps<{
   compact?: boolean
@@ -62,6 +74,8 @@ const { connectionBusy } = useConnectionOperationBusy();
 const emit = defineEmits<{
   'device-ready': [device: DeviceInfo]
   'device-disconnected': []
+  /** Right-hand log entries: device/firmware, port match result and failure stage hints. */
+  'connection-log': [entries: readonly ConnectionLogEntry[]]
 }>();
 
 const connected = ref(false);
@@ -130,13 +144,32 @@ onMounted(async () => {
   }
 });
 
-function activePortFilter() {
-  return AdvancedSettings.firmwareProfile === 'flashgbx'
-    ? PortFilters.presets.flashgbx()
-    : PortFilters.presets.beggarSocket();
+/** Maps any connection error onto the stage-aware report the log area renders. */
+function toFailureReport(error: unknown): ConnectionFailureReport {
+  const failure = (error as { failure?: ConnectionFailure } | null)?.failure;
+  if (failure) {
+    return {
+      stage: failure.stage,
+      message: failure.message,
+      ...(failure.diagnostics ? { diagnostics: failure.diagnostics } : {}),
+    };
+  }
+  const stage = (error as { stage?: string } | null)?.stage ?? 'unknown';
+  return {
+    stage,
+    message: error instanceof Error ? error.message : String(error),
+  };
 }
 
-async function connect() {
+function reportConnection(device: DeviceInfo) {
+  emit('connection-log', buildConnectionLogReport({ device }));
+}
+
+function reportFailure(error: unknown) {
+  emit('connection-log', buildConnectionLogReport({ failure: toFailureReport(error) }));
+}
+
+async function connect(options: { allowAnyPort?: boolean } = {}) {
   if (isProcessing.value || connected.value) return;
 
   isProcessing.value = true;
@@ -144,16 +177,16 @@ async function connect() {
   showToast(t('messages.device.tryingConnect'), 'idle');
 
   try {
-    // 使用统一的设备连接管理器
-    const filter = activePortFilter();
-
-    const device = await deviceManager.requestDevice(filter);
+    // 连接配置由高级设置决定；串口发现只影响候选顺序与诊断
+    const device = await deviceManager.requestDevice({
+      ...(options.allowAnyPort ? { allowAnyPort: true } : {}),
+    });
 
     connected.value = true;
     isConnecting.value = false;
     showToast(t('messages.device.connectionSuccess'), 'success');
     deviceInfo.value = device;
-    logFlashgbxDeviceSummary(device);
+    reportConnection(device);
     emit('device-ready', deviceInfo.value);
   } catch (e) {
     // 检查是否需要用户选择串口
@@ -165,12 +198,18 @@ async function connect() {
     }
 
     console.error('[DeviceConnect] connect failed', e);
+    reportFailure(e);
     showToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
     await disposeConnection();
   } finally {
     isConnecting.value = false;
     isProcessing.value = false;
   }
+}
+
+/** 手动入口：不过滤端口，用户显式选择 mismatch 端口后按已保存 variant 连接 */
+async function connectWithAnyPort() {
+  await connect({ allowAnyPort: true });
 }
 
 // 处理串口选择
@@ -189,13 +228,14 @@ async function onPortSelected(selectedPort: SerialPortInfo) {
     isConnecting.value = false;
     showToast(t('messages.device.connectionSuccess'), 'success');
     deviceInfo.value = device;
-    logFlashgbxDeviceSummary(device);
+    reportConnection(device);
     emit('device-ready', deviceInfo.value);
   } catch (e) {
     console.error('[DeviceConnect] connect with selected port failed', {
       selectedPort,
       error: e,
     });
+    reportFailure(e);
     showToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
     await disposeConnection();
   } finally {
@@ -210,16 +250,12 @@ function onPortSelectionCanceled() {
   isConnecting.value = false;
 }
 
-// 刷新串口列表
+// 刷新串口列表：优先保留与已保存 variant 匹配的端口，无匹配时才给完整列表
 async function onRefreshPorts() {
   try {
-    const filter = activePortFilter();
-
-    // 重新获取串口列表
-    const filteredPorts = await deviceManager.listAvailablePorts(filter);
-    availablePorts.value = filteredPorts.length > 0
-      ? filteredPorts
-      : await deviceManager.listAvailablePorts();
+    const all = await deviceManager.listAvailablePorts();
+    const matching = await deviceManager.listPortsMatchingSelection();
+    availablePorts.value = matching.length > 0 ? matching : all;
   } catch (error) {
     console.error('Failed to refresh ports:', error);
     showToast('刷新串口列表失败', 'error');
@@ -329,28 +365,10 @@ const connectionTooltip = computed(() => {
   return `${baseMessage} - ${envMessage}`;
 });
 
-function logFlashgbxDeviceSummary(device: DeviceInfo) {
-  if (device.firmwareProfile?.id !== 'flashgbx') {
-    return;
-  }
-  const profile = device.firmwareProfile;
-  const info = device.flashgbxInfo;
-  const name = info?.pcbName ?? profile.label;
-  const firmware = profile.firmwareVersion ?? (info ? `${info.cfwId}${info.fwVer}` : '');
-  const powerLabel = profile.capabilities.cartPowerControl
-    ? t('ui.device.flashgbxPowerCapable')
-    : t('ui.device.flashgbxNoPowerControl');
-  console.info('[DeviceConnect] FlashGBX device connected', {
-    name,
-    firmware,
-    powerControl: profile.capabilities.cartPowerControl,
-    summary: `${name}${firmware ? ` ${firmware}` : ''} (${powerLabel})`,
-  });
-}
-
 // 暴露方法给父组件
 defineExpose({
   connect,
+  connectWithAnyPort,
   disconnect,
   reset: disposeConnection,
   connected: computed(() => connected.value),

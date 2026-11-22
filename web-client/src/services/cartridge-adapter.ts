@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/require-await */
 import { getFirmwareProfile } from '@/device/compat/firmware-profile';
+import type { SessionProfile } from '@/device/session';
 import type { Transport } from '@/platform/serial';
 import { getOptimalPacketLimits } from '@/platform/serial/platform-packet-policy';
 import {
@@ -69,6 +70,7 @@ export class CartridgeAdapter {
   protected lastCartInfoErrorDetails?: unknown;
   private channelRecentlyReset = false;
   private activeRomBankKey: string | null = null;
+  private sessionProfile?: SessionProfile;
 
   getLastCartInfoError(): string | undefined {
     return this.lastCartInfoError;
@@ -100,6 +102,31 @@ export class CartridgeAdapter {
     this.updateProgress = progressCallback ?? (() => { });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.t = translateFunc ?? ((key: string, params?: any) => key);
+  }
+
+  /**
+   * Binds the adapters of one connection to the resolved session.
+   *
+   * Transfer limits then come from the resolved profile (binding packet limits for the
+   * detected host) instead of re-deriving them from a legacy profile id, while the
+   * chunking algorithm itself is unchanged.
+   */
+  applySessionProfile(profile?: SessionProfile): this {
+    this.sessionProfile = profile;
+    return this;
+  }
+
+  /** Host-resolved packet limits: the session value first, legacy lookup otherwise. */
+  protected resolvePacketLimits(): { romWrite: number; romRead: number; ramPage: number } {
+    const resolved = this.sessionProfile?.transport;
+    if (resolved) {
+      return resolved.packetLimits[resolved.platform];
+    }
+    return getOptimalPacketLimits(this.firmwareProfile.id);
+  }
+
+  protected resolveMaxReadChunk(): number {
+    return this.sessionProfile?.transport.maxReadChunk ?? this.firmwareProfile.maxReadChunk;
   }
 
   /**
@@ -371,17 +398,18 @@ export class CartridgeAdapter {
       // async command overhead does not dwarf the configured throughput controls in debug mode.
       return Math.max(configuredPageSize, CartridgeAdapter.SIMULATED_TRANSFER_CHUNK_SIZE);
     }
-    const limits = getOptimalPacketLimits(this.firmwareProfile.id);
+    const limits = this.resolvePacketLimits();
     return Math.min(requestedPageSize ?? profileSizes.romPageSize, configuredPageSize === profileSizes.romPageSize ? profileSizes.romPageSize : configuredPageSize, limits.romWrite);
   }
 
   protected resolveRomReadPageSize(requestedPageSize?: number): number {
     const profileKey = this.firmwareProfile.id === 'stc' ? 'stc' : 'stm';
     const profileSizes = AdvancedSettings.getProfileSizes(profileKey);
-    const limits = getOptimalPacketLimits(this.isBoostMode ? 'stc' : this.firmwareProfile.id);
+    const limits = this.resolvePacketLimits();
+    const maxReadChunk = this.resolveMaxReadChunk();
     const maxAllowed = this.firmwareProfile.id === 'stc'
-      ? this.firmwareProfile.maxReadChunk
-      : Math.min(this.firmwareProfile.maxReadChunk, limits.romRead);
+      ? maxReadChunk
+      : Math.min(maxReadChunk, limits.romRead);
     const rawTarget = Math.min(
       requestedPageSize ?? profileSizes.romReadPageSize,
       this.isBoostMode ? maxAllowed : profileSizes.romReadPageSize,

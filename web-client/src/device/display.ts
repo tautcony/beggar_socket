@@ -34,3 +34,13 @@ export interface DeviceDisplayModel {
   readonly infoRows: readonly DisplayInfoRow[];
   readonly warnings: readonly DisplayText[];
 }
+
+/**
+ * Plain-text projection of `DisplayText` for logs, diagnostics and tests.
+ *
+ * Translation itself is a UI concern; the fallback keeps messages readable when a
+ * runtime reports before any i18n instance exists.
+ */
+export function displayTextToString(text: DisplayText): string {
+  return typeof text === 'string' ? text : text.fallback ?? text.key;
+}

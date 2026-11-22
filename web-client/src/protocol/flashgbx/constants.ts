@@ -1,6 +1,10 @@
 export const DEVICE_MIN_FW = 1;
 
-export const HANDSHAKE_TIMEOUT_MS = 75;
+/**
+ * One lifecycle budget for both the `0xA1` probe and the teardown safety commands.
+ * Probe and reset must not carry different timeouts for the same session.
+ */
+export const HANDSHAKE_TIMEOUT_MS = 250;
 
 export const FLASHGBX_USB_IDS = {
   CH340: { vendorId: '1a86', productId: '7523' },

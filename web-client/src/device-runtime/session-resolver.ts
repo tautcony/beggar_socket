@@ -72,8 +72,11 @@ function resolveBoostTransport(
 /**
  * `auto` always expands to a fixed 2 Mbps (no host or port dimension), matching the
  * existing FlashGBX connection path.
+ *
+ * Exported so the connection layer opens the port with exactly the value the resolver
+ * will publish in `SessionProfile.transport.baudRate`.
  */
-function resolveBaudRate(
+export function resolveConnectionBaudRate(
   selection: ResolvedVariantSelection,
   values: Readonly<Record<string, ParameterValue>>,
 ): number | undefined {
@@ -124,7 +127,7 @@ export function createSessionResolver(options: SessionResolverOptions): SessionR
       };
 
       const settings = store.operationSnapshot(selection.parameterNamespace);
-      const baudRate = resolveBaudRate(selection, settings.values);
+      const baudRate = resolveConnectionBaudRate(selection, settings.values);
       const transport: ResolvedTransportProfile = {
         backend: transportFacts.backend,
         platform,

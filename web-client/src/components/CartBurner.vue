@@ -154,11 +154,12 @@ import type { GbaPreviewSavePayload } from '@/components/operaiton/contracts';
 import { RetroButton, RetroCard, RetroSegmented } from '@/components/retro';
 import { runWithCommandBufferReset, useCartBurnerFileState, useCartBurnerSessionState } from '@/composables/cartburner';
 import { useToast } from '@/composables/useToast';
-import { getFirmwareProfile, inferFirmwareProfileFromPort } from '@/device/compat/firmware-profile';
+import type { ConnectionLogEntry } from '@/device-runtime/connection-report';
+import { getDeviceRuntime } from '@/device-runtime/runtime-instance';
 import { createCartridgeProtocolSession } from '@/features/burner/adapters';
 import { type BurnerProtocolSession, createBurnerUseCase, type GameDetectionResult } from '@/features/burner/application';
 import { isTauriRuntime } from '@/platform/runtime';
-import { CartridgeAdapter, FlashgbxGbaAdapter, FlashgbxMbcAdapter, GBAAdapter, MBC5Adapter } from '@/services';
+import type { CartridgeAdapter } from '@/services';
 import { FlashcartProfileService } from '@/services/flashcart-profile-service';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { useRecentFileNamesStore } from '@/stores/recent-file-names-store';
@@ -298,7 +299,8 @@ const sectorCounts = computed(() => {
 // Adapter
 const gbaAdapter = ref<BurnerProtocolSession | null>();
 const mbc5Adapter = ref<BurnerProtocolSession | null>();
-let flashgbxBaseAdapterRef: FlashgbxGbaAdapter | null = null;
+/** Mode sync strategy of the binding that owns the current session. */
+let modeSyncStrategy: ((adapter: CartridgeAdapter, mode: 'gba' | 'mbc5') => Promise<void>) | undefined;
 
 function createSession(adapter: CartridgeAdapter, modeName: string): BurnerProtocolSession {
   return createCartridgeProtocolSession(adapter, modeName.toLowerCase(), {
@@ -310,16 +312,15 @@ watch(mode, (newMode) => {
   if (newMode !== 'MBC5') {
     mbcPower5V.value = false;
   }
-  const isFlashgbx = Boolean(
-    props.device?.firmwareProfile?.id === 'flashgbx'
-    || props.device?.firmwareProfile?.capabilities.nativeFlashgbxProtocol,
-  );
-  if (isFlashgbx && props.deviceReady && !busy.value && flashgbxBaseAdapterRef) {
-    void flashgbxBaseAdapterRef.syncHardwareMode(newMode).catch((error: unknown) => {
-      const msg = error instanceof Error ? error.message : String(error);
-      log(`Failed to sync FlashGBX hardware mode (${newMode}): ${msg}`, 'warn');
-    });
+  const adapter = gbaAdapter.value;
+  if (!modeSyncStrategy || !props.deviceReady || busy.value || !adapter) {
+    return;
   }
+  const target = newMode === 'MBC5' ? 'mbc5' : 'gba';
+  void modeSyncStrategy(adapter as unknown as CartridgeAdapter, target).catch((error: unknown) => {
+    const msg = error instanceof Error ? error.message : String(error);
+    log(`Failed to sync FlashGBX hardware mode (${newMode}): ${msg}`, 'warn');
+  });
 });
 
 // 热重载状态恢复 - 保持适配器状态和日志
@@ -372,51 +373,58 @@ function initializeAdapters() {
       return;
     }
 
-    if (props.device.firmwareProfile?.id === 'flashgbx' || props.device.firmwareProfile?.capabilities.nativeFlashgbxProtocol) {
-      const gbaRuntimeAdapter = new FlashgbxGbaAdapter(
-        props.device,
-        (msg, level) => { log(msg, level); },
-        updateProgress,
-        t,
-      );
-      flashgbxBaseAdapterRef = gbaRuntimeAdapter;
-      gbaAdapter.value = createSession(gbaRuntimeAdapter, 'flashgbx-gba');
-      const mbcRuntimeAdapter = new FlashgbxMbcAdapter(
-        props.device,
-        (msg, level) => { log(msg, level); },
-        updateProgress,
-        t,
-      );
-      mbc5Adapter.value = createSession(mbcRuntimeAdapter, 'flashgbx-mbc');
+    // 适配器由已提交的会话装配：协议身份、分块上限与模式同步都来自同一个 profile
+    const profile = props.device.session;
+    if (!profile) {
+      console.warn('[CartBurner] 会话缺失，无法装配适配器');
       return;
     }
-
-    const gbaRuntimeAdapter = new GBAAdapter(
-      props.device,
-      (msg, level) => { log(msg, level); },
+    const runtime = getDeviceRuntime();
+    const variant = runtime.registry.findVariant(profile.variantId);
+    if (!variant) {
+      console.error('[CartBurner] 未知会话 variant', profile.variantId);
+      return;
+    }
+    const runtimeBinding = runtime.composition.resolve(variant.runtimeBindingId);
+    modeSyncStrategy = runtimeBinding.modeSyncStrategy;
+    const context = {
+      device: props.device,
+      profile,
+      log: (msg: Parameters<typeof log>[0], level: Parameters<typeof log>[1]) => { log(msg, level); },
       updateProgress,
       t,
+    };
+    const isFlashgbx = profile.firmware.protocol === 'flashgbx';
+    gbaAdapter.value = createSession(
+      runtimeBinding.adapterFactory.create('gba', context),
+      isFlashgbx ? 'flashgbx-gba' : 'gba',
     );
-    gbaAdapter.value = createSession(gbaRuntimeAdapter, 'gba');
-    const mbc5RuntimeAdapter = new MBC5Adapter(
-      props.device,
-      (msg, level) => { log(msg, level); },
-      updateProgress,
-      t,
+    mbc5Adapter.value = createSession(
+      runtimeBinding.adapterFactory.create('mbc5', context),
+      isFlashgbx ? 'flashgbx-mbc' : 'mbc5',
     );
-    mbc5Adapter.value = createSession(mbc5RuntimeAdapter, 'mbc5');
   } else {
     // 设备未连接时清空适配器
     if (gbaAdapter.value || mbc5Adapter.value) {
       gbaAdapter.value = null;
       mbc5Adapter.value = null;
-      flashgbxBaseAdapterRef = null;
+      modeSyncStrategy = undefined;
       console.log('[CartBurner] 清空适配器');
     }
   }
 }
 
 watch(() => props.deviceReady, () => {
+  initializeAdapters();
+});
+
+// 会话替换（重连）时旧适配器必须失效，避免新连接复用旧会话的适配器
+watch(() => props.device?.connectionId, () => {
+  if (gbaAdapter.value || mbc5Adapter.value) {
+    gbaAdapter.value = null;
+    mbc5Adapter.value = null;
+    modeSyncStrategy = undefined;
+  }
   initializeAdapters();
 });
 
@@ -1167,32 +1175,28 @@ function printGameDetectionResults(gameResults: GameDetectionResult[]) {
   }
 }
 
-function logDeviceFirmwareProfile(deviceInfo: DeviceInfo) {
-  const profile = getFirmwareProfile(deviceInfo);
-  const inferredProfile = inferFirmwareProfileFromPort(deviceInfo.portInfo);
-  const port = deviceInfo.portInfo;
-  const details = [
-    `profile=${profile.id}`,
-    `label=${profile.label}`,
-    `configured=${AdvancedSettings.firmwareProfile}`,
-    `inferred=${inferredProfile.id}`,
-    `port=${port?.path ?? 'unknown'}`,
-    `vid=${port?.vendorId ?? '--'}`,
-    `pid=${port?.productId ?? '--'}`,
-    `manufacturer=${port?.manufacturer ?? '--'}`,
-    `product=${port?.product ?? '--'}`,
-    `capabilities=${JSON.stringify(profile.capabilities)}`,
-  ].join(', ');
-
-  log({
-    message: `Firmware profile configured: ${profile.label}`,
-    details,
-  }, profile.id === 'unknown' ? 'warn' : 'info');
+/**
+ * 把连接报告写入右侧日志区。
+ *
+ * 设备/固件、端口匹配结果与失败阶段提示都在 {@link buildConnectionLogReport} 里成形，
+ * 本组件只负责把它们逐条渲染进日志面板，避免 UI 再解析一遍协议细节。
+ */
+function logConnectionEntries(entries: readonly ConnectionLogEntry[]) {
+  for (const entry of entries) {
+    const payload: { message: string; details?: string; error?: string } = { message: entry.message };
+    if (entry.details) {
+      payload.details = entry.details;
+    }
+    if (entry.error) {
+      payload.error = entry.error;
+    }
+    log(payload, entry.level);
+  }
 }
 
 // 暴露方法供父组件调用
 defineExpose({
-  logDeviceFirmwareProfile,
+  logConnectionEntries,
   resetState,
 });
 </script>

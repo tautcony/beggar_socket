@@ -28,12 +28,9 @@ import {
   GBFLASH_BINDING,
   GBFLASH_DEVICE,
 } from '../definitions';
-import type { DisplayText } from '../display';
+import { displayTextToString } from '../display';
+import type { SessionProfile } from '../session';
 import type { DeviceDefinition, FirmwareDefinition } from '../types';
-
-function displayTextToString(text: DisplayText): string {
-  return typeof text === 'string' ? text : text.fallback ?? text.key;
-}
 
 function legacyCapabilitiesFrom(
   firmware: FirmwareDefinition,
@@ -139,6 +136,36 @@ export function getFirmwareProfileById(id: FirmwareProfileId): FirmwareProfile {
     case 'unknown':
       return UNKNOWN_FIRMWARE_PROFILE;
   }
+}
+
+/**
+ * Projection of a committed session onto the legacy `FirmwareProfile` shape.
+ *
+ * Adapters and UI still read `FirmwareProfile` during the transition; every value here is
+ * taken from the resolved session so the legacy view can never drift from it.
+ *
+ * Deprecated (removed in P4).
+ */
+export function firmwareProfileFromSession(profile: SessionProfile): FirmwareProfile {
+  const id: FirmwareProfileId = profile.firmware.protocol === 'flashgbx'
+    ? 'flashgbx'
+    : profile.variantId === BEGGAR_STC_BINDING.id ? 'stc' : 'stm';
+
+  return Object.freeze({
+    id,
+    label: displayTextToString(profile.display.title),
+    maxReadChunk: profile.transport.maxReadChunk,
+    ...(profile.firmwareVersion !== undefined ? { firmwareVersion: profile.firmwareVersion } : {}),
+    capabilities: Object.freeze({
+      gbaSectorErase: profile.capabilities.has('rom.erase.sector'),
+      gbaFramRam: profile.capabilities.has('ram.fram.gba'),
+      gbcFramRam: profile.capabilities.has('ram.fram.gbc'),
+      cartPowerControl: profile.capabilities.has('cart.powerControl'),
+      boostMode: profile.runtimeFeatures.boostTransport,
+      nativeFlashgbxProtocol: profile.firmware.protocol === 'flashgbx',
+      audioWePin: profile.capabilities.has('cart.audioWePin'),
+    }),
+  });
 }
 
 function lower(value?: string): string {

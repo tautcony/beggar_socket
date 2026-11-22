@@ -54,6 +54,7 @@
         "cancel": "取消",
         "serialNumber": "識別碼"
       },
+      "selectOtherPort": "選擇其他序列埠",
       "resetConnection": "重置",
       "flashgbxPowerCapable": "支援電源控制",
       "flashgbxNoPowerControl": "無電源控制",

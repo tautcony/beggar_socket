@@ -1,3 +1,4 @@
+import type { DeviceDiagnostic, SessionProfile } from '@/device/session';
 import type { CommandOptions } from '@/types/command-options';
 import type { CommandResult } from '@/types/command-result';
 import type { ProgressInfo } from '@/types/progress-info';
@@ -31,11 +32,31 @@ export interface BurnerConnectionSelectOptions {
   skipSignalInit?: boolean;
 }
 
+/**
+ * Committed session of one connection: the immutable resolved profile plus the
+ * diagnostics produced while establishing it (`port-mismatch`, probe skips, ...).
+ *
+ * The profile is the only device/firmware authority for the connection; `probeFacts`
+ * exists solely for the legacy `DeviceInfo` facade and is never consulted for behavior.
+ */
+export interface BurnerConnectionSession {
+  readonly connectionId: string;
+  readonly profile: SessionProfile;
+  readonly diagnostics: readonly DeviceDiagnostic[];
+  readonly probeFacts?: unknown;
+}
+
 export interface BurnerConnectionPort {
   list(): Promise<BurnerDomainResult<BurnerConnectionHandle['portInfo'][]>>;
   select(options?: BurnerConnectionSelectOptions): Promise<BurnerDomainResult<BurnerConnectionSelection | null>>;
   connect(selection?: BurnerConnectionSelection | null): Promise<BurnerDomainResult<BurnerConnectionHandle>>;
   init(handle: BurnerConnectionHandle): Promise<BurnerDomainResult<void>>;
+  /**
+   * Probe → resolve → initialize inside the connection transaction. A port that provides
+   * sessions must implement it; ports without it (tests, legacy harnesses) simply commit
+   * the transport-level connection.
+   */
+  establishSession?(handle: BurnerConnectionHandle): Promise<BurnerDomainResult<BurnerConnectionSession>>;
   disconnect(handle: BurnerConnectionHandle): Promise<BurnerDomainResult<void>>;
 }
 

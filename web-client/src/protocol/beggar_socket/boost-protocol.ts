@@ -9,6 +9,7 @@ import {
   BOOST_MAX_WRITE_CHUNK,
   BOOST_PROBE_ACK,
   BOOST_PROBE_REQUEST,
+  BOOST_PROBE_TIMEOUT_MS,
   BoostCommand,
   type BoostMode,
 } from './boost-constants';
@@ -69,7 +70,7 @@ async function sendAndExpectBoostAck(
  */
 export async function boost_probe(
   transport: Transport,
-  timeoutMs = 250,
+  timeoutMs = BOOST_PROBE_TIMEOUT_MS,
 ): Promise<BoostProbeResult> {
   try {
     await transport.flushInput?.();
@@ -144,7 +145,7 @@ export async function boost_enter_mode(transport: Transport, mode: BoostMode): P
     await boost_set_mode(transport, mode);
     return { supported: true };
   }
-  const probe = await boost_probe(transport, AdvancedSettings.packageReceiveTimeout);
+  const probe = await boost_probe(transport, BOOST_PROBE_TIMEOUT_MS);
   if (!probe.supported) {
     throw new Error('Device did not respond to Beggar Boost handshake');
   }
