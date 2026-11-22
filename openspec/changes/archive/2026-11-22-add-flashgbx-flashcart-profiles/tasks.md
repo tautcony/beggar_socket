@@ -12,4 +12,4 @@
 ## 3. UI & acceptance
 
 - [x] 3.1 `ChipOperations.vue` 选择器（仅 `nativeFlashgbxProtocol`；按 GBA/MBC5 过滤；默认 `Auto (CFI)`；模式切换重置）；候选列表经 `contracts.ts`；5 语言 i18n 与组件测试；确保通过 `check-architecture-deps`。
-- [ ] 3.2 真机非 CFI 卡带验证并记录；`npm test`、`npm run build`、`cargo test`。
+- [x] 3.2 真机非 CFI 卡带验证并记录；`npm test`、`npm run build`、`cargo test`。
