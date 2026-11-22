@@ -6,6 +6,7 @@ import {
   FlashgbxHandshakeError,
   performFlashgbxDisconnect,
   performFlashgbxHandshake,
+  performFlashgbxTeardown,
 } from '@/protocol/flashgbx';
 
 interface ScriptStep {
@@ -229,12 +230,13 @@ describe('FlashGBX protocol handshake replay', () => {
     }
   });
 
-  it('executes disconnect sequence (CART_PWR_OFF when cartPowerCtrl, SET_VOLTAGE_3_3V otherwise)', async () => {
+  it('executes the canonical disconnect sequence (CART_PWR_OFF then SET_VOLTAGE_3_3V, voltage only without power control)', async () => {
     const pwrReplay = createReplayTransport([
       { expectedTx: [FLASHGBX_CMD.CART_PWR_OFF], rx: [0x01] },
+      { expectedTx: [FLASHGBX_CMD.SET_VOLTAGE_3_3V], rx: [0x01] },
     ]);
 
-    await performFlashgbxDisconnect(pwrReplay.transport, {
+    const pwrResult = await performFlashgbxTeardown(pwrReplay.transport, {
       family: 'gbflash',
       cfwId: 'L',
       fwVer: 14,
@@ -251,7 +253,8 @@ describe('FlashGBX protocol handshake replay', () => {
       audioWePin: true,
       isCdc: false,
     });
-    expect(pwrReplay.sent).toEqual([[0xf3]]);
+    expect(pwrReplay.sent).toEqual([[0xf3], [0xa4]]);
+    expect(pwrResult.failures).toEqual([]);
 
     const noPwrReplay = createReplayTransport([
       { expectedTx: [FLASHGBX_CMD.SET_VOLTAGE_3_3V] },
@@ -274,5 +277,52 @@ describe('FlashGBX protocol handshake replay', () => {
       isCdc: false,
     });
     expect(noPwrReplay.sent).toEqual([[0xa4]]);
+  });
+
+  it('keeps the voltage command when CART_PWR_OFF fails and reports the failure', async () => {
+    const sent: number[][] = [];
+    const transport: Transport = {
+      send: (payload: Uint8Array) => {
+        const bytes = Array.from(payload);
+        sent.push(bytes);
+        // The cartridge power-off command is rejected, the voltage command still goes out.
+        return Promise.resolve(bytes[0] !== FLASHGBX_CMD.CART_PWR_OFF);
+      },
+      read: () => Promise.resolve({ data: new Uint8Array([0x01]) }),
+      readAvailable: () => Promise.resolve({ data: new Uint8Array(0) }),
+      sendAndReceive: () => Promise.resolve({ data: new Uint8Array(0) }),
+      setSignals: () => Promise.resolve(),
+      flushInput: () => Promise.resolve(),
+      flushOutput: () => Promise.resolve(),
+    };
+
+    const result = await performFlashgbxTeardown(transport, {
+      family: 'gbflash',
+      cfwId: 'L',
+      fwVer: 14,
+      pcbVer: 13,
+      fwTs: 0,
+      ofwVer: null,
+      pcbName: 'GBFlash',
+      cartPowerCtrl: true,
+      cartPresenceSwitch: false,
+      cartModeSwitch: false,
+      bootloaderReset: true,
+      hasDeviceSerial: false,
+      unregistered: false,
+      audioWePin: true,
+      isCdc: false,
+    });
+
+    expect(sent).toEqual([[0xf3], [0xa4]]);
+    expect(result.failures).toHaveLength(1);
+    expect(result.failures[0].command).toBe('cart-power-off');
+  });
+
+  it('does nothing when no handshake result is available', async () => {
+    const replay = createReplayTransport([]);
+    const result = await performFlashgbxTeardown(replay.transport, null);
+    expect(replay.sent).toEqual([]);
+    expect(result.failures).toEqual([]);
   });
 });

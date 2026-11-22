@@ -54,6 +54,7 @@
         "cancel": "Отмена",
         "serialNumber": "Серийный номер"
       },
+      "selectOtherPort": "Другой порт",
       "resetConnection": "Сброс",
       "flashgbxPowerCapable": "Управление питанием",
       "flashgbxNoPowerControl": "Без управления питанием",

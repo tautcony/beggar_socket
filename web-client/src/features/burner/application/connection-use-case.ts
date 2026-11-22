@@ -1,3 +1,5 @@
+import type { DeviceDiagnostic } from '@/device/session';
+
 import { ConnectionOperationCoordinator } from './connection-operation-coordinator';
 import type {
   ConnectionCommandResult,
@@ -9,7 +11,7 @@ import type {
   ConnectionState,
   ConnectionUseCaseResult,
 } from './domain/connection';
-import type { BurnerConnectionPort, BurnerConnectionSelectOptions } from './domain/ports';
+import type { BurnerConnectionPort, BurnerConnectionSelectOptions, BurnerConnectionSession } from './domain/ports';
 
 function hasWebPort(selection: ConnectionContext['selection']): boolean {
   return Boolean(
@@ -27,12 +29,19 @@ function normalizeFailure(
   fallbackCode: ConnectionFailureCode,
 ): ConnectionFailure {
   if (error && typeof error === 'object' && 'stage' in error && 'code' in error && 'message' in error) {
-    const mapped = error as { stage: ConnectionFailureStage; code: ConnectionFailureCode; message: string; cause?: unknown };
+    const mapped = error as {
+      stage: ConnectionFailureStage;
+      code: string;
+      message: string;
+      cause?: unknown;
+      diagnostics?: ConnectionFailure['diagnostics'];
+    };
     return {
       stage: mapped.stage,
-      code: mapped.code,
+      code: mapped.code as ConnectionFailureCode,
       message: mapped.message,
       cause: mapped.cause,
+      ...(mapped.diagnostics ? { diagnostics: mapped.diagnostics } : {}),
     };
   }
 
@@ -46,12 +55,18 @@ function normalizeFailure(
   };
 }
 
-function toSuccess(state: ConnectionState, context: ConnectionContext, message: string): ConnectionCommandResult {
+function toSuccess(
+  state: ConnectionState,
+  context: ConnectionContext,
+  message: string,
+  diagnostics?: readonly DeviceDiagnostic[],
+): ConnectionCommandResult {
   return {
     success: true,
     state,
     context,
     message,
+    ...(diagnostics && diagnostics.length > 0 ? { diagnostics } : {}),
   };
 }
 
@@ -112,13 +127,16 @@ export class ConnectionOrchestrationUseCase {
   private markFailure(
     failure: ConnectionFailure,
     resource: Pick<ConnectionContext, 'selection' | 'handle'> = this.snapshotState.context,
+    options: { readonly keepSession?: boolean } = {},
   ): ConnectionUseCaseResult {
+    const session = options.keepSession ? this.snapshotState.context.session ?? null : null;
     this.snapshotState = {
       state: 'failed',
       context: {
         generation: this.snapshotState.context.generation + 1,
         selection: resource.selection,
         handle: resource.handle,
+        session,
       },
       lastFailure: failure,
     };
@@ -128,16 +146,22 @@ export class ConnectionOrchestrationUseCase {
       state: 'failed',
       context: this.snapshotState.context,
       failure,
+      ...(failure.diagnostics ? { diagnostics: failure.diagnostics } : {}),
     };
   }
 
-  private markConnected(selection: ConnectionContext['selection'], handle: ConnectionContext['handle']): ConnectionUseCaseResult {
+  private markConnected(
+    selection: ConnectionContext['selection'],
+    handle: ConnectionContext['handle'],
+    session: BurnerConnectionSession | null,
+  ): ConnectionUseCaseResult {
     this.snapshotState = {
       state: 'connected',
       context: {
         generation: this.snapshotState.context.generation + 1,
         selection,
         handle,
+        session,
       },
       lastFailure: undefined,
     };
@@ -146,6 +170,7 @@ export class ConnectionOrchestrationUseCase {
       success: true,
       state: this.snapshotState.state,
       context: this.snapshotState.context,
+      ...(session && session.diagnostics.length > 0 ? { diagnostics: session.diagnostics } : {}),
     };
   }
 
@@ -233,10 +258,16 @@ export class ConnectionOrchestrationUseCase {
     }
   }
 
-  private async closeHandle(handle: NonNullable<ConnectionContext['handle']>): Promise<{ error: unknown } | undefined> {
+  private async closeHandle(
+    handle: NonNullable<ConnectionContext['handle']>,
+  ): Promise<{ error?: unknown; diagnostics?: readonly DeviceDiagnostic[] } | undefined> {
     try {
       const result = await this.connectionPort.disconnect(handle);
-      return result.ok ? undefined : { error: result.error };
+      if (!result.ok) {
+        return { error: result.error };
+      }
+      const diagnostics = result.diagnostics ?? [];
+      return diagnostics.length > 0 ? { diagnostics } : undefined;
     } catch (error) {
       return { error };
     }
@@ -252,7 +283,7 @@ export class ConnectionOrchestrationUseCase {
     const preservedSelection = hasWebPort(selection) ? selection : null;
     const result = this.markFailure(
       failureWithCleanup,
-      cleanup ? { selection, handle } : { selection: preservedSelection, handle: null },
+      cleanup?.error ? { selection, handle } : { selection: preservedSelection, handle: null },
     );
     return toFailure(result.state, result.context, failureWithCleanup);
   }
@@ -292,8 +323,28 @@ export class ConnectionOrchestrationUseCase {
       return this.rollbackConnection(initFailure, selection, connectResult.data);
     }
 
-    const result = this.markConnected(selection, connectResult.data);
-    return toSuccess(result.state, result.context, 'Connection prepared');
+    // Probe → resolve → initialize run inside the same lifecycle queue entry, so a connect
+    // requested concurrently waits for the whole transaction instead of interleaving it.
+    let session: BurnerConnectionSession | null = null;
+    if (this.connectionPort.establishSession) {
+      let establishFailure: ConnectionFailure | undefined;
+      try {
+        const established = await this.connectionPort.establishSession(connectResult.data);
+        if (established.ok) {
+          session = established.data;
+        } else {
+          establishFailure = normalizeFailure('probe', established.error, 'probe_failed');
+        }
+      } catch (error) {
+        establishFailure = normalizeFailure('probe', error, 'probe_failed');
+      }
+      if (establishFailure) {
+        return this.rollbackConnection(establishFailure, selection, connectResult.data);
+      }
+    }
+
+    const result = this.markConnected(selection, connectResult.data, session);
+    return toSuccess(result.state, result.context, 'Connection prepared', result.diagnostics);
   }
 
   async ensureConnected(): Promise<ConnectionCommandResult> {
@@ -333,14 +384,17 @@ export class ConnectionOrchestrationUseCase {
           generation: this.snapshotState.context.generation + 1,
           selection: null,
           handle: null,
+          session: null,
         },
       };
       return toSuccess(this.snapshotState.state, this.snapshotState.context, 'No active connection');
     }
 
     this.setState('disconnecting');
+    // The port runs `teardown(activeSession)` and then closes the transport; teardown
+    // failures come back as `disconnect` diagnostics instead of blocking the close.
     const cleanup = await this.closeHandle(this.snapshotState.context.handle);
-    if (cleanup) {
+    if (cleanup?.error) {
       const failure = normalizeFailure('disconnect', cleanup.error, 'disconnect_failed');
       const result = this.markFailure(failure);
       return toFailure(result.state, result.context, failure);
@@ -352,10 +406,11 @@ export class ConnectionOrchestrationUseCase {
         generation: this.snapshotState.context.generation + 1,
         selection: null,
         handle: null,
+        session: null,
       },
       lastFailure: undefined,
     };
-    return toSuccess(this.snapshotState.state, this.snapshotState.context, 'Disconnected');
+    return toSuccess(this.snapshotState.state, this.snapshotState.context, 'Disconnected', cleanup?.diagnostics);
   }
 
   async retryConnection(options?: BurnerConnectionSelectOptions): Promise<ConnectionCommandResult> {

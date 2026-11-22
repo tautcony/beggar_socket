@@ -11,6 +11,8 @@ import { FLASHGBX_CMD } from '@/protocol/flashgbx';
 import { ppbUnlockGBA, ppbUnlockMBC5, readRTC, rumbleTest, setRTC } from '@/services/tool-functions';
 import type { DeviceInfo } from '@/types/device-info';
 
+import { buildFlashgbxSession, buildStmSession } from '../helpers/session-profile';
+
 vi.mock('@/composables/useToast', () => ({
   useToast: () => ({
     showToast: vi.fn(),
@@ -48,11 +50,13 @@ function createFlashgbxDevice(): {
       port: null,
       connection: null,
       transport,
+      connectionId: 'flashgbx-session',
       firmwareProfile: {
         ...FLASHGBX_FIRMWARE_PROFILE,
         label: 'GBFlash',
         firmwareVersion: 'L14',
       },
+      session: buildFlashgbxSession(),
     },
     sendMock,
     setSignalsMock,
@@ -112,6 +116,7 @@ describe('FlashGBX operation guards', () => {
   it('keeps stm/stc adapter instantiation unchanged', async () => {
     const { device } = createFlashgbxDevice();
     device.firmwareProfile = STM_FIRMWARE_PROFILE;
+    device.session = buildStmSession();
 
     const wrapper = mount(CartBurner, {
       props: {
@@ -145,6 +150,49 @@ describe('FlashGBX operation guards', () => {
     };
     expect(vm.gbaAdapter?.id).toBe('cartridge:gba');
     expect(vm.mbc5Adapter?.id).toBe('cartridge:mbc5');
+  });
+
+  it('drops the adapters of the previous connection when the session is replaced', async () => {
+    const { device } = createFlashgbxDevice();
+
+    const wrapper = mount(CartBurner, {
+      props: { device, deviceReady: true },
+      global: {
+        mocks: { $t: (key: string) => key },
+        stubs: {
+          RetroButton: true,
+          RetroCard: { template: '<div><slot /><slot name="header" /></div>' },
+          RetroSegmented: true,
+          ChipOperations: true,
+          RomOperations: true,
+          RamOperations: true,
+          DeviceSettingModal: true,
+          FileNameSelectorModal: true,
+          MultiCartResultModal: true,
+          ProgressDisplayModal: true,
+          CartridgeToolsModal: true,
+          LogViewer: true,
+          EmulatorModal: true,
+        },
+      },
+    });
+    await nextTick();
+
+    const vm = wrapper.vm as unknown as { gbaAdapter: { id: string } | null };
+    expect(vm.gbaAdapter?.id).toBe('cartridge:flashgbx-gba');
+
+    // A reconnect publishes a new connectionId: the old FlashGBX adapters must not survive.
+    await wrapper.setProps({
+      device: {
+        ...device,
+        connectionId: 'reconnected-session',
+        firmwareProfile: STM_FIRMWARE_PROFILE,
+        session: buildStmSession(),
+      },
+    });
+    await nextTick();
+
+    expect(vm.gbaAdapter?.id).toBe('cartridge:gba');
   });
 
   it('blocks ChisFlash-only ppbUnlock functions on flashgbx devices without touching transport', async () => {

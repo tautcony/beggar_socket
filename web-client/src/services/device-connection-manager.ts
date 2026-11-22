@@ -1,10 +1,6 @@
-import {
-  attachFirmwareProfile,
-  FLASHGBX_FIRMWARE_PROFILE,
-  getFirmwareProfileById,
-  inferFirmwareProfileFromPort,
-  withBeggarBoostProfile,
-} from '@/device/compat/firmware-profile';
+import { firmwareProfileFromSession } from '@/device/compat/firmware-profile';
+import type { DeviceDiagnostic, SessionProfile } from '@/device/session';
+import type { ResolvedVariantSelection } from '@/device/types';
 import { createConnectionOrchestrationUseCase } from '@/features/burner/adapters';
 import type {
   BurnerConnectionHandle,
@@ -12,37 +8,74 @@ import type {
   ConnectionFailure,
   ConnectionOperationResult,
   ConnectionOperationToken,
+  ConnectionOrchestrationUseCase,
 } from '@/features/burner/application';
+import { getDeviceRuntime, type DeviceRuntime } from '@/device-runtime/runtime-instance';
+import { resolveConnectionBaudRate } from '@/device-runtime/session-resolver';
+import type { FlashgbxFirmwareInfo } from '@/protocol';
 import { isTauriRuntime } from '@/platform/runtime';
 import type { DeviceHandle } from '@/platform/serial';
-import {
-  boost_probe,
-  boost_reset_to_default,
-  type FlashgbxFirmwareInfo,
-  performFlashgbxDisconnect,
-  performFlashgbxHandshake,
-} from '@/protocol';
-import { AdvancedSettings } from '@/settings/advanced-settings';
 import { DeviceInfo } from '@/types/device-info';
-import type { FirmwareProfile } from '@/types/firmware-profile';
 import type { SerialPortInfo } from '@/types/serial';
 import { PortSelectionRequiredError } from '@/utils/errors/PortSelectionRequiredError';
 import { type PortFilter, PortFilters } from '@/utils/port-filter';
 
+export interface DeviceConnectOptions {
+  /**
+   * Manual entry: offer every port the host exposes (no discovery filter). Automatic
+   * discovery never opens a `mismatch` port; only this explicit choice may.
+   */
+  readonly allowAnyPort?: boolean;
+}
+
+/** Raised when the saved device/firmware selection cannot be resolved. */
+export class DeviceSelectionError extends Error {
+  readonly stage = 'select' as const;
+  readonly code = 'selection_invalid' as const;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'DeviceSelectionError';
+  }
+}
+
+/**
+ * Narrows the opaque probe facts of a committed session onto the legacy
+ * `DeviceInfo.flashgbxInfo` facade.
+ *
+ * `EstablishedSession.probeFacts` is intentionally untyped: each runtime binding closes
+ * its own facts type. The FlashGBX binding publishes `{ firmwareInfo }`, and the legacy
+ * facade (FlashGBX command client) needs the bare handshake result.
+ */
+function flashgbxInfoFromProbeFacts(probeFacts: unknown): FlashgbxFirmwareInfo | undefined {
+  if (!probeFacts || typeof probeFacts !== 'object') {
+    return undefined;
+  }
+  const info = (probeFacts as { firmwareInfo?: FlashgbxFirmwareInfo | null }).firmwareInfo;
+  return info ?? undefined;
+}
+
 /**
  * 设备连接管理器
- * 统一处理 Web Serial API 和 Tauri 原生串口的设备连接
+ *
+ * 连接配置由高级设置（core `SelectionProvider`）+ 注册表决定：串口枚举只影响候选顺序
+ * 与诊断，不改变协议。所有连接入口（首次、指定端口、重连）都走同一条连接事务，协议
+ * 握手与初始化在事务内完成。
  */
 export class DeviceConnectionManager {
   private static instance: DeviceConnectionManager;
-  private readonly connectionUseCase = createConnectionOrchestrationUseCase();
+  private readonly runtime: DeviceRuntime;
+  private readonly connectionUseCase: ConnectionOrchestrationUseCase;
   private isConnecting = false;
 
-  private constructor() {}
+  private constructor(runtime: DeviceRuntime) {
+    this.runtime = runtime;
+    this.connectionUseCase = createConnectionOrchestrationUseCase(runtime);
+  }
 
   static getInstance(): DeviceConnectionManager {
     if (!DeviceConnectionManager.instance) {
-      DeviceConnectionManager.instance = new DeviceConnectionManager();
+      DeviceConnectionManager.instance = new DeviceConnectionManager(getDeviceRuntime());
     }
     return DeviceConnectionManager.instance;
   }
@@ -95,23 +128,69 @@ export class DeviceConnectionManager {
     );
   }
 
-  private toDeviceInfo(handle: BurnerConnectionHandle, generation?: number): DeviceInfo {
+  /** Reads the saved selection and resolves it; never guesses a default. */
+  private resolveVariant(): ResolvedVariantSelection {
+    const snapshot = this.runtime.selection.read();
+    if (!snapshot.variantId) {
+      throw new DeviceSelectionError('No valid device selection. Choose a device and firmware in the advanced settings.');
+    }
+    try {
+      return this.runtime.registry.selectVariant(snapshot.variantId);
+    } catch (error) {
+      throw new DeviceSelectionError(`Device selection ${snapshot.variantId} is not registered`);
+    }
+  }
+
+  /** Discovery filter derived from the binding, never from a legacy profile id. */
+  private discoveryFilter(variant: ResolvedVariantSelection): PortFilter | undefined {
+    const devices = variant.binding.discoveryFilters
+      .filter(filter => filter.vendorId !== undefined)
+      .map(filter => ({ vendorId: filter.vendorId, productId: filter.productId }));
+    return devices.length > 0 ? PortFilters.devices(devices) : undefined;
+  }
+
+  /** Open parameters come from the selected firmware (binding), not from the port. */
+  private connectionOptions(variant: ResolvedVariantSelection): { baudRate?: number; skipSignalInit: boolean } {
+    const settings = this.runtime.store.operationSnapshot(variant.parameterNamespace);
+    const baudRate = resolveConnectionBaudRate(variant, settings.values);
+    return {
+      ...(baudRate !== undefined ? { baudRate } : {}),
+      skipSignalInit: variant.transport.signalInit === 'none',
+    };
+  }
+
+  private toDeviceInfo(
+    handle: BurnerConnectionHandle,
+    generation?: number,
+    session?: { profile: SessionProfile; diagnostics: readonly DeviceDiagnostic[]; probeFacts?: unknown } | null,
+  ): DeviceInfo {
     const ctx = handle.context;
     if (!this.isDeviceHandle(ctx)) {
       throw new Error('Invalid connection handle: context is not a valid DeviceHandle');
     }
-    const resolvedProfile = getFirmwareProfileById(AdvancedSettings.firmwareProfile);
-    ctx.firmwareProfile = resolvedProfile;
-    return attachFirmwareProfile({
+
+    const profile = session?.profile;
+    const firmwareProfile = profile ? firmwareProfileFromSession(profile) : undefined;
+    const flashgbxInfo = flashgbxInfoFromProbeFacts(session?.probeFacts);
+
+    const device: DeviceInfo = {
       port: ctx.port,
       connection: null,
       transport: ctx.transport,
       serialHandle: ctx,
       portInfo: ctx.portInfo,
-      firmwareProfile: resolvedProfile,
       connectionGeneration: generation,
       connectionId: handle.id,
-    }, resolvedProfile);
+      ...(firmwareProfile ? { firmwareProfile } : {}),
+      ...(profile ? { session: profile } : {}),
+      ...(session ? { diagnostics: session.diagnostics } : {}),
+      ...(flashgbxInfo ? { flashgbxInfo } : {}),
+    };
+
+    if (device.firmwareProfile) {
+      ctx.firmwareProfile = device.firmwareProfile;
+    }
+    return device;
   }
 
   private asSerialPortInfo(portInfo: BurnerConnectionHandle['portInfo']): SerialPortInfo | null {
@@ -130,23 +209,22 @@ export class DeviceConnectionManager {
 
   private logFirmwareProfile(device: DeviceInfo, source: string): void {
     const profile = device.firmwareProfile;
-    const inferredProfile = inferFirmwareProfileFromPort(device.portInfo);
-    console.info('[DeviceConnectionManager] firmware profile detected', {
+    const portInfo = device.portInfo;
+    console.info('[DeviceConnectionManager] session established', {
       source,
+      variant: device.session?.variantId ?? 'unknown',
       profile: profile?.id ?? 'unknown',
       label: profile?.label ?? 'Unknown',
-      configuredProfile: AdvancedSettings.firmwareProfile,
-      inferredProfile: inferredProfile.id,
-      inferredLabel: inferredProfile.label,
-      capabilities: profile?.capabilities,
-      port: device.portInfo
+      firmwareVersion: profile?.firmwareVersion,
+      baudRate: device.session?.transport.baudRate,
+      diagnostics: device.diagnostics?.map(diagnostic => diagnostic.code) ?? [],
+      port: portInfo
         ? {
-          path: device.portInfo.path,
-          vendorId: device.portInfo.vendorId,
-          productId: device.portInfo.productId,
-          manufacturer: device.portInfo.manufacturer,
-          product: device.portInfo.product,
-          serialNumber: device.portInfo.serialNumber,
+          path: portInfo.path,
+          vendorId: portInfo.vendorId,
+          productId: portInfo.productId,
+          manufacturer: portInfo.manufacturer,
+          product: portInfo.product,
         }
         : null,
     });
@@ -155,46 +233,45 @@ export class DeviceConnectionManager {
   /**
    * 请求串口设备连接
    */
-  async requestDevice(_filter?: PortFilter): Promise<DeviceInfo> {
+  async requestDevice(options: DeviceConnectOptions = {}): Promise<DeviceInfo> {
     if (this.isConnecting) {
       throw new Error('Device connection already in progress');
     }
     this.isConnecting = true;
     console.info('[DeviceConnectionManager] requestDevice start', {
       isTauri: isTauriRuntime(),
-      hasFilter: Boolean(_filter),
-      filterConfig: _filter?.config,
+      allowAnyPort: Boolean(options.allowAnyPort),
     });
     try {
-      return await this._requestDevice(_filter);
+      return await this._requestDevice(options);
     } finally {
       this.isConnecting = false;
     }
   }
 
-  private async _requestDevice(_filter?: PortFilter): Promise<DeviceInfo> {
-    const isFlashgbx = AdvancedSettings.firmwareProfile === 'flashgbx';
-    const effectiveFilter = _filter ?? (isFlashgbx ? PortFilters.presets.flashgbx() : undefined);
+  private async _requestDevice(options: DeviceConnectOptions): Promise<DeviceInfo> {
+    const variant = this.resolveVariant();
+    const filter = options.allowAnyPort ? undefined : this.discoveryFilter(variant);
 
-    if (isTauriRuntime() && effectiveFilter) {
-      const availablePorts = await this.listAvailablePorts(effectiveFilter);
-      console.info('[DeviceConnectionManager] filtered Tauri ports', availablePorts.map(port => this.describePort(port)));
-      if (availablePorts.length === 1) {
-        return this.connectWithSelectedPort(availablePorts[0]);
+    if (isTauriRuntime() && filter) {
+      const matchingPorts = await this.listAvailablePorts(filter);
+      console.info('[DeviceConnectionManager] filtered Tauri ports', matchingPorts.map(port => this.describePort(port)));
+      // Automatic selection only accepts an unambiguous `match`.
+      if (matchingPorts.length === 1) {
+        return this.connectWithSelectedPort(matchingPorts[0], variant);
       }
 
-      const fallbackPorts = availablePorts.length === 0
+      // Multiple matches need a choice; no match offers the full list but opens nothing.
+      const fallbackPorts = matchingPorts.length === 0
         ? await this.listAvailablePorts()
-        : availablePorts;
+        : matchingPorts;
       console.warn('[DeviceConnectionManager] user port selection required', fallbackPorts.map(port => this.describePort(port)));
-
       throw new PortSelectionRequiredError(fallbackPorts);
     }
 
-    const initialBaudRate = isFlashgbx ? this.resolveInitialFlashgbxBaudRate() : undefined;
     const result = await this.connectionUseCase.prepareConnection({
-      filter: effectiveFilter,
-      ...(isFlashgbx ? { baudRate: initialBaudRate, skipSignalInit: true } : {}),
+      filter,
+      ...this.connectionOptions(variant),
     });
     if (!result.success || !result.context.handle) {
       if (result.failure?.code === 'selection_required') {
@@ -209,23 +286,11 @@ export class DeviceConnectionManager {
       });
     }
 
-    const selectedPortInfo = this.asSerialPortInfo(result.context.handle.portInfo);
-    if (effectiveFilter && selectedPortInfo && !effectiveFilter(selectedPortInfo)) {
-      console.warn('[DeviceConnectionManager] selected port rejected by filter', this.describePort(selectedPortInfo));
-      await this.connectionUseCase.disconnect();
-      throw this.asError({
-        stage: 'select',
-        code: 'select_failed',
-        message: 'Selected device does not match requested filter',
-      });
-    }
-
-    const device = this.toDeviceInfo(result.context.handle, result.context.generation);
-    if (isFlashgbx) {
-      await this.initializeFlashgbxConnection(device, initialBaudRate ?? 2_000_000);
-    } else {
-      await this.detectBoostCapabilities(device);
-    }
+    const device = this.toDeviceInfo(
+      result.context.handle,
+      result.context.generation,
+      result.context.session ?? null,
+    );
     this.logFirmwareProfile(device, 'requestDevice');
     return device;
   }
@@ -233,22 +298,20 @@ export class DeviceConnectionManager {
   /**
    * 使用指定的串口连接设备
    */
-  async connectWithSelectedPort(selectedPort: SerialPortInfo): Promise<DeviceInfo> {
+  async connectWithSelectedPort(
+    selectedPort: SerialPortInfo,
+    variant: ResolvedVariantSelection = this.resolveVariant(),
+  ): Promise<DeviceInfo> {
     if (!isTauriRuntime()) {
       throw new Error('This method is only available in Tauri environment');
     }
-
-    const isFlashgbx = AdvancedSettings.firmwareProfile === 'flashgbx';
-    const initialBaudRate = isFlashgbx ? this.resolveInitialFlashgbxBaudRate(selectedPort) : undefined;
 
     try {
       console.info('[DeviceConnectionManager] connectWithSelectedPort', this.describePort(selectedPort));
 
       const selection: BurnerConnectionSelection = {
         portInfo: selectedPort,
-        context: isFlashgbx
-          ? { portInfo: selectedPort, baudRate: initialBaudRate, skipSignalInit: true }
-          : { portInfo: selectedPort },
+        context: { portInfo: selectedPort, ...this.connectionOptions(variant) },
       };
 
       const result = await this.connectionUseCase.reconnectWithSelection(selection);
@@ -264,15 +327,16 @@ export class DeviceConnectionManager {
         });
       }
 
+      // An explicitly selected port keeps the connection even when it does not match the
+      // saved variant; the resolver already recorded the `transport` mismatch diagnostic.
       const device = this.withPortInfo(
-        this.toDeviceInfo(result.context.handle, result.context.generation),
+        this.toDeviceInfo(
+          result.context.handle,
+          result.context.generation,
+          result.context.session ?? null,
+        ),
         selectedPort,
       );
-      if (isFlashgbx) {
-        await this.initializeFlashgbxConnection(device, initialBaudRate ?? 2_000_000);
-      } else {
-        await this.detectBoostCapabilities(device);
-      }
       this.logFirmwareProfile(device, 'connectWithSelectedPort');
       return device;
     } catch (error) {
@@ -332,7 +396,11 @@ export class DeviceConnectionManager {
           });
         }
 
-        const latestDevice = this.toDeviceInfo(ensureResult.context.handle, ensureResult.context.generation);
+        const latestDevice = this.toDeviceInfo(
+          ensureResult.context.handle,
+          ensureResult.context.generation,
+          ensureResult.context.session ?? null,
+        );
         device.connection = latestDevice.connection;
         device.port = latestDevice.port;
         device.transport = latestDevice.transport;
@@ -341,7 +409,8 @@ export class DeviceConnectionManager {
         device.firmwareProfile = latestDevice.firmwareProfile;
         device.connectionGeneration = latestDevice.connectionGeneration;
         device.connectionId = latestDevice.connectionId;
-        await this.detectBoostCapabilities(device);
+        device.session = latestDevice.session;
+        device.diagnostics = latestDevice.diagnostics;
       },
     });
 
@@ -377,6 +446,18 @@ export class DeviceConnectionManager {
   }
 
   /**
+   * Ports that match the saved variant. Used to order the manual list; an empty result
+   * means the user must pick from the complete list instead.
+   */
+  async listPortsMatchingSelection(): Promise<SerialPortInfo[]> {
+    try {
+      return await this.listAvailablePorts(this.discoveryFilter(this.resolveVariant()));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
    * 断开设备连接
    */
   async disconnectDevice(device: DeviceInfo): Promise<void> {
@@ -384,10 +465,13 @@ export class DeviceConnectionManager {
       requireConnected: false,
       fn: async () => {
         try {
-          if (device.firmwareProfile?.id === 'flashgbx' && device.transport) {
-            await performFlashgbxDisconnect(device.transport, device.flashgbxInfo);
-          }
+          // Teardown (protocol safety commands) belongs to the committed session and runs
+          // inside the connection port before the transport closes.
           const result = await this.connectionUseCase.disconnect();
+          const diagnostics = result.diagnostics ?? [];
+          if (diagnostics.length > 0) {
+            console.warn('[DeviceConnectionManager] disconnect diagnostics', diagnostics);
+          }
           if (!result.success) {
             throw this.asError(result.failure ?? {
               stage: 'disconnect',
@@ -401,6 +485,8 @@ export class DeviceConnectionManager {
           device.transport = null;
           device.serialHandle = null;
           device.flashgbxInfo = undefined;
+          device.session = undefined;
+          device.diagnostics = undefined;
           device.connectionGeneration = undefined;
           device.connectionId = undefined;
         }
@@ -432,88 +518,6 @@ export class DeviceConnectionManager {
     }
     device.portInfo = portInfo;
     return device;
-  }
-
-  /**
-   * 当设备配置为丐中丐 (stm) 且启用了 Boost 增强选项时，
-   * 探测固件是否支持 Boost 扩展指令，识别到则附加增强能力并复位回默认协议。
-   */
-  private async detectBoostCapabilities(device: DeviceInfo): Promise<void> {
-    if (
-      device.firmwareProfile?.id !== 'stm'
-      || !AdvancedSettings.stmBoost
-      || device.serialHandle?.platform === 'simulated'
-      || !device.transport
-    ) {
-      return;
-    }
-
-    try {
-      const probe = await boost_probe(device.transport, 250);
-      if (probe.supported) {
-        // 识别到 Boost 固件后保持在 Boost 模式中，避免无意义的模式切换开销
-        attachFirmwareProfile(
-          device,
-          withBeggarBoostProfile(device.firmwareProfile, probe.banner),
-        );
-      } else {
-        await boost_reset_to_default(device.transport);
-      }
-    } catch (error) {
-      console.debug('[DeviceConnectionManager] Beggar Boost probe skipped:', error);
-    }
-  }
-
-  private resolveInitialFlashgbxBaudRate(_portInfo?: SerialPortInfo | null): number {
-    const configured = AdvancedSettings.flashgbxBaudRate;
-    if (configured !== 'auto') {
-      return configured;
-    }
-    return 2_000_000;
-  }
-
-  private buildFlashgbxRuntimeProfile(info: FlashgbxFirmwareInfo): FirmwareProfile {
-    return {
-      ...FLASHGBX_FIRMWARE_PROFILE,
-      label: info.pcbName,
-      firmwareVersion: `${info.cfwId}${info.fwVer}`,
-      capabilities: {
-        ...FLASHGBX_FIRMWARE_PROFILE.capabilities,
-        nativeFlashgbxProtocol: true,
-        cartPowerControl: info.cartPowerCtrl,
-        audioWePin: info.audioWePin,
-      },
-    };
-  }
-
-  private async initializeFlashgbxConnection(device: DeviceInfo, initialBaudRate: number): Promise<void> {
-    if (!device.transport) {
-      throw new Error('Device transport is not initialized');
-    }
-
-    let fwInfo: FlashgbxFirmwareInfo;
-    try {
-      fwInfo = await performFlashgbxHandshake(device.transport, {
-        portInfo: device.portInfo,
-        baudRate: initialBaudRate,
-      });
-    } catch (error) {
-      try {
-        await device.transport.flushInput?.();
-        await device.transport.flushOutput?.();
-      } catch {
-        // Ignore cleanup errors before closing
-      }
-      await this.connectionUseCase.disconnect().catch(() => undefined);
-      throw error;
-    }
-
-    const runtimeProfile = this.buildFlashgbxRuntimeProfile(fwInfo);
-    device.flashgbxInfo = fwInfo;
-    attachFirmwareProfile(device, runtimeProfile);
-    if (device.serialHandle) {
-      device.serialHandle.firmwareProfile = runtimeProfile;
-    }
   }
 }
 

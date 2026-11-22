@@ -13,6 +13,7 @@
               :compact="true"
               @device-ready="onDeviceReady"
               @device-disconnected="onDeviceDisconnected"
+              @connection-log="onConnectionLog"
             />
           </div>
           <div class="header-divider" />
@@ -92,6 +93,7 @@ import DebugLink from '@/components/link/DebugLink.vue';
 import MorseBorder from '@/components/MorseBorder.vue';
 import ThemeSwitcher from '@/components/ThemeSwitcher.vue';
 import { useToast } from '@/composables/useToast';
+import type { ConnectionLogEntry } from '@/device-runtime/connection-report';
 import { DebugSettings } from '@/settings/debug-settings';
 import { DeviceInfo } from '@/types/device-info';
 
@@ -110,7 +112,7 @@ const deviceConnectRef = useTemplateRef<InstanceType<typeof DeviceConnect>>('dev
 const cartBurnerRef = useTemplateRef<InstanceType<typeof CartBurner>>('cartBurnerRef');
 
 interface CartBurnerExpose {
-  logDeviceFirmwareProfile: (deviceInfo: DeviceInfo) => void;
+  logConnectionEntries: (entries: readonly ConnectionLogEntry[]) => void;
   resetState: () => void;
 }
 
@@ -148,7 +150,14 @@ const titleBadgeHref = computed((): string => {
 function onDeviceReady(dev: DeviceInfo) {
   device.value = dev;
   deviceReady.value = true;
-  getCartBurnerExpose()?.logDeviceFirmwareProfile(dev);
+}
+
+/**
+ * Connection log entries (device/firmware, port match result, failure stage hints) are
+ * rendered in the right-hand log area instead of only in the console.
+ */
+function onConnectionLog(entries: readonly ConnectionLogEntry[]) {
+  getCartBurnerExpose()?.logConnectionEntries(entries);
 }
 
 /**

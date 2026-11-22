@@ -8,6 +8,13 @@ export const BOOST_MAX_READ_CHUNK = 0x2000;
 export const BOOST_MAX_CRC_CHUNK = 0x20000;
 
 /**
+ * Fixed Boost handshake budget. Probe, mode entry and the lifecycle driver share this
+ * constant so one detection never runs with two different timeouts (the configurable
+ * `packageReceiveTimeout` must not leak into session establishment).
+ */
+export const BOOST_PROBE_TIMEOUT_MS = 250;
+
+/**
  * ChisFlash-Beggar-Boost 固件扩展命令集
  */
 export const BoostCommand = {

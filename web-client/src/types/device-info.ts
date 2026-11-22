@@ -1,3 +1,4 @@
+import type { DeviceDiagnostic, SessionProfile } from '@/device/session';
 import type { DeviceHandle, Transport } from '@/platform/serial';
 import type { FlashgbxFirmwareInfo } from '@/protocol/flashgbx';
 import type { FirmwareProfile } from '@/types/firmware-profile';
@@ -13,6 +14,10 @@ export interface DeviceInfo {
   flashgbxInfo?: FlashgbxFirmwareInfo;
   connectionGeneration?: number;
   connectionId?: string;
+  /** Committed session profile: the device/firmware/transport authority of this connection. */
+  session?: SessionProfile;
+  /** Diagnostics of the committed session (port match, probe skips, teardown warnings). */
+  diagnostics?: readonly DeviceDiagnostic[];
 }
 
 // Reader types for utility functions

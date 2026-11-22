@@ -54,6 +54,7 @@
         "cancel": "キャンセル",
         "serialNumber": "シリアル番号"
       },
+      "selectOtherPort": "他のポート",
       "resetConnection": "リセット",
       "flashgbxPowerCapable": "電源制御あり",
       "flashgbxNoPowerControl": "電源制御なし",

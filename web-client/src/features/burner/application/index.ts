@@ -26,6 +26,7 @@ export type {
   BurnerConnectionHandle,
   BurnerConnectionPort,
   BurnerConnectionSelection,
+  BurnerConnectionSession,
   BurnerProtocolSession,
   BurnerSessionPort,
 } from './domain/ports';
