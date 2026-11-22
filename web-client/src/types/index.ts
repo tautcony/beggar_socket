@@ -3,6 +3,7 @@ export type { CommandOptions, RamType } from './command-options';
 export type { CommandResult } from './command-result';
 export type { BYOBReader, DefaultReader, DeviceInfo } from './device-info';
 export type { FileInfo } from './file-info';
+export type { HostPacketLimits, HostPlatform, PlatformPacketLimits } from './host-platform';
 export type { ProgressInfo } from './progress-info';
 export type { AssembledRom, RomAssemblyConfig, RomSlot } from './rom-assembly';
 export type { SerialPortInfo } from './serial';

@@ -1,3 +1,10 @@
+import {
+  attachFirmwareProfile,
+  FLASHGBX_FIRMWARE_PROFILE,
+  getFirmwareProfileById,
+  inferFirmwareProfileFromPort,
+  withBeggarBoostProfile,
+} from '@/device/compat/firmware-profile';
 import { createConnectionOrchestrationUseCase } from '@/features/burner/adapters';
 import type {
   BurnerConnectionHandle,
@@ -17,14 +24,7 @@ import {
 } from '@/protocol';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { DeviceInfo } from '@/types/device-info';
-import {
-  attachFirmwareProfile,
-  type FirmwareProfile,
-  FLASHGBX_FIRMWARE_PROFILE,
-  getFirmwareProfileById,
-  inferFirmwareProfileFromPort,
-  withBeggarBoostProfile,
-} from '@/types/firmware-profile';
+import type { FirmwareProfile } from '@/types/firmware-profile';
 import type { SerialPortInfo } from '@/types/serial';
 import { PortSelectionRequiredError } from '@/utils/errors/PortSelectionRequiredError';
 import { type PortFilter, PortFilters } from '@/utils/port-filter';

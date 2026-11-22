@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/require-await */
+import { getFirmwareProfile } from '@/device/compat/firmware-profile';
 import type { Transport } from '@/platform/serial';
 import { getOptimalPacketLimits } from '@/platform/serial/platform-packet-policy';
 import {
@@ -14,7 +15,7 @@ import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions, type MbcType } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
-import { type FirmwareProfile, getFirmwareProfile } from '@/types/firmware-profile';
+import type { FirmwareProfile } from '@/types/firmware-profile';
 import { ProgressInfo, SectorProgressInfo, type SectorSizeClass } from '@/types/progress-info';
 import { timeout } from '@/utils/async-utils';
 import { type BurnerLogInput, errorToBurnerLog, formatBurnerLogMessage } from '@/utils/burner-log';

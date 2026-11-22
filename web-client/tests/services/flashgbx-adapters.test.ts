@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { FLASHGBX_FIRMWARE_PROFILE } from '@/device/compat/firmware-profile';
 import type { Transport } from '@/platform/serial';
 import {
   FLASHGBX_CMD,
@@ -9,7 +10,6 @@ import {
 import { FlashgbxGbaAdapter } from '@/services/flashgbx-gba-adapter';
 import { FlashgbxMbcAdapter } from '@/services/flashgbx-mbc-adapter';
 import type { DeviceInfo } from '@/types/device-info';
-import { FLASHGBX_FIRMWARE_PROFILE } from '@/types/firmware-profile';
 import { crc32 } from '@/utils/crc-utils';
 import type { CFIInfo } from '@/utils/parsers/cfi-parser';
 

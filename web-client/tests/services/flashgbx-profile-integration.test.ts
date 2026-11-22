@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { FLASHGBX_FIRMWARE_PROFILE } from '@/device/compat/firmware-profile';
 import { FLASH_WE_PIN, FlashgbxCommandClient, type FlashgbxFirmwareInfo } from '@/protocol';
 import { FlashcartProfileService } from '@/services/flashcart-profile-service';
 import { FlashgbxGbaAdapter } from '@/services/flashgbx-gba-adapter';
 import { FlashgbxMbcAdapter } from '@/services/flashgbx-mbc-adapter';
 import type { DeviceInfo } from '@/types/device-info';
-import { FLASHGBX_FIRMWARE_PROFILE } from '@/types/firmware-profile';
 import type { FlashcartProfile } from '@/types/flashcart-profile';
 
 function makeFwInfo(overrides: Partial<FlashgbxFirmwareInfo> = {}): FlashgbxFirmwareInfo {

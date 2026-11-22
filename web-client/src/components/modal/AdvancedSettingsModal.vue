@@ -698,15 +698,15 @@ import { useI18n } from 'vue-i18n';
 import { RetroButton, RetroModal, RetroSelect, RetroSwitch } from '@/components/retro';
 import { DEFAULT_FONT_FAMILY, type FontFamilyId, useFont } from '@/composables/useFont';
 import { DEFAULT_COLOR_MODE, DEFAULT_COLOR_THEME, useTheme } from '@/composables/useTheme';
-import { getOptimalPacketLimits } from '@/platform/serial/platform-packet-policy';
-import { AdvancedSettings, type FlashgbxBaudRate } from '@/settings/advanced-settings';
-import type { DeviceInfo } from '@/types/device-info';
 import {
-  type ConfigurableFirmwareProfileId,
   FLASHGBX_FIRMWARE_PROFILE,
   STC_FIRMWARE_PROFILE,
   STM_FIRMWARE_PROFILE,
-} from '@/types/firmware-profile';
+} from '@/device/compat/firmware-profile';
+import { getOptimalPacketLimits } from '@/platform/serial/platform-packet-policy';
+import { AdvancedSettings, type FlashgbxBaudRate } from '@/settings/advanced-settings';
+import type { DeviceInfo } from '@/types/device-info';
+import type { ConfigurableFirmwareProfileId } from '@/types/firmware-profile';
 import { formatBytes, formatTimeClock } from '@/utils/formatter-utils';
 
 const { t } = useI18n();

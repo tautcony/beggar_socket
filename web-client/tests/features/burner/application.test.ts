@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { firmwareUnsupportedResult, STM_FIRMWARE_PROFILE } from '@/device/compat/firmware-profile';
 import { BurnerSession } from '@/features/burner/application/burner-session';
 import { type BurnerOperationContext, BurnerUseCaseImpl } from '@/features/burner/application/burner-use-case';
 import type { BurnerProtocolSession } from '@/features/burner/application/domain/ports';
 import { runBurnerFlow } from '@/features/burner/application/flow-template';
 import type { CommandResult } from '@/types/command-result';
-import { firmwareUnsupportedResult, STM_FIRMWARE_PROFILE } from '@/types/firmware-profile';
 import type { CFIInfo } from '@/utils/parsers/cfi-parser';
 
 const t = (key: string) => key;

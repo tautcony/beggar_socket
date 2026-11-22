@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { STC_FIRMWARE_PROFILE, STM_FIRMWARE_PROFILE } from '@/device/compat/firmware-profile';
 import { MBC5Adapter } from '@/services/mbc5-adapter';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import type { CommandOptions, MbcType } from '@/types/command-options';
 import type { DeviceInfo } from '@/types/device-info';
-import { STC_FIRMWARE_PROFILE, STM_FIRMWARE_PROFILE } from '@/types/firmware-profile';
 import type { CFIInfo } from '@/utils/parsers/cfi-parser';
 
 const { mockCartPower, mockGbcRead, mockGbcRomProgram, mockGbcRomEraseSector } = vi.hoisted(() => ({

@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { STC_FIRMWARE_PROFILE, STM_FIRMWARE_PROFILE } from '@/device/compat/firmware-profile';
 import { GBAAdapter } from '@/services/gba-adapter';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import type { CommandOptions } from '@/types/command-options';
 import type { DeviceInfo } from '@/types/device-info';
-import { STC_FIRMWARE_PROFILE, STM_FIRMWARE_PROFILE } from '@/types/firmware-profile';
 import type { CFIInfo } from '@/utils/parsers/cfi-parser';
 
 const { mockRomRead, mockRomProgram, mockRomEraseSector } = vi.hoisted(() => ({

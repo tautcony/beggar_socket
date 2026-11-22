@@ -214,6 +214,24 @@ export class AdvancedSettings {
     return { ..._profileSizes[profile] };
   }
 
+  /**
+   * Writes one size field of a specific legacy profile. Additive helper for the device
+   * parameter store, which must persist values for a namespace that is not the active
+   * profile without switching `firmware.profile`.
+   */
+  static setProfileSize(
+    profile: ConfigurableFirmwareProfileId,
+    field: keyof SizeSettings,
+    value: number,
+  ): void {
+    const validated = validateValue(value, field === 'romReadPageSize' ? 'readPageSize' : 'pageSize');
+    _profileSizes[profile][field] = validated;
+    if (profile === _firmwareProfile) {
+      syncActiveProfileSizesToStorage();
+    }
+    this.saveSettings();
+  }
+
   static getSettings() {
     syncActiveProfileSizesToStorage();
     return {

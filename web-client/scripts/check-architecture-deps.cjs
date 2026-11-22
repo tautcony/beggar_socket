@@ -86,12 +86,29 @@ function topLevel(relPath) {
   return relPath.split('/')[0] || '';
 }
 
-function checkViolation(sourceRel, importRel) {
+const DEVICE_FORBIDDEN_TARGETS = ['services', 'platform', 'protocol', 'components', 'views', 'device-runtime'];
+
+function checkViolation(sourceRel, importRel, kind = 'runtime') {
   const sourceTop = topLevel(sourceRel);
   const importTop = topLevel(importRel);
 
   if ((sourceTop === 'components' || sourceTop === 'views') && importTop === 'protocol') {
     return 'UI layer (components/views) must not directly import protocol layer';
+  }
+
+  // src/device is the pure definition layer: no runtime implementation may leak in.
+  if (sourceTop === 'device' && DEVICE_FORBIDDEN_TARGETS.includes(importTop)) {
+    return 'device definition layer must not import services/platform/protocol/UI/device-runtime implementations';
+  }
+
+  // src/device-runtime is the assembly layer: it may use implementations but never UI.
+  if (sourceTop === 'device-runtime' && (importTop === 'components' || importTop === 'views')) {
+    return 'device-runtime assembly layer must not import UI layer (components/views)';
+  }
+
+  // types may describe device shapes, but a runtime import would invert the dependency.
+  if (sourceTop === 'types' && (importTop === 'device' || importTop === 'device-runtime') && kind !== 'type') {
+    return 'types layer may only type-import device/device-runtime definitions';
   }
 
   if ((sourceTop === 'types' || sourceTop === 'utils') && importTop === 'services') {
@@ -243,7 +260,7 @@ function analyzeProject(root = ROOT) {
       const key = `${topLevel(rel)} -> ${topLevel(target)} (${imp.kind})`;
       matrix.set(key, (matrix.get(key) || 0) + 1);
       const policyTarget = target.replace(/\.(?:[cm]?[jt]sx?|vue)$/, '').replace(/\/index$/, '');
-      const reason = checkViolation(rel, policyTarget);
+      const reason = checkViolation(rel, policyTarget, imp.kind);
       if (reason) violations.push({ ...edge, reason });
     }
   }

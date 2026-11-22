@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 
 import ChipOperations from '@/components/operaiton/ChipOperations.vue';
-import { FLASHGBX_FIRMWARE_PROFILE, STM_FIRMWARE_PROFILE } from '@/types/firmware-profile';
+import { FLASHGBX_FIRMWARE_PROFILE, STM_FIRMWARE_PROFILE } from '@/device/compat/firmware-profile';
 import type { FlashcartProfileSummary } from '@/types/flashcart-profile';
 
 const sampleProfiles: FlashcartProfileSummary[] = [

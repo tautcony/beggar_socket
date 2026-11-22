@@ -2,8 +2,8 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import DeviceConnect from '@/components/DeviceConnect.vue';
+import { FLASHGBX_FIRMWARE_PROFILE } from '@/device/compat/firmware-profile';
 import { AdvancedSettings } from '@/settings/advanced-settings';
-import { FLASHGBX_FIRMWARE_PROFILE } from '@/types/firmware-profile';
 
 const { showToastMock, requestDeviceMock, connectWithSelectedPortMock, disconnectDeviceMock, initializeDeviceMock, listAvailablePortsMock, isDeviceConnectedMock } = vi.hoisted(() => ({
   showToastMock: vi.fn(),

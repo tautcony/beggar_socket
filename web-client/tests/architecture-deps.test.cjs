@@ -171,3 +171,72 @@ const text = "from '@/protocol'";
     expect(cli.stdout).toContain('No architecture dependency violations');
   });
 });
+
+describe('device layer boundaries', () => {
+  it.each([
+    ['device/bad.ts', 'services/helper.ts'],
+    ['device/bad.ts', 'platform/serial/factory.ts'],
+    ['device/bad.ts', 'protocol/index.ts'],
+    ['device/bad.ts', 'components/Good.vue'],
+    ['device/bad.ts', 'views/Good.ts'],
+    ['device/bad.ts', 'device-runtime/session-resolver.ts'],
+  ])('blocks pure definition layer importing %s', (sourceFile, target) => {
+    const specifier = `@/${target.endsWith('.vue') ? target : target.replace(/\.ts$/, '')}`;
+    const result = fixture({
+      [sourceFile]: `import { value } from '${specifier}';`,
+      [target]: target.endsWith('.vue') ? '<template><div /></template>' : 'export const value = 1;',
+    });
+    expect(result.violations).toHaveLength(1);
+    expect(result.violations[0].reason).toContain('device definition layer');
+  });
+
+  it.each([
+    ['device-runtime/bad.ts', 'components/Good.vue'],
+    ['device-runtime/bad.ts', 'views/Good.ts'],
+  ])('blocks assembly layer importing %s', (sourceFile, target) => {
+    const specifier = `@/${target.endsWith('.vue') ? target : target.replace(/\.ts$/, '')}`;
+    const result = fixture({
+      [sourceFile]: `import { value } from '${specifier}';`,
+      [target]: target.endsWith('.vue') ? '<template><div /></template>' : 'export const value = 1;',
+    });
+    expect(result.violations).toHaveLength(1);
+    expect(result.violations[0].reason).toContain('must not import UI layer');
+  });
+
+  it('allows the documented dependency directions', () => {
+    const result = fixture({
+      'device/ok.ts': "import type { SerialPortInfo } from '@/types/serial'; export type V = SerialPortInfo;",
+      'device-runtime/ok.ts': "import { value } from '@/device/types'; import '@/protocol'; import '@/platform/serial'; import '@/services/helper'; export const v = value;",
+      'device/types.ts': 'export const value = 1;',
+      'protocol/index.ts': 'export {};',
+      'platform/serial/index.ts': 'export {};',
+      'services/helper.ts': 'export {};',
+      'types/serial.ts': 'export interface SerialPortInfo { path: string; }',
+    });
+    expect(result.violations).toEqual([]);
+    expect(result.errors).toEqual([]);
+  });
+
+  it('allows type-only types -> device imports but blocks runtime ones', () => {
+    const typed = fixture({
+      'types/ok.ts': "import type { DeviceId } from '@/device/types'; export type Id = DeviceId;",
+      'device/types.ts': 'export type DeviceId = string;',
+    });
+    expect(typed.violations).toEqual([]);
+
+    const runtime = fixture({
+      'types/bad.ts': "import { createRuntimeBindingId } from '@/device/types'; export const id = createRuntimeBindingId('x');",
+      'device/types.ts': "export const createRuntimeBindingId = (value: string): string => value;",
+    });
+    expect(runtime.violations).toHaveLength(1);
+    expect(runtime.violations[0].reason).toContain('type-import');
+  });
+
+  it('keeps runtime cycles detectable inside the new layers', () => {
+    const result = fixture({
+      'device/a.ts': "import './b';",
+      'device/b.ts': "import './a';",
+    });
+    expect(result.cycles).toHaveLength(1);
+  });
+});

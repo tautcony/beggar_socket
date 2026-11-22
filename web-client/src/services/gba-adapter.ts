@@ -1,4 +1,5 @@
-﻿import {
+﻿import { firmwareUnsupportedResult, isRamTypeSupportedByFirmware } from '@/device/compat/firmware-profile';
+import {
   boost_configure_amd_flash,
   boost_enter_mode,
   boost_program_flash,
@@ -34,7 +35,6 @@ import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
-import { firmwareUnsupportedResult, isRamTypeSupportedByFirmware } from '@/types/firmware-profile';
 import type { SectorProgressInfo } from '@/types/progress-info';
 import { timeout } from '@/utils/async-utils';
 import { errorToBurnerLog } from '@/utils/burner-log';
