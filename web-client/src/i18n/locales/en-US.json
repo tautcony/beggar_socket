@@ -521,7 +521,9 @@
         "activeProfile": "Active Connection Profile",
         "reconnectNotice": "Changes take effect after reconnecting or re-initializing the connection.",
         "stm": "丐中丐",
-        "stc": "碳酸丐"
+        "stc": "碳酸丐",
+        "stmBoost": "Enable Boost Enhancement",
+        "stmBoostHint": "Uses ChisFlash-Beggar-Boost firmware for higher-speed transfers, hardware-accelerated verification, and native protocol extensions."
       },
       "appearance": {
         "title": "Appearance",

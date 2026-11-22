@@ -12,7 +12,7 @@ export type RTCData = GBARTCData | MBC3RTCData;
 function createRTC(type: RTCType, device: DeviceInfo): BaseRTC {
   switch (type) {
     case 'GBA':
-      return new GBARTC(device);
+      return new GBARTC(device, device.firmwareProfile);
     case 'MBC3':
       return new MBC3RTC(device);
     default:

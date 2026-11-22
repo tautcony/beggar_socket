@@ -513,7 +513,9 @@
         "activeProfile": "現在の接続で有効なプロファイル",
         "reconnectNotice": "変更は再接続または接続の再初期化後に有効になります。",
         "stm": "丐中丐",
-        "stc": "碳酸丐"
+        "stc": "碳酸丐",
+        "stmBoost": "Boost 拡張を有効にする",
+        "stmBoostHint": "有効にすると ChisFlash-Beggar-Boost ファームウェアによる高速転送・ハードウェア検証・ネイティブプロトコル高速化を利用します。"
       },
       "appearance": {
         "title": "外観とフォント",

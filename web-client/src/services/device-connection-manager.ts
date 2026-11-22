@@ -8,9 +8,15 @@ import type {
 } from '@/features/burner/application';
 import { isTauriRuntime } from '@/platform/runtime';
 import type { DeviceHandle } from '@/platform/serial';
+import { boost_probe, boost_reset_to_default } from '@/protocol';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import { DeviceInfo } from '@/types/device-info';
-import { attachFirmwareProfile, getFirmwareProfileById, inferFirmwareProfileFromPort } from '@/types/firmware-profile';
+import {
+  attachFirmwareProfile,
+  getFirmwareProfileById,
+  inferFirmwareProfileFromPort,
+  withBeggarBoostProfile,
+} from '@/types/firmware-profile';
 import type { SerialPortInfo } from '@/types/serial';
 import { PortSelectionRequiredError } from '@/utils/errors/PortSelectionRequiredError';
 import { PortFilter } from '@/utils/port-filter';
@@ -200,6 +206,7 @@ export class DeviceConnectionManager {
     }
 
     const device = this.toDeviceInfo(result.context.handle, result.context.generation);
+    await this.detectBoostCapabilities(device);
     this.logFirmwareProfile(device, 'requestDevice');
     return device;
   }
@@ -237,6 +244,7 @@ export class DeviceConnectionManager {
         this.toDeviceInfo(result.context.handle, result.context.generation),
         selectedPort,
       );
+      await this.detectBoostCapabilities(device);
       this.logFirmwareProfile(device, 'connectWithSelectedPort');
       return device;
     } catch (error) {
@@ -305,6 +313,7 @@ export class DeviceConnectionManager {
         device.firmwareProfile = latestDevice.firmwareProfile;
         device.connectionGeneration = latestDevice.connectionGeneration;
         device.connectionId = latestDevice.connectionId;
+        await this.detectBoostCapabilities(device);
       },
     });
 
@@ -391,6 +400,36 @@ export class DeviceConnectionManager {
     }
     device.portInfo = portInfo;
     return device;
+  }
+
+  /**
+   * 当设备配置为丐中丐 (stm) 且启用了 Boost 增强选项时，
+   * 探测固件是否支持 Boost 扩展指令，识别到则附加增强能力并复位回默认协议。
+   */
+  private async detectBoostCapabilities(device: DeviceInfo): Promise<void> {
+    if (
+      device.firmwareProfile?.id !== 'stm'
+      || !AdvancedSettings.stmBoost
+      || device.serialHandle?.platform === 'simulated'
+      || !device.transport
+    ) {
+      return;
+    }
+
+    try {
+      const probe = await boost_probe(device.transport, 250);
+      if (probe.supported) {
+        // 识别到 Boost 固件后保持在 Boost 模式中，避免无意义的模式切换开销
+        attachFirmwareProfile(
+          device,
+          withBeggarBoostProfile(device.firmwareProfile, probe.banner),
+        );
+      } else {
+        await boost_reset_to_default(device.transport);
+      }
+    } catch (error) {
+      console.debug('[DeviceConnectionManager] Beggar Boost probe skipped:', error);
+    }
   }
 }
 

@@ -1,5 +1,17 @@
 ﻿import {
+  boost_configure_amd_flash,
+  boost_enter_mode,
+  boost_program_flash,
+  boost_program_save,
+  boost_read_ram,
+  boost_read_rom,
+  boost_write_ram,
+  boost_write_units,
   FLASH_CMD_RESET,
+  flashEraseSector,
+  flashGetId,
+  GBA_FLASH_ADDR_1,
+  GBA_FLASH_ADDR_2,
   GBA_ROM_FLASH_CMD_SET,
   getFlashName,
   ram_erase_flash,
@@ -59,16 +71,31 @@ export class GBAAdapter extends CartridgeAdapter {
   }
 
   protected override createPlatformOps(): PlatformOps {
+    const boost = this.isBoostMode;
     return {
       platformId: 'gba',
       flashCmdSet: {
         ...GBA_ROM_FLASH_CMD_SET,
-        read: (...args: Parameters<typeof rom_read>) => rom_read(...args),
-        write: (...args: Parameters<typeof rom_write>) => rom_write(...args),
+        read: boost
+          ? (transport, size, baseAddress) => boost_read_rom(transport, 'agb', size, baseAddress)
+          : (...args: Parameters<typeof rom_read>) => rom_read(...args),
+        write: boost
+          ? async (transport, data, baseAddress) => {
+            const units: { address: number; value: number }[] = [];
+            for (let i = 0; i < data.byteLength; i += 2) {
+              const lo = data[i] ?? 0;
+              const hi = data[i + 1] ?? 0;
+              units.push({ address: baseAddress + (i >>> 1), value: lo | (hi << 8) });
+            }
+            await boost_write_units(transport, true, units);
+          }
+          : (...args: Parameters<typeof rom_write>) => rom_write(...args),
       },
       cfiEntryAddress: 0x55,
       romBankSize: GBAAdapter.ROM_BANK_SIZE,
-      cfiGetId: (device) => rom_get_id(device),
+      cfiGetId: boost
+        ? (device) => flashGetId(device, this.ops.flashCmdSet, [{ address: 0x00, size: 4 }, { address: 0x1c, size: 4 }])
+        : (device) => rom_get_id(device),
       toRomBank: (address) => {
         const bank = address >> 25;
         return { bank, cartAddress: address };
@@ -101,7 +128,16 @@ export class GBAAdapter extends CartridgeAdapter {
       }
 
       try {
-        await rom_erase_sector(this.transport, sector.address);
+        if (this.isBoostMode) {
+          const alignedSectorAddress = sector.address & ~1;
+          await flashEraseSector(this.transport, this.ops.flashCmdSet, alignedSectorAddress >>> 1, alignedSectorAddress, {
+            pollBytes: 2,
+            pollIntervalMs: 20,
+            timeoutMs: 60_000,
+          });
+        } else {
+          await rom_erase_sector(this.transport, sector.address);
+        }
         return;
       } catch (error) {
         lastError = error;
@@ -163,6 +199,11 @@ export class GBAAdapter extends CartridgeAdapter {
         const isMultiBank = options.cfiInfo.deviceSize > GBAAdapter.ROM_BANK_SIZE;
 
         try {
+          if (this.isBoostMode) {
+            await boost_enter_mode(this.transport, 'agb');
+          } else {
+            await this.ensureDefaultProtocolMode();
+          }
           let currentBank = -1;
           let eraseCount = 0;
 
@@ -355,6 +396,18 @@ export class GBAAdapter extends CartridgeAdapter {
             (key, params) => this.t(key, params),
           );
           progressReporter.setSectors(this.currentSectorProgress);
+          const useBoostProgram = this.isBoostMode && !options.cfiInfo.isIntel;
+          if (useBoostProgram) {
+            await boost_enter_mode(this.transport, 'agb');
+            await boost_configure_amd_flash(this.transport, {
+              unlockAddr1: GBA_FLASH_ADDR_1,
+              unlockAddr2: GBA_FLASH_ADDR_2,
+              buffered: bufferSize > 0,
+              swapD0D1: options.cfiInfo.isSwapD0D1,
+            });
+          } else {
+            await this.ensureDefaultProtocolMode();
+          }
           progressReporter.reportStart(this.t('messages.rom.writing', { size: total }));
 
           let lastLoggedProgress = -1;
@@ -438,9 +491,25 @@ export class GBAAdapter extends CartridgeAdapter {
             }
 
             const { attemptsUsed, retriesPerformed } = await this.programRomChunkWithRetry(
-              () => rom_program(this.transport, chunk, cartAddress, bufferSize),
+              () => (useBoostProgram
+                ? boost_program_flash(this.transport, 'agb', cartAddress, bufferSize, chunk)
+                : rom_program(this.transport, chunk, cartAddress, bufferSize)),
               currentAddress,
               signal,
+              useBoostProgram
+                ? async () => {
+                  await boost_enter_mode(this.transport, 'agb');
+                  await boost_configure_amd_flash(this.transport, {
+                    unlockAddr1: GBA_FLASH_ADDR_1,
+                    unlockAddr2: GBA_FLASH_ADDR_2,
+                    buffered: bufferSize > 0,
+                    swapD0D1: options.cfiInfo.isSwapD0D1,
+                  });
+                  if (isMultiBank) {
+                    await this.switchROMBank(bank);
+                  }
+                }
+                : undefined,
             );
             programRequests += attemptsUsed;
             retryCount += retriesPerformed;
@@ -570,6 +639,9 @@ export class GBAAdapter extends CartridgeAdapter {
           }
 
           await this.stabilizeReadChannel(options, GBAAdapter.ROM_READ_START_SETTLE_MS);
+          if (this.isBoostMode) {
+            await boost_enter_mode(this.transport, 'agb');
+          }
           this.log(this.t('messages.rom.reading'), 'info');
           let totalRead = 0;
 
@@ -744,7 +816,9 @@ export class GBAAdapter extends CartridgeAdapter {
           };
         }
         try {
-          await this.stabilizeCommandChannel(GBAAdapter.ROM_READ_START_SETTLE_MS);
+          if (!this.isBoostMode) {
+            await this.stabilizeCommandChannel(GBAAdapter.ROM_READ_START_SETTLE_MS);
+          }
           this.log(this.t('messages.rom.verifying'), 'info');
 
           const configuredSize = options.size ?? fileData.byteLength;
@@ -779,6 +853,21 @@ export class GBAAdapter extends CartridgeAdapter {
 
           // 报告开始状态
           progressReporter.reportStart(this.t('messages.rom.verifying'));
+
+          if (this.isBoostMode) {
+            return await this.verifyROMWithBoostCrc32({
+              mode: 'agb',
+              image,
+              baseAddress,
+              total,
+              readChunkSize: pageSize,
+              isMultiBank: isMultiCard,
+              switchBankInBoostMode: (bank) => this.switchROMBankInBoostMode(bank),
+              progressReporter,
+              speedCalculator,
+              signal,
+            });
+          }
 
           // 分块校验并更新进度
           let chunkCount = 0; // 记录已处理的块数
@@ -956,16 +1045,35 @@ export class GBAAdapter extends CartridgeAdapter {
         try {
           this.log(this.t('messages.ram.writing', { size: fileData.byteLength }), 'info');
 
+          const useBoostRam = this.isBoostMode && ramType !== 'FRAM';
+          if (useBoostRam) {
+            await boost_enter_mode(this.transport, 'agb');
+          } else {
+            await this.ensureDefaultProtocolMode();
+          }
           const total = options.size ?? fileData.byteLength;
           let written = 0;
           if (ramType === 'FLASH') {
             this.log(this.t('messages.gba.erasingFlash'), 'info');
-            await ram_erase_flash(this.transport);
+            if (useBoostRam) {
+              await boost_write_units(this.transport, false, [
+                { address: 0x5555, value: 0xaa },
+                { address: 0x2aaa, value: 0x55 },
+                { address: 0x5555, value: 0x80 },
+                { address: 0x5555, value: 0xaa },
+                { address: 0x2aaa, value: 0x55 },
+                { address: 0x5555, value: 0x10 },
+              ]);
+            } else {
+              await ram_erase_flash(this.transport);
+            }
 
             // 等待擦除完成
             let erased = false;
             while (!erased) {
-              const result = await ram_read(this.transport, 1);
+              const result = useBoostRam
+                ? await boost_read_ram(this.transport, 1, 0)
+                : await ram_read(this.transport, 1);
               this.log(this.t('messages.gba.eraseStatus', { status: formatHex(result[0], 1) }), 'info');
               if (result[0] === 0xff) {
                 this.log(this.t('messages.gba.eraseComplete'), 'success');
@@ -1002,10 +1110,16 @@ export class GBAAdapter extends CartridgeAdapter {
 
             // 根据RAM类型选择写入方法
             if (ramType === 'FLASH') {
-              await ram_program_flash(this.transport, chunk, baseAddr);
+              if (useBoostRam) {
+                await boost_program_save(this.transport, 1, baseAddr, chunk);
+              } else {
+                await ram_program_flash(this.transport, chunk, baseAddr);
+              }
             } else if (ramType === 'FRAM') {
               const latency = options.framLatency ?? 25;
               await ram_write_fram(this.transport, chunk, baseAddr, latency);
+            } else if (useBoostRam) {
+              await boost_write_ram(this.transport, chunk, baseAddr);
             } else {
               await ram_write(this.transport, chunk, baseAddr);
             }
@@ -1092,8 +1206,15 @@ export class GBAAdapter extends CartridgeAdapter {
       'gba.readRAM',
       async () => {
         try {
-          await this.stabilizeCommandChannel(GBAAdapter.RAM_READ_START_SETTLE_MS);
-          this.log(`RAM read channel synchronized (${GBAAdapter.RAM_READ_START_SETTLE_MS}ms settle)`, 'info');
+          const useBoostRam = this.isBoostMode && ramType !== 'FRAM';
+          if (useBoostRam) {
+            this.markChannelBusy();
+            await boost_enter_mode(this.transport, 'agb');
+          } else {
+            await this.ensureDefaultProtocolMode();
+            await this.stabilizeCommandChannel(GBAAdapter.RAM_READ_START_SETTLE_MS);
+            this.log(`RAM read channel synchronized (${GBAAdapter.RAM_READ_START_SETTLE_MS}ms settle)`, 'info');
+          }
           this.log(this.t('messages.ram.reading'), 'info');
 
           const result = new Uint8Array(size);
@@ -1113,8 +1234,11 @@ export class GBAAdapter extends CartridgeAdapter {
 
             for (let attempt = 1; attempt <= retryAttempts; attempt++) {
               try {
-                return ramType === 'FRAM'
-                  ? await ram_read_fram(this.transport, chunkSize, baseAddr, options.framLatency ?? 25)
+                if (ramType === 'FRAM') {
+                  return await ram_read_fram(this.transport, chunkSize, baseAddr, options.framLatency ?? 25);
+                }
+                return useBoostRam
+                  ? await boost_read_ram(this.transport, chunkSize, baseAddr)
                   : await ram_read(this.transport, chunkSize, baseAddr);
               } catch (error) {
                 lastError = error;
@@ -1304,11 +1428,16 @@ export class GBAAdapter extends CartridgeAdapter {
       'gba.getCartInfo',
       async () => {
         try {
+          if (this.isBoostMode) {
+            await boost_enter_mode(this.transport, 'agb');
+          } else {
+            await this.ensureDefaultProtocolMode();
+          }
           // CFI Query
-          await rom_write(this.transport, toLittleEndian(0x98, 2), 0x55);
-          const cfiData = await rom_read(this.transport, 0x100, 0x00);
+          await this.ops.flashCmdSet.write(this.transport, toLittleEndian(0x98, 2), 0x55);
+          const cfiData = await this.ops.flashCmdSet.read(this.transport, 0x100, 0x00);
           // Reset
-          await rom_write(this.transport, toLittleEndian(0xf0, 2), 0x00);
+          await this.ops.flashCmdSet.write(this.transport, toLittleEndian(0xf0, 2), 0x00);
 
           const cfiInfo = parseCFI(cfiData);
 
@@ -1320,7 +1449,7 @@ export class GBAAdapter extends CartridgeAdapter {
 
           // 读取Flash ID并添加到CFI信息
           try {
-            const flashId = await rom_get_id(this.transport);
+            const flashId = await this.ops.cfiGetId(this.transport);
             cfiInfo.flashId = flashId;
             const idStr = Array.from(flashId).map(x => x.toString(16).padStart(2, '0')).join(' ');
             const flashName = getFlashName([...flashId]);
@@ -1353,12 +1482,27 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   async switchROMBank(bank: number) : Promise<void> {
     if (bank < 0) return;
+    if (this.isBoostMode) {
+      await this.switchROMBankInBoostMode(bank);
+      return;
+    }
     const h = (bank & 0x0f) << 4;
 
     await ram_write(this.transport, new Uint8Array([h]), 0x02);
     await ram_write(this.transport, new Uint8Array([0x40]), 0x03);
     this.setActiveRomBankKey(`gba:${bank}`);
 
+    this.log(this.t('messages.rom.bankSwitch', { bank }), 'info');
+  }
+
+  private async switchROMBankInBoostMode(bank: number): Promise<void> {
+    if (bank < 0) return;
+    const h = (bank & 0x0f) << 4;
+    await boost_write_units(this.transport, false, [
+      { address: 0x02, value: h },
+      { address: 0x03, value: 0x40 },
+    ]);
+    this.setActiveRomBankKey(`gba:${bank}`);
     this.log(this.t('messages.rom.bankSwitch', { bank }), 'info');
   }
 
@@ -1378,7 +1522,11 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   async switchSRAMBank(bank: number) : Promise<void> {
     bank = bank === 0 ? 0 : 1;
-    await rom_write(this.transport, toLittleEndian(bank, 2), 0x800000);
+    if (this.isBoostMode) {
+      await boost_write_units(this.transport, true, [{ address: 0x800000, value: bank }]);
+    } else {
+      await rom_write(this.transport, toLittleEndian(bank, 2), 0x800000);
+    }
     await timeout(GBAAdapter.RAM_BANK_SWITCH_SETTLE_MS);
     this.log(this.t('messages.ram.bankSwitchSram', { bank }), 'info');
   }
@@ -1390,10 +1538,19 @@ export class GBAAdapter extends CartridgeAdapter {
   async switchFlashBank(bank: number) : Promise<void> {
     bank = bank === 0 ? 0 : 1;
 
-    await ram_write(this.transport, new Uint8Array([0xaa]), 0x5555);
-    await ram_write(this.transport, new Uint8Array([0x55]), 0x2aaa);
-    await ram_write(this.transport, new Uint8Array([0xb0]), 0x5555); // FLASH_COMMAND_SWITCH_BANK
-    await ram_write(this.transport, new Uint8Array([bank]), 0x0000);
+    if (this.isBoostMode) {
+      await boost_write_units(this.transport, false, [
+        { address: 0x5555, value: 0xaa },
+        { address: 0x2aaa, value: 0x55 },
+        { address: 0x5555, value: 0xb0 },
+        { address: 0x0000, value: bank },
+      ]);
+    } else {
+      await ram_write(this.transport, new Uint8Array([0xaa]), 0x5555);
+      await ram_write(this.transport, new Uint8Array([0x55]), 0x2aaa);
+      await ram_write(this.transport, new Uint8Array([0xb0]), 0x5555); // FLASH_COMMAND_SWITCH_BANK
+      await ram_write(this.transport, new Uint8Array([bank]), 0x0000);
+    }
     await timeout(GBAAdapter.RAM_BANK_SWITCH_SETTLE_MS);
 
     this.log(this.t('messages.gba.bankSwitchFlash', { bank }), 'info');
@@ -1408,22 +1565,19 @@ export class GBAAdapter extends CartridgeAdapter {
    */
   private async readROMChunked(size: number, baseAddress: number, chunkSize: number): Promise<Uint8Array> {
     if (size <= chunkSize) {
-      // 单次读取
-      return await rom_read(this.transport, size, baseAddress);
-    } else {
-      // 分块读取
-      const result = new Uint8Array(size);
-      let offset = 0;
-
-      while (offset < size) {
-        const currentChunkSize = Math.min(chunkSize, size - offset);
-        const chunkData = await rom_read(this.transport, currentChunkSize, baseAddress + offset);
-        result.set(chunkData, offset);
-        offset += currentChunkSize;
-      }
-
-      return result;
+      return await this.ops.flashCmdSet.read(this.transport, size, baseAddress);
     }
+    const result = new Uint8Array(size);
+    let offset = 0;
+
+    while (offset < size) {
+      const currentChunkSize = Math.min(chunkSize, size - offset);
+      const chunkData = await this.ops.flashCmdSet.read(this.transport, currentChunkSize, baseAddress + offset);
+      result.set(chunkData, offset);
+      offset += currentChunkSize;
+    }
+
+    return result;
   }
 
   /**
@@ -1437,6 +1591,11 @@ export class GBAAdapter extends CartridgeAdapter {
       const cfiInfo = options.cfiInfo;
       const isMultiCard = cfiInfo.deviceSize > (1 << 25); // 32MB
       const chunkSize = options.romPageSize ?? AdvancedSettings.romPageSize;
+
+      if (this.isBoostMode) {
+        this.markChannelBusy();
+        await boost_enter_mode(this.transport, 'agb');
+      }
 
       // 切换到相应的bank
       if (isMultiCard) {
@@ -1571,6 +1730,20 @@ export class GBAAdapter extends CartridgeAdapter {
             return eraseResult;
           }
 
+          const useBoostProgram = this.isBoostMode && !cfiInfo.isIntel;
+          const flashBufferSize = cfiInfo.bufferSize ?? 0;
+          if (useBoostProgram) {
+            await boost_enter_mode(this.transport, 'agb');
+            await boost_configure_amd_flash(this.transport, {
+              unlockAddr1: GBA_FLASH_ADDR_1,
+              unlockAddr2: GBA_FLASH_ADDR_2,
+              buffered: flashBufferSize > 0,
+              swapD0D1: cfiInfo.isSwapD0D1,
+            });
+          } else {
+            await this.ensureDefaultProtocolMode();
+          }
+
           // 开始写入
           this.log(this.t('messages.ram.batteryless.startWrite'), 'info');
 
@@ -1600,7 +1773,11 @@ export class GBAAdapter extends CartridgeAdapter {
             }
 
             // 写入数据
-            await rom_program(this.transport, chunk, currentAddress, cfiInfo.bufferSize ?? 0);
+            if (useBoostProgram) {
+              await boost_program_flash(this.transport, 'agb', currentAddress, flashBufferSize, chunk);
+            } else {
+              await rom_program(this.transport, chunk, currentAddress, flashBufferSize);
+            }
             const chunkEndTime = Date.now();
 
             written += chunkSize;
@@ -1715,7 +1892,7 @@ export class GBAAdapter extends CartridgeAdapter {
             }
 
             // 读取数据
-            const chunk = await rom_read(this.transport, chunkSize, currentAddress);
+            const chunk = await this.ops.flashCmdSet.read(this.transport, chunkSize, currentAddress);
             const chunkEndTime = Date.now();
             data.set(chunk, readCount);
 
@@ -1830,7 +2007,11 @@ export class GBAAdapter extends CartridgeAdapter {
   async isBlank(address: number, size = 0x100) : Promise<boolean> {
     this.log(this.t('messages.rom.checkingIfBlank'), 'info');
 
-    const data = await rom_read(this.transport, size, address);
+    if (this.isBoostMode) {
+      this.markChannelBusy();
+      await boost_enter_mode(this.transport, 'agb');
+    }
+    const data = await this.ops.flashCmdSet.read(this.transport, size, address);
     const blank = data.every(byte => byte === 0xff);
 
     if (blank) {

@@ -58,7 +58,7 @@ describe('AdvancedSettings', () => {
     it('getSettings returns all defaults in correct structure', () => {
       const s = AdvancedSettings.getSettings();
       expect(s).toEqual({
-        firmware: { profile: 'stm' },
+        firmware: { profile: 'stm', stmBoost: true },
         size: { romPageSize: 0x1000, romReadPageSize: 0x1000, ramPageSize: 0x1000 },
         profileSizes: {
           stm: { romPageSize: 0x1000, romReadPageSize: 0x1000, ramPageSize: 0x1000 },
@@ -159,7 +159,17 @@ describe('AdvancedSettings', () => {
       const savedSettings = JSON.parse(localStorageMock.advanced_settings) as AdvancedSettingsConfig;
 
       expect(AdvancedSettings.firmwareProfile).toBe('stc');
-      expect(savedSettings.firmware).toEqual({ profile: 'stc' });
+      expect(savedSettings.firmware).toEqual({ profile: 'stc', stmBoost: true });
+    });
+
+    it('supports stmBoost toggle in firmware settings', () => {
+      AdvancedSettings.firmwareProfile = 'stm';
+      AdvancedSettings.stmBoost = false;
+      const savedSettings = JSON.parse(localStorageMock.advanced_settings) as AdvancedSettingsConfig;
+
+      expect(AdvancedSettings.firmwareProfile).toBe('stm');
+      expect(AdvancedSettings.stmBoost).toBe(false);
+      expect(savedSettings.firmware).toEqual({ profile: 'stm', stmBoost: false });
     });
   });
 
@@ -194,7 +204,7 @@ describe('AdvancedSettings', () => {
       AdvancedSettings.setSettings({ firmware: { profile: 'stc' } });
 
       expect(AdvancedSettings.firmwareProfile).toBe('stc');
-      expect(AdvancedSettings.getSettings().firmware).toEqual({ profile: 'stc' });
+      expect(AdvancedSettings.getSettings().firmware).toEqual({ profile: 'stc', stmBoost: true });
       expect(localStorage.setItem).toHaveBeenCalled();
     });
   });

@@ -48,3 +48,25 @@ export function modbusCRC16_lut(bytes: Uint8Array): number {
   }
   return crc;
 }
+
+const CRC32_TABLE = new Uint32Array(256);
+(function initCRC32Table() {
+  for (let i = 0; i < 256; i++) {
+    let crc = i;
+    for (let j = 0; j < 8; j++) {
+      crc = (crc & 1) !== 0 ? (crc >>> 1) ^ 0xedb88320 : crc >>> 1;
+    }
+    CRC32_TABLE[i] = crc >>> 0;
+  }
+})();
+
+/**
+ * 计算标准 IEEE 802.3 CRC32 校验和（与固件 0xd5 命令返回值一致）
+ */
+export function crc32(bytes: Uint8Array, initial = 0): number {
+  let crc = (~initial) >>> 0;
+  for (const byte of bytes) {
+    crc = (crc >>> 8) ^ CRC32_TABLE[(crc ^ byte) & 0xff];
+  }
+  return (~crc) >>> 0;
+}

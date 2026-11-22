@@ -11,6 +11,7 @@ export interface SizeSettings {
 export interface AdvancedSettingsConfig {
   firmware?: {
     profile?: ConfigurableFirmwareProfileId;
+    stmBoost?: boolean;
   };
   size?: Partial<SizeSettings>;
   profileSizes?: Partial<Record<ConfigurableFirmwareProfileId, Partial<SizeSettings>>>;
@@ -91,6 +92,8 @@ const _storage: Record<string, number> = Object.fromEntries(
   SETTING_DESCRIPTORS.map((d) => [d.key, d.default]),
 );
 let _firmwareProfile: ConfigurableFirmwareProfileId = 'stm';
+let _stmBoost = true;
+const CONFIGURABLE_PROFILES: readonly ConfigurableFirmwareProfileId[] = ['stm', 'stc'];
 
 function createDefaultProfileSizes(profile: ConfigurableFirmwareProfileId): SizeSettings {
   const limits = getOptimalPacketLimits(profile);
@@ -173,6 +176,7 @@ function validateFirmwareProfile(value: unknown): ConfigurableFirmwareProfileId 
 
 export class AdvancedSettings {
   declare static firmwareProfile: ConfigurableFirmwareProfileId;
+  declare static stmBoost: boolean;
   declare static romPageSize: number;
   declare static romReadPageSize: number;
   declare static ramPageSize: number;
@@ -200,6 +204,7 @@ export class AdvancedSettings {
     return {
       firmware: {
         profile: _firmwareProfile,
+        stmBoost: _stmBoost,
       },
       size: {
         romPageSize: _profileSizes[_firmwareProfile].romPageSize,
@@ -237,10 +242,13 @@ export class AdvancedSettings {
     if (settings.firmware?.profile !== undefined) {
       _firmwareProfile = validateFirmwareProfile(settings.firmware.profile);
     }
+    if (settings.firmware?.stmBoost !== undefined) {
+      _stmBoost = settings.firmware.stmBoost;
+    }
 
     if (settings.profileSizes) {
       _independentProfileSizes = true;
-      for (const profileId of ['stm', 'stc'] as const) {
+      for (const profileId of CONFIGURABLE_PROFILES) {
         const profileSize = settings.profileSizes[profileId];
         if (!profileSize) continue;
         if (profileSize.romPageSize !== undefined) {
@@ -275,6 +283,7 @@ export class AdvancedSettings {
 
   static resetToDefaults(): void {
     _firmwareProfile = 'stm';
+    _stmBoost = true;
     _independentProfileSizes = false;
     _profileSizes.stm = createDefaultProfileSizes('stm');
     _profileSizes.stc = createDefaultProfileSizes('stc');
@@ -364,6 +373,18 @@ Object.defineProperty(AdvancedSettings, 'firmwareProfile', {
   configurable: true,
 });
 
+Object.defineProperty(AdvancedSettings, 'stmBoost', {
+  get(): boolean {
+    return _stmBoost;
+  },
+  set(value: boolean) {
+    _stmBoost = value;
+    AdvancedSettings.saveSettings();
+  },
+  enumerable: true,
+  configurable: true,
+});
+
 // Register getter/setter properties from descriptors
 for (const desc of SETTING_DESCRIPTORS) {
   Object.defineProperty(AdvancedSettings, desc.key, {
@@ -380,8 +401,11 @@ for (const desc of SETTING_DESCRIPTORS) {
         const field = desc.field as keyof SizeSettings;
         _profileSizes[_firmwareProfile][field] = validated;
         if (!_independentProfileSizes) {
-          const otherProfile: ConfigurableFirmwareProfileId = _firmwareProfile === 'stm' ? 'stc' : 'stm';
-          _profileSizes[otherProfile][field] = validated;
+          for (const otherProfile of CONFIGURABLE_PROFILES) {
+            if (otherProfile !== _firmwareProfile) {
+              _profileSizes[otherProfile][field] = validated;
+            }
+          }
         }
       }
       AdvancedSettings.saveSettings();

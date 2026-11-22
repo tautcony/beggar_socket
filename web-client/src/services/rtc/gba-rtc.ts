@@ -1,6 +1,14 @@
 ﻿import { DateTime } from 'luxon';
 
-import { rom_read, rom_write, toLittleEndian } from '@/protocol';
+import {
+  boost_enter_mode,
+  boost_gba_rtc_read,
+  ensureDefaultProtocol,
+  rom_read,
+  rom_write,
+  toLittleEndian,
+} from '@/protocol';
+import type { FirmwareProfile } from '@/types/firmware-profile';
 
 import { BaseRTC, RTCCleanupError, type RTCWriteReference } from './base-rtc';
 
@@ -18,6 +26,44 @@ export interface GBARTCData {
  * GBA RTC操作
  */
 export class GBARTC extends BaseRTC {
+  private readonly firmwareProfile?: FirmwareProfile;
+
+  constructor(transport: ConstructorParameters<typeof BaseRTC>[0], firmwareProfile?: FirmwareProfile) {
+    super(transport);
+    this.firmwareProfile = firmwareProfile;
+  }
+
+  /**
+   * 使用 Beggar Boost 固件原生 0xca 命令一次读取 8 字节 RTC 状态与时间。
+   */
+  private async readTimeNative(): Promise<{ status: boolean; time?: DateTime; error?: string }> {
+    await boost_enter_mode(this.transport, 'agb');
+    const raw = await boost_gba_rtc_read(this.transport);
+    const status = raw[0];
+    if ((status & 0x80) !== 0) {
+      return { status: false, error: 'RTC power loss detected' };
+    }
+
+    const year = this.compressedBCDToInt(raw[1]);
+    const month = this.compressedBCDToInt(raw[2] & 0x1f);
+    const date = this.compressedBCDToInt(raw[3] & 0x3f);
+    const hour = this.compressedBCDToInt(raw[5] & 0x3f);
+    const minute = this.compressedBCDToInt(raw[6] & 0x7f);
+    const second = this.compressedBCDToInt(raw[7] & 0x7f);
+
+    const time = DateTime.fromObject({
+      year: 2000 + year,
+      month,
+      day: date,
+      hour,
+      minute,
+      second,
+    });
+    if (!time.isValid) {
+      return { status: false, error: `Invalid date/time values: ${time.invalidReason}` };
+    }
+    return { status: true, time };
+  }
   /**
    * GBA RTC GPIO 写字节操作
    */
@@ -155,6 +201,9 @@ export class GBARTC extends BaseRTC {
   }
   async checkCapability(): Promise<boolean> {
     try {
+      if (this.firmwareProfile?.capabilities.boostMode) {
+        await ensureDefaultProtocol(this.transport);
+      }
       return await this.withCleanup(async () => {
         // 检测GPIO
         const read1 = await rom_read(this.transport, 6, 0xc4);
@@ -180,7 +229,8 @@ export class GBARTC extends BaseRTC {
    */
   async setTime(timeData: unknown): Promise<void> {
     const rtcData: GBARTCData = BaseRTC.snapshotTimeFields(timeData, ['year', 'month', 'date', 'day', 'hour', 'minute', 'second']);
-    if (rtcData.year < 0 || rtcData.year > 99
+    if (
+      rtcData.year < 0 || rtcData.year > 99
       || rtcData.month < 1 || rtcData.month > 12
       || rtcData.day < 0 || rtcData.day > 6
       || rtcData.hour < 0 || rtcData.hour > 23
@@ -193,11 +243,15 @@ export class GBARTC extends BaseRTC {
         rtcData.hour,
         rtcData.minute,
         rtcData.second,
-      )) {
+      )
+    ) {
       throw new Error('Invalid date/time provided');
     }
 
     try {
+      if (this.firmwareProfile?.capabilities.boostMode) {
+        await ensureDefaultProtocol(this.transport);
+      }
       if (!(await this.checkCapability())) {
         throw new Error('Cartridge does not have GPIO functionality');
       }
@@ -272,6 +326,14 @@ export class GBARTC extends BaseRTC {
    */
   async readTime(): Promise<{ status: boolean; time?: DateTime; error?: string }> {
     try {
+      if (this.firmwareProfile?.capabilities.boostMode) {
+        const nativeResult = await this.readTimeNative();
+        if (nativeResult.status) {
+          return nativeResult;
+        }
+        // 若原生读取检测到掉电状态，继续走标准 GPIO 流程以执行电池掉电重置
+      }
+
       if (!(await this.checkCapability())) {
         return { status: false, error: 'Cartridge does not have GPIO functionality' };
       }

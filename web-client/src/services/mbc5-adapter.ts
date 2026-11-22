@@ -1,6 +1,16 @@
 ﻿import {
+  boost_configure_amd_flash,
+  boost_enter_mode,
+  boost_program_flash,
+  boost_read_rom,
+  boost_write_dmg_range,
+  boost_write_units,
   cart_power,
   FLASH_CMD_RESET,
+  flashEraseSector,
+  flashGetId,
+  GBC_FLASH_ADDR_1,
+  GBC_FLASH_ADDR_2,
   GBC_FLASH_CMD_SET,
   gbc_read,
   gbc_read_fram,
@@ -55,16 +65,29 @@ export class MBC5Adapter extends CartridgeAdapter {
   }
 
   protected override createPlatformOps(): PlatformOps {
+    const boost = this.isBoostMode;
     return {
       platformId: 'mbc5',
       flashCmdSet: {
         ...GBC_FLASH_CMD_SET,
-        read: (...args: Parameters<typeof gbc_read>) => gbc_read(...args),
-        write: (...args: Parameters<typeof gbc_write>) => gbc_write(...args),
+        read: boost
+          ? (transport, size, baseAddress) => boost_read_rom(transport, 'dmg', size, baseAddress)
+          : (...args: Parameters<typeof gbc_read>) => gbc_read(...args),
+        write: boost
+          ? async (transport, data, baseAddress) => {
+            const units = Array.from(data, (value, offset) => ({
+              address: baseAddress + offset,
+              value,
+            }));
+            await boost_write_units(transport, baseAddress < 0x8000, units);
+          }
+          : (...args: Parameters<typeof gbc_write>) => gbc_write(...args),
       },
       cfiEntryAddress: 0xaa,
       romBankSize: 0x4000,
-      cfiGetId: (device) => gbc_rom_get_id(device),
+      cfiGetId: boost
+        ? (device) => flashGetId(device, this.ops.flashCmdSet, [{ address: 0x00, size: 4 }])
+        : (device) => gbc_rom_get_id(device),
       toRomBank: (address, options) => {
         const mbcType = (options as CommandOptions | undefined)?.mbcType ?? 'MBC5';
         return this.romBankRelevantAddress(address, mbcType);
@@ -160,7 +183,15 @@ export class MBC5Adapter extends CartridgeAdapter {
 
       try {
         const { cartAddress } = this.romBankRelevantAddress(sector.address, mbcType);
-        await gbc_rom_erase_sector(this.transport, cartAddress);
+        if (this.isBoostMode) {
+          await flashEraseSector(this.transport, this.ops.flashCmdSet, cartAddress, cartAddress, {
+            pollBytes: 1,
+            pollIntervalMs: 20,
+            timeoutMs: 15_000,
+          });
+        } else {
+          await gbc_rom_erase_sector(this.transport, cartAddress);
+        }
         return;
       } catch (error) {
         lastError = error;
@@ -205,6 +236,9 @@ export class MBC5Adapter extends CartridgeAdapter {
 
     for (let attempt = 1; attempt <= attempts; attempt++) {
       try {
+        if (this.isBoostMode && ramType !== 'FRAM') {
+          return await boost_read_rom(this.transport, 'dmg', chunkSize, cartAddress);
+        }
         return ramType === 'FRAM'
           ? await gbc_read_fram(this.transport, chunkSize, cartAddress, framLatency)
           : await gbc_read(this.transport, chunkSize, cartAddress);
@@ -264,7 +298,15 @@ export class MBC5Adapter extends CartridgeAdapter {
    * @param mbcType - MBC 类型
    * @param bank - Bank
    */
-  private async switchRomBank(mbcType: MbcType, bank: number): Promise<void> {
+  private async writeRomBankByte(address: number, value: number, useBoostMode: boolean): Promise<void> {
+    if (useBoostMode) {
+      await boost_write_units(this.transport, false, [{ address, value }]);
+    } else {
+      await gbc_write(this.transport, new Uint8Array([value]), address);
+    }
+  }
+
+  private async switchRomBank(mbcType: MbcType, bank: number, useBoostMode = this.isBoostMode): Promise<void> {
     if (bank < 0) return;
 
     switch (mbcType) {
@@ -272,7 +314,7 @@ export class MBC5Adapter extends CartridgeAdapter {
         // MBC3: 写入 0x2000 地址切换 bank
         // bank 0 会被映射为 bank 1
         const bankValue = bank === 0 ? 1 : bank & 0xff;
-        await gbc_write(this.transport, new Uint8Array([bankValue]), 0x2000);
+        await this.writeRomBankByte(0x2000, bankValue, useBoostMode);
         break;
       }
       case 'MBC5': {
@@ -280,8 +322,8 @@ export class MBC5Adapter extends CartridgeAdapter {
         // 低8位写入 0x2000, 高1位写入 0x3000
         const b0 = bank & 0xff;
         const b1 = (bank >> 8) & 0xff;
-        await gbc_write(this.transport, new Uint8Array([b1]), 0x3000);
-        await gbc_write(this.transport, new Uint8Array([b0]), 0x2000);
+        await this.writeRomBankByte(0x3000, b1, useBoostMode);
+        await this.writeRomBankByte(0x2000, b0, useBoostMode);
         break;
       }
       case 'MBC1':
@@ -313,13 +355,13 @@ export class MBC5Adapter extends CartridgeAdapter {
       case 'MBC3': {
         // MBC3: 写入 0x4000 地址切换 bank (0-7)
         const bankValue = bank & 0x07;
-        await gbc_write(this.transport, new Uint8Array([bankValue]), 0x4000);
+        await this.writeRomBankByte(0x4000, bankValue, this.isBoostMode);
         break;
       }
       case 'MBC5': {
         // MBC5: 写入 0x4000 地址切换 bank (0-255)
         const bankValue = bank & 0xff;
-        await gbc_write(this.transport, new Uint8Array([bankValue]), 0x4000);
+        await this.writeRomBankByte(0x4000, bankValue, this.isBoostMode);
         break;
       }
       case 'MBC1':
@@ -413,6 +455,11 @@ export class MBC5Adapter extends CartridgeAdapter {
 
         try {
           return await this.withOptional5v(enable5V, async () => {
+            if (this.isBoostMode) {
+              await boost_enter_mode(this.transport, 'dmg');
+            } else {
+              await this.ensureDefaultProtocolMode();
+            }
             let currentBank = -1;
             let eraseCount = 0;
 
@@ -587,6 +634,17 @@ export class MBC5Adapter extends CartridgeAdapter {
             const image = prepareRomImage(fileData, total);
             const wallClockStartTime = Date.now();
             let written = 0;
+            const useBoostProgram = this.isBoostMode && !options.cfiInfo.isIntel;
+            if (useBoostProgram) {
+              await boost_enter_mode(this.transport, 'dmg');
+              await boost_configure_amd_flash(this.transport, {
+                unlockAddr1: GBC_FLASH_ADDR_1,
+                unlockAddr2: GBC_FLASH_ADDR_2,
+                buffered: bufferSize > 0,
+              });
+            } else {
+              await this.ensureDefaultProtocolMode();
+            }
             this.log(this.t('messages.rom.writing', { size: total }), 'info');
 
             const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, total, baseAddress);
@@ -701,9 +759,22 @@ export class MBC5Adapter extends CartridgeAdapter {
               }
 
               const { attemptsUsed, retriesPerformed } = await this.programRomChunkWithRetry(
-                () => gbc_rom_program(this.transport, chunk, cartAddress, bufferSize),
+                () => (useBoostProgram
+                  ? boost_program_flash(this.transport, 'dmg', cartAddress, bufferSize, chunk)
+                  : gbc_rom_program(this.transport, chunk, cartAddress, bufferSize)),
                 currentAddress,
                 signal,
+                useBoostProgram
+                  ? async () => {
+                    await boost_enter_mode(this.transport, 'dmg');
+                    await boost_configure_amd_flash(this.transport, {
+                      unlockAddr1: GBC_FLASH_ADDR_1,
+                      unlockAddr2: GBC_FLASH_ADDR_2,
+                      buffered: bufferSize > 0,
+                    });
+                    await this.switchROMBank(bank, mbcType);
+                  }
+                  : undefined,
               );
               programRequests += attemptsUsed;
               retryCount += retriesPerformed;
@@ -842,6 +913,9 @@ export class MBC5Adapter extends CartridgeAdapter {
 
           return await this.withOptional5v(enable5V, async () => {
             await this.stabilizeReadChannel(options, MBC5Adapter.ROM_READ_START_SETTLE_MS);
+            if (this.isBoostMode) {
+              await boost_enter_mode(this.transport, 'dmg');
+            }
             this.log(this.t('messages.rom.reading'), 'info');
             let totalRead = 0;
 
@@ -1020,7 +1094,9 @@ export class MBC5Adapter extends CartridgeAdapter {
         }
         try {
           return await this.withOptional5v(enable5V, async () => {
-            await this.stabilizeCommandChannel(MBC5Adapter.ROM_READ_START_SETTLE_MS);
+            if (!this.isBoostMode) {
+              await this.stabilizeCommandChannel(MBC5Adapter.ROM_READ_START_SETTLE_MS);
+            }
             this.log(this.t('messages.rom.verifying'), 'info');
 
             const configuredSize = options.size ?? fileData.byteLength;
@@ -1054,6 +1130,26 @@ export class MBC5Adapter extends CartridgeAdapter {
 
             // 报告开始状态
             progressReporter.reportStart(this.t('messages.rom.verifying'));
+
+            if (this.isBoostMode) {
+              return await this.verifyROMWithBoostCrc32({
+                mode: 'dmg',
+                image,
+                baseAddress,
+                total,
+                readChunkSize: pageSize,
+                mbcType,
+                isMultiBank: true,
+                switchBankInBoostMode: async (bank) => {
+                  await this.switchRomBank(mbcType, bank, true);
+                  this.setActiveRomBankKey(`${mbcType}:${bank}`);
+                  this.log(this.t('messages.rom.bankSwitch', { bank }), 'info');
+                },
+                progressReporter,
+                speedCalculator,
+                signal,
+              });
+            }
 
             // 分块校验并更新进度
             let chunkCount = 0; // 记录已处理的块数
@@ -1222,13 +1318,23 @@ export class MBC5Adapter extends CartridgeAdapter {
       async () => {
         try {
           return await this.withOptional5v(enable5V, async () => {
+            const useBoostRam = this.isBoostMode && ramType !== 'FRAM';
+            if (useBoostRam) {
+              await boost_enter_mode(this.transport, 'dmg');
+            } else {
+              await this.ensureDefaultProtocolMode();
+            }
             this.log(this.t('messages.ram.writing', { size: fileData.byteLength }), 'info');
 
             const total = options.size ?? fileData.byteLength;
             let written = 0;
 
             // 开启RAM写权限
-            await gbc_write(this.transport, new Uint8Array([0x0a]), 0x0000);
+            if (useBoostRam) {
+              await boost_write_units(this.transport, false, [{ address: 0x0000, value: 0x0a }]);
+            } else {
+              await gbc_write(this.transport, new Uint8Array([0x0a]), 0x0000);
+            }
 
             // 开始写入
             let lastLoggedProgress = -1; // 初始化为 -1，确保第一次 0% 会被记录
@@ -1255,6 +1361,8 @@ export class MBC5Adapter extends CartridgeAdapter {
               if (ramType === 'FRAM') {
                 const latency = options.framLatency ?? 25;
                 await gbc_write_fram(this.transport, chunk, cartAddress, latency);
+              } else if (useBoostRam) {
+                await boost_write_dmg_range(this.transport, chunk, cartAddress);
               } else {
                 await gbc_write(this.transport, chunk, cartAddress);
               }
@@ -1353,11 +1461,22 @@ export class MBC5Adapter extends CartridgeAdapter {
       async () => {
         try {
           return await this.withOptional5v(enable5V, async () => {
-            await this.stabilizeCommandChannel(MBC5Adapter.RAM_READ_START_SETTLE_MS);
+            const useBoostRam = this.isBoostMode && ramType !== 'FRAM';
+            if (useBoostRam) {
+              this.markChannelBusy();
+              await boost_enter_mode(this.transport, 'dmg');
+            } else {
+              await this.ensureDefaultProtocolMode();
+              await this.stabilizeCommandChannel(MBC5Adapter.RAM_READ_START_SETTLE_MS);
+            }
             this.log(this.t('messages.ram.reading'), 'info');
 
             // 开启RAM写权限
-            await gbc_write(this.transport, new Uint8Array([0x0a]), 0x0000);
+            if (useBoostRam) {
+              await boost_write_units(this.transport, false, [{ address: 0x0000, value: 0x0a }]);
+            } else {
+              await gbc_write(this.transport, new Uint8Array([0x0a]), 0x0000);
+            }
 
             const result = new Uint8Array(size);
             let currentBank = -1;
@@ -1549,11 +1668,16 @@ export class MBC5Adapter extends CartridgeAdapter {
       async () => {
         try {
           return await this.withOptional5v(enable5V, async () => {
+            if (this.isBoostMode) {
+              await boost_enter_mode(this.transport, 'dmg');
+            } else {
+              await this.ensureDefaultProtocolMode();
+            }
             // CFI Query
-            await gbc_write(this.transport, new Uint8Array([0x98]), 0xaa);
-            const cfiData = await gbc_read(this.transport, 0x100, 0x00);
+            await this.ops.flashCmdSet.write(this.transport, new Uint8Array([0x98]), 0xaa);
+            const cfiData = await this.ops.flashCmdSet.read(this.transport, 0x100, 0x00);
             // Reset
-            await gbc_write(this.transport, new Uint8Array([0xf0]), 0x00);
+            await this.ops.flashCmdSet.write(this.transport, new Uint8Array([0xf0]), 0x00);
 
             const cfiInfo = parseCFI(cfiData);
 
@@ -1565,7 +1689,7 @@ export class MBC5Adapter extends CartridgeAdapter {
 
             // 读取Flash ID并添加到CFI信息
             try {
-              const flashId = await gbc_rom_get_id(this.transport);
+              const flashId = await this.ops.cfiGetId(this.transport);
               cfiInfo.flashId = flashId;
               const idStr = Array.from(flashId).map(x => x.toString(16).padStart(2, '0')).join(' ');
               const flashName = getFlashName([...flashId]);
@@ -1615,10 +1739,14 @@ export class MBC5Adapter extends CartridgeAdapter {
   async isBlank(address: number, size = 0x100, mbcType: MbcType = 'MBC5') : Promise<boolean> {
     this.log(this.t('messages.rom.checkingIfBlank'), 'info');
 
+    if (this.isBoostMode) {
+      this.markChannelBusy();
+      await boost_enter_mode(this.transport, 'dmg');
+    }
     const { bank, cartAddress } = this.romBankRelevantAddress(address, mbcType);
     await this.switchROMBank(bank, mbcType);
 
-    const data = await gbc_read(this.transport, size, cartAddress);
+    const data = await this.ops.flashCmdSet.read(this.transport, size, cartAddress);
     const blank = data.every(byte => byte === 0xff);
 
     if (blank) {

@@ -521,7 +521,9 @@
         "activeProfile": "当前连接生效固件",
         "reconnectNotice": "修改将在重连或重新初始化连接后生效。",
         "stm": "丐中丐",
-        "stc": "碳酸丐"
+        "stc": "碳酸丐",
+        "stmBoost": "启用 Boost 增强",
+        "stmBoostHint": "启用后可利用 ChisFlash-Beggar-Boost 固件的高速传输、硬件校验及原生协议加速能力。"
       },
       "appearance": {
         "title": "外观与字体",

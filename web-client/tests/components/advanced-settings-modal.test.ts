@@ -94,7 +94,9 @@ describe('AdvancedSettingsModal', () => {
 
     // Change firmware profile to STC and save
     const select = wrapper.get('#firmware-profile');
+    expect(wrapper.find('[data-testid="stm-boost-option"]').exists()).toBe(true);
     await select.setValue('stc');
+    expect(wrapper.find('[data-testid="stm-boost-option"]').exists()).toBe(false);
 
     const buttons = wrapper.findAll('.footer button');
     const applyButton = buttons[buttons.length - 1];
@@ -103,6 +105,26 @@ describe('AdvancedSettingsModal', () => {
     expect(AdvancedSettings.firmwareProfile).toBe('stc');
     expect(activeDevice.firmwareProfile).toEqual(STM_FIRMWARE_PROFILE);
     expect(STC_FIRMWARE_PROFILE.id).toBe('stc');
+  });
+
+  it('allows toggling stm boost enhancement option when stm is selected', async () => {
+    AdvancedSettings.firmwareProfile = 'stm';
+    AdvancedSettings.stmBoost = true;
+
+    const wrapper = mount(AdvancedSettingsModal, {
+      props: { modelValue: true },
+      global: globalConfig,
+    });
+    await nextTick();
+
+    const boostCheckbox = wrapper.get('[data-testid="stm-boost-option"] input[type="checkbox"]');
+    await boostCheckbox.setValue(false);
+
+    const buttons = wrapper.findAll('.footer button');
+    await buttons[buttons.length - 1].trigger('click');
+
+    expect(AdvancedSettings.firmwareProfile).toBe('stm');
+    expect(AdvancedSettings.stmBoost).toBe(false);
   });
 
   it('allows independent stm and stc page size configuration in size section', async () => {

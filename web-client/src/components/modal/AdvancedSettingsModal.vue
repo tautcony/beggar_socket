@@ -61,6 +61,20 @@
                   </option>
                 </RetroSelect>
               </div>
+              <div
+                v-if="localSettings.firmware.profile === 'stm'"
+                class="boost-option-row"
+                data-testid="stm-boost-option"
+              >
+                <RetroSwitch
+                  id="stm-boost"
+                  v-model="localSettings.firmware.stmBoost"
+                  :label="$t('ui.settings.firmware.stmBoost')"
+                />
+                <small class="hint boost-option-hint">
+                  {{ $t('ui.settings.firmware.stmBoostHint') }}
+                </small>
+              </div>
               <small
                 v-if="activeFirmwareProfile"
                 class="hint active-profile-status"
@@ -646,7 +660,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { RetroButton, RetroModal, RetroSelect } from '@/components/retro';
+import { RetroButton, RetroModal, RetroSelect, RetroSwitch } from '@/components/retro';
 import { DEFAULT_FONT_FAMILY, type FontFamilyId, useFont } from '@/composables/useFont';
 import { DEFAULT_COLOR_MODE, DEFAULT_COLOR_THEME, useTheme } from '@/composables/useTheme';
 import { getOptimalPacketLimits } from '@/platform/serial/platform-packet-policy';
@@ -705,6 +719,7 @@ const createDefaultSettings = (): ReturnType<typeof AdvancedSettings.getSettings
   return {
     firmware: {
       profile: 'stm',
+      stmBoost: true,
     },
     size: {
       romPageSize: stmLimits.romWrite,
@@ -816,9 +831,7 @@ const settingsSections = computed(() => {
     {
       id: 'firmware' as const,
       title: t('ui.settings.firmware.title'),
-      summary: localSettings.value.firmware.profile === 'stm'
-        ? t('ui.settings.firmware.stm')
-        : t('ui.settings.firmware.stc'),
+      summary: t(`ui.settings.firmware.${localSettings.value.firmware.profile}`),
     },
     {
       id: 'appearance' as const,
@@ -1106,7 +1119,7 @@ watch(() => props.modelValue, (visible) => {
 .setting-item {
   margin-bottom: 0;
 
-  label {
+  > label {
     display: block;
     margin-bottom: spacing-vars.$space-2;
     color: var(--retro-ink-muted);
@@ -1349,5 +1362,21 @@ watch(() => props.modelValue, (visible) => {
     border-color: var(--retro-accent-color, #667eea);
     font-weight: typography-vars.$font-weight-semibold;
   }
+}
+
+.boost-option-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: spacing-vars.$space-2;
+  margin-top: spacing-vars.$space-4;
+  padding-top: spacing-vars.$space-3;
+  border-top: 1px dashed var(--retro-border);
+}
+
+.boost-option-hint {
+  margin-top: 0;
+  text-align: left;
+  line-height: 1.5;
 }
 </style>

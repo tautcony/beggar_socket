@@ -10,6 +10,7 @@ export interface FirmwareCapabilities {
   readonly gbaFramRam: boolean;
   readonly gbcFramRam: boolean;
   readonly cartPowerControl: boolean;
+  readonly boostMode: boolean;
 }
 
 export interface FirmwareProfile {
@@ -17,6 +18,7 @@ export interface FirmwareProfile {
   readonly label: string;
   readonly maxReadChunk: number;
   readonly capabilities: FirmwareCapabilities;
+  readonly firmwareVersion?: string;
 }
 
 export const STM_FIRMWARE_PROFILE: FirmwareProfile = {
@@ -28,6 +30,7 @@ export const STM_FIRMWARE_PROFILE: FirmwareProfile = {
     gbaFramRam: true,
     gbcFramRam: true,
     cartPowerControl: false,
+    boostMode: false,
   },
 };
 
@@ -43,6 +46,7 @@ export const STC_FIRMWARE_PROFILE: FirmwareProfile = {
     gbaFramRam: false,
     gbcFramRam: true,
     cartPowerControl: true,
+    boostMode: false,
   },
 };
 
@@ -55,8 +59,25 @@ export const UNKNOWN_FIRMWARE_PROFILE: FirmwareProfile = {
     gbaFramRam: true,
     gbcFramRam: true,
     cartPowerControl: true,
+    boostMode: false,
   },
 };
+
+export function withBeggarBoostProfile(
+  baseProfile: FirmwareProfile = STM_FIRMWARE_PROFILE,
+  firmwareVersion?: string,
+): FirmwareProfile {
+  return {
+    ...baseProfile,
+    label: baseProfile.id === 'stm' ? '丐中丐 (Boost)' : `${baseProfile.label} (Boost)`,
+    maxReadChunk: 0x2000,
+    firmwareVersion,
+    capabilities: {
+      ...baseProfile.capabilities,
+      boostMode: true,
+    },
+  };
+}
 
 export function getFirmwareProfileById(id: FirmwareProfileId): FirmwareProfile {
   switch (id) {
@@ -101,7 +122,7 @@ export function inferFirmwareProfileFromPort(portInfo?: SerialPortInfo | null): 
     if (/usbmodem\d+$/i.test(portInfo?.path ?? '')) {
       return STC_FIRMWARE_PROFILE;
     }
-    if (containsAny(`${manufacturer} ${product}`, ['stmicroelectronics', 'stm32', 'beggar socket'])) {
+    if (containsAny(`${manufacturer} ${product}`, ['stmicroelectronics', 'stm32', 'beggar socket', 'chisflash beggar'])) {
       return STM_FIRMWARE_PROFILE;
     }
     return UNKNOWN_FIRMWARE_PROFILE;

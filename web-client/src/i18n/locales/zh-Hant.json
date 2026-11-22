@@ -513,7 +513,9 @@
         "activeProfile": "目前連線生效韌體",
         "reconnectNotice": "修改將在重新連線或重新初始化連線後生效。",
         "stm": "丐中丐",
-        "stc": "碳酸丐"
+        "stc": "碳酸丐",
+        "stmBoost": "啟用 Boost 增強",
+        "stmBoostHint": "啟用後可利用 ChisFlash-Beggar-Boost 韌體的高速傳輸、硬體校驗及原生協定加速能力。"
       },
       "appearance": {
         "title": "外觀與字體",

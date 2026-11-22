@@ -1,21 +1,34 @@
 /* eslint-disable @typescript-eslint/require-await */
 import type { Transport } from '@/platform/serial';
 import { getOptimalPacketLimits } from '@/platform/serial/platform-packet-policy';
+import {
+  boost_crc_rom,
+  boost_enter_mode,
+  BOOST_MAX_CRC_CHUNK,
+  boost_read_rom,
+  type BoostMode,
+  ensureDefaultProtocol,
+  markBoostModeInactive,
+} from '@/protocol';
 import { AdvancedSettings } from '@/settings/advanced-settings';
-import { CommandOptions } from '@/types/command-options';
+import { CommandOptions, type MbcType } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
 import { type FirmwareProfile, getFirmwareProfile } from '@/types/firmware-profile';
 import { ProgressInfo, SectorProgressInfo, type SectorSizeClass } from '@/types/progress-info';
 import { timeout } from '@/utils/async-utils';
 import { type BurnerLogInput, errorToBurnerLog, formatBurnerLogMessage } from '@/utils/burner-log';
+import { crc32 } from '@/utils/crc-utils';
 import NotImplementedError from '@/utils/errors/NotImplementedError';
-import { formatHex } from '@/utils/formatter-utils';
+import { formatBytes, formatHex, formatSpeed, formatTimeDuration } from '@/utils/formatter-utils';
 import { CFIInfo, SectorBlock } from '@/utils/parsers/cfi-parser';
 import { ProgressInfoBuilder } from '@/utils/progress/progress-builder';
+import { type ProgressReporter } from '@/utils/progress/progress-reporter';
+import { type SpeedCalculator } from '@/utils/progress/speed-calculator';
 import { createSectorProgressInfo } from '@/utils/sector-utils';
 import { floorPowerOfTwo } from '@/utils/transfer-plan';
 
+import { planBankChunk } from './bank-chunk-planner';
 import type { PlatformOps } from './platform-ops';
 
 // 定义日志和进度回调函数类型
@@ -273,7 +286,17 @@ export class CartridgeAdapter {
     } else {
       await transport?.flushInput?.();
     }
+    if (transport) {
+      markBoostModeInactive(transport);
+    }
     this.channelRecentlyReset = true;
+  }
+
+  /**
+   * 仅当设备当前处于 Boost 扩展模式时，按需复位回默认串口协议。
+   */
+  protected async ensureDefaultProtocolMode(): Promise<void> {
+    await ensureDefaultProtocol(this.transport);
   }
 
   protected async stabilizeCommandChannel(settleMs = 100, force = false): Promise<void> {
@@ -291,11 +314,15 @@ export class CartridgeAdapter {
     this.channelRecentlyReset = false;
   }
 
+  protected get isBoostMode(): boolean {
+    return this.firmwareProfile.capabilities.boostMode;
+  }
+
   protected async stabilizeReadChannel(
     options: Pick<CommandOptions, 'skipChannelStabilize'>,
     settleMs: number,
   ): Promise<void> {
-    if (options.skipChannelStabilize) {
+    if (options.skipChannelStabilize || this.isBoostMode) {
       this.markChannelBusy();
       return;
     }
@@ -340,13 +367,13 @@ export class CartridgeAdapter {
   protected resolveRomReadPageSize(requestedPageSize?: number): number {
     const profileKey = this.firmwareProfile.id === 'stc' ? 'stc' : 'stm';
     const profileSizes = AdvancedSettings.getProfileSizes(profileKey);
-    const limits = getOptimalPacketLimits(this.firmwareProfile.id);
+    const limits = getOptimalPacketLimits(this.isBoostMode ? 'stc' : this.firmwareProfile.id);
     const maxAllowed = this.firmwareProfile.id === 'stc'
       ? this.firmwareProfile.maxReadChunk
       : Math.min(this.firmwareProfile.maxReadChunk, limits.romRead);
     const rawTarget = Math.min(
       requestedPageSize ?? profileSizes.romReadPageSize,
-      profileSizes.romReadPageSize,
+      this.isBoostMode ? maxAllowed : profileSizes.romReadPageSize,
       maxAllowed,
     );
     if (this.isSimulatedDevice()) {
@@ -468,6 +495,9 @@ export class CartridgeAdapter {
           if (signal?.aborted) {
             throw CartridgeAdapter.createAbortError();
           }
+          if (this.isBoostMode) {
+            await boost_enter_mode(this.transport, this.ops.platformId === 'gba' ? 'agb' : 'dmg');
+          }
           if (restoreState) await restoreState();
           if (retryDelayMs > 0) await timeout(retryDelayMs * attempt);
         }
@@ -484,6 +514,7 @@ export class CartridgeAdapter {
     programFn: () => Promise<void>,
     logicalAddress: number,
     signal?: AbortSignal,
+    onRetryReset?: () => Promise<void>,
   ): Promise<{ attemptsUsed: number; retriesPerformed: number }> {
     const retries = AdvancedSettings.romWriteRetryCount;
     const attempts = retries + 1;
@@ -514,6 +545,9 @@ export class CartridgeAdapter {
           if (signal?.aborted) {
             throw CartridgeAdapter.createAbortError();
           }
+          if (onRetryReset) {
+            await onRetryReset();
+          }
           if (retryDelayMs > 0) {
             await timeout(retryDelayMs * attempt);
           }
@@ -522,6 +556,166 @@ export class CartridgeAdapter {
     }
 
     throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  }
+
+  /**
+   * 使用 Beggar Boost 固件硬件 CRC32 (0xd5) 快速校验 ROM；仅在 CRC 不匹配时分段回读定位首个错字节。
+   */
+  protected async verifyROMWithBoostCrc32(params: {
+    mode: BoostMode;
+    image: Uint8Array;
+    baseAddress: number;
+    total: number;
+    readChunkSize: number;
+    mbcType?: MbcType;
+    isMultiBank: boolean;
+    switchBankInBoostMode: (bank: number) => Promise<void>;
+    progressReporter: ProgressReporter;
+    speedCalculator: SpeedCalculator;
+    signal?: AbortSignal;
+  }): Promise<CommandResult> {
+    const {
+      mode,
+      image,
+      baseAddress,
+      total,
+      readChunkSize,
+      mbcType,
+      isMultiBank,
+      switchBankInBoostMode,
+      progressReporter,
+      speedCalculator,
+      signal,
+    } = params;
+
+    let verified = 0;
+    let chunkCount = 0;
+    let lastLoggedProgress = -1;
+    let currentBank = -1;
+    let success = true;
+    let mismatchMessage = '';
+
+    await boost_enter_mode(this.transport, mode);
+    try {
+      while (verified < total && success) {
+        if (signal?.aborted) {
+          progressReporter.reportError(this.t('messages.operation.cancelled'));
+          return {
+            success: false,
+            message: this.t('messages.operation.cancelled'),
+          };
+        }
+
+        const currentAddress = baseAddress + verified;
+        const plan = planBankChunk(
+          currentAddress,
+          total - verified,
+          BOOST_MAX_CRC_CHUNK,
+          mode === 'agb'
+            ? { platform: 'gba', memory: 'rom' }
+            : { platform: 'mbc', memory: 'rom', mbcType: mbcType ?? 'MBC5' },
+        );
+
+        if (isMultiBank && plan.bank !== currentBank) {
+          currentBank = plan.bank;
+          await switchBankInBoostMode(plan.bank);
+        }
+
+        const expectedSlice = image.subarray(verified, verified + plan.chunkSize);
+        const expectedCrc = crc32(expectedSlice);
+        const actualCrc = await boost_crc_rom(this.transport, mode, plan.cartAddress, plan.chunkSize);
+        const chunkEndTime = Date.now();
+        chunkCount += 1;
+
+        if (actualCrc !== expectedCrc) {
+          // 仅在 CRC32 不匹配时回读该窗口，精确定位第一个不匹配字节
+          let windowOffset = 0;
+          const stepSize = Math.max(64, Math.min(readChunkSize, 0x1000));
+          while (windowOffset < plan.chunkSize && success) {
+            if (signal?.aborted) {
+              progressReporter.reportError(this.t('messages.operation.cancelled'));
+              return {
+                success: false,
+                message: this.t('messages.operation.cancelled'),
+              };
+            }
+            const subLen = Math.min(stepSize, plan.chunkSize - windowOffset);
+            const actualChunk = await boost_read_rom(this.transport, mode, subLen, plan.cartAddress + windowOffset);
+            for (let i = 0; i < subLen; i += 1) {
+              const expectedByte = expectedSlice[windowOffset + i];
+              const actualByte = actualChunk[i];
+              if (expectedByte !== actualByte) {
+                success = false;
+                const failedAddress = currentAddress + windowOffset + i;
+                mismatchMessage = this.t('messages.rom.verifyFailedAt', {
+                  address: formatHex(failedAddress, 4),
+                  expected: formatHex(expectedByte, 1),
+                  actual: formatHex(actualByte, 1),
+                });
+                this.log(mismatchMessage, 'error');
+                break;
+              }
+            }
+            windowOffset += subLen;
+          }
+
+          if (success) {
+            success = false;
+            mismatchMessage = this.t('messages.rom.verifyFailed');
+            this.log(mismatchMessage, 'error');
+          }
+          break;
+        }
+
+        verified += plan.chunkSize;
+        speedCalculator.addDataPoint(plan.chunkSize, chunkEndTime);
+        const currentSpeed = speedCalculator.getCurrentSpeed();
+        progressReporter.reportProgress(
+          verified,
+          currentSpeed,
+          this.t('messages.progress.verifySpeed', { speed: formatSpeed(currentSpeed) }),
+        );
+
+        const progress = Math.floor((verified / total) * 100);
+        if (progress % 5 === 0 && progress !== lastLoggedProgress) {
+          this.log(this.t('messages.rom.verifyingAt', {
+            address: formatHex(currentAddress, 4),
+            progress,
+          }), 'info');
+          lastLoggedProgress = progress;
+        }
+      }
+    } catch (error) {
+      // 异常中断时复位模式，避免残留半包影响后续操作
+      await ensureDefaultProtocol(this.transport).catch(() => {});
+      throw error;
+    }
+
+    const totalTime = speedCalculator.getTotalTime();
+    const avgSpeed = totalTime > 0 ? total / totalTime : speedCalculator.getAverageSpeed();
+    const maxSpeed = speedCalculator.getMaxSpeed();
+    if (success) {
+      this.log(this.t('messages.rom.verifySuccess'), 'success');
+      this.log(this.t('messages.rom.verifySummary', {
+        totalTime: formatTimeDuration(totalTime),
+        avgSpeed: formatSpeed(avgSpeed),
+        maxSpeed: formatSpeed(maxSpeed),
+        totalSize: formatBytes(total),
+        requestCount: chunkCount,
+      }), 'info');
+      progressReporter.reportCompleted(this.t('messages.rom.verifySuccess'), avgSpeed);
+      return {
+        success: true,
+        message: this.t('messages.rom.verifySuccess'),
+      };
+    }
+
+    const failureMessage = mismatchMessage || this.t('messages.rom.verifyFailed');
+    progressReporter.reportError(failureMessage);
+    return {
+      success: false,
+      message: failureMessage,
+    };
   }
 }
 
