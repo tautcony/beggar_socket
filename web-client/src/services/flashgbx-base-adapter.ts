@@ -2,6 +2,7 @@
  * Shared base adapter for FlashGBX GBA and DMG/MBC adapters.
  * Derived from FlashGBX (GPL-3.0) LK_Device.py.
  */
+import { getFirmwareProfile } from '@/device/compat/firmware-profile';
 import type { Transport } from '@/platform/serial';
 import {
   FLASHGBX_CRC32_CHUNK_SIZE,
@@ -17,7 +18,6 @@ import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
-import { getFirmwareProfile } from '@/types/firmware-profile';
 import type { FlashcartMode, FlashcartProfile, FlashcartValidationResult } from '@/types/flashcart-profile';
 import { ProgressInfo, type SectorSizeClass } from '@/types/progress-info';
 import { errorToBurnerLog } from '@/utils/burner-log';

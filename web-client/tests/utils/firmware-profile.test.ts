@@ -8,7 +8,7 @@ import {
   STC_FIRMWARE_PROFILE,
   STM_FIRMWARE_PROFILE,
   UNKNOWN_FIRMWARE_PROFILE,
-} from '@/types/firmware-profile';
+} from '@/device/compat/firmware-profile';
 
 describe('firmware profile detection', () => {
   it('resolves profiles by configured id', () => {

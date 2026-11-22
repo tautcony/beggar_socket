@@ -1,16 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import {
+  inferFirmwareProfileFromPort,
+  STM_FIRMWARE_PROFILE,
+  withBeggarBoostProfile,
+} from '@/device/compat/firmware-profile';
 import type { Transport } from '@/platform/serial';
 import { BoostCommand } from '@/protocol';
 import { GBAAdapter } from '@/services/gba-adapter';
 import { MBC5Adapter } from '@/services/mbc5-adapter';
 import { GBARTC } from '@/services/rtc/gba-rtc';
 import type { DeviceInfo } from '@/types/device-info';
-import {
-  inferFirmwareProfileFromPort,
-  STM_FIRMWARE_PROFILE,
-  withBeggarBoostProfile,
-} from '@/types/firmware-profile';
 import { crc32 } from '@/utils/crc-utils';
 import type { CFIInfo } from '@/utils/parsers/cfi-parser';
 

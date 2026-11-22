@@ -6,10 +6,10 @@ import { nextTick } from 'vue';
 import CartBurner from '@/components/CartBurner.vue';
 import CartridgeToolsModal from '@/components/modal/CartridgeToolsModal.vue';
 import DebugToolModal from '@/components/modal/DebugToolModal.vue';
+import { FLASHGBX_FIRMWARE_PROFILE, STM_FIRMWARE_PROFILE } from '@/device/compat/firmware-profile';
 import { FLASHGBX_CMD } from '@/protocol/flashgbx';
 import { ppbUnlockGBA, ppbUnlockMBC5, readRTC, rumbleTest, setRTC } from '@/services/tool-functions';
 import type { DeviceInfo } from '@/types/device-info';
-import { FLASHGBX_FIRMWARE_PROFILE, STM_FIRMWARE_PROFILE } from '@/types/firmware-profile';
 
 vi.mock('@/composables/useToast', () => ({
   useToast: () => ({
