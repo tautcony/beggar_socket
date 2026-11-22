@@ -12,8 +12,20 @@ use std::{
 };
 
 const DEFAULT_BAUD_RATE: u32 = 9_600;
+const ALLOWED_BAUD_RATES: [u32; 4] = [9_600, 1_000_000, 1_500_000, 2_000_000];
 const DEFAULT_IO_TIMEOUT_MS: u64 = 1_000;
 const IO_SLICE: Duration = Duration::from_millis(50);
+
+fn resolve_baud_rate(baud_rate: Option<u32>) -> Result<u32, String> {
+  let rate = baud_rate.unwrap_or(DEFAULT_BAUD_RATE);
+  if ALLOWED_BAUD_RATES.contains(&rate) {
+    Ok(rate)
+  } else {
+    Err(format!(
+      "Unsupported baud rate {rate}: allowed values are 9600, 1000000, 1500000, 2000000"
+    ))
+  }
+}
 
 pub struct NativePlatformState {
   next_session_id: AtomicU64,
@@ -90,9 +102,11 @@ pub async fn native_list_serial_ports() -> Result<Vec<NativeSerialPortInfo>, Str
 pub async fn native_open_serial_port(
   state: tauri::State<'_, NativePlatformState>,
   path: String,
+  baud_rate: Option<u32>,
 ) -> Result<NativeSerialSessionInfo, String> {
+  let baud_rate = resolve_baud_rate(baud_rate)?;
   let (path, port) = run_blocking(move || {
-    let port = serialport::new(&path, DEFAULT_BAUD_RATE)
+    let port = serialport::new(&path, baud_rate)
       .data_bits(DataBits::Eight)
       .flow_control(FlowControl::None)
       .parity(Parity::None)
@@ -148,6 +162,18 @@ pub async fn native_serial_read(
 }
 
 #[tauri::command]
+pub async fn native_serial_read_available(
+  state: tauri::State<'_, NativePlatformState>,
+  session_id: u64,
+  timeout_ms: Option<u64>,
+) -> Result<Vec<u8>, String> {
+  invoke_session(&state, session_id, move |session, closing| {
+    read_available_session(session, closing, timeout_ms.unwrap_or(DEFAULT_IO_TIMEOUT_MS))
+  })
+  .await
+}
+
+#[tauri::command]
 pub async fn native_serial_set_signals(
   state: tauri::State<'_, NativePlatformState>,
   session_id: u64,
@@ -182,6 +208,17 @@ pub async fn native_serial_flush_input(
       .port
       .clear(ClearBuffer::Input)
       .map_err(|error| format!("Failed to clear input buffer for {}: {error}", session.path))
+  })
+  .await
+}
+
+#[tauri::command]
+pub async fn native_serial_flush_output(
+  state: tauri::State<'_, NativePlatformState>,
+  session_id: u64,
+) -> Result<(), String> {
+  invoke_session(&state, session_id, move |session, _closing| {
+    clear_output_buffer(session)
   })
   .await
 }
@@ -391,6 +428,57 @@ fn read_session(
       session.path
     ));
   }
+  Ok(buffer)
+}
+
+fn clear_output_buffer(session: &mut SerialSession) -> Result<(), String> {
+  session
+    .port
+    .clear(ClearBuffer::Output)
+    .map_err(|error| format!("Failed to clear output buffer for {}: {error}", session.path))
+}
+
+fn read_available_session(
+  session: &mut SerialSession,
+  closing: &AtomicBool,
+  timeout_ms: u64,
+) -> Result<Vec<u8>, String> {
+  let started_at = Instant::now();
+  let timeout = Duration::from_millis(timeout_ms);
+  let mut buffer = Vec::new();
+  let mut chunk = [0_u8; 4096];
+
+  loop {
+    check_cancelled(session, closing)?;
+    let remaining = timeout.saturating_sub(started_at.elapsed());
+    if buffer.is_empty() && remaining.is_zero() {
+      return Ok(buffer);
+    }
+
+    set_io_slice(session, remaining.max(Duration::from_millis(1)))?;
+    match session.port.read(&mut chunk) {
+      Ok(0) => break,
+      Ok(count) => {
+        buffer.extend_from_slice(&chunk[..count]);
+        let more_available = session.port.bytes_to_read().unwrap_or(0);
+        if more_available == 0 {
+          break;
+        }
+      }
+      Err(error) if matches!(error.kind(), ErrorKind::TimedOut | ErrorKind::Interrupted) => {
+        if !buffer.is_empty() || started_at.elapsed() >= timeout {
+          break;
+        }
+      }
+      Err(error) => {
+        return Err(format!(
+          "Failed to read serial data from {}: {error}",
+          session.path
+        ))
+      }
+    }
+  }
+
   Ok(buffer)
 }
 

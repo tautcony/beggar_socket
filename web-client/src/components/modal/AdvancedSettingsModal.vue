@@ -59,6 +59,9 @@
                   <option value="stc">
                     {{ $t('ui.settings.firmware.stc') }}
                   </option>
+                  <option value="flashgbx">
+                    {{ $t('ui.settings.firmware.flashgbx') }}
+                  </option>
                 </RetroSelect>
               </div>
               <div
@@ -73,6 +76,38 @@
                 />
                 <small class="hint boost-option-hint">
                   {{ $t('ui.settings.firmware.stmBoostHint') }}
+                </small>
+              </div>
+              <div
+                v-if="localSettings.firmware.profile === 'flashgbx'"
+                class="boost-option-row"
+                data-testid="flashgbx-baud-option"
+              >
+                <label for="flashgbx-baud-rate">{{ $t('ui.settings.firmware.flashgbxBaudRate') }}</label>
+                <div class="input-group">
+                  <RetroSelect
+                    id="flashgbx-baud-rate"
+                    :model-value="String(localSettings.firmware.flashgbxBaudRate ?? 'auto')"
+                    size="md"
+                    full-width
+                    @update:model-value="onFlashgbxBaudRateChange"
+                  >
+                    <option value="auto">
+                      {{ $t('ui.settings.firmware.flashgbxBaudAuto') }}
+                    </option>
+                    <option value="1000000">
+                      1,000,000
+                    </option>
+                    <option value="1500000">
+                      1,500,000
+                    </option>
+                    <option value="2000000">
+                      2,000,000
+                    </option>
+                  </RetroSelect>
+                </div>
+                <small class="hint boost-option-hint">
+                  {{ $t('ui.settings.firmware.flashgbxBaudHint') }}
                 </small>
               </div>
               <small
@@ -664,10 +699,11 @@ import { RetroButton, RetroModal, RetroSelect, RetroSwitch } from '@/components/
 import { DEFAULT_FONT_FAMILY, type FontFamilyId, useFont } from '@/composables/useFont';
 import { DEFAULT_COLOR_MODE, DEFAULT_COLOR_THEME, useTheme } from '@/composables/useTheme';
 import { getOptimalPacketLimits } from '@/platform/serial/platform-packet-policy';
-import { AdvancedSettings } from '@/settings/advanced-settings';
+import { AdvancedSettings, type FlashgbxBaudRate } from '@/settings/advanced-settings';
 import type { DeviceInfo } from '@/types/device-info';
 import {
   type ConfigurableFirmwareProfileId,
+  FLASHGBX_FIRMWARE_PROFILE,
   STC_FIRMWARE_PROFILE,
   STM_FIRMWARE_PROFILE,
 } from '@/types/firmware-profile';
@@ -716,10 +752,12 @@ const limits = AdvancedSettings.getLimits();
 const createDefaultSettings = (): ReturnType<typeof AdvancedSettings.getSettings> => {
   const stmLimits = getOptimalPacketLimits('stm');
   const stcLimits = getOptimalPacketLimits('stc');
+  const flashgbxLimits = getOptimalPacketLimits('flashgbx');
   return {
     firmware: {
       profile: 'stm',
       stmBoost: true,
+      flashgbxBaudRate: 'auto',
     },
     size: {
       romPageSize: stmLimits.romWrite,
@@ -736,6 +774,11 @@ const createDefaultSettings = (): ReturnType<typeof AdvancedSettings.getSettings
         romPageSize: stcLimits.romWrite,
         romReadPageSize: stcLimits.romRead,
         ramPageSize: stcLimits.ramPage,
+      },
+      flashgbx: {
+        romPageSize: flashgbxLimits.romWrite,
+        romReadPageSize: flashgbxLimits.romRead,
+        ramPageSize: flashgbxLimits.ramPage,
       },
     },
     throttle: {
@@ -769,6 +812,7 @@ const activeSection = ref<SettingsSectionId>('firmware');
 const firmwareProfileOptions = [
   { id: 'stm' as const, label: `${STM_FIRMWARE_PROFILE.label} (STM32)` },
   { id: 'stc' as const, label: `${STC_FIRMWARE_PROFILE.label} (STC8)` },
+  { id: 'flashgbx' as const, label: FLASHGBX_FIRMWARE_PROFILE.label },
 ];
 
 // 验证错误
@@ -940,6 +984,18 @@ const validateAndUpdate = () => {
   validationErrors.value.packageReceiveTimeout = validateTimeout(localSettings.value.timeout.packageReceive);
   validationErrors.value.operationTimeout = validateTimeout(localSettings.value.timeout.operation);
 };
+
+function onFlashgbxBaudRateChange(value: string | number | undefined) {
+  if (value === 'auto') {
+    localSettings.value.firmware.flashgbxBaudRate = 'auto';
+  } else {
+    const parsed = Number(value);
+    if (parsed === 1_000_000 || parsed === 1_500_000 || parsed === 2_000_000) {
+      localSettings.value.firmware.flashgbxBaudRate = parsed;
+    }
+  }
+  validateAndUpdate();
+}
 
 const switchEditingSizeProfile = (profile: ConfigurableFirmwareProfileId) => {
   if (editingSizeProfile.value === profile) return;

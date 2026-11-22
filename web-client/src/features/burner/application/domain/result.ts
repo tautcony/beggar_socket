@@ -13,6 +13,10 @@ export type BurnerErrorCode =
   | 'disconnect_failed'
   | 'stale_context'
   | 'timeout'
+  | 'profile_ambiguous'
+  | 'profile_not_found'
+  | 'unsupported'
+  | 'voltage_mismatch'
   | 'runtime_error'
   | 'unknown';
 

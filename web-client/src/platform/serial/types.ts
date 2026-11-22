@@ -22,6 +22,8 @@ export interface Transport {
   ) => Promise<{ data: Uint8Array }>;
   setSignals: (signals: SerialOutputSignals) => Promise<void>;
   flushInput?: () => Promise<void>;
+  flushOutput?: () => Promise<void>;
+  readAvailable?: (timeoutMs?: number) => Promise<{ data: Uint8Array }>;
   /**
    * Discard buffered input and keep discarding until the line stays quiet.
    * Unlike flushInput (a point-in-time snapshot clear), this also absorbs bytes
@@ -36,6 +38,8 @@ export interface DeviceSelection {
   portInfo?: SerialPortInfo;
   webPort?: SerialPort;
   webSerialFilters?: SerialPortFilter[];
+  baudRate?: number;
+  skipSignalInit?: boolean;
 }
 
 export interface DeviceHandle {
@@ -45,6 +49,7 @@ export interface DeviceHandle {
   connection?: null;
   portInfo?: SerialPortInfo;
   firmwareProfile?: FirmwareProfile;
+  skipSignalInit?: boolean;
 }
 
 export interface DeviceGateway {

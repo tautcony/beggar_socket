@@ -54,7 +54,10 @@
         "cancel": "取消",
         "serialNumber": "序列号"
       },
-      "resetConnection": "重置"
+      "resetConnection": "重置",
+      "flashgbxPowerCapable": "支持电源控制",
+      "flashgbxNoPowerControl": "无电源控制",
+      "flashgbxReadOnlyNotice": "FlashGBX 设备已连接，读写功能将在后续版本提供。"
     },
     "mode": {
       "gba": "GBA",
@@ -244,14 +247,18 @@
         "clearHistory": "清空",
         "shortcutHint": "Ctrl/Cmd + Enter 发送",
         "deviceConnected": "设备已连接",
-        "deviceDisconnected": "未连接设备，请先连接烧录器"
+        "deviceDisconnected": "未连接设备，请先连接烧录器",
+        "flashgbxDisabled": "FlashGBX 设备下已禁用"
       }
     },
     "chip": {
       "deviceSize": "设备大小",
       "sectorCount": "扇区数量",
       "sectorSize": "扇区大小",
-      "bufferWrite": "缓冲写入"
+      "bufferWrite": "缓冲写入",
+      "flashcartProfile": "烧录卡配置",
+      "flashcartProfileAuto": "自动 (CFI)",
+      "flashcartProfileAmbiguous": "匹配到多个烧录卡配置，请手动选择："
     },
     "rom": {
       "title": "ROM操作",
@@ -492,7 +499,8 @@
       "ppb": {
         "sectorCountPrompt": "请输入要检查的扇区数量 (1-{max}):",
         "sectorCountError": "扇区数量必须是{min}-{max}之间的整数"
-      }
+      },
+      "flashgbxDisabled": "FlashGBX 设备下已禁用"
     },
     "file": {
       "dropArea": "或移入文件到此处",
@@ -523,7 +531,11 @@
         "stm": "丐中丐",
         "stc": "碳酸丐",
         "stmBoost": "启用 Boost 增强",
-        "stmBoostHint": "启用后可利用 ChisFlash-Beggar-Boost 固件的高速传输、硬件校验及原生协议加速能力。"
+        "stmBoostHint": "启用后可利用 ChisFlash-Beggar-Boost 固件的高速传输、硬件校验及原生协议加速能力。",
+        "flashgbx": "FlashGBX",
+        "flashgbxBaudRate": "FlashGBX 波特率",
+        "flashgbxBaudAuto": "自动",
+        "flashgbxBaudHint": "自动模式对 CH340 GBFlash 使用 2M，CDC 设备忽略波特率。"
       },
       "appearance": {
         "title": "外观与字体",
@@ -715,6 +727,8 @@
       "readIdFailed": "读取ID失败",
       "readCartSuccess": "读取卡带信息成功",
       "readCartFailed": "读取卡带信息失败",
+      "profileAmbiguous": "匹配到多个烧录卡配置，请手动选择",
+      "profileNotFound": "未找到匹配的烧录卡配置",
       "startEraseSectors": "开始扇区擦除 - 起始地址: {startAddress}, 结束地址: {endAddress}, 扇区大小: {sectorSize} 字节",
       "startWriteROM": "开始写入ROM - 数据大小: {fileSize} 字节, 基址: {baseAddress}, 页大小: {pageSize} 字节, 缓冲区大小: {bufferSize} 字节",
       "startReadROM": "开始读取ROM - 大小: {size} 字节, 基址: {baseAddress}",

@@ -2,7 +2,7 @@ import type { RamType } from '@/types/command-options';
 import type { DeviceInfo } from '@/types/device-info';
 import type { SerialPortInfo } from '@/types/serial';
 
-export type FirmwareProfileId = 'stm' | 'stc' | 'unknown';
+export type FirmwareProfileId = 'stm' | 'stc' | 'flashgbx' | 'unknown';
 export type ConfigurableFirmwareProfileId = Exclude<FirmwareProfileId, 'unknown'>;
 
 export interface FirmwareCapabilities {
@@ -11,6 +11,8 @@ export interface FirmwareCapabilities {
   readonly gbcFramRam: boolean;
   readonly cartPowerControl: boolean;
   readonly boostMode: boolean;
+  readonly nativeFlashgbxProtocol: boolean;
+  readonly audioWePin: boolean;
 }
 
 export interface FirmwareProfile {
@@ -31,6 +33,8 @@ export const STM_FIRMWARE_PROFILE: FirmwareProfile = {
     gbcFramRam: true,
     cartPowerControl: false,
     boostMode: false,
+    nativeFlashgbxProtocol: false,
+    audioWePin: false,
   },
 };
 
@@ -47,6 +51,23 @@ export const STC_FIRMWARE_PROFILE: FirmwareProfile = {
     gbcFramRam: true,
     cartPowerControl: true,
     boostMode: false,
+    nativeFlashgbxProtocol: false,
+    audioWePin: false,
+  },
+};
+
+export const FLASHGBX_FIRMWARE_PROFILE: FirmwareProfile = {
+  id: 'flashgbx',
+  label: 'FlashGBX',
+  maxReadChunk: 0x100,
+  capabilities: {
+    gbaSectorErase: true,
+    gbaFramRam: true,
+    gbcFramRam: true,
+    cartPowerControl: false,
+    boostMode: false,
+    nativeFlashgbxProtocol: true,
+    audioWePin: false,
   },
 };
 
@@ -60,6 +81,8 @@ export const UNKNOWN_FIRMWARE_PROFILE: FirmwareProfile = {
     gbcFramRam: true,
     cartPowerControl: true,
     boostMode: false,
+    nativeFlashgbxProtocol: false,
+    audioWePin: false,
   },
 };
 
@@ -85,6 +108,8 @@ export function getFirmwareProfileById(id: FirmwareProfileId): FirmwareProfile {
       return STM_FIRMWARE_PROFILE;
     case 'stc':
       return STC_FIRMWARE_PROFILE;
+    case 'flashgbx':
+      return FLASHGBX_FIRMWARE_PROFILE;
     case 'unknown':
       return UNKNOWN_FIRMWARE_PROFILE;
   }
@@ -98,7 +123,10 @@ function containsAny(value: string, tokens: readonly string[]): boolean {
   return tokens.some(token => value.includes(token));
 }
 
-export function inferFirmwareProfileFromPort(portInfo?: SerialPortInfo | null): FirmwareProfile {
+export function inferFirmwareProfileFromPort(
+  portInfo?: SerialPortInfo | null,
+  _configuredProfile?: FirmwareProfileId,
+): FirmwareProfile {
   const manufacturer = lower(portInfo?.manufacturer);
   const product = lower(portInfo?.product);
   const path = lower(portInfo?.path);

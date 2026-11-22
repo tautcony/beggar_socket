@@ -47,6 +47,23 @@ export class SimulatedTransport implements Transport {
     };
   }
 
+  async readAvailable(_timeoutMs?: number): Promise<{ data: Uint8Array }> {
+    maybeThrowSimulatedTransportError('read');
+    if (this.pendingResponses.length === 0) {
+      return { data: new Uint8Array(0) };
+    }
+    const chunks = this.pendingResponses.splice(0, this.pendingResponses.length);
+    const totalLength = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
+    const merged = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      merged.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    await applySimulatedTransferDelay('read', merged.byteLength, this.state);
+    return { data: merged };
+  }
+
   async sendAndReceive(
     payload: Uint8Array,
     readLength: number,
@@ -74,6 +91,10 @@ export class SimulatedTransport implements Transport {
 
   flushInput(): Promise<void> {
     this.pendingResponses.length = 0;
+    return Promise.resolve();
+  }
+
+  flushOutput(): Promise<void> {
     return Promise.resolve();
   }
 

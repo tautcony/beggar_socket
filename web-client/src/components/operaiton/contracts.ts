@@ -1,6 +1,7 @@
 import type { MbcType } from '@/types/command-options';
 import type { FileInfo } from '@/types/file-info';
 import type { FirmwareProfile } from '@/types/firmware-profile';
+import type { FlashcartProfileSummary } from '@/types/flashcart-profile';
 
 export type { GbaPreviewLaunch, GbaPreviewSavePayload } from '@/features/gba-save/types';
 
@@ -16,6 +17,9 @@ export interface ChipOperationsProps {
   selectedMbcType?: MbcType;
   mbcPower5V?: boolean;
   firmwareProfile?: FirmwareProfile;
+  flashcartProfiles?: readonly FlashcartProfileSummary[];
+  selectedFlashcartProfileId?: string;
+  ambiguousFlashcartProfiles?: readonly FlashcartProfileSummary[];
 }
 
 export const CHIP_OPERATION_EVENTS = [
@@ -24,6 +28,7 @@ export const CHIP_OPERATION_EVENTS = [
   'read-rom-info',
   'mbc-type-change',
   'mbc-power-change',
+  'flashcart-profile-change',
 ] as const;
 
 export interface RomOperationsProps {

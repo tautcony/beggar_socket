@@ -21,7 +21,11 @@ export interface BurnerReadCartResult extends CommandResult {
 }
 
 export interface BurnerUseCase {
-  readCart(session: BurnerProtocolSession, enable5V: boolean): Promise<BurnerReadCartResult>;
+  readCart(
+    session: BurnerProtocolSession,
+    enable5V: boolean,
+    options?: Partial<CommandOptions>,
+  ): Promise<BurnerReadCartResult>;
   eraseChip(context: BurnerOperationContext): Promise<CommandResult>;
   writeRom(context: BurnerOperationContext & { data: Uint8Array }): Promise<CommandResult>;
   readRom(context: BurnerOperationContext & { size: number; showProgress?: boolean }): Promise<CommandResult>;
@@ -89,16 +93,22 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
     }
   }
 
-  async readCart(session: BurnerProtocolSession, enable5V: boolean): Promise<BurnerReadCartResult> {
+  async readCart(
+    session: BurnerProtocolSession,
+    enable5V: boolean,
+    options?: Partial<CommandOptions>,
+  ): Promise<BurnerReadCartResult> {
     const inactive = this.ensureSessionActive(session);
     if (inactive) {
       return inactive;
     }
 
     try {
-      const cfiInfo = await session.getCartInfo(enable5V);
+      const cfiInfo = await session.getCartInfo(enable5V, options);
       if (!cfiInfo) {
         const cause = session.getLastCartInfoError?.();
+        const explicitCode = session.getLastCartInfoErrorCode?.();
+        const details = session.getLastCartInfoErrorDetails?.();
         const message = cause
           ? `${this.translate('messages.operation.readCartFailed')}: ${cause}`
           : this.translate('messages.operation.readCartFailed');
@@ -108,8 +118,9 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
         return {
           success: false,
           message,
-          errorCode: mapped.code,
+          errorCode: explicitCode ?? mapped.code,
           errorStage: mapped.stage,
+          ...(details !== undefined ? { details } : {}),
         };
       }
 
@@ -122,11 +133,24 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
       };
     } catch (error) {
       const mapped = mapDomainError('protocol', error, this.translate('messages.operation.readCartFailed'));
+      const rawCode = error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
+        ? error.code
+        : undefined;
+      const rawDetails = error && typeof error === 'object' && 'details' in error
+        ? error.details
+        : undefined;
+      const preservedCode = rawCode === 'profile_ambiguous'
+        || rawCode === 'profile_not_found'
+        || rawCode === 'unsupported'
+        || rawCode === 'voltage_mismatch'
+        ? rawCode
+        : mapped.code;
       return {
         success: false,
         message: `${this.translate('messages.operation.readCartFailed')}: ${mapped.message}`,
-        errorCode: mapped.code,
+        errorCode: preservedCode,
         errorStage: mapped.stage,
+        ...(rawDetails !== undefined ? { details: rawDetails } : {}),
       };
     }
   }
@@ -183,7 +207,7 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
       context.session,
       'transport',
       this.translate('messages.ram.writeFailed'),
-      () => context.session.writeRAM(context.data, context.options),
+      () => context.session.writeRAM(context.data, context.options, context.signal),
     );
   }
 
@@ -192,7 +216,7 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
       context.session,
       'transport',
       this.translate('messages.ram.readFailed'),
-      () => context.session.readRAM(context.size, context.options),
+      () => context.session.readRAM(context.size, context.options, context.signal),
     );
   }
 
@@ -201,7 +225,7 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
       context.session,
       'protocol',
       this.translate('messages.ram.verifyFailed'),
-      () => context.session.verifyRAM(context.data, context.options),
+      () => context.session.verifyRAM(context.data, context.options, context.signal),
     );
   }
 

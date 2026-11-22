@@ -14,12 +14,20 @@ class CartridgeProtocolSessionAdapter implements BurnerProtocolSession {
     this.isActive = isActive;
   }
 
-  getCartInfo(enable5V?: boolean): Promise<CFIInfo | false> {
-    return this.adapter.getCartInfo(enable5V);
+  getCartInfo(enable5V?: boolean, options?: Partial<CommandOptions>): Promise<CFIInfo | false> {
+    return this.adapter.getCartInfo(enable5V, options);
   }
 
   getLastCartInfoError(): string | undefined {
     return this.adapter.getLastCartInfoError();
+  }
+
+  getLastCartInfoErrorCode(): string | undefined {
+    return this.adapter.getLastCartInfoErrorCode();
+  }
+
+  getLastCartInfoErrorDetails(): unknown {
+    return this.adapter.getLastCartInfoErrorDetails();
   }
 
   eraseSectors(sectorInfo: SectorBlock[], options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
@@ -38,16 +46,16 @@ class CartridgeProtocolSessionAdapter implements BurnerProtocolSession {
     return this.adapter.verifyROM(data, options, signal);
   }
 
-  writeRAM(data: Uint8Array, options?: CommandOptions): Promise<CommandResult> {
-    return this.adapter.writeRAM(data, options);
+  writeRAM(data: Uint8Array, options?: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
+    return this.adapter.writeRAM(data, options, signal);
   }
 
-  readRAM(size: number, options?: CommandOptions): Promise<CommandResult> {
-    return this.adapter.readRAM(size, options);
+  readRAM(size: number, options?: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
+    return this.adapter.readRAM(size, options, signal);
   }
 
-  verifyRAM(data: Uint8Array, options?: CommandOptions): Promise<CommandResult> {
-    return this.adapter.verifyRAM(data, options);
+  verifyRAM(data: Uint8Array, options?: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
+    return this.adapter.verifyRAM(data, options, signal);
   }
 
   resetCommandBuffer(): Promise<void> {

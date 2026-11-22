@@ -9,16 +9,16 @@ FlashGBX 适配器 SHALL 覆写通道复位逻辑，在任何操作前后 SHALL 
 - **WHEN** 在 `flashgbx` 设备上开始任意读写操作
 - **THEN** 仅进行输入/输出缓冲清理，不产生 DTR/RTS 变化
 
-### Requirement: Frame layer and ACK flow control
-系统 SHALL 在 GBxCart RW（`pcb ∈ {5,6}`、`cfw_id=='L'`、`fw_ver>=16`）上支持 ACK 流控（`Synchronize`/`ConfigureACK`），并按 ACK/波特率调整读写上限；其他设备 SHALL 使用对应的非 ACK 上限。
+### Requirement: Frame layer buffer limits
+系统 SHALL 按 GBFlash 传输模式调整读写上限：CH340 模式读上限 `0x1000`、写上限 `0x80`；CDC 模式读上限 `0x1000`、写上限 `0x400`。
 
-#### Scenario: ACK enabled
-- **WHEN** 设备满足条件且用户开启 ACK
-- **THEN** 读上限 `0x2000`、写上限 `0x100`，传输失败时重新 `Synchronize`
+#### Scenario: CH340 GBFlash limits
+- **WHEN** 连接 CH340 GBFlash（`isCdc = false`）
+- **THEN** 读上限 `0x1000`、写上限 `0x80`
 
-#### Scenario: 1M without ACK
-- **WHEN** 波特率为 1M 且 ACK 关闭
-- **THEN** 读写上限均为 `0x100`
+#### Scenario: CDC GBFlash limits
+- **WHEN** 连接 CDC GBFlash（`isCdc = true`）
+- **THEN** 读上限 `0x1000`、写上限 `0x400`
 
 ### Requirement: Voltage and cartridge power control
 系统 SHALL 在 `cartPowerControl` 为真的设备上支持 3.3V/5V 电压与电源开关/查询，并 SHALL 在操作结束或失败时恢复进入前的电压与电源状态。
@@ -30,10 +30,6 @@ FlashGBX 适配器 SHALL 覆写通道复位逻辑，在任何操作前后 SHALL 
 #### Scenario: No power control
 - **WHEN** 设备 `cartPowerControl = false`
 - **THEN** 不发送电源命令，需要电源循环的操作给出明确提示
-
-#### Scenario: Joey Jr V2 dial-controlled voltage
-- **WHEN** 连接仅拨码控压的 Joey Jr V2
-- **THEN** 不下发电压命令，并提示用户手动切换
 
 ### Requirement: Auto power-off keep-alive
 长操作期间系统 SHALL 续期 `AUTO_POWEROFF_TIME`，并 SHALL 在操作结束或断开时清零。

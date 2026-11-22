@@ -1,6 +1,8 @@
 import {
   closeNativeSerial,
   flushNativeSerialInput,
+  flushNativeSerialOutput,
+  readAvailableNativeSerial,
   readNativeSerial,
   setNativeSerialSignals,
   writeNativeSerial,
@@ -108,6 +110,18 @@ export class TauriSerialTransport implements Transport {
     return { data: target };
   }
 
+  async readAvailable(timeoutMs?: number): Promise<{ data: Uint8Array }> {
+    this.assertOpen();
+    const timeout = timeoutMs ?? AdvancedSettings.packageReceiveTimeout;
+    const chunk = await readAvailableNativeSerial(this.sessionId, timeout);
+    if (chunk.byteLength > 0) {
+      this.totalRxBytes += chunk.byteLength;
+      this.totalRxReads += 1;
+      this.lastRxAt = Date.now();
+    }
+    return { data: chunk };
+  }
+
   async sendAndReceive(
     payload: Uint8Array,
     readLength: number,
@@ -148,6 +162,11 @@ export class TauriSerialTransport implements Transport {
   async flushInput(): Promise<void> {
     this.assertOpen();
     return flushNativeSerialInput(this.sessionId).catch(() => {});
+  }
+
+  async flushOutput(): Promise<void> {
+    this.assertOpen();
+    return flushNativeSerialOutput(this.sessionId).catch(() => {});
   }
 
   async drainInput(quietMs = 50, _maxWaitMs?: number): Promise<void> {

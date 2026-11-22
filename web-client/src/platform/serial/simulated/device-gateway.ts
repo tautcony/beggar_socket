@@ -1,6 +1,7 @@
 import type { SerialPortInfo } from '@/types/serial';
 import type { PortFilter } from '@/utils/port-filter';
 
+import { DEFAULT_SERIAL_CONFIG } from '../constants';
 import { initDeviceSignals } from '../device-signals';
 import type { DeviceGateway, DeviceHandle, DeviceSelection } from '../types';
 import { createSimulatedDeviceState, getSimulatedPortInfo } from './runtime';
@@ -19,16 +20,21 @@ export class SimulatedDeviceGateway implements DeviceGateway {
 
   connect(selection?: DeviceSelection | null): Promise<DeviceHandle> {
     const portInfo = selection?.portInfo ?? getSimulatedPortInfo();
+    const _baudRate = selection?.baudRate ?? DEFAULT_SERIAL_CONFIG.baudRate;
     return Promise.resolve({
       platform: 'simulated',
       transport: new SimulatedTransport(createSimulatedDeviceState()),
       port: null,
       connection: null,
       portInfo,
+      skipSignalInit: Boolean(selection?.skipSignalInit),
     });
   }
 
   async init(device: DeviceHandle): Promise<void> {
+    if (device.skipSignalInit) {
+      return;
+    }
     await initDeviceSignals(device.transport);
   }
 

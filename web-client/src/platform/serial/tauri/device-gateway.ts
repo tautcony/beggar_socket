@@ -4,6 +4,7 @@ import { withTimeout } from '@/utils/async-utils';
 import { PortSelectionRequiredError } from '@/utils/errors/PortSelectionRequiredError';
 import type { PortFilter } from '@/utils/port-filter';
 
+import { DEFAULT_SERIAL_CONFIG } from '../constants';
 import { initDeviceSignals } from '../device-signals';
 import type { DeviceGateway, DeviceHandle, DeviceSelection } from '../types';
 import { TauriSerialTransport } from './tauri-serial-transport';
@@ -106,11 +107,12 @@ export class TauriDeviceGateway implements DeviceGateway {
     }
 
     let sessionId: number;
+    const baudRate = selection?.baudRate ?? DEFAULT_SERIAL_CONFIG.baudRate;
     try {
-      console.info('[TauriDeviceGateway] open', describePort(selectedPort));
+      console.info('[TauriDeviceGateway] open', describePort(selectedPort), { baudRate });
       let timedOut = false;
       const session = await withTimeout(
-        openNativeSerialPort(selectedPort.path).then(async (openedSession) => {
+        openNativeSerialPort(selectedPort.path, baudRate).then(async (openedSession) => {
           if (timedOut) {
             try {
               await closeNativeSerial(openedSession.sessionId);
@@ -153,10 +155,14 @@ export class TauriDeviceGateway implements DeviceGateway {
       port: null,
       connection: null,
       portInfo: selectedPort,
+      skipSignalInit: Boolean(selection?.skipSignalInit),
     };
   }
 
   async init(device: DeviceHandle): Promise<void> {
+    if (device.skipSignalInit) {
+      return;
+    }
     const portLabel = describePort(device.portInfo ?? { path: 'unknown-port' });
 
     try {

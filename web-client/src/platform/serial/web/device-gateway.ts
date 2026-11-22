@@ -50,8 +50,9 @@ export class WebDeviceGateway implements DeviceGateway {
     const port = selection?.webPort ?? await navigator.serial.requestPort({
       filters: selection?.webSerialFilters ?? [],
     });
+    const baudRate = selection?.baudRate ?? DEFAULT_SERIAL_CONFIG.baudRate;
     await port.open({
-      baudRate: DEFAULT_SERIAL_CONFIG.baudRate,
+      baudRate,
       dataBits: DEFAULT_SERIAL_CONFIG.dataBits,
       parity: DEFAULT_SERIAL_CONFIG.parity,
       stopBits: DEFAULT_SERIAL_CONFIG.stopBits,
@@ -65,10 +66,14 @@ export class WebDeviceGateway implements DeviceGateway {
       port,
       connection: null,
       portInfo: toWebSerialPortInfo(port),
+      skipSignalInit: Boolean(selection?.skipSignalInit),
     };
   }
 
   async init(device: DeviceHandle): Promise<void> {
+    if (device.skipSignalInit) {
+      return;
+    }
     await initDeviceSignals(device.transport);
   }
 

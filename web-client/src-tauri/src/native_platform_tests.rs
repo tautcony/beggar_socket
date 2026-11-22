@@ -49,6 +49,7 @@ struct Probe {
   drops: AtomicUsize,
   flushes: AtomicUsize,
   controls: AtomicUsize,
+  clears: Mutex<Vec<ClearBuffer>>,
   written: Mutex<Vec<u8>>,
   timeouts: Mutex<Vec<Duration>>,
 }
@@ -231,8 +232,9 @@ impl SerialPort for MockPort {
   fn bytes_to_write(&self) -> serialport::Result<u32> {
     Ok(0)
   }
-  fn clear(&self, _: ClearBuffer) -> serialport::Result<()> {
+  fn clear(&self, buffer: ClearBuffer) -> serialport::Result<()> {
     self.probe.controls.fetch_add(1, Ordering::SeqCst);
+    self.probe.clears.lock().unwrap().push(buffer);
     Ok(())
   }
   fn try_clone(&self) -> serialport::Result<Box<dyn SerialPort>> {
@@ -645,5 +647,46 @@ fn final_driver_progress_cannot_reset_or_overrun_total_deadline() {
     .contains("timeout in 10ms"));
   assert_eq!(*probe.written.lock().unwrap(), [9]);
   assert_eq!(probe.flushes.load(Ordering::SeqCst), 0);
+  close(&state, 1).unwrap();
+}
+
+#[test]
+fn baud_rate_validation_accepts_default_and_allowed_values_and_rejects_invalid() {
+  assert_eq!(resolve_baud_rate(None).unwrap(), 9_600);
+  for rate in [9_600, 1_000_000, 1_500_000, 2_000_000] {
+    assert_eq!(resolve_baud_rate(Some(rate)).unwrap(), rate);
+  }
+  for invalid in [0, 57_600, 115_200, 3_000_000] {
+    let err = resolve_baud_rate(Some(invalid)).unwrap_err();
+    assert!(err.contains("Unsupported baud rate"));
+  }
+}
+
+#[test]
+fn output_buffer_flush_and_read_available_work_on_session() {
+  let state = NativePlatformState::default();
+  let probe = Arc::new(Probe::default());
+  let mut port = MockPort::new(probe.clone());
+  port.reads = VecDeque::from([Step::Bytes(vec![0x4a, 0x6f, 0x65, 0x79])]);
+  insert(&state, 1, port);
+
+  let available = tauri::async_runtime::block_on(invoke_session(&state, 1, |session, closing| {
+    read_available_session(session, closing, 50)
+  }))
+  .unwrap();
+  assert_eq!(available, vec![0x4a, 0x6f, 0x65, 0x79]);
+
+  let empty = tauri::async_runtime::block_on(invoke_session(&state, 1, |session, closing| {
+    read_available_session(session, closing, 5)
+  }))
+  .unwrap();
+  assert!(empty.is_empty());
+
+  tauri::async_runtime::block_on(invoke_session(&state, 1, |session, _| {
+    clear_output_buffer(session)
+  }))
+  .unwrap();
+  assert_eq!(*probe.clears.lock().unwrap(), vec![ClearBuffer::Output]);
+
   close(&state, 1).unwrap();
 }

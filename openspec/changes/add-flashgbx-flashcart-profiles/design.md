@@ -31,11 +31,28 @@ profile 的 `commands`（任意 `[addr, data]` 序列与占位符）、`write_pi
 - `ChipOperations.vue` 只通过 `contracts.ts`（props/events）接收候选与发出选择，不导入 `services/`。
 
 ### Decision 4：Auto 回退的探测顺序
-以 `LK_Device.py` 的实现为准（实现前核对其 profile 加载与 `ReadID`/CFI 段落，约 2558–2745 行）：先用候选 profile 的 `read_identifier` 读 Flash ID，再读 CFI；不是「仅在无 `QRY` 时才探测」。每次探测后必须执行 profile 的 `reset` 序列，避免污染后续流程；`read_identifier_at`、`flash_id_offsets`、`voltage_variants` 须被考虑。
-- 唯一匹配 → 合成 `CFIInfo` 并记录日志。
-- 多匹配 → `profile_ambiguous`（含候选）。
-- 无匹配 → `profile_not_found`。
-- 手动覆盖：跳过探测，但校验 `voltage` 与 `write_pin`（`AUDIO`/`VIN` 需要 `audioWePin`）。
+已核对 `FlashGBX/FlashGBX/LK_Device.py`（第 2552–2750 行）的完整探测流程：
+1. 读取基线 ROM 头（`0x00` 起 8 字节）。
+2. 对当前模式（`AGB`/`DMG`）候选 profile 排序：含 `m29w640` 标记的优先（防其他命令误写损坏），跳过无 `command_set` 或 `manual_select === true` 的 profile。
+3. **特例早退探测**（按以下顺序）：
+   - `m29w640`：`reset` → `read(0, 8)` 基线 → `read_identifier` → `read(0, 8)` ID → 若匹配，`reset` → `read_cfi` → `read(0, 0x400)` → `reset` → 校验 CFI `deviceSize === 0x800000`。
+   - `DMG` `BLAZE_XPLODER`：写寄存器 `0x06=1` → `reset` → `read(0x4000, 8)` → `read_identifier` → `read(0x4000, 8)` → `reset`。
+   - `DMG` `DATEL_ORBITV2`：`read(read_identifier_at, 10)` → `unlock_read` → `unlock` → `read_identifier` → `read(read_identifier_at, 10)` → `reset`。
+   - `DMG` `GBMEMORY`：`read(0, 8)` → `unlock` → `read_identifier` → `read(0, 8)` → `reset`。
+   - `DMG` `dmg-mbc5-32m-flash`（需 `audioWePin`）：按 `set_audio_high && fw_ver >= 14` 选择 `WR` + `DMG_AUDIO_ENABLED=1` 或 `AUDIO` WE 引脚，验证 Flash ID 后 `reset`（含 `[[0, 0xFF], [0, 0xF0]]`）并恢复 `WE_PIN=WR` / `DMG_AUDIO_ENABLED=0`。
+   - `AGB` `GBAMP`：`read(0x1E8F<<1, 2) + read(0x168F<<1, 2)` → `unlock_read` → `read_identifier` → `read(0x1E8F<<1, 2) + read(0x168F<<1, 2)` → `reset`。
+   - `DMG` `BUNG_16M`（需 `audioWePin`）：`WE_PIN=AUDIO`，切 bank 2/1/2 执行 `read_identifier`，在 bank 2 读 `0x00` 4 字节，执行 `reset` 及 `[[0, 0xFF], [0, 0xF0]]` 并恢复 `WE_PIN=WR`。
+4. **预复位与命令分组**：收集剩余 profile 的唯一 `reset`/`unlock` 序列并逐一执行；按 `(commands.read_identifier, read_identifier_at ?? 0)` 分组（DMG 跳过首地址 `> 0x7000`），按 `read_identifier[0][0]` 升序排列。
+5. **通用分组探测**（若特例未命中）：
+   - `DMG` 遍历 `we_pins`：`audioWePin` 为真时 `['WR', 'AUDIO']`，否则 `['WR']`，每次设置 `FLASH_WE_PIN`（1/2）；`AGB` 为 `[null]`。
+   - 对每个分组执行：`reset` → `baseline = readRom(addr, len)` → `read_identifier` → `id = readRom(addr, len)` → `finally: reset`。
+   - 仅匹配当前 `we_pin` 兼容的 profile（`FlashcartProfileService.matchesObservation`，支持 `flash_id_offsets` 与嵌套 `flash_ids`），最后统一发送 `[[0, 0xFF], [0, 0xF0]]` 复位。
+6. **结果处理**：
+   - 适配器在 `Auto` 模式下先尝试标准 CFI；若 CFI 缺失或无效，再执行上述 `LK_Device.py` 回退探测。
+   - 唯一匹配 → 校验 `voltage` 与 `write_pin` 后合成 `CFIInfo` 并记录日志。
+   - 多匹配 → `profile_ambiguous`（`details.candidates` 含候选摘要）。
+   - 无匹配 → `profile_not_found`。
+   - 手动覆盖（`flashcartProfileId`）：跳过探测，但校验 `voltage` 与 `write_pin`（`AUDIO`/`VIN` 需要 `audioWePin`）。
 
 ## Risks / Trade-offs
 

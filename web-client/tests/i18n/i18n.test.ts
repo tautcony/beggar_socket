@@ -133,6 +133,21 @@ describe('i18n', () => {
       }
     });
 
+    it('includes FlashGBX settings, device summary, and guard keys in all 5 locales', async () => {
+      const { messages } = await import('@/i18n/index');
+      for (const locale of ['zh-Hans', 'zh-Hant', 'en-US', 'ja-JP', 'ru-RU'] as const) {
+        expect(messages[locale].ui.settings.firmware.flashgbx).toBeTruthy();
+        expect(messages[locale].ui.settings.firmware.flashgbxBaudRate).toBeTruthy();
+        expect(messages[locale].ui.settings.firmware.flashgbxBaudAuto).toBeTruthy();
+        expect(messages[locale].ui.settings.firmware.flashgbxBaudHint).toBeTruthy();
+        expect(messages[locale].ui.device.flashgbxPowerCapable).toBeTruthy();
+        expect(messages[locale].ui.device.flashgbxNoPowerControl).toBeTruthy();
+        expect(messages[locale].ui.device.flashgbxReadOnlyNotice).toBeTruthy();
+        expect(messages[locale].ui.debug.tool.flashgbxDisabled).toBeTruthy();
+        expect(messages[locale].ui.tools.flashgbxDisabled).toBeTruthy();
+      }
+    });
+
     it('应该创建有效的i18n实例', async () => {
       const { default: i18n } = await import('@/i18n/index');
 

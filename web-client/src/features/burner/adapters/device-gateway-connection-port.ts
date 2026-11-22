@@ -1,7 +1,12 @@
 import type { DeviceGateway, DeviceHandle, DeviceSelection } from '@/platform/serial';
 
 import { mapConnectionStageError } from '../application/domain/error-mapping';
-import type { BurnerConnectionHandle, BurnerConnectionPort, BurnerConnectionSelection } from '../application/domain/ports';
+import type {
+  BurnerConnectionHandle,
+  BurnerConnectionPort,
+  BurnerConnectionSelection,
+  BurnerConnectionSelectOptions,
+} from '../application/domain/ports';
 import { type BurnerDomainResult, failureResult, successResult } from '../application/domain/result';
 
 function toConnectionHandle(handle: DeviceHandle, sequence: number): BurnerConnectionHandle {
@@ -56,8 +61,18 @@ export class DeviceGatewayConnectionPortAdapter implements BurnerConnectionPort 
     return result.ok ? successResult(result.data) : result;
   }
 
-  async select(): Promise<BurnerDomainResult<BurnerConnectionSelection | null>> {
-    const result = await withConnectionMapping('select', () => this.gateway.select());
+  async select(options?: BurnerConnectionSelectOptions): Promise<BurnerDomainResult<BurnerConnectionSelection | null>> {
+    const result = await withConnectionMapping('select', async () => {
+      const selected = await this.gateway.select(options?.filter);
+      if (!selected) {
+        return null;
+      }
+      return {
+        ...selected,
+        ...(options?.baudRate !== undefined ? { baudRate: options.baudRate } : {}),
+        ...(options?.skipSignalInit !== undefined ? { skipSignalInit: options.skipSignalInit } : {}),
+      };
+    });
     return result.ok ? successResult(toSelection(result.data)) : result;
   }
 

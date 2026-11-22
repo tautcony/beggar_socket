@@ -45,6 +45,7 @@ import { useConnectionOperationBusy } from '@/composables/useConnectionOperation
 import { useToast } from '@/composables/useToast';
 import { getRuntimeKind } from '@/platform/runtime';
 import { DeviceConnectionManager, PortSelectionRequiredError } from '@/services/device-connection-manager';
+import { AdvancedSettings } from '@/settings/advanced-settings';
 import { DeviceInfo } from '@/types/device-info';
 import type { SerialPortInfo } from '@/types/serial';
 import { PortFilters } from '@/utils/port-filter';
@@ -129,6 +130,12 @@ onMounted(async () => {
   }
 });
 
+function activePortFilter() {
+  return AdvancedSettings.firmwareProfile === 'flashgbx'
+    ? PortFilters.presets.flashgbx()
+    : PortFilters.presets.beggarSocket();
+}
+
 async function connect() {
   if (isProcessing.value || connected.value) return;
 
@@ -138,7 +145,7 @@ async function connect() {
 
   try {
     // 使用统一的设备连接管理器
-    const filter = PortFilters.presets.beggarSocket();
+    const filter = activePortFilter();
 
     const device = await deviceManager.requestDevice(filter);
 
@@ -146,6 +153,7 @@ async function connect() {
     isConnecting.value = false;
     showToast(t('messages.device.connectionSuccess'), 'success');
     deviceInfo.value = device;
+    logFlashgbxDeviceSummary(device);
     emit('device-ready', deviceInfo.value);
   } catch (e) {
     // 检查是否需要用户选择串口
@@ -181,6 +189,7 @@ async function onPortSelected(selectedPort: SerialPortInfo) {
     isConnecting.value = false;
     showToast(t('messages.device.connectionSuccess'), 'success');
     deviceInfo.value = device;
+    logFlashgbxDeviceSummary(device);
     emit('device-ready', deviceInfo.value);
   } catch (e) {
     console.error('[DeviceConnect] connect with selected port failed', {
@@ -204,7 +213,7 @@ function onPortSelectionCanceled() {
 // 刷新串口列表
 async function onRefreshPorts() {
   try {
-    const filter = PortFilters.presets.beggarSocket();
+    const filter = activePortFilter();
 
     // 重新获取串口列表
     const filteredPorts = await deviceManager.listAvailablePorts(filter);
@@ -319,6 +328,25 @@ const connectionTooltip = computed(() => {
 
   return `${baseMessage} - ${envMessage}`;
 });
+
+function logFlashgbxDeviceSummary(device: DeviceInfo) {
+  if (device.firmwareProfile?.id !== 'flashgbx') {
+    return;
+  }
+  const profile = device.firmwareProfile;
+  const info = device.flashgbxInfo;
+  const name = info?.pcbName ?? profile.label;
+  const firmware = profile.firmwareVersion ?? (info ? `${info.cfwId}${info.fwVer}` : '');
+  const powerLabel = profile.capabilities.cartPowerControl
+    ? t('ui.device.flashgbxPowerCapable')
+    : t('ui.device.flashgbxNoPowerControl');
+  console.info('[DeviceConnect] FlashGBX device connected', {
+    name,
+    firmware,
+    powerControl: profile.capabilities.cartPowerControl,
+    summary: `${name}${firmware ? ` ${firmware}` : ''} (${powerLabel})`,
+  });
+}
 
 // 暴露方法给父组件
 defineExpose({

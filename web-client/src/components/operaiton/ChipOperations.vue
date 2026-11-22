@@ -56,6 +56,49 @@
         @click="$emit('erase-chip')"
       />
     </div>
+    <div
+      v-if="showFlashcartProfileSelector"
+      class="flashcart-profile-row"
+    >
+      <label class="flashcart-profile-label">{{ $t('ui.chip.flashcartProfile') }}</label>
+      <RetroSelect
+        :value="props.selectedFlashcartProfileId"
+        class="flashcart-profile-dropdown"
+        :disabled="!deviceReady || busy"
+        @change="onFlashcartProfileChange(($event.target as HTMLSelectElement).value)"
+      >
+        <option value="">
+          {{ $t('ui.chip.flashcartProfileAuto') }}
+        </option>
+        <option
+          v-for="profile in filteredFlashcartProfiles"
+          :key="profile.id"
+          :value="profile.id"
+        >
+          {{ formatProfileLabel(profile) }}
+        </option>
+      </RetroSelect>
+    </div>
+    <div
+      v-if="showFlashcartProfileSelector && filteredAmbiguousProfiles.length > 0"
+      class="flashcart-ambiguous-box"
+    >
+      <div class="flashcart-ambiguous-title">
+        {{ $t('ui.chip.flashcartProfileAmbiguous') }}
+      </div>
+      <div class="flashcart-ambiguous-list">
+        <button
+          v-for="candidate in filteredAmbiguousProfiles"
+          :key="candidate.id"
+          type="button"
+          class="flashcart-ambiguous-item"
+          :disabled="!deviceReady || busy"
+          @click="onFlashcartProfileChange(candidate.id)"
+        >
+          {{ formatProfileLabel(candidate) }}
+        </button>
+      </div>
+    </div>
     <div class="chip-info-display">
       <div class="chip-info-row id-row">
         <span class="chip-info-label">ID:</span>
@@ -94,11 +137,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 
 import { CHIP_OPERATION_EVENTS, type ChipOperationsProps } from '@/components/operaiton/contracts';
 import { RetroButton, RetroCard, RetroSelect, RetroSwitch } from '@/components/retro';
 import type { MbcType } from '@/types/command-options';
+import type { FlashcartProfileSummary } from '@/types/flashcart-profile';
 import { formatBytes } from '@/utils/formatter-utils';
 
 const props = withDefaults(defineProps<ChipOperationsProps>(), {
@@ -110,6 +154,9 @@ const props = withDefaults(defineProps<ChipOperationsProps>(), {
   mode: 'GBA',
   selectedMbcType: 'MBC5',
   mbcPower5V: false,
+  flashcartProfiles: () => [],
+  selectedFlashcartProfileId: '',
+  ambiguousFlashcartProfiles: () => [],
 });
 
 const mbcTypeOptions: MbcType[] = ['MBC1', 'MBC2', 'MBC3', 'MBC5'];
@@ -138,6 +185,46 @@ const supportsCartPowerControl = computed(() => {
   return props.firmwareProfile?.capabilities.cartPowerControl ?? true;
 });
 
+const showFlashcartProfileSelector = computed(() => {
+  return Boolean(props.firmwareProfile?.capabilities.nativeFlashgbxProtocol);
+});
+
+const expectedProfileType = computed(() => (props.mode === 'GBA' ? 'AGB' : 'DMG'));
+
+const filteredFlashcartProfiles = computed(() => {
+  return (props.flashcartProfiles ?? []).filter(profile => profile.type === expectedProfileType.value);
+});
+
+const filteredAmbiguousProfiles = computed(() => {
+  return (props.ambiguousFlashcartProfiles ?? []).filter(profile => profile.type === expectedProfileType.value);
+});
+
+function formatProfileLabel(profile: FlashcartProfileSummary): string {
+  const name = profile.names[0] || profile.id;
+  const sizePart = profile.flash_size ? `, ${formatBytes(profile.flash_size)}` : '';
+  return `${name} (${profile.voltage}V${sizePart})`;
+}
+
+const emit = defineEmits([...CHIP_OPERATION_EVENTS]);
+
+function onFlashcartProfileChange(profileId: string): void {
+  emit('flashcart-profile-change', profileId);
+}
+
+watch(
+  () => props.mode,
+  () => {
+    if (props.selectedFlashcartProfileId) {
+      const stillValid = filteredFlashcartProfiles.value.some(
+        profile => profile.id === props.selectedFlashcartProfileId,
+      );
+      if (!stillValid) {
+        emit('flashcart-profile-change', '');
+      }
+    }
+  },
+);
+
 // 检查芯片信息是否有效
 const chipInfoValid = computed(() => {
   // 检查是否所有必要的参数都有值
@@ -157,8 +244,6 @@ const chipInfoValid = computed(() => {
     props.sectorSizes.every(isValidNumber)
   );
 });
-
-defineEmits([...CHIP_OPERATION_EVENTS]);
 </script>
 
 <style scoped>
@@ -271,5 +356,56 @@ defineEmits([...CHIP_OPERATION_EVENTS]);
 .mbc-type-dropdown {
   min-width: 80px;
   max-width: 180px;
+}
+
+.flashcart-profile-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.flashcart-profile-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--retro-ink-muted);
+  white-space: nowrap;
+}
+
+.flashcart-profile-dropdown {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.flashcart-ambiguous-box {
+  margin-bottom: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--color-warning);
+  border-radius: 4px;
+  background: var(--retro-bg-elevated);
+}
+
+.flashcart-ambiguous-title {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-warning);
+  margin-bottom: var(--space-1);
+}
+
+.flashcart-ambiguous-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.flashcart-ambiguous-item {
+  font-size: var(--font-size-xs);
+  padding: 2px 8px;
+  border: 1px solid var(--retro-border-subtle);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--retro-ink);
+  cursor: pointer;
 }
 </style>

@@ -225,7 +225,7 @@ describe('Device gateway integration', () => {
     const selection = await gateway.select();
     const device = await gateway.connect(selection);
     expect(device.platform).toBe('tauri');
-    expect(nativeState.openNativeSerialPort).toHaveBeenCalledWith('/dev/tty.usbmodem1');
+    expect(nativeState.openNativeSerialPort).toHaveBeenCalledWith('/dev/tty.usbmodem1', 9600);
 
     await gateway.init(device);
     expect(nativeState.setNativeSerialSignals).toHaveBeenNthCalledWith(1, 1, { dataTerminalReady: false });
@@ -499,5 +499,70 @@ describe('Device gateway integration', () => {
     expect(nativeState.setNativeSerialSignals).toHaveBeenNthCalledWith(4, 1, { requestToSend: true });
     expect(nativeState.setNativeSerialSignals).toHaveBeenNthCalledWith(5, 1, { dataTerminalReady: false });
     expect(nativeState.setNativeSerialSignals).toHaveBeenNthCalledWith(6, 1, { requestToSend: false });
+  });
+
+  it('passes explicit baudRate and preserves default baudRate across Web and Tauri gateways', async () => {
+    const open = vi.fn().mockResolvedValue(undefined);
+    const webPort = {
+      open,
+      close: vi.fn().mockResolvedValue(undefined),
+      setSignals: vi.fn().mockResolvedValue(undefined),
+      readable: null,
+      writable: null,
+    } as unknown as SerialPort;
+    Object.defineProperty(window.navigator, 'serial', {
+      value: { requestPort: vi.fn().mockResolvedValue(webPort) },
+      configurable: true,
+      writable: true,
+    });
+
+    const webGateway = new WebDeviceGateway();
+    await webGateway.connect({ webPort, baudRate: 1_000_000 });
+    expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ baudRate: 1_000_000 }));
+
+    await webGateway.connect({ webPort });
+    expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ baudRate: 9600 }));
+
+    const tauriGateway = new TauriDeviceGateway();
+    await tauriGateway.connect({ portInfo: { path: '/dev/tty.usbmodem1' }, baudRate: 1_000_000 });
+    expect(nativeState.openNativeSerialPort).toHaveBeenLastCalledWith('/dev/tty.usbmodem1', 1_000_000);
+  });
+
+  it('skips DTR/RTS signal initialization on connect and reset button path when skipSignalInit is true', async () => {
+    const setSignals = vi.fn().mockResolvedValue(undefined);
+    const webPort = {
+      open: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn().mockResolvedValue(undefined),
+      setSignals,
+      readable: null,
+      writable: null,
+    } as unknown as SerialPort;
+    const webGateway = new WebDeviceGateway();
+    const webDevice = await webGateway.connect({ webPort, skipSignalInit: true });
+    expect(webDevice.skipSignalInit).toBe(true);
+    await webGateway.init(webDevice);
+    // Reset button path: only passes DeviceHandle back into init()
+    await webGateway.init(webDevice);
+    expect(setSignals).not.toHaveBeenCalled();
+
+    const tauriGateway = new TauriDeviceGateway();
+    const tauriDevice = await tauriGateway.connect({
+      portInfo: { path: '/dev/tty.usbmodem1' },
+      skipSignalInit: true,
+    });
+    expect(tauriDevice.skipSignalInit).toBe(true);
+    await tauriGateway.init(tauriDevice);
+    await tauriGateway.init(tauriDevice);
+    expect(nativeState.setNativeSerialSignals).not.toHaveBeenCalled();
+
+    DebugSettings.debugMode = true;
+    const simGateway = getDeviceGateway();
+    const simDevice = await simGateway.connect({ skipSignalInit: true });
+    expect(simDevice.skipSignalInit).toBe(true);
+    const simSetSignals = vi.spyOn(simDevice.transport, 'setSignals');
+    await simGateway.init(simDevice);
+    await simGateway.init(simDevice);
+    expect(simSetSignals).not.toHaveBeenCalled();
+    DebugSettings.debugMode = false;
   });
 });

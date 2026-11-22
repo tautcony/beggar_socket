@@ -92,4 +92,19 @@ describe('SimulatedTransport speed control', () => {
     await Promise.all([first, second]);
     expect(events).toEqual(['send-1', 'flush-start', 'flush-end', 'send-2']);
   });
+
+  it('supports readAvailable and flushOutput', async () => {
+    const transport = new SimulatedTransport();
+    await expect(transport.readAvailable(50)).resolves.toEqual({ data: new Uint8Array(0) });
+
+    const payload = createCommandPayload(GBCCommand.DIRECT_WRITE)
+      .addAddress(0)
+      .addBytes(new Uint8Array([0x12]))
+      .build();
+    await transport.send(payload);
+
+    const res = await transport.readAvailable(50);
+    expect(res.data.byteLength).toBeGreaterThan(0);
+    await expect(transport.flushOutput()).resolves.toBeUndefined();
+  });
 });

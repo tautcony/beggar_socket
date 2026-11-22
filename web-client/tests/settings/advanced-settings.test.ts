@@ -58,11 +58,12 @@ describe('AdvancedSettings', () => {
     it('getSettings returns all defaults in correct structure', () => {
       const s = AdvancedSettings.getSettings();
       expect(s).toEqual({
-        firmware: { profile: 'stm', stmBoost: true },
+        firmware: { profile: 'stm', stmBoost: true, flashgbxBaudRate: 'auto' },
         size: { romPageSize: 0x1000, romReadPageSize: 0x1000, ramPageSize: 0x1000 },
         profileSizes: {
           stm: { romPageSize: 0x1000, romReadPageSize: 0x1000, ramPageSize: 0x1000 },
           stc: { romPageSize: 0x1000, romReadPageSize: 0x2000, ramPageSize: 0x1000 },
+          flashgbx: { romPageSize: 0x100, romReadPageSize: 0x100, ramPageSize: 0x100 },
         },
         throttle: { romRead: 0, ramRead: 0 },
         retry: {
@@ -82,7 +83,7 @@ describe('AdvancedSettings', () => {
       expect(AdvancedSettings.romPageSize).toBe(0x40);
 
       AdvancedSettings.romPageSize = 0x10000;
-      expect(AdvancedSettings.romPageSize).toBe(0x1000);
+      expect(AdvancedSettings.romPageSize).toBe(0x2000);
 
       AdvancedSettings.ramPageSize = 0x20;
       expect(AdvancedSettings.ramPageSize).toBe(0x40);
@@ -159,7 +160,7 @@ describe('AdvancedSettings', () => {
       const savedSettings = JSON.parse(localStorageMock.advanced_settings) as AdvancedSettingsConfig;
 
       expect(AdvancedSettings.firmwareProfile).toBe('stc');
-      expect(savedSettings.firmware).toEqual({ profile: 'stc', stmBoost: true });
+      expect(savedSettings.firmware).toEqual({ profile: 'stc', stmBoost: true, flashgbxBaudRate: 'auto' });
     });
 
     it('supports stmBoost toggle in firmware settings', () => {
@@ -169,7 +170,33 @@ describe('AdvancedSettings', () => {
 
       expect(AdvancedSettings.firmwareProfile).toBe('stm');
       expect(AdvancedSettings.stmBoost).toBe(false);
-      expect(savedSettings.firmware).toEqual({ profile: 'stm', stmBoost: false });
+      expect(savedSettings.firmware).toEqual({ profile: 'stm', stmBoost: false, flashgbxBaudRate: 'auto' });
+    });
+
+    it('supports flashgbx profile and flashgbxBaudRate validation', () => {
+      AdvancedSettings.firmwareProfile = 'flashgbx';
+      AdvancedSettings.flashgbxBaudRate = 1500000;
+      const savedSettings = JSON.parse(localStorageMock.advanced_settings) as AdvancedSettingsConfig;
+
+      expect(AdvancedSettings.firmwareProfile).toBe('flashgbx');
+      expect(AdvancedSettings.flashgbxBaudRate).toBe(1500000);
+      expect(savedSettings.firmware).toEqual({ profile: 'flashgbx', stmBoost: true, flashgbxBaudRate: 1500000 });
+
+      AdvancedSettings.flashgbxBaudRate = 9600 as never;
+      expect(AdvancedSettings.flashgbxBaudRate).toBe('auto');
+    });
+
+    it('keeps flashgbx packet sizes isolated from stm/stc legacy propagation', () => {
+      AdvancedSettings.firmwareProfile = 'stm';
+      AdvancedSettings.romPageSize = 512;
+      expect(AdvancedSettings.getProfileSizes('stc').romPageSize).toBe(512);
+      expect(AdvancedSettings.getProfileSizes('flashgbx').romPageSize).toBe(0x100);
+
+      AdvancedSettings.firmwareProfile = 'flashgbx';
+      AdvancedSettings.romPageSize = 0x40;
+      expect(AdvancedSettings.getProfileSizes('flashgbx').romPageSize).toBe(0x40);
+      expect(AdvancedSettings.getProfileSizes('stm').romPageSize).toBe(512);
+      expect(AdvancedSettings.getProfileSizes('stc').romPageSize).toBe(512);
     });
   });
 
@@ -204,7 +231,11 @@ describe('AdvancedSettings', () => {
       AdvancedSettings.setSettings({ firmware: { profile: 'stc' } });
 
       expect(AdvancedSettings.firmwareProfile).toBe('stc');
-      expect(AdvancedSettings.getSettings().firmware).toEqual({ profile: 'stc', stmBoost: true });
+      expect(AdvancedSettings.getSettings().firmware).toEqual({
+        profile: 'stc',
+        stmBoost: true,
+        flashgbxBaudRate: 'auto',
+      });
       expect(localStorage.setItem).toHaveBeenCalled();
     });
   });
@@ -246,6 +277,41 @@ describe('AdvancedSettings', () => {
 
       expect(AdvancedSettings.romPageSize).toBe(0x1000);
       expect(AdvancedSettings.ramPageSize).toBe(0x1000);
+    });
+
+    it('falls back to default flashgbxBaudRate and flashgbx profileSizes when loading legacy settings', () => {
+      AdvancedSettings.flashgbxBaudRate = 2000000;
+      localStorageMock.advanced_settings = JSON.stringify({
+        firmware: {
+          profile: 'stc',
+          stmBoost: false,
+        },
+        profileSizes: {
+          stm: { romPageSize: 0x800, romReadPageSize: 0x1000, ramPageSize: 0x800 },
+          stc: { romPageSize: 0x1000, romReadPageSize: 0x4000, ramPageSize: 0x1000 },
+        },
+      });
+
+      AdvancedSettings.loadSettings();
+
+      expect(AdvancedSettings.firmwareProfile).toBe('stc');
+      expect(AdvancedSettings.stmBoost).toBe(false);
+      expect(AdvancedSettings.flashgbxBaudRate).toBe('auto');
+      expect(AdvancedSettings.getProfileSizes('stm')).toEqual({
+        romPageSize: 0x800,
+        romReadPageSize: 0x1000,
+        ramPageSize: 0x800,
+      });
+      expect(AdvancedSettings.getProfileSizes('stc')).toEqual({
+        romPageSize: 0x1000,
+        romReadPageSize: 0x4000,
+        ramPageSize: 0x1000,
+      });
+      expect(AdvancedSettings.getProfileSizes('flashgbx')).toEqual({
+        romPageSize: 0x100,
+        romReadPageSize: 0x100,
+        ramPageSize: 0x100,
+      });
     });
 
     it('resets to defaults on invalid JSON', () => {
@@ -300,8 +366,8 @@ describe('AdvancedSettings', () => {
         size: { romPageSize: 10, ramPageSize: 100000 },
       });
       expect(result.valid).toBe(false);
-      expect(result.errors).toContain('ROM page size must be between 64 and 4096 bytes');
-      expect(result.errors).toContain('RAM page size must be between 64 and 4096 bytes');
+      expect(result.errors).toContain('ROM page size must be between 64 and 8192 bytes');
+      expect(result.errors).toContain('RAM page size must be between 64 and 8192 bytes');
     });
 
     it('catches out-of-range timeouts', () => {
@@ -317,7 +383,7 @@ describe('AdvancedSettings', () => {
   describe('getLimits', () => {
     it('returns correct limit ranges', () => {
       const limits = AdvancedSettings.getLimits();
-      expect(limits.pageSize).toEqual({ min: 0x40, max: 0x1000 });
+      expect(limits.pageSize).toEqual({ min: 0x40, max: 0x2000 });
       expect(limits.throttle).toEqual({ min: 0, max: 1000 });
       expect(limits.retryCount).toEqual({ min: 0, max: 10 });
       expect(limits.retryDelay).toEqual({ min: 0, max: 5000 });

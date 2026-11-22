@@ -112,4 +112,18 @@ describe('WebSerialTransport atomic sendAndReceive', () => {
     expect(Array.from(res.data)).toEqual([0xaa]);
     expect(written.map((chunk) => chunk.byteLength)).toEqual([1200]);
   });
+
+  it('readAvailable returns all currently available bytes without length error and flushOutput resolves', async () => {
+    const { port, pushInput } = createFakeWebSerialPort();
+    const transport = new WebSerialTransport(port);
+
+    pushInput(new Uint8Array([0x4a, 0x6f, 0x65, 0x79, 0x20, 0x4a, 0x72]));
+    const first = await transport.readAvailable(50);
+    expect(Array.from(first.data)).toEqual([0x4a, 0x6f, 0x65, 0x79, 0x20, 0x4a, 0x72]);
+
+    const empty = await transport.readAvailable(5);
+    expect(Array.from(empty.data)).toEqual([]);
+
+    await expect(transport.flushOutput()).resolves.toBeUndefined();
+  });
 });

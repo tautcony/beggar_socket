@@ -14,17 +14,21 @@ function deferred<T>() {
 
 const nativeState = vi.hoisted(() => ({
   readNativeSerial: vi.fn(),
+  readAvailableNativeSerial: vi.fn(),
   writeNativeSerial: vi.fn(),
   setNativeSerialSignals: vi.fn(),
   flushNativeSerialInput: vi.fn(),
+  flushNativeSerialOutput: vi.fn(),
   closeNativeSerial: vi.fn(),
 }));
 
 vi.mock('@/platform/native', () => ({
   readNativeSerial: nativeState.readNativeSerial,
+  readAvailableNativeSerial: nativeState.readAvailableNativeSerial,
   writeNativeSerial: nativeState.writeNativeSerial,
   setNativeSerialSignals: nativeState.setNativeSerialSignals,
   flushNativeSerialInput: nativeState.flushNativeSerialInput,
+  flushNativeSerialOutput: nativeState.flushNativeSerialOutput,
   closeNativeSerial: nativeState.closeNativeSerial,
 }));
 
@@ -33,9 +37,11 @@ describe('TauriSerialTransport', () => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
     nativeState.readNativeSerial.mockResolvedValue(new Uint8Array([0xaa]));
+    nativeState.readAvailableNativeSerial.mockResolvedValue(new Uint8Array([0x4a, 0x6f]));
     nativeState.writeNativeSerial.mockResolvedValue(undefined);
     nativeState.setNativeSerialSignals.mockResolvedValue(undefined);
     nativeState.flushNativeSerialInput.mockResolvedValue(undefined);
+    nativeState.flushNativeSerialOutput.mockResolvedValue(undefined);
     nativeState.closeNativeSerial.mockResolvedValue(undefined);
   });
 
@@ -78,6 +84,22 @@ describe('TauriSerialTransport', () => {
     await expect(first).resolves.toEqual({ data: new Uint8Array([0x01]) });
     await expect(second).resolves.toEqual({ data: new Uint8Array([0x02]) });
     expect(writes).toEqual([0x01, 0x02]);
+  });
+
+  it('supports readAvailable and flushOutput', async () => {
+    const transport = new TauriSerialTransport(5);
+    await transport.attachListener();
+
+    const available = await transport.readAvailable(75);
+    expect(available).toEqual({ data: new Uint8Array([0x4a, 0x6f]) });
+    expect(nativeState.readAvailableNativeSerial).toHaveBeenCalledWith(5, 75);
+
+    await transport.flushOutput();
+    expect(nativeState.flushNativeSerialOutput).toHaveBeenCalledWith(5);
+
+    await transport.close();
+    await expect(transport.readAvailable(75)).rejects.toThrow('Serial transport is closed');
+    await expect(transport.flushOutput()).rejects.toThrow('Serial transport is closed');
   });
 
   it('sets control signals and closes predictably', async () => {

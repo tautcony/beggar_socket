@@ -4,4 +4,5 @@ export interface CommandResult {
   data?: Uint8Array;
   errorCode?: string;
   errorStage?: string;
+  details?: unknown;
 }

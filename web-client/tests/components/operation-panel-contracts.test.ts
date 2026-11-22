@@ -14,6 +14,7 @@ describe('Operation panel contracts', () => {
       'read-rom-info',
       'mbc-type-change',
       'mbc-power-change',
+      'flashcart-profile-change',
     ]);
   });
 
