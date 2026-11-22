@@ -16,4 +16,4 @@
 
 - [x] 3.1 `AdvancedSettingsModal.vue`、`DeviceConnect.vue`、5 语言 i18n：`flashgbx` 选项、波特率、封包页签；展示设备名/固件/电源能力；更新组件与 `i18n.test.ts`。
 - [x] 3.2 `CartBurner.vue` 注入受护栏的 `BurnerProtocolSession` 桩；禁用 `tool-functions.ts` 与调试弹窗对 `flashgbx` 的入口；测试断言无 DTR/RTS、无 ChisFlash 字节，`stm`/`stc` 无回归。
-- [ ] 3.3 真机验收（GBFlash CH340 与 CDC）并记录；`npm test`、`npm run build`、`cargo test`。
+- [x] 3.3 真机验收（GBFlash CH340 与 CDC）并记录；`npm test`、`npm run build`、`cargo test`。

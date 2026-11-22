@@ -3,7 +3,7 @@
 Define the Tauri-native serial gateway and transport requirements so burner protocol flows use Rust-owned serial sessions through the shared device/transport abstractions.
 ## Requirements
 ### Requirement: TauriDeviceGateway implements DeviceGateway contract
-The system SHALL provide a `TauriDeviceGateway` class in `src/platform/serial/tauri/` that implements the `DeviceGateway` interface by delegating serial lifecycle operations to the Rust native platform service layer instead of calling `tauri-plugin-serialplugin-api` directly from frontend code.
+The system SHALL provide a `TauriDeviceGateway` class in `src/platform/serial/tauri/` that implements the `DeviceGateway` interface by delegating serial lifecycle operations to the Rust native platform service layer instead of calling `tauri-plugin-serialplugin-api` directly from frontend code, supporting optional `DeviceSelection.baudRate` (defaulting to `DEFAULT_SERIAL_CONFIG.baudRate`) and `DeviceHandle.skipSignalInit` (skipping `initDeviceSignals()` when `true`).
 
 #### Scenario: List available ports
 - **WHEN** `TauriDeviceGateway.list(filter?)` is called
@@ -29,8 +29,16 @@ The system SHALL provide a `TauriDeviceGateway` class in `src/platform/serial/ta
 - **WHEN** `TauriDeviceGateway.connect()` is called without a selection argument
 - **THEN** it lists all ports through the Rust service, and if exactly one exists it auto-connects to that port, or if zero/multiple ports exist it throws `PortSelectionRequiredError`
 
+#### Scenario: Connect with explicit baud rate
+- **WHEN** `TauriDeviceGateway.connect()` is called with `baudRate: 1000000`
+- **THEN** it invokes `native_open_serial_port` with `1000000`
+
+#### Scenario: Skip signal init on connect and reset
+- **WHEN** `TauriDeviceGateway.connect()` is called with `skipSignalInit: true`
+- **THEN** `DeviceHandle.skipSignalInit` is `true` and subsequent `init(device)` calls do not toggle DTR/RTS
+
 ### Requirement: TauriSerialTransport implements Transport contract
-The system SHALL provide a `TauriSerialTransport` class that implements the `Transport` interface by proxying reads, writes, and signal control to a Rust-owned serial session while preserving the buffering and mutex semantics expected by burner protocol flows.
+The system SHALL provide a `TauriSerialTransport` class that implements the `Transport` interface by proxying reads, writes, and signal control to a Rust-owned serial session while preserving the buffering and mutex semantics expected by burner protocol flows, including `readAvailable(timeoutMs?)` and `flushOutput()` backed by the Rust native serial session (`native_serial_read_available` and `native_serial_flush_output`).
 
 #### Scenario: Send binary payload
 - **WHEN** `TauriSerialTransport.send(payload, timeoutMs?)` is called with a `Uint8Array`
@@ -55,6 +63,14 @@ The system SHALL provide a `TauriSerialTransport` class that implements the `Tra
 #### Scenario: Close transport
 - **WHEN** `TauriSerialTransport.close()` is called
 - **THEN** it closes the Rust-backed session, clears the internal receive buffer, and marks the transport as closed so subsequent operations fail predictably
+
+#### Scenario: Read available bytes from Rust session
+- **WHEN** `TauriSerialTransport.readAvailable(timeoutMs?)` is called
+- **THEN** it returns all currently available bytes from the Rust-backed session without throwing a fixed-length error
+
+#### Scenario: Flush output buffer on Rust session
+- **WHEN** `TauriSerialTransport.flushOutput()` is called
+- **THEN** it invokes `native_serial_flush_output` to clear the serial output buffer
 
 ### Requirement: Native port metadata is normalized for the frontend
 The system SHALL convert Rust serial port descriptors into the application's `SerialPortInfo` format used by `DeviceGateway.list()`.
@@ -84,4 +100,3 @@ The system SHALL provide regression tests for Tauri-specific lifecycle failure h
 #### Scenario: Disconnect close failure preserves reconnectability
 - **WHEN** Tauri gateway tests inject a session close failure during disconnect
 - **THEN** the suite verifies the in-memory handle is cleared and a subsequent reconnect can proceed with a fresh handle
-

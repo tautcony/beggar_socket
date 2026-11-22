@@ -14,5 +14,5 @@
 
 ## 3. Acceptance
 
-- [ ] 3.1 真机（GBFlash CH340 与 CDC）对 CFI 卡带完成 ID、ROM 读写+CRC、存档读写、取消、断线恢复，并确认无 DTR/RTS 脉冲；记录结果。
-- [ ] 3.2 `npm test`、`npm run build`、`cargo test`。
+- [x] 3.1 真机（GBFlash CH340 与 CDC）对 CFI 卡带完成 ID、ROM 读写+CRC、存档读写、取消、断线恢复，并确认无 DTR/RTS 脉冲；记录结果。
+- [x] 3.2 `npm test`、`npm run build`、`cargo test`。
