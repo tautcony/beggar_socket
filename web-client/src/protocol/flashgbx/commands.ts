@@ -716,9 +716,14 @@ export class FlashgbxCommandClient {
     while (offset < data.length) {
       throwIfAborted(options.signal);
 
+      // A 0x03 continue ACK leaves the device waiting for raw payload bytes, so a skip here
+      // would strand it mid-buffer: the next command would be consumed as data.
+      const resuming = lastAck === FLASHGBX_ACK_FLASH_CONTINUE;
+
       // Buffer-aligned all-0xFF skip when chunkLen < flashBufferSize (e.g. 0x80 chunks for 0x200 buffer)
       if (
-        flashBufferSize > 0
+        !resuming
+        && flashBufferSize > 0
         && chunkLen < flashBufferSize
         && offset % flashBufferSize === 0
         && offset + flashBufferSize <= data.length
@@ -747,7 +752,7 @@ export class FlashgbxCommandClient {
         skipInit = false;
       }
 
-      const isAllFF = (numOfChunks === 1 || flashBufferSize === 0) && chunk.every(b => b === 0xFF);
+      const isAllFF = !resuming && (numOfChunks === 1 || flashBufferSize === 0) && chunk.every(b => b === 0xFF);
       if (isAllFF) {
         skipInit = false;
         skipWrite = true;

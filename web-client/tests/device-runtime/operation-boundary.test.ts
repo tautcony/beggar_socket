@@ -66,7 +66,7 @@ function sessionFor(
     selection,
     { firmwareId: selection.firmware.id, verification: 'verified', facts: {} },
     { backend: 'serial', ...(usb ? { usb } : {}) },
-    store,
+    store.operationSnapshot(selection.parameterNamespace).values,
   );
 }
 

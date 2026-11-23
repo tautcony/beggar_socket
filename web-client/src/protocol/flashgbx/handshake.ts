@@ -3,6 +3,7 @@ import type { SerialPortInfo } from '@/types/serial';
 
 import {
   DEVICE_MIN_FW,
+  FLASHGBX_ACK_OK,
   FLASHGBX_CMD,
   FLASHGBX_USB_IDS,
   FW_VER_THRESHOLDS,
@@ -292,7 +293,16 @@ async function sendSafetyCommand(
       throw new Error(`FlashGBX teardown command 0x${command.toString(16)} was not sent`);
     }
     if (ackExpected) {
-      await transport.read(1, timeoutMs).catch(() => undefined);
+      // A silent or negative ACK means the safety command may not have run; report it
+      // instead of closing the port as if the sequence had succeeded.
+      const response = await transport.read(1, timeoutMs);
+      const ack = response.data[0];
+      if (ack !== FLASHGBX_ACK_OK) {
+        throw new Error(
+          `FlashGBX teardown command 0x${command.toString(16)} was not acknowledged`
+          + ` (got ${ack === undefined ? 'nothing' : `0x${ack.toString(16)}`})`,
+        );
+      }
     }
   } catch (error) {
     failures.push({ command: label, error });

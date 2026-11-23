@@ -89,6 +89,9 @@ export interface FlashgbxModeTransactionOptions {
 }
 
 export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
+  /** Smallest transfer the parameter schema accepts; keeps a stale 0 from reaching the wire. */
+  private static readonly MIN_READ_CHUNK = 0x40;
+
   protected readonly client: FlashgbxCommandClient;
   protected activeFlashcartProfile: FlashcartProfile | null = null;
 
@@ -129,9 +132,19 @@ export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
     });
   }
 
+  /**
+   * Size of one `CART_READ` request.
+   *
+   * The saved read page decides it — a user who lowers it (e.g. 0x80 on a marginal CH340)
+   * must actually observe smaller transfers. The ceiling is the smaller of the firmware
+   * read buffer and the read capacity declared by the committed session, so a stored value
+   * can never exceed what the device can answer in one command.
+   */
   protected getReadChunkLimit(): number {
-    const userLimit = this.settings.romReadPageSize || this.client.bufferLimits.maxRead;
-    return Math.min(Math.max(userLimit, 0x1000), this.client.bufferLimits.maxRead);
+    const ceiling = Math.min(this.resolveMaxReadChunk(), this.client.bufferLimits.maxRead);
+    const configured = this.settings.romReadPageSize;
+    const requested = configured > 0 ? configured : ceiling;
+    return Math.max(Math.min(requested, ceiling), FlashgbxBaseAdapter.MIN_READ_CHUNK);
   }
 
   protected getWriteChunkLimit(): number {

@@ -206,10 +206,6 @@ watch(
   { immediate: true },
 );
 
-function onFlashcartProfileChange(profileId: string) {
-  selectedFlashcartProfileId.value = profileId;
-  ambiguousFlashcartProfiles.value = [];
-}
 const burnerUseCase = createBurnerUseCase({ translate: key => t(key), formatHex: value => formatHex(value, 4) });
 const {
   burnerSession,
@@ -282,6 +278,15 @@ const latestPreviewCheckpoint = ref<GbaPreviewSavePayload | null>(null);
 const chipId = ref<number[] | undefined>(undefined);
 const cfiInfo = ref<CFIInfo | null>(null);
 
+function onFlashcartProfileChange(profileId: string) {
+  selectedFlashcartProfileId.value = profileId;
+  ambiguousFlashcartProfiles.value = [];
+  // A different profile means a different command set and possibly a different sector
+  // layout, so the geometry read for the previous profile must not be reused.
+  cfiInfo.value = null;
+  chipId.value = undefined;
+}
+
 const sectorSizes = computed(() => {
   if (!cfiInfo.value) {
     return undefined;
@@ -299,6 +304,11 @@ const sectorCounts = computed(() => {
 // Adapter
 const gbaAdapter = ref<BurnerProtocolSession | null>();
 const mbc5Adapter = ref<BurnerProtocolSession | null>();
+/**
+ * The GBA adapter before it is wrapped in a protocol session. Mode sync is a method of the
+ * adapter itself, so the wrapper cannot stand in for it.
+ */
+let gbaCartridgeAdapter: CartridgeAdapter | null = null;
 /** Mode sync strategy of the binding that owns the current session. */
 let modeSyncStrategy: ((adapter: CartridgeAdapter, mode: 'gba' | 'mbc5') => Promise<void>) | undefined;
 
@@ -312,12 +322,12 @@ watch(mode, (newMode) => {
   if (newMode !== 'MBC5') {
     mbcPower5V.value = false;
   }
-  const adapter = gbaAdapter.value;
+  const adapter = gbaCartridgeAdapter;
   if (!modeSyncStrategy || !props.deviceReady || busy.value || !adapter) {
     return;
   }
   const target = newMode === 'MBC5' ? 'mbc5' : 'gba';
-  void modeSyncStrategy(adapter as unknown as CartridgeAdapter, target).catch((error: unknown) => {
+  void modeSyncStrategy(adapter, target).catch((error: unknown) => {
     const msg = error instanceof Error ? error.message : String(error);
     log(`Failed to sync FlashGBX hardware mode (${newMode}): ${msg}`, 'warn');
   });
@@ -396,8 +406,9 @@ function initializeAdapters() {
       t,
     };
     const isFlashgbx = profile.firmware.protocol === 'flashgbx';
+    gbaCartridgeAdapter = runtimeBinding.adapterFactory.create('gba', context);
     gbaAdapter.value = createSession(
-      runtimeBinding.adapterFactory.create('gba', context),
+      gbaCartridgeAdapter,
       isFlashgbx ? 'flashgbx-gba' : 'gba',
     );
     mbc5Adapter.value = createSession(
@@ -409,6 +420,7 @@ function initializeAdapters() {
     if (gbaAdapter.value || mbc5Adapter.value) {
       gbaAdapter.value = null;
       mbc5Adapter.value = null;
+      gbaCartridgeAdapter = null;
       modeSyncStrategy = undefined;
       console.log('[CartBurner] 清空适配器');
     }
@@ -424,6 +436,7 @@ watch(() => props.device?.connectionId, () => {
   if (gbaAdapter.value || mbc5Adapter.value) {
     gbaAdapter.value = null;
     mbc5Adapter.value = null;
+    gbaCartridgeAdapter = null;
     modeSyncStrategy = undefined;
   }
   initializeAdapters();
@@ -432,6 +445,7 @@ watch(() => props.device?.connectionId, () => {
 onUnmounted(() => {
   gbaAdapter.value = null;
   mbc5Adapter.value = null;
+  gbaCartridgeAdapter = null;
 });
 
 // 组件挂载时初始化适配器

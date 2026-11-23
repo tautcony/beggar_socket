@@ -21,7 +21,8 @@ describe('legacy firmware profile facade', () => {
   it('derives the legacy ids, labels and read ceilings from registered definitions', () => {
     expect(STM_FIRMWARE_PROFILE).toMatchObject({ label: '丐中丐', maxReadChunk: 0x1000 });
     expect(STC_FIRMWARE_PROFILE).toMatchObject({ label: '碳酸丐', maxReadChunk: 0x8000 });
-    expect(FLASHGBX_FIRMWARE_PROFILE).toMatchObject({ label: 'FlashGBX', maxReadChunk: 0x100 });
+    // FlashGBX reads one 4 KiB buffer per request; the 256B cap is a frame limit.
+    expect(FLASHGBX_FIRMWARE_PROFILE).toMatchObject({ label: 'FlashGBX', maxReadChunk: 0x1000 });
   });
 
   it('projects capability declarations onto the legacy boolean flags', () => {

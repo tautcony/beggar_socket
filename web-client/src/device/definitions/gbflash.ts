@@ -66,13 +66,20 @@ export const FLASHGBX_FIRMWARE: FirmwareDefinition = createFirmwareDefinition({
   parameters: createFlashgbxParameterSchema,
 });
 
-/** `auto` baud resolves to a fixed 2 Mbps; CH340 and CDC share the 256B packet cap. */
+/**
+ * `auto` baud resolves to a fixed 2 Mbps; CH340 and CDC share the 256B packet cap.
+ *
+ * `maxReadChunk`/`readPageDefault` describe one read *request*, not one frame: GBFlash
+ * answers a `CART_READ` with as many bytes as `TRANSFER_SIZE` asks for, up to its 4 KiB
+ * buffer, while the 256B packet cap above only bounds a single USB frame.
+ */
 export const GBFLASH_TRANSPORT: TransportRequirements = {
   defaultBaudRate: 'auto',
   allowedBaudRates: [1_000_000, 1_500_000, 2_000_000],
   signalInit: 'none',
   packetLimits: FLASHGBX_PACKET_LIMITS,
-  maxReadChunk: 0x100,
+  maxReadChunk: 0x1000,
+  readPageDefault: 0x1000,
 };
 
 export const GBFLASH_BINDING: DeviceFirmwareBinding = {

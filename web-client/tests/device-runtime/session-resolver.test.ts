@@ -4,6 +4,10 @@ import {
   createDeviceCatalog,
   createParameterStore,
   type ParameterStore,
+  type ProbeResult,
+  type ResolvedVariantSelection,
+  type SessionProfile,
+  type TransportFacts,
   VARIANT_IDS,
 } from '@/device';
 import {
@@ -30,6 +34,24 @@ function createStore(): ParameterStore {
 
 const resolver = createSessionResolver({ platform: 'windows', composition: createRuntimeComposition() });
 
+/**
+ * The resolver consumes the attempt snapshot (`ConnectionPlan.parameters`), so the cases
+ * keep their store-shaped call and snapshot the namespace here.
+ */
+function resolve(
+  selection: ResolvedVariantSelection,
+  probe: ProbeResult<unknown>,
+  transportFacts: TransportFacts,
+  store: ParameterStore = createStore(),
+): SessionProfile {
+  return resolver.resolve(
+    selection,
+    probe,
+    transportFacts,
+    store.operationSnapshot(selection.parameterNamespace).values,
+  );
+}
+
 function flashgbxInfo(overrides: Partial<FlashgbxFirmwareInfo> = {}): FlashgbxFirmwareInfo {
   return {
     family: 'gbflash',
@@ -54,7 +76,7 @@ function flashgbxInfo(overrides: Partial<FlashgbxFirmwareInfo> = {}): FlashgbxFi
 describe('session resolver', () => {
   it('resolves an immutable profile for a standard STM session', () => {
     const selection = registry.selectVariant(VARIANT_IDS.stm);
-    const profile = resolver.resolve(
+    const profile = resolve(
       selection,
       { firmwareId: selection.firmware.id, verification: 'assumed', facts: {} },
       { backend: 'serial', usb: { vendorId: '0483', productId: '0721' } },
@@ -83,13 +105,13 @@ describe('session resolver', () => {
     // One shared namespace: a Boost sized read page stays storable.
     store.set('beggar.stm', 'romReadPageSize', 0x2000);
 
-    const stmProfile = resolver.resolve(
+    const stmProfile = resolve(
       stm,
       { firmwareId: stm.firmware.id, verification: 'assumed', facts: {} },
       { backend: 'serial' },
       store,
     );
-    const boostProfile = resolver.resolve(
+    const boostProfile = resolve(
       boost,
       { firmwareId: boost.firmware.id, verification: 'verified', facts: {} },
       { backend: 'serial' },
@@ -107,7 +129,7 @@ describe('session resolver', () => {
     const probe: FlashgbxProbeFacts = {
       firmwareInfo: flashgbxInfo({ pcbName: 'GBFlash L14', cartPowerCtrl: false }),
     };
-    const profile = resolver.resolve(
+    const profile = resolve(
       selection,
       { firmwareId: selection.firmware.id, verification: 'verified', firmwareVersion: 'L8', facts: probe },
       { backend: 'serial' },
@@ -123,7 +145,7 @@ describe('session resolver', () => {
 
   it('resolves GBFlash conditional capabilities from typed facts', () => {
     const selection = registry.selectVariant(VARIANT_IDS.gbflash);
-    const withFacts = resolver.resolve(
+    const withFacts = resolve(
       selection,
       { firmwareId: selection.firmware.id, verification: 'verified', facts: { firmwareInfo: flashgbxInfo() } },
       { backend: 'serial' },
@@ -134,7 +156,7 @@ describe('session resolver', () => {
     expect(withFacts.capabilities.has('cart.audioWePin')).toBe(true);
     expect(withFacts.transport.baudRate).toBe(2_000_000);
 
-    const withoutFacts = resolver.resolve(
+    const withoutFacts = resolve(
       selection,
       { firmwareId: selection.firmware.id, verification: 'verified', facts: {} },
       { backend: 'serial' },
@@ -149,7 +171,7 @@ describe('session resolver', () => {
 
   it('keeps two connection snapshots isolated', () => {
     const selection = registry.selectVariant(VARIANT_IDS.stm);
-    const first = resolver.resolve(
+    const first = resolve(
       selection,
       { firmwareId: selection.firmware.id, verification: 'assumed', facts: {} },
       { backend: 'serial' },
@@ -158,7 +180,7 @@ describe('session resolver', () => {
 
     const fake = createFakeSettingsStorage();
     fake.values.set('beggar.stm.romPageSize', 0x800);
-    const second = resolver.resolve(
+    const second = resolve(
       selection,
       { firmwareId: selection.firmware.id, verification: 'assumed', facts: {} },
       { backend: 'serial' },
@@ -176,7 +198,7 @@ describe('session resolver', () => {
   it('rejects a probe that rewrites the firmware identity', () => {
     const selection = registry.selectVariant(VARIANT_IDS.stm);
     expect(() =>
-      resolver.resolve(
+      resolve(
         selection,
         { firmwareId: 'beggar.stc', verification: 'assumed', facts: {} },
         { backend: 'serial' },
@@ -193,14 +215,14 @@ describe('session resolver', () => {
         selection,
         { firmwareId: selection.firmware.id, verification: 'verified', facts: {} },
         { backend: 'serial' },
-        createStore(),
+        createStore().operationSnapshot(selection.parameterNamespace).values,
       ),
     ).toThrow(/runtime binding flashgbx is not registered/);
   });
 
   it('records probe-skipped as a diagnostic for simulated backends', () => {
     const selection = registry.selectVariant(VARIANT_IDS.stc);
-    const profile = resolver.resolve(
+    const profile = resolve(
       selection,
       { firmwareId: selection.firmware.id, verification: 'not-applicable', facts: {} },
       { backend: 'simulated' },
@@ -220,7 +242,7 @@ describe('session diagnostics', () => {
     transportFacts: { backend: 'serial' | 'simulated'; usb?: { vendorId?: string; productId?: string } },
     probeDiagnostics?: readonly { code: string; severity: 'info' | 'warning' | 'error'; message: string; stage?: 'probe' }[],
   ) {
-    return resolver.resolve(
+    return resolve(
       stm,
       {
         firmwareId: stm.firmware.id,
@@ -298,7 +320,7 @@ describe('boost transport derivation', () => {
   const stm = registry.selectVariant(VARIANT_IDS.stm);
 
   it('is true for a verified Boost handshake', () => {
-    const profile = resolver.resolve(
+    const profile = resolve(
       boost,
       { firmwareId: boost.firmware.id, verification: 'verified', facts: {} },
       { backend: 'serial' },
@@ -309,7 +331,7 @@ describe('boost transport derivation', () => {
   });
 
   it('is true for a simulated Boost session without a probe', () => {
-    const profile = resolver.resolve(
+    const profile = resolve(
       boost,
       { firmwareId: boost.firmware.id, verification: 'not-applicable', facts: {} },
       { backend: 'simulated' },
@@ -320,7 +342,7 @@ describe('boost transport derivation', () => {
   });
 
   it('is false for a simulated standard STM session', () => {
-    const profile = resolver.resolve(
+    const profile = resolve(
       stm,
       { firmwareId: stm.firmware.id, verification: 'not-applicable', facts: {} },
       { backend: 'simulated' },
@@ -331,7 +353,7 @@ describe('boost transport derivation', () => {
   });
 
   it('is false for an assumed standard STM session', () => {
-    const profile = resolver.resolve(
+    const profile = resolve(
       stm,
       { firmwareId: stm.firmware.id, verification: 'assumed', facts: {} },
       { backend: 'serial' },
@@ -343,7 +365,7 @@ describe('boost transport derivation', () => {
   it('fails instead of downgrading an unverified Boost selection', () => {
     let error: unknown;
     try {
-      resolver.resolve(
+      resolve(
         boost,
         { firmwareId: boost.firmware.id, verification: 'assumed', facts: {} },
         { backend: 'serial' },

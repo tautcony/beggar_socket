@@ -92,15 +92,16 @@ describe('Cartridge adapter transfer chunks', () => {
     expect(adapter.romSizes(0x8000)).toEqual([0x1000, 0x1000]);
   });
 
-  it('caps GBFlash CH340 and CDC alike at the 256B FlashGBX frame', () => {
+  it('declares the same FlashGBX read buffer for CH340 and CDC sessions', () => {
+    // One CART_READ fills the 4 KiB buffer; the 256B packet limit only bounds a frame, so
+    // it must not become the read chunk.
     const ch340 = new ChunkAdapter(false).withSession(buildTestSession(VARIANT_IDS.gbflash));
-    expect(ch340.maxReadChunk()).toBe(0x100);
-    expect(ch340.romSizes(0x8000)).toEqual([0x100, 0x100]);
+    expect(ch340.maxReadChunk()).toBe(0x1000);
 
     const cdc = new ChunkAdapter(false).withSession(
       buildTestSession(VARIANT_IDS.gbflash, { usb: { vendorId: '16c0', productId: '27dd' } }),
     );
-    expect(cdc.romSizes(0x8000)).toEqual([0x100, 0x100]);
+    expect(cdc.maxReadChunk()).toBe(0x1000);
   });
 
   it('follows the host packet limits published by the session, not the host the code runs on', () => {

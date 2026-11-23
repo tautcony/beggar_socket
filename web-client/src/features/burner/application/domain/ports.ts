@@ -1,4 +1,4 @@
-import type { DeviceDiagnostic, SessionProfile } from '@/device/session';
+import type { ConnectionPlan, DeviceDiagnostic, SessionProfile } from '@/device/session';
 import type { CommandOptions } from '@/types/command-options';
 import type { CommandResult } from '@/types/command-result';
 import type { ProgressInfo } from '@/types/progress-info';
@@ -24,12 +24,19 @@ export interface BurnerConnectionHandle {
 export interface BurnerConnectionSelection {
   portInfo?: BurnerConnectionHandle['portInfo'];
   context: unknown;
+  /**
+   * Connection plan of this attempt. It is created once by whoever opens the port and
+   * travels with the selection so the session transaction resolves exactly the values the
+   * port was opened with.
+   */
+  plan?: ConnectionPlan;
 }
 
 export interface BurnerConnectionSelectOptions {
   filter?: PortFilter;
   baudRate?: number;
   skipSignalInit?: boolean;
+  plan?: ConnectionPlan;
 }
 
 /**

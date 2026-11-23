@@ -134,7 +134,8 @@ describe('device registry', () => {
 
     const flashgbx = catalog.resolveNamespaceSchema('flashgbx.cfw');
     expect(flashgbx?.schema.find(descriptor => descriptor.key === 'baudRate')?.default).toBe('auto');
-    expect(flashgbx?.transport.maxReadChunk).toBe(0x100);
+    expect(flashgbx?.schema.find(descriptor => descriptor.key === 'romReadPageSize')?.default).toBe(0x1000);
+    expect(flashgbx?.transport.maxReadChunk).toBe(0x1000);
     expect(catalog.resolveNamespaceSchema('unknown.ns')).toBeUndefined();
   });
 

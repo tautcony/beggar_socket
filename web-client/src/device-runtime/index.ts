@@ -34,6 +34,12 @@ export {
   type RuntimeCompositionRegistry,
 } from './composition-registry';
 export {
+  type ConnectionPlanDeps,
+  planConnection,
+  requireVariant,
+  selectionFailure,
+} from './connection-plan';
+export {
   createDiagnostic,
   diagnosticToString,
   isSessionStageError,

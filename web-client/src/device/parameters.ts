@@ -235,6 +235,16 @@ export function createParameterStore(options: ParameterStoreOptions): ParameterS
     return resolved.schema;
   }
 
+  /**
+   * Reads one value, clamped into the descriptor range.
+   *
+   * The schema is the only authority on what a namespace accepts, but storage can hold a
+   * value another build (or the v1 migration) considered legal — e.g. a legacy STM read
+   * page of `0x4000` against the shared STM/Boost ceiling of `0x2000`. Serving it as-is
+   * would make the value both unusable at runtime and impossible to re-apply, because the
+   * settings form validates every namespace at once. Clamping keeps "stored" and "usable"
+   * the same value.
+   */
   function readValue(descriptor: ParameterDescriptor, namespace: string): ParameterValue {
     const stored = descriptor.scope === 'global'
       ? adapter.readParameter('global', descriptor.key)
@@ -242,7 +252,8 @@ export function createParameterStore(options: ParameterStoreOptions): ParameterS
     if (stored === undefined || stored === null) {
       return descriptor.default;
     }
-    return coerceValue(descriptor, stored);
+    const coerced = coerceValue(descriptor, stored);
+    return typeof coerced === 'number' ? clampToDescriptor(descriptor, coerced) : coerced;
   }
 
   function collect(schema: ParameterSchema, namespace: string): Record<string, ParameterValue> {

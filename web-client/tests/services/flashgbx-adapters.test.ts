@@ -9,6 +9,7 @@ import {
 } from '@/protocol/flashgbx';
 import { FlashgbxGbaAdapter } from '@/services/flashgbx-gba-adapter';
 import { FlashgbxMbcAdapter } from '@/services/flashgbx-mbc-adapter';
+import { AdvancedSettings } from '@/settings/advanced-settings';
 import type { DeviceInfo } from '@/types/device-info';
 import { crc32 } from '@/utils/crc-utils';
 import type { CFIInfo } from '@/utils/parsers/cfi-parser';
@@ -200,6 +201,36 @@ describe('FlashgbxGbaAdapter', () => {
     expect(logs.some(e => e.msg === 'messages.rom.verifySummary')).toBe(true);
   });
 
+  it('sizes a CART_READ from the saved FlashGBX read page instead of forcing 0x1000', () => {
+    class ChunkProbe extends FlashgbxGbaAdapter {
+      chunk(): number {
+        return this.getReadChunkLimit();
+      }
+    }
+
+    const { device, client } = createScriptedDevice(makeFwInfo({ fwVer: 14 }), []);
+    const adapter = new ChunkProbe(device, null, null, null, client);
+
+    // Default: one read fills the declared 4 KiB firmware buffer.
+    expect(adapter.chunk()).toBe(0x1000);
+
+    // A saved smaller page must reach the wire: this is what users change on flaky CH340s.
+    AdvancedSettings.setNamespaceSize('flashgbx.cfw', 'romReadPageSize', 0x80);
+    adapter.beginOperation();
+    expect(adapter.chunk()).toBe(0x80);
+
+    AdvancedSettings.setNamespaceSize('flashgbx.cfw', 'romReadPageSize', 0x200);
+    adapter.beginOperation();
+    expect(adapter.chunk()).toBe(0x200);
+
+    // The device buffer stays the ceiling even when the schema allows a bigger value.
+    AdvancedSettings.setNamespaceSize('flashgbx.cfw', 'romReadPageSize', 0x2000);
+    adapter.beginOperation();
+    expect(adapter.chunk()).toBe(0x1000);
+
+    AdvancedSettings.resetToDefaults();
+  });
+
   it('reports detailed byte/CRC mismatch and sets error progress state in verifyROM', async () => {
     const fw14 = makeFwInfo({ fwVer: 14 });
     const expectedRom = new Uint8Array([0x7F, 0x00, 0x00, 0xEA]);
@@ -310,6 +341,37 @@ describe('FlashgbxMbcAdapter & Task 2.3 cleanup/keep-alive', () => {
     const macronixWriteCmd = tMacronix.sent.find(p => p[0] === FLASHGBX_CMD.AGB_CART_WRITE_FLASH_DATA);
     expect(macronixWriteCmd).toEqual([FLASHGBX_CMD.AGB_CART_WRITE_FLASH_DATA, 1]);
     expect(tMacronix.sent.filter(p => p[0] === FLASHGBX_CMD.CART_WRITE_FLASH_CMD).length).toBe(3);
+  });
+
+  it('aborts the save write when the Flash chip erase never confirms', async () => {
+    const fw14 = makeFwInfo({ fwVer: 14 });
+    const saveData = new Uint8Array([0x11, 0x22, 0x33, 0x44]);
+    const neverErased = createScriptedDevice(fw14, [
+      [0x00, 0x00, 0x00, 0x00], // AUTO_POWEROFF_ENABLED = 0
+      [0x01], [0x01], [0x01], [0x01], [0x01], [0x01], // setMode AGB
+      [0x01], // QUERY_CART_PWR = 1
+      [0x01], // CART_WRITE_FLASH_CMD 90
+      [0x01], [0x01], [0xC2], [0x01], // ID 0xC2
+      [0x01], [0x01], [0x1C], [0x01], // ID 0x1C
+      [0x01], // CART_WRITE_FLASH_CMD F0
+      [0x01], // chip erase
+      ...[0, 1, 2, 3, 4].flatMap(() => [[0x01], [0x01], [0x00], [0x01]]), // never 0xFF
+    ]);
+    const adapter = new FlashgbxGbaAdapter(neverErased.device, null, null, null, neverErased.client);
+
+    // The 15s poll budget is wall-clock based; advance the clock instead of waiting.
+    let clock = 0;
+    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => (clock += 5_000));
+    try {
+      const result = await adapter.writeRAM(saveData, { cfiInfo: dummyCfi, ramType: 'FLASH' });
+      expect(result.success).toBe(false);
+      expect(result.message).toMatch(/timeout/i);
+    } finally {
+      nowSpy.mockRestore();
+    }
+
+    // An unconfirmed erase must never be followed by a programming command.
+    expect(neverErased.sent.some(p => p[0] === FLASHGBX_CMD.AGB_CART_WRITE_FLASH_DATA)).toBe(false);
   });
 
   it('switches 32 MiB GBA ROM banks across 0x02000000 and restores bank 0', async () => {

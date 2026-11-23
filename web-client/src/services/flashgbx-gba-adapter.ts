@@ -746,13 +746,20 @@ export class FlashgbxGbaAdapter extends FlashgbxBaseAdapter {
                 [0x5555, 0x10],
               ], false);
               const eraseDeadline = Date.now() + 15000;
+              let eraseConfirmed = false;
               while (Date.now() < eraseDeadline) {
                 throwIfAborted(signal);
                 const status = await client.cartRead('AGB', 0x0000, true);
                 if (status === 0xFF) {
+                  eraseConfirmed = true;
                   break;
                 }
                 await new Promise(resolve => setTimeout(resolve, 10));
+              }
+              // Programming an unconfirmed erase would mix programmed bytes with unknown
+              // sector contents, so stop before the first write command leaves the host.
+              if (!eraseConfirmed) {
+                throw new Error('GBA flash save erase timeout at 0x000000');
               }
             }
 

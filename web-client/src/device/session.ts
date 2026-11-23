@@ -72,6 +72,24 @@ export interface ActiveSession {
   readonly connectionId: string;
 }
 
+/**
+ * Everything that decides how one connection attempt is opened and how its session
+ * resolves, captured once *before* the port opens.
+ *
+ * Opening a port is asynchronous, so re-reading the saved selection or the operation
+ * parameters afterwards could observe a settings edit that happened in between. That
+ * would let one attempt open the port with one baud rate and publish a profile with
+ * another. The plan is therefore the only source for those values inside the attempt:
+ * the port opener, the resolver and the committed `SessionProfile` all read it.
+ */
+export interface ConnectionPlan {
+  readonly variantId: VariantId;
+  /** Operation parameters of the variant namespace when the attempt started. */
+  readonly parameters: Readonly<Record<string, ParameterValue>>;
+  /** Baud rate the port must be opened with; absent when the binding declares none. */
+  readonly baudRate?: number;
+}
+
 export interface PendingSessionContext {
   readonly pending: PendingSession;
 }

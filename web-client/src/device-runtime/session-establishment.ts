@@ -9,6 +9,7 @@
 import type { ParameterStore } from '@/device/parameters';
 import type {
   ActiveSession,
+  ConnectionPlan,
   DeviceDiagnostic,
   PendingSession,
   ProbeResult,
@@ -24,6 +25,7 @@ import type {
 import type { SerialPortInfo } from '@/types/serial';
 
 import type { RuntimeCompositionRegistry } from './composition-registry';
+import { planConnection, requireVariant, selectionFailure } from './connection-plan';
 import { createDiagnostic, isSessionStageError, type SessionFailureStage, SessionStageError } from './diagnostics';
 import type { SessionResolver } from './session-resolver';
 
@@ -34,6 +36,15 @@ export interface EstablishSessionInput {
   readonly portInfo?: SerialPortInfo;
   readonly backend: TransportBackend;
   readonly usb?: { readonly vendorId?: string; readonly productId?: string };
+  /**
+   * Snapshot taken before the port opened. Callers that open the port themselves must pass
+   * it, otherwise the attempt would resolve the selection and the connection parameters a
+   * second time and could publish a profile that disagrees with the opened port.
+   *
+   * Omitted only by callers that never opened a port (tests, direct use); the transaction
+   * then takes its own single snapshot up front.
+   */
+  readonly plan?: ConnectionPlan;
 }
 
 export interface EstablishedSession {
@@ -65,14 +76,6 @@ export interface SessionEstablishmentDeps {
   readonly composition: RuntimeCompositionRegistry;
 }
 
-function selectionFailure(message: string, code: string, cause?: unknown): SessionStageError {
-  return new SessionStageError('selection', message, {
-    code,
-    diagnostics: [createDiagnostic(code, 'error', message, 'selection')],
-    cause,
-  });
-}
-
 export function createSessionEstablishment(deps: SessionEstablishmentDeps): SessionEstablishment {
   const { selection, registry, store, resolver, composition } = deps;
 
@@ -92,24 +95,9 @@ export function createSessionEstablishment(deps: SessionEstablishmentDeps): Sess
 
   return {
     async establish(input: EstablishSessionInput): Promise<EstablishedSession> {
-      const snapshot = selection.read();
-      if (!snapshot.variantId) {
-        throw selectionFailure(
-          'No valid device selection. Choose a device and firmware in the advanced settings.',
-          'selection-invalid',
-        );
-      }
-
-      let resolved: ResolvedVariantSelection;
-      try {
-        resolved = registry.selectVariant(snapshot.variantId);
-      } catch (error) {
-        throw selectionFailure(
-          `Device selection ${snapshot.variantId} is not registered`,
-          'selection-invalid',
-          error,
-        );
-      }
+      // Exactly one snapshot per attempt: supplied by the opener, or taken here.
+      const plan = input.plan ?? planConnection({ selection, registry, store });
+      const resolved: ResolvedVariantSelection = requireVariant(registry, plan.variantId);
 
       if (!composition.has(resolved.runtimeBindingId)) {
         throw selectionFailure(
@@ -151,7 +139,7 @@ export function createSessionEstablishment(deps: SessionEstablishmentDeps): Sess
 
       let profile: SessionProfile;
       try {
-        profile = resolver.resolve(resolved, probe, transportFacts, store);
+        profile = resolver.resolve(resolved, probe, transportFacts, plan.parameters);
       } catch (error) {
         const cleanup = await cleanupPending(runtime.driver, pending, 'resolve', error);
         throw new SessionStageError('resolve', error instanceof Error ? error.message : 'Session resolution failed', {

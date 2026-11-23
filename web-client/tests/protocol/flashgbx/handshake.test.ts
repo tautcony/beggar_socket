@@ -319,6 +319,47 @@ describe('FlashGBX protocol handshake replay', () => {
     expect(result.failures[0].command).toBe('cart-power-off');
   });
 
+  it('reports a silent teardown ACK instead of closing as if it succeeded', async () => {
+    const sent: number[][] = [];
+    const transport: Transport = {
+      send: (payload: Uint8Array) => {
+        sent.push(Array.from(payload));
+        return Promise.resolve(true);
+      },
+      // The device accepts the command but never returns the ACK byte.
+      read: () => Promise.resolve({ data: new Uint8Array(0) }),
+      readAvailable: () => Promise.resolve({ data: new Uint8Array(0) }),
+      sendAndReceive: () => Promise.resolve({ data: new Uint8Array(0) }),
+      setSignals: () => Promise.resolve(),
+      flushInput: () => Promise.resolve(),
+      flushOutput: () => Promise.resolve(),
+    };
+
+    const result = await performFlashgbxTeardown(transport, {
+      family: 'gbflash',
+      cfwId: 'L',
+      fwVer: 14,
+      pcbVer: 13,
+      fwTs: 0,
+      ofwVer: null,
+      pcbName: 'GBFlash',
+      cartPowerCtrl: true,
+      cartPresenceSwitch: false,
+      cartModeSwitch: false,
+      bootloaderReset: true,
+      hasDeviceSerial: false,
+      unregistered: false,
+      audioWePin: true,
+      isCdc: false,
+    });
+
+    expect(sent).toEqual([[0xf3], [0xa4]]);
+    expect(result.failures.map(failure => failure.command)).toEqual([
+      'cart-power-off',
+      'set-voltage-3v3',
+    ]);
+  });
+
   it('does nothing when no handshake result is available', async () => {
     const replay = createReplayTransport([]);
     const result = await performFlashgbxTeardown(replay.transport, null);
