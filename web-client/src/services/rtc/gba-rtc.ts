@@ -8,7 +8,6 @@ import {
   rom_write,
   toLittleEndian,
 } from '@/protocol';
-import type { FirmwareProfile } from '@/types/firmware-profile';
 
 import { BaseRTC, RTCCleanupError, type RTCWriteReference } from './base-rtc';
 
@@ -25,12 +24,20 @@ export interface GBARTCData {
 /**
  * GBA RTC操作
  */
-export class GBARTC extends BaseRTC {
-  private readonly firmwareProfile?: FirmwareProfile;
+export interface GBARTCOptions {
+  /**
+   * `beggar-stm-boost` resolves `runtimeFeatures.boostTransport`; the native RTC commands
+   * only exist on that transport, so the session feature is the only source.
+   */
+  readonly boostTransport?: boolean;
+}
 
-  constructor(transport: ConstructorParameters<typeof BaseRTC>[0], firmwareProfile?: FirmwareProfile) {
+export class GBARTC extends BaseRTC {
+  private readonly boostTransport: boolean;
+
+  constructor(transport: ConstructorParameters<typeof BaseRTC>[0], options: GBARTCOptions = {}) {
     super(transport);
-    this.firmwareProfile = firmwareProfile;
+    this.boostTransport = options.boostTransport ?? false;
   }
 
   /**
@@ -201,7 +208,7 @@ export class GBARTC extends BaseRTC {
   }
   async checkCapability(): Promise<boolean> {
     try {
-      if (this.firmwareProfile?.capabilities.boostMode) {
+      if (this.boostTransport) {
         await ensureDefaultProtocol(this.transport);
       }
       return await this.withCleanup(async () => {
@@ -249,7 +256,7 @@ export class GBARTC extends BaseRTC {
     }
 
     try {
-      if (this.firmwareProfile?.capabilities.boostMode) {
+      if (this.boostTransport) {
         await ensureDefaultProtocol(this.transport);
       }
       if (!(await this.checkCapability())) {
@@ -326,7 +333,7 @@ export class GBARTC extends BaseRTC {
    */
   async readTime(): Promise<{ status: boolean; time?: DateTime; error?: string }> {
     try {
-      if (this.firmwareProfile?.capabilities.boostMode) {
+      if (this.boostTransport) {
         const nativeResult = await this.readTimeNative();
         if (nativeResult.status) {
           return nativeResult;

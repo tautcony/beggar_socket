@@ -7,8 +7,8 @@
  */
 import type { CapabilitySignals } from '@/device/capabilities';
 import type { DeviceDiagnostic, ProbeResult, ProtocolDriver, SessionTransport } from '@/device/session';
-import type { FlashgbxFirmwareInfo } from '@/protocol/flashgbx';
 import {
+  type FlashgbxFirmwareInfo,
   FlashgbxHandshakeError,
   performFlashgbxHandshake,
   performFlashgbxTeardown,

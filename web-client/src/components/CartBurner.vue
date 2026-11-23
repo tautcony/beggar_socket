@@ -64,7 +64,7 @@
             :buffer-write-bytes="cfiInfo?.bufferSize"
             :selected-mbc-type="selectedMbcType"
             :mbc-power5-v="mbcPower5V"
-            :firmware-profile="props.device?.firmwareProfile"
+            :capabilities="props.device?.session?.capabilities"
             :flashcart-profiles="flashcartProfiles"
             :selected-flashcart-profile-id="selectedFlashcartProfileId"
             :ambiguous-flashcart-profiles="ambiguousFlashcartProfiles"
@@ -115,7 +115,7 @@
             :selected-ram-size="selectedRamSize"
             :selected-ram-type="selectedRamType"
             :selected-base-address="selectedRamBaseAddress"
-            :firmware-profile="props.device?.firmwareProfile"
+            :capabilities="props.device?.session?.capabilities"
             @file-selected="onRamFileSelected"
             @file-cleared="onRamFileCleared"
             @write-ram="writeRam"
@@ -192,11 +192,11 @@ const selectedFlashcartProfileId = ref<string>('');
 const ambiguousFlashcartProfiles = ref<FlashcartProfileSummary[]>([]);
 
 watch(
-  [mode, () => props.device?.firmwareProfile?.capabilities.nativeFlashgbxProtocol],
-  async ([currentMode, isFlashgbx]) => {
+  [mode, () => props.device?.session?.capabilities.has('profile.flashcartDb') ?? false],
+  async ([currentMode, hasFlashcartDb]) => {
     selectedFlashcartProfileId.value = '';
     ambiguousFlashcartProfiles.value = [];
-    if (!isFlashgbx) {
+    if (!hasFlashcartDb) {
       flashcartProfiles.value = [];
       return;
     }
@@ -390,6 +390,7 @@ function initializeAdapters() {
     const context = {
       device: props.device,
       profile,
+      store: runtime.store,
       log: (msg: Parameters<typeof log>[0], level: Parameters<typeof log>[1]) => { log(msg, level); },
       updateProgress,
       t,

@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import DeviceConnect from '@/components/DeviceConnect.vue';
+import PortSelectorModal from '@/components/modal/PortSelectorModal.vue';
 import type { ConnectionLogEntry } from '@/device-runtime/connection-report';
 
 import { buildFlashgbxSession, buildStmSession } from '../helpers/session-profile';
@@ -84,10 +85,28 @@ function flashgbxDevice() {
   };
 }
 
-function connectionLogEntries(wrapper: ReturnType<typeof mount>): readonly ConnectionLogEntry[] {
+/**
+ * The log is an emitted event, so the helper only needs `emitted`. Declaring that
+ * structurally keeps it independent of the wrapper generic, which the `mount` overloads
+ * widen to `any` and which would make every call an unsafe argument.
+ */
+interface ConnectionLogEmitter {
+  emitted: (event: string) => unknown[][] | undefined;
+}
+
+function connectionLogEntries(wrapper: ConnectionLogEmitter): readonly ConnectionLogEntry[] {
   const emitted = wrapper.emitted('connection-log');
   expect(emitted).toBeTruthy();
-  return emitted![emitted!.length - 1][0] as readonly ConnectionLogEntry[];
+  const last = emitted === undefined ? undefined : emitted[emitted.length - 1];
+  return (last?.[0] ?? []) as readonly ConnectionLogEntry[];
+}
+
+/**
+ * Component search through the modal returns a wrapper whose `vm` is untyped, so the
+ * emitted event is declared once here rather than cast at all four call sites.
+ */
+function emitFromModal(modal: { vm: unknown }, event: string, payload?: unknown): void {
+  (modal.vm as { $emit: (name: string, ...args: unknown[]) => void }).$emit(event, payload);
 }
 
 describe('DeviceConnect', () => {
@@ -254,26 +273,26 @@ describe('DeviceConnect', () => {
     await vm.connect();
     await flushPromises();
 
-    const modal = wrapper.findComponent({ name: 'PortSelectorModal' });
+    const modal = wrapper.findComponent(PortSelectorModal);
     // Automatic discovery offered exactly the matching port and did not open anything.
     expect(modal.props('visible')).toBe(true);
     expect(modal.props('ports')).toEqual([matching]);
     expect(connectWithSelectedPortMock).not.toHaveBeenCalled();
 
     // Refreshing keeps the matching ports rather than offering every port.
-    modal.vm.$emit('refresh');
+    emitFromModal(modal, 'refresh');
     await flushPromises();
     expect(listPortsMatchingSelectionMock).toHaveBeenCalled();
     expect(modal.props('ports')).toEqual([matching]);
 
     // With no match, the complete list is offered instead.
     listPortsMatchingSelectionMock.mockResolvedValue([]);
-    modal.vm.$emit('refresh');
+    emitFromModal(modal, 'refresh');
     await flushPromises();
     expect(modal.props('ports')).toEqual([matching, other]);
 
     // The user explicitly picks a port: it is connected with the saved variant.
-    modal.vm.$emit('select', other);
+    emitFromModal(modal, 'select', other);
     await flushPromises();
     expect(connectWithSelectedPortMock).toHaveBeenCalledWith(other);
   });
@@ -307,7 +326,7 @@ describe('DeviceConnect', () => {
     await vm.connect();
     await flushPromises();
 
-    wrapper.findComponent({ name: 'PortSelectorModal' }).vm.$emit('select', other);
+    emitFromModal(wrapper.findComponent(PortSelectorModal), 'select', other);
     await flushPromises();
 
     const entries = connectionLogEntries(wrapper);

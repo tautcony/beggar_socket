@@ -78,7 +78,13 @@ export function createBeggarParameterSchema(context: ParameterSchemaContext): Pa
   ];
 }
 
-/** FlashGBX namespace schema: fixed 256B pages plus the reconnect-scoped baud rate. */
+/**
+ * Editable ceiling of a GBFlash packet size. The transmitted chunk is still narrowed by the
+ * host packet limits and the CH340/CDC frame size, so this only bounds what can be stored.
+ */
+export const GBFLASH_EDITABLE_PACKET_MAX = 0x2000;
+
+/** FlashGBX namespace schema: 256B transport defaults plus the reconnect-scoped baud rate. */
 export function createFlashgbxParameterSchema(context: ParameterSchemaContext): ParameterSchema {
   const limits = context.transport.packetLimits[context.platform];
   return [
@@ -93,8 +99,8 @@ export function createFlashgbxParameterSchema(context: ParameterSchemaContext): 
       scope: 'parameterNamespace',
       requiresReconnect: true,
     },
-    sizeDescriptor('romPageSize', 'ROM page size', limits.romWrite, limits.romWrite),
-    sizeDescriptor('romReadPageSize', 'ROM read page size', limits.romRead, context.transport.maxReadChunk),
-    sizeDescriptor('ramPageSize', 'RAM page size', limits.ramPage, limits.ramPage),
+    sizeDescriptor('romPageSize', 'ROM page size', limits.romWrite, GBFLASH_EDITABLE_PACKET_MAX),
+    sizeDescriptor('romReadPageSize', 'ROM read page size', limits.romRead, GBFLASH_EDITABLE_PACKET_MAX),
+    sizeDescriptor('ramPageSize', 'RAM page size', limits.ramPage, GBFLASH_EDITABLE_PACKET_MAX),
   ];
 }

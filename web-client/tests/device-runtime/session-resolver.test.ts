@@ -15,12 +15,12 @@ import {
 } from '@/device-runtime';
 import type { FlashgbxFirmwareInfo } from '@/protocol/flashgbx';
 
-import { createFakeLegacySettings } from '../helpers/fake-legacy-settings';
+import { createFakeSettingsStorage } from '../helpers/fake-settings-storage';
 
 const registry = createDeviceCatalog({ platform: 'windows' });
 
 function createStore(): ParameterStore {
-  const fake = createFakeLegacySettings();
+  const fake = createFakeSettingsStorage();
   return createParameterStore({
     adapter: fake.adapter,
     platform: 'windows',
@@ -156,8 +156,8 @@ describe('session resolver', () => {
       createStore(),
     );
 
-    const fake = createFakeLegacySettings();
-    fake.profileSizes.stm.romPageSize = 0x800;
+    const fake = createFakeSettingsStorage();
+    fake.values.set('beggar.stm.romPageSize', 0x800);
     const second = resolver.resolve(
       selection,
       { firmwareId: selection.firmware.id, verification: 'assumed', facts: {} },

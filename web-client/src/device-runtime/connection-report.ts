@@ -5,9 +5,9 @@
  * committed session, the port match result and an actionable hint per failure stage. The
  * UI only forwards these entries, so the wording stays next to the data that produced it.
  */
+import { displayTextToString } from '@/device/display';
 import type { DeviceDiagnostic } from '@/device/session';
 import type { DeviceInfo } from '@/types/device-info';
-import { displayTextToString } from '@/device/display';
 
 export interface ConnectionLogEntry {
   readonly level: 'info' | 'warn' | 'error';

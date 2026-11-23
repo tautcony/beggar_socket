@@ -68,9 +68,9 @@ export function buildTestSession(
   const facts = selection.firmware.protocol === 'flashgbx'
     ? { firmwareInfo: options.flashgbxInfo === undefined ? TEST_FLASHGBX_INFO : options.flashgbxInfo ?? undefined }
     : {
-        ...(variantId === VARIANT_IDS.stmBoost ? { boostSupported: true } : {}),
-        ...(options.boostBanner ? { boostBanner: options.boostBanner } : {}),
-      };
+      ...(variantId === VARIANT_IDS.stmBoost ? { boostSupported: true } : {}),
+      ...(options.boostBanner ? { boostBanner: options.boostBanner } : {}),
+    };
 
   const probe: ProbeResult<unknown> = {
     firmwareId: selection.firmware.id,

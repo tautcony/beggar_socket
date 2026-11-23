@@ -102,14 +102,14 @@
                 <RetroButton
                   variant="secondary"
                   block
-                  :disabled="!device || busy || isFlashgbx"
+                  :disabled="!device || busy || !supportsPpbUnlock"
                   :text="$t('ui.tools.test.ppbUnlockGBA')"
                   @click="handlePPBUnlockGBA"
                 />
                 <RetroButton
                   variant="secondary"
                   block
-                  :disabled="!device || busy || isFlashgbx"
+                  :disabled="!device || busy || !supportsPpbUnlock"
                   :text="$t('ui.tools.test.ppbUnlockMBC5')"
                   @click="handlePPBUnlockMBC5"
                 />
@@ -195,7 +195,8 @@ const localVisible = computed({
 
 const { connectionBusy } = useConnectionOperationBusy();
 const localBusy = ref(false);
-const isFlashgbx = computed(() => props.device?.firmwareProfile?.id === 'flashgbx' || Boolean(props.device?.firmwareProfile?.capabilities.nativeFlashgbxProtocol));
+/** PPB unlock is a session capability, not a firmware identity. */
+const supportsPpbUnlock = computed(() => props.device?.session?.capabilities.has('tool.ppbUnlock') ?? false);
 const busy = computed(() => localBusy.value || connectionBusy.value);
 const isRTCModalVisible = ref(false);
 const rtcType = ref<'GBA' | 'MBC3'>('GBA');
@@ -333,14 +334,16 @@ async function runToolOperation(fn: () => Promise<void>): Promise<void> {
 }
 
 async function handleReadRTC(type: 'GBA' | 'MBC3') {
-  if (!props.device) {
+  // Bind once so the narrowing survives into the operation callback below.
+  const device = props.device;
+  if (!device) {
     showToast(t('messages.device.notConnected'), 'error');
     return;
   }
 
   try {
     await runToolOperation(async () => {
-      const result = await readRTC(props.device!, type);
+      const result = await readRTC(device, type);
       if (result.status && result.time) {
         // 启动时钟显示，以读取的时间为基准
         startClock(result.time);
@@ -380,7 +383,9 @@ function closeRTCModal() {
 }
 
 async function handleRTCConfirm(data: GBARTCData | MBC3RTCData) {
-  if (!props.device) {
+  // Bind once so the narrowing survives into the operation callback below.
+  const device = props.device;
+  if (!device) {
     showToast(t('messages.device.notConnected'), 'error');
     return;
   }
@@ -390,10 +395,10 @@ async function handleRTCConfirm(data: GBARTCData | MBC3RTCData) {
   try {
     await runToolOperation(async () => {
       if (rtcType.value === 'GBA') {
-        await setRTC(props.device!, 'GBA', data);
+        await setRTC(device, 'GBA', data);
         showToast(t('messages.tools.rtc.gbaSuccess'), 'success');
       } else {
-        await setRTC(props.device!, 'MBC3', data);
+        await setRTC(device, 'MBC3', data);
         showToast(t('messages.tools.rtc.mbc3Success'), 'success');
       }
     });
@@ -409,7 +414,9 @@ async function handleRTCConfirm(data: GBARTCData | MBC3RTCData) {
 }
 
 async function handleRumbleTest() {
-  if (!props.device) {
+  // Bind once so the narrowing survives into the operation callback below.
+  const device = props.device;
+  if (!device) {
     showToast(t('messages.device.notConnected'), 'error');
     return;
   }
@@ -417,7 +424,7 @@ async function handleRumbleTest() {
   addLog(t('messages.tools.rumbleTest.start'), 'info');
   try {
     await runToolOperation(async () => {
-      await rumbleTest(props.device!);
+      await rumbleTest(device);
       showToast(t('messages.tools.rumbleSuccess'), 'success');
       addLog(t('messages.tools.rumbleSuccess'), 'success');
     });
@@ -435,7 +442,9 @@ async function handleRumbleTest() {
 }
 
 async function handlePPBUnlockGBA() {
-  if (!props.device) {
+  // Bind once so the narrowing survives into the operation callback below.
+  const device = props.device;
+  if (!device) {
     showToast(t('messages.device.notConnected'), 'error');
     return;
   }
@@ -443,7 +452,7 @@ async function handlePPBUnlockGBA() {
   addLog(t('messages.tools.ppbUnlockGBA.start'), 'info');
   try {
     await runToolOperation(async () => {
-      const result = await ppbUnlockGBA(props.device!, ({ progress, message, type }) => {
+      const result = await ppbUnlockGBA(device, ({ progress, message, type }) => {
         if (progress !== undefined) {
           addLog(`${t('messages.tools.ppbUnlockGBA.progress')}: ${progress}%`, 'info');
         } else if (message) {
@@ -478,7 +487,9 @@ async function handlePPBUnlockGBA() {
 }
 
 async function handlePPBUnlockMBC5() {
-  if (!props.device) {
+  // Bind once so the narrowing survives into the operation callback below.
+  const device = props.device;
+  if (!device) {
     showToast(t('messages.device.notConnected'), 'error');
     return;
   }
@@ -486,7 +497,7 @@ async function handlePPBUnlockMBC5() {
   addLog(t('messages.tools.ppbUnlockMBC5.start'), 'info');
   try {
     await runToolOperation(async () => {
-      const result = await ppbUnlockMBC5(props.device!, ({ progress, message, type }) => {
+      const result = await ppbUnlockMBC5(device, ({ progress, message, type }) => {
         if (progress !== undefined) {
           addLog(`${t('messages.tools.ppbUnlockMBC5.progress')}: ${progress}%`, 'info');
         } else if (message) {

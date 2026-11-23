@@ -1,9 +1,8 @@
 /**
- * Parameter model and the minimal legacy-backed store.
+ * Parameter model and the namespaced store.
  *
- * P1 keeps the v1 `advanced_settings` storage. The store reads schema defaults and
- * the legacy persisted fields through one adapter, so callers never import
- * parameters UI modules.
+ * The store reads schema defaults and the persisted v2 `advanced_settings` record through
+ * one adapter, so callers never import parameters UI modules.
  */
 import type { HostPlatform } from '@/types/host-platform';
 
@@ -87,31 +86,28 @@ export interface ParameterStore {
   set(namespace: string, key: string, value: ParameterValue): void;
   snapshot(namespace: string): Readonly<Record<string, ParameterValue>>;
   operationSnapshot(namespace: string): OperationSettingsSnapshot;
-  /** Compatibility view over the legacy `AdvancedSettings` statics. */
-  readonly legacy: LegacySettingsView;
-}
-
-/** Read-only view of the fields still persisted in v1 `advanced_settings`. */
-export interface LegacySettingsView {
-  readonly firmwareProfile: string;
-  readonly stmBoost: boolean;
-  readonly flashgbxBaudRate: 'auto' | number;
-  readonly profileSizes: Readonly<Record<string, SizeSettings>>;
 }
 
 /**
- * Bridges the core store and selection provider to the legacy settings format.
- * P3 replaces this adapter with the v2 namespace storage; the interfaces stay.
+ * Storage bridge over the persisted v2 `advanced_settings` record.
+ *
+ * Only the store talks to it; the interface never mentions firmware profiles, so the
+ * selection is a single variant id and every parameter is addressed by its namespace.
  */
-export interface LegacySettingsAdapter {
-  /** Raw v1 `firmware.profile` value. */
-  readLegacyProfileId(): string;
-  /** v2 `selectedVariantId`, once the P3 migration writes it. */
-  readSelectionV2?(): string | null;
+export interface SettingsStorageAdapter {
+  /** Persisted `selectedVariantId` (validity is decided by the selection provider). */
+  readSelection(): string | null | undefined;
+  writeSelection(variantId: string): void;
   readParameter(namespace: string, key: string): unknown;
   writeParameter(namespace: string, key: string, value: ParameterValue): void;
-  writeSelection?(variantId: string): void;
-  readView(): LegacySettingsView;
+  /**
+   * Linked size handling: when enabled, a write to a `linkGroup` parameter is mirrored to
+   * every namespace the group covers (STM and STC share `beggar-sizes`).
+   */
+  readonly linking?: {
+    isEnabled(): boolean;
+    namespaces(): readonly string[];
+  };
 }
 
 /** Resolves the schema for a binding namespace; supplied by the device registry. */
@@ -120,7 +116,7 @@ export interface ParameterSchemaSource {
 }
 
 export interface ParameterStoreOptions {
-  readonly adapter: LegacySettingsAdapter;
+  readonly adapter: SettingsStorageAdapter;
   readonly platform: HostPlatform;
   readonly schemas: ParameterSchemaSource;
   readonly globalSchema?: ParameterSchema;
@@ -186,7 +182,8 @@ export function assertValidParameter(
       throw new ParameterError(context.namespace, descriptor.key, `not a multiple of ${constraints.step}`);
     }
   }
-  if (typeof value !== typeof descriptor.default) {
+  const matchesOption = constraints?.options?.includes(value) ?? false;
+  if (!matchesOption && typeof value !== typeof descriptor.default) {
     throw new ParameterError(context.namespace, descriptor.key, `expected ${typeof descriptor.default}`);
   }
   const custom = descriptor.validate?.(value, context);
@@ -197,6 +194,22 @@ export function assertValidParameter(
 }
 
 const EMPTY_CAPABILITIES = new Map<CapabilityKey, ResolvedCapabilityStatus>();
+
+function clampToDescriptor(descriptor: ParameterDescriptor, value: ParameterValue): ParameterValue {
+  if (typeof value !== 'number') {
+    return value;
+  }
+  const min = descriptor.constraints?.min;
+  const max = descriptor.constraints?.max;
+  let next = value;
+  if (min !== undefined && next < min) {
+    next = min;
+  }
+  if (max !== undefined && next > max) {
+    next = max;
+  }
+  return next;
+}
 
 function contextFor(namespace: string, platform: HostPlatform): ParameterContext {
   return {
@@ -240,6 +253,35 @@ export function createParameterStore(options: ParameterStoreOptions): ParameterS
     return values;
   }
 
+  /**
+   * Mirrors a linked size parameter (e.g. `beggar-sizes`) into the other namespaces of the
+   * group while sizes are not independent. The sibling ceiling applies, so an STC read
+   * setting never leaves an illegal value in the smaller STM namespace.
+   */
+  function syncLinkGroup(
+    namespace: string,
+    descriptor: ParameterDescriptor,
+    value: ParameterValue,
+  ): void {
+    const linking = adapter.linking;
+    if (!descriptor.linkGroup || !linking?.isEnabled()) {
+      return;
+    }
+    for (const sibling of linking.namespaces()) {
+      if (sibling === namespace || sibling === 'global') {
+        continue;
+      }
+      const siblingSchema = schemas.resolve(sibling)?.schema;
+      const siblingDescriptor = siblingSchema
+        ? findParameterDescriptor(siblingSchema, descriptor.key)
+        : undefined;
+      if (siblingDescriptor?.linkGroup !== descriptor.linkGroup) {
+        continue;
+      }
+      adapter.writeParameter(sibling, descriptor.key, clampToDescriptor(siblingDescriptor, value));
+    }
+  }
+
   return {
     get(namespace: string, key: string): ParameterValue {
       const descriptor = findParameterDescriptor(resolveNamespace(namespace), key)
@@ -257,6 +299,9 @@ export function createParameterStore(options: ParameterStoreOptions): ParameterS
       }
       const validated = assertValidParameter(descriptor, value, contextFor(namespace, platform));
       adapter.writeParameter(descriptor.scope === 'global' ? 'global' : namespace, key, validated);
+      if (descriptor.scope !== 'global') {
+        syncLinkGroup(namespace, descriptor, validated);
+      }
     },
     snapshot(namespace: string): Readonly<Record<string, ParameterValue>> {
       return collect(resolveNamespace(namespace), namespace);
@@ -267,9 +312,6 @@ export function createParameterStore(options: ParameterStoreOptions): ParameterS
         ...collect(resolveNamespace(namespace), namespace),
       };
       return { namespace, values };
-    },
-    get legacy(): LegacySettingsView {
-      return adapter.readView();
     },
   };
 }

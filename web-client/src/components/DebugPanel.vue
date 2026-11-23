@@ -818,11 +818,6 @@ function generateTestRam(): void {
   margin-bottom: var(--space-2);
 }
 
-.section-subtitle {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-}
-
 .debug-section h4 {
   margin: 0;
   font-size: var(--font-size-sm);
@@ -952,12 +947,6 @@ function generateTestRam(): void {
 .preset-chip--active {
   background: var(--retro-primary-bg);
   color: var(--retro-primary-fg);
-}
-
-.section-title-group {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
 .memory-platform-tabs {

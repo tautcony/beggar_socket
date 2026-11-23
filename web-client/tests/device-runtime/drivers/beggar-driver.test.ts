@@ -2,11 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { VARIANT_IDS } from '@/device/definitions';
 import type { ActiveSession, PendingSession } from '@/device/session';
-import { createBeggarDriver, BEGGAR_BOOST_PROBE_TIMEOUT_MS } from '@/device-runtime/drivers/beggar-driver';
 import { isSessionStageError } from '@/device-runtime/diagnostics';
+import { BEGGAR_BOOST_PROBE_TIMEOUT_MS, createBeggarDriver } from '@/device-runtime/drivers/beggar-driver';
 import { getDeviceRuntime } from '@/device-runtime/runtime-instance';
 import { BOOST_PROBE_REQUEST } from '@/protocol/beggar_socket/boost-constants';
 
+import { captureStageError } from '../../helpers/rejection';
 import { buildTestSession } from '../../helpers/session-profile';
 
 interface FakeTransport {
@@ -150,7 +151,7 @@ describe('BeggarDriver', () => {
     const fake = createTransport({ banner: null });
     const driver = createBeggarDriver();
 
-    const error = await driver.probe({ pending: pending(VARIANT_IDS.stmBoost, fake) }).catch(reason => reason);
+    const error = await captureStageError(driver.probe({ pending: pending(VARIANT_IDS.stmBoost, fake) }));
 
     expect(isSessionStageError(error)).toBe(true);
     expect(error).toMatchObject({ stage: 'probe', code: 'boost-unsupported' });

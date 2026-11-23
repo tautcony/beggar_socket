@@ -2,8 +2,15 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 
 import ChipOperations from '@/components/operaiton/ChipOperations.vue';
-import { FLASHGBX_FIRMWARE_PROFILE, STM_FIRMWARE_PROFILE } from '@/device/compat/firmware-profile';
+import { VARIANT_IDS } from '@/device/definitions';
 import type { FlashcartProfileSummary } from '@/types/flashcart-profile';
+
+import { buildTestSession } from '../helpers/session-profile';
+
+/** Capabilities of a committed session, exactly what the container passes down. */
+function capabilitiesOf(variantId: string) {
+  return buildTestSession(variantId).capabilities;
+}
 
 const sampleProfiles: FlashcartProfileSummary[] = [
   {
@@ -55,7 +62,7 @@ function mountChipOperations(props: Record<string, unknown>) {
 describe('ChipOperations flashcart profile selector', () => {
   it('hides flashcart profile selector on stm/stc devices', () => {
     const wrapper = mountChipOperations({
-      firmwareProfile: STM_FIRMWARE_PROFILE,
+      capabilities: capabilitiesOf(VARIANT_IDS.stm),
       flashcartProfiles: sampleProfiles,
     });
 
@@ -65,7 +72,7 @@ describe('ChipOperations flashcart profile selector', () => {
   it('shows selector on FlashGBX devices, filters by mode, and defaults to Auto (CFI)', () => {
     const wrapper = mountChipOperations({
       mode: 'GBA',
-      firmwareProfile: FLASHGBX_FIRMWARE_PROFILE,
+      capabilities: capabilitiesOf(VARIANT_IDS.gbflash),
       flashcartProfiles: sampleProfiles,
       selectedFlashcartProfileId: '',
     });
@@ -85,7 +92,7 @@ describe('ChipOperations flashcart profile selector', () => {
   it('emits flashcart-profile-change on selection and ambiguous candidate click, and resets to Auto on mode switch', async () => {
     const wrapper = mountChipOperations({
       mode: 'GBA',
-      firmwareProfile: FLASHGBX_FIRMWARE_PROFILE,
+      capabilities: capabilitiesOf(VARIANT_IDS.gbflash),
       flashcartProfiles: sampleProfiles,
       selectedFlashcartProfileId: 'agb:cart-a',
       ambiguousFlashcartProfiles: [sampleProfiles[0]],

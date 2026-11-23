@@ -181,12 +181,12 @@ const RAM_BASE_ADDRESS_OPTIONS = computed(() => {
 });
 
 const supportsFramRam = computed(() => {
-  if (!props.firmwareProfile) {
-    return true;
+  if (!props.capabilities) {
+    return false;
   }
   return props.mode === 'GBA'
-    ? props.firmwareProfile.capabilities.gbaFramRam
-    : props.firmwareProfile.capabilities.gbcFramRam;
+    ? props.capabilities.has('ram.fram.gba')
+    : props.capabilities.has('ram.fram.gbc');
 });
 
 const emit = defineEmits([...RAM_OPERATION_EVENTS]);

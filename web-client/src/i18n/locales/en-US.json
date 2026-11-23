@@ -536,7 +536,13 @@
         "flashgbx": "FlashGBX",
         "flashgbxBaudRate": "FlashGBX Baud Rate",
         "flashgbxBaudAuto": "Auto",
-        "flashgbxBaudHint": "Auto uses 2M for CH340 GBFlash and ignores baud rate on CDC devices."
+        "flashgbxBaudHint": "Auto uses 2M for CH340 GBFlash and ignores baud rate on CDC devices.",
+        "stmBoostOption": "丐中丐 (Boost)",
+        "stmHint": "Standard STM32 firmware with the regular 丐中丐 transfer profile.",
+        "stcHint": "碳酸丐 (STC8) firmware: RAM operations without GBA FRAM, plus software cartridge power control.",
+        "flashgbxHint": "GBFlash hardware running FlashGBX firmware, including flashcart database support.",
+        "noActiveSession": "No device connected",
+        "selectionRequired": "Choose the device and firmware to connect"
       },
       "appearance": {
         "title": "Appearance",
@@ -565,7 +571,10 @@
           "invalid": "Please enter a valid number",
           "range": "Size must be between {min} - {max} bytes",
           "multiple": "Size must be a multiple of {multipler}"
-        }
+        },
+        "independentSizes": "Store packet settings per firmware",
+        "independentHint": "丐中丐 and 碳酸丐 keep separate packet sizes.",
+        "linkedHint": "丐中丐 and 碳酸丐 share one set of packet settings; enable independent settings to diverge them."
       },
       "control": {
         "title": "Transfer Control"

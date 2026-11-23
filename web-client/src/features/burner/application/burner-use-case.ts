@@ -190,7 +190,9 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
   }
 
   async verifyRom(context: BurnerOperationContext & { data: Uint8Array }): Promise<CommandResult> {
-    if (!context.signal) {
+    // Bind the signal so the guard still narrows inside the deferred command.
+    const { signal } = context;
+    if (!signal) {
       throw new Error('verifyRom requires abort signal');
     }
 
@@ -198,7 +200,7 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
       context.session,
       'protocol',
       this.translate('messages.rom.verifyFailed'),
-      () => context.session.verifyROM(context.data, context.options, context.signal!),
+      () => context.session.verifyROM(context.data, context.options, signal),
     );
   }
 

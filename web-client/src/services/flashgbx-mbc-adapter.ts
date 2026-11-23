@@ -121,8 +121,9 @@ export class FlashgbxMbcAdapter extends FlashgbxBaseAdapter {
           onCleanupReset: client => resetProfileFlash(client, 'DMG', this.activeFlashcartProfile),
         },
         async (client) => {
-          if (options?.flashcartProfileId) {
-            return this.resolveManualProfileCartInfo(client, 'DMG', 'MBC5', options.flashcartProfileId);
+          const manualProfileId = this.flashcartProfileIdFor(options);
+          if (manualProfileId) {
+            return this.resolveManualProfileCartInfo(client, 'DMG', 'MBC5', manualProfileId);
           }
 
           await client.cartWriteFlash('DMG', [[0x0000, 0xF0]], true);

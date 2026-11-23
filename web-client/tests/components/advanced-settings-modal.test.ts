@@ -3,9 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 
 import AdvancedSettingsModal from '@/components/modal/AdvancedSettingsModal.vue';
-import { STC_FIRMWARE_PROFILE, STM_FIRMWARE_PROFILE } from '@/device/compat/firmware-profile';
+import { VARIANT_IDS } from '@/device/definitions';
+import { resetDeviceRuntime } from '@/device-runtime/runtime-instance';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import type { DeviceInfo } from '@/types/device-info';
+
+import { buildStmSession } from '../helpers/session-profile';
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -32,190 +35,188 @@ const globalConfig = {
       emits: ['update:modelValue', 'change'],
       template: '<select :id="id" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value); $emit(\'change\', $event)"><slot /></select>',
     },
+    RetroSwitch: {
+      props: ['modelValue', 'id', 'label'],
+      emits: ['update:modelValue'],
+      template: '<label><input type="checkbox" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" /><span>{{ label }}</span></label>',
+    },
   },
 };
 
+function mountModal(device: DeviceInfo | null = null) {
+  return mount(AdvancedSettingsModal, {
+    props: { modelValue: true, device },
+    global: globalConfig,
+  });
+}
+
+function applyButton(wrapper: ReturnType<typeof mountModal>) {
+  const buttons = wrapper.findAll('.footer button');
+  return buttons[buttons.length - 1];
+}
+
 describe('AdvancedSettingsModal', () => {
   beforeEach(() => {
+    window.localStorage.clear();
     AdvancedSettings.resetToDefaults();
+    AdvancedSettings.setVariantId(VARIANT_IDS.stm);
+    resetDeviceRuntime();
   });
 
-  it('loads, validates, and persists romReadPageSize', async () => {
-    AdvancedSettings.romReadPageSize = 8192;
-    const wrapper = mount(AdvancedSettingsModal, {
-      props: { modelValue: true },
-      global: globalConfig,
-    });
+  it('lists the four registered variants from the device catalog', async () => {
+    const wrapper = mountModal();
     await nextTick();
 
-    const input = wrapper.get('#rom-read-page-size');
-    expect((input.element as HTMLInputElement).value).toBe('8192');
-
-    // Out-of-range value disables apply and shows validation error
-    await input.setValue('32');
-    await input.trigger('input');
-    expect(wrapper.text()).toContain('ui.settings.size.validation.range');
-    const buttons = wrapper.findAll('.footer button');
-    const applyButton = buttons[buttons.length - 1];
-    expect((applyButton.element as HTMLButtonElement).disabled).toBe(true);
-
-    // Valid value enables apply and persists on click
-    await input.setValue('16384');
-    await input.trigger('input');
-    expect((applyButton.element as HTMLButtonElement).disabled).toBe(false);
-
-    await applyButton.trigger('click');
-    expect(AdvancedSettings.romReadPageSize).toBe(16384);
+    for (const variantId of [VARIANT_IDS.stm, VARIANT_IDS.stmBoost, VARIANT_IDS.stc, VARIANT_IDS.gbflash]) {
+      expect(wrapper.find(`[data-testid="variant-${variantId}"]`).exists()).toBe(true);
+    }
+    expect(wrapper.findAll('.variant-option')).toHaveLength(4);
   });
 
-  it('displays active connection firmware profile and reconnect notice without mutating active connection on save', async () => {
-    AdvancedSettings.firmwareProfile = 'stm';
-    const activeDevice: DeviceInfo = {
-      port: null,
-      connection: null,
-      transport: null,
-      firmwareProfile: STM_FIRMWARE_PROFILE,
-    };
+  it('persists the Boost variant and keeps the shared packet settings', async () => {
+    const wrapper = mountModal();
+    await nextTick();
 
-    const wrapper = mount(AdvancedSettingsModal, {
-      props: {
-        modelValue: true,
-        device: activeDevice,
-      },
-      global: globalConfig,
-    });
+    const current = wrapper.get('#param-romReadPageSize');
+    await current.setValue('2048');
+    await current.trigger('input');
 
-    const activeProfileText = wrapper.get('[data-testid="active-firmware-profile"]').text();
-    expect(activeProfileText).toContain('ui.settings.firmware.activeProfile');
-    expect(activeProfileText).toContain(`${STM_FIRMWARE_PROFILE.label} (${STM_FIRMWARE_PROFILE.id})`);
+    await wrapper.get(`[data-testid="variant-${VARIANT_IDS.stmBoost}"]`).trigger('click');
+    await applyButton(wrapper).trigger('click');
+
+    expect(AdvancedSettings.getVariantId()).toBe(VARIANT_IDS.stmBoost);
+    expect(AdvancedSettings.getNamespaceSizes('beggar.stm').romReadPageSize).toBe(2048);
+
+    // The Boost variant reads the same namespace value.
+    AdvancedSettings.setVariantId(VARIANT_IDS.stmBoost);
+    expect(AdvancedSettings.romReadPageSize).toBe(2048);
+  });
+
+  it('shows the active session profile and the reconnect notice without touching the session', async () => {
+    const session = buildStmSession();
+    const device: DeviceInfo = { port: null, connection: null, session };
+
+    const wrapper = mountModal(device);
+    await nextTick();
+
+    const activeText = wrapper.get('[data-testid="active-session-profile"]').text();
+    expect(activeText).toContain('ui.settings.firmware.activeProfile');
+    expect(activeText).toContain('丐中丐');
 
     const noticeText = wrapper.get('[data-testid="firmware-reconnect-notice"]').text();
     expect(noticeText).toContain('ui.settings.firmware.reconnectNotice');
 
-    // Change firmware profile to STC and save
-    const select = wrapper.get('#firmware-profile');
-    expect(wrapper.find('[data-testid="stm-boost-option"]').exists()).toBe(true);
-    await select.setValue('stc');
-    expect(wrapper.find('[data-testid="stm-boost-option"]').exists()).toBe(false);
+    await wrapper.get(`[data-testid="variant-${VARIANT_IDS.stc}"]`).trigger('click');
+    await applyButton(wrapper).trigger('click');
 
-    const buttons = wrapper.findAll('.footer button');
-    const applyButton = buttons[buttons.length - 1];
-    await applyButton.trigger('click');
-
-    expect(AdvancedSettings.firmwareProfile).toBe('stc');
-    expect(activeDevice.firmwareProfile).toEqual(STM_FIRMWARE_PROFILE);
-    expect(STC_FIRMWARE_PROFILE.id).toBe('stc');
+    expect(AdvancedSettings.getVariantId()).toBe(VARIANT_IDS.stc);
+    expect(device.session).toBe(session);
+    expect(device.session?.variantId).toBe(VARIANT_IDS.stm);
   });
 
-  it('allows toggling stm boost enhancement option when stm is selected', async () => {
-    AdvancedSettings.firmwareProfile = 'stm';
-    AdvancedSettings.stmBoost = true;
-
-    const wrapper = mount(AdvancedSettingsModal, {
-      props: { modelValue: true },
-      global: globalConfig,
-    });
+  it('renders the GBFlash baud rate and accepts the 0x2000 packet ceiling', async () => {
+    const wrapper = mountModal();
     await nextTick();
 
-    const boostCheckbox = wrapper.get('[data-testid="stm-boost-option"] input[type="checkbox"]');
-    await boostCheckbox.setValue(false);
+    await wrapper.get('[data-testid="size-profile-flashgbx.cfw"]').trigger('click');
+    await nextTick();
 
-    const buttons = wrapper.findAll('.footer button');
-    await buttons[buttons.length - 1].trigger('click');
+    expect(wrapper.find('#param-baudRate').exists()).toBe(true);
 
-    expect(AdvancedSettings.firmwareProfile).toBe('stm');
-    expect(AdvancedSettings.stmBoost).toBe(false);
+    const baud = wrapper.get('#param-baudRate');
+    await baud.setValue('1500000');
+    await baud.trigger('change');
+
+    const romPage = wrapper.get('#param-romPageSize');
+    await romPage.setValue('8192');
+    await romPage.trigger('input');
+    expect(wrapper.text()).not.toContain('ui.settings.size.validation.range');
+
+    await wrapper.get(`[data-testid="variant-${VARIANT_IDS.gbflash}"]`).trigger('click');
+    await applyButton(wrapper).trigger('click');
+
+    expect(AdvancedSettings.getVariantId()).toBe(VARIANT_IDS.gbflash);
+    expect(AdvancedSettings.getBaudRate()).toBe(1500000);
+    expect(AdvancedSettings.getNamespaceSizes('flashgbx.cfw').romPageSize).toBe(0x2000);
+    // The Beggar namespace is untouched by the GBFlash edit.
+    expect(AdvancedSettings.getNamespaceSizes('beggar.stm').romPageSize).toBe(0x1000);
   });
 
-  it('allows independent stm and stc page size configuration in size section', async () => {
-    const wrapper = mount(AdvancedSettingsModal, {
-      props: { modelValue: true },
-      global: globalConfig,
-    });
+  it('rejects a GBFlash packet size above 0x2000 and disables applying', async () => {
+    const wrapper = mountModal();
     await nextTick();
 
-    const readInput = wrapper.get('#rom-read-page-size');
-    await readInput.setValue('3072');
-    await readInput.trigger('input');
-
-    await wrapper.get('[data-testid="size-profile-stc"]').trigger('click');
+    await wrapper.get('[data-testid="size-profile-flashgbx.cfw"]').trigger('click');
     await nextTick();
-    expect((readInput.element as HTMLInputElement).value).toBe('8192');
 
-    await readInput.setValue('16384');
-    await readInput.trigger('input');
+    const romPage = wrapper.get('#param-romPageSize');
+    await romPage.setValue('16384');
+    await romPage.trigger('input');
 
-    const buttons = wrapper.findAll('.footer button');
-    const applyButton = buttons[buttons.length - 1];
-    await applyButton.trigger('click');
-
-    expect(AdvancedSettings.getProfileSizes('stm').romReadPageSize).toBe(3072);
-    expect(AdvancedSettings.getProfileSizes('stc').romReadPageSize).toBe(16384);
+    expect(wrapper.text()).toContain('ui.settings.size.validation.range');
+    expect((applyButton(wrapper).element as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('switches light/dark/system color modes and consolidates timeout, throttle, and retry under control section', async () => {
-    const wrapper = mount(AdvancedSettingsModal, {
-      props: { modelValue: true },
-      global: globalConfig,
-    });
+  it('keeps STM and STC linked unless independent sizes are enabled', async () => {
+    const wrapper = mountModal();
     await nextTick();
 
-    // 4 navigation tabs: firmware, appearance, size, control
+    expect(wrapper.find('[data-testid="size-profile-beggar.stc"]').exists()).toBe(false);
+
+    await wrapper.get('[data-testid="independent-sizes"] input[type="checkbox"]').setValue(true);
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="size-profile-beggar.stc"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="size-profile-beggar.stc"]').trigger('click');
+    await nextTick();
+    const stcRead = wrapper.get('#param-romReadPageSize');
+    await stcRead.setValue('4096');
+    await stcRead.trigger('input');
+
+    await wrapper.get('[data-testid="size-profile-beggar.stm"]').trigger('click');
+    await nextTick();
+    await wrapper.get('#param-romReadPageSize').setValue('8192');
+    await wrapper.trigger('input');
+
+    await applyButton(wrapper).trigger('click');
+
+    expect(AdvancedSettings.getIndependentSizes()).toBe(true);
+    expect(AdvancedSettings.getNamespaceSizes('beggar.stm').romReadPageSize).toBe(8192);
+    expect(AdvancedSettings.getNamespaceSizes('beggar.stc').romReadPageSize).toBe(4096);
+  });
+
+  it('keeps appearance and control sections with their inputs', async () => {
+    const wrapper = mountModal();
+    await nextTick();
+
     expect(wrapper.findAll('.settings-nav-button')).toHaveLength(4);
 
     await wrapper.get('[data-testid="color-mode-dark"]').trigger('click');
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
-
-    await wrapper.get('[data-testid="color-mode-light"]').trigger('click');
-    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
-
     await wrapper.get('[data-testid="color-mode-system"]').trigger('click');
     expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
 
-    // Control section contains timeout, throttle, and retry inputs together
     const controlSection = wrapper.get('.control-sections');
     expect(controlSection.find('#default-timeout').exists()).toBe(true);
     expect(controlSection.find('#rom-read-throttle').exists()).toBe(true);
     expect(controlSection.find('#rom-read-retry-count').exists()).toBe(true);
   });
 
-  it('supports flashgbx profile, baud rate selection, and independent flashgbx packet size tab', async () => {
-    const wrapper = mount(AdvancedSettingsModal, {
-      props: { modelValue: true },
-      global: globalConfig,
-    });
+  it('saves the global operation parameters through the same store', async () => {
+    const wrapper = mountModal();
     await nextTick();
 
-    const profileSelect = wrapper.get('#firmware-profile');
-    await profileSelect.setValue('flashgbx');
-    await profileSelect.trigger('change');
-    await nextTick();
+    const throttle = wrapper.get('#rom-read-throttle');
+    await throttle.setValue('15');
+    await throttle.trigger('input');
+    const timeout = wrapper.get('#default-timeout');
+    await timeout.setValue('5000');
+    await timeout.trigger('input');
 
-    expect(wrapper.find('[data-testid="flashgbx-baud-option"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="flashgbx-ack-option"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="stm-boost-option"]').exists()).toBe(false);
+    await applyButton(wrapper).trigger('click');
 
-    const baudSelect = wrapper.get('#flashgbx-baud-rate');
-    await baudSelect.setValue('1500000');
-    await nextTick();
-
-    await wrapper.get('[data-testid="size-profile-flashgbx"]').trigger('click');
-    await nextTick();
-    const romPageInput = wrapper.get('#rom-page-size');
-    await romPageInput.setValue('8192');
-    await romPageInput.trigger('input');
-    const readInput = wrapper.get('#rom-read-page-size');
-    expect((readInput.element as HTMLInputElement).value).toBe('256');
-    await readInput.setValue('512');
-    await readInput.trigger('input');
-
-    const buttons = wrapper.findAll('.footer button');
-    await buttons[buttons.length - 1].trigger('click');
-
-    expect(AdvancedSettings.firmwareProfile).toBe('flashgbx');
-    expect(AdvancedSettings.flashgbxBaudRate).toBe(1500000);
-    expect(AdvancedSettings.getProfileSizes('flashgbx').romPageSize).toBe(8192);
-    expect(AdvancedSettings.getProfileSizes('flashgbx').romReadPageSize).toBe(512);
-    expect(AdvancedSettings.getProfileSizes('stm').romReadPageSize).toBe(4096);
+    expect(AdvancedSettings.romReadThrottleMs).toBe(15);
+    expect(AdvancedSettings.defaultTimeout).toBe(5000);
   });
 });

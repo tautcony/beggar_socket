@@ -7,6 +7,7 @@ import { createFlashgbxDriver } from '@/device-runtime/drivers/flashgbx-driver';
 import { getDeviceRuntime } from '@/device-runtime/runtime-instance';
 import { FLASHGBX_CMD, HANDSHAKE_TIMEOUT_MS } from '@/protocol/flashgbx';
 
+import { captureStageError } from '../../helpers/rejection';
 import { buildTestSession, TEST_FLASHGBX_INFO } from '../../helpers/session-profile';
 
 interface ScriptedStep {
@@ -182,7 +183,7 @@ describe('FlashgbxDriver', () => {
     const fake = createTransport([{ expectTx: [FLASHGBX_CMD.QUERY_FW_INFO], rx: belowMinimum }]);
     const driver = createFlashgbxDriver();
 
-    const error = await driver.probe({ pending: pending(fake) }).catch(reason => reason);
+    const error = await captureStageError(driver.probe({ pending: pending(fake) }));
 
     expect(isSessionStageError(error)).toBe(true);
     expect(error).toMatchObject({ stage: 'probe', code: 'unsupported' });
@@ -193,7 +194,7 @@ describe('FlashgbxDriver', () => {
     const fake = createTransport([{ expectTx: [FLASHGBX_CMD.QUERY_FW_INFO], rx: [0x04] }]);
     const driver = createFlashgbxDriver();
 
-    const error = await driver.probe({ pending: pending(fake) }).catch(reason => reason);
+    const error = await captureStageError(driver.probe({ pending: pending(fake) }));
 
     expect(error).toMatchObject({ stage: 'probe', code: 'invalid_response' });
     expect(error.diagnostics[0]).toMatchObject({ code: 'handshake-failed', stage: 'probe' });
@@ -223,7 +224,7 @@ describe('FlashgbxDriver', () => {
     const driver2 = createFlashgbxDriver();
     await driver2.probe({ pending: pending(failing) });
 
-    const error = await driver2.teardown(activeSession(failing)).catch(reason => reason);
+    const error = await captureStageError(driver2.teardown(activeSession(failing)));
 
     expect(isSessionStageError(error)).toBe(true);
     expect(error).toMatchObject({ stage: 'disconnect', code: 'teardown-failed' });

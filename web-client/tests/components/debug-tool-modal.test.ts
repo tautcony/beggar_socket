@@ -5,6 +5,8 @@ import { ref } from 'vue';
 import DebugToolModal from '@/components/modal/DebugToolModal.vue';
 import type { DeviceInfo } from '@/types/device-info';
 
+import { buildStmSession } from '../helpers/session-profile';
+
 const { runConnectionOperationMock, executeDebugCommandMock, showToastMock } = vi.hoisted(() => ({
   runConnectionOperationMock: vi.fn(),
   executeDebugCommandMock: vi.fn(),
@@ -51,6 +53,7 @@ function makeDevice(): DeviceInfo {
     connectionGeneration: 1,
     transport: { send: vi.fn(), read: vi.fn() } as unknown as DeviceInfo['transport'],
     portInfo: { path: '/dev/tty.usbmodem1' },
+    session: buildStmSession(),
   };
 }
 

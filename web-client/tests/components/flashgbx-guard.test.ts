@@ -198,8 +198,8 @@ describe('FlashGBX operation guards', () => {
   it('blocks ChisFlash-only ppbUnlock functions on flashgbx devices without touching transport', async () => {
     const { device, sendMock, setSignalsMock } = createFlashgbxDevice();
 
-    await expect(ppbUnlockGBA(device)).rejects.toThrow(/unsupported/i);
-    await expect(ppbUnlockMBC5(device)).rejects.toThrow(/unsupported/i);
+    await expect(ppbUnlockGBA(device)).rejects.toThrow(/no PPB unlock command/i);
+    await expect(ppbUnlockMBC5(device)).rejects.toThrow(/no PPB unlock command/i);
 
     expect(sendMock).not.toHaveBeenCalled();
     expect(setSignalsMock).not.toHaveBeenCalled();
@@ -329,6 +329,8 @@ describe('FlashGBX operation guards', () => {
         port: null,
         connection: null,
         transport,
+        // Tool availability is a session capability, so the fixture carries the session.
+        session: buildFlashgbxSession(),
         firmwareProfile: {
           ...FLASHGBX_FIRMWARE_PROFILE,
           label: 'GBFlash',

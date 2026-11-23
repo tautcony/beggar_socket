@@ -1,20 +1,17 @@
 /**
  * Transitional `FirmwareProfile` facade (deprecated).
  *
- * The legacy profile shape is now derived from the registered device/firmware definitions
- * instead of a hand-maintained table. Lenient defaults for unknown devices live **only**
- * here: the new resolver treats undeclared capabilities as unsupported.
+ * The legacy profile shape is derived from the registered device/firmware definitions,
+ * never from port strings and never with permissive defaults: a device without a committed
+ * session and without an explicit legacy profile has no profile at all.
  *
  * Delete in P4 together with `types/firmware-profile.ts`'s value exports.
  */
-import type { RamType } from '@/types/command-options';
-import type { DeviceInfo } from '@/types/device-info';
 import type {
   FirmwareCapabilities,
   FirmwareProfile,
   FirmwareProfileId,
 } from '@/types/firmware-profile';
-import type { SerialPortInfo } from '@/types/serial';
 
 import { resolveCapabilities } from '../capabilities';
 import {
@@ -87,58 +84,6 @@ export const FLASHGBX_FIRMWARE_PROFILE: FirmwareProfile = buildLegacyProfile(
 );
 
 /**
- * Lenient fallback for unknown devices. This permissiveness exists only in the facade;
- * the new resolution path never produces an unknown session.
- *
- * Deprecated (removed in P4).
- */
-export const UNKNOWN_FIRMWARE_PROFILE: FirmwareProfile = Object.freeze({
-  id: 'unknown',
-  label: 'Unknown',
-  maxReadChunk: 0x1000,
-  capabilities: Object.freeze({
-    gbaSectorErase: true,
-    gbaFramRam: true,
-    gbcFramRam: true,
-    cartPowerControl: true,
-    boostMode: false,
-    nativeFlashgbxProtocol: false,
-    audioWePin: false,
-  }),
-});
-
-/** Deprecated (removed in P4): Boost is an explicitly selected variant (`beggar-stm-boost`). */
-export function withBeggarBoostProfile(
-  baseProfile: FirmwareProfile = STM_FIRMWARE_PROFILE,
-  firmwareVersion?: string,
-): FirmwareProfile {
-  return {
-    ...baseProfile,
-    label: baseProfile.id === 'stm' ? '丐中丐 (Boost)' : `${baseProfile.label} (Boost)`,
-    maxReadChunk: 0x2000,
-    firmwareVersion,
-    capabilities: {
-      ...baseProfile.capabilities,
-      boostMode: true,
-    },
-  };
-}
-
-/** Deprecated (removed in P4). */
-export function getFirmwareProfileById(id: FirmwareProfileId): FirmwareProfile {
-  switch (id) {
-    case 'stm':
-      return STM_FIRMWARE_PROFILE;
-    case 'stc':
-      return STC_FIRMWARE_PROFILE;
-    case 'flashgbx':
-      return FLASHGBX_FIRMWARE_PROFILE;
-    case 'unknown':
-      return UNKNOWN_FIRMWARE_PROFILE;
-  }
-}
-
-/**
  * Projection of a committed session onto the legacy `FirmwareProfile` shape.
  *
  * Adapters and UI still read `FirmwareProfile` during the transition; every value here is
@@ -166,88 +111,6 @@ export function firmwareProfileFromSession(profile: SessionProfile): FirmwarePro
       audioWePin: profile.capabilities.has('cart.audioWePin'),
     }),
   });
-}
-
-function lower(value?: string): string {
-  return value?.toLowerCase() ?? '';
-}
-
-function containsAny(value: string, tokens: readonly string[]): boolean {
-  return tokens.some(token => value.includes(token));
-}
-
-/**
- * Legacy port inference, kept byte-for-byte compatible with the previous behavior.
- *
- * Deprecated (removed in P4): Connection setup selects a variant; port matching only reports match /
- * mismatch / unknown.
- */
-export function inferFirmwareProfileFromPort(
-  portInfo?: SerialPortInfo | null,
-  _configuredProfile?: FirmwareProfileId,
-): FirmwareProfile {
-  const manufacturer = lower(portInfo?.manufacturer);
-  const product = lower(portInfo?.product);
-  const path = lower(portInfo?.path);
-  const serialNumber = lower(portInfo?.serialNumber);
-
-  if (containsAny(`${manufacturer} ${product} ${path}`, ['stc', 'stc8'])) {
-    return STC_FIRMWARE_PROFILE;
-  }
-
-  const vendorId = lower(portInfo?.vendorId);
-  const productId = lower(portInfo?.productId);
-  if (vendorId === '0483' && productId === '5740') {
-    return STC_FIRMWARE_PROFILE;
-  }
-
-  if (serialNumber || /usbmodem[0-9a-f]{8,}$/i.test(portInfo?.path ?? '')) {
-    return STM_FIRMWARE_PROFILE;
-  }
-
-  if (vendorId === '0483' && productId === '0721') {
-    if (/usbmodem\d+$/i.test(portInfo?.path ?? '')) {
-      return STC_FIRMWARE_PROFILE;
-    }
-    if (containsAny(`${manufacturer} ${product}`, ['stmicroelectronics', 'stm32', 'beggar socket', 'chisflash beggar'])) {
-      return STM_FIRMWARE_PROFILE;
-    }
-    return UNKNOWN_FIRMWARE_PROFILE;
-  }
-
-  return UNKNOWN_FIRMWARE_PROFILE;
-}
-
-/** Deprecated (removed in P4). */
-export function attachFirmwareProfile(device: DeviceInfo, profile?: FirmwareProfile): DeviceInfo {
-  const resolvedProfile = profile ?? inferFirmwareProfileFromPort(device.portInfo);
-  device.firmwareProfile = resolvedProfile;
-  if (device.serialHandle) {
-    device.serialHandle.firmwareProfile = resolvedProfile;
-  }
-  return device;
-}
-
-/** Deprecated (removed in P4): read `device.session.profile` instead once lifecycle is migrated. */
-export function getFirmwareProfile(device: DeviceInfo): FirmwareProfile {
-  return device.firmwareProfile
-    ?? device.serialHandle?.firmwareProfile
-    ?? inferFirmwareProfileFromPort(device.portInfo ?? device.serialHandle?.portInfo);
-}
-
-/** Deprecated (removed in P4): use capability queries (`ram.fram.gba` / `ram.fram.gbc`). */
-export function isRamTypeSupportedByFirmware(
-  profile: FirmwareProfile,
-  platformId: 'gba' | 'mbc5',
-  ramType: RamType,
-): boolean {
-  if (ramType !== 'FRAM') {
-    return true;
-  }
-
-  return platformId === 'gba'
-    ? profile.capabilities.gbaFramRam
-    : profile.capabilities.gbcFramRam;
 }
 
 /** Deprecated (removed in P4): use capability queries and localized messages from the session profile. */

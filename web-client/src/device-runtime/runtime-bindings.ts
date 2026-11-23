@@ -8,15 +8,15 @@
 import { BEGGAR_RUNTIME_BINDING_ID, GBFLASH_RUNTIME_BINDING_ID } from '@/device/definitions';
 
 import {
-  createRuntimeCompositionRegistry,
-  type RuntimeBinding,
-  type RuntimeCompositionRegistry,
-} from './composition-registry';
-import {
   createBeggarAdapterFactory,
   createFlashgbxAdapterFactory,
   flashgbxModeSync,
 } from './adapters/adapter-factory';
+import {
+  createRuntimeCompositionRegistry,
+  type RuntimeBinding,
+  type RuntimeCompositionRegistry,
+} from './composition-registry';
 import { beggarDisplayContributor } from './display-contributors/beggar';
 import { gbflashDisplayContributor } from './display-contributors/gbflash';
 import { type BeggarProbeFacts, createBeggarDriver } from './drivers/beggar-driver';

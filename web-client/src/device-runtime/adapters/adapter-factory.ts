@@ -5,13 +5,54 @@
  * mix adapters from another session: the factory only runs while the caller holds the
  * session it came from, and every adapter reads its transfer limits from that profile.
  */
-import { GBAAdapter } from '@/services/gba-adapter';
-import { MBC5Adapter } from '@/services/mbc5-adapter';
+import type { CartridgeAdapter } from '@/services/cartridge-adapter';
+import { FlashgbxBaseAdapter } from '@/services/flashgbx-base-adapter';
 import { FlashgbxGbaAdapter } from '@/services/flashgbx-gba-adapter';
 import { FlashgbxMbcAdapter } from '@/services/flashgbx-mbc-adapter';
-import type { FlashgbxBaseAdapter } from '@/services/flashgbx-base-adapter';
+import { GBAAdapter } from '@/services/gba-adapter';
+import { MBC5Adapter } from '@/services/mbc5-adapter';
 
-import type { AdapterFactory, ModeSyncStrategy } from '../composition-registry';
+import type { AdapterContext, AdapterFactory, ModeSyncStrategy } from '../composition-registry';
+
+/**
+ * Operations that own an `OperationSettingsSnapshot`.
+ *
+ * Page sizes, throttles, retries and timeouts are re-read when one of these starts, so a
+ * settings edit applies to the next operation and never mid-transfer. Internal calls
+ * (`this.verifyROM(...)`) run on the adapter itself and keep the snapshot they started with.
+ */
+const OPERATION_ENTRY_POINTS: readonly string[] = [
+  'eraseSectors',
+  'writeROM',
+  'readROM',
+  'verifyROM',
+  'writeRAM',
+  'readRAM',
+  'verifyRAM',
+  'getCartInfo',
+  'searchBatteryless',
+  'writeBatterylessSave',
+  'readBatterylessSave',
+  'verifyBatterylessSave',
+];
+
+/** Binds the session parameters and gives every operation entry point its own snapshot. */
+function bindSession(adapter: CartridgeAdapter, context: AdapterContext): CartridgeAdapter {
+  adapter.applySessionProfile(context.profile);
+  adapter.bindParameters(context.store);
+  return new Proxy(adapter, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver) as unknown;
+      if (typeof property !== 'string' || typeof value !== 'function' || !OPERATION_ENTRY_POINTS.includes(property)) {
+        return value;
+      }
+      return (...args: unknown[]) => {
+        target.beginOperation();
+        return (value as (...inner: unknown[]) => unknown).apply(target, args);
+      };
+    },
+  });
+}
 
 /** GBA / MBC5 adapters of the Beggar family. */
 export function createBeggarAdapterFactory(): AdapterFactory {
@@ -20,7 +61,7 @@ export function createBeggarAdapterFactory(): AdapterFactory {
       const adapter = platform === 'gba'
         ? new GBAAdapter(context.device, context.log, context.updateProgress, context.t)
         : new MBC5Adapter(context.device, context.log, context.updateProgress, context.t);
-      return adapter.applySessionProfile(context.profile);
+      return bindSession(adapter, context);
     },
   };
 }
@@ -32,7 +73,7 @@ export function createFlashgbxAdapterFactory(): AdapterFactory {
       const adapter = platform === 'gba'
         ? new FlashgbxGbaAdapter(context.device, context.log, context.updateProgress, context.t)
         : new FlashgbxMbcAdapter(context.device, context.log, context.updateProgress, context.t);
-      return adapter.applySessionProfile(context.profile);
+      return bindSession(adapter, context);
     },
   };
 }
@@ -42,5 +83,10 @@ export function createFlashgbxAdapterFactory(): AdapterFactory {
  * belongs to the session that owns it.
  */
 export const flashgbxModeSync: ModeSyncStrategy = async (adapter, mode) => {
-  await (adapter as FlashgbxBaseAdapter).syncHardwareMode(mode === 'gba' ? 'GBA' : 'MBC5');
+  // Both FlashGBX models extend the shared base class; anything else must not be forced
+  // through a cast, because the hardware switch only exists on that transport.
+  if (!(adapter instanceof FlashgbxBaseAdapter)) {
+    throw new Error('FlashGBX mode sync requires a FlashGBX adapter');
+  }
+  await adapter.syncHardwareMode(mode === 'gba' ? 'GBA' : 'MBC5');
 };

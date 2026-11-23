@@ -1,16 +1,20 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { withBeggarBoostProfile, STC_FIRMWARE_PROFILE, STM_FIRMWARE_PROFILE } from '@/device/compat/firmware-profile';
+import { STC_FIRMWARE_PROFILE, STM_FIRMWARE_PROFILE } from '@/device/compat/firmware-profile';
 import { VARIANT_IDS } from '@/device/definitions';
 import type { SessionProfile } from '@/device/session';
-import type { DeviceInfo } from '@/types/device-info';
 import { CartridgeAdapter } from '@/services/cartridge-adapter';
 import { AdvancedSettings } from '@/settings/advanced-settings';
+import type { DeviceInfo } from '@/types/device-info';
 
 import { buildTestSession } from '../../helpers/session-profile';
 
 class ChunkAdapter extends CartridgeAdapter {
-  constructor(private readonly simulated: boolean, device: DeviceInfo = { port: null }) {
+  constructor(
+    private readonly simulated: boolean,
+    // Without a session the adapter still needs an explicit profile: nothing is inferred.
+    device: DeviceInfo = { port: null, firmwareProfile: STM_FIRMWARE_PROFILE },
+  ) {
     super(device);
   }
 
@@ -69,7 +73,7 @@ describe('Cartridge adapter transfer chunks', () => {
   });
 
   it('lets an STC session read a configured 32 KiB page', () => {
-    AdvancedSettings.setProfileSize('stc', 'romReadPageSize', 0x8000);
+    AdvancedSettings.setNamespaceSize('beggar.stc', 'romReadPageSize', 0x8000);
     const adapter = new ChunkAdapter(false, deviceWith(STC_FIRMWARE_PROFILE))
       .withSession(buildTestSession(VARIANT_IDS.stc));
 
@@ -79,7 +83,7 @@ describe('Cartridge adapter transfer chunks', () => {
   });
 
   it('gives Boost its own 8 KiB read ceiling while sharing the STM packet settings', () => {
-    const adapter = new ChunkAdapter(false, deviceWith(withBeggarBoostProfile()))
+    const adapter = new ChunkAdapter(false, deviceWith(STM_FIRMWARE_PROFILE))
       .withSession(buildTestSession(VARIANT_IDS.stmBoost));
 
     expect(STM_FIRMWARE_PROFILE.maxReadChunk).toBe(0x1000);

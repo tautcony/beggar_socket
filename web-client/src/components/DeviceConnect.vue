@@ -52,9 +52,9 @@ import { RetroButton } from '@/components/retro';
 import { useConnectionOperationBusy } from '@/composables/useConnectionOperationBusy';
 import { useToast } from '@/composables/useToast';
 import {
-  type ConnectionLogEntry,
   buildConnectionLogReport,
   type ConnectionFailureReport,
+  type ConnectionLogEntry,
 } from '@/device-runtime/connection-report';
 import type { ConnectionFailure } from '@/features/burner/application';
 import { getRuntimeKind } from '@/platform/runtime';

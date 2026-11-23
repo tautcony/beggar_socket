@@ -42,88 +42,47 @@
         >
           <h4>{{ $t('ui.settings.firmware.title') }}</h4>
 
-          <div class="setting-row">
-            <div class="setting-item">
-              <label for="firmware-profile">{{ $t('ui.settings.firmware.profile') }}</label>
-              <div class="input-group">
-                <RetroSelect
-                  id="firmware-profile"
-                  v-model="localSettings.firmware.profile"
-                  size="md"
-                  full-width
-                  @change="validateAndUpdate"
-                >
-                  <option value="stm">
-                    {{ $t('ui.settings.firmware.stm') }}
-                  </option>
-                  <option value="stc">
-                    {{ $t('ui.settings.firmware.stc') }}
-                  </option>
-                  <option value="flashgbx">
-                    {{ $t('ui.settings.firmware.flashgbx') }}
-                  </option>
-                </RetroSelect>
-              </div>
-              <div
-                v-if="localSettings.firmware.profile === 'stm'"
-                class="boost-option-row"
-                data-testid="stm-boost-option"
+          <div class="setting-item">
+            <label>{{ $t('ui.settings.firmware.profile') }}</label>
+            <div
+              class="variant-options"
+              role="radiogroup"
+              :aria-label="$t('ui.settings.firmware.profile')"
+            >
+              <button
+                v-for="variant in variantOptions"
+                :key="variant.id"
+                type="button"
+                class="variant-option"
+                :class="{ 'is-active': selectedVariantId === variant.id }"
+                role="radio"
+                :aria-checked="selectedVariantId === variant.id"
+                :data-testid="`variant-${variant.id}`"
+                @click="selectVariant(variant.id)"
               >
-                <RetroSwitch
-                  id="stm-boost"
-                  v-model="localSettings.firmware.stmBoost"
-                  :label="$t('ui.settings.firmware.stmBoost')"
-                />
-                <small class="hint boost-option-hint">
-                  {{ $t('ui.settings.firmware.stmBoostHint') }}
-                </small>
-              </div>
-              <div
-                v-if="localSettings.firmware.profile === 'flashgbx'"
-                class="boost-option-row"
-                data-testid="flashgbx-baud-option"
-              >
-                <label for="flashgbx-baud-rate">{{ $t('ui.settings.firmware.flashgbxBaudRate') }}</label>
-                <div class="input-group">
-                  <RetroSelect
-                    id="flashgbx-baud-rate"
-                    :model-value="String(localSettings.firmware.flashgbxBaudRate ?? 'auto')"
-                    size="md"
-                    full-width
-                    @update:model-value="onFlashgbxBaudRateChange"
-                  >
-                    <option value="auto">
-                      {{ $t('ui.settings.firmware.flashgbxBaudAuto') }}
-                    </option>
-                    <option value="1000000">
-                      1,000,000
-                    </option>
-                    <option value="1500000">
-                      1,500,000
-                    </option>
-                    <option value="2000000">
-                      2,000,000
-                    </option>
-                  </RetroSelect>
-                </div>
-                <small class="hint boost-option-hint">
-                  {{ $t('ui.settings.firmware.flashgbxBaudHint') }}
-                </small>
-              </div>
-              <small
-                v-if="activeFirmwareProfile"
-                class="hint active-profile-status"
-                data-testid="active-firmware-profile"
-              >
-                {{ $t('ui.settings.firmware.activeProfile') }}: {{ activeFirmwareProfile.label }} ({{ activeFirmwareProfile.id }})
-              </small>
-              <small
-                class="hint firmware-reconnect-notice"
-                data-testid="firmware-reconnect-notice"
-              >
-                {{ $t('ui.settings.firmware.reconnectNotice') }}
-              </small>
+                <span class="variant-name">{{ variant.label }}</span>
+                <span class="variant-description">{{ variant.description }}</span>
+              </button>
             </div>
+            <small
+              v-if="!selectedVariantId"
+              class="hint variant-required"
+              data-testid="variant-required"
+            >
+              {{ $t('ui.settings.firmware.selectionRequired') }}
+            </small>
+            <small
+              class="hint active-profile-status"
+              data-testid="active-session-profile"
+            >
+              {{ activeSessionLabel }}
+            </small>
+            <small
+              class="hint firmware-reconnect-notice"
+              data-testid="firmware-reconnect-notice"
+            >
+              {{ $t('ui.settings.firmware.reconnectNotice') }}
+            </small>
           </div>
         </div>
 
@@ -213,7 +172,7 @@
           </div>
         </div>
 
-        <!-- 页面大小设置 -->
+        <!-- 封包大小设置（按参数命名空间渲染） -->
         <div
           v-show="activeSection === 'size'"
           class="setting-group"
@@ -225,87 +184,82 @@
               data-testid="size-profile-switch"
             >
               <button
-                v-for="profileOption in firmwareProfileOptions"
-                :key="profileOption.id"
+                v-for="tab in namespaceTabs"
+                :key="tab.id"
                 type="button"
                 class="profile-switch-btn"
-                :class="{ active: editingSizeProfile === profileOption.id }"
-                :data-testid="`size-profile-${profileOption.id}`"
-                @click="switchEditingSizeProfile(profileOption.id)"
+                :class="{ active: editingNamespace === tab.id }"
+                :data-testid="`size-profile-${tab.id}`"
+                @click="switchNamespace(tab.id)"
               >
-                {{ profileOption.label }}
+                {{ tab.label }}
               </button>
             </div>
           </div>
 
           <div class="setting-row">
-            <div class="setting-item">
-              <label for="rom-page-size">{{ $t('ui.settings.size.romPageSize') }}</label>
+            <div
+              v-for="field in namespaceFields"
+              :key="field.key"
+              class="setting-item"
+            >
+              <label :for="`param-${field.key}`">{{ field.label }}</label>
               <div class="input-group">
-                <input
-                  id="rom-page-size"
-                  v-model.number="localSettings.profileSizes[editingSizeProfile].romPageSize"
-                  type="number"
-                  :min="limits.pageSize.min"
-                  :max="limits.pageSize.max"
-                  :step="64"
-                  @input="validateAndUpdate"
+                <RetroSelect
+                  v-if="field.kind === 'enum'"
+                  :id="`param-${field.key}`"
+                  :model-value="String(field.value)"
+                  size="md"
+                  full-width
+                  @update:model-value="value => onEnumFieldChange(field.key, value)"
                 >
-                <span class="unit">{{ $t('ui.settings.size.bytes') }}</span>
+                  <option
+                    v-for="option in field.options"
+                    :key="String(option)"
+                    :value="String(option)"
+                  >
+                    {{ formatEnumOption(option) }}
+                  </option>
+                </RetroSelect>
+                <input
+                  v-else
+                  :id="`param-${field.key}`"
+                  v-model.number="namespaceDrafts[editingNamespace][field.key]"
+                  type="number"
+                  :min="field.min"
+                  :max="field.max"
+                  :step="64"
+                  :data-testid="`param-${editingNamespace}-${field.key}`"
+                  @input="validateNamespaceFields"
+                >
+                <span
+                  v-if="field.kind !== 'enum'"
+                  class="unit"
+                >{{ $t('ui.settings.size.bytes') }}</span>
               </div>
               <div
-                v-if="validationErrors.romPageSize"
+                v-if="fieldErrors[editingNamespace]?.[field.key]"
                 class="validation-error"
               >
-                {{ validationErrors.romPageSize }}
+                {{ fieldErrors[editingNamespace][field.key] }}
               </div>
-              <small class="hint">{{ formatBytes(localSettings.profileSizes[editingSizeProfile].romPageSize) }}</small>
+              <small
+                v-if="field.hint"
+                class="hint"
+              >{{ field.hint }}</small>
             </div>
+          </div>
 
+          <div class="setting-row">
             <div class="setting-item">
-              <label for="rom-read-page-size">{{ $t('ui.settings.size.romReadPageSize') }}</label>
-              <div class="input-group">
-                <input
-                  id="rom-read-page-size"
-                  v-model.number="localSettings.profileSizes[editingSizeProfile].romReadPageSize"
-                  type="number"
-                  :min="limits.readPageSize.min"
-                  :max="limits.readPageSize.max"
-                  :step="64"
-                  @input="validateAndUpdate"
-                >
-                <span class="unit">{{ $t('ui.settings.size.bytes') }}</span>
-              </div>
-              <div
-                v-if="validationErrors.romReadPageSize"
-                class="validation-error"
-              >
-                {{ validationErrors.romReadPageSize }}
-              </div>
-              <small class="hint">{{ formatBytes(localSettings.profileSizes[editingSizeProfile].romReadPageSize) }}</small>
-            </div>
-
-            <div class="setting-item">
-              <label for="ram-page-size">{{ $t('ui.settings.size.ramPageSize') }}</label>
-              <div class="input-group">
-                <input
-                  id="ram-page-size"
-                  v-model.number="localSettings.profileSizes[editingSizeProfile].ramPageSize"
-                  type="number"
-                  :min="limits.pageSize.min"
-                  :max="limits.pageSize.max"
-                  :step="64"
-                  @input="validateAndUpdate"
-                >
-                <span class="unit">{{ $t('ui.settings.size.bytes') }}</span>
-              </div>
-              <div
-                v-if="validationErrors.ramPageSize"
-                class="validation-error"
-              >
-                {{ validationErrors.ramPageSize }}
-              </div>
-              <small class="hint">{{ formatBytes(localSettings.profileSizes[editingSizeProfile].ramPageSize) }}</small>
+              <RetroSwitch
+                id="independent-sizes"
+                v-model="independentSizes"
+                :label="$t('ui.settings.size.independentSizes')"
+                data-testid="independent-sizes"
+                @update:model-value="onIndependentSizesChange"
+              />
+              <small class="hint">{{ independentSizesHint }}</small>
             </div>
           </div>
         </div>
@@ -698,20 +652,19 @@ import { useI18n } from 'vue-i18n';
 import { RetroButton, RetroModal, RetroSelect, RetroSwitch } from '@/components/retro';
 import { DEFAULT_FONT_FAMILY, type FontFamilyId, useFont } from '@/composables/useFont';
 import { DEFAULT_COLOR_MODE, DEFAULT_COLOR_THEME, useTheme } from '@/composables/useTheme';
-import {
-  FLASHGBX_FIRMWARE_PROFILE,
-  STC_FIRMWARE_PROFILE,
-  STM_FIRMWARE_PROFILE,
-} from '@/device/compat/firmware-profile';
-import { getOptimalPacketLimits } from '@/platform/serial/platform-packet-policy';
-import { AdvancedSettings, type FlashgbxBaudRate } from '@/settings/advanced-settings';
+import { VARIANT_IDS } from '@/device/definitions';
+import { displayTextToString } from '@/device/display';
+import type { ParameterDescriptor, ParameterSchema, ParameterValue } from '@/device/parameters';
+import { getDeviceRuntime } from '@/device-runtime/runtime-instance';
+import { AdvancedSettings, CORE_PARAMETER_NAMESPACE, type GlobalParameterKey } from '@/settings/advanced-settings';
 import type { DeviceInfo } from '@/types/device-info';
-import type { ConfigurableFirmwareProfileId } from '@/types/firmware-profile';
 import { formatBytes, formatTimeClock } from '@/utils/formatter-utils';
 
 const { t } = useI18n();
 const { currentTheme, themes, setTheme, currentColorMode, colorModes, setColorMode } = useTheme();
 const { currentFont, fonts, setFont } = useFont();
+
+const runtime = getDeviceRuntime();
 
 type SettingsSectionId = 'firmware' | 'appearance' | 'size' | 'control';
 
@@ -728,8 +681,6 @@ const props = withDefaults(defineProps<{
 }>(), {
   device: null,
 });
-
-const activeFirmwareProfile = computed(() => props.device?.firmwareProfile ?? null);
 
 // 定义事件
 const emit = defineEmits<{
@@ -749,77 +700,247 @@ const localVisible = computed({
 // 获取限制值
 const limits = AdvancedSettings.getLimits();
 
-const createDefaultSettings = (): ReturnType<typeof AdvancedSettings.getSettings> => {
-  const stmLimits = getOptimalPacketLimits('stm');
-  const stcLimits = getOptimalPacketLimits('stc');
-  const flashgbxLimits = getOptimalPacketLimits('flashgbx');
-  return {
-    firmware: {
-      profile: 'stm',
-      stmBoost: true,
-      flashgbxBaudRate: 'auto',
-    },
-    size: {
-      romPageSize: stmLimits.romWrite,
-      romReadPageSize: stmLimits.romRead,
-      ramPageSize: stmLimits.ramPage,
-    },
-    profileSizes: {
-      stm: {
-        romPageSize: stmLimits.romWrite,
-        romReadPageSize: stmLimits.romRead,
-        ramPageSize: stmLimits.ramPage,
-      },
-      stc: {
-        romPageSize: stcLimits.romWrite,
-        romReadPageSize: stcLimits.romRead,
-        ramPageSize: stcLimits.ramPage,
-      },
-      flashgbx: {
-        romPageSize: flashgbxLimits.romWrite,
-        romReadPageSize: flashgbxLimits.romRead,
-        ramPageSize: flashgbxLimits.ramPage,
-      },
-    },
-    throttle: {
-      romRead: 0,
-      ramRead: 0,
-    },
-    retry: {
-      romReadCount: 1,
-      ramReadCount: 1,
-      romReadDelay: 0,
-      ramReadDelay: 0,
-      romEraseRetryCount: 1,
-      romEraseRetryDelay: 0,
-      romWriteRetryCount: 1,
-      romWriteRetryDelay: 0,
-    },
-    timeout: {
-      default: 3000,
-      packageSend: 3000,
-      packageReceive: 3000,
-      operation: 30000,
-    },
-  };
+// --- 设备与固件选择（来自注册定义） ---
+
+const VARIANT_LABEL_KEYS: Readonly<Record<string, string>> = {
+  [VARIANT_IDS.stm]: 'ui.settings.firmware.stm',
+  [VARIANT_IDS.stmBoost]: 'ui.settings.firmware.stmBoostOption',
+  [VARIANT_IDS.stc]: 'ui.settings.firmware.stc',
+  [VARIANT_IDS.gbflash]: 'ui.settings.firmware.flashgbx',
 };
 
-// 本地设置状态
-const localSettings = ref(createDefaultSettings());
-const editingSizeProfile = ref<ConfigurableFirmwareProfileId>('stm');
-const activeSection = ref<SettingsSectionId>('firmware');
+const VARIANT_HINT_KEYS: Readonly<Record<string, string>> = {
+  [VARIANT_IDS.stm]: 'ui.settings.firmware.stmHint',
+  [VARIANT_IDS.stmBoost]: 'ui.settings.firmware.stmBoostHint',
+  [VARIANT_IDS.stc]: 'ui.settings.firmware.stcHint',
+  [VARIANT_IDS.gbflash]: 'ui.settings.firmware.flashgbxHint',
+};
 
-const firmwareProfileOptions = [
-  { id: 'stm' as const, label: `${STM_FIRMWARE_PROFILE.label} (STM32)` },
-  { id: 'stc' as const, label: `${STC_FIRMWARE_PROFILE.label} (STC8)` },
-  { id: 'flashgbx' as const, label: FLASHGBX_FIRMWARE_PROFILE.label },
+const variantOptions = computed(() => runtime.registry.listSelectable().map(variant => ({
+  id: variant.variantId,
+  label: t(VARIANT_LABEL_KEYS[variant.variantId] ?? '') || displayTextToString(variant.firmwareName),
+  description: VARIANT_HINT_KEYS[variant.variantId] ? t(VARIANT_HINT_KEYS[variant.variantId]) : '',
+})));
+
+const selectedVariantId = ref<string | null>(null);
+
+/** Active session (not the saved selection): what is really on the wire right now. */
+const activeSessionLabel = computed(() => {
+  const session = props.device?.session;
+  if (!session) {
+    return t('ui.settings.firmware.noActiveSession');
+  }
+  const device = displayTextToString(session.device.displayName);
+  const firmware = displayTextToString(session.firmware.displayName);
+  const version = session.firmwareVersion ? ` ${session.firmwareVersion}` : '';
+  return `${t('ui.settings.firmware.activeProfile')}: ${device} / ${firmware}${version}`;
+});
+
+// --- 参数命名空间与 schema 表单 ---
+
+const NAMESPACE_LABEL_KEYS: Readonly<Record<string, string>> = {
+  'beggar.stm': 'ui.settings.firmware.stm',
+  'beggar.stc': 'ui.settings.firmware.stc',
+  'flashgbx.cfw': 'ui.settings.firmware.flashgbx',
+};
+
+/** Labels come from the locale files; the schema only declares the parameter itself. */
+const PARAMETER_LABEL_KEYS: Readonly<Record<string, string>> = {
+  romPageSize: 'ui.settings.size.romPageSize',
+  romReadPageSize: 'ui.settings.size.romReadPageSize',
+  ramPageSize: 'ui.settings.size.ramPageSize',
+  baudRate: 'ui.settings.firmware.flashgbxBaudRate',
+};
+
+const editingNamespace = ref<string>(CORE_PARAMETER_NAMESPACE);
+const independentSizes = ref(AdvancedSettings.getIndependentSizes());
+/** Draft values per namespace; the schema supplies defaults and ranges. */
+const namespaceDrafts = ref<Record<string, Record<string, ParameterValue>>>({});
+const fieldErrors = ref<Record<string, Record<string, string>>>({});
+
+const namespaceTabs = computed(() => {
+  const namespaces = independentSizes.value
+    ? ['beggar.stm', 'beggar.stc', 'flashgbx.cfw']
+    // Linked sizes: STM and STC are one group, so only the shared entry is offered.
+    : ['beggar.stm', 'flashgbx.cfw'];
+  return namespaces.map(namespace => ({
+    id: namespace,
+    label: t(NAMESPACE_LABEL_KEYS[namespace] ?? ''),
+  }));
+});
+
+function selectVariant(variantId: string) {
+  selectedVariantId.value = variantId;
+  const namespace = runtime.registry.findVariant(variantId)?.parameterNamespace;
+  if (namespace && !namespaceTabs.value.some(tab => tab.id === namespace)) {
+    editingNamespace.value = namespace;
+  }
+}
+
+const independentSizesHint = computed(() => (
+  independentSizes.value
+    ? t('ui.settings.size.independentHint')
+    : t('ui.settings.size.linkedHint')
+));
+
+function schemaFor(namespace: string): ParameterSchema {
+  return runtime.registry.resolveNamespaceSchema(namespace)?.schema ?? [];
+}
+
+function labelFor(descriptor: ParameterDescriptor): string {
+  const key = PARAMETER_LABEL_KEYS[descriptor.key];
+  return key ? t(key) : displayTextToString(descriptor.label);
+}
+
+const namespaceFields = computed(() => schemaFor(editingNamespace.value).map((descriptor) => {
+  const value = namespaceDrafts.value[editingNamespace.value]?.[descriptor.key] ?? descriptor.default;
+  const hint = descriptor.key === 'baudRate'
+    ? t('ui.settings.firmware.flashgbxBaudHint')
+    : typeof value === 'number'
+      ? formatBytes(value)
+      : descriptor.description
+        ? displayTextToString(descriptor.description)
+        : '';
+  return {
+    key: descriptor.key,
+    kind: descriptor.kind === 'enum' ? 'enum' as const : 'int' as const,
+    label: labelFor(descriptor),
+    value,
+    min: descriptor.constraints?.min,
+    max: descriptor.constraints?.max,
+    options: descriptor.constraints?.options ?? [],
+    hint,
+  };
+}));
+
+function formatEnumOption(option: ParameterValue): string {
+  return option === 'auto' ? t('ui.settings.firmware.flashgbxBaudAuto') : String(option);
+}
+
+function onEnumFieldChange(key: string, value: string | number | undefined) {
+  const raw = String(value ?? '');
+  namespaceDrafts.value[editingNamespace.value] = {
+    ...namespaceDrafts.value[editingNamespace.value],
+    [key]: raw === 'auto' ? 'auto' : Number(raw),
+  };
+  validateNamespaceFields();
+}
+
+function switchNamespace(namespace: string) {
+  if (editingNamespace.value === namespace) return;
+  editingNamespace.value = namespace;
+  validateNamespaceFields();
+}
+
+function onIndependentSizesChange(next: boolean | undefined) {
+  independentSizes.value = next === true;
+  if (!independentSizes.value && editingNamespace.value === 'beggar.stc') {
+    editingNamespace.value = 'beggar.stm';
+  }
+  validateNamespaceFields();
+}
+
+function validateNamespaceFields() {
+  const errors: Record<string, Record<string, string>> = {};
+  for (const tab of namespaceTabs.value) {
+    const namespace = tab.id;
+    const draft = namespaceDrafts.value[namespace] ?? {};
+    for (const descriptor of schemaFor(namespace)) {
+      const value = draft[descriptor.key] ?? descriptor.default;
+      const message = validateDescriptor(descriptor, value);
+      if (message) {
+        errors[namespace] = { ...(errors[namespace] ?? {}), [descriptor.key]: message };
+      }
+    }
+  }
+  fieldErrors.value = errors;
+}
+
+function validateDescriptor(descriptor: ParameterDescriptor, value: ParameterValue): string {
+  const { min, max, options } = descriptor.constraints ?? {};
+  if (descriptor.kind === 'enum') {
+    return options && !options.includes(value)
+      ? t('ui.settings.size.validation.invalid')
+      : '';
+  }
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return t('ui.settings.size.validation.invalid');
+  }
+  if ((min !== undefined && numeric < min) || (max !== undefined && numeric > max)) {
+    return t('ui.settings.size.validation.range', { min: min ?? 0, max: max ?? 0 });
+  }
+  if (numeric % 64 !== 0 && numeric !== 0x0c00) {
+    return t('ui.settings.size.validation.multiple', { multipler: 64 });
+  }
+  return '';
+}
+
+// --- 全局读写参数（超时/节流/重试）表单视图模型 ---
+
+interface ControlSettings {
+  throttle: { romRead: number; ramRead: number };
+  retry: {
+    romReadCount: number;
+    ramReadCount: number;
+    romReadDelay: number;
+    ramReadDelay: number;
+    romEraseRetryCount: number;
+    romEraseRetryDelay: number;
+    romWriteRetryCount: number;
+    romWriteRetryDelay: number;
+  };
+  timeout: { default: number; packageSend: number; packageReceive: number; operation: number };
+}
+
+const CONTROL_FIELD_KEYS: readonly { group: keyof ControlSettings; field: string; key: GlobalParameterKey }[] = [
+  { group: 'throttle', field: 'romRead', key: 'romReadThrottleMs' },
+  { group: 'throttle', field: 'ramRead', key: 'ramReadThrottleMs' },
+  { group: 'retry', field: 'romReadCount', key: 'romReadRetryCount' },
+  { group: 'retry', field: 'ramReadCount', key: 'ramReadRetryCount' },
+  { group: 'retry', field: 'romReadDelay', key: 'romReadRetryDelayMs' },
+  { group: 'retry', field: 'ramReadDelay', key: 'ramReadRetryDelayMs' },
+  { group: 'retry', field: 'romEraseRetryCount', key: 'romEraseRetryCount' },
+  { group: 'retry', field: 'romEraseRetryDelay', key: 'romEraseRetryDelayMs' },
+  { group: 'retry', field: 'romWriteRetryCount', key: 'romWriteRetryCount' },
+  { group: 'retry', field: 'romWriteRetryDelay', key: 'romWriteRetryDelayMs' },
+  { group: 'timeout', field: 'default', key: 'defaultTimeout' },
+  { group: 'timeout', field: 'packageSend', key: 'packageSendTimeout' },
+  { group: 'timeout', field: 'packageReceive', key: 'packageReceiveTimeout' },
+  { group: 'timeout', field: 'operation', key: 'operationTimeout' },
 ];
+
+function toControlSettings(values: Readonly<Record<string, ParameterValue>>): ControlSettings {
+  const num = (key: string, fallback: number) => {
+    const value = values[key];
+    return typeof value === 'number' ? value : fallback;
+  };
+  return {
+    throttle: { romRead: num('romReadThrottleMs', 0), ramRead: num('ramReadThrottleMs', 0) },
+    retry: {
+      romReadCount: num('romReadRetryCount', 1),
+      ramReadCount: num('ramReadRetryCount', 1),
+      romReadDelay: num('romReadRetryDelayMs', 0),
+      ramReadDelay: num('ramReadRetryDelayMs', 0),
+      romEraseRetryCount: num('romEraseRetryCount', 1),
+      romEraseRetryDelay: num('romEraseRetryDelayMs', 0),
+      romWriteRetryCount: num('romWriteRetryCount', 1),
+      romWriteRetryDelay: num('romWriteRetryDelayMs', 0),
+    },
+    timeout: {
+      default: num('defaultTimeout', 3000),
+      packageSend: num('packageSendTimeout', 3000),
+      packageReceive: num('packageReceiveTimeout', 3000),
+      operation: num('operationTimeout', 30000),
+    },
+  };
+}
+
+const localSettings = ref<ControlSettings>(toControlSettings(AdvancedSettings.getGlobalParameters()));
+const activeSection = ref<SettingsSectionId>('firmware');
 
 // 验证错误
 const validationErrors = ref({
-  romPageSize: '',
-  romReadPageSize: '',
-  ramPageSize: '',
   romReadThrottle: '',
   ramReadThrottle: '',
   romReadRetryCount: '',
@@ -839,43 +960,33 @@ const validationErrors = ref({
 const hasSectionError = (sectionId: SettingsSectionId): boolean => {
   switch (sectionId) {
     case 'size':
-      return Boolean(
-        validationErrors.value.romPageSize
-        || validationErrors.value.romReadPageSize
-        || validationErrors.value.ramPageSize,
-      );
+      return Object.values(fieldErrors.value).some(errors => Object.keys(errors).length > 0);
     case 'control':
-      return Boolean(
-        validationErrors.value.defaultTimeout
-        || validationErrors.value.packageSendTimeout
-        || validationErrors.value.packageReceiveTimeout
-        || validationErrors.value.operationTimeout
-        || validationErrors.value.romReadThrottle
-        || validationErrors.value.ramReadThrottle
-        || validationErrors.value.romReadRetryCount
-        || validationErrors.value.ramReadRetryCount
-        || validationErrors.value.romReadRetryDelay
-        || validationErrors.value.ramReadRetryDelay
-        || validationErrors.value.romEraseRetryCount
-        || validationErrors.value.romEraseRetryDelay
-        || validationErrors.value.romWriteRetryCount
-        || validationErrors.value.romWriteRetryDelay,
-      );
+      return Object.values(validationErrors.value).some(error => error !== '');
     case 'firmware':
     case 'appearance':
       return false;
   }
 };
 
+const selectedVariantLabel = computed(() => {
+  const option = variantOptions.value.find(variant => variant.id === selectedVariantId.value);
+  return option ? option.label : t('ui.settings.firmware.selectionRequired');
+});
+
 const settingsSections = computed(() => {
   const activeColorModeOption = colorModes.find((item) => item.id === currentColorMode.value);
   const activeThemeOption = themes.find((item) => item.id === currentTheme.value);
   const activeFontOption = fonts.find((item) => item.id === currentFont.value);
+  const sizeSummary = namespaceFields.value
+    .filter(field => field.kind === 'int')
+    .map(field => formatBytes(Number(field.value)))
+    .join(' / ');
   return [
     {
       id: 'firmware' as const,
       title: t('ui.settings.firmware.title'),
-      summary: t(`ui.settings.firmware.${localSettings.value.firmware.profile}`),
+      summary: selectedVariantLabel.value,
     },
     {
       id: 'appearance' as const,
@@ -885,7 +996,7 @@ const settingsSections = computed(() => {
     {
       id: 'size' as const,
       title: t('ui.settings.size.title'),
-      summary: `${formatBytes(localSettings.value.profileSizes[editingSizeProfile.value].romPageSize)} / ${formatBytes(localSettings.value.profileSizes[editingSizeProfile.value].ramPageSize)}`,
+      summary: sizeSummary,
     },
     {
       id: 'control' as const,
@@ -894,31 +1005,6 @@ const settingsSections = computed(() => {
     },
   ];
 });
-
-const validateReadPageSize = (value: number): string => {
-  if (isNaN(value) || value < limits.readPageSize.min || value > limits.readPageSize.max) {
-    return t('ui.settings.size.validation.range', {
-      min: limits.readPageSize.min,
-      max: limits.readPageSize.max,
-    });
-  }
-  if (value % 64 !== 0) {
-    return t('ui.settings.size.validation.multiple', { multipler: 64 });
-  }
-  return '';
-};
-const validatePageSize = (value: number): string => {
-  if (isNaN(value) || value < limits.pageSize.min || value > limits.pageSize.max) {
-    return t('ui.settings.size.validation.range', {
-      min: limits.pageSize.min,
-      max: limits.pageSize.max,
-    });
-  }
-  if (value % 64 !== 0) {
-    return t('ui.settings.size.validation.multiple', { multipler: 64 });
-  }
-  return '';
-};
 
 const validateTimeout = (value: number): string => {
   if (isNaN(value) || value < limits.timeout.min || value > limits.timeout.max) {
@@ -962,11 +1048,6 @@ const validateRetryDelay = (value: number): string => {
 
 // 验证并更新
 const validateAndUpdate = () => {
-  const activeProfileSize = localSettings.value.profileSizes[editingSizeProfile.value];
-  // 验证页面大小
-  validationErrors.value.romPageSize = validatePageSize(activeProfileSize.romPageSize);
-  validationErrors.value.romReadPageSize = validateReadPageSize(activeProfileSize.romReadPageSize);
-  validationErrors.value.ramPageSize = validatePageSize(activeProfileSize.ramPageSize);
   validationErrors.value.romReadThrottle = validateThrottle(localSettings.value.throttle.romRead);
   validationErrors.value.ramReadThrottle = validateThrottle(localSettings.value.throttle.ramRead);
   validationErrors.value.romReadRetryCount = validateRetryCount(localSettings.value.retry.romReadCount);
@@ -985,42 +1066,22 @@ const validateAndUpdate = () => {
   validationErrors.value.operationTimeout = validateTimeout(localSettings.value.timeout.operation);
 };
 
-function onFlashgbxBaudRateChange(value: string | number | undefined) {
-  if (value === 'auto') {
-    localSettings.value.firmware.flashgbxBaudRate = 'auto';
-  } else {
-    const parsed = Number(value);
-    if (parsed === 1_000_000 || parsed === 1_500_000 || parsed === 2_000_000) {
-      localSettings.value.firmware.flashgbxBaudRate = parsed;
-    }
-  }
-  validateAndUpdate();
-}
-
-const switchEditingSizeProfile = (profile: ConfigurableFirmwareProfileId) => {
-  if (editingSizeProfile.value === profile) return;
-  editingSizeProfile.value = profile;
-  validateAndUpdate();
-};
-
-watch(() => localSettings.value.firmware.profile, (nextProfile) => {
-  switchEditingSizeProfile(nextProfile);
-});
-
 // 检查是否有效
 const isValid = computed(() => {
-  return Object.values(validationErrors.value).every(error => error === '');
+  return Boolean(selectedVariantId.value)
+    && Object.values(validationErrors.value).every(error => error === '')
+    && Object.values(fieldErrors.value).every(errors => Object.keys(errors).length === 0);
 });
 
 // 重置为默认值
 const resetToDefaults = () => {
   if (confirm(t('ui.settings.actions.resetConfirm'))) {
-    editingSizeProfile.value = 'stm';
-    localSettings.value = createDefaultSettings();
+    AdvancedSettings.resetToDefaults();
+    AdvancedSettings.setVariantId(VARIANT_IDS.stm);
     setColorMode(DEFAULT_COLOR_MODE);
     setTheme(DEFAULT_COLOR_THEME);
     setFont(DEFAULT_FONT_FAMILY);
-    validateAndUpdate();
+    loadCurrentSettings();
   }
 };
 
@@ -1029,14 +1090,26 @@ const applySettings = () => {
   if (!isValid.value) return;
 
   try {
-    const activeProfile = localSettings.value.firmware.profile;
-    const activeSizes = localSettings.value.profileSizes[activeProfile];
-    AdvancedSettings.setSettings({
-      ...localSettings.value,
-      size: { ...activeSizes },
-    });
+    const namespace = CORE_PARAMETER_NAMESPACE;
+    AdvancedSettings.setIndependentSizes(independentSizes.value);
 
-    console.log(t('ui.settings.messages.saveSuccess'), AdvancedSettings.getSettings());
+    for (const tab of namespaceTabs.value) {
+      for (const descriptor of schemaFor(tab.id)) {
+        const value = namespaceDrafts.value[tab.id]?.[descriptor.key] ?? descriptor.default;
+        runtime.store.set(tab.id, descriptor.key, value);
+      }
+    }
+
+    for (const mapping of CONTROL_FIELD_KEYS) {
+      const group = localSettings.value[mapping.group] as unknown as Record<string, number>;
+      runtime.store.set(namespace, mapping.key, group[mapping.field]);
+    }
+
+    if (selectedVariantId.value) {
+      AdvancedSettings.setVariantId(selectedVariantId.value);
+    }
+
+    console.log(t('ui.settings.messages.saveSuccess'));
     emit('applied');
     emit('close');
   } catch (error) {
@@ -1046,12 +1119,28 @@ const applySettings = () => {
 };
 
 // 组件挂载或打开时加载当前设置
-const loadCurrentSettings = () => {
-  const settings = AdvancedSettings.getSettings();
-  localSettings.value = settings;
-  editingSizeProfile.value = settings.firmware.profile;
+function loadCurrentSettings() {
+  selectedVariantId.value = runtime.selection.read().variantId ?? null;
+  independentSizes.value = AdvancedSettings.getIndependentSizes();
+
+  const drafts: Record<string, Record<string, ParameterValue>> = {};
+  for (const namespace of ['beggar.stm', 'beggar.stc', 'flashgbx.cfw']) {
+    drafts[namespace] = { ...runtime.store.snapshot(namespace) };
+  }
+  namespaceDrafts.value = drafts;
+
+  const selectedNamespace = runtime.registry.findVariant(selectedVariantId.value ?? '')?.parameterNamespace;
+  editingNamespace.value = selectedNamespace && namespaceTabs.value.some(tab => tab.id === selectedNamespace)
+    ? selectedNamespace
+    : 'beggar.stm';
+
+  localSettings.value = toControlSettings(AdvancedSettings.getGlobalParameters());
   validateAndUpdate();
+  validateNamespaceFields();
 };
+
+// Fill the drafts before the first render so every v-model target exists.
+loadCurrentSettings();
 
 onMounted(loadCurrentSettings);
 
@@ -1181,6 +1270,56 @@ watch(() => props.modelValue, (visible) => {
     color: var(--retro-ink-muted);
     font-weight: typography-vars.$font-weight-medium;
   }
+}
+
+.variant-options {
+  display: grid;
+  gap: spacing-vars.$space-2;
+}
+
+.variant-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--retro-border);
+  border-radius: 4px;
+  background: var(--retro-bg-surface);
+  color: var(--retro-ink);
+  box-shadow: var(--retro-shadow-btn);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.12s ease;
+
+  &:hover {
+    background: var(--retro-bg-tint);
+    transform: translate(-1px, 1px);
+    box-shadow: var(--retro-shadow-btn-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--retro-primary-bg);
+    outline-offset: 2px;
+  }
+
+  &.is-active {
+    background: var(--retro-bg-tint);
+    outline: 2px solid var(--retro-primary-bg);
+    outline-offset: -2px;
+  }
+}
+
+.variant-name {
+  font-size: typography-vars.$font-size-sm;
+  font-weight: typography-vars.$font-weight-semibold;
+  line-height: 1.4;
+}
+
+.variant-description {
+  color: var(--retro-ink-muted);
+  font-size: typography-vars.$font-size-xs;
+  line-height: 1.5;
 }
 
 .input-group {
@@ -1418,21 +1557,5 @@ watch(() => props.modelValue, (visible) => {
     border-color: var(--retro-accent-color, #667eea);
     font-weight: typography-vars.$font-weight-semibold;
   }
-}
-
-.boost-option-row {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: spacing-vars.$space-2;
-  margin-top: spacing-vars.$space-4;
-  padding-top: spacing-vars.$space-3;
-  border-top: 1px dashed var(--retro-border);
-}
-
-.boost-option-hint {
-  margin-top: 0;
-  text-align: left;
-  line-height: 1.5;
 }
 </style>

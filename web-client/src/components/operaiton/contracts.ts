@@ -1,6 +1,6 @@
+import type { CapabilitySet } from '@/device/capabilities';
 import type { MbcType } from '@/types/command-options';
 import type { FileInfo } from '@/types/file-info';
-import type { FirmwareProfile } from '@/types/firmware-profile';
 import type { FlashcartProfileSummary } from '@/types/flashcart-profile';
 
 export type { GbaPreviewLaunch, GbaPreviewSavePayload } from '@/features/gba-save/types';
@@ -16,7 +16,8 @@ export interface ChipOperationsProps {
   bufferWriteBytes?: number;
   selectedMbcType?: MbcType;
   mbcPower5V?: boolean;
-  firmwareProfile?: FirmwareProfile;
+  /** Capabilities of the active session; the panel renders availability from them. */
+  capabilities?: CapabilitySet;
   flashcartProfiles?: readonly FlashcartProfileSummary[];
   selectedFlashcartProfileId?: string;
   ambiguousFlashcartProfiles?: readonly FlashcartProfileSummary[];
@@ -71,7 +72,8 @@ export interface RamOperationsProps {
   selectedRamSize?: string;
   selectedRamType?: string;
   selectedBaseAddress?: string;
-  firmwareProfile?: FirmwareProfile;
+  /** Capabilities of the active session; absent means no connected session. */
+  capabilities?: CapabilitySet;
 }
 
 export const RAM_OPERATION_EVENTS = [

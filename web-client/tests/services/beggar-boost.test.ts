@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  inferFirmwareProfileFromPort,
-  STM_FIRMWARE_PROFILE,
-  withBeggarBoostProfile,
-} from '@/device/compat/firmware-profile';
+import { VARIANT_IDS } from '@/device/definitions';
 import type { Transport } from '@/platform/serial';
 import { BoostCommand } from '@/protocol';
 import { GBAAdapter } from '@/services/gba-adapter';
@@ -13,6 +9,8 @@ import { GBARTC } from '@/services/rtc/gba-rtc';
 import type { DeviceInfo } from '@/types/device-info';
 import { crc32 } from '@/utils/crc-utils';
 import type { CFIInfo } from '@/utils/parsers/cfi-parser';
+
+import { buildTestSession } from '../helpers/session-profile';
 
 function createBoostSimulatedTransport(romImage: Uint8Array, options?: {
   rtcBytes?: Uint8Array;
@@ -132,12 +130,13 @@ function createBoostSimulatedTransport(romImage: Uint8Array, options?: {
   return { transport, commands };
 }
 
-function makeDevice(transport: Transport, profile = STM_FIRMWARE_PROFILE): DeviceInfo {
+/** Boost is an explicitly selected variant, so the fixture is a real Boost session. */
+function makeDevice(transport: Transport, variantId: string = VARIANT_IDS.stmBoost): DeviceInfo {
   return {
     port: null,
     connection: null,
     transport,
-    firmwareProfile: profile,
+    session: buildTestSession(variantId),
   };
 }
 
@@ -160,22 +159,10 @@ const dummyGbcCfi = {
 } as unknown as CFIInfo;
 
 describe('Beggar Boost integration', () => {
-  it('infers STM firmware for ChisFlash Beggar product string', () => {
-    const profile = inferFirmwareProfileFromPort({
-      path: 'COM5',
-      vendorId: '0483',
-      productId: '0721',
-      manufacturer: 'CNY Industry',
-      product: 'ChisFlash Beggar',
-    });
-    expect(profile.id).toBe('stm');
-  });
-
   it('uses 0xd5 hardware CRC32 verify on Boost-enabled STM GBA device and stays in Boost mode across calls', async () => {
     const rom = Uint8Array.from({ length: 256 * 1024 }, (_, idx) => (idx * 31) & 0xff);
     const { transport, commands } = createBoostSimulatedTransport(rom);
-    const boostProfile = withBeggarBoostProfile(STM_FIRMWARE_PROFILE, 'ChisFlash Beggar FW C15 RC39-STM32');
-    const adapter = new GBAAdapter(makeDevice(transport, boostProfile));
+    const adapter = new GBAAdapter(makeDevice(transport));
 
     const result = await adapter.verifyROM(rom, { cfiInfo: dummyGbaCfi });
     expect(result.success).toBe(true);
@@ -196,9 +183,8 @@ describe('Beggar Boost integration', () => {
     expectedRom[0x1234] ^= 0x55;
 
     const { transport, commands } = createBoostSimulatedTransport(deviceRom);
-    const boostProfile = withBeggarBoostProfile(STM_FIRMWARE_PROFILE);
     const adapter = new GBAAdapter(
-      makeDevice(transport, boostProfile),
+      makeDevice(transport),
       null,
       null,
       (key, params?: Record<string, unknown>) => `${key}:${JSON.stringify(params ?? {})}`,
@@ -214,8 +200,7 @@ describe('Beggar Boost integration', () => {
   it('uses 0xd5 CRC32 verify across MBC5 banks on Boost-enabled STM device and stays in Boost mode', async () => {
     const rom = Uint8Array.from({ length: 64 * 1024 }, (_, idx) => (idx * 17) & 0xff);
     const { transport, commands } = createBoostSimulatedTransport(rom);
-    const boostProfile = withBeggarBoostProfile(STM_FIRMWARE_PROFILE);
-    const adapter = new MBC5Adapter(makeDevice(transport, boostProfile));
+    const adapter = new MBC5Adapter(makeDevice(transport));
 
     const verifyResult = await adapter.verifyROM(rom, { cfiInfo: dummyGbcCfi, mbcType: 'MBC5' });
     expect(verifyResult.success).toBe(true);
@@ -227,8 +212,7 @@ describe('Beggar Boost integration', () => {
   it('reads GBA RTC natively via 0xca when gbaNativeRtcRead capability is present', async () => {
     const rtcRaw = Uint8Array.from([0x40, 0x26, 0x11, 0x22, 0x00, 0x09, 0x30, 0x15]);
     const { transport, commands } = createBoostSimulatedTransport(new Uint8Array(0), { rtcBytes: rtcRaw });
-    const boostProfile = withBeggarBoostProfile(STM_FIRMWARE_PROFILE);
-    const rtc = new GBARTC(makeDevice(transport, boostProfile), boostProfile);
+    const rtc = new GBARTC(makeDevice(transport), { boostTransport: true });
 
     const result = await rtc.readTime();
     expect(result.status).toBe(true);
@@ -245,8 +229,7 @@ describe('Beggar Boost integration', () => {
     const rom = Uint8Array.from({ length: 16 * 1024 }, (_, idx) => (idx * 13) & 0xff);
     const ram = new Uint8Array(32 * 1024);
     const { transport, commands } = createBoostSimulatedTransport(rom.slice(), { ramImage: ram });
-    const boostProfile = withBeggarBoostProfile(STM_FIRMWARE_PROFILE);
-    const adapter = new GBAAdapter(makeDevice(transport, boostProfile));
+    const adapter = new GBAAdapter(makeDevice(transport));
 
     const readRomRes = await adapter.readROM(0x2000, { cfiInfo: dummyGbaCfi });
     expect(readRomRes.success).toBe(true);
@@ -274,8 +257,7 @@ describe('Beggar Boost integration', () => {
     const rom = Uint8Array.from({ length: 32 * 1024 }, (_, idx) => (idx * 7) & 0xff);
     const ram = new Uint8Array(8 * 1024);
     const { transport, commands } = createBoostSimulatedTransport(rom, { ramImage: ram });
-    const boostProfile = withBeggarBoostProfile(STM_FIRMWARE_PROFILE);
-    const adapter = new MBC5Adapter(makeDevice(transport, boostProfile));
+    const adapter = new MBC5Adapter(makeDevice(transport));
 
     const readRomRes = await adapter.readROM(0x4000, { cfiInfo: dummyGbcCfi, mbcType: 'MBC5' });
     expect(readRomRes.success).toBe(true);
@@ -296,9 +278,8 @@ describe('Beggar Boost integration', () => {
   it('uses Boost reads in isBlank and resets to default protocol for FRAM readRAM', async () => {
     const blankRom = new Uint8Array(32 * 1024).fill(0xff);
     const { transport, commands } = createBoostSimulatedTransport(blankRom);
-    const boostProfile = withBeggarBoostProfile(STM_FIRMWARE_PROFILE);
-    const gbaAdapter = new GBAAdapter(makeDevice(transport, boostProfile));
-    const mbc5Adapter = new MBC5Adapter(makeDevice(transport, boostProfile));
+    const gbaAdapter = new GBAAdapter(makeDevice(transport));
+    const mbc5Adapter = new MBC5Adapter(makeDevice(transport));
 
     expect(await gbaAdapter.isBlank(0, 0x100)).toBe(true);
     expect(commands).toContain(BoostCommand.READ_AGB_ROM);
@@ -316,8 +297,7 @@ describe('Beggar Boost integration', () => {
   it('re-enters Boost mode after a read retry channel reset', async () => {
     const rom = Uint8Array.from({ length: 0x2000 }, (_, idx) => (idx * 5) & 0xff);
     const { transport, commands } = createBoostSimulatedTransport(rom);
-    const boostProfile = withBeggarBoostProfile(STM_FIRMWARE_PROFILE);
-    const adapter = new GBAAdapter(makeDevice(transport, boostProfile));
+    const adapter = new GBAAdapter(makeDevice(transport));
 
     const baseImpl = transport.sendAndReceive;
     let failedOnce = false;

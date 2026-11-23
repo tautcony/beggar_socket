@@ -528,7 +528,13 @@
         "flashgbx": "FlashGBX",
         "flashgbxBaudRate": "FlashGBX ボーレート",
         "flashgbxBaudAuto": "自動",
-        "flashgbxBaudHint": "自動では CH340 GBFlash に 2M を使用し、CDC デバイスではボーレートを無視します。"
+        "flashgbxBaudHint": "自動では CH340 GBFlash に 2M を使用し、CDC デバイスではボーレートを無視します。",
+        "stmBoostOption": "丐中丐（Boost）",
+        "stmHint": "標準 STM32 ファームウェア。丐中丐 の通常転送プロファイルを使用します。",
+        "stcHint": "碳酸丐（STC8）ファームウェア。GBA FRAM 以外の RAM 操作とソフトウェア電源制御に対応します。",
+        "flashgbxHint": "GBFlash ハードウェアで動作する FlashGBX ファームウェア。フラッシュカートDBに対応します。",
+        "noActiveSession": "デバイス未接続",
+        "selectionRequired": "接続するデバイスとファームウェアを選択してください"
       },
       "appearance": {
         "title": "外観とフォント",
@@ -557,7 +563,10 @@
           "invalid": "有効な数値を入力してください",
           "range": "サイズは {min} - {max} バイトの間で入力してください",
           "multiple": "サイズは{multipler}の倍数である必要があります"
-        }
+        },
+        "independentSizes": "ファームウェアごとにパケット設定を保存",
+        "independentHint": "丐中丐 と 碳酸丐 でパケットサイズを別々に保存します。",
+        "linkedHint": "丐中丐 と 碳酸丐 は同じパケット設定を共有します。独立設定を有効にすると個別に調整できます。"
       },
       "control": {
         "title": "読み書き異常制御"

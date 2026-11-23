@@ -1,24 +1,24 @@
+/**
+ * Transitional facade of the legacy `FirmwareProfile` shape.
+ *
+ * Only the projection of a committed session survives: the app never invents a profile
+ * from port strings and never falls back to permissive defaults for unknown devices.
+ */
 import { describe, expect, it } from 'vitest';
 
 import {
+  firmwareProfileFromSession,
+  firmwareUnsupportedResult,
   FLASHGBX_FIRMWARE_PROFILE,
-  getFirmwareProfile,
-  getFirmwareProfileById,
-  isRamTypeSupportedByFirmware,
   STC_FIRMWARE_PROFILE,
   STM_FIRMWARE_PROFILE,
-  UNKNOWN_FIRMWARE_PROFILE,
-  withBeggarBoostProfile,
 } from '@/device/compat/firmware-profile';
-import type { DeviceInfo } from '@/types/device-info';
+import { VARIANT_IDS } from '@/device/definitions';
+
+import { buildFlashgbxSession, buildStmSession, buildTestSession } from '../helpers/session-profile';
 
 describe('legacy firmware profile facade', () => {
   it('derives the legacy ids, labels and read ceilings from registered definitions', () => {
-    expect(getFirmwareProfileById('stm')).toBe(STM_FIRMWARE_PROFILE);
-    expect(getFirmwareProfileById('stc')).toBe(STC_FIRMWARE_PROFILE);
-    expect(getFirmwareProfileById('flashgbx')).toBe(FLASHGBX_FIRMWARE_PROFILE);
-    expect(getFirmwareProfileById('unknown')).toBe(UNKNOWN_FIRMWARE_PROFILE);
-
     expect(STM_FIRMWARE_PROFILE).toMatchObject({ label: '丐中丐', maxReadChunk: 0x1000 });
     expect(STC_FIRMWARE_PROFILE).toMatchObject({ label: '碳酸丐', maxReadChunk: 0x8000 });
     expect(FLASHGBX_FIRMWARE_PROFILE).toMatchObject({ label: 'FlashGBX', maxReadChunk: 0x100 });
@@ -45,37 +45,32 @@ describe('legacy firmware profile facade', () => {
     expect(FLASHGBX_FIRMWARE_PROFILE.capabilities.audioWePin).toBe(false);
   });
 
-  it('keeps the Boost compat helper off the standard STM constant', () => {
-    const boost = withBeggarBoostProfile(STM_FIRMWARE_PROFILE, 'v1.2');
+  it('projects a committed session without drifting from it', () => {
+    const stm = firmwareProfileFromSession(buildStmSession({ firmwareVersion: 'v1.2' }));
+    expect(stm.id).toBe('stm');
+    expect(stm.firmwareVersion).toBe('v1.2');
+    expect(stm.maxReadChunk).toBe(0x1000);
+    expect(stm.capabilities.boostMode).toBe(false);
+
+    const boost = firmwareProfileFromSession(buildTestSession(VARIANT_IDS.stmBoost));
     expect(boost.id).toBe('stm');
-    expect(boost.label).toBe('丐中丐 (Boost)');
-    expect(boost.maxReadChunk).toBe(0x2000);
-    expect(boost.firmwareVersion).toBe('v1.2');
     expect(boost.capabilities.boostMode).toBe(true);
-    expect(STM_FIRMWARE_PROFILE.capabilities.boostMode).toBe(false);
-    expect(STM_FIRMWARE_PROFILE.maxReadChunk).toBe(0x1000);
+    expect(boost.maxReadChunk).toBe(0x2000);
+
+    const stc = firmwareProfileFromSession(buildTestSession(VARIANT_IDS.stc));
+    expect(stc.id).toBe('stc');
+
+    const flashgbx = firmwareProfileFromSession(buildFlashgbxSession());
+    expect(flashgbx.id).toBe('flashgbx');
+    expect(flashgbx.capabilities.nativeFlashgbxProtocol).toBe(true);
   });
 
-  it('keeps loose defaults for unknown devices only in the facade', () => {
-    const profile = getFirmwareProfileById('unknown');
-    expect(profile.capabilities.gbaSectorErase).toBe(true);
-    expect(profile.capabilities.cartPowerControl).toBe(true);
-    // No registered firmware opts into that permissiveness.
-    expect(STM_FIRMWARE_PROFILE.capabilities.cartPowerControl).toBe(false);
-    expect(FLASHGBX_FIRMWARE_PROFILE.capabilities.cartPowerControl).toBe(false);
-  });
-
-  it('still reads a profile from a device with no session', () => {
-    const device = {
-      port: null,
-      portInfo: { path: '/dev/cu.usbmodem6D83538A48851', vendorId: '0483', productId: '0721' },
-    } as DeviceInfo;
-    expect(getFirmwareProfile(device)).toBe(STM_FIRMWARE_PROFILE);
-  });
-
-  it('keeps the FRAM gap readable through the legacy helper', () => {
-    expect(isRamTypeSupportedByFirmware(STC_FIRMWARE_PROFILE, 'gba', 'FRAM')).toBe(false);
-    expect(isRamTypeSupportedByFirmware(STC_FIRMWARE_PROFILE, 'mbc5', 'FRAM')).toBe(true);
-    expect(isRamTypeSupportedByFirmware(STM_FIRMWARE_PROFILE, 'gba', 'FRAM')).toBe(true);
+  it('formats the unsupported-operation message from the profile label', () => {
+    expect(firmwareUnsupportedResult('GBA ROM sector erase', STC_FIRMWARE_PROFILE)).toEqual({
+      success: false,
+      message: 'GBA ROM sector erase is not supported by 碳酸丐 firmware',
+      errorCode: 'unsupported',
+      errorStage: 'protocol',
+    });
   });
 });

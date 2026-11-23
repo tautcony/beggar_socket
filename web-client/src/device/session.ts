@@ -107,6 +107,8 @@ export interface SessionProfile {
   readonly device: DeviceDefinition;
   readonly firmware: FirmwareDefinition;
   readonly firmwareVersion?: string;
+  /** Parameter namespace of the binding; operation settings are read from it. */
+  readonly parameterNamespace: string;
   readonly capabilities: CapabilitySet;
   readonly runtimeFeatures: RuntimeFeatures;
   readonly transport: ResolvedTransportProfile;

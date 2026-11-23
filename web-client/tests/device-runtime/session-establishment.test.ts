@@ -1,20 +1,22 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { VARIANT_IDS } from '@/device/definitions';
+import {
+  BEGGAR_RUNTIME_BINDING_ID,
+  GBFLASH_RUNTIME_BINDING_ID,
+  VARIANT_IDS,
+} from '@/device/definitions';
 import type { DeviceDisplayModel } from '@/device/display';
 import type { ProbeResult, SessionTransport } from '@/device/session';
 import type { SelectionProvider } from '@/device/types';
 import {
-  BEGGAR_RUNTIME_BINDING_ID,
-  GBFLASH_RUNTIME_BINDING_ID,
-} from '@/device/definitions';
-import {
+  createDeviceRuntime,
   createRuntimeCompositionRegistry,
   createSessionEstablishment,
-  createDeviceRuntime,
   isSessionStageError,
   type RuntimeBinding,
 } from '@/device-runtime';
+
+import { captureStageError } from '../helpers/rejection';
 
 interface StubDriver {
   readonly probe: ReturnType<typeof vi.fn>;
@@ -132,9 +134,8 @@ describe('SessionEstablishment', () => {
     });
     const { transport } = createTransport();
 
-    const error = await establishment
-      .establish({ connectionId: 'session-1', transport, backend: 'serial' })
-      .catch(reason => reason);
+    const error = await captureStageError(establishment
+      .establish({ connectionId: 'session-1', transport, backend: 'serial' }));
 
     expect(isSessionStageError(error)).toBe(true);
     expect(error).toMatchObject({ stage: 'selection', code: 'selection-invalid' });
@@ -149,9 +150,8 @@ describe('SessionEstablishment', () => {
     const { establishment } = createHarness({ driver });
     const { transport, closed } = createTransport();
 
-    const error = await establishment
-      .establish({ connectionId: 'session-1', transport, portInfo: PORT, backend: 'serial' })
-      .catch(reason => reason);
+    const error = await captureStageError(establishment
+      .establish({ connectionId: 'session-1', transport, portInfo: PORT, backend: 'serial' }));
 
     expect(error).toMatchObject({ stage: 'probe', code: 'probe-failed' });
     expect(driver.cleanupPending).toHaveBeenCalledWith(
@@ -174,9 +174,8 @@ describe('SessionEstablishment', () => {
     const { establishment } = createHarness({ driver });
     const { transport } = createTransport();
 
-    const error = await establishment
-      .establish({ connectionId: 'session-1', transport, backend: 'serial' })
-      .catch(reason => reason);
+    const error = await captureStageError(establishment
+      .establish({ connectionId: 'session-1', transport, backend: 'serial' }));
 
     expect(error).toMatchObject({ stage: 'resolve', code: 'resolve-failed' });
     expect(driver.cleanupPending).toHaveBeenCalledWith(expect.anything(), 'resolve');
@@ -190,9 +189,8 @@ describe('SessionEstablishment', () => {
     const { establishment } = createHarness({ driver });
     const { transport } = createTransport();
 
-    const error = await establishment
-      .establish({ connectionId: 'session-1', transport, backend: 'serial' })
-      .catch(reason => reason);
+    const error = await captureStageError(establishment
+      .establish({ connectionId: 'session-1', transport, backend: 'serial' }));
 
     expect(error).toMatchObject({ stage: 'initialize', code: 'initialize-failed' });
     expect(error.diagnostics.map((diagnostic: { code: string }) => diagnostic.code))
@@ -207,10 +205,10 @@ describe('SessionEstablishment', () => {
         return attempts === 1
           ? Promise.reject(new Error('first attempt fails'))
           : Promise.resolve<ProbeResult<unknown>>({
-              firmwareId: pending.selection.firmware.id,
-              verification: 'verified',
-              facts: {},
-            });
+            firmwareId: pending.selection.firmware.id,
+            verification: 'verified',
+            facts: {},
+          });
       }),
     });
     const { establishment } = createHarness({ driver });

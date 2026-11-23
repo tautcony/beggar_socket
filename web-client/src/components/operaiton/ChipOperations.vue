@@ -182,11 +182,11 @@ const bufferWriteBytesStr = computed(() => {
 });
 
 const supportsCartPowerControl = computed(() => {
-  return props.firmwareProfile?.capabilities.cartPowerControl ?? true;
+  return props.capabilities?.has('cart.powerControl') ?? false;
 });
 
 const showFlashcartProfileSelector = computed(() => {
-  return Boolean(props.firmwareProfile?.capabilities.nativeFlashgbxProtocol);
+  return props.capabilities?.has('profile.flashcartDb') ?? false;
 });
 
 const expectedProfileType = computed(() => (props.mode === 'GBA' ? 'AGB' : 'DMG'));

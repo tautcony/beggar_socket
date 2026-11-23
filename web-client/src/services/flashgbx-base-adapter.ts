@@ -2,7 +2,6 @@
  * Shared base adapter for FlashGBX GBA and DMG/MBC adapters.
  * Derived from FlashGBX (GPL-3.0) LK_Device.py.
  */
-import { getFirmwareProfile } from '@/device/compat/firmware-profile';
 import type { Transport } from '@/platform/serial';
 import {
   FLASHGBX_CRC32_CHUNK_SIZE,
@@ -69,9 +68,11 @@ export function getOrCreateFlashgbxClient(device: DeviceInfo): FlashgbxCommandCl
     audioWePin: true,
     isCdc: false,
   };
-  const baudRate = typeof AdvancedSettings.flashgbxBaudRate === 'number'
-    ? AdvancedSettings.flashgbxBaudRate
-    : 2_000_000;
+  // The committed session already expanded `auto` to 2 Mbps; the persisted baud rate is
+  // only consulted when the client is created before a session exists.
+  const storedBaudRate = AdvancedSettings.getBaudRate();
+  const baudRate = device.session?.transport.baudRate
+    ?? (storedBaudRate === 'auto' ? 2_000_000 : storedBaudRate);
   const client = new FlashgbxCommandClient(transport, fwInfo, {
     baudRate,
     timeoutMs: AdvancedSettings.packageReceiveTimeout || 1500,
@@ -129,17 +130,17 @@ export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
   }
 
   protected getReadChunkLimit(): number {
-    const userLimit = AdvancedSettings.romReadPageSize || this.client.bufferLimits.maxRead;
+    const userLimit = this.settings.romReadPageSize || this.client.bufferLimits.maxRead;
     return Math.min(Math.max(userLimit, 0x1000), this.client.bufferLimits.maxRead);
   }
 
   protected getWriteChunkLimit(): number {
-    const userLimit = AdvancedSettings.romPageSize || this.client.bufferLimits.maxWrite;
+    const userLimit = this.settings.romPageSize || this.client.bufferLimits.maxWrite;
     return Math.min(userLimit, this.client.bufferLimits.maxWrite);
   }
 
   protected getRamWriteChunkLimit(): number {
-    const userLimit = AdvancedSettings.ramPageSize || this.client.bufferLimits.maxWrite;
+    const userLimit = this.settings.ramPageSize || this.client.bufferLimits.maxWrite;
     return Math.min(userLimit, this.client.bufferLimits.maxWrite);
   }
 
@@ -409,11 +410,10 @@ export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
       };
     }
     this.log(errorToBurnerLog(fallbackMessage, error), 'error');
-    const profile = getFirmwareProfile(this.device);
     const msg = error instanceof Error ? error.message : String(error);
     return {
       success: false,
-      message: `${fallbackMessage} (${profile.label}): ${msg}`,
+      message: `${fallbackMessage} (${this.deviceLabel()}): ${msg}`,
     };
   }
 
@@ -438,6 +438,23 @@ export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
     this.lastCartInfoErrorDetails = undefined;
   }
 
+  /**
+   * Flashcart database profiles are a session capability, never a firmware identity.
+   *
+   * A session that does not declare `profile.flashcartDb` (standard STM, STM-Boost and the
+   * carbon STC firmware) never adopts a profile, so an externally supplied
+   * `flashcartProfileId` is dropped instead of being trusted.
+   */
+  protected supportsFlashcartProfiles(): boolean {
+    return this.supports('profile.flashcartDb');
+  }
+
+  /** Profile id the session is allowed to use; `undefined` means "fall back to Auto (CFI)". */
+  protected flashcartProfileIdFor(options?: Partial<CommandOptions>): string | undefined {
+    const requested = options?.flashcartProfileId;
+    return requested && this.supportsFlashcartProfiles() ? requested : undefined;
+  }
+
   protected validateProfileCapabilities(profile: FlashcartProfile): FlashcartValidationResult {
     return FlashcartProfileService.validateCapabilities(profile, {
       audioWePin: this.client.fwInfo.audioWePin,
@@ -450,25 +467,26 @@ export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
     options?: Partial<CommandOptions>,
   ): Promise<{ profile: FlashcartProfile | null; errorResult?: CommandResult }> {
     let profile: FlashcartProfile | null = null;
-    if (options?.flashcartProfileId) {
-      if (this.activeFlashcartProfile?.id === options.flashcartProfileId) {
+    const requestedId = this.flashcartProfileIdFor(options);
+    if (requestedId) {
+      if (this.activeFlashcartProfile?.id === requestedId) {
         profile = this.activeFlashcartProfile;
       } else {
         const list = await FlashcartProfileService.loadByMode(flashcartMode);
-        profile = list.find(item => item.id === options.flashcartProfileId) ?? null;
+        profile = list.find(item => item.id === requestedId) ?? null;
         if (!profile) {
           return {
             profile: null,
             errorResult: {
               success: false,
               errorCode: 'profile_not_found',
-              message: `Flashcart profile "${options.flashcartProfileId}" not found`,
+              message: `Flashcart profile "${requestedId}" not found`,
             },
           };
         }
       }
     } else {
-      profile = this.activeFlashcartProfile;
+      profile = this.supportsFlashcartProfiles() ? this.activeFlashcartProfile : null;
     }
 
     if (profile) {
@@ -546,6 +564,12 @@ export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
     }
 
     const { profile } = outcome.match;
+    if (!this.supportsFlashcartProfiles()) {
+      this.lastCartInfoErrorCode = 'profile_not_supported';
+      this.lastCartInfoError = 'The active session does not provide the flashcart database capability';
+      return false;
+    }
+
     const validation = this.validateProfileCapabilities(profile);
     if (!validation.valid) {
       this.lastCartInfoErrorCode = validation.errorCode;

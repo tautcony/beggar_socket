@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { VARIANT_IDS } from '@/device/definitions';
 import { ConnectionOperationCoordinator } from '@/features/burner/application';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 
@@ -89,12 +90,12 @@ function connectionContext(
     handle: handleWith({}, options),
     ...(options.session
       ? {
-          session: {
-            profile: options.session,
-            diagnostics: options.diagnostics ?? [],
-            ...(options.probeFacts ? { probeFacts: options.probeFacts } : {}),
-          },
-        }
+        session: {
+          profile: options.session,
+          diagnostics: options.diagnostics ?? [],
+          ...(options.probeFacts ? { probeFacts: options.probeFacts } : {}),
+        },
+      }
       : {}),
   };
 }
@@ -124,8 +125,7 @@ describe('DeviceConnectionManager', () => {
   });
 
   it('connects immediately when exactly one port matches the saved variant', async () => {
-    AdvancedSettings.firmwareProfile = 'flashgbx';
-    AdvancedSettings.flashgbxBaudRate = 'auto';
+    AdvancedSettings.setVariantId(VARIANT_IDS.gbflash);
     connectionUseCaseState.listAvailableSelections.mockResolvedValue({
       success: true,
       ports: [port(CH340_PORT), port({ path: '/dev/cu.usbmodem', vendorId: 'dead', productId: 'beef' })],
@@ -144,7 +144,7 @@ describe('DeviceConnectionManager', () => {
   });
 
   it('requires an explicit choice when several ports match and opens nothing', async () => {
-    AdvancedSettings.firmwareProfile = 'flashgbx';
+    AdvancedSettings.setVariantId(VARIANT_IDS.gbflash);
     const second = { path: '/dev/cu.usbmodem27dd', vendorId: '16c0', productId: '27dd' };
     connectionUseCaseState.listAvailableSelections.mockResolvedValue({
       success: true,
@@ -163,7 +163,7 @@ describe('DeviceConnectionManager', () => {
   });
 
   it('offers every visible port but opens nothing when no port matches the saved variant', async () => {
-    AdvancedSettings.firmwareProfile = 'flashgbx';
+    AdvancedSettings.setVariantId(VARIANT_IDS.gbflash);
     const apple = { path: '/dev/cu.usbmodem1', manufacturer: 'Apple' };
     const stm = { path: '/dev/cu.usbmodem2', manufacturer: 'STMicroelectronics' };
     connectionUseCaseState.listAvailableSelections.mockResolvedValue({
@@ -182,7 +182,7 @@ describe('DeviceConnectionManager', () => {
   });
 
   it('skips discovery when the user explicitly asks for any port', async () => {
-    AdvancedSettings.firmwareProfile = 'flashgbx';
+    AdvancedSettings.setVariantId(VARIANT_IDS.gbflash);
     connectionUseCaseState.prepareConnection.mockResolvedValue({
       success: true,
       context: connectionContext(3, {
@@ -216,7 +216,7 @@ describe('DeviceConnectionManager', () => {
   });
 
   it('projects the committed session, not the port metadata, onto DeviceInfo', async () => {
-    AdvancedSettings.firmwareProfile = 'stc';
+    AdvancedSettings.setVariantId(VARIANT_IDS.stc);
     const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
     connectionUseCaseState.reconnectWithSelection.mockResolvedValueOnce({
       success: true,
@@ -249,7 +249,7 @@ describe('DeviceConnectionManager', () => {
       expect.objectContaining({
         source: 'connectWithSelectedPort',
         variant: 'gbflash',
-        profile: 'flashgbx',
+        firmware: 'flashgbx.cfw',
         baudRate: 2_000_000,
       }),
     );
@@ -257,7 +257,7 @@ describe('DeviceConnectionManager', () => {
   });
 
   it('keeps a mismatch port when it is picked explicitly and surfaces the diagnostic', async () => {
-    AdvancedSettings.firmwareProfile = 'stm';
+    AdvancedSettings.setVariantId(VARIANT_IDS.stm);
     const mismatch = { path: '/dev/cu.usbserial-110', vendorId: '1a86', productId: '7523' };
     const session = buildStmSession({
       usb: { vendorId: '1a86', productId: '7523' },
@@ -280,7 +280,7 @@ describe('DeviceConnectionManager', () => {
   });
 
   it('runs teardown once inside the connection transaction and clears legacy state', async () => {
-    AdvancedSettings.firmwareProfile = 'flashgbx';
+    AdvancedSettings.setVariantId(VARIANT_IDS.gbflash);
     connectionUseCaseState.reconnectWithSelection.mockResolvedValueOnce({
       success: true,
       context: connectionContext(6, {
@@ -330,7 +330,7 @@ describe('DeviceConnectionManager', () => {
   });
 
   it('rejects operations bound to a previous generation before touching the transport', async () => {
-    AdvancedSettings.firmwareProfile = 'flashgbx';
+    AdvancedSettings.setVariantId(VARIANT_IDS.gbflash);
     connectionUseCaseState.snapshot = {
       state: 'connected',
       context: { generation: 2, handle: { id: 'h2' } as never, selection: null },

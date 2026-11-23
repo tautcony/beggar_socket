@@ -1,6 +1,9 @@
 import { firmwareProfileFromSession } from '@/device/compat/firmware-profile';
+import { displayTextToString } from '@/device/display';
 import type { DeviceDiagnostic, SessionProfile } from '@/device/session';
 import type { ResolvedVariantSelection } from '@/device/types';
+import { type DeviceRuntime, getDeviceRuntime } from '@/device-runtime/runtime-instance';
+import { resolveConnectionBaudRate } from '@/device-runtime/session-resolver';
 import { createConnectionOrchestrationUseCase } from '@/features/burner/adapters';
 import type {
   BurnerConnectionHandle,
@@ -10,11 +13,9 @@ import type {
   ConnectionOperationToken,
   ConnectionOrchestrationUseCase,
 } from '@/features/burner/application';
-import { getDeviceRuntime, type DeviceRuntime } from '@/device-runtime/runtime-instance';
-import { resolveConnectionBaudRate } from '@/device-runtime/session-resolver';
-import type { FlashgbxFirmwareInfo } from '@/protocol';
 import { isTauriRuntime } from '@/platform/runtime';
 import type { DeviceHandle } from '@/platform/serial';
+import type { FlashgbxFirmwareInfo } from '@/protocol';
 import { DeviceInfo } from '@/types/device-info';
 import type { SerialPortInfo } from '@/types/serial';
 import { PortSelectionRequiredError } from '@/utils/errors/PortSelectionRequiredError';
@@ -208,15 +209,16 @@ export class DeviceConnectionManager {
   }
 
   private logFirmwareProfile(device: DeviceInfo, source: string): void {
-    const profile = device.firmwareProfile;
+    // The committed session is the only identity source; the legacy profile id is gone.
+    const session = device.session;
     const portInfo = device.portInfo;
     console.info('[DeviceConnectionManager] session established', {
       source,
-      variant: device.session?.variantId ?? 'unknown',
-      profile: profile?.id ?? 'unknown',
-      label: profile?.label ?? 'Unknown',
-      firmwareVersion: profile?.firmwareVersion,
-      baudRate: device.session?.transport.baudRate,
+      variant: session?.variantId ?? 'unknown',
+      firmware: session?.firmware.id ?? 'unknown',
+      label: session ? displayTextToString(session.display.title) : 'Unknown',
+      firmwareVersion: session?.firmwareVersion,
+      baudRate: session?.transport.baudRate,
       diagnostics: device.diagnostics?.map(diagnostic => diagnostic.code) ?? [],
       port: portInfo
         ? {

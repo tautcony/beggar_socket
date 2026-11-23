@@ -1,4 +1,4 @@
-﻿import { firmwareUnsupportedResult, isRamTypeSupportedByFirmware } from '@/device/compat/firmware-profile';
+﻿import { firmwareUnsupportedResult } from '@/device/compat/firmware-profile';
 import {
   boost_configure_amd_flash,
   boost_enter_mode,
@@ -25,7 +25,6 @@ import {
 } from '@/protocol';
 import { planBankChunk } from '@/services/bank-chunk-planner';
 import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
-import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions, MbcType } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
@@ -101,16 +100,15 @@ export class MBC5Adapter extends CartridgeAdapter {
   }
 
   private getUnsupportedPowerControlResult(): CommandResult | null {
-    return this.firmwareProfile.capabilities.cartPowerControl
+    return this.supports('cart.powerControl')
       ? null
       : firmwareUnsupportedResult('MBC 5V power control', this.firmwareProfile);
   }
 
   private getUnsupportedRamTypeResult(ramType: CommandOptions['ramType'], operation: string): CommandResult | null {
     const resolvedRamType = ramType ?? 'SRAM';
-    return isRamTypeSupportedByFirmware(this.firmwareProfile, 'mbc5', resolvedRamType)
-      ? null
-      : firmwareUnsupportedResult(operation, this.firmwareProfile);
+    const supported = resolvedRamType !== 'FRAM' || this.supports('ram.fram.gbc');
+    return supported ? null : firmwareUnsupportedResult(operation, this.firmwareProfile);
   }
 
   private async pulseSignals(): Promise<void> {
@@ -171,9 +169,9 @@ export class MBC5Adapter extends CartridgeAdapter {
     reason: 'prepare' | 'recover',
     signal?: AbortSignal,
   ): Promise<void> {
-    const retries = AdvancedSettings.romEraseRetryCount;
+    const retries = this.settings.romEraseRetryCount;
     const attempts = retries + 1;
-    const retryDelayMs = AdvancedSettings.romEraseRetryDelayMs;
+    const retryDelayMs = this.settings.romEraseRetryDelayMs;
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
@@ -229,10 +227,10 @@ export class MBC5Adapter extends CartridgeAdapter {
     restoreState?: () => Promise<void>,
   ): Promise<Uint8Array> {
     let lastError: unknown;
-    const retries = AdvancedSettings.ramReadRetryCount;
+    const retries = this.settings.ramReadRetryCount;
     const attempts = retries + 1;
-    const retryDelayMs = AdvancedSettings.ramReadRetryDelayMs;
-    const timeoutMs = AdvancedSettings.packageReceiveTimeout;
+    const retryDelayMs = this.settings.ramReadRetryDelayMs;
+    const timeoutMs = this.settings.packageReceiveTimeout;
 
     for (let attempt = 1; attempt <= attempts; attempt++) {
       try {
@@ -881,10 +879,10 @@ export class MBC5Adapter extends CartridgeAdapter {
     const enable5V = options.enable5V ?? false;
     const baseAddress = options.baseAddress ?? 0x00;
     const pageSize = this.resolveRomReadPageSize(options.romPageSize);
-    const readThrottleMs = AdvancedSettings.romReadThrottleMs;
-    const retries = AdvancedSettings.romReadRetryCount;
-    const retryDelayMs = AdvancedSettings.romReadRetryDelayMs;
-    const timeoutMs = AdvancedSettings.packageReceiveTimeout;
+    const readThrottleMs = this.settings.romReadThrottleMs;
+    const retries = this.settings.romReadRetryCount;
+    const retryDelayMs = this.settings.romReadRetryDelayMs;
+    const timeoutMs = this.settings.packageReceiveTimeout;
 
     this.log(this.t('messages.operation.startReadROM', {
       size,
@@ -1441,9 +1439,9 @@ export class MBC5Adapter extends CartridgeAdapter {
     const ramType = options.ramType ?? 'SRAM';
     const effectiveRamType = ramType === 'BATLESS' ? 'SRAM' : ramType;
     const pageSize = this.resolveRamPageSize(options.ramPageSize);
-    const retries = AdvancedSettings.ramReadRetryCount;
-    const retryDelayMs = AdvancedSettings.ramReadRetryDelayMs;
-    const timeoutMs = AdvancedSettings.packageReceiveTimeout;
+    const retries = this.settings.ramReadRetryCount;
+    const retryDelayMs = this.settings.ramReadRetryDelayMs;
+    const timeoutMs = this.settings.packageReceiveTimeout;
     const framLatency = options.framLatency ?? 25;
 
     this.log(this.t('messages.operation.startReadRAM', {
@@ -1654,7 +1652,7 @@ export class MBC5Adapter extends CartridgeAdapter {
    */
   override async getCartInfo(enable5V = false): Promise<CFIInfo | false> {
     this.lastCartInfoError = undefined;
-    if (enable5V && !this.firmwareProfile.capabilities.cartPowerControl) {
+    if (enable5V && !this.supports('cart.powerControl')) {
       const unsupported = firmwareUnsupportedResult('MBC 5V power control', this.firmwareProfile);
       this.lastCartInfoError = unsupported.message;
       this.log(unsupported.message, 'error');

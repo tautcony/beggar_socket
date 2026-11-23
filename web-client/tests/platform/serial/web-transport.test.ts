@@ -9,8 +9,9 @@ function createFakeWebSerialPort() {
 
   const readable = new ReadableStream<Uint8Array>({
     pull(controller) {
-      if (readChunks.length > 0) {
-        controller.enqueue(readChunks.shift()!);
+      const chunk = readChunks.shift();
+      if (chunk) {
+        controller.enqueue(chunk);
         return;
       }
       return new Promise<void>((resolve) => {

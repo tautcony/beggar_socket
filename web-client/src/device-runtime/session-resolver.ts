@@ -172,6 +172,7 @@ export function createSessionResolver(options: SessionResolverOptions): SessionR
         variantId: selection.variantId,
         device: selection.device,
         firmware: selection.firmware,
+        parameterNamespace: selection.parameterNamespace,
         ...(probe.firmwareVersion !== undefined ? { firmwareVersion: probe.firmwareVersion } : {}),
         capabilities,
         runtimeFeatures,
