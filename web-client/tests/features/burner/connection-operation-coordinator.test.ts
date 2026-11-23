@@ -111,7 +111,10 @@ describe('ConnectionOperationCoordinator', () => {
     });
 
     const scope = effectScope();
-    const uiState = scope.run(() => useConnectionOperationBusy())!;
+    const uiState = scope.run(() => useConnectionOperationBusy());
+    if (!uiState) {
+      throw new Error('effect scope did not run');
+    }
     expect(uiState.connectionBusy.value).toBe(false);
 
     const activeOp = manager.runConnectionOperation({

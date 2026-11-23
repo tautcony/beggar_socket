@@ -1,4 +1,4 @@
-import { getDeviceRuntime, type DeviceRuntime } from '@/device-runtime/runtime-instance';
+import { type DeviceRuntime, getDeviceRuntime } from '@/device-runtime/runtime-instance';
 import { getDeviceGateway } from '@/platform/serial';
 
 import { ConnectionOrchestrationUseCase } from '../application/connection-use-case';

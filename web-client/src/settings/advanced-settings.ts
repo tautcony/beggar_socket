@@ -1,197 +1,116 @@
-import { getOptimalPacketLimits } from '@/platform/serial/platform-packet-policy';
-import type { ConfigurableFirmwareProfileId } from '@/types/firmware-profile';
-import { floorPowerOfTwo } from '@/utils/transfer-plan';
+/**
+ * Advanced settings compatibility facade.
+ *
+ * The persisted record lives in `advanced-settings-v2.ts` (single `selectedVariantId`,
+ * firmware namespaces, global parameters and the STM/STC linking flag). This module keeps
+ * the numeric accessors the transfer, protocol and adapter layers already use, and resolves
+ * page sizes through the namespace of the selected variant instead of a firmware profile id.
+ *
+ * There is deliberately no `firmwareProfile` / `stmBoost` / `flashgbxBaudRate` alias any
+ * more: the selection is `selectedVariantId` and the baud rate is `flashgbx.cfw.baudRate`.
+ */
+import { displayTextToString } from '@/device/display';
+import type { ParameterDescriptor, ParameterSchema } from '@/device/parameters';
 
-export type FlashgbxBaudRate = 'auto' | 1000000 | 1500000 | 2000000;
+import {
+  advancedSettingsStorage,
+  defaultGlobalParameters,
+  defaultSizesForNamespace,
+  FLASHGBX_BAUD_RATES,
+  type FlashgbxBaudRate,
+  GLOBAL_PARAMETER_KEYS,
+  GLOBAL_PARAMETER_SPECS,
+  namespaceForVariant,
+  normalizeBaudRate,
+  normalizeValue,
+  PARAMETER_NAMESPACES,
+  type ParameterBag,
+  SETTING_LIMITS,
+  type SettingsLoadOutcome,
+  type SizeSettings,
+  type StoredValue,
+  type ValidatorType,
+} from './advanced-settings-v2';
 
-export interface SizeSettings {
-  romPageSize: number;
-  romReadPageSize: number;
-  ramPageSize: number;
+export {
+  ADVANCED_SETTINGS_STORAGE_KEY,
+  ADVANCED_SETTINGS_VERSION,
+  type AdvancedSettingsV2,
+  type FlashgbxBaudRate,
+  type GlobalParameterKey,
+  LEGACY_SETTINGS_BACKUP_KEY,
+  NAMESPACE_BY_VARIANT,
+  normalizeBaudRate,
+  PARAMETER_NAMESPACES,
+  type ParameterBag,
+  SETTING_LIMITS,
+  type SettingsLoadOutcome,
+  type SizeSettings,
+  type StoredValue,
+} from './advanced-settings-v2';
+
+const SIZE_KEYS = ['romPageSize', 'romReadPageSize', 'ramPageSize'] as const;
+type SizeKey = (typeof SIZE_KEYS)[number];
+
+function validatorForSize(key: SizeKey): ValidatorType {
+  return key === 'romReadPageSize' ? 'readPageSize' : 'pageSize';
 }
 
-export interface AdvancedSettingsConfig {
-  firmware?: {
-    profile?: ConfigurableFirmwareProfileId;
-    stmBoost?: boolean;
-    flashgbxBaudRate?: FlashgbxBaudRate;
-  };
-  size?: Partial<SizeSettings>;
-  profileSizes?: Partial<Record<ConfigurableFirmwareProfileId, Partial<SizeSettings>>>;
-  throttle?: {
-    romRead?: number;
-    ramRead?: number;
-  };
-  retry?: {
-    romReadCount?: number;
-    ramReadCount?: number;
-    romReadDelay?: number;
-    ramReadDelay?: number;
-    romEraseRetryCount?: number;
-    romEraseRetryDelay?: number;
-    romWriteRetryCount?: number;
-    romWriteRetryDelay?: number;
-  };
-  timeout?: {
-    default?: number;
-    packageSend?: number;
-    packageReceive?: number;
-    operation?: number;
-  };
+const GBFLASH_NAMESPACE = 'flashgbx.cfw';
+
+function activeNamespace(): string {
+  return namespaceForVariant(advancedSettingsStorage.selectedVariantId);
 }
 
-// --- Setting descriptor infrastructure ---
-
-type ValidatorType = 'pageSize' | 'readPageSize' | 'throttle' | 'retryCount' | 'retryDelay' | 'timeout';
-
-interface SettingDescriptor {
-  key: string;
-  group: string;
-  field: string;
-  default: number;
-  validator: ValidatorType;
-  errorLabel: string;
+export interface SettingsValidationResult {
+  valid: boolean;
+  errors: string[];
 }
 
-const LIMITS = {
-  pageSize: { min: 0x40, max: 0x2000 },
-  readPageSize: { min: 0x40, max: 0x8000 },
-  throttle: { min: 0, max: 1000 },
-  retryCount: { min: 0, max: 10 },
-  retryDelay: { min: 0, max: 5000 },
-  timeout: { min: 1000, max: 300000 },
-} as const;
-
-const VALIDATOR_META: Record<ValidatorType, { label: string; unit: string }> = {
-  pageSize: { label: 'Page size', unit: '' },
-  readPageSize: { label: 'Read page size', unit: '' },
-  throttle: { label: 'Read throttle', unit: 'ms' },
-  retryCount: { label: 'Retry count', unit: '' },
-  retryDelay: { label: 'Retry delay', unit: 'ms' },
-  timeout: { label: 'Timeout', unit: 'ms' },
-};
-
-const SETTING_DESCRIPTORS: readonly SettingDescriptor[] = [
-  { key: 'romPageSize', group: 'size', field: 'romPageSize', default: 0x1000, validator: 'pageSize', errorLabel: 'ROM page size' },
-  { key: 'romReadPageSize', group: 'size', field: 'romReadPageSize', default: 0x1000, validator: 'readPageSize', errorLabel: 'ROM read page size' },
-  { key: 'ramPageSize', group: 'size', field: 'ramPageSize', default: 0x1000, validator: 'pageSize', errorLabel: 'RAM page size' },
-  { key: 'romReadThrottleMs', group: 'throttle', field: 'romRead', default: 0, validator: 'throttle', errorLabel: 'ROM read throttle' },
-  { key: 'ramReadThrottleMs', group: 'throttle', field: 'ramRead', default: 0, validator: 'throttle', errorLabel: 'RAM read throttle' },
-  { key: 'romReadRetryCount', group: 'retry', field: 'romReadCount', default: 1, validator: 'retryCount', errorLabel: 'ROM read retry count' },
-  { key: 'ramReadRetryCount', group: 'retry', field: 'ramReadCount', default: 1, validator: 'retryCount', errorLabel: 'RAM read retry count' },
-  { key: 'romReadRetryDelayMs', group: 'retry', field: 'romReadDelay', default: 0, validator: 'retryDelay', errorLabel: 'ROM read retry delay' },
-  { key: 'ramReadRetryDelayMs', group: 'retry', field: 'ramReadDelay', default: 0, validator: 'retryDelay', errorLabel: 'RAM read retry delay' },
-  { key: 'romEraseRetryCount', group: 'retry', field: 'romEraseRetryCount', default: 1, validator: 'retryCount', errorLabel: 'ROM erase retry count' },
-  { key: 'romEraseRetryDelayMs', group: 'retry', field: 'romEraseRetryDelay', default: 0, validator: 'retryDelay', errorLabel: 'ROM erase retry delay' },
-  { key: 'romWriteRetryCount', group: 'retry', field: 'romWriteRetryCount', default: 1, validator: 'retryCount', errorLabel: 'ROM write retry count' },
-  { key: 'romWriteRetryDelayMs', group: 'retry', field: 'romWriteRetryDelay', default: 0, validator: 'retryDelay', errorLabel: 'ROM write retry delay' },
-  { key: 'defaultTimeout', group: 'timeout', field: 'default', default: 3000, validator: 'timeout', errorLabel: 'default timeout' },
-  { key: 'packageSendTimeout', group: 'timeout', field: 'packageSend', default: 3000, validator: 'timeout', errorLabel: 'packageSend timeout' },
-  { key: 'packageReceiveTimeout', group: 'timeout', field: 'packageReceive', default: 3000, validator: 'timeout', errorLabel: 'packageReceive timeout' },
-  { key: 'operationTimeout', group: 'timeout', field: 'operation', default: 30000, validator: 'timeout', errorLabel: 'operation timeout' },
-];
-
-const _storage: Record<string, number> = Object.fromEntries(
-  SETTING_DESCRIPTORS.map((d) => [d.key, d.default]),
-);
-let _firmwareProfile: ConfigurableFirmwareProfileId = 'stm';
-let _stmBoost = true;
-let _flashgbxBaudRate: FlashgbxBaudRate = 'auto';
-const CONFIGURABLE_PROFILES: readonly ConfigurableFirmwareProfileId[] = ['stm', 'stc', 'flashgbx'];
-
-function createDefaultProfileSizes(profile: ConfigurableFirmwareProfileId): SizeSettings {
-  const limits = getOptimalPacketLimits(profile);
-  return {
-    romPageSize: limits.romWrite,
-    romReadPageSize: limits.romRead,
-    ramPageSize: limits.ramPage,
-  };
-}
-
-const _profileSizes: Record<ConfigurableFirmwareProfileId, SizeSettings> = {
-  stm: createDefaultProfileSizes('stm'),
-  stc: createDefaultProfileSizes('stc'),
-  flashgbx: createDefaultProfileSizes('flashgbx'),
-};
-let _independentProfileSizes = false;
-
-function syncActiveProfileSizesToStorage(): void {
-  const active = _profileSizes[_firmwareProfile];
-  _storage.romPageSize = active.romPageSize;
-  _storage.romReadPageSize = active.romReadPageSize;
-  _storage.ramPageSize = active.ramPageSize;
-}
-
-syncActiveProfileSizesToStorage();
-
-const LEGACY_DEFAULTS = {
-  romPageSize: 0x200,
-  ramPageSize: 0x100,
-} as const;
-
-function validateValue(value: number, type: ValidatorType): number {
-  const { min, max } = LIMITS[type];
-  const { label, unit } = VALIDATOR_META[type];
-
-  const needsTruncFirst = type === 'throttle' || type === 'retryDelay' || type === 'timeout';
-  const v = needsTruncFirst ? Math.trunc(value) : value;
-
-  if (v < min) {
-    console.warn(`${label} ${v}${unit} is below minimum ${min}${unit}, clamping to minimum`);
-    return min;
+function errorRange(descriptor: ParameterDescriptor): string {
+  const min = descriptor.constraints?.min;
+  const max = descriptor.constraints?.max;
+  if (min === undefined || max === undefined) {
+    return '';
   }
-  if (v > max) {
-    console.warn(`${label} ${v}${unit} is above maximum ${max}${unit}, clamping to maximum`);
-    return max;
+  if (descriptor.kind === 'int' || descriptor.kind === 'hex') {
+    return `${min} and ${max}`;
   }
-
-  if ((type === 'pageSize' || type === 'readPageSize') && v !== 0x0c00 && (v & (v - 1)) !== 0) {
-    const normalized = floorPowerOfTwo(v, min);
-    console.warn(`${label} ${v} is not a power of two, normalizing down to ${normalized}`);
-    return normalized;
-  }
-
-  return type === 'retryCount' ? Math.trunc(v) : v;
+  return `${min} and ${max}`;
 }
 
-function formatErrorRange(min: number, max: number, type: ValidatorType): string {
-  switch (type) {
-    case 'pageSize':
-    case 'readPageSize':
-      return `${min} and ${max} bytes`;
-    case 'throttle':
-    case 'retryDelay':
-    case 'timeout':
-      return `${min}ms and ${max}ms`;
-    case 'retryCount':
-      return `${min} and ${max}`;
+/**
+ * Schema-driven validation: the UI form, the store and the compatibility accessors all
+ * read the same descriptor ranges, so a new parameter needs no extra validation code.
+ */
+export function validateSettings(
+  schema: ParameterSchema,
+  values: Readonly<Record<string, unknown>>,
+): SettingsValidationResult {
+  const errors: string[] = [];
+  for (const descriptor of schema) {
+    const value = values[descriptor.key];
+    if (value === undefined) {
+      continue;
+    }
+    const { constraints } = descriptor;
+    if (constraints?.options && !constraints.options.includes(value as never)) {
+      errors.push(`${displayTextToString(descriptor.label)} must be one of ${constraints.options.join(', ')}`);
+      continue;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      if (constraints?.min !== undefined && value < constraints.min) {
+        errors.push(`${displayTextToString(descriptor.label)} must be between ${errorRange(descriptor)}`);
+      }
+      if (constraints?.max !== undefined && value > constraints.max) {
+        errors.push(`${displayTextToString(descriptor.label)} must be between ${errorRange(descriptor)}`);
+      }
+    }
   }
+  return { valid: errors.length === 0, errors };
 }
-
-function validateFirmwareProfile(value: unknown): ConfigurableFirmwareProfileId {
-  if (value === 'stm' || value === 'stc' || value === 'flashgbx') {
-    return value;
-  }
-
-  console.warn(`Firmware profile ${String(value)} is not supported, falling back to stm`);
-  return 'stm';
-}
-
-function validateFlashgbxBaudRate(value: unknown): FlashgbxBaudRate {
-  if (value === 'auto' || value === 1000000 || value === 1500000 || value === 2000000) {
-    return value;
-  }
-
-  console.warn(`FlashGBX baud rate ${String(value)} is not supported, falling back to auto`);
-  return 'auto';
-}
-
-// --- AdvancedSettings class ---
 
 export class AdvancedSettings {
-  declare static firmwareProfile: ConfigurableFirmwareProfileId;
-  declare static stmBoost: boolean;
-  declare static flashgbxBaudRate: FlashgbxBaudRate;
   declare static romPageSize: number;
   declare static romReadPageSize: number;
   declare static ramPageSize: number;
@@ -210,260 +129,165 @@ export class AdvancedSettings {
   declare static packageReceiveTimeout: number;
   declare static operationTimeout: number;
 
-  static getProfileSizes(profile: ConfigurableFirmwareProfileId = _firmwareProfile): SizeSettings {
-    return { ..._profileSizes[profile] };
+  /** The persisted variant selection (`null` until the user picks one). */
+  static getVariantId(): string | null {
+    return advancedSettingsStorage.selectedVariantId;
   }
 
-  /**
-   * Writes one size field of a specific legacy profile. Additive helper for the device
-   * parameter store, which must persist values for a namespace that is not the active
-   * profile without switching `firmware.profile`.
-   */
-  static setProfileSize(
-    profile: ConfigurableFirmwareProfileId,
-    field: keyof SizeSettings,
-    value: number,
-  ): void {
-    const validated = validateValue(value, field === 'romReadPageSize' ? 'readPageSize' : 'pageSize');
-    _profileSizes[profile][field] = validated;
-    if (profile === _firmwareProfile) {
-      syncActiveProfileSizesToStorage();
-    }
-    this.saveSettings();
+  static setVariantId(variantId: string | null): void {
+    advancedSettingsStorage.setSelectedVariant(variantId);
   }
 
-  static getSettings() {
-    syncActiveProfileSizesToStorage();
-    return {
-      firmware: {
-        profile: _firmwareProfile,
-        stmBoost: _stmBoost,
-        flashgbxBaudRate: _flashgbxBaudRate,
-      },
-      size: {
-        romPageSize: _profileSizes[_firmwareProfile].romPageSize,
-        romReadPageSize: _profileSizes[_firmwareProfile].romReadPageSize,
-        ramPageSize: _profileSizes[_firmwareProfile].ramPageSize,
-      },
-      profileSizes: {
-        stm: { ..._profileSizes.stm },
-        stc: { ..._profileSizes.stc },
-        flashgbx: { ..._profileSizes.flashgbx },
-      },
-      throttle: {
-        romRead: _storage.romReadThrottleMs,
-        ramRead: _storage.ramReadThrottleMs,
-      },
-      retry: {
-        romReadCount: _storage.romReadRetryCount,
-        ramReadCount: _storage.ramReadRetryCount,
-        romReadDelay: _storage.romReadRetryDelayMs,
-        ramReadDelay: _storage.ramReadRetryDelayMs,
-        romEraseRetryCount: _storage.romEraseRetryCount,
-        romEraseRetryDelay: _storage.romEraseRetryDelayMs,
-        romWriteRetryCount: _storage.romWriteRetryCount,
-        romWriteRetryDelay: _storage.romWriteRetryDelayMs,
-      },
-      timeout: {
-        default: _storage.defaultTimeout,
-        packageSend: _storage.packageSendTimeout,
-        packageReceive: _storage.packageReceiveTimeout,
-        operation: _storage.operationTimeout,
-      },
-    };
+  static getIndependentSizes(): boolean {
+    return advancedSettingsStorage.independentSizes;
   }
 
-  static setSettings(settings: AdvancedSettingsConfig): void {
-    if (settings.firmware?.profile !== undefined) {
-      _firmwareProfile = validateFirmwareProfile(settings.firmware.profile);
-    }
-    if (settings.firmware?.stmBoost !== undefined) {
-      _stmBoost = settings.firmware.stmBoost;
-    }
-    if (settings.firmware?.flashgbxBaudRate !== undefined) {
-      _flashgbxBaudRate = validateFlashgbxBaudRate(settings.firmware.flashgbxBaudRate);
-    }
+  static setIndependentSizes(independent: boolean): void {
+    advancedSettingsStorage.setIndependentSizes(independent);
+  }
 
-    if (settings.profileSizes) {
-      _independentProfileSizes = true;
-      for (const profileId of CONFIGURABLE_PROFILES) {
-        const profileSize = settings.profileSizes[profileId];
-        if (!profileSize) continue;
-        if (profileSize.romPageSize !== undefined) {
-          _profileSizes[profileId].romPageSize = validateValue(profileSize.romPageSize, 'pageSize');
-        }
-        if (profileSize.romReadPageSize !== undefined) {
-          _profileSizes[profileId].romReadPageSize = validateValue(profileSize.romReadPageSize, 'readPageSize');
-        }
-        if (profileSize.ramPageSize !== undefined) {
-          _profileSizes[profileId].ramPageSize = validateValue(profileSize.ramPageSize, 'pageSize');
-        }
+  /** Page sizes of one firmware namespace, defaulted per host when unset. */
+  static getNamespaceSizes(namespace: string = activeNamespace()): SizeSettings {
+    const defaults = defaultSizesForNamespace(namespace);
+    const bag = advancedSettingsStorage.namespaceBag(namespace);
+    const sizes = { ...defaults };
+    for (const key of SIZE_KEYS) {
+      const stored = bag[key];
+      if (typeof stored === 'number') {
+        sizes[key] = stored;
       }
     }
+    return sizes;
+  }
 
-    const hasProfileSizes = Boolean(settings.profileSizes);
-    for (const desc of SETTING_DESCRIPTORS) {
-      const group = settings[desc.group as keyof AdvancedSettingsConfig];
-      if (group) {
-        const value = (group as Record<string, number | undefined>)[desc.field];
-        if (value !== undefined) {
-          const validated = validateValue(value, desc.validator);
-          _storage[desc.key] = validated;
-          if (desc.group === 'size' && !hasProfileSizes) {
-            _profileSizes[_firmwareProfile][desc.field as keyof SizeSettings] = validated;
-          }
-        }
+  static setNamespaceSize(namespace: string, key: SizeKey, value: number): number {
+    const normalized = normalizeValue(value, validatorForSize(key));
+    advancedSettingsStorage.writeParameter(namespace, key, normalized);
+
+    // Compatibility rule of the legacy accessor: while sizes are linked, a Beggar page
+    // size applies to STM and STC alike. GBFlash always keeps its own value.
+    if (!advancedSettingsStorage.independentSizes) {
+      const siblings = namespace === GBFLASH_NAMESPACE
+        ? []
+        : PARAMETER_NAMESPACES.filter(item => item !== GBFLASH_NAMESPACE && item !== namespace);
+      for (const sibling of siblings) {
+        advancedSettingsStorage.writeParameter(sibling, key, normalized);
       }
     }
-    syncActiveProfileSizesToStorage();
-    this.saveSettings();
+    return normalized;
+  }
+
+  /** Stored namespace parameters (defaults are not included). */
+  static getNamespaceParameters(namespace: string): ParameterBag {
+    return advancedSettingsStorage.namespaceBag(namespace);
+  }
+
+  static setNamespaceParameter(namespace: string, key: string, value: StoredValue): void {
+    advancedSettingsStorage.writeParameter(namespace, key, value);
+  }
+
+  static getBaudRate(): FlashgbxBaudRate {
+    const stored = advancedSettingsStorage.readParameter('flashgbx.cfw', 'baudRate');
+    return normalizeBaudRate(stored);
+  }
+
+  static setBaudRate(value: unknown): void {
+    advancedSettingsStorage.writeParameter('flashgbx.cfw', 'baudRate', normalizeBaudRate(value));
+  }
+
+  /** Global (namespace independent) operation parameters with defaults applied. */
+  static getGlobalParameters(): ParameterBag {
+    const values = defaultGlobalParameters();
+    for (const key of GLOBAL_PARAMETER_KEYS) {
+      const stored = advancedSettingsStorage.readGlobal(key);
+      if (typeof stored === 'number') {
+        values[key] = stored;
+      }
+    }
+    return values;
+  }
+
+  static setGlobalParameter(key: string, value: number): void {
+    const spec = GLOBAL_PARAMETER_SPECS.find(item => item.key === key);
+    const normalized = spec ? normalizeValue(value, spec.validator) : value;
+    advancedSettingsStorage.writeGlobal(key, normalized);
+  }
+
+  static loadSettings(): SettingsLoadOutcome {
+    const outcome = advancedSettingsStorage.load();
+    if (outcome.kind === 'malformed' || outcome.kind === 'unsupported') {
+      console.warn(`Advanced settings were not readable (${outcome.kind}); running on in-memory defaults`);
+    }
+    return outcome;
+  }
+
+  /** Re-reads the persisted record (used when storage changed outside this process). */
+  static reloadFromStorage(): SettingsLoadOutcome {
+    advancedSettingsStorage.resetLoadedState();
+    return this.loadSettings();
+  }
+
+  static saveSettings(): void {
+    advancedSettingsStorage.persist();
   }
 
   static resetToDefaults(): void {
-    _firmwareProfile = 'stm';
-    _stmBoost = true;
-    _flashgbxBaudRate = 'auto';
-    _independentProfileSizes = false;
-    for (const profileId of CONFIGURABLE_PROFILES) {
-      _profileSizes[profileId] = createDefaultProfileSizes(profileId);
-    }
-    for (const desc of SETTING_DESCRIPTORS) {
-      _storage[desc.key] = desc.default;
-    }
-    syncActiveProfileSizesToStorage();
-    this.saveSettings();
-  }
-
-  static loadSettings(): void {
-    try {
-      const saved = localStorage.getItem('advanced_settings');
-      if (saved) {
-        const settings = JSON.parse(saved) as AdvancedSettingsConfig;
-        if (settings.firmware?.flashgbxBaudRate === undefined) {
-          _flashgbxBaudRate = 'auto';
-        }
-        if (settings.size?.romPageSize === LEGACY_DEFAULTS.romPageSize) {
-          settings.size.romPageSize = _storage.romPageSize;
-        }
-        if (settings.size?.ramPageSize === LEGACY_DEFAULTS.ramPageSize) {
-          settings.size.ramPageSize = _storage.ramPageSize;
-        }
-        this.setSettings(settings);
-      }
-    } catch (error) {
-      console.warn('Failed to load advanced settings, using defaults', error);
-      this.resetToDefaults();
-    }
-  }
-
-  public static saveSettings(): void {
-    try {
-      const settings = this.getSettings();
-      localStorage.setItem('advanced_settings', JSON.stringify(settings));
-    } catch (error) {
-      console.error('Failed to save advanced settings:', error);
-    }
+    advancedSettingsStorage.reset();
+    advancedSettingsStorage.persist();
   }
 
   static init(): void {
     this.loadSettings();
-    console.log('Advanced settings initialized:', this.getSettings());
+    console.log('Advanced settings initialized:', {
+      variantId: this.getVariantId(),
+      independentSizes: this.getIndependentSizes(),
+      ...this.getGlobalParameters(),
+    });
   }
 
   static getLimits() {
     return {
-      pageSize: { min: LIMITS.pageSize.min, max: LIMITS.pageSize.max },
-      readPageSize: { min: LIMITS.readPageSize.min, max: LIMITS.readPageSize.max },
-      throttle: { min: LIMITS.throttle.min, max: LIMITS.throttle.max },
-      retryCount: { min: LIMITS.retryCount.min, max: LIMITS.retryCount.max },
-      retryDelay: { min: LIMITS.retryDelay.min, max: LIMITS.retryDelay.max },
-      timeout: { min: LIMITS.timeout.min, max: LIMITS.timeout.max },
+      pageSize: { ...SETTING_LIMITS.pageSize },
+      readPageSize: { ...SETTING_LIMITS.readPageSize },
+      throttle: { ...SETTING_LIMITS.throttle },
+      retryCount: { ...SETTING_LIMITS.retryCount },
+      retryDelay: { ...SETTING_LIMITS.retryDelay },
+      timeout: { ...SETTING_LIMITS.timeout },
     };
-  }
-
-  static validateSettings(
-    settings: AdvancedSettingsConfig,
-  ): { valid: boolean; errors: string[] } {
-    const errors: string[] = [];
-
-    for (const desc of SETTING_DESCRIPTORS) {
-      const group = settings[desc.group as keyof typeof settings];
-      if (group) {
-        const value = (group as Record<string, number | undefined>)[desc.field];
-        if (value !== undefined && typeof value === 'number') {
-          const { min, max } = LIMITS[desc.validator];
-          if (value < min || value > max) {
-            errors.push(`${desc.errorLabel} must be between ${formatErrorRange(min, max, desc.validator)}`);
-          }
-        }
-      }
-    }
-
-    return { valid: errors.length === 0, errors };
   }
 }
 
-Object.defineProperty(AdvancedSettings, 'firmwareProfile', {
-  get(): ConfigurableFirmwareProfileId {
-    return _firmwareProfile;
-  },
-  set(value: ConfigurableFirmwareProfileId) {
-    _firmwareProfile = validateFirmwareProfile(value);
-    syncActiveProfileSizesToStorage();
-    AdvancedSettings.saveSettings();
-  },
-  enumerable: true,
-  configurable: true,
-});
+/** Namespace used for parameters that every device shares (global schema writes). */
+export const CORE_PARAMETER_NAMESPACE = 'beggar.stm';
 
-Object.defineProperty(AdvancedSettings, 'stmBoost', {
-  get(): boolean {
-    return _stmBoost;
-  },
-  set(value: boolean) {
-    _stmBoost = value;
-    AdvancedSettings.saveSettings();
-  },
-  enumerable: true,
-  configurable: true,
-});
+/** Namespaces known to the persisted layout; used by the UI and the adapter. */
+export const CONFIGURABLE_NAMESPACES = PARAMETER_NAMESPACES;
 
-Object.defineProperty(AdvancedSettings, 'flashgbxBaudRate', {
-  get(): FlashgbxBaudRate {
-    return _flashgbxBaudRate;
-  },
-  set(value: FlashgbxBaudRate) {
-    _flashgbxBaudRate = validateFlashgbxBaudRate(value);
-    AdvancedSettings.saveSettings();
-  },
-  enumerable: true,
-  configurable: true,
-});
+export const CONFIGURABLE_BAUD_RATES = FLASHGBX_BAUD_RATES;
 
-// Register getter/setter properties from descriptors
-for (const desc of SETTING_DESCRIPTORS) {
-  Object.defineProperty(AdvancedSettings, desc.key, {
+// --- numeric compatibility accessors ---
+
+for (const key of SIZE_KEYS) {
+  Object.defineProperty(AdvancedSettings, key, {
     get(): number {
-      if (desc.group === 'size') {
-        return _profileSizes[_firmwareProfile][desc.field as keyof SizeSettings];
-      }
-      return _storage[desc.key];
+      return AdvancedSettings.getNamespaceSizes()[key];
     },
     set(value: number) {
-      const validated = validateValue(value, desc.validator);
-      _storage[desc.key] = validated;
-      if (desc.group === 'size') {
-        const field = desc.field as keyof SizeSettings;
-        _profileSizes[_firmwareProfile][field] = validated;
-        if (!_independentProfileSizes && _firmwareProfile !== 'flashgbx') {
-          for (const otherProfile of CONFIGURABLE_PROFILES) {
-            if (otherProfile !== _firmwareProfile && otherProfile !== 'flashgbx') {
-              _profileSizes[otherProfile][field] = validated;
-            }
-          }
-        }
-      }
-      AdvancedSettings.saveSettings();
+      AdvancedSettings.setNamespaceSize(activeNamespace(), key, value);
+    },
+    enumerable: true,
+    configurable: true,
+  });
+}
+
+for (const spec of GLOBAL_PARAMETER_SPECS) {
+  Object.defineProperty(AdvancedSettings, spec.key, {
+    get(): number {
+      const stored = advancedSettingsStorage.readGlobal(spec.key);
+      return typeof stored === 'number' ? stored : spec.defaultValue;
+    },
+    set(value: number) {
+      AdvancedSettings.setGlobalParameter(spec.key, value);
     },
     enumerable: true,
     configurable: true,

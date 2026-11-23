@@ -24,7 +24,7 @@ import type {
 import type { SerialPortInfo } from '@/types/serial';
 
 import type { RuntimeCompositionRegistry } from './composition-registry';
-import { createDiagnostic, isSessionStageError, SessionStageError, type SessionFailureStage } from './diagnostics';
+import { createDiagnostic, isSessionStageError, type SessionFailureStage, SessionStageError } from './diagnostics';
 import type { SessionResolver } from './session-resolver';
 
 export interface EstablishSessionInput {

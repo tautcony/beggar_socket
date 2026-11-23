@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { STM_FIRMWARE_PROFILE } from '@/device/compat/firmware-profile';
 import { SimulatedDeviceGateway } from '@/platform/serial/simulated/device-gateway';
 import { GBAAdapter } from '@/services/gba-adapter';
 import { MBC5Adapter } from '@/services/mbc5-adapter';
@@ -24,7 +25,7 @@ function toDeviceInfo(handle: Awaited<ReturnType<SimulatedDeviceGateway['connect
     transport: handle.transport,
     serialHandle: handle,
     portInfo: handle.portInfo,
-    firmwareProfile: handle.firmwareProfile,
+    firmwareProfile: handle.firmwareProfile ?? STM_FIRMWARE_PROFILE,
   };
 }
 

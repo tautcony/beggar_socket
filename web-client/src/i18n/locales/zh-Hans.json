@@ -536,7 +536,13 @@
         "flashgbx": "FlashGBX",
         "flashgbxBaudRate": "FlashGBX 波特率",
         "flashgbxBaudAuto": "自动",
-        "flashgbxBaudHint": "自动模式对 CH340 GBFlash 使用 2M，CDC 设备忽略波特率。"
+        "flashgbxBaudHint": "自动模式对 CH340 GBFlash 使用 2M，CDC 设备忽略波特率。",
+        "stmBoostOption": "丐中丐（Boost）",
+        "stmHint": "标准 STM32 固件，使用丐中丐的常规传输能力。",
+        "stcHint": "碳酸丐（STC8）固件，支持 GBA FRAM 以外的 RAM 操作与软件供电控制。",
+        "flashgbxHint": "GBFlash 硬件运行 FlashGBX 固件，支持烧录卡数据库能力。",
+        "noActiveSession": "当前未连接设备",
+        "selectionRequired": "请选择要连接的设备与固件"
       },
       "appearance": {
         "title": "外观与字体",
@@ -565,7 +571,10 @@
           "invalid": "请输入有效数值",
           "range": "大小必须在 {min} - {max} 字节之间",
           "multiple": "大小必须是{multipler}的倍数"
-        }
+        },
+        "independentSizes": "为每个固件单独保存封包设置",
+        "independentHint": "丐中丐与碳酸丐分别保存封包大小，互不影响。",
+        "linkedHint": "丐中丐与碳酸丐共用同一份封包设置；打开独立设置可分别调整。"
       },
       "control": {
         "title": "读写异常控制"

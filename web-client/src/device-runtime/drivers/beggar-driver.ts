@@ -6,15 +6,15 @@
  * extension, always with the fixed 250 ms budget — the session never downgrades itself
  * to a standard STM session when that handshake fails.
  */
-import type { ProbeResult, ProtocolDriver } from '@/device/session';
 import { VARIANT_IDS } from '@/device/definitions';
+import type { ProbeResult, ProtocolDriver } from '@/device/session';
+import type { Transport } from '@/platform/serial';
 import {
   boost_probe,
-  boost_reset_to_default,
   BOOST_PROBE_TIMEOUT_MS,
+  boost_reset_to_default,
   ensureDefaultProtocol,
 } from '@/protocol';
-import type { Transport } from '@/platform/serial';
 
 import { createDiagnostic, SessionStageError } from '../diagnostics';
 import { asPlatformTransport } from '../session-transport';

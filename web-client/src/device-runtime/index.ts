@@ -1,23 +1,28 @@
 /**
  * Composition root of the device abstraction.
  *
- * Builds the pure catalog, the runtime bindings, the legacy-backed parameter store, the
+ * Builds the pure catalog, the runtime bindings, the namespaced parameter store, the
  * selection provider and the session establishment transaction, and fails fast when a
  * binding references an unwired runtime.
  */
-import { createDeviceCatalog, LEGACY_PROFILE_VARIANT_IDS } from '@/device/definitions';
+import { createDeviceCatalog } from '@/device/definitions';
 import { createParameterStore, type ParameterStore } from '@/device/parameters';
-import { createLegacySelectionProvider } from '@/device/selection';
+import { createSelectionProvider } from '@/device/selection';
 import type { DeviceRegistry, SelectionProvider } from '@/device/types';
 import { detectHostPlatform } from '@/platform/serial/platform-packet-policy';
 import type { HostPlatform } from '@/types/host-platform';
 
-import { createLegacySettingsAdapter } from './adapters/legacy-settings-adapter';
+import { createSettingsStorageAdapter } from './adapters/settings-storage-adapter';
 import type { RuntimeCompositionRegistry } from './composition-registry';
 import { createBeggarRuntimeBinding, createFlashgbxRuntimeBinding, createRuntimeComposition } from './runtime-bindings';
 import { createSessionEstablishment, type SessionEstablishment } from './session-establishment';
 import { createSessionResolver, type SessionResolver } from './session-resolver';
 
+export {
+  createBeggarAdapterFactory,
+  createFlashgbxAdapterFactory,
+  flashgbxModeSync,
+} from './adapters/adapter-factory';
 export {
   type AdapterContext,
   type AdapterFactory,
@@ -29,16 +34,11 @@ export {
   type RuntimeCompositionRegistry,
 } from './composition-registry';
 export {
-  createBeggarAdapterFactory,
-  createFlashgbxAdapterFactory,
-  flashgbxModeSync,
-} from './adapters/adapter-factory';
-export {
   createDiagnostic,
   diagnosticToString,
   isSessionStageError,
-  SessionStageError,
   type SessionFailureStage,
+  SessionStageError,
   type SessionStageErrorOptions,
 } from './diagnostics';
 export { type BeggarProbeFacts, createBeggarDriver } from './drivers/beggar-driver';
@@ -82,17 +82,15 @@ export function createDeviceRuntime(options: DeviceRuntimeOptions = {}): DeviceR
     }
   }
 
-  const adapter = createLegacySettingsAdapter();
+  // STM and STC share the `beggar-sizes` link group; GBFlash never joins it.
+  const linkableNamespaces = [...new Set(registry.listBindings().map(binding => binding.parameterNamespace))];
+  const adapter = createSettingsStorageAdapter({ linkableNamespaces });
   const store = createParameterStore({
     adapter,
     platform,
     schemas: { resolve: namespace => registry.resolveNamespaceSchema(namespace) },
   });
-  const selection = createLegacySelectionProvider({
-    adapter,
-    registry,
-    legacyProfileVariants: LEGACY_PROFILE_VARIANT_IDS,
-  });
+  const selection = createSelectionProvider({ adapter, registry });
   const resolver = createSessionResolver({ platform, composition });
   const establishment = createSessionEstablishment({ selection, registry, store, resolver, composition });
 

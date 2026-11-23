@@ -77,6 +77,8 @@ function createMockDevice(overrides: Partial<DeviceInfo> = {}): DeviceInfo {
   return {
     port: null,
     connection: null,
+    // Direct adapter use: capabilities come from the profile unless a committed session exists.
+    firmwareProfile: STM_FIRMWARE_PROFILE,
     transport: {
       send: vi.fn(),
       read: vi.fn(),

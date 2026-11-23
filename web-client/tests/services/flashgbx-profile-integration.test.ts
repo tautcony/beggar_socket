@@ -8,6 +8,8 @@ import { FlashgbxMbcAdapter } from '@/services/flashgbx-mbc-adapter';
 import type { DeviceInfo } from '@/types/device-info';
 import type { FlashcartProfile } from '@/types/flashcart-profile';
 
+import { buildFlashgbxSession } from '../helpers/session-profile';
+
 function makeFwInfo(overrides: Partial<FlashgbxFirmwareInfo> = {}): FlashgbxFirmwareInfo {
   return {
     family: 'gbflash',
@@ -68,6 +70,8 @@ function makeMockClient(
     connection: null,
     firmwareProfile: { ...FLASHGBX_FIRMWARE_PROFILE, label: fwInfo.pcbName, firmwareVersion: `L${fwInfo.fwVer}` },
     flashgbxInfo: fwInfo,
+    // The committed session is what grants the flashcart database capability.
+    session: buildFlashgbxSession({ flashgbxInfo: fwInfo }),
   };
 
   return { client: client as unknown as FlashgbxCommandClient, mocks: client, device };

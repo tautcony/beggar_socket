@@ -1,5 +1,7 @@
 ﻿import { DateTime } from 'luxon';
 
+import type { CapabilityKey } from '@/device/capabilities';
+import { displayTextToString } from '@/device/display';
 import i18n from '@/i18n';
 import type { Transport } from '@/platform/serial';
 import {
@@ -49,18 +51,26 @@ function createProgressCallback(onProgress?: (progress: PPBProgress) => void): P
     }
   };
 }
-function isFlashgbxDevice(device: DeviceInfo): boolean {
-  return device.firmwareProfile?.id === 'flashgbx' || Boolean(device.firmwareProfile?.capabilities.nativeFlashgbxProtocol);
+/** Implementation routing only: availability is decided by the capability matrix. */
+function usesFlashgbxProtocol(device: DeviceInfo): boolean {
+  return device.session?.firmware.protocol === 'flashgbx';
 }
 
-function assertNotFlashgbx(device: DeviceInfo): void {
-  if (isFlashgbxDevice(device)) {
-    throw new Error('FlashGBX devices do not support ChisFlash tool functions (unsupported)');
+/** Throws the resolved capability reason when the session cannot perform a tool action. */
+function requireCapability(device: DeviceInfo, capability: CapabilityKey): void {
+  const capabilities = device.session?.capabilities;
+  if (!capabilities) {
+    throw new Error('Device session is not established; tool capabilities are unknown');
   }
+  if (capabilities.has(capability)) {
+    return;
+  }
+  const reason = capabilities.explain(capability);
+  throw new Error(reason ? displayTextToString(reason) : `${capability} is not supported by the connected device`);
 }
 
-function requireDeviceTransport(device: DeviceInfo): Transport {
-  assertNotFlashgbx(device);
+function requireDeviceTransport(device: DeviceInfo, capability: CapabilityKey): Transport {
+  requireCapability(device, capability);
   const transport = device.transport ?? device.serialHandle?.transport;
   if (!transport) {
     throw new Error('Device transport is not initialized');
@@ -378,7 +388,8 @@ async function flashgbxReadRTC(device: DeviceInfo, type: 'GBA' | 'MBC3'): Promis
  * @param rtcData - RTC数据
  */
 export async function setRTC(device: DeviceInfo, type: 'GBA' | 'MBC3', rtcData: GBARTCData | MBC3RTCData): Promise<void> {
-  if (isFlashgbxDevice(device)) {
+  requireCapability(device, type === 'GBA' ? 'tool.rtc.gba' : 'tool.rtc.mbc3');
+  if (usesFlashgbxProtocol(device)) {
     await flashgbxSetRTC(device, type, rtcData);
     return;
   }
@@ -392,7 +403,8 @@ export async function setRTC(device: DeviceInfo, type: 'GBA' | 'MBC3', rtcData: 
  * @param type - RTC 类型，'GBA' 或 'MBC3'
  */
 export async function readRTC(device: DeviceInfo, type: 'GBA' | 'MBC3'): Promise<{ status: boolean; time?: DateTime; error?: string }> {
-  if (isFlashgbxDevice(device)) {
+  requireCapability(device, type === 'GBA' ? 'tool.rtc.gba' : 'tool.rtc.mbc3');
+  if (usesFlashgbxProtocol(device)) {
     return await flashgbxReadRTC(device, type);
   }
   const rtcManager = new RTCManager(type, device);
@@ -403,7 +415,8 @@ export async function readRTC(device: DeviceInfo, type: 'GBA' | 'MBC3'): Promise
  * 震动测试 (GBA)
  */
 export async function rumbleTest(device: DeviceInfo): Promise<void> {
-  if (isFlashgbxDevice(device)) {
+  requireCapability(device, 'tool.rumble.gba');
+  if (usesFlashgbxProtocol(device)) {
     await withFlashgbxMode(device, 'AGB', async (client) => {
       try {
         await client.cartWrite('AGB', 0xc8, 0x01); // enable gpio
@@ -420,7 +433,7 @@ export async function rumbleTest(device: DeviceInfo): Promise<void> {
     return;
   }
 
-  const transport = requireDeviceTransport(device);
+  const transport = requireDeviceTransport(device, 'tool.rumble.gba');
 
   console.log('GPIO 指令');
   // GPIO 震动控制序列
@@ -454,7 +467,7 @@ export async function rumbleTest(device: DeviceInfo): Promise<void> {
  */
 export async function ppbUnlockGBA(device: DeviceInfo, onProgress?: (progress: PPBProgress) => void): Promise<{ success: boolean; message: string }> {
   const t = i18n.global.t;
-  const transport = requireDeviceTransport(device);
+  const transport = requireDeviceTransport(device, 'tool.ppbUnlock');
 
   try {
     // 创建回调函数
@@ -655,7 +668,7 @@ export async function ppbUnlockGBA(device: DeviceInfo, onProgress?: (progress: P
  */
 export async function ppbUnlockMBC5(device: DeviceInfo, onProgress?: (progress: PPBProgress) => void): Promise<{ success: boolean; message: string }> {
   const t = i18n.global.t;
-  const transport = requireDeviceTransport(device);
+  const transport = requireDeviceTransport(device, 'tool.ppbUnlock');
 
   try {
     // 创建回调函数

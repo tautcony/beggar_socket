@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/require-await */
-import { getFirmwareProfile } from '@/device/compat/firmware-profile';
+import type { CapabilityKey } from '@/device/capabilities';
+import { firmwareProfileFromSession } from '@/device/compat/firmware-profile';
+import { displayTextToString } from '@/device/display';
+import type { ParameterStore, ParameterValue } from '@/device/parameters';
 import type { SessionProfile } from '@/device/session';
 import type { Transport } from '@/platform/serial';
 import { getOptimalPacketLimits } from '@/platform/serial/platform-packet-policy';
@@ -13,6 +16,7 @@ import {
   markBoostModeInactive,
 } from '@/protocol';
 import { AdvancedSettings } from '@/settings/advanced-settings';
+import { namespaceForVariant } from '@/settings/advanced-settings-v2';
 import { CommandOptions, type MbcType } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
@@ -40,6 +44,69 @@ export type ProgressCallback = (progressInfo: ProgressInfo) => void;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type TranslateFunction = (key: string, params?: any) => string;
+
+/**
+ * Values an operation needs, flattened from the global and namespace parameter snapshots.
+ * Defaults come from the same descriptors the settings UI uses.
+ */
+export interface ResolvedOperationSettings {
+  romPageSize: number;
+  romReadPageSize: number;
+  ramPageSize: number;
+  romReadThrottleMs: number;
+  ramReadThrottleMs: number;
+  romReadRetryCount: number;
+  ramReadRetryCount: number;
+  romReadRetryDelayMs: number;
+  ramReadRetryDelayMs: number;
+  romEraseRetryCount: number;
+  romEraseRetryDelayMs: number;
+  romWriteRetryCount: number;
+  romWriteRetryDelayMs: number;
+  defaultTimeout: number;
+  packageSendTimeout: number;
+  packageReceiveTimeout: number;
+  operationTimeout: number;
+}
+
+const LEGACY_CAPABILITY_READERS: Partial<Record<CapabilityKey, (capabilities: FirmwareProfile['capabilities']) => boolean>> = {
+  'rom.erase.sector': capabilities => capabilities.gbaSectorErase,
+  'ram.fram.gba': capabilities => capabilities.gbaFramRam,
+  'ram.fram.gbc': capabilities => capabilities.gbcFramRam,
+  'cart.powerControl': capabilities => capabilities.cartPowerControl,
+  'cart.audioWePin': capabilities => capabilities.audioWePin,
+};
+
+const OPERATION_SETTING_DEFAULTS: ResolvedOperationSettings = {
+  romPageSize: 0x1000,
+  romReadPageSize: 0x1000,
+  ramPageSize: 0x1000,
+  romReadThrottleMs: 0,
+  ramReadThrottleMs: 0,
+  romReadRetryCount: 1,
+  ramReadRetryCount: 1,
+  romReadRetryDelayMs: 0,
+  ramReadRetryDelayMs: 0,
+  romEraseRetryCount: 1,
+  romEraseRetryDelayMs: 0,
+  romWriteRetryCount: 1,
+  romWriteRetryDelayMs: 0,
+  defaultTimeout: 3000,
+  packageSendTimeout: 3000,
+  packageReceiveTimeout: 3000,
+  operationTimeout: 30000,
+};
+
+function toOperationSettings(values: Readonly<Record<string, ParameterValue>>): ResolvedOperationSettings {
+  const settings = { ...OPERATION_SETTING_DEFAULTS };
+  for (const key of Object.keys(settings) as (keyof ResolvedOperationSettings)[]) {
+    const value = values[key];
+    if (typeof value === 'number') {
+      settings[key] = value;
+    }
+  }
+  return settings;
+}
 
 /**
  * 烧录器适配器接口
@@ -71,6 +138,8 @@ export class CartridgeAdapter {
   private channelRecentlyReset = false;
   private activeRomBankKey: string | null = null;
   private sessionProfile?: SessionProfile;
+  private parameterStore?: ParameterStore;
+  private operationSettings?: ResolvedOperationSettings;
 
   getLastCartInfoError(): string | undefined {
     return this.lastCartInfoError;
@@ -116,9 +185,92 @@ export class CartridgeAdapter {
     return this;
   }
 
+  /** Binds the parameter store the session reads its operation settings from. */
+  bindParameters(store?: ParameterStore): this {
+    this.parameterStore = store;
+    return this;
+  }
+
+  /**
+   * Session the adapter acts for.
+   *
+   * The factory binds it explicitly; an adapter built directly still inherits the committed
+   * session of its device, so both paths answer capability questions the same way.
+   */
+  protected effectiveSession(): SessionProfile | undefined {
+    return this.sessionProfile ?? this.device.session;
+  }
+
+  /**
+   * Capability query of the committed session. Direct adapter use (no session) falls back
+   * to the legacy profile, except for an unknown device, which is no longer treated as
+   * capable of everything.
+   */
+  protected supports(capability: CapabilityKey): boolean {
+    const session = this.effectiveSession();
+    if (session) {
+      return session.capabilities.has(capability);
+    }
+    const profile = this.device.firmwareProfile;
+    if (!profile || profile.id === 'unknown') {
+      return false;
+    }
+    const reader = LEGACY_CAPABILITY_READERS[capability];
+    return reader ? reader(profile.capabilities) : false;
+  }
+
+  /** Namespace of the committed session, or of the persisted selection without one. */
+  protected parameterNamespace(): string {
+    const session = this.effectiveSession();
+    if (session?.parameterNamespace) {
+      return session.parameterNamespace;
+    }
+    if (session?.variantId) {
+      return namespaceForVariant(session.variantId);
+    }
+    // Direct adapter use (tests, tools): the legacy profile is the only identity available.
+    switch (this.device.firmwareProfile?.id) {
+      case 'stc':
+        return 'beggar.stc';
+      case 'flashgbx':
+        return 'flashgbx.cfw';
+      default:
+        return 'beggar.stm';
+    }
+  }
+
+  /**
+   * Settings snapshot of the running operation. Page sizes, throttles, retries and
+   * timeouts are read once when an operation starts, so a value edited mid-transfer can
+   * never change the chunking of the transfer already in flight.
+   */
+  protected get settings(): ResolvedOperationSettings {
+    this.operationSettings ??= this.readOperationSettings();
+    return this.operationSettings;
+  }
+
+  /** Starts a new operation boundary and re-reads the persisted settings. */
+  beginOperation(): void {
+    this.operationSettings = this.readOperationSettings();
+  }
+
+  protected readOperationSettings(): ResolvedOperationSettings {
+    const store = this.parameterStore;
+    const namespace = store ? this.parameterNamespace() : undefined;
+    if (store && namespace) {
+      return toOperationSettings(store.operationSnapshot(namespace).values);
+    }
+    // No session/store (direct adapter use in tests): the persisted settings still are
+    // the only source, so the compatibility facade supplies the same values.
+    return toOperationSettings({
+      ...AdvancedSettings.getGlobalParameters(),
+      ...AdvancedSettings.getNamespaceSizes(this.parameterNamespace()),
+    });
+  }
+
   /** Host-resolved packet limits: the session value first, legacy lookup otherwise. */
   protected resolvePacketLimits(): { romWrite: number; romRead: number; ramPage: number } {
-    const resolved = this.sessionProfile?.transport;
+    const resolved = this.effectiveSession()?.transport;
     if (resolved) {
       return resolved.packetLimits[resolved.platform];
     }
@@ -126,7 +278,7 @@ export class CartridgeAdapter {
   }
 
   protected resolveMaxReadChunk(): number {
-    return this.sessionProfile?.transport.maxReadChunk ?? this.firmwareProfile.maxReadChunk;
+    return this.effectiveSession()?.transport.maxReadChunk ?? this.firmwareProfile.maxReadChunk;
   }
 
   /**
@@ -353,7 +505,8 @@ export class CartridgeAdapter {
   }
 
   protected get isBoostMode(): boolean {
-    return this.firmwareProfile.capabilities.boostMode;
+    return this.effectiveSession()?.runtimeFeatures.boostTransport
+      ?? this.firmwareProfile.capabilities.boostMode;
   }
 
   protected async stabilizeReadChannel(
@@ -387,32 +540,28 @@ export class CartridgeAdapter {
   }
 
   protected resolveRomPageSize(requestedPageSize?: number): number {
-    const profileKey = this.firmwareProfile.id === 'stc' ? 'stc' : 'stm';
-    const profileSizes = AdvancedSettings.getProfileSizes(profileKey);
-    const configuredPageSize = floorPowerOfTwo(
-      Math.min(requestedPageSize ?? profileSizes.romPageSize, profileSizes.romPageSize),
-      1,
-    );
+    const configured = this.settings.romPageSize;
+    const configuredPageSize = floorPowerOfTwo(Math.min(requestedPageSize ?? configured, configured), 1);
     if (this.isSimulatedDevice()) {
       // Simulated transports already execute the full protocol path. Use larger logical chunks so
       // async command overhead does not dwarf the configured throughput controls in debug mode.
       return Math.max(configuredPageSize, CartridgeAdapter.SIMULATED_TRANSFER_CHUNK_SIZE);
     }
     const limits = this.resolvePacketLimits();
-    return Math.min(requestedPageSize ?? profileSizes.romPageSize, configuredPageSize === profileSizes.romPageSize ? profileSizes.romPageSize : configuredPageSize, limits.romWrite);
+    return Math.min(requestedPageSize ?? configured, configuredPageSize === configured ? configured : configuredPageSize, limits.romWrite);
   }
 
   protected resolveRomReadPageSize(requestedPageSize?: number): number {
-    const profileKey = this.firmwareProfile.id === 'stc' ? 'stc' : 'stm';
-    const profileSizes = AdvancedSettings.getProfileSizes(profileKey);
+    const configured = this.settings.romReadPageSize;
     const limits = this.resolvePacketLimits();
     const maxReadChunk = this.resolveMaxReadChunk();
-    const maxAllowed = this.firmwareProfile.id === 'stc'
+    // STC8 streams short read replies, so its ceiling is the firmware read chunk itself.
+    const maxAllowed = this.parameterNamespace() === 'beggar.stc'
       ? maxReadChunk
       : Math.min(maxReadChunk, limits.romRead);
     const rawTarget = Math.min(
-      requestedPageSize ?? profileSizes.romReadPageSize,
-      this.isBoostMode ? maxAllowed : profileSizes.romReadPageSize,
+      requestedPageSize ?? configured,
+      this.isBoostMode ? maxAllowed : configured,
       maxAllowed,
     );
     if (this.isSimulatedDevice()) {
@@ -423,14 +572,12 @@ export class CartridgeAdapter {
   }
 
   protected resolveRamPageSize(requestedPageSize?: number): number {
-    const profileKey = this.firmwareProfile.id === 'stc' ? 'stc' : 'stm';
-    const profileSizes = AdvancedSettings.getProfileSizes(profileKey);
-    const configuredPageSize = Math.min(requestedPageSize ?? profileSizes.ramPageSize, profileSizes.ramPageSize);
+    const configured = this.settings.ramPageSize;
+    const configuredPageSize = Math.min(requestedPageSize ?? configured, configured);
     if (this.isSimulatedDevice()) {
       return Math.max(configuredPageSize, CartridgeAdapter.SIMULATED_TRANSFER_CHUNK_SIZE);
     }
-    const limits = getOptimalPacketLimits(this.firmwareProfile.id);
-    return Math.min(configuredPageSize, limits.ramPage);
+    return Math.min(configuredPageSize, this.resolvePacketLimits().ramPage);
   }
 
   protected summarizeLogMessage(message: BurnerLogInput): string {
@@ -450,8 +597,32 @@ export class CartridgeAdapter {
     throw new NotImplementedError();
   }
 
+  /**
+   * Legacy projection of the session profile.
+   *
+   * Direct adapter use without a committed session still needs an explicit profile: the app
+   * never guesses one from port strings, so an unknown device stays unknown instead of
+   * inheriting permissive capabilities.
+   */
   protected get firmwareProfile(): FirmwareProfile {
-    return getFirmwareProfile(this.device);
+    const session = this.effectiveSession();
+    if (session) {
+      return firmwareProfileFromSession(session);
+    }
+    const legacy = this.device.firmwareProfile ?? this.device.serialHandle?.firmwareProfile;
+    if (!legacy) {
+      throw new Error('Device firmware profile is unknown: bind a session or set DeviceInfo.firmwareProfile');
+    }
+    return legacy;
+  }
+
+  /** Display label of the connected device/firmware, used by operation messages. */
+  protected deviceLabel(): string {
+    const session = this.effectiveSession();
+    if (session) {
+      return displayTextToString(session.display.title);
+    }
+    return this.device.firmwareProfile?.label ?? 'Unknown device';
   }
 
   protected get transport(): Transport {
@@ -484,9 +655,9 @@ export class CartridgeAdapter {
     restoreState?: () => Promise<void>,
     signal?: AbortSignal,
   ): Promise<Uint8Array> {
-    const retries = AdvancedSettings.romReadRetryCount;
+    const retries = this.settings.romReadRetryCount;
     const attempts = retries + 1;
-    const retryDelayMs = AdvancedSettings.romReadRetryDelayMs;
+    const retryDelayMs = this.settings.romReadRetryDelayMs;
     let lastError: unknown;
     let subChunkSplitDepth = 0;
 
@@ -555,9 +726,9 @@ export class CartridgeAdapter {
     signal?: AbortSignal,
     onRetryReset?: () => Promise<void>,
   ): Promise<{ attemptsUsed: number; retriesPerformed: number }> {
-    const retries = AdvancedSettings.romWriteRetryCount;
+    const retries = this.settings.romWriteRetryCount;
     const attempts = retries + 1;
-    const retryDelayMs = AdvancedSettings.romWriteRetryDelayMs;
+    const retryDelayMs = this.settings.romWriteRetryDelayMs;
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= attempts; attempt += 1) {

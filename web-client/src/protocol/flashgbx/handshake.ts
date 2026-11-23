@@ -288,7 +288,7 @@ async function sendSafetyCommand(
 ): Promise<void> {
   try {
     const sent = await transport.send(new Uint8Array([command]), timeoutMs);
-    if (sent === false) {
+    if (!sent) {
       throw new Error(`FlashGBX teardown command 0x${command.toString(16)} was not sent`);
     }
     if (ackExpected) {

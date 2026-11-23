@@ -1,392 +1,321 @@
-/* eslint-disable @typescript-eslint/unbound-method */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AdvancedSettings, type AdvancedSettingsConfig } from '@/settings/advanced-settings';
+import { createDeviceCatalog } from '@/device/definitions';
+import {
+  AdvancedSettings,
+  LEGACY_SETTINGS_BACKUP_KEY,
+  validateSettings,
+} from '@/settings/advanced-settings';
+import { ADVANCED_SETTINGS_STORAGE_KEY } from '@/settings/advanced-settings-v2';
 
-describe('AdvancedSettings', () => {
-  let localStorageMock: Record<string, string>;
+type StorageMock = Record<string, string>;
 
-  beforeEach(() => {
-    localStorageMock = {};
-    Object.defineProperty(window, 'localStorage', {
-      value: {
-        getItem: vi.fn((key: string) => localStorageMock[key] || null),
-        setItem: vi.fn((key: string, value: string) => {
-          localStorageMock[key] = value;
-        }),
-        removeItem: vi.fn((key: string) => {
-          const { [key]: _removed, ...rest } = localStorageMock;
-          localStorageMock = rest;
-        }),
-        clear: vi.fn(() => {
-          localStorageMock = {};
-        }),
-      },
-      writable: true,
-    });
+let storage: StorageMock = {};
 
-    AdvancedSettings.resetToDefaults();
-    vi.clearAllMocks();
+function installStorage() {
+  storage = {};
+  Object.defineProperty(window, 'localStorage', {
+    value: {
+      getItem: vi.fn((key: string) => storage[key] ?? null),
+      setItem: vi.fn((key: string, value: string) => {
+        storage[key] = value;
+      }),
+      removeItem: vi.fn((key: string) => {
+        storage = Object.fromEntries(Object.entries(storage).filter(([name]) => name !== key));
+      }),
+      clear: vi.fn(() => {
+        storage = {};
+      }),
+    },
+    writable: true,
   });
+}
 
-  afterEach(() => {
-    vi.clearAllMocks();
+function readStored(): Record<string, unknown> | null {
+  const raw = storage[ADVANCED_SETTINGS_STORAGE_KEY];
+  return raw ? JSON.parse(raw) as Record<string, unknown> : null;
+}
+
+function writeLegacy(value: unknown): void {
+  storage[ADVANCED_SETTINGS_STORAGE_KEY] = typeof value === 'string' ? value : JSON.stringify(value);
+}
+
+describe('advanced settings v2 storage', () => {
+  beforeEach(() => {
+    installStorage();
+    AdvancedSettings.resetToDefaults();
+    storage = {};
+    AdvancedSettings.reloadFromStorage();
   });
 
   describe('defaults', () => {
-    it('returns correct defaults for all properties', () => {
-      expect(AdvancedSettings.firmwareProfile).toBe('stm');
+    it('starts without a device selection and with the default operation parameters', () => {
+      expect(AdvancedSettings.getVariantId()).toBeNull();
+      expect(AdvancedSettings.getIndependentSizes()).toBe(false);
       expect(AdvancedSettings.romPageSize).toBe(0x1000);
       expect(AdvancedSettings.romReadPageSize).toBe(0x1000);
       expect(AdvancedSettings.ramPageSize).toBe(0x1000);
       expect(AdvancedSettings.romReadThrottleMs).toBe(0);
-      expect(AdvancedSettings.ramReadThrottleMs).toBe(0);
-      expect(AdvancedSettings.romReadRetryCount).toBe(1);
       expect(AdvancedSettings.ramReadRetryCount).toBe(1);
-      expect(AdvancedSettings.romReadRetryDelayMs).toBe(0);
-      expect(AdvancedSettings.ramReadRetryDelayMs).toBe(0);
-      expect(AdvancedSettings.romEraseRetryCount).toBe(1);
-      expect(AdvancedSettings.romEraseRetryDelayMs).toBe(0);
-      expect(AdvancedSettings.romWriteRetryCount).toBe(1);
-      expect(AdvancedSettings.romWriteRetryDelayMs).toBe(0);
       expect(AdvancedSettings.defaultTimeout).toBe(3000);
-      expect(AdvancedSettings.packageSendTimeout).toBe(3000);
-      expect(AdvancedSettings.packageReceiveTimeout).toBe(3000);
       expect(AdvancedSettings.operationTimeout).toBe(30000);
+      expect(AdvancedSettings.getBaudRate()).toBe('auto');
     });
 
-    it('getSettings returns all defaults in correct structure', () => {
-      const s = AdvancedSettings.getSettings();
-      expect(s).toEqual({
-        firmware: { profile: 'stm', stmBoost: true, flashgbxBaudRate: 'auto' },
-        size: { romPageSize: 0x1000, romReadPageSize: 0x1000, ramPageSize: 0x1000 },
-        profileSizes: {
-          stm: { romPageSize: 0x1000, romReadPageSize: 0x1000, ramPageSize: 0x1000 },
-          stc: { romPageSize: 0x1000, romReadPageSize: 0x2000, ramPageSize: 0x1000 },
-          flashgbx: { romPageSize: 0x100, romReadPageSize: 0x100, ramPageSize: 0x100 },
-        },
-        throttle: { romRead: 0, ramRead: 0 },
-        retry: {
-          romReadCount: 1, ramReadCount: 1,
-          romReadDelay: 0, ramReadDelay: 0,
-          romEraseRetryCount: 1, romEraseRetryDelay: 0,
-          romWriteRetryCount: 1, romWriteRetryDelay: 0,
-        },
-        timeout: { default: 3000, packageSend: 3000, packageReceive: 3000, operation: 30000 },
+    it('persists a versioned record with the documented sections', () => {
+      AdvancedSettings.setVariantId('beggar-stm');
+      const stored = readStored();
+      expect(stored).toMatchObject({
+        version: 2,
+        selectedVariantId: 'beggar-stm',
+        independentSizes: false,
       });
+      expect(stored).toHaveProperty('parametersByNamespace');
+      expect(stored).toHaveProperty('global');
+      expect(JSON.stringify(stored)).not.toContain('stmBoost');
     });
   });
 
-  describe('setter validation and clamping', () => {
-    it('clamps page sizes to min/max', () => {
+  describe('normalization', () => {
+    it('clamps and normalizes page sizes per namespace', () => {
+      AdvancedSettings.setVariantId('beggar-stm');
+
       AdvancedSettings.romPageSize = 0x10;
       expect(AdvancedSettings.romPageSize).toBe(0x40);
 
       AdvancedSettings.romPageSize = 0x10000;
       expect(AdvancedSettings.romPageSize).toBe(0x2000);
 
-      AdvancedSettings.ramPageSize = 0x20;
-      expect(AdvancedSettings.ramPageSize).toBe(0x40);
-    });
-
-    it('normalizes non-power-of-two page sizes down to a power of two', () => {
       AdvancedSettings.romPageSize = 300;
       expect(AdvancedSettings.romPageSize).toBe(256);
 
-      AdvancedSettings.romPageSize = 1000;
-      expect(AdvancedSettings.romPageSize).toBe(512);
-
       AdvancedSettings.romReadPageSize = 24576;
       expect(AdvancedSettings.romReadPageSize).toBe(16384);
-
-      AdvancedSettings.romReadPageSize = 32768;
-      expect(AdvancedSettings.romReadPageSize).toBe(32768);
     });
 
-    it('clamps throttle values', () => {
+    it('normalizes the GBFlash namespace independently from the active selection', () => {
+      AdvancedSettings.setVariantId('gbflash');
+      AdvancedSettings.setNamespaceSize('flashgbx.cfw', 'romPageSize', 0x8000);
+      expect(AdvancedSettings.getNamespaceSizes('flashgbx.cfw').romPageSize).toBe(0x2000);
+      // Beggar namespaces keep their own values.
+      expect(AdvancedSettings.getNamespaceSizes('beggar.stm').romPageSize).toBe(0x1000);
+    });
+
+    it('clamps throttle, retry and timeout values', () => {
       AdvancedSettings.romReadThrottleMs = -10;
       expect(AdvancedSettings.romReadThrottleMs).toBe(0);
-
       AdvancedSettings.ramReadThrottleMs = 2000;
       expect(AdvancedSettings.ramReadThrottleMs).toBe(1000);
-    });
-
-    it('truncates throttle values', () => {
       AdvancedSettings.romReadThrottleMs = 500.7;
       expect(AdvancedSettings.romReadThrottleMs).toBe(500);
-    });
 
-    it('clamps retry counts', () => {
       AdvancedSettings.romReadRetryCount = -1;
       expect(AdvancedSettings.romReadRetryCount).toBe(0);
+      AdvancedSettings.romWriteRetryCount = 11;
+      expect(AdvancedSettings.romWriteRetryCount).toBe(10);
 
-      AdvancedSettings.ramReadRetryCount = 20;
-      expect(AdvancedSettings.ramReadRetryCount).toBe(10);
+      AdvancedSettings.operationTimeout = 10;
+      expect(AdvancedSettings.operationTimeout).toBe(1000);
     });
 
-    it('truncates retry counts after clamping', () => {
-      AdvancedSettings.romReadRetryCount = 5.9;
-      expect(AdvancedSettings.romReadRetryCount).toBe(5);
-    });
-
-    it('clamps retry delays', () => {
-      AdvancedSettings.romReadRetryDelayMs = -100;
-      expect(AdvancedSettings.romReadRetryDelayMs).toBe(0);
-
-      AdvancedSettings.ramReadRetryDelayMs = 9000;
-      expect(AdvancedSettings.ramReadRetryDelayMs).toBe(5000);
-    });
-
-    it('clamps timeout values', () => {
-      AdvancedSettings.defaultTimeout = 100;
-      expect(AdvancedSettings.defaultTimeout).toBe(1000);
-
-      AdvancedSettings.operationTimeout = 500000;
-      expect(AdvancedSettings.operationTimeout).toBe(300000);
-    });
-
-    it('truncates timeout values', () => {
-      AdvancedSettings.packageSendTimeout = 5000.5;
-      expect(AdvancedSettings.packageSendTimeout).toBe(5000);
-    });
-
-    it('setter triggers saveSettings', () => {
-      AdvancedSettings.romPageSize = 1024;
-      expect(localStorage.setItem).toHaveBeenCalled();
-    });
-
-    it('persists firmware profile from the static setter', () => {
-      AdvancedSettings.firmwareProfile = 'stc';
-      const savedSettings = JSON.parse(localStorageMock.advanced_settings) as AdvancedSettingsConfig;
-
-      expect(AdvancedSettings.firmwareProfile).toBe('stc');
-      expect(savedSettings.firmware).toEqual({ profile: 'stc', stmBoost: true, flashgbxBaudRate: 'auto' });
-    });
-
-    it('supports stmBoost toggle in firmware settings', () => {
-      AdvancedSettings.firmwareProfile = 'stm';
-      AdvancedSettings.stmBoost = false;
-      const savedSettings = JSON.parse(localStorageMock.advanced_settings) as AdvancedSettingsConfig;
-
-      expect(AdvancedSettings.firmwareProfile).toBe('stm');
-      expect(AdvancedSettings.stmBoost).toBe(false);
-      expect(savedSettings.firmware).toEqual({ profile: 'stm', stmBoost: false, flashgbxBaudRate: 'auto' });
-    });
-
-    it('supports flashgbx profile and flashgbxBaudRate validation', () => {
-      AdvancedSettings.firmwareProfile = 'flashgbx';
-      AdvancedSettings.flashgbxBaudRate = 1500000;
-      const savedSettings = JSON.parse(localStorageMock.advanced_settings) as AdvancedSettingsConfig;
-
-      expect(AdvancedSettings.firmwareProfile).toBe('flashgbx');
-      expect(AdvancedSettings.flashgbxBaudRate).toBe(1500000);
-      expect(savedSettings.firmware).toEqual({ profile: 'flashgbx', stmBoost: true, flashgbxBaudRate: 1500000 });
-
-      AdvancedSettings.flashgbxBaudRate = 9600 as never;
-      expect(AdvancedSettings.flashgbxBaudRate).toBe('auto');
-    });
-
-    it('keeps flashgbx packet sizes isolated from stm/stc legacy propagation', () => {
-      AdvancedSettings.firmwareProfile = 'stm';
-      AdvancedSettings.romPageSize = 512;
-      expect(AdvancedSettings.getProfileSizes('stc').romPageSize).toBe(512);
-      expect(AdvancedSettings.getProfileSizes('flashgbx').romPageSize).toBe(0x100);
-
-      AdvancedSettings.firmwareProfile = 'flashgbx';
-      AdvancedSettings.romPageSize = 0x40;
-      expect(AdvancedSettings.getProfileSizes('flashgbx').romPageSize).toBe(0x40);
-      expect(AdvancedSettings.getProfileSizes('stm').romPageSize).toBe(512);
-      expect(AdvancedSettings.getProfileSizes('stc').romPageSize).toBe(512);
+    it('accepts only the supported GBFlash baud rates', () => {
+      AdvancedSettings.setBaudRate(1500000);
+      expect(AdvancedSettings.getBaudRate()).toBe(1500000);
+      AdvancedSettings.setBaudRate(9600);
+      expect(AdvancedSettings.getBaudRate()).toBe('auto');
     });
   });
 
-  describe('setSettings and getSettings roundtrip', () => {
-    it('persists ROM erase retry settings through getSettings', () => {
-      AdvancedSettings.setSettings({
-        retry: {
-          romEraseRetryCount: 2,
-          romEraseRetryDelay: 400,
-        },
-      });
-
-      expect(AdvancedSettings.getSettings().retry).toEqual(expect.objectContaining({
-        romEraseRetryCount: 2,
-        romEraseRetryDelay: 400,
-      }));
-      expect(localStorage.setItem).toHaveBeenCalled();
+  describe('shared and independent packet settings', () => {
+    it('keeps STM and Boost on the same namespace value', () => {
+      AdvancedSettings.setVariantId('beggar-stm');
+      AdvancedSettings.romReadPageSize = 0x800;
+      AdvancedSettings.setVariantId('beggar-stm-boost');
+      expect(AdvancedSettings.romReadPageSize).toBe(0x800);
+      expect(AdvancedSettings.getNamespaceSizes('beggar.stm').romReadPageSize).toBe(0x800);
     });
 
-    it('setSettings applies validation', () => {
-      AdvancedSettings.setSettings({ size: { romPageSize: 10 } });
-      expect(AdvancedSettings.romPageSize).toBe(0x40);
-    });
+    it('saves STM and STC separately once independent sizes are enabled', () => {
+      AdvancedSettings.setIndependentSizes(true);
+      AdvancedSettings.setVariantId('beggar-stm');
+      AdvancedSettings.setNamespaceSize('beggar.stc', 'romReadPageSize', 0x1000);
+      AdvancedSettings.romReadPageSize = 0x4000;
 
-    it('setSettings only modifies specified fields', () => {
-      AdvancedSettings.setSettings({ timeout: { default: 5000 } });
-      expect(AdvancedSettings.defaultTimeout).toBe(5000);
-      expect(AdvancedSettings.packageSendTimeout).toBe(3000);
-    });
-
-    it('persists configured firmware profile through getSettings', () => {
-      AdvancedSettings.setSettings({ firmware: { profile: 'stc' } });
-
-      expect(AdvancedSettings.firmwareProfile).toBe('stc');
-      expect(AdvancedSettings.getSettings().firmware).toEqual({
-        profile: 'stc',
-        stmBoost: true,
-        flashgbxBaudRate: 'auto',
-      });
-      expect(localStorage.setItem).toHaveBeenCalled();
+      expect(AdvancedSettings.getNamespaceSizes('beggar.stm').romReadPageSize).toBe(0x4000);
+      expect(AdvancedSettings.getNamespaceSizes('beggar.stc').romReadPageSize).toBe(0x1000);
+      expect(readStored()).toMatchObject({ independentSizes: true });
     });
   });
 
-  describe('loadSettings', () => {
-    it('loads ROM erase retry settings from storage', () => {
-      localStorageMock.advanced_settings = JSON.stringify({
-        retry: {
-          romEraseRetryCount: 5,
-          romEraseRetryDelay: 300,
-        },
+  describe('legacy migration', () => {
+    it.each([
+      ['true', true],
+      ['false', false],
+      ['missing', undefined],
+    ])('migrates a legacy STM selection with stmBoost %s to standard STM', (_label, stmBoost) => {
+      writeLegacy({
+        firmware: { profile: 'stm', ...(stmBoost === undefined ? {} : { stmBoost }) },
+        size: { romPageSize: 0x800, romReadPageSize: 0x800, ramPageSize: 0x800 },
       });
 
-      AdvancedSettings.loadSettings();
+      AdvancedSettings.reloadFromStorage();
 
-      expect(AdvancedSettings.romEraseRetryCount).toBe(5);
-      expect(AdvancedSettings.romEraseRetryDelayMs).toBe(300);
-    });
-
-    it('loads firmware profile from storage', () => {
-      localStorageMock.advanced_settings = JSON.stringify({
-        firmware: { profile: 'stc' },
+      expect(AdvancedSettings.getVariantId()).toBe('beggar-stm');
+      expect(AdvancedSettings.getNamespaceSizes('beggar.stm')).toEqual({
+        romPageSize: 0x800,
+        romReadPageSize: 0x800,
+        ramPageSize: 0x800,
       });
-
-      AdvancedSettings.loadSettings();
-
-      expect(AdvancedSettings.firmwareProfile).toBe('stc');
+      // No one-time Boost prompt marker is written anywhere.
+      expect(JSON.stringify(readStored())).not.toContain('stmBoost');
+      expect(Object.keys(storage)).not.toContain('stm_boost_prompted');
     });
 
-    it('migrates saved legacy default page sizes to protocol-aligned defaults', () => {
-      localStorageMock.advanced_settings = JSON.stringify({
-        size: {
-          romPageSize: 0x200,
-          ramPageSize: 0x100,
-        },
-      });
-
-      AdvancedSettings.loadSettings();
-
-      expect(AdvancedSettings.romPageSize).toBe(0x1000);
-      expect(AdvancedSettings.ramPageSize).toBe(0x1000);
-    });
-
-    it('falls back to default flashgbxBaudRate and flashgbx profileSizes when loading legacy settings', () => {
-      AdvancedSettings.flashgbxBaudRate = 2000000;
-      localStorageMock.advanced_settings = JSON.stringify({
-        firmware: {
-          profile: 'stc',
-          stmBoost: false,
-        },
+    it('migrates GBFlash and STC selections with their own parameters', () => {
+      writeLegacy({
+        firmware: { profile: 'flashgbx', flashgbxBaudRate: 1500000 },
         profileSizes: {
-          stm: { romPageSize: 0x800, romReadPageSize: 0x1000, ramPageSize: 0x800 },
-          stc: { romPageSize: 0x1000, romReadPageSize: 0x4000, ramPageSize: 0x1000 },
+          stm: { romPageSize: 0x800, romReadPageSize: 0x0c00, ramPageSize: 0x800 },
+          flashgbx: { romPageSize: 0x100, romReadPageSize: 0x100, ramPageSize: 0x100 },
         },
       });
 
-      AdvancedSettings.loadSettings();
+      AdvancedSettings.reloadFromStorage();
+      expect(AdvancedSettings.getVariantId()).toBe('gbflash');
+      expect(AdvancedSettings.getBaudRate()).toBe(1500000);
+      expect(AdvancedSettings.getNamespaceSizes('beggar.stm').romReadPageSize).toBe(0x0c00);
 
-      expect(AdvancedSettings.firmwareProfile).toBe('stc');
-      expect(AdvancedSettings.stmBoost).toBe(false);
-      expect(AdvancedSettings.flashgbxBaudRate).toBe('auto');
-      expect(AdvancedSettings.getProfileSizes('stm')).toEqual({
+      storage = {};
+      writeLegacy({ firmware: { profile: 'stc' } });
+      AdvancedSettings.reloadFromStorage();
+      expect(AdvancedSettings.getVariantId()).toBe('beggar-stc');
+      // Missing baud rate falls back to auto.
+      expect(AdvancedSettings.getBaudRate()).toBe('auto');
+    });
+
+    it('prefers profileSizes over size and keeps the global parameters', () => {
+      writeLegacy({
+        firmware: { profile: 'stc' },
+        size: { romPageSize: 0x4000, romReadPageSize: 0x4000, ramPageSize: 0x4000 },
+        profileSizes: { stc: { romPageSize: 0x800, romReadPageSize: 0x1000, ramPageSize: 0x800 } },
+        throttle: { romRead: 12, ramRead: 34 },
+        retry: { romReadCount: 3, romWriteRetryCount: 2, romEraseRetryDelay: 250 },
+        timeout: { default: 5000, packageSend: 4000, packageReceive: 6000, operation: 60000 },
+      });
+
+      AdvancedSettings.reloadFromStorage();
+
+      expect(AdvancedSettings.getNamespaceSizes('beggar.stc')).toEqual({
         romPageSize: 0x800,
         romReadPageSize: 0x1000,
         ramPageSize: 0x800,
       });
-      expect(AdvancedSettings.getProfileSizes('stc')).toEqual({
-        romPageSize: 0x1000,
-        romReadPageSize: 0x4000,
-        ramPageSize: 0x1000,
-      });
-      expect(AdvancedSettings.getProfileSizes('flashgbx')).toEqual({
-        romPageSize: 0x100,
-        romReadPageSize: 0x100,
-        ramPageSize: 0x100,
-      });
+      expect(AdvancedSettings.romReadThrottleMs).toBe(12);
+      expect(AdvancedSettings.ramReadThrottleMs).toBe(34);
+      expect(AdvancedSettings.romReadRetryCount).toBe(3);
+      expect(AdvancedSettings.romWriteRetryCount).toBe(2);
+      expect(AdvancedSettings.romEraseRetryDelayMs).toBe(250);
+      expect(AdvancedSettings.defaultTimeout).toBe(5000);
+      expect(AdvancedSettings.packageReceiveTimeout).toBe(6000);
+      expect(AdvancedSettings.operationTimeout).toBe(60000);
     });
 
-    it('resets to defaults on invalid JSON', () => {
-      localStorageMock.advanced_settings = 'not-json';
-      AdvancedSettings.loadSettings();
+    it('replaces the historical placeholder page sizes with the host defaults', () => {
+      writeLegacy({
+        firmware: { profile: 'stm' },
+        size: { romPageSize: 0x200, romReadPageSize: 3072, ramPageSize: 0x100 },
+      });
+
+      AdvancedSettings.reloadFromStorage();
+
+      const sizes = AdvancedSettings.getNamespaceSizes('beggar.stm');
+      expect(sizes.romPageSize).toBe(0x1000);
+      expect(sizes.ramPageSize).toBe(0x1000);
+      expect(sizes.romReadPageSize).toBe(3072);
+    });
+
+    it('backs up the raw v1 record once and writes v2', () => {
+      const legacy = { firmware: { profile: 'stc' }, size: { romPageSize: 0x800 } };
+      writeLegacy(legacy);
+
+      AdvancedSettings.reloadFromStorage();
+
+      expect(storage[LEGACY_SETTINGS_BACKUP_KEY]).toBe(JSON.stringify(legacy));
+      expect(readStored()).toMatchObject({ version: 2, selectedVariantId: 'beggar-stc' });
+    });
+
+    it('does not overwrite values saved later when loaded again', () => {
+      writeLegacy({ firmware: { profile: 'stc' }, size: { romPageSize: 0x800 } });
+      AdvancedSettings.reloadFromStorage();
+
+      AdvancedSettings.romPageSize = 0x400;
+      AdvancedSettings.reloadFromStorage();
+      AdvancedSettings.reloadFromStorage();
+
+      expect(AdvancedSettings.romPageSize).toBe(0x400);
+      expect(AdvancedSettings.getVariantId()).toBe('beggar-stc');
+    });
+
+    it('loads defaults in memory without writing back an unknown version', () => {
+      const unsupported = JSON.stringify({ version: 99, selectedVariantId: 'beggar-stm' });
+      storage[ADVANCED_SETTINGS_STORAGE_KEY] = unsupported;
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const outcome = AdvancedSettings.reloadFromStorage();
+
+      expect(outcome).toEqual({ kind: 'unsupported', version: 99 });
+      expect(AdvancedSettings.getVariantId()).toBeNull();
       expect(AdvancedSettings.romPageSize).toBe(0x1000);
+      expect(storage[ADVANCED_SETTINGS_STORAGE_KEY]).toBe(unsupported);
+      warn.mockRestore();
+    });
+
+    it('loads defaults in memory and leaves malformed JSON untouched', () => {
+      storage[ADVANCED_SETTINGS_STORAGE_KEY] = '{not json';
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const outcome = AdvancedSettings.reloadFromStorage();
+
+      expect(outcome.kind).toBe('malformed');
+      expect(AdvancedSettings.getVariantId()).toBeNull();
+      expect(storage[ADVANCED_SETTINGS_STORAGE_KEY]).toBe('{not json');
+      warn.mockRestore();
+    });
+
+    it('keeps an unregistered stored variant verbatim so the selection reports invalid', () => {
+      storage[ADVANCED_SETTINGS_STORAGE_KEY] = JSON.stringify({
+        version: 2,
+        selectedVariantId: 'retired-variant',
+        parametersByNamespace: {},
+        global: {},
+        independentSizes: false,
+      });
+
+      AdvancedSettings.reloadFromStorage();
+
+      expect(AdvancedSettings.getVariantId()).toBe('retired-variant');
     });
   });
 
-  describe('resetToDefaults', () => {
-    it('restores all properties to defaults after modification', () => {
-      AdvancedSettings.romPageSize = 4096;
-      AdvancedSettings.firmwareProfile = 'stc';
-      AdvancedSettings.operationTimeout = 60000;
-      AdvancedSettings.resetToDefaults();
-      expect(AdvancedSettings.romPageSize).toBe(0x1000);
-      expect(AdvancedSettings.firmwareProfile).toBe('stm');
-      expect(AdvancedSettings.operationTimeout).toBe(30000);
-    });
-  });
+  describe('schema driven validation', () => {
+    const registry = createDeviceCatalog({ platform: 'windows' });
 
-  describe('validateSettings', () => {
-    it('validates ROM erase retry ranges', () => {
-      const result = AdvancedSettings.validateSettings({
-        retry: {
-          romReadCount: 1,
-          ramReadCount: 1,
-          romReadDelay: 0,
-          ramReadDelay: 0,
-          romEraseRetryCount: -2,
-          romEraseRetryDelay: 9000,
-        },
-      });
+    it('validates values against the namespace descriptor ranges', () => {
+      const schema = registry.resolveNamespaceSchema('flashgbx.cfw')?.schema ?? [];
 
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain('ROM erase retry count must be between 0 and 10');
-      expect(result.errors).toContain('ROM erase retry delay must be between 0ms and 5000ms');
+      expect(validateSettings(schema, { romPageSize: 0x2000 }).valid).toBe(true);
+      const tooLarge = validateSettings(schema, { romPageSize: 0x4000 });
+      expect(tooLarge.valid).toBe(false);
+      expect(tooLarge.errors[0]).toContain('ROM page size');
+
+      const baud = validateSettings(schema, { baudRate: 9600 });
+      expect(baud.valid).toBe(false);
     });
 
-    it('returns valid for in-range values', () => {
-      const result = AdvancedSettings.validateSettings({
-        size: { romPageSize: 512, ramPageSize: 256 },
-        throttle: { romRead: 100, ramRead: 50 },
-        timeout: { default: 3000, packageSend: 3000, packageReceive: 3000, operation: 30000 },
-      });
-      expect(result.valid).toBe(true);
-      expect(result.errors).toHaveLength(0);
-    });
-
-    it('catches out-of-range page sizes', () => {
-      const result = AdvancedSettings.validateSettings({
-        size: { romPageSize: 10, ramPageSize: 100000 },
-      });
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain('ROM page size must be between 64 and 8192 bytes');
-      expect(result.errors).toContain('RAM page size must be between 64 and 8192 bytes');
-    });
-
-    it('catches out-of-range timeouts', () => {
-      const result = AdvancedSettings.validateSettings({
-        timeout: { default: 500, packageSend: 999999, packageReceive: 3000, operation: 30000 },
-      });
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain('default timeout must be between 1000ms and 300000ms');
-      expect(result.errors).toContain('packageSend timeout must be between 1000ms and 300000ms');
-    });
-  });
-
-  describe('getLimits', () => {
-    it('returns correct limit ranges', () => {
+    it('keeps the existing limits table available for the UI', () => {
       const limits = AdvancedSettings.getLimits();
       expect(limits.pageSize).toEqual({ min: 0x40, max: 0x2000 });
-      expect(limits.throttle).toEqual({ min: 0, max: 1000 });
-      expect(limits.retryCount).toEqual({ min: 0, max: 10 });
-      expect(limits.retryDelay).toEqual({ min: 0, max: 5000 });
+      expect(limits.readPageSize).toEqual({ min: 0x40, max: 0x8000 });
       expect(limits.timeout).toEqual({ min: 1000, max: 300000 });
     });
   });

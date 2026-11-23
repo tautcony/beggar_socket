@@ -6,8 +6,8 @@
  * `initialize`, `disconnect`) plus the normalized `DeviceDiagnostic` entries that were
  * produced before it failed. Callers never parse log text to find the reason.
  */
-import type { DeviceDiagnostic } from '@/device/session';
 import { displayTextToString } from '@/device/display';
+import type { DeviceDiagnostic } from '@/device/session';
 
 /** Session establishment stages; `selection` fails before a transport is opened. */
 export type SessionFailureStage = 'selection' | 'probe' | 'resolve' | 'initialize' | 'disconnect';

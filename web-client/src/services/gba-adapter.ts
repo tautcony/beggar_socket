@@ -1,4 +1,4 @@
-﻿import { firmwareUnsupportedResult, isRamTypeSupportedByFirmware } from '@/device/compat/firmware-profile';
+﻿import { firmwareUnsupportedResult } from '@/device/compat/firmware-profile';
 import {
   boost_configure_amd_flash,
   boost_enter_mode,
@@ -31,7 +31,6 @@ import {
 import { planBankChunk } from '@/services/bank-chunk-planner';
 import { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
 import type { PlatformOps } from '@/services/platform-ops';
-import { AdvancedSettings } from '@/settings/advanced-settings';
 import { CommandOptions } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
@@ -117,9 +116,9 @@ export class GBAAdapter extends CartridgeAdapter {
     reason: 'prepare' | 'recover',
     signal?: AbortSignal,
   ): Promise<void> {
-    const retries = AdvancedSettings.romEraseRetryCount;
+    const retries = this.settings.romEraseRetryCount;
     const attempts = retries + 1;
-    const retryDelayMs = AdvancedSettings.romEraseRetryDelayMs;
+    const retryDelayMs = this.settings.romEraseRetryDelayMs;
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
@@ -174,9 +173,8 @@ export class GBAAdapter extends CartridgeAdapter {
     options: CommandOptions,
     signal?: AbortSignal,
   ): Promise<CommandResult> {
-    const profile = this.firmwareProfile;
-    if (!profile.capabilities.gbaSectorErase) {
-      return firmwareUnsupportedResult('GBA ROM sector erase', profile);
+    if (!this.supports('rom.erase.sector')) {
+      return firmwareUnsupportedResult('GBA ROM sector erase', this.firmwareProfile);
     }
 
     return PerformanceTracker.trackAsyncOperation(
@@ -608,10 +606,10 @@ export class GBAAdapter extends CartridgeAdapter {
   override async readROM(size = 0x200000, options: CommandOptions, signal?: AbortSignal, showProgress = true) : Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0x00;
     const pageSize = this.resolveRomReadPageSize(options.romPageSize);
-    const readThrottleMs = AdvancedSettings.romReadThrottleMs;
-    const retries = AdvancedSettings.romReadRetryCount;
-    const retryDelayMs = AdvancedSettings.romReadRetryDelayMs;
-    const timeoutMs = AdvancedSettings.packageReceiveTimeout;
+    const readThrottleMs = this.settings.romReadThrottleMs;
+    const retries = this.settings.romReadRetryCount;
+    const retryDelayMs = this.settings.romReadRetryDelayMs;
+    const timeoutMs = this.settings.packageReceiveTimeout;
 
     this.log(this.t('messages.operation.startReadROM', {
       size,
@@ -791,7 +789,7 @@ export class GBAAdapter extends CartridgeAdapter {
   override async verifyROM(fileData: Uint8Array, options: CommandOptions, signal?: AbortSignal): Promise<CommandResult> {
     const baseAddress = options.baseAddress ?? 0;
     const pageSize = this.resolveRomReadPageSize(options.romPageSize);
-    const readThrottleMs = AdvancedSettings.romReadThrottleMs;
+    const readThrottleMs = this.settings.romReadThrottleMs;
 
     this.log(this.t('messages.operation.startVerifyROM', {
       fileSize: fileData.byteLength,
@@ -1025,7 +1023,7 @@ export class GBAAdapter extends CartridgeAdapter {
     const ramType = options.ramType ?? 'SRAM';
     const pageSize = this.resolveRamPageSize(options.ramPageSize);
 
-    if (!isRamTypeSupportedByFirmware(this.firmwareProfile, 'gba', ramType)) {
+    if (ramType === 'FRAM' && !this.supports('ram.fram.gba')) {
       return firmwareUnsupportedResult('GBA FRAM RAM write', this.firmwareProfile);
     }
 
@@ -1186,9 +1184,9 @@ export class GBAAdapter extends CartridgeAdapter {
     const baseAddress = options.baseAddress ?? 0x00;
     const ramType = options.ramType ?? 'SRAM';
     const pageSize = this.resolveRamPageSize(options.ramPageSize);
-    const readThrottleMs = AdvancedSettings.ramReadThrottleMs;
+    const readThrottleMs = this.settings.ramReadThrottleMs;
 
-    if (!isRamTypeSupportedByFirmware(this.firmwareProfile, 'gba', ramType)) {
+    if (ramType === 'FRAM' && !this.supports('ram.fram.gba')) {
       return firmwareUnsupportedResult('GBA FRAM RAM read', this.firmwareProfile);
     }
 
@@ -1219,8 +1217,8 @@ export class GBAAdapter extends CartridgeAdapter {
 
           const result = new Uint8Array(size);
           let read = 0;
-          const retryAttempts = AdvancedSettings.ramReadRetryCount + 1;
-          const retryDelayMs = AdvancedSettings.ramReadRetryDelayMs;
+          const retryAttempts = this.settings.ramReadRetryCount + 1;
+          const retryDelayMs = this.settings.ramReadRetryDelayMs;
           const restoreRAMBankState = async (absoluteAddress: number): Promise<void> => {
             const { bank } = planBankChunk(absoluteAddress, 1, 1, { platform: 'gba', memory: 'ram' });
             if (ramType === 'FLASH') {
@@ -1342,7 +1340,7 @@ export class GBAAdapter extends CartridgeAdapter {
     const ramType = options.ramType ?? 'SRAM';
     const size = options.size ?? fileData.byteLength;
 
-    if (!isRamTypeSupportedByFirmware(this.firmwareProfile, 'gba', ramType)) {
+    if (ramType === 'FRAM' && !this.supports('ram.fram.gba')) {
       return firmwareUnsupportedResult('GBA FRAM RAM verify', this.firmwareProfile);
     }
 
@@ -1590,7 +1588,7 @@ export class GBAAdapter extends CartridgeAdapter {
     try {
       const cfiInfo = options.cfiInfo;
       const isMultiCard = cfiInfo.deviceSize > (1 << 25); // 32MB
-      const chunkSize = options.romPageSize ?? AdvancedSettings.romPageSize;
+      const chunkSize = options.romPageSize ?? this.settings.romPageSize;
 
       if (this.isBoostMode) {
         this.markChannelBusy();

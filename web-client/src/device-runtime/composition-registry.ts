@@ -6,6 +6,7 @@
  * contributor cannot be combined with Beggar probe facts.
  */
 import type { CapabilitySignals } from '@/device/capabilities';
+import type { ParameterStore } from '@/device/parameters';
 import type { DisplayContributor, ProtocolDriver, SessionProfile } from '@/device/session';
 import type { PlatformId, RuntimeBindingId } from '@/device/types';
 import type { CartridgeAdapter, LogCallback, ProgressCallback, TranslateFunction } from '@/services/cartridge-adapter';
@@ -17,6 +18,8 @@ export interface AdapterContext {
   readonly log: LogCallback;
   readonly updateProgress: ProgressCallback;
   readonly t: TranslateFunction;
+  /** Parameter store of the session; adapters read operation snapshots from it. */
+  readonly store?: ParameterStore;
 }
 
 export interface AdapterFactory {

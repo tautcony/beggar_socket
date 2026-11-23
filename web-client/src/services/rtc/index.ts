@@ -7,12 +7,22 @@ import { GBARTC, GBARTCData } from './gba-rtc';
 import { MBC3RTC, MBC3RTCData } from './mbc3-rtc';
 
 export type RTCType = 'GBA' | 'MBC3';
+
+/**
+ * Boost transport is a session feature. The legacy profile is only consulted for adapters
+ * that were built without a committed session (direct tool use in tests).
+ */
+function boostTransportOf(device: DeviceInfo): boolean {
+  return device.session?.runtimeFeatures.boostTransport
+    ?? device.firmwareProfile?.capabilities.boostMode
+    ?? false;
+}
 export type RTCData = GBARTCData | MBC3RTCData;
 
 function createRTC(type: RTCType, device: DeviceInfo): BaseRTC {
   switch (type) {
     case 'GBA':
-      return new GBARTC(device, device.firmwareProfile);
+      return new GBARTC(device, { boostTransport: boostTransportOf(device) });
     case 'MBC3':
       return new MBC3RTC(device);
     default:

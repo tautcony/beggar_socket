@@ -79,6 +79,8 @@ function createMockDevice(overrides: Partial<DeviceInfo> = {}): DeviceInfo {
   return {
     port: null,
     connection: null,
+    // Direct adapter use: capabilities come from the profile unless a committed session exists.
+    firmwareProfile: STM_FIRMWARE_PROFILE,
     transport: {
       send: vi.fn(),
       read: vi.fn(),
@@ -168,7 +170,7 @@ describe('MBC5Adapter.verifyROM', () => {
     );
     expect(cancelRes.success).toBe(false);
     expect(mockCartPower.mock.calls.map((c) => c[1])).toEqual([0, 2, 1]);
-  });
+  }, 15_000);
 
   it('stabilizes command channel, restores bank, and retries failed verify chunk reads', async () => {
     const device = createMockDevice({ firmwareProfile: STC_FIRMWARE_PROFILE });

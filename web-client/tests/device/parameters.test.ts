@@ -2,38 +2,33 @@ import { describe, expect, it } from 'vitest';
 
 import {
   createDeviceCatalog,
-  createLegacySelectionProvider,
   createParameterStore,
-  LEGACY_PROFILE_VARIANT_IDS,
-  type LegacySettingsAdapter,
+  createSelectionProvider,
   ParameterError,
+  type SettingsStorageAdapter,
   VARIANT_IDS,
 } from '@/device';
 
-import { createFakeLegacySettings } from '../helpers/fake-legacy-settings';
+import { createFakeSettingsStorage } from '../helpers/fake-settings-storage';
 
-function emptyAdapter(): LegacySettingsAdapter {
-  return {
-    readLegacyProfileId: () => 'stm',
-    readParameter: () => undefined,
-    writeParameter: () => undefined,
-    readView: () => ({
-      firmwareProfile: 'stm',
-      stmBoost: false,
-      flashgbxBaudRate: 'auto',
-      profileSizes: {},
-    }),
-  };
+function emptyAdapter(selectedVariantId: string | null = null): SettingsStorageAdapter {
+  const fake = createFakeSettingsStorage({ selectedVariantId });
+  return fake.adapter;
 }
 
-describe('legacy-backed parameter store', () => {
+function storeFor(fake = createFakeSettingsStorage()) {
+  const registry = createDeviceCatalog({ platform: 'windows' });
+  const store = createParameterStore({
+    adapter: fake.adapter,
+    platform: 'windows',
+    schemas: { resolve: namespace => registry.resolveNamespaceSchema(namespace) },
+  });
+  return { registry, store, fake };
+}
+
+describe('namespaced parameter store', () => {
   it('uses host derived schema defaults when nothing is stored', () => {
-    const registry = createDeviceCatalog({ platform: 'windows' });
-    const store = createParameterStore({
-      adapter: emptyAdapter(),
-      platform: 'windows',
-      schemas: { resolve: namespace => registry.resolveNamespaceSchema(namespace) },
-    });
+    const { store } = storeFor();
 
     expect(store.get('beggar.stm', 'romPageSize')).toBe(0x1000);
     expect(store.get('beggar.stm', 'romReadPageSize')).toBe(0x1000);
@@ -43,33 +38,40 @@ describe('legacy-backed parameter store', () => {
     expect(store.get('beggar.stm', 'defaultTimeout')).toBe(3000);
   });
 
-  it('reads legacy persisted values through the single adapter', () => {
-    const registry = createDeviceCatalog({ platform: 'windows' });
-    const fake = createFakeLegacySettings();
-    fake.profileSizes.stm.romPageSize = 0x800;
-    fake.flashgbxBaudRate = 1_500_000;
+  it('declares the GBFlash editable packet ceiling at 0x2000', () => {
+    const { registry } = storeFor();
+    const flashgbx = registry.resolveNamespaceSchema('flashgbx.cfw')?.schema ?? [];
+
+    const romPage = flashgbx.find(descriptor => descriptor.key === 'romPageSize');
+    const romRead = flashgbx.find(descriptor => descriptor.key === 'romReadPageSize');
+    expect(romPage?.constraints?.max).toBe(0x2000);
+    expect(romPage?.default).toBe(0x100);
+    expect(romRead?.constraints?.max).toBe(0x2000);
+  });
+
+  it('reads persisted values from the v2 record through the single adapter', () => {
+    const fake = createFakeSettingsStorage({ selectedVariantId: VARIANT_IDS.gbflash });
+    fake.values.set('beggar.stm.romPageSize', 0x800);
+    fake.values.set('flashgbx.cfw.baudRate', 1_500_000);
     fake.values.set('global.romReadThrottleMs', 12);
 
-    const store = createParameterStore({
-      adapter: fake.adapter,
-      platform: 'windows',
-      schemas: { resolve: namespace => registry.resolveNamespaceSchema(namespace) },
-    });
+    const { store } = storeFor(fake);
 
     expect(store.get('beggar.stm', 'romPageSize')).toBe(0x800);
     expect(store.get('flashgbx.cfw', 'baudRate')).toBe(1_500_000);
     expect(store.get('beggar.stm', 'romReadThrottleMs')).toBe(12);
-    expect(store.legacy.firmwareProfile).toBe('stm');
+  });
+
+  it('writes global parameters into the global scope only', () => {
+    const { store, fake } = storeFor();
+
+    store.set('beggar.stc', 'operationTimeout', 45_000);
+    expect(fake.writes).toEqual([{ namespace: 'global', key: 'operationTimeout', value: 45_000 }]);
+    expect(store.get('flashgbx.cfw', 'operationTimeout')).toBe(45_000);
   });
 
   it('validates a write and reports the namespace and key on failure', () => {
-    const registry = createDeviceCatalog({ platform: 'windows' });
-    const fake = createFakeLegacySettings();
-    const store = createParameterStore({
-      adapter: fake.adapter,
-      platform: 'windows',
-      schemas: { resolve: namespace => registry.resolveNamespaceSchema(namespace) },
-    });
+    const { store, fake } = storeFor(createFakeSettingsStorage({ independentSizes: true }));
 
     store.set('beggar.stm', 'romPageSize', 0x800);
     expect(fake.writes).toEqual([{ namespace: 'beggar.stm', key: 'romPageSize', value: 0x800 }]);
@@ -91,16 +93,41 @@ describe('legacy-backed parameter store', () => {
     expect(() => { store.set('beggar.stm', 'nope', 1); }).toThrow(/unknown parameter/);
   });
 
-  it('stamps an operation snapshot with global values plus namespaced values', () => {
-    const registry = createDeviceCatalog({ platform: 'windows' });
-    const fake = createFakeLegacySettings();
-    fake.values.set('global.operationTimeout', 45_000);
+  it('mirrors linked Beggar sizes while sizes are not independent, and stops when they are', () => {
+    const linked = storeFor();
+    linked.store.set('beggar.stm', 'romReadPageSize', 0x2000);
+    // STM and STC share `beggar-sizes`.
+    expect(linked.store.get('beggar.stc', 'romReadPageSize')).toBe(0x2000);
+    expect(linked.fake.writes.map(write => write.namespace)).toEqual(['beggar.stm', 'beggar.stc']);
 
-    const store = createParameterStore({
-      adapter: fake.adapter,
-      platform: 'windows',
-      schemas: { resolve: namespace => registry.resolveNamespaceSchema(namespace) },
-    });
+    const independent = createFakeSettingsStorage({ independentSizes: true });
+    const { store } = storeFor(independent);
+    store.set('beggar.stm', 'romReadPageSize', 0x2000);
+    store.set('beggar.stc', 'romReadPageSize', 0x1000);
+    expect(store.get('beggar.stm', 'romReadPageSize')).toBe(0x2000);
+    expect(store.get('beggar.stc', 'romReadPageSize')).toBe(0x1000);
+  });
+
+  it('never mirrors a linked size into the independent GBFlash namespace', () => {
+    const { store } = storeFor();
+    store.set('beggar.stm', 'romReadPageSize', 0x2000);
+    expect(store.get('flashgbx.cfw', 'romReadPageSize')).toBe(0x100);
+  });
+
+  it('shares one namespace between standard STM and Boost', () => {
+    const registry = createDeviceCatalog({ platform: 'windows' });
+    expect(registry.selectVariant(VARIANT_IDS.stm).parameterNamespace)
+      .toBe(registry.selectVariant(VARIANT_IDS.stmBoost).parameterNamespace);
+
+    const { store } = storeFor();
+    store.set('beggar.stm', 'romPageSize', 0x800);
+    expect(store.get('beggar.stm', 'romPageSize')).toBe(0x800);
+  });
+
+  it('stamps an operation snapshot with global values plus namespaced values', () => {
+    const fake = createFakeSettingsStorage();
+    fake.values.set('global.operationTimeout', 45_000);
+    const { store } = storeFor(fake);
 
     const snapshot = store.operationSnapshot('beggar.stc');
     expect(snapshot.namespace).toBe('beggar.stc');
@@ -110,16 +137,10 @@ describe('legacy-backed parameter store', () => {
   });
 
   it('re-reads settings for every operation so changes apply to the next operation only', () => {
-    const registry = createDeviceCatalog({ platform: 'windows' });
-    const fake = createFakeLegacySettings();
-    const store = createParameterStore({
-      adapter: fake.adapter,
-      platform: 'windows',
-      schemas: { resolve: namespace => registry.resolveNamespaceSchema(namespace) },
-    });
+    const { store, fake } = storeFor();
 
     const first = store.operationSnapshot('beggar.stm');
-    fake.profileSizes.stm.romPageSize = 0x800;
+    fake.values.set('beggar.stm.romPageSize', 0x800);
     const second = store.operationSnapshot('beggar.stm');
 
     expect(first.values.romPageSize).toBe(0x1000);
@@ -138,52 +159,39 @@ describe('legacy-backed parameter store', () => {
   });
 });
 
-describe('legacy selection provider', () => {
+describe('selection provider', () => {
   const registry = createDeviceCatalog({ platform: 'windows' });
 
-  function provider(options: { legacyProfileId?: string; stmBoost?: boolean } = {}) {
-    const fake = createFakeLegacySettings(options);
+  function provider(selectedVariantId: string | null = null) {
+    const fake = createFakeSettingsStorage({ selectedVariantId });
     return {
       fake,
-      provider: createLegacySelectionProvider({
-        adapter: fake.adapter,
-        registry,
-        legacyProfileVariants: LEGACY_PROFILE_VARIANT_IDS,
-      }),
+      provider: createSelectionProvider({ adapter: fake.adapter, registry }),
     };
   }
 
-  it.each([
-    ['stm', VARIANT_IDS.stm],
-    ['stc', VARIANT_IDS.stc],
-    ['flashgbx', VARIANT_IDS.gbflash],
-  ])('maps legacy profile %s to %s', (legacyProfileId, expected) => {
-    const { provider: selection } = provider({ legacyProfileId });
-    expect(selection.read()).toEqual({ variantId: expected, source: 'legacy' });
-  });
-
-  it('never turns the legacy stmBoost flag into the Boost variant', () => {
-    const { provider: selection } = provider({ legacyProfileId: 'stm', stmBoost: true });
-    expect(selection.read()).toEqual({ variantId: VARIANT_IDS.stm, source: 'legacy' });
-  });
+  it.each([VARIANT_IDS.stm, VARIANT_IDS.stmBoost, VARIANT_IDS.stc, VARIANT_IDS.gbflash])(
+    'reads the persisted variant %s',
+    (variantId) => {
+      const { provider: selection } = provider(variantId);
+      expect(selection.read()).toEqual({ variantId, source: 'v2' });
+    },
+  );
 
   it('reports an invalid selection without falling back to a default', () => {
-    const { provider: selection } = provider({ legacyProfileId: 'retired-device' });
+    const { provider: selection } = provider('retired-variant');
     expect(selection.read()).toEqual({ source: 'invalid' });
     expect(selection.read().variantId).toBeUndefined();
+
+    const empty = provider(null);
+    expect(empty.provider.read()).toEqual({ source: 'invalid' });
   });
 
-  it('reports v2 selections with source v2 and rejects stale ones', () => {
+  it('writes only registered variants', () => {
     const { fake, provider: selection } = provider();
-    fake.selectedVariantId = VARIANT_IDS.stmBoost;
-    expect(selection.read()).toEqual({ variantId: VARIANT_IDS.stmBoost, source: 'v2' });
+    selection.write?.(VARIANT_IDS.stmBoost);
+    expect(fake.selectedVariantId).toBe(VARIANT_IDS.stmBoost);
 
-    fake.selectedVariantId = 'retired-variant';
-    expect(selection.read()).toEqual({ source: 'invalid' });
-  });
-
-  it('stays read-only before the v2 migration', () => {
-    const { provider: selection } = provider();
-    expect('write' in selection).toBe(false);
+    expect(() => selection.write?.('retired-variant')).toThrow(/not registered/);
   });
 });

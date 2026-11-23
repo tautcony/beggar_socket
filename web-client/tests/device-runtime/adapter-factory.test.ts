@@ -3,16 +3,16 @@ import { describe, expect, it, vi } from 'vitest';
 import { VARIANT_IDS } from '@/device/definitions';
 import type { SessionProfile } from '@/device/session';
 import {
+  type AdapterContext,
   createBeggarAdapterFactory,
   createFlashgbxAdapterFactory,
   flashgbxModeSync,
-  type AdapterContext,
 } from '@/device-runtime';
-import { GBAAdapter } from '@/services/gba-adapter';
-import { MBC5Adapter } from '@/services/mbc5-adapter';
+import { FlashgbxBaseAdapter } from '@/services/flashgbx-base-adapter';
 import { FlashgbxGbaAdapter } from '@/services/flashgbx-gba-adapter';
 import { FlashgbxMbcAdapter } from '@/services/flashgbx-mbc-adapter';
-import { FlashgbxBaseAdapter } from '@/services/flashgbx-base-adapter';
+import { GBAAdapter } from '@/services/gba-adapter';
+import { MBC5Adapter } from '@/services/mbc5-adapter';
 import type { DeviceInfo } from '@/types/device-info';
 
 import { buildFlashgbxSession, buildStmSession, buildTestSession } from '../helpers/session-profile';

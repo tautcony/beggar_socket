@@ -1,6 +1,5 @@
 import type { DeviceDiagnostic } from '@/device/session';
-import type { EstablishedSession, SessionEstablishment } from '@/device-runtime';
-import { isSessionStageError } from '@/device-runtime';
+import { type EstablishedSession, isSessionStageError, type SessionEstablishment } from '@/device-runtime';
 import type { DeviceGateway, DeviceHandle, DeviceSelection } from '@/platform/serial';
 import type { SerialPortInfo } from '@/types/serial';
 
@@ -12,8 +11,12 @@ import type {
   BurnerConnectionSelectOptions,
   BurnerConnectionSession,
 } from '../application/domain/ports';
-import type { BurnerDomainError } from '../application/domain/result';
-import { type BurnerDomainResult, failureResult, successResult } from '../application/domain/result';
+import {
+  type BurnerDomainError,
+  type BurnerDomainResult,
+  failureResult,
+  successResult,
+} from '../application/domain/result';
 
 function toConnectionHandle(handle: DeviceHandle, sequence: number): BurnerConnectionHandle {
   return {

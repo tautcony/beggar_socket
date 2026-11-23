@@ -123,8 +123,9 @@ export class FlashgbxGbaAdapter extends FlashgbxBaseAdapter {
           onCleanupReset: client => resetProfileFlash(client, 'AGB', this.activeFlashcartProfile),
         },
         async (client) => {
-          if (options?.flashcartProfileId) {
-            return this.resolveManualProfileCartInfo(client, 'AGB', 'GBA', options.flashcartProfileId);
+          const manualProfileId = this.flashcartProfileIdFor(options);
+          if (manualProfileId) {
+            return this.resolveManualProfileCartInfo(client, 'AGB', 'GBA', manualProfileId);
           }
 
           await client.cartWriteFlash('AGB', [[0x00, 0xF0]], true);

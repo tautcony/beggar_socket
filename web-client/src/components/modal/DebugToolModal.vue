@@ -202,7 +202,7 @@
               variant="primary"
               :icon="isSending ? 'pixelarticons:hourglass' : 'pixelarticons:play'"
               :text="isSending ? $t('ui.debug.tool.sending') : $t('ui.debug.tool.send')"
-              :disabled="!canSend || isSending || connectionBusy || !hasDevice || isFlashgbx"
+              :disabled="!canSend || isSending || connectionBusy || !hasDevice || !supportsDebug"
               @click="sendCommand"
             />
 
@@ -369,6 +369,7 @@ import { useI18n } from 'vue-i18n';
 import { RetroBadge, RetroButton, RetroIcon, RetroModal, RetroSelect } from '@/components/retro';
 import { useConnectionOperationBusy } from '@/composables/useConnectionOperationBusy';
 import { useToast } from '@/composables/useToast';
+import { displayTextToString } from '@/device/display';
 import {
   type DebugCommandType,
   executeDebugCommand,
@@ -433,10 +434,13 @@ let copyFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
 let historyIdCounter = 0;
 
 const hasDevice = computed(() => Boolean(props.device?.transport ?? props.device?.serialHandle?.transport));
-const isFlashgbx = computed(() => props.device?.firmwareProfile?.id === 'flashgbx' || Boolean(props.device?.firmwareProfile?.capabilities.nativeFlashgbxProtocol));
+/** Raw debug commands require the session's `tool.debug` capability. */
+const supportsDebug = computed(() => props.device?.session?.capabilities.has('tool.debug') ?? false);
 const deviceLabel = computed(() => {
   if (!props.device) return '';
-  return props.device.firmwareProfile?.label ?? props.device.portInfo?.path ?? '';
+  const session = props.device.session;
+  if (session) return displayTextToString(session.display.title);
+  return props.device.portInfo?.path ?? '';
 });
 
 const availableCommands = computed(() => {
