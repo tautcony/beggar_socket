@@ -83,7 +83,12 @@ export function buildTestSession(
     ...(options.usb ? { usb: options.usb } : {}),
   };
 
-  return runtime.resolver.resolve(selection, probe, transportFacts, runtime.store);
+  return runtime.resolver.resolve(
+    selection,
+    probe,
+    transportFacts,
+    runtime.store.operationSnapshot(selection.parameterNamespace).values,
+  );
 }
 
 /** Convenience: FlashGBX session with an STM-style default port identity. */

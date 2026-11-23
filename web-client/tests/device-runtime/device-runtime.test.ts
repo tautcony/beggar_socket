@@ -27,7 +27,7 @@ describe('device runtime assembly', () => {
       selection,
       { firmwareId: selection.firmware.id, verification: 'assumed', facts: {} },
       { backend: 'serial' },
-      runtime.store,
+      runtime.store.operationSnapshot(selection.parameterNamespace).values,
     );
 
     expect(profile.variantId).toBe(VARIANT_IDS.stc);

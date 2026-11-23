@@ -86,7 +86,8 @@ export function defaultSizesForNamespace(namespace: string): SizeSettings {
   const limits = binding.transport.packetLimits[detectHostPlatform()];
   return {
     romPageSize: limits.romWrite,
-    romReadPageSize: limits.romRead,
+    // FlashGBX declares the real read request size; its 256B packet limit only bounds a frame.
+    romReadPageSize: binding.transport.readPageDefault ?? limits.romRead,
     ramPageSize: limits.ramPage,
   };
 }

@@ -62,6 +62,24 @@ describe('namespaced parameter store', () => {
     expect(store.get('beggar.stm', 'romReadThrottleMs')).toBe(12);
   });
 
+  it('clamps a stored value that exceeds its namespace ceiling instead of serving it', () => {
+    const fake = createFakeSettingsStorage();
+    // A v1 record could store 0x4000 for STM; the shared STM/Boost ceiling is 0x2000.
+    fake.values.set('beggar.stm.romReadPageSize', 0x4000);
+    fake.values.set('beggar.stc.romReadPageSize', 0x4000);
+    // A value below the minimum is raised to it, never used as-is.
+    fake.values.set('beggar.stm.romPageSize', 0x10);
+
+    const { store } = storeFor(fake);
+
+    expect(store.get('beggar.stm', 'romReadPageSize')).toBe(0x2000);
+    expect(store.snapshot('beggar.stm').romReadPageSize).toBe(0x2000);
+    expect(store.operationSnapshot('beggar.stm').values.romReadPageSize).toBe(0x2000);
+    // STC keeps its own, wider ceiling.
+    expect(store.get('beggar.stc', 'romReadPageSize')).toBe(0x4000);
+    expect(store.get('beggar.stm', 'romPageSize')).toBe(0x40);
+  });
+
   it('writes global parameters into the global scope only', () => {
     const { store, fake } = storeFor();
 
@@ -111,7 +129,7 @@ describe('namespaced parameter store', () => {
   it('never mirrors a linked size into the independent GBFlash namespace', () => {
     const { store } = storeFor();
     store.set('beggar.stm', 'romReadPageSize', 0x2000);
-    expect(store.get('flashgbx.cfw', 'romReadPageSize')).toBe(0x100);
+    expect(store.get('flashgbx.cfw', 'romReadPageSize')).toBe(0x1000);
   });
 
   it('shares one namespace between standard STM and Boost', () => {

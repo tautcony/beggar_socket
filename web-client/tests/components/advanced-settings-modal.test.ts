@@ -157,6 +157,23 @@ describe('AdvancedSettingsModal', () => {
     expect((applyButton(wrapper).element as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it('applies settings even when a legacy value exceeds the namespace ceiling', async () => {
+    // v1 could store a 16 KiB STM read page; the shared STM/Boost ceiling is 8 KiB, and the
+    // form validates every namespace at once — this used to block "apply" for unrelated edits.
+    AdvancedSettings.setNamespaceSize('beggar.stm', 'romReadPageSize', 0x4000);
+
+    const wrapper = mountModal();
+    await nextTick();
+
+    expect((wrapper.get('#param-romReadPageSize').element as HTMLInputElement).value).toBe('8192');
+    expect((applyButton(wrapper).element as HTMLButtonElement).disabled).toBe(false);
+
+    await applyButton(wrapper).trigger('click');
+
+    // Applying writes the clamped value back, so the record stops carrying an illegal size.
+    expect(AdvancedSettings.getNamespaceSizes('beggar.stm').romReadPageSize).toBe(0x2000);
+  });
+
   it('keeps STM and STC linked unless independent sizes are enabled', async () => {
     const wrapper = mountModal();
     await nextTick();

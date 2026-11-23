@@ -13,6 +13,7 @@ import {
   createRuntimeCompositionRegistry,
   createSessionEstablishment,
   isSessionStageError,
+  planConnection,
   type RuntimeBinding,
 } from '@/device-runtime';
 
@@ -224,6 +225,36 @@ describe('SessionEstablishment', () => {
     });
     expect(retried.active.connectionId).toBe('b');
     expect(driver.cleanupPending).toHaveBeenCalledTimes(1);
+  });
+
+  it('resolves the attempt plan instead of re-reading the settings mid-transaction', async () => {
+    // Settings are saved while the port is being opened: the attempt must still publish the
+    // variant and baud rate it started with, because those are what opened the port.
+    const selection: SelectionProvider = {
+      read: () => ({ variantId: VARIANT_IDS.gbflash, source: 'v2' as const }),
+    };
+    const { establishment, runtime } = createHarness({ selection });
+    runtime.store.set('flashgbx.cfw', 'baudRate', 1_000_000);
+    const plan = planConnection({
+      selection,
+      registry: runtime.registry,
+      store: runtime.store,
+    });
+    expect(plan).toMatchObject({ variantId: VARIANT_IDS.gbflash, baudRate: 1_000_000 });
+
+    // A second edit lands between the plan and the handshake.
+    runtime.store.set('flashgbx.cfw', 'baudRate', 2_000_000);
+
+    const established = await establishment.establish({
+      connectionId: 'session-1',
+      transport: createTransport().transport,
+      backend: 'serial',
+      plan,
+    });
+
+    expect(established.active.profile.variantId).toBe(VARIANT_IDS.gbflash);
+    expect(established.active.profile.transport.baudRate).toBe(1_000_000);
+    expect(established.active.profile.connectionParameters.baudRate).toBe(1_000_000);
   });
 
   it('returns teardown diagnostics instead of throwing when teardown fails', async () => {

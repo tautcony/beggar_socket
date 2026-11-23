@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
@@ -193,6 +193,96 @@ describe('FlashGBX operation guards', () => {
     await nextTick();
 
     expect(vm.gbaAdapter?.id).toBe('cartridge:gba');
+  });
+
+  it('syncs the FlashGBX hardware mode when the GBA/MBC5 tab changes', async () => {
+    const sentPackets: number[][] = [];
+    const device = createFlashgbxDevice().device;
+    // Every safety command needs one ACK before the next one is allowed out.
+    device.transport = {
+      send: vi.fn((data: Uint8Array) => {
+        sentPackets.push(Array.from(data));
+        return Promise.resolve(true);
+      }),
+      read: vi.fn(() => Promise.resolve({ data: new Uint8Array([0x01]) })),
+      sendAndReceive: vi.fn(() => Promise.resolve({ data: new Uint8Array([0x01]) })),
+      setSignals: vi.fn(() => Promise.resolve(undefined)),
+      flushInput: vi.fn(() => Promise.resolve(undefined)),
+      flushOutput: vi.fn(() => Promise.resolve(undefined)),
+    };
+
+    const wrapper = mount(CartBurner, {
+      props: { device, deviceReady: true },
+      global: {
+        mocks: { $t: (key: string) => key },
+        stubs: {
+          RetroButton: true,
+          RetroCard: { template: '<div><slot /><slot name="header" /></div>' },
+          RetroSegmented: true,
+          ChipOperations: true,
+          RomOperations: true,
+          RamOperations: true,
+          DeviceSettingModal: true,
+          FileNameSelectorModal: true,
+          MultiCartResultModal: true,
+          ProgressDisplayModal: true,
+          CartridgeToolsModal: true,
+          LogViewer: true,
+          EmulatorModal: true,
+        },
+      },
+    });
+    await nextTick();
+
+    const vm = wrapper.vm as unknown as { mode: 'GBA' | 'MBC5' };
+    vm.mode = 'MBC5';
+    await nextTick();
+    await flushPromises();
+
+    // Mode sync is a method of the adapter, not of the protocol-session wrapper, so this
+    // asserts the component hands the real adapter to the binding's strategy.
+    expect(sentPackets.some(p => p[0] === FLASHGBX_CMD.CART_PWR_OFF)).toBe(true);
+    expect(sentPackets.some(p => p[0] === FLASHGBX_CMD.SET_VOLTAGE_3_3V)).toBe(true);
+  });
+
+  it('drops the CFI geometry when the flashcart profile changes', async () => {
+    const { device } = createFlashgbxDevice();
+    const wrapper = mount(CartBurner, {
+      props: { device, deviceReady: true },
+      global: {
+        mocks: { $t: (key: string) => key },
+        stubs: {
+          RetroButton: true,
+          RetroCard: { template: '<div><slot /><slot name="header" /></div>' },
+          RetroSegmented: true,
+          ChipOperations: true,
+          RomOperations: true,
+          RamOperations: true,
+          DeviceSettingModal: true,
+          FileNameSelectorModal: true,
+          MultiCartResultModal: true,
+          ProgressDisplayModal: true,
+          CartridgeToolsModal: true,
+          LogViewer: true,
+          EmulatorModal: true,
+        },
+      },
+    });
+    await nextTick();
+
+    const vm = wrapper.vm as unknown as {
+      cfiInfo: unknown;
+      chipId: unknown;
+      onFlashcartProfileChange: (profileId: string) => void;
+    };
+    vm.cfiInfo = { eraseSectorBlocks: [{ sectorSize: 0x10000, sectorCount: 4 }] };
+    vm.chipId = [0x01, 0x7E];
+
+    vm.onFlashcartProfileChange('other-profile');
+
+    // The old geometry belonged to the previous command set; erase/write must re-read it.
+    expect(vm.cfiInfo).toBeNull();
+    expect(vm.chipId).toBeUndefined();
   });
 
   it('blocks ChisFlash-only ppbUnlock functions on flashgbx devices without touching transport', async () => {

@@ -84,7 +84,13 @@ export function createBeggarParameterSchema(context: ParameterSchemaContext): Pa
  */
 export const GBFLASH_EDITABLE_PACKET_MAX = 0x2000;
 
-/** FlashGBX namespace schema: 256B transport defaults plus the reconnect-scoped baud rate. */
+/**
+ * FlashGBX namespace schema: 256B packet defaults plus the reconnect-scoped baud rate.
+ *
+ * The read page defaults to the declared read *request* size (`readPageDefault`) rather
+ * than the 256B packet limit: one `CART_READ` returns a whole buffer, and the packet limit
+ * only bounds the frames it arrives in.
+ */
 export function createFlashgbxParameterSchema(context: ParameterSchemaContext): ParameterSchema {
   const limits = context.transport.packetLimits[context.platform];
   return [
@@ -100,7 +106,7 @@ export function createFlashgbxParameterSchema(context: ParameterSchemaContext): 
       requiresReconnect: true,
     },
     sizeDescriptor('romPageSize', 'ROM page size', limits.romWrite, GBFLASH_EDITABLE_PACKET_MAX),
-    sizeDescriptor('romReadPageSize', 'ROM read page size', limits.romRead, GBFLASH_EDITABLE_PACKET_MAX),
+    sizeDescriptor('romReadPageSize', 'ROM read page size', context.transport.readPageDefault ?? limits.romRead, GBFLASH_EDITABLE_PACKET_MAX),
     sizeDescriptor('ramPageSize', 'RAM page size', limits.ramPage, GBFLASH_EDITABLE_PACKET_MAX),
   ];
 }

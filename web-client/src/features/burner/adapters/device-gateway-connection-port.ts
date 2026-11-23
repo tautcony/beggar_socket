@@ -1,4 +1,4 @@
-import type { DeviceDiagnostic } from '@/device/session';
+import type { ConnectionPlan, DeviceDiagnostic } from '@/device/session';
 import { type EstablishedSession, isSessionStageError, type SessionEstablishment } from '@/device-runtime';
 import type { DeviceGateway, DeviceHandle, DeviceSelection } from '@/platform/serial';
 import type { SerialPortInfo } from '@/types/serial';
@@ -27,7 +27,7 @@ function toConnectionHandle(handle: DeviceHandle, sequence: number): BurnerConne
   };
 }
 
-function toSelection(selection: DeviceSelection | null): BurnerConnectionSelection | null {
+function toSelection(selection: DeviceSelection | null, plan?: ConnectionPlan): BurnerConnectionSelection | null {
   if (!selection) {
     return null;
   }
@@ -35,6 +35,7 @@ function toSelection(selection: DeviceSelection | null): BurnerConnectionSelecti
   return {
     portInfo: selection.portInfo,
     context: selection,
+    ...(plan ? { plan } : {}),
   };
 }
 
@@ -106,6 +107,8 @@ function mapSessionStageError(error: unknown): BurnerDomainError {
 export class DeviceGatewayConnectionPortAdapter implements BurnerConnectionPort {
   private sequence = 0;
   private readonly sessions = new Map<string, EstablishedSession>();
+  /** Connection plan of each open handle, keyed like `sessions`. */
+  private readonly plans = new Map<string, ConnectionPlan>();
 
   /** Present only when the port is wired with a session establishment transaction. */
   readonly establishSession?: (handle: BurnerConnectionHandle) => Promise<BurnerDomainResult<BurnerConnectionSession>>;
@@ -136,7 +139,7 @@ export class DeviceGatewayConnectionPortAdapter implements BurnerConnectionPort 
         ...(options?.skipSignalInit !== undefined ? { skipSignalInit: options.skipSignalInit } : {}),
       };
     });
-    return result.ok ? successResult(toSelection(result.data)) : result;
+    return result.ok ? successResult(toSelection(result.data, options?.plan)) : result;
   }
 
   async connect(selection?: BurnerConnectionSelection | null): Promise<BurnerDomainResult<BurnerConnectionHandle>> {
@@ -146,7 +149,13 @@ export class DeviceGatewayConnectionPortAdapter implements BurnerConnectionPort 
     }
 
     this.sequence += 1;
-    return successResult(toConnectionHandle(result.data, this.sequence));
+    const handle = toConnectionHandle(result.data, this.sequence);
+    // The plan belongs to the attempt that opened this handle; keep it until it closes so
+    // the session transaction never has to re-read the settings mid-flight.
+    if (selection?.plan) {
+      this.plans.set(handle.id, selection.plan);
+    }
+    return successResult(handle);
   }
 
   async init(handle: BurnerConnectionHandle): Promise<BurnerDomainResult<void>> {
@@ -156,6 +165,7 @@ export class DeviceGatewayConnectionPortAdapter implements BurnerConnectionPort 
   async disconnect(handle: BurnerConnectionHandle): Promise<BurnerDomainResult<void>> {
     const session = this.sessions.get(handle.id);
     this.sessions.delete(handle.id);
+    this.plans.delete(handle.id);
 
     // Teardown runs before the close and never blocks it; its failures become diagnostics.
     const diagnostics: readonly DeviceDiagnostic[] = session && this.establishment
@@ -175,12 +185,14 @@ export class DeviceGatewayConnectionPortAdapter implements BurnerConnectionPort 
   ): Promise<BurnerDomainResult<BurnerConnectionSession>> {
     const device = unwrapHandle(handle);
     const portInfo = toSerialPortInfo(device.portInfo ?? handle.portInfo);
+    const plan = this.plans.get(handle.id);
     try {
       const established = await establishment.establish({
         connectionId: handle.id,
         transport: device.transport,
         ...(portInfo ? { portInfo } : {}),
         backend: device.platform === 'simulated' ? 'simulated' : 'serial',
+        ...(plan ? { plan } : {}),
         ...(portInfo?.vendorId || portInfo?.productId
           ? { usb: { vendorId: portInfo.vendorId, productId: portInfo.productId } }
           : {}),

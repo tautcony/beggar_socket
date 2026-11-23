@@ -7,7 +7,7 @@
  */
 import { NO_CAPABILITY_SIGNALS, resolveCapabilities, type RuntimeFeatures } from '@/device/capabilities';
 import { GBFLASH_AUTO_BAUD_RATE, VARIANT_IDS } from '@/device/definitions';
-import type { ParameterStore, ParameterValue } from '@/device/parameters';
+import type { ParameterValue } from '@/device/parameters';
 import type {
   DeviceDiagnostic,
   ProbeResult,
@@ -43,11 +43,17 @@ export interface SessionResolverOptions {
 }
 
 export interface SessionResolver {
+  /**
+   * Resolves the committed profile from the attempt snapshot.
+   *
+   * `parameters` is the operation snapshot taken when the attempt started, so the baud
+   * rate published in the profile is exactly the one the port was opened with.
+   */
   resolve<TFacts>(
     selection: ResolvedVariantSelection,
     probe: ProbeResult<TFacts>,
     transportFacts: TransportFacts,
-    store: ParameterStore,
+    parameters: Readonly<Record<string, ParameterValue>>,
   ): SessionProfile;
 }
 
@@ -99,7 +105,7 @@ export function createSessionResolver(options: SessionResolverOptions): SessionR
       selection: ResolvedVariantSelection,
       probe: ProbeResult<TFacts>,
       transportFacts: TransportFacts,
-      store: ParameterStore,
+      parameters: Readonly<Record<string, ParameterValue>>,
     ): SessionProfile {
       if (!composition.has(selection.runtimeBindingId)) {
         throw new SessionResolutionError(
@@ -126,8 +132,7 @@ export function createSessionResolver(options: SessionResolverOptions): SessionR
         boostTransport: resolveBoostTransport(selection, probe.verification, transportFacts),
       };
 
-      const settings = store.operationSnapshot(selection.parameterNamespace);
-      const baudRate = resolveConnectionBaudRate(selection, settings.values);
+      const baudRate = resolveConnectionBaudRate(selection, parameters);
       const transport: ResolvedTransportProfile = {
         backend: transportFacts.backend,
         platform,
@@ -178,7 +183,7 @@ export function createSessionResolver(options: SessionResolverOptions): SessionR
         runtimeFeatures,
         transport,
         verification: probe.verification,
-        connectionParameters: Object.freeze({ ...settings.values }),
+        connectionParameters: Object.freeze({ ...parameters }),
         display,
         // Copy each entry: the array itself and the diagnostics snapshot stay immutable
         // even when a driver keeps a reference to its own probe result.

@@ -140,6 +140,33 @@ describe('FlashGBX fw_ver thresholds & Decision 2 commands', () => {
     expect(t.sent.length).toBe(4);
   });
 
+  it('keeps sending raw payload after 0x03 when the next chunk is all 0xFF', async () => {
+    const fw14 = makeFwInfo({ family: 'gbflash', pcbVer: 13, fwVer: 14 });
+    const t = createScriptedTransport([
+      [0x01], // TRANSFER_SIZE
+      [0x01], // ADDRESS
+      [0x03], // chunk 0 -> continue: the device now expects raw bytes
+      [0x01], // chunk 1 ack
+      [0x01], // chunk 2 ack
+    ]);
+    const client = new FlashgbxCommandClient(t.transport, fw14, { baudRate: 2_000_000 });
+    const payload = new Uint8Array([
+      0xAA, 0xAA, 0xAA, 0xAA,
+      0xFF, 0xFF, 0xFF, 0xFF,
+      0xBB, 0xBB, 0xBB, 0xBB,
+    ]);
+
+    await client.writeFlashRom('AGB', 0x0000, payload, 0, { maxLength: 4 });
+
+    // The all-0xFF chunk cannot be skipped mid-resume: skipping it would strand the device
+    // waiting for payload, so the next command byte would be consumed as data.
+    expect(t.sent[2]).toEqual([FLASHGBX_CMD.FLASH_PROGRAM, 0xAA, 0xAA, 0xAA, 0xAA]);
+    expect(t.sent[3]).toEqual([0xFF, 0xFF, 0xFF, 0xFF]);
+    expect(t.sent[4]).toEqual([FLASHGBX_CMD.FLASH_PROGRAM, 0xBB, 0xBB, 0xBB, 0xBB]);
+    // No SET_VARIABLE between the resumed chunks.
+    expect(t.sent.length).toBe(5);
+  });
+
   it('chunks CALC_CRC32 at 0x20000 and falls back to readback below fw_ver 10', async () => {
     const data = new Uint8Array(FLASHGBX_CRC32_CHUNK_SIZE + 16);
     for (let i = 0; i < data.length; i++) {

@@ -135,10 +135,20 @@ describe('DeviceConnectionManager', () => {
     const manager = DeviceConnectionManager.getInstance();
     await manager.requestDevice();
 
-    // The single match is opened with the binding's own connection parameters.
+    // The single match is opened with the binding's own connection parameters, and the
+    // attempt snapshot travels with the selection so the session resolves the same values.
     expect(connectionUseCaseState.reconnectWithSelection).toHaveBeenCalledWith({
       portInfo: CH340_PORT,
-      context: { portInfo: CH340_PORT, baudRate: 2_000_000, skipSignalInit: true },
+      context: expect.objectContaining({
+        portInfo: CH340_PORT,
+        baudRate: 2_000_000,
+        skipSignalInit: true,
+      }),
+      plan: expect.objectContaining({
+        variantId: VARIANT_IDS.gbflash,
+        baudRate: 2_000_000,
+        parameters: expect.objectContaining({ baudRate: 'auto' }),
+      }),
     });
     expect(connectionUseCaseState.disconnect).not.toHaveBeenCalled();
   });
@@ -238,7 +248,7 @@ describe('DeviceConnectionManager', () => {
     expect(device.firmwareProfile?.id).toBe('flashgbx');
     expect(device.firmwareProfile?.label).toBe('GBFlash');
     expect(device.firmwareProfile?.firmwareVersion).toBe('L14');
-    expect(device.firmwareProfile?.maxReadChunk).toBe(0x100);
+    expect(device.firmwareProfile?.maxReadChunk).toBe(0x1000);
     expect(device.firmwareProfile?.capabilities.cartPowerControl).toBe(true);
     expect(device.flashgbxInfo?.pcbName).toBe('GBFlash');
     expect(device.connectionId).toBe('tauri:1');

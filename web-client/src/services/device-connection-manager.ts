@@ -1,9 +1,9 @@
 import { firmwareProfileFromSession } from '@/device/compat/firmware-profile';
 import { displayTextToString } from '@/device/display';
-import type { DeviceDiagnostic, SessionProfile } from '@/device/session';
+import type { ConnectionPlan, DeviceDiagnostic, SessionProfile } from '@/device/session';
 import type { ResolvedVariantSelection } from '@/device/types';
+import { planConnection } from '@/device-runtime/connection-plan';
 import { type DeviceRuntime, getDeviceRuntime } from '@/device-runtime/runtime-instance';
-import { resolveConnectionBaudRate } from '@/device-runtime/session-resolver';
 import { createConnectionOrchestrationUseCase } from '@/features/burner/adapters';
 import type {
   BurnerConnectionHandle,
@@ -129,16 +129,23 @@ export class DeviceConnectionManager {
     );
   }
 
-  /** Reads the saved selection and resolves it; never guesses a default. */
-  private resolveVariant(): ResolvedVariantSelection {
-    const snapshot = this.runtime.selection.read();
-    if (!snapshot.variantId) {
-      throw new DeviceSelectionError('No valid device selection. Choose a device and firmware in the advanced settings.');
-    }
+  /**
+   * Attempt snapshot: selected variant, its operation parameters and the baud rate they
+   * resolve to. Taken once here, before any asynchronous port work, and carried through
+   * the transaction so the opened port and the published profile cannot disagree.
+   */
+  private resolveAttempt(): { plan: ConnectionPlan; variant: ResolvedVariantSelection } {
     try {
-      return this.runtime.registry.selectVariant(snapshot.variantId);
+      const plan = planConnection({
+        selection: this.runtime.selection,
+        registry: this.runtime.registry,
+        store: this.runtime.store,
+      });
+      return { plan, variant: this.runtime.registry.selectVariant(plan.variantId) };
     } catch (error) {
-      throw new DeviceSelectionError(`Device selection ${snapshot.variantId} is not registered`);
+      throw new DeviceSelectionError(
+        error instanceof Error ? error.message : 'No valid device selection. Choose a device and firmware in the advanced settings.',
+      );
     }
   }
 
@@ -150,12 +157,16 @@ export class DeviceConnectionManager {
     return devices.length > 0 ? PortFilters.devices(devices) : undefined;
   }
 
-  /** Open parameters come from the selected firmware (binding), not from the port. */
-  private connectionOptions(variant: ResolvedVariantSelection): { baudRate?: number; skipSignalInit: boolean } {
-    const settings = this.runtime.store.operationSnapshot(variant.parameterNamespace);
-    const baudRate = resolveConnectionBaudRate(variant, settings.values);
+  /**
+   * Open parameters come from the selected firmware (binding) and from the attempt plan —
+   * never from a second settings read.
+   */
+  private connectionOptions(
+    variant: ResolvedVariantSelection,
+    plan: ConnectionPlan,
+  ): { baudRate?: number; skipSignalInit: boolean } {
     return {
-      ...(baudRate !== undefined ? { baudRate } : {}),
+      ...(plan.baudRate !== undefined ? { baudRate: plan.baudRate } : {}),
       skipSignalInit: variant.transport.signalInit === 'none',
     };
   }
@@ -252,7 +263,7 @@ export class DeviceConnectionManager {
   }
 
   private async _requestDevice(options: DeviceConnectOptions): Promise<DeviceInfo> {
-    const variant = this.resolveVariant();
+    const { plan, variant } = this.resolveAttempt();
     const filter = options.allowAnyPort ? undefined : this.discoveryFilter(variant);
 
     if (isTauriRuntime() && filter) {
@@ -260,7 +271,7 @@ export class DeviceConnectionManager {
       console.info('[DeviceConnectionManager] filtered Tauri ports', matchingPorts.map(port => this.describePort(port)));
       // Automatic selection only accepts an unambiguous `match`.
       if (matchingPorts.length === 1) {
-        return this.connectWithSelectedPort(matchingPorts[0], variant);
+        return this.connectWithSelectedPort(matchingPorts[0], plan);
       }
 
       // Multiple matches need a choice; no match offers the full list but opens nothing.
@@ -273,7 +284,8 @@ export class DeviceConnectionManager {
 
     const result = await this.connectionUseCase.prepareConnection({
       filter,
-      ...this.connectionOptions(variant),
+      plan,
+      ...this.connectionOptions(variant, plan),
     });
     if (!result.success || !result.context.handle) {
       if (result.failure?.code === 'selection_required') {
@@ -299,21 +311,28 @@ export class DeviceConnectionManager {
 
   /**
    * 使用指定的串口连接设备
+   *
+   * `plan` is the attempt snapshot taken by the caller; when omitted (e.g. the port
+   * picker opens straight from the UI) one is taken here, still before the port opens.
    */
   async connectWithSelectedPort(
     selectedPort: SerialPortInfo,
-    variant: ResolvedVariantSelection = this.resolveVariant(),
+    plan?: ConnectionPlan,
   ): Promise<DeviceInfo> {
     if (!isTauriRuntime()) {
       throw new Error('This method is only available in Tauri environment');
     }
 
     try {
+      const attempt = plan
+        ? { plan, variant: this.runtime.registry.selectVariant(plan.variantId) }
+        : this.resolveAttempt();
       console.info('[DeviceConnectionManager] connectWithSelectedPort', this.describePort(selectedPort));
 
       const selection: BurnerConnectionSelection = {
         portInfo: selectedPort,
-        context: { portInfo: selectedPort, ...this.connectionOptions(variant) },
+        plan: attempt.plan,
+        context: { portInfo: selectedPort, ...this.connectionOptions(attempt.variant, attempt.plan) },
       };
 
       const result = await this.connectionUseCase.reconnectWithSelection(selection);
@@ -453,7 +472,7 @@ export class DeviceConnectionManager {
    */
   async listPortsMatchingSelection(): Promise<SerialPortInfo[]> {
     try {
-      return await this.listAvailablePorts(this.discoveryFilter(this.resolveVariant()));
+      return await this.listAvailablePorts(this.discoveryFilter(this.resolveAttempt().variant));
     } catch {
       return [];
     }
