@@ -36,7 +36,13 @@ const OPERATION_ENTRY_POINTS: readonly string[] = [
   'verifyBatterylessSave',
 ];
 
-/** Binds the session parameters and gives every operation entry point its own snapshot. */
+/**
+ * Binds the session parameters and gives every operation entry point its own snapshot.
+ *
+ * The snapshot is a scope, not a field: it is released on every exit — success, thrown
+ * failure or cancellation — so a protocol call made on the same transport after the
+ * operation can never read the deadlines of the operation that just finished.
+ */
 function bindSession(adapter: CartridgeAdapter, context: AdapterContext): CartridgeAdapter {
   adapter.applySessionProfile(context.profile);
   adapter.bindParameters(context.store);
@@ -48,7 +54,21 @@ function bindSession(adapter: CartridgeAdapter, context: AdapterContext): Cartri
       }
       return (...args: unknown[]) => {
         target.beginOperation();
-        return (value as (...inner: unknown[]) => unknown).apply(target, args);
+        const release = (): void => {
+          target.endOperation();
+        };
+        let result: unknown;
+        try {
+          result = (value as (...inner: unknown[]) => unknown).apply(target, args);
+        } catch (error) {
+          release();
+          throw error;
+        }
+        if (result !== null && typeof (result as PromiseLike<unknown>).then === 'function') {
+          return Promise.resolve(result).finally(release);
+        }
+        release();
+        return result;
       };
     },
   });

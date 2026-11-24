@@ -1,4 +1,4 @@
-import type { DeviceDiagnostic } from '@/device/session';
+import type { ConnectionAttemptContext, DeviceDiagnostic } from '@/device/session';
 import type { ProgressInfo } from '@/types/progress-info';
 
 export type BurnerErrorStage =
@@ -44,6 +44,8 @@ export interface BurnerDomainError {
   recoverable: boolean;
   /** Stage diagnostics of the failed step, for logging and UI hints. */
   diagnostics?: readonly DeviceDiagnostic[];
+  /** Structured discovery of the attempt (variant, port, match result). */
+  context?: ConnectionAttemptContext;
 }
 
 export interface BurnerDomainProgress {

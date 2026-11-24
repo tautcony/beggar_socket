@@ -10,7 +10,12 @@ import type {
   CompleteCapabilityDeclarations,
 } from '../capabilities';
 import type { DisplayText } from '../display';
-import type { ParameterDescriptor, ParameterSchema, ParameterSchemaContext } from '../parameters';
+import {
+  normalizePageSize,
+  type ParameterDescriptor,
+  type ParameterSchema,
+  type ParameterSchemaContext,
+} from '../parameters';
 import type { FirmwareDefinition, FirmwareId, ProtocolId } from '../types';
 
 export const SUPPORTED: CapabilityDeclaration = { state: 'supported' };
@@ -45,6 +50,13 @@ export function createFirmwareDefinition(input: FirmwareDefinitionInput): Firmwa
 const MIN_PAGE_SIZE = 0x40;
 const BEGGAR_SIZE_LINK_GROUP = 'beggar-sizes';
 
+/**
+ * One page size parameter.
+ *
+ * The byte alignment and the power-of-two rule are declared here instead of being re-checked
+ * by the form, the migration and the compatibility accessor: a size that is legal in one
+ * path must be legal in every path.
+ */
 function sizeDescriptor(
   key: 'romPageSize' | 'romReadPageSize' | 'ramPageSize',
   label: DisplayText,
@@ -60,6 +72,8 @@ function sizeDescriptor(
     label,
     group: 'transfer',
     scope: 'parameterNamespace',
+    alignment: MIN_PAGE_SIZE,
+    normalize: normalizePageSize,
     ...(linkGroup ? { linkGroup } : {}),
   };
 }

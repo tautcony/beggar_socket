@@ -8,6 +8,7 @@ import { createConnectionOrchestrationUseCase } from '@/features/burner/adapters
 import type {
   BurnerConnectionHandle,
   BurnerConnectionSelection,
+  BurnerConnectionSelectOptions,
   ConnectionFailure,
   ConnectionOperationResult,
   ConnectionOperationToken,
@@ -28,6 +29,14 @@ export interface DeviceConnectOptions {
    */
   readonly allowAnyPort?: boolean;
 }
+
+/**
+ * Minimal port identity used by logs.
+ *
+ * Web Serial exposes no device path, so the selection, the handle and the diagnostics all
+ * carry an optional one; a log helper must accept that shape rather than force a cast.
+ */
+type PortDisplayInfo = NonNullable<BurnerConnectionSelection['portInfo']>;
 
 /** Raised when the saved device/firmware selection cannot be resolved. */
 export class DeviceSelectionError extends Error {
@@ -81,7 +90,8 @@ export class DeviceConnectionManager {
     return DeviceConnectionManager.instance;
   }
 
-  private describePort(portInfo?: SerialPortInfo | null): string {
+  /** Port summary for logs: the same identity the discovery diagnostics report. */
+  private describePort(portInfo?: PortDisplayInfo | null): string {
     if (!portInfo?.path) {
       return 'unknown-port';
     }
@@ -282,11 +292,32 @@ export class DeviceConnectionManager {
       throw new PortSelectionRequiredError(fallbackPorts);
     }
 
-    const result = await this.connectionUseCase.prepareConnection({
+    // A Web Serial port the user already granted stays usable after a failed attempt: the
+    // retry opens that port with this attempt's plan instead of prompting again.
+    //
+    // "Choose another port" is the exception: the user asked for a different port, so the
+    // prompt runs even when a granted port could be reused — reusing it would open exactly
+    // the port they just rejected (or the one that is still busy).
+    const retryable = options.allowAnyPort ? null : this.connectionUseCase.retryableSelection;
+    const selectOptions: BurnerConnectionSelectOptions = {
       filter,
       plan,
       ...this.connectionOptions(variant, plan),
-    });
+    };
+    if (retryable) {
+      console.info('[DeviceConnectionManager] reusing the authorized port', {
+        port: this.describePort(retryable.portInfo),
+        variant: variant.variantId,
+        baudRate: plan.baudRate,
+      });
+    } else if (options.allowAnyPort) {
+      console.info('[DeviceConnectionManager] explicit port choice: prompting for a port', {
+        variant: variant.variantId,
+      });
+    }
+    const result = retryable
+      ? await this.connectionUseCase.retryConnection(selectOptions)
+      : await this.connectionUseCase.prepareConnection(selectOptions);
     if (!result.success || !result.context.handle) {
       if (result.failure?.code === 'selection_required') {
         const ports = await this.listAvailablePorts();

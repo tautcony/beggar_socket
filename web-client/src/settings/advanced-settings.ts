@@ -10,7 +10,17 @@
  * more: the selection is `selectedVariantId` and the baud rate is `flashgbx.cfw.baudRate`.
  */
 import { displayTextToString } from '@/device/display';
-import type { ParameterDescriptor, ParameterSchema } from '@/device/parameters';
+import {
+  createParameterContext,
+  findParameterDescriptor,
+  GLOBAL_PARAMETER_SCHEMA,
+  normalizeNumber,
+  normalizeStoredValue,
+  type ParameterDescriptor,
+  type ParameterSchema,
+  validateParameter,
+} from '@/device/parameters';
+import { detectHostPlatform } from '@/platform/serial/platform-packet-policy';
 
 import {
   advancedSettingsStorage,
@@ -22,14 +32,14 @@ import {
   GLOBAL_PARAMETER_SPECS,
   namespaceForVariant,
   normalizeBaudRate,
-  normalizeValue,
+  normalizeGlobalParameter,
+  normalizeStoredParameter,
   PARAMETER_NAMESPACES,
   type ParameterBag,
-  SETTING_LIMITS,
+  schemaForNamespace,
   type SettingsLoadOutcome,
   type SizeSettings,
   type StoredValue,
-  type ValidatorType,
 } from './advanced-settings-v2';
 
 export {
@@ -43,7 +53,6 @@ export {
   normalizeBaudRate,
   PARAMETER_NAMESPACES,
   type ParameterBag,
-  SETTING_LIMITS,
   type SettingsLoadOutcome,
   type SizeSettings,
   type StoredValue,
@@ -52,11 +61,9 @@ export {
 const SIZE_KEYS = ['romPageSize', 'romReadPageSize', 'ramPageSize'] as const;
 type SizeKey = (typeof SIZE_KEYS)[number];
 
-function validatorForSize(key: SizeKey): ValidatorType {
-  return key === 'romReadPageSize' ? 'readPageSize' : 'pageSize';
+function descriptorFor(namespace: string, key: string): ParameterDescriptor | undefined {
+  return findParameterDescriptor(schemaForNamespace(namespace), key);
 }
-
-const GBFLASH_NAMESPACE = 'flashgbx.cfw';
 
 function activeNamespace(): string {
   return namespaceForVariant(advancedSettingsStorage.selectedVariantId);
@@ -67,44 +74,25 @@ export interface SettingsValidationResult {
   errors: string[];
 }
 
-function errorRange(descriptor: ParameterDescriptor): string {
-  const min = descriptor.constraints?.min;
-  const max = descriptor.constraints?.max;
-  if (min === undefined || max === undefined) {
-    return '';
-  }
-  if (descriptor.kind === 'int' || descriptor.kind === 'hex') {
-    return `${min} and ${max}`;
-  }
-  return `${min} and ${max}`;
-}
-
 /**
- * Schema-driven validation: the UI form, the store and the compatibility accessors all
- * read the same descriptor ranges, so a new parameter needs no extra validation code.
+ * Schema-driven validation: the UI form, the store and the compatibility accessors all read
+ * the same descriptor, so a new parameter needs no extra validation code and a bound cannot
+ * be enforced in one path and ignored in another.
  */
 export function validateSettings(
   schema: ParameterSchema,
   values: Readonly<Record<string, unknown>>,
 ): SettingsValidationResult {
   const errors: string[] = [];
+  const context = createParameterContext('settings', detectHostPlatform());
   for (const descriptor of schema) {
     const value = values[descriptor.key];
     if (value === undefined) {
       continue;
     }
-    const { constraints } = descriptor;
-    if (constraints?.options && !constraints.options.includes(value as never)) {
-      errors.push(`${displayTextToString(descriptor.label)} must be one of ${constraints.options.join(', ')}`);
-      continue;
-    }
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      if (constraints?.min !== undefined && value < constraints.min) {
-        errors.push(`${displayTextToString(descriptor.label)} must be between ${errorRange(descriptor)}`);
-      }
-      if (constraints?.max !== undefined && value > constraints.max) {
-        errors.push(`${displayTextToString(descriptor.label)} must be between ${errorRange(descriptor)}`);
-      }
+    const reason = validateParameter(descriptor, value as never, context);
+    if (reason) {
+      errors.push(`${displayTextToString(descriptor.label)}: ${reason}`);
     }
   }
   return { valid: errors.length === 0, errors };
@@ -148,11 +136,9 @@ export class AdvancedSettings {
 
   /** Page sizes of one firmware namespace, defaulted per host when unset. */
   static getNamespaceSizes(namespace: string = activeNamespace()): SizeSettings {
-    const defaults = defaultSizesForNamespace(namespace);
-    const bag = advancedSettingsStorage.namespaceBag(namespace);
-    const sizes = { ...defaults };
+    const sizes = defaultSizesForNamespace(namespace);
     for (const key of SIZE_KEYS) {
-      const stored = bag[key];
+      const stored = normalizeStoredParameter(namespace, key, advancedSettingsStorage.readParameter(namespace, key));
       if (typeof stored === 'number') {
         sizes[key] = stored;
       }
@@ -161,17 +147,26 @@ export class AdvancedSettings {
   }
 
   static setNamespaceSize(namespace: string, key: SizeKey, value: number): number {
-    const normalized = normalizeValue(value, validatorForSize(key));
+    const descriptor = descriptorFor(namespace, key);
+    const normalized = descriptor ? normalizeNumber(descriptor, value) : Math.trunc(value);
     advancedSettingsStorage.writeParameter(namespace, key, normalized);
+    if (!descriptor) {
+      return normalized;
+    }
 
-    // Compatibility rule of the legacy accessor: while sizes are linked, a Beggar page
-    // size applies to STM and STC alike. GBFlash always keeps its own value.
-    if (!advancedSettingsStorage.independentSizes) {
-      const siblings = namespace === GBFLASH_NAMESPACE
-        ? []
-        : PARAMETER_NAMESPACES.filter(item => item !== GBFLASH_NAMESPACE && item !== namespace);
-      for (const sibling of siblings) {
-        advancedSettingsStorage.writeParameter(sibling, key, normalized);
+    // Linked sizes: every namespace that declares the same `linkGroup` follows (STM and STC
+    // share one group). A namespace without the group keeps its own value, so the rule is the
+    // schema's, not a hard-coded "everything except FlashGBX".
+    if (!advancedSettingsStorage.independentSizes && descriptor.linkGroup) {
+      for (const sibling of PARAMETER_NAMESPACES) {
+        if (sibling === namespace) {
+          continue;
+        }
+        const siblingDescriptor = descriptorFor(sibling, key);
+        if (siblingDescriptor?.linkGroup !== descriptor.linkGroup) {
+          continue;
+        }
+        advancedSettingsStorage.writeParameter(sibling, key, normalizeNumber(siblingDescriptor, normalized));
       }
     }
     return normalized;
@@ -183,7 +178,9 @@ export class AdvancedSettings {
   }
 
   static setNamespaceParameter(namespace: string, key: string, value: StoredValue): void {
-    advancedSettingsStorage.writeParameter(namespace, key, value);
+    const descriptor = descriptorFor(namespace, key);
+    const normalized = descriptor ? normalizeStoredValue(descriptor, value) : undefined;
+    advancedSettingsStorage.writeParameter(namespace, key, normalized ?? value);
   }
 
   static getBaudRate(): FlashgbxBaudRate {
@@ -199,18 +196,20 @@ export class AdvancedSettings {
   static getGlobalParameters(): ParameterBag {
     const values = defaultGlobalParameters();
     for (const key of GLOBAL_PARAMETER_KEYS) {
-      const stored = advancedSettingsStorage.readGlobal(key);
-      if (typeof stored === 'number') {
-        values[key] = stored;
+      const normalized = normalizeGlobalParameter(key, advancedSettingsStorage.readGlobal(key));
+      if (normalized !== undefined) {
+        values[key] = normalized;
       }
     }
     return values;
   }
 
   static setGlobalParameter(key: string, value: number): void {
-    const spec = GLOBAL_PARAMETER_SPECS.find(item => item.key === key);
-    const normalized = spec ? normalizeValue(value, spec.validator) : value;
-    advancedSettingsStorage.writeGlobal(key, normalized);
+    const descriptor = findParameterDescriptor(GLOBAL_PARAMETER_SCHEMA, key);
+    advancedSettingsStorage.writeGlobal(
+      key,
+      descriptor ? normalizeNumber(descriptor, value) : Math.trunc(value),
+    );
   }
 
   static loadSettings(): SettingsLoadOutcome {
@@ -244,17 +243,6 @@ export class AdvancedSettings {
       ...this.getGlobalParameters(),
     });
   }
-
-  static getLimits() {
-    return {
-      pageSize: { ...SETTING_LIMITS.pageSize },
-      readPageSize: { ...SETTING_LIMITS.readPageSize },
-      throttle: { ...SETTING_LIMITS.throttle },
-      retryCount: { ...SETTING_LIMITS.retryCount },
-      retryDelay: { ...SETTING_LIMITS.retryDelay },
-      timeout: { ...SETTING_LIMITS.timeout },
-    };
-  }
 }
 
 /** Namespace used for parameters that every device shares (global schema writes). */
@@ -283,8 +271,12 @@ for (const key of SIZE_KEYS) {
 for (const spec of GLOBAL_PARAMETER_SPECS) {
   Object.defineProperty(AdvancedSettings, spec.key, {
     get(): number {
-      const stored = advancedSettingsStorage.readGlobal(spec.key);
-      return typeof stored === 'number' ? stored : spec.defaultValue;
+      const descriptor = findParameterDescriptor(GLOBAL_PARAMETER_SCHEMA, spec.key);
+      const normalized = normalizeGlobalParameter(spec.key, advancedSettingsStorage.readGlobal(spec.key));
+      if (normalized !== undefined) {
+        return normalized;
+      }
+      return typeof descriptor?.default === 'number' ? descriptor.default : 0;
     },
     set(value: number) {
       AdvancedSettings.setGlobalParameter(spec.key, value);

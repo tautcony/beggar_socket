@@ -15,6 +15,7 @@ import {
   isSessionStageError,
   planConnection,
   type RuntimeBinding,
+  SessionStageError,
 } from '@/device-runtime';
 
 import { captureStageError } from '../helpers/rejection';
@@ -191,7 +192,7 @@ describe('SessionEstablishment', () => {
     const { transport } = createTransport();
 
     const error = await captureStageError(establishment
-      .establish({ connectionId: 'session-1', transport, backend: 'serial' }));
+      .establish({ connectionId: 'session-1', transport, backend: 'serial', usb: { vendorId: '0483', productId: '0721' } }));
 
     expect(error).toMatchObject({ stage: 'initialize', code: 'initialize-failed' });
     expect(error.diagnostics.map((diagnostic: { code: string }) => diagnostic.code))
@@ -274,6 +275,31 @@ describe('SessionEstablishment', () => {
     expect(diagnostics[0]).toMatchObject({ code: 'teardown-failed', stage: 'disconnect' });
   });
 
+  it('keeps a driver-reported stage error and still records the cleanup failure', async () => {
+    // The Boost probe reports its own stage error; before, that error won the way out and
+    // the cleanup outcome was lost because only `cause` carried it.
+    const driver = createStubDriver({
+      probe: vi.fn(() => Promise.reject(new SessionStageError('probe', 'boost handshake did not answer', {
+        code: 'boost-unsupported',
+        diagnostics: [{ code: 'boost-probe-timeout', severity: 'info', message: 'boost probe timed out', stage: 'probe' }],
+      }))),
+      cleanupPending: vi.fn(() => Promise.reject(new Error('cleanup blew up'))),
+    });
+    const { establishment } = createHarness({ driver });
+
+    const error = await captureStageError(establishment.establish({
+      connectionId: 'session-1',
+      transport: createTransport().transport,
+      backend: 'serial',
+      usb: { vendorId: '0483', productId: '0721' },
+    }));
+
+    expect(error.code).toBe('boost-unsupported');
+    // The driver's own diagnostics stay first; the cleanup failure is appended, not swapped.
+    expect(error.diagnostics.map(diagnostic => diagnostic.code)).toEqual(['boost-probe-timeout', 'cleanup-failed']);
+    expect(error.cause).toMatchObject({ cleanup: expect.any(Error), original: expect.anything() });
+  });
+
   it('warns instead of throwing when no runtime can tear the session down', async () => {
     const { establishment } = createHarness();
     const established = await establishment.establish({
@@ -289,5 +315,41 @@ describe('SessionEstablishment', () => {
     const diagnostics = await establishment.teardown(foreign);
 
     expect(diagnostics[0]).toMatchObject({ code: 'teardown-failed', severity: 'warning' });
+  });
+
+  it.each([VARIANT_IDS.gbflash, VARIANT_IDS.stmBoost])(
+    'rejects a simulated %s session before the first protocol byte',
+    async (variantId) => {
+      const { establishment, driver } = createHarness({
+        selection: { read: () => ({ variantId, source: 'legacy' as const }) },
+      });
+
+      const error = await captureStageError(establishment.establish({
+        connectionId: 'session-1',
+        transport: createTransport().transport,
+        backend: 'simulated',
+      }));
+
+      // The simulator implements the standard Beggar frames only, so committing a session
+      // for these variants would publish a connection that fails on its first operation.
+      expect(error).toMatchObject({ stage: 'probe', code: 'simulated-protocol-unsupported' });
+      expect(error.diagnostics.map(diagnostic => diagnostic.code)).toEqual(['simulated-protocol-unsupported']);
+      expect(driver.probe).not.toHaveBeenCalled();
+      expect(driver.cleanupPending).not.toHaveBeenCalled();
+    },
+  );
+
+  it('establishes a simulated STM session that the simulator can drive', async () => {
+    const { establishment, driver } = createHarness();
+
+    const established = await establishment.establish({
+      connectionId: 'session-1',
+      transport: createTransport().transport,
+      backend: 'simulated',
+    });
+
+    expect(established.active.profile.variantId).toBe(VARIANT_IDS.stm);
+    expect(established.active.profile.transport.backend).toBe('simulated');
+    expect(driver.probe).toHaveBeenCalledOnce();
   });
 });

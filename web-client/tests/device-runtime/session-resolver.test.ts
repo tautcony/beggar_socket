@@ -76,11 +76,12 @@ function flashgbxInfo(overrides: Partial<FlashgbxFirmwareInfo> = {}): FlashgbxFi
 describe('session resolver', () => {
   it('resolves an immutable profile for a standard STM session', () => {
     const selection = registry.selectVariant(VARIANT_IDS.stm);
+    const store = createStore();
     const profile = resolve(
       selection,
       { firmwareId: selection.firmware.id, verification: 'assumed', facts: {} },
       { backend: 'serial', usb: { vendorId: '0483', productId: '0721' } },
-      createStore(),
+      store,
     );
 
     expect(profile.variantId).toBe(VARIANT_IDS.stm);
@@ -93,7 +94,9 @@ describe('session resolver', () => {
     expect(profile.transport.maxReadChunk).toBe(0x1000);
     expect(profile.transport.baudRate).toBeUndefined();
     expect(profile.transport.packetLimits.windows.romRead).toBe(0x1000);
-    expect(profile.connectionParameters.romPageSize).toBe(0x1000);
+    // Operation settings stay in the store; the profile only freezes connection-period values.
+    expect(profile.connectionParameters).not.toHaveProperty('romPageSize');
+    expect(store.operationSnapshot('beggar.stm').values.romPageSize).toBe(0x1000);
     expect(profile.diagnostics).toEqual([]);
     expect(Object.isFrozen(profile)).toBe(true);
   });
@@ -118,9 +121,10 @@ describe('session resolver', () => {
       store,
     );
 
-    expect(stmProfile.connectionParameters.romReadPageSize).toBe(0x2000);
+    // The stored page is storable for the shared namespace, while the effective ceiling is
+    // per binding: the plan carries the stored value, the profile carries the ceiling.
+    expect(store.operationSnapshot('beggar.stm').values.romReadPageSize).toBe(0x2000);
     expect(stmProfile.transport.maxReadChunk).toBe(0x1000);
-    expect(boostProfile.connectionParameters.romReadPageSize).toBe(0x2000);
     expect(boostProfile.transport.maxReadChunk).toBe(0x2000);
   });
 
@@ -171,28 +175,31 @@ describe('session resolver', () => {
 
   it('keeps two connection snapshots isolated', () => {
     const selection = registry.selectVariant(VARIANT_IDS.stm);
+    const firstStore = createStore();
     const first = resolve(
       selection,
       { firmwareId: selection.firmware.id, verification: 'assumed', facts: {} },
       { backend: 'serial' },
-      createStore(),
+      firstStore,
     );
 
     const fake = createFakeSettingsStorage();
     fake.values.set('beggar.stm.romPageSize', 0x800);
+    const secondStore = createParameterStore({
+      adapter: fake.adapter,
+      platform: 'windows',
+      schemas: { resolve: namespace => registry.resolveNamespaceSchema(namespace) },
+    });
     const second = resolve(
       selection,
       { firmwareId: selection.firmware.id, verification: 'assumed', facts: {} },
       { backend: 'serial' },
-      createParameterStore({
-        adapter: fake.adapter,
-        platform: 'windows',
-        schemas: { resolve: namespace => registry.resolveNamespaceSchema(namespace) },
-      }),
+      secondStore,
     );
 
-    expect(first.connectionParameters.romPageSize).toBe(0x1000);
-    expect(second.connectionParameters.romPageSize).toBe(0x800);
+    expect(firstStore.operationSnapshot('beggar.stm').values.romPageSize).toBe(0x1000);
+    expect(secondStore.operationSnapshot('beggar.stm').values.romPageSize).toBe(0x800);
+    expect(first.transport.maxReadChunk).toBe(second.transport.maxReadChunk);
   });
 
   it('rejects a probe that rewrites the firmware identity', () => {
@@ -277,9 +284,19 @@ describe('session diagnostics', () => {
     expect(profile.diagnostics).toEqual([]);
   });
 
-  it('stays silent when the port reports no USB identity at all', () => {
-    expect(resolveStm({ backend: 'serial' }).diagnostics).toEqual([]);
-    expect(resolveStm({ backend: 'serial', usb: {} }).diagnostics).toEqual([]);
+  it('reports a port without usable identity instead of claiming a mismatch', () => {
+    // A port that reports nothing cannot confirm or deny the selected device: the verdict is
+    // `unknown`, and the right-hand log gets an entry so it no longer looks like a silent pass.
+    for (const usb of [undefined, {}]) {
+      const profile = resolveStm({ backend: 'serial', ...(usb ? { usb } : {}) });
+      expect(profile.diagnostics.map(diagnostic => diagnostic.code)).toEqual(['port-identity-unknown']);
+      expect(profile.portIdentity).toEqual(expect.objectContaining({ outcome: 'unknown', reason: 'missing' }));
+    }
+
+    // A port that reports only the vendor id is `incomplete`, not a mismatch.
+    const half = resolveStm({ backend: 'serial', usb: { vendorId: '0483' } });
+    expect(half.portIdentity).toEqual(expect.objectContaining({ outcome: 'unknown', reason: 'incomplete' }));
+    expect(half.diagnostics.map(diagnostic => diagnostic.code)).toEqual(['port-identity-incomplete']);
   });
 
   it('does not claim a mismatch on a simulated backend', () => {
@@ -312,6 +329,69 @@ describe('session diagnostics', () => {
     expect(Object.isFrozen(profile.diagnostics)).toBe(true);
     expect(profile.diagnostics.every(diagnostic => Object.isFrozen(diagnostic))).toBe(true);
     expect(profile.diagnostics[0]).not.toBe(driverDiagnostics[0]);
+  });
+});
+
+describe('profile ownership', () => {
+  /**
+   * `device` and `firmware` are registry objects shared by every session of the same
+   * variant, and `baseCapabilities` is even shared between two firmwares. Publishing them
+   * by reference would make the registry reachable — and mutable — through a session.
+   */
+  it('publishes its own copy of the registered device and firmware', () => {
+    const selection = registry.selectVariant(VARIANT_IDS.stm);
+    const profile = resolve(
+      selection,
+      { firmwareId: selection.firmware.id, verification: 'assumed', facts: {} },
+      { backend: 'serial', usb: { vendorId: '0483', productId: '0721' } },
+    );
+
+    expect(profile.device).not.toBe(selection.device);
+    expect(profile.firmware).not.toBe(selection.firmware);
+    expect(profile.firmware.baseCapabilities).not.toBe(selection.firmware.baseCapabilities);
+    expect(profile.device.hardware).not.toBe(selection.device.hardware);
+
+    // Copy does not mean stale: the values are the registered ones.
+    expect(profile.device.id).toBe(selection.device.id);
+    expect(profile.firmware.id).toBe(selection.firmware.id);
+    expect(profile.firmware.baseCapabilities['rom.write']).toEqual(selection.firmware.baseCapabilities['rom.write']);
+
+    // ...and nothing in the copy can be written, so the registry cannot be reached.
+    expect(Object.isFrozen(profile.device)).toBe(true);
+    expect(Object.isFrozen(profile.device.hardware)).toBe(true);
+    expect(Object.isFrozen(profile.device.hardware.cartVoltages)).toBe(true);
+    expect(Object.isFrozen(profile.firmware)).toBe(true);
+    expect(Object.isFrozen(profile.firmware.baseCapabilities)).toBe(true);
+    expect(Object.isFrozen(profile.firmware.baseCapabilities['rom.read'])).toBe(true);
+  });
+
+  it('keeps session values independently mutable-proof across two sessions', () => {
+    const selection = registry.selectVariant(VARIANT_IDS.stm);
+    const first = resolve(
+      selection,
+      { firmwareId: selection.firmware.id, verification: 'assumed', facts: {} },
+      { backend: 'serial', usb: { vendorId: '0483', productId: '0721' } },
+    );
+    const second = resolve(
+      selection,
+      { firmwareId: selection.firmware.id, verification: 'assumed', facts: {} },
+      { backend: 'serial', usb: { vendorId: '0483', productId: '0721' } },
+    );
+
+    // Writing through one session, by reference or by `all()`, changes neither session.
+    expect(() => {
+      (first.firmware.baseCapabilities as Record<string, unknown>)['rom.read'] = { state: 'unsupported' };
+    }).toThrow(TypeError);
+    const view = first.capabilities.all();
+    (view as Map<string, unknown>).set('rom.read', { state: 'unsupported' });
+    (view as Map<string, unknown>).delete('rom.write');
+
+    expect(first.firmware.baseCapabilities['rom.read']).toEqual({ state: 'supported' });
+    expect(second.firmware.baseCapabilities['rom.read']).toEqual({ state: 'supported' });
+    expect(first.capabilities.has('rom.read')).toBe(true);
+    expect(first.capabilities.has('rom.write')).toBe(true);
+    expect(first.capabilities.all().get('rom.read')).toEqual({ state: 'supported' });
+    expect(Object.isFrozen(first.capabilities)).toBe(true);
   });
 });
 

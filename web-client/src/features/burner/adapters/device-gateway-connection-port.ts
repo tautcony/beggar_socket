@@ -164,19 +164,66 @@ export class DeviceGatewayConnectionPortAdapter implements BurnerConnectionPort 
 
   async disconnect(handle: BurnerConnectionHandle): Promise<BurnerDomainResult<void>> {
     const session = this.sessions.get(handle.id);
+    // The committed identity is dropped before the close: a failed close must never leave
+    // a session the adapters could still act on, only a resource the cleanup path retries.
     this.sessions.delete(handle.id);
     this.plans.delete(handle.id);
 
     // Teardown runs before the close and never blocks it; its failures become diagnostics.
-    const diagnostics: readonly DeviceDiagnostic[] = session && this.establishment
+    const teardownDiagnostics: readonly DeviceDiagnostic[] = session && this.establishment
       ? await this.establishment.teardown(session.active)
       : [];
 
-    const closed = await withConnectionMapping('disconnect', () => this.gateway.disconnect(unwrapHandle(handle)));
-    if (!closed.ok) {
-      return closed;
+    try {
+      await this.gateway.disconnect(unwrapHandle(handle));
+    } catch (error) {
+      const mapped = mapConnectionStageError('disconnect', error);
+      // Teardown and close failures are reported separately: the UI needs to know which
+      // half of the shutdown failed, not just "disconnect failed".
+      return failureResult({
+        ...mapped,
+        diagnostics: [
+          ...teardownDiagnostics,
+          {
+            code: 'port-close-failed',
+            severity: 'error',
+            message: mapped.message,
+            stage: 'disconnect',
+          },
+        ],
+      });
     }
-    return successResult(undefined, undefined, diagnostics);
+    return successResult(undefined, undefined, teardownDiagnostics);
+  }
+
+  /**
+   * Rebuilds a selection for a port the user already authorized (Web Serial keeps the
+   * grant) out of that port's identity alone.
+   *
+   * Connection options are deliberately *not* inherited from the failed attempt: it may
+   * have been another variant. A 2 Mbps GBFlash attempt followed by a standard STM plan
+   * (which declares no baud rate at all) must open at the 9600 default, not at the old
+   * 2 Mbps, and `skipSignalInit` belongs to the new binding's `signalInit` too.
+   */
+  reuseSelection(
+    selection: BurnerConnectionSelection,
+    options?: BurnerConnectionSelectOptions,
+  ): BurnerConnectionSelection {
+    const previous = (selection.context ?? {}) as Partial<DeviceSelection>;
+    const portInfo = toSerialPortInfo(selection.portInfo ?? previous.portInfo);
+    const context: DeviceSelection = {
+      ...(portInfo ? { portInfo } : {}),
+      // Only the handle on the authorized port survives, never its open parameters.
+      ...(previous.webPort ? { webPort: previous.webPort } : {}),
+      ...(previous.webSerialFilters ? { webSerialFilters: previous.webSerialFilters } : {}),
+      ...(options?.baudRate !== undefined ? { baudRate: options.baudRate } : {}),
+      ...(options?.skipSignalInit !== undefined ? { skipSignalInit: options.skipSignalInit } : {}),
+    };
+    return {
+      ...(portInfo ? { portInfo } : {}),
+      context,
+      ...(options?.plan ? { plan: options.plan } : {}),
+    };
   }
 
   private async openSession(

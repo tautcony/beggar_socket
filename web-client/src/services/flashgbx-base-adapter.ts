@@ -76,6 +76,7 @@ export function getOrCreateFlashgbxClient(device: DeviceInfo): FlashgbxCommandCl
   const client = new FlashgbxCommandClient(transport, fwInfo, {
     baudRate,
     timeoutMs: AdvancedSettings.packageReceiveTimeout || 1500,
+    sendTimeoutMs: AdvancedSettings.packageSendTimeout || 1500,
   });
   clientRegistry.set(transport, client);
   return client;
@@ -104,6 +105,34 @@ export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
   ) {
     super(device, logCallback, progressCallback, translateFunc);
     this.client = clientOverride ?? getOrCreateFlashgbxClient(device);
+  }
+
+  /**
+   * The command client caches the timeouts it was created with, so every operation boundary
+   * pushes the snapshot's package timeouts into it. Otherwise the second operation of one
+   * connection would keep using the values from when the client was built.
+   */
+  override beginOperation(): void {
+    super.beginOperation();
+    this.client.setTimeouts({
+      send: this.settings.packageSendTimeout,
+      receive: this.settings.packageReceiveTimeout,
+    });
+  }
+
+  /**
+   * Restores the persisted timeouts when the operation ends.
+   *
+   * The client outlives the operation (it is cached per transport), so leaving the finished
+   * snapshot in it would make a later handshake or a direct protocol call wait with the
+   * deadlines of an operation that is already over.
+   */
+  override endOperation(): void {
+    super.endOperation();
+    this.client.setTimeouts({
+      send: AdvancedSettings.packageSendTimeout,
+      receive: AdvancedSettings.packageReceiveTimeout,
+    });
   }
 
   /**

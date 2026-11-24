@@ -86,7 +86,9 @@ describe('Platform command sequence parity (GBA, MBC5, MBC3)', () => {
   });
 
   it('aligns MBC3 (0x0000) vs MBC5 (0x4000) bank-0 mapping in PlatformOps.toRomBank and readROM across bank boundaries', async () => {
-    AdvancedSettings.romReadPageSize = 0x4000;
+    // The read page belongs to the STC namespace: storing it through the active-selection
+    // accessor would clamp it to the STM ceiling before the adapter ever sees it.
+    AdvancedSettings.setNamespaceSize('beggar.stc', 'romReadPageSize', 0x4000);
     const adapter = new MBC5Adapter(createDevice());
     const ops = (adapter as unknown as { createPlatformOps: () => { toRomBank: (addr: number, opts: CommandOptions) => { bank: number; cartAddress: number } } }).createPlatformOps();
 

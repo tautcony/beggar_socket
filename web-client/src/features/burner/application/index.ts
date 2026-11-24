@@ -26,6 +26,7 @@ export type {
   BurnerConnectionHandle,
   BurnerConnectionPort,
   BurnerConnectionSelection,
+  BurnerConnectionSelectOptions,
   BurnerConnectionSession,
   BurnerProtocolSession,
   BurnerSessionPort,

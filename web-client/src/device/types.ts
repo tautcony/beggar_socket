@@ -76,6 +76,22 @@ export interface DeviceFirmwareBinding {
   readonly parameterNamespace: string;
   /** Single source of the driver / adapter / display / mode-sync implementation. */
   readonly runtimeBindingId: RuntimeBindingId;
+  /**
+   * Whether the debug simulator can actually execute this variant's protocol.
+   *
+   * The simulator implements the standard Beggar command frames only, so a simulated
+   * GBFlash or Boost session would be published and then fail on its first operation.
+   * Absent means "not simulated": the transaction rejects the combination before probing
+   * instead of committing a session that cannot work.
+   */
+  readonly simulated?: SimulatedProtocolSupport;
+}
+
+/** Simulator support declaration of one binding. */
+export interface SimulatedProtocolSupport {
+  readonly supported: boolean;
+  /** Shown in the rejection diagnostic; required when `supported` is false. */
+  readonly reason?: DisplayText;
 }
 
 export interface SelectableVariant {

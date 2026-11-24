@@ -1,6 +1,6 @@
 import type { Transport } from '@/platform/serial';
-import { AdvancedSettings } from '@/settings/advanced-settings';
 import { timeout } from '@/utils/async-utils';
+import { packageTimeouts } from '@/utils/io-timeouts';
 
 import {
   BOOST_ACK_OK,
@@ -50,14 +50,17 @@ export function markBoostModeInactive(transport: Transport): void {
 async function sendAndExpectBoostAck(
   transport: Transport,
   payload: Uint8Array,
-  sendTimeoutMs = AdvancedSettings.packageSendTimeout,
-  readTimeoutMs = AdvancedSettings.packageReceiveTimeout,
+  sendTimeoutMs?: number,
+  readTimeoutMs?: number,
 ): Promise<void> {
+  // The running operation's snapshot, not the persisted settings: an edit made while a
+  // transfer runs must not change the deadline of the command already in flight.
+  const fallback = packageTimeouts(transport);
   const response = await transport.sendAndReceive(
     payload,
     1,
-    sendTimeoutMs,
-    readTimeoutMs,
+    sendTimeoutMs ?? fallback.send,
+    readTimeoutMs ?? fallback.receive,
   );
   const status = response.data?.[0];
   if (status !== BOOST_ACK_OK) {
@@ -187,11 +190,12 @@ export async function boost_crc_rom(
 
   await boost_set_variable(transport, 4, 0, toBusAddress(mode, byteAddress));
   const payload = new Uint8Array([BoostCommand.CRC_ROM, ...be32(lengthBytes)]);
-  const timeoutMs = Math.max(AdvancedSettings.packageReceiveTimeout, 5000);
+  const fallback = packageTimeouts(transport);
+  const timeoutMs = Math.max(fallback.receive, 5000);
   const response = await transport.sendAndReceive(
     payload,
     4,
-    AdvancedSettings.packageSendTimeout,
+    fallback.send,
     timeoutMs,
   );
   if (!response.data || response.data.byteLength < 4) {
@@ -223,11 +227,12 @@ export async function boost_read_rom(
   await boost_set_variable(transport, 2, 0, size);
 
   const cmd = mode === 'agb' ? BoostCommand.READ_AGB_ROM : BoostCommand.READ_DMG_ROM;
+  const timeouts = packageTimeouts(transport);
   const response = await transport.sendAndReceive(
     new Uint8Array([cmd]),
     size,
-    AdvancedSettings.packageSendTimeout,
-    AdvancedSettings.packageReceiveTimeout,
+    timeouts.send,
+    timeouts.receive,
   );
   if (!response.data || response.data.byteLength < size) {
     throw new Error(`Beggar Boost ROM read failed: expected ${size} bytes, got ${response.data?.byteLength ?? 0}`);
@@ -269,11 +274,12 @@ export async function boost_write_units(
  * Boost 扩展原生 GBA RTC 读取（0xca），返回 8 字节状态与时间数据。
  */
 export async function boost_gba_rtc_read(transport: Transport): Promise<Uint8Array> {
+  const rtcTimeouts = packageTimeouts(transport);
   const response = await transport.sendAndReceive(
     new Uint8Array([BoostCommand.READ_AGB_RTC]),
     8,
-    AdvancedSettings.packageSendTimeout,
-    AdvancedSettings.packageReceiveTimeout,
+    rtcTimeouts.send,
+    rtcTimeouts.receive,
   );
   if (!response.data || response.data.byteLength < 8) {
     throw new Error(`Beggar Boost GBA RTC read failed: expected 8 bytes, got ${response.data?.byteLength ?? 0}`);
@@ -292,8 +298,8 @@ function concatBytes(...chunks: Uint8Array[]): Uint8Array {
   return result;
 }
 
-function writeTimeoutMs(byteLength: number): number {
-  return AdvancedSettings.packageReceiveTimeout + byteLength * 2;
+function writeTimeoutMs(transport: Transport, byteLength: number): number {
+  return packageTimeouts(transport).receive + byteLength * 2;
 }
 
 /**
@@ -311,11 +317,12 @@ export async function boost_read_ram(
   await boost_set_variable(transport, 4, 0, byteAddress >>> 0);
   await boost_set_variable(transport, 2, 0, size);
 
+  const ramTimeouts = packageTimeouts(transport);
   const response = await transport.sendAndReceive(
     new Uint8Array([BoostCommand.READ_AGB_RAM]),
     size,
-    AdvancedSettings.packageSendTimeout,
-    AdvancedSettings.packageReceiveTimeout,
+    ramTimeouts.send,
+    ramTimeouts.receive,
   );
   if (!response.data || response.data.byteLength < size) {
     throw new Error(`Beggar Boost RAM read failed: expected ${size} bytes, got ${response.data?.byteLength ?? 0}`);
@@ -340,7 +347,7 @@ export async function boost_write_ram(
   await boost_set_variable(transport, 2, 0, data.byteLength);
 
   const payload = concatBytes(new Uint8Array([BoostCommand.WRITE_AGB_RAM]), data);
-  const timeoutMs = writeTimeoutMs(data.byteLength);
+  const timeoutMs = writeTimeoutMs(transport, data.byteLength);
   await sendAndExpectBoostAck(transport, payload, timeoutMs, timeoutMs);
 }
 
@@ -361,7 +368,7 @@ export async function boost_write_dmg_range(
   await boost_set_variable(transport, 2, 0, data.byteLength);
 
   const payload = concatBytes(new Uint8Array([BoostCommand.WRITE_DMG_RANGE]), data);
-  const timeoutMs = writeTimeoutMs(data.byteLength);
+  const timeoutMs = writeTimeoutMs(transport, data.byteLength);
   await sendAndExpectBoostAck(transport, payload, timeoutMs, timeoutMs);
 }
 
@@ -383,7 +390,7 @@ export async function boost_program_save(
   await boost_set_variable(transport, 2, 0, data.byteLength);
 
   const payload = concatBytes(new Uint8Array([0xc7, saveType]), data);
-  const timeoutMs = writeTimeoutMs(data.byteLength);
+  const timeoutMs = writeTimeoutMs(transport, data.byteLength);
   await sendAndExpectBoostAck(transport, payload, timeoutMs, timeoutMs);
 }
 
@@ -483,6 +490,6 @@ export async function boost_program_flash(
   await boost_set_variable(transport, 2, 1, bufferSize);
 
   const payload = concatBytes(new Uint8Array([BoostCommand.PROGRAM_FLASH]), data);
-  const timeoutMs = writeTimeoutMs(data.byteLength);
+  const timeoutMs = writeTimeoutMs(transport, data.byteLength);
   await sendAndExpectBoostAck(transport, payload, timeoutMs, timeoutMs);
 }

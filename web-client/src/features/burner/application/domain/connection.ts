@@ -1,4 +1,4 @@
-import type { DeviceDiagnostic } from '@/device/session';
+import type { ConnectionAttemptContext, DeviceDiagnostic } from '@/device/session';
 
 import type { BurnerConnectionHandle, BurnerConnectionSelection, BurnerConnectionSession } from './ports';
 
@@ -35,6 +35,11 @@ export interface ConnectionFailure {
   cause?: unknown;
   /** Stage-aware diagnostics for the UI; never derived from log text. */
   diagnostics?: readonly DeviceDiagnostic[];
+  /**
+   * Structured discovery of the failed attempt, so a failure reports the selected variant,
+   * the port and the match result exactly like a committed profile does.
+   */
+  context?: ConnectionAttemptContext;
 }
 
 export interface ConnectionContext {
@@ -43,6 +48,15 @@ export interface ConnectionContext {
   handle: BurnerConnectionHandle | null;
   /** Committed session of `handle`; cleared as soon as the connection is released. */
   session?: BurnerConnectionSession | null;
+  /**
+   * Resource of a released connection whose close failed.
+   *
+   * It is deliberately not `handle`: the old session, identity and adapter are invalid the
+   * moment the release starts, so nothing may treat this as an active connection. Only the
+   * cleanup path retries its close, and a new connection attempt must succeed at that
+   * cleanup before it opens another port.
+   */
+  pendingCleanup?: BurnerConnectionHandle | null;
 }
 
 export interface ConnectionSnapshot {

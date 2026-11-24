@@ -231,6 +231,46 @@ describe('FlashgbxGbaAdapter', () => {
     AdvancedSettings.resetToDefaults();
   });
 
+  it('gives the send path its own deadline instead of reusing the receive one', async () => {
+    const { device, client } = createScriptedDevice(makeFwInfo({ fwVer: 14 }), [[0x00, 0x00, 0x00, 0x01]]);
+    client.setTimeouts({ send: 555, receive: 777 });
+
+    const value = await client.getVariable('CART_MODE');
+
+    expect(value).toBe(1);
+    expect(device.transport?.send).toHaveBeenCalledWith(expect.any(Uint8Array), 555);
+    expect(device.transport?.read).toHaveBeenCalledWith(4, 777);
+  });
+
+  it('applies the operation deadlines to the shared client and restores them afterwards', () => {
+    AdvancedSettings.setGlobalParameter('packageSendTimeout', 1234);
+    AdvancedSettings.setGlobalParameter('packageReceiveTimeout', 4321);
+
+    class TimeoutProbe extends FlashgbxGbaAdapter {
+      deadlines(): { send: number; receive: number } {
+        return { send: this.client.operationSendTimeoutMs, receive: this.client.operationTimeoutMs };
+      }
+    }
+
+    const { device, client } = createScriptedDevice(makeFwInfo({ fwVer: 14 }), []);
+    const adapter = new TimeoutProbe(device, null, null, null, client);
+
+    adapter.beginOperation();
+    expect(adapter.deadlines()).toEqual({ send: 1234, receive: 4321 });
+
+    // An edit made during the operation does not reach the client mid-transfer.
+    AdvancedSettings.setGlobalParameter('packageSendTimeout', 9999);
+    AdvancedSettings.setGlobalParameter('packageReceiveTimeout', 8888);
+    expect(adapter.deadlines()).toEqual({ send: 1234, receive: 4321 });
+
+    // The client is cached per transport, so the finished operation must hand the
+    // persisted deadlines back instead of lending them to the next protocol call.
+    adapter.endOperation();
+    expect(adapter.deadlines()).toEqual({ send: 9999, receive: 8888 });
+
+    AdvancedSettings.resetToDefaults();
+  });
+
   it('reports detailed byte/CRC mismatch and sets error progress state in verifyROM', async () => {
     const fw14 = makeFwInfo({ fwVer: 14 });
     const expectedRom = new Uint8Array([0x7F, 0x00, 0x00, 0xEA]);

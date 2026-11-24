@@ -22,7 +22,9 @@ function device(overrides: Partial<DeviceInfo> = {}): DeviceInfo {
 
 describe('buildConnectionLogReport', () => {
   it('reports the committed device, firmware, port and match result', () => {
-    const entries = buildConnectionLogReport({ device: device() });
+    const entries = buildConnectionLogReport({
+      device: device({ session: buildFlashgbxSession({ usb: { vendorId: '1a86', productId: '7523' } }) }),
+    });
 
     expect(entries).toHaveLength(1);
     expect(entries[0]).toMatchObject({ level: 'info', message: 'Connected: GBFlash (L14)' });
@@ -51,7 +53,7 @@ describe('buildConnectionLogReport', () => {
     });
 
     expect(entries[0].details).toContain('match=mismatch');
-    expect(entries[0].details).toContain('does not match beggar-stm identity');
+    expect(entries[0].details).toContain('does not match the identity for beggar-stm');
     expect(entries[1]).toMatchObject({
       level: 'warn',
       message: expect.stringContaining('[transport/port-mismatch]'),
@@ -73,6 +75,32 @@ describe('buildConnectionLogReport', () => {
 
     expect(entries[0]).toMatchObject({ level: 'error', message: `Connection failed at ${stage}: boom` });
     expect(entries[0].details).toContain(hint);
+  });
+
+  it('reports the variant, port and match of an attempt that never opened', () => {
+    const entries = buildConnectionLogReport({
+      failure: {
+        stage: 'connect',
+        message: 'Failed to open serial port: port is busy',
+        context: {
+          variantId: VARIANT_IDS.stm,
+          port: { path: '/dev/cu.usbserial-110', vendorId: '1a86', productId: '7523' },
+          portIdentity: {
+            outcome: 'mismatch',
+            reason: 'mismatch',
+            observed: '1a86:7523',
+            expected: '0483:0721',
+            missing: [],
+          },
+        },
+      },
+    });
+
+    // A busy, unplugged or denied port reports the same fields a committed session does.
+    expect(entries[0].details).toContain(`variant=${VARIANT_IDS.stm}`);
+    expect(entries[0].details).toContain('port=/dev/cu.usbserial-110 (1a86:7523)');
+    expect(entries[0].details).toContain('match=mismatch (expected 0483:0721)');
+    expect(entries[0].details).toContain('Check the USB cable');
   });
 
   it('appends the diagnostics of a failed attempt', () => {

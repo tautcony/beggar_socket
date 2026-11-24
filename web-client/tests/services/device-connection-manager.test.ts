@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { VARIANT_IDS } from '@/device/definitions';
 import { ConnectionOperationCoordinator } from '@/features/burner/application';
+import { isTauriRuntime } from '@/platform/runtime';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 
 import { buildFlashgbxSession, buildStmSession, TEST_FLASHGBX_INFO } from '../helpers/session-profile';
@@ -10,10 +11,16 @@ const connectionUseCaseState = vi.hoisted(() => ({
   listAvailableSelections: vi.fn(),
   reconnectWithSelection: vi.fn(),
   prepareConnection: vi.fn(),
+  retryConnection: vi.fn(),
   disconnect: vi.fn(),
   ensureConnected: vi.fn(),
   reinitializeConnection: vi.fn(),
   snapshot: { state: 'idle', context: { generation: 0, handle: null, selection: null } },
+  /** Nothing to reuse until a failed attempt leaves a granted Web Serial port behind. */
+  retryableSelection: null as null | {
+    portInfo?: { path?: string; vendorId?: string; productId?: string };
+    context: unknown;
+  },
   operationCoordinator: null as unknown as ConnectionOperationCoordinator,
 }));
 
@@ -107,6 +114,8 @@ describe('DeviceConnectionManager', () => {
     selectionOverride.read = null;
     connectionUseCaseState.operationCoordinator = new ConnectionOperationCoordinator();
     connectionUseCaseState.snapshot = { state: 'idle', context: { generation: 0, handle: null, selection: null } };
+    connectionUseCaseState.retryableSelection = null;
+    vi.mocked(isTauriRuntime).mockReturnValue(true);
     connectionUseCaseState.listAvailableSelections.mockResolvedValue({ success: true, ports: [] });
     connectionUseCaseState.reconnectWithSelection.mockResolvedValue({
       success: true,
@@ -151,6 +160,54 @@ describe('DeviceConnectionManager', () => {
       }),
     });
     expect(connectionUseCaseState.disconnect).not.toHaveBeenCalled();
+  });
+
+  it('retries the authorized Web Serial port instead of prompting again', async () => {
+    AdvancedSettings.setVariantId(VARIANT_IDS.stm);
+    vi.mocked(isTauriRuntime).mockReturnValue(false);
+    const authorized = {
+      portInfo: { path: 'web-serial', vendorId: '0483', productId: '0721' },
+      context: { webPort: {} },
+    };
+    connectionUseCaseState.retryableSelection = authorized;
+    connectionUseCaseState.retryConnection.mockResolvedValue({
+      success: true,
+      context: connectionContext(4),
+    });
+
+    const { DeviceConnectionManager } = await import('@/services/device-connection-manager');
+    const manager = DeviceConnectionManager.getInstance();
+    await manager.requestDevice();
+
+    // The already authorized port is reopened with this attempt's plan, without a second
+    // user gesture and without falling back to a fresh discovery prompt.
+    expect(connectionUseCaseState.retryConnection).toHaveBeenCalledWith(expect.objectContaining({
+      plan: expect.objectContaining({ variantId: VARIANT_IDS.stm }),
+    }));
+    expect(connectionUseCaseState.prepareConnection).not.toHaveBeenCalled();
+  });
+
+  it('prompts for another port instead of reusing the authorized one', async () => {
+    AdvancedSettings.setVariantId(VARIANT_IDS.stm);
+    vi.mocked(isTauriRuntime).mockReturnValue(false);
+    connectionUseCaseState.retryableSelection = {
+      portInfo: { path: 'web-serial', vendorId: '0483', productId: '0721' },
+      context: { webPort: {} },
+    };
+
+    const { DeviceConnectionManager } = await import('@/services/device-connection-manager');
+    const manager = DeviceConnectionManager.getInstance();
+
+    // "Choose another port" must reach the picker even though a grant is still usable:
+    // reusing it would reopen exactly the port the user asked to replace.
+    await expect(manager.requestDevice({ allowAnyPort: true })).rejects.toMatchObject({
+      name: 'PortSelectionRequiredError',
+    });
+
+    expect(connectionUseCaseState.retryConnection).not.toHaveBeenCalled();
+    expect(connectionUseCaseState.prepareConnection).toHaveBeenCalledWith(
+      expect.objectContaining({ filter: undefined }),
+    );
   });
 
   it('requires an explicit choice when several ports match and opens nothing', async () => {

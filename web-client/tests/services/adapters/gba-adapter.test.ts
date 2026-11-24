@@ -386,7 +386,9 @@ describe('GBAAdapter transfer planning, efficiency, and stateful recovery', () =
   });
 
   it('caps read chunk size by FirmwareProfile.maxReadChunk (4KiB on stm, 32KiB on stc)', async () => {
+    // The STM ceiling keeps this at 8 KiB; the STC namespace accepts the full 32 KiB page.
     AdvancedSettings.romReadPageSize = 32768;
+    AdvancedSettings.setNamespaceSize('beggar.stc', 'romReadPageSize', 32768);
 
     const stmAdapter = new GBAAdapter(createMockDevice({ firmwareProfile: STM_FIRMWARE_PROFILE }));
     mockRomRead.mockImplementation((_t, size: number) => Promise.resolve(new Uint8Array(size).fill(0x11)));

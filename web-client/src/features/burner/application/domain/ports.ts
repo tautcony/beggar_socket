@@ -64,6 +64,12 @@ export interface BurnerConnectionPort {
    * the transport-level connection.
    */
   establishSession?(handle: BurnerConnectionHandle): Promise<BurnerDomainResult<BurnerConnectionSession>>;
+  /**
+   * Rebuilds a selection for a port the user already authorized, using this attempt's
+   * options. Present only for ports whose authorization survives a failed attempt
+   * (Web Serial keeps the grant), so a retry never re-prompts for the same port.
+   */
+  reuseSelection?(selection: BurnerConnectionSelection, options?: BurnerConnectionSelectOptions): BurnerConnectionSelection;
   disconnect(handle: BurnerConnectionHandle): Promise<BurnerDomainResult<void>>;
 }
 

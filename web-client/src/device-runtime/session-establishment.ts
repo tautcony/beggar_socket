@@ -6,9 +6,11 @@
  * as an `ActiveSession`. Any failure before commit runs `cleanupPending()` so protocol
  * state never leaks into the next attempt, and the transport is closed by the caller.
  */
+import { displayTextToString } from '@/device/display';
 import type { ParameterStore } from '@/device/parameters';
 import type {
   ActiveSession,
+  ConnectionAttemptContext,
   ConnectionPlan,
   DeviceDiagnostic,
   PendingSession,
@@ -22,6 +24,7 @@ import type {
   SelectionProvider,
   TransportBackend,
 } from '@/device/types';
+import { assessPortIdentity, type PortIdentityAssessment, portIdentityDiagnostic } from '@/device/usb-identity';
 import type { SerialPortInfo } from '@/types/serial';
 
 import type { RuntimeCompositionRegistry } from './composition-registry';
@@ -76,6 +79,30 @@ export interface SessionEstablishmentDeps {
   readonly composition: RuntimeCompositionRegistry;
 }
 
+/** Port part of the attempt context: only fields the host actually reported. */
+function portIdentityPort(portInfo: SerialPortInfo): NonNullable<ConnectionAttemptContext['port']> {
+  return {
+    ...(portInfo.path ? { path: portInfo.path } : {}),
+    ...(portInfo.vendorId ? { vendorId: portInfo.vendorId } : {}),
+    ...(portInfo.productId ? { productId: portInfo.productId } : {}),
+  };
+}
+
+/**
+ * Discovery diagnostics of the attempt. A simulated backend never claims a match result:
+ * the port metadata is synthetic there.
+ */
+function transportDiagnosticsFor(
+  assessment: PortIdentityAssessment,
+  backend: TransportBackend,
+): readonly DeviceDiagnostic[] {
+  if (backend === 'simulated') {
+    return [];
+  }
+  const diagnostic = portIdentityDiagnostic(assessment);
+  return diagnostic ? [diagnostic] : [];
+}
+
 export function createSessionEstablishment(deps: SessionEstablishmentDeps): SessionEstablishment {
   const { selection, registry, store, resolver, composition } = deps;
 
@@ -83,7 +110,6 @@ export function createSessionEstablishment(deps: SessionEstablishmentDeps): Sess
     driver: ProtocolDriver<unknown>,
     pending: PendingSession,
     stage: Exclude<SessionFailureStage, 'selection' | 'disconnect'>,
-    primary: unknown,
   ): Promise<unknown> {
     try {
       await driver.cleanupPending(pending, stage);
@@ -91,6 +117,73 @@ export function createSessionEstablishment(deps: SessionEstablishmentDeps): Sess
     } catch (cleanupError) {
       return cleanupError;
     }
+  }
+
+  /**
+   * Keeps the primary stage error authoritative while still publishing the cleanup
+   * failure as its own diagnostic. A driver that already reports a stage error (e.g. the
+   * Boost probe) would otherwise swallow the cleanup outcome on the way out.
+   */
+  function withCleanupDiagnostic(
+    stage: Exclude<SessionFailureStage, 'selection' | 'disconnect'>,
+    error: unknown,
+    cleanup: unknown,
+    fallbackMessage: string,
+    diagnostic: DeviceDiagnostic,
+    code: string,
+    context: ConnectionAttemptContext,
+    transportDiagnostics: readonly DeviceDiagnostic[],
+  ): SessionStageError {
+    const cleanupDiagnostic = cleanup
+      ? [createDiagnostic('cleanup-failed', 'warning', `Protocol cleanup after the ${stage} failure also failed`, stage)]
+      : [];
+
+    if (isSessionStageError(error)) {
+      return new SessionStageError(error.stage, error.message, {
+        code: error.code,
+        // The driver's own diagnostics stay first; discovery and cleanup follow.
+        diagnostics: [...error.diagnostics, ...transportDiagnostics, ...cleanupDiagnostic],
+        cause: cleanup ? { original: error.cause ?? error, cleanup } : error.cause ?? error,
+        context: { ...error.context, ...context },
+      });
+    }
+
+    return new SessionStageError(stage, error instanceof Error ? error.message : fallbackMessage, {
+      code,
+      diagnostics: [...transportDiagnostics, diagnostic, ...cleanupDiagnostic],
+      cause: cleanup ? { original: error, cleanup } : error,
+      context,
+    });
+  }
+
+  /** Rejects a simulated attempt whose protocol the simulator cannot execute. */
+  function assertSimulatedSupport(
+    resolved: ResolvedVariantSelection,
+    backend: TransportBackend,
+    context: ConnectionAttemptContext,
+  ): void {
+    if (backend !== 'simulated') {
+      return;
+    }
+    const support = resolved.binding.simulated;
+    if (support?.supported) {
+      return;
+    }
+    const reason = support?.reason
+      ? displayTextToString(support.reason)
+      : 'The debug simulator does not implement this firmware protocol.';
+    throw new SessionStageError('probe', `Simulated ${resolved.variantId} is not supported: ${reason}`, {
+      code: 'simulated-protocol-unsupported',
+      diagnostics: [
+        createDiagnostic(
+          'simulated-protocol-unsupported',
+          'error',
+          `${reason} Choose a variant the simulator supports, or turn off debug simulation.`,
+          'probe',
+        ),
+      ],
+      context,
+    });
   }
 
   return {
@@ -111,6 +204,22 @@ export function createSessionEstablishment(deps: SessionEstablishmentDeps): Sess
         backend: input.backend,
         ...(input.usb ? { usb: input.usb } : {}),
       };
+
+      // Discovery happens before the first protocol byte: the same structured result is
+      // published by the committed profile and by every failed stage of this attempt.
+      const portIdentity = assessPortIdentity(resolved.binding, input.usb);
+      const context: ConnectionAttemptContext = {
+        variantId: resolved.variantId,
+        ...(input.portInfo ? { port: portIdentityPort(input.portInfo) } : {}),
+        portIdentity,
+      };
+      const transportDiagnostics = transportDiagnosticsFor(portIdentity, input.backend);
+
+      // A simulated backend that cannot execute the protocol is rejected before any
+      // command is written, so no session is published for a variant the simulator
+      // would fail on mid-operation.
+      assertSimulatedSupport(resolved, input.backend, context);
+
       const pending: PendingSession = {
         transport: input.transport,
         selection: resolved,
@@ -122,52 +231,50 @@ export function createSessionEstablishment(deps: SessionEstablishmentDeps): Sess
       try {
         probe = await runtime.driver.probe({ pending });
       } catch (error) {
-        const cleanup = await cleanupPending(runtime.driver, pending, 'probe', error);
-        throw error instanceof SessionStageError
-          ? error
-          : new SessionStageError('probe', error instanceof Error ? error.message : 'Device probe failed', {
-            code: 'probe-failed',
-            diagnostics: [
-              createDiagnostic('probe-failed', 'error', 'Device probe failed. Check the cable and the selected port.', 'probe'),
-              ...(cleanup
-                ? [createDiagnostic('cleanup-failed', 'warning', 'Protocol cleanup after the probe failure also failed', 'probe')]
-                : []),
-            ],
-            cause: cleanup ? { original: error, cleanup } : error,
-          });
+        const cleanup = await cleanupPending(runtime.driver, pending, 'probe');
+        throw withCleanupDiagnostic(
+          'probe',
+          error,
+          cleanup,
+          'Device probe failed',
+          createDiagnostic('probe-failed', 'error', 'Device probe failed. Check the cable and the selected port.', 'probe'),
+          'probe-failed',
+          context,
+          transportDiagnostics,
+        );
       }
 
       let profile: SessionProfile;
       try {
-        profile = resolver.resolve(resolved, probe, transportFacts, plan.parameters);
+        profile = resolver.resolve(resolved, probe, transportFacts, plan.parameters, portIdentity);
       } catch (error) {
-        const cleanup = await cleanupPending(runtime.driver, pending, 'resolve', error);
-        throw new SessionStageError('resolve', error instanceof Error ? error.message : 'Session resolution failed', {
-          code: 'resolve-failed',
-          diagnostics: [
-            createDiagnostic('resolve-failed', 'error', 'Could not resolve the selected device profile', 'resolve'),
-            ...(cleanup
-              ? [createDiagnostic('cleanup-failed', 'warning', 'Protocol cleanup after the resolve failure also failed', 'resolve')]
-              : []),
-          ],
-          cause: cleanup ? { original: error, cleanup } : error,
-        });
+        const cleanup = await cleanupPending(runtime.driver, pending, 'resolve');
+        throw withCleanupDiagnostic(
+          'resolve',
+          error,
+          cleanup,
+          'Session resolution failed',
+          createDiagnostic('resolve-failed', 'error', 'Could not resolve the selected device profile', 'resolve'),
+          'resolve-failed',
+          context,
+          transportDiagnostics,
+        );
       }
 
       try {
         await runtime.driver.initialize?.(pending);
       } catch (error) {
-        const cleanup = await cleanupPending(runtime.driver, pending, 'initialize', error);
-        throw new SessionStageError('initialize', error instanceof Error ? error.message : 'Device initialization failed', {
-          code: 'initialize-failed',
-          diagnostics: [
-            createDiagnostic('initialize-failed', 'error', 'Device initialization failed after a successful handshake', 'initialize'),
-            ...(cleanup
-              ? [createDiagnostic('cleanup-failed', 'warning', 'Protocol cleanup after the initialization failure also failed', 'initialize')]
-              : []),
-          ],
-          cause: cleanup ? { original: error, cleanup } : error,
-        });
+        const cleanup = await cleanupPending(runtime.driver, pending, 'initialize');
+        throw withCleanupDiagnostic(
+          'initialize',
+          error,
+          cleanup,
+          'Device initialization failed',
+          createDiagnostic('initialize-failed', 'error', 'Device initialization failed after a successful handshake', 'initialize'),
+          'initialize-failed',
+          context,
+          transportDiagnostics,
+        );
       }
 
       return {

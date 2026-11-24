@@ -6,7 +6,8 @@
  * UI only forwards these entries, so the wording stays next to the data that produced it.
  */
 import { displayTextToString } from '@/device/display';
-import type { DeviceDiagnostic } from '@/device/session';
+import type { ConnectionAttemptContext, DeviceDiagnostic } from '@/device/session';
+import { formatUsbIds } from '@/device/usb-identity';
 import type { DeviceInfo } from '@/types/device-info';
 
 export interface ConnectionLogEntry {
@@ -20,6 +21,8 @@ export interface ConnectionFailureReport {
   readonly stage: string;
   readonly message: string;
   readonly diagnostics?: readonly DeviceDiagnostic[];
+  /** Discovery of the failed attempt: the same fields a committed session reports. */
+  readonly context?: ConnectionAttemptContext;
 }
 
 /** Actionable guidance per failure stage; never collapses a protocol stage into `connect`. */
@@ -53,16 +56,34 @@ function describePort(device: DeviceInfo): string {
   return `${port.path} (${ids})`;
 }
 
+function describeAssessment(
+  assessment: ConnectionAttemptContext['portIdentity'] | undefined,
+  fallbackUsb: { readonly vendorId?: string; readonly productId?: string } | undefined,
+): string {
+  if (assessment) {
+    if (assessment.reason === 'matched') {
+      return 'match';
+    }
+    if (assessment.reason === 'mismatch') {
+      return `mismatch (expected ${assessment.expected})`;
+    }
+    if (assessment.reason === 'incomplete') {
+      return `incomplete — the port does not report ${assessment.missing.join('/')}`;
+    }
+    return 'unknown — the port reported no USB identity';
+  }
+  if (!fallbackUsb?.vendorId && !fallbackUsb?.productId) {
+    return 'unknown — the port reported no USB identity';
+  }
+  return 'match';
+}
+
 function describeMatch(device: DeviceInfo): string {
   const mismatch = device.diagnostics?.find(diagnostic => diagnostic.code === 'port-mismatch');
   if (mismatch) {
     return `mismatch — ${displayTextToString(mismatch.message)}`;
   }
-  const usb = device.portInfo;
-  if (!usb?.vendorId && !usb?.productId) {
-    return 'unknown — the port reported no USB identity';
-  }
-  return 'match';
+  return describeAssessment(device.session?.portIdentity, device.portInfo);
 }
 
 export function buildConnectionLogReport(input: {
@@ -101,10 +122,19 @@ export function buildConnectionLogReport(input: {
   }
 
   if (failure) {
+    const context = failure.context;
+    const attemptDetails = context
+      ? [
+        `variant=${context.variantId ?? 'unknown'}`,
+        `port=${context.port?.path ?? 'no port metadata'} (${formatUsbIds(context.port)})`,
+        `match=${describeAssessment(context.portIdentity, context.port)}`,
+      ].join(', ')
+      : null;
+    const hint = STAGE_HINTS[failure.stage] ?? STAGE_HINTS.unknown;
     entries.push({
       level: 'error',
       message: `Connection failed at ${failure.stage}: ${failure.message}`,
-      details: STAGE_HINTS[failure.stage] ?? STAGE_HINTS.unknown,
+      details: attemptDetails ? `${attemptDetails} — ${hint}` : hint,
     });
     for (const diagnostic of failure.diagnostics ?? []) {
       entries.push({

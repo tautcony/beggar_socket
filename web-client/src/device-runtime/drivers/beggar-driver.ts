@@ -108,16 +108,15 @@ export function createBeggarDriver(): ProtocolDriver<BeggarProbeFacts> {
 
     async cleanupPending(pending): Promise<void> {
       // Protocol state only: the orchestration closes the pending transport right after,
-      // so the driver must stay idempotent and never close it twice.
-      try {
-        if (pending.transportFacts.backend !== 'simulated') {
-          const transport = asPlatformTransport(pending.transport);
-          await transport.flushInput?.();
-          await ensureDefaultProtocol(transport);
-        }
-      } catch {
-        // Cleanup is best effort; the primary failure stays authoritative.
+      // so the driver must stay idempotent and never close it twice. A failure here is
+      // reported by the transaction as a `cleanup-failed` diagnostic instead of being
+      // swallowed: the primary stage error stays authoritative either way.
+      if (pending.transportFacts.backend === 'simulated') {
+        return;
       }
+      const transport = asPlatformTransport(pending.transport);
+      await transport.flushInput?.();
+      await ensureDefaultProtocol(transport);
     },
   };
 }

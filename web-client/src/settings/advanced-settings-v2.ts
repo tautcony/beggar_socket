@@ -14,11 +14,19 @@
 import {
   BEGGAR_STC_BINDING,
   BEGGAR_STM_BINDING,
+  createDeviceCatalog,
   GBFLASH_BINDING,
   LEGACY_PROFILE_VARIANT_IDS,
 } from '@/device/definitions';
-import type { DeviceFirmwareBinding } from '@/device/types';
+import {
+  findParameterDescriptor,
+  GLOBAL_PARAMETER_SCHEMA,
+  normalizeStoredValue,
+  type ParameterSchema,
+} from '@/device/parameters';
+import type { DeviceFirmwareBinding, DeviceRegistry } from '@/device/types';
 import { detectHostPlatform } from '@/platform/serial/platform-packet-policy';
+import type { HostPlatform } from '@/types/host-platform';
 
 /** Value shapes the storage can hold (structurally identical to `ParameterValue`). */
 export type StoredValue = number | string | boolean;
@@ -64,6 +72,11 @@ const BINDING_BY_NAMESPACE: Readonly<Record<string, DeviceFirmwareBinding>> = Ob
   Object.fromEntries(BINDINGS.map(binding => [binding.parameterNamespace, binding])),
 );
 
+/** Binding that owns a namespace, if any. */
+export function bindingForNamespace(namespace: string): DeviceFirmwareBinding | undefined {
+  return BINDING_BY_NAMESPACE[namespace];
+}
+
 /** Every namespace a v2 record can hold, in a stable order. */
 export const PARAMETER_NAMESPACES: readonly string[] = Object.freeze(
   [...new Set(BINDINGS.map(binding => binding.parameterNamespace))],
@@ -74,6 +87,28 @@ export const LEGACY_PROFILE_VARIANTS: Readonly<Record<string, string>> = LEGACY_
 
 const DEFAULT_VARIANT_NAMESPACE = BEGGAR_STM_BINDING.parameterNamespace;
 
+const SIZE_KEYS = ['romPageSize', 'romReadPageSize', 'ramPageSize'] as const;
+
+/**
+ * Catalogs used to resolve a namespace schema, one per host platform.
+ *
+ * Storage normalization has to ask the same catalog the runtime asks, otherwise a value can be
+ * legal for the persisted record and illegal for the session (or the other way round). The
+ * per-platform map matters because packet ceilings are host derived and the platform can be
+ * re-detected at runtime (tests and the Tauri/Web switch both do it).
+ */
+const catalogs = new Map<HostPlatform, DeviceRegistry>();
+
+function deviceCatalog(): DeviceRegistry {
+  const platform = detectHostPlatform();
+  let catalog = catalogs.get(platform);
+  if (!catalog) {
+    catalog = createDeviceCatalog({ platform });
+    catalogs.set(platform, catalog);
+  }
+  return catalog;
+}
+
 export function namespaceForVariant(variantId: string | null | undefined): string {
   if (!variantId) {
     return DEFAULT_VARIANT_NAMESPACE;
@@ -81,62 +116,75 @@ export function namespaceForVariant(variantId: string | null | undefined): strin
   return NAMESPACE_BY_VARIANT[variantId] ?? DEFAULT_VARIANT_NAMESPACE;
 }
 
+/**
+ * Schema of a registered namespace, or `undefined` for a namespace this build does not know.
+ *
+ * Persisted records can hold namespaces from another build; those must not be rewritten with
+ * the fallback firmware's ceilings, so callers that normalize storage ask for this first.
+ */
+function registeredSchema(namespace: string): ParameterSchema | undefined {
+  return deviceCatalog().resolveNamespaceSchema(namespace)?.schema;
+}
+
+/** Schema of one namespace, falling back to the default firmware for unknown names. */
+export function schemaForNamespace(namespace: string): ParameterSchema {
+  return registeredSchema(namespace) ?? registeredSchema(DEFAULT_VARIANT_NAMESPACE) ?? [];
+}
+
+function descriptorOf(namespace: string, key: string) {
+  return findParameterDescriptor(schemaForNamespace(namespace), key);
+}
+
 export function defaultSizesForNamespace(namespace: string): SizeSettings {
-  const binding = BINDING_BY_NAMESPACE[namespace] ?? BEGGAR_STM_BINDING;
-  const limits = binding.transport.packetLimits[detectHostPlatform()];
+  const schema = schemaForNamespace(namespace);
+  const sizeDefault = (key: (typeof SIZE_KEYS)[number]): number => {
+    const descriptor = findParameterDescriptor(schema, key);
+    return typeof descriptor?.default === 'number' ? descriptor.default : 0x40;
+  };
   return {
-    romPageSize: limits.romWrite,
+    romPageSize: sizeDefault('romPageSize'),
     // FlashGBX declares the real read request size; its 256B packet limit only bounds a frame.
-    romReadPageSize: binding.transport.readPageDefault ?? limits.romRead,
-    ramPageSize: limits.ramPage,
+    romReadPageSize: sizeDefault('romReadPageSize'),
+    ramPageSize: sizeDefault('ramPageSize'),
   };
 }
 
-// --- limits and normalization (unchanged rules) ---
+// --- normalization (the parameter descriptors own every rule) ---
 
-export type ValidatorType = 'pageSize' | 'readPageSize' | 'throttle' | 'retryCount' | 'retryDelay' | 'timeout';
+/** Baud rates the FlashGBX binding accepts, taken from its descriptor. */
+export type FlashgbxBaudRate = 'auto' | 1_000_000 | 1_500_000 | 2_000_000;
 
-export const SETTING_LIMITS = {
-  pageSize: { min: 0x40, max: 0x2000 },
-  readPageSize: { min: 0x40, max: 0x8000 },
-  throttle: { min: 0, max: 1000 },
-  retryCount: { min: 0, max: 10 },
-  retryDelay: { min: 0, max: 5000 },
-  timeout: { min: 1000, max: 300000 },
-} as const;
+const GBFLASH_NAMESPACE = GBFLASH_BINDING.parameterNamespace;
 
-export const FLASHGBX_BAUD_RATES = ['auto', 1_000_000, 1_500_000, 2_000_000] as const;
-export type FlashgbxBaudRate = (typeof FLASHGBX_BAUD_RATES)[number];
+export const FLASHGBX_BAUD_RATES: readonly FlashgbxBaudRate[] =
+  (findParameterDescriptor(schemaForNamespace(GBFLASH_NAMESPACE), 'baudRate')
+    ?.constraints?.options ?? ['auto']) as readonly FlashgbxBaudRate[];
 
-function floorPowerOfTwo(value: number, minimum: number): number {
-  if (value <= minimum) {
-    return minimum;
-  }
-  let result = 1;
-  while (result * 2 <= value) {
-    result *= 2;
-  }
-  return Math.max(result, minimum);
+/**
+ * Normalizes one stored value against the descriptor of its namespace.
+ *
+ * `undefined` means the schema cannot serve the value; the caller substitutes the default.
+ */
+export function normalizeStoredParameter(
+  namespace: string,
+  key: string,
+  stored: unknown,
+): number | string | boolean | undefined {
+  const descriptor = descriptorOf(namespace, key);
+  return descriptor ? normalizeStoredValue(descriptor, stored) : undefined;
 }
 
-/** Clamps and normalizes a numeric parameter with the historical rules. */
-export function normalizeValue(value: number, type: ValidatorType): number {
-  if (!Number.isFinite(value)) {
-    return SETTING_LIMITS[type].min;
-  }
-  const { min, max } = SETTING_LIMITS[type];
-  const truncFirst = type === 'throttle' || type === 'retryDelay' || type === 'timeout' || type === 'retryCount';
-  const candidate = truncFirst ? Math.trunc(value) : value;
-  const clamped = Math.min(Math.max(candidate, min), max);
-  if ((type === 'pageSize' || type === 'readPageSize') && clamped !== 0x0c00 && (clamped & (clamped - 1)) !== 0) {
-    return floorPowerOfTwo(clamped, min);
-  }
-  return clamped;
+/** Normalizes one global parameter against its descriptor. */
+export function normalizeGlobalParameter(key: string, stored: unknown): number | undefined {
+  const descriptor = findParameterDescriptor(GLOBAL_PARAMETER_SCHEMA, key);
+  const normalized = descriptor ? normalizeStoredValue(descriptor, stored) : undefined;
+  return typeof normalized === 'number' ? normalized : undefined;
 }
 
 export function normalizeBaudRate(value: unknown): FlashgbxBaudRate {
-  return (FLASHGBX_BAUD_RATES as readonly unknown[]).includes(value)
-    ? (value as FlashgbxBaudRate)
+  const normalized = normalizeStoredParameter(GBFLASH_NAMESPACE, 'baudRate', value);
+  return typeof normalized === 'number' || typeof normalized === 'string'
+    ? normalized as FlashgbxBaudRate
     : 'auto';
 }
 
@@ -144,28 +192,26 @@ export function normalizeBaudRate(value: unknown): FlashgbxBaudRate {
 
 interface GlobalParameterSpec {
   readonly key: string;
-  readonly validator: ValidatorType;
-  readonly defaultValue: number;
   /** v1 section and field inside `advanced_settings`. */
   readonly legacyGroup: 'throttle' | 'retry' | 'timeout';
   readonly legacyField: string;
 }
 
 export const GLOBAL_PARAMETER_SPECS: readonly GlobalParameterSpec[] = [
-  { key: 'romReadThrottleMs', validator: 'throttle', defaultValue: 0, legacyGroup: 'throttle', legacyField: 'romRead' },
-  { key: 'ramReadThrottleMs', validator: 'throttle', defaultValue: 0, legacyGroup: 'throttle', legacyField: 'ramRead' },
-  { key: 'romReadRetryCount', validator: 'retryCount', defaultValue: 1, legacyGroup: 'retry', legacyField: 'romReadCount' },
-  { key: 'ramReadRetryCount', validator: 'retryCount', defaultValue: 1, legacyGroup: 'retry', legacyField: 'ramReadCount' },
-  { key: 'romReadRetryDelayMs', validator: 'retryDelay', defaultValue: 0, legacyGroup: 'retry', legacyField: 'romReadDelay' },
-  { key: 'ramReadRetryDelayMs', validator: 'retryDelay', defaultValue: 0, legacyGroup: 'retry', legacyField: 'ramReadDelay' },
-  { key: 'romEraseRetryCount', validator: 'retryCount', defaultValue: 1, legacyGroup: 'retry', legacyField: 'romEraseRetryCount' },
-  { key: 'romEraseRetryDelayMs', validator: 'retryDelay', defaultValue: 0, legacyGroup: 'retry', legacyField: 'romEraseRetryDelay' },
-  { key: 'romWriteRetryCount', validator: 'retryCount', defaultValue: 1, legacyGroup: 'retry', legacyField: 'romWriteRetryCount' },
-  { key: 'romWriteRetryDelayMs', validator: 'retryDelay', defaultValue: 0, legacyGroup: 'retry', legacyField: 'romWriteRetryDelay' },
-  { key: 'defaultTimeout', validator: 'timeout', defaultValue: 3000, legacyGroup: 'timeout', legacyField: 'default' },
-  { key: 'packageSendTimeout', validator: 'timeout', defaultValue: 3000, legacyGroup: 'timeout', legacyField: 'packageSend' },
-  { key: 'packageReceiveTimeout', validator: 'timeout', defaultValue: 3000, legacyGroup: 'timeout', legacyField: 'packageReceive' },
-  { key: 'operationTimeout', validator: 'timeout', defaultValue: 30000, legacyGroup: 'timeout', legacyField: 'operation' },
+  { key: 'romReadThrottleMs', legacyGroup: 'throttle', legacyField: 'romRead' },
+  { key: 'ramReadThrottleMs', legacyGroup: 'throttle', legacyField: 'ramRead' },
+  { key: 'romReadRetryCount', legacyGroup: 'retry', legacyField: 'romReadCount' },
+  { key: 'ramReadRetryCount', legacyGroup: 'retry', legacyField: 'ramReadCount' },
+  { key: 'romReadRetryDelayMs', legacyGroup: 'retry', legacyField: 'romReadDelay' },
+  { key: 'ramReadRetryDelayMs', legacyGroup: 'retry', legacyField: 'ramReadDelay' },
+  { key: 'romEraseRetryCount', legacyGroup: 'retry', legacyField: 'romEraseRetryCount' },
+  { key: 'romEraseRetryDelayMs', legacyGroup: 'retry', legacyField: 'romEraseRetryDelay' },
+  { key: 'romWriteRetryCount', legacyGroup: 'retry', legacyField: 'romWriteRetryCount' },
+  { key: 'romWriteRetryDelayMs', legacyGroup: 'retry', legacyField: 'romWriteRetryDelay' },
+  { key: 'defaultTimeout', legacyGroup: 'timeout', legacyField: 'default' },
+  { key: 'packageSendTimeout', legacyGroup: 'timeout', legacyField: 'packageSend' },
+  { key: 'packageReceiveTimeout', legacyGroup: 'timeout', legacyField: 'packageReceive' },
+  { key: 'operationTimeout', legacyGroup: 'timeout', legacyField: 'operation' },
 ];
 
 export const GLOBAL_PARAMETER_KEYS: readonly string[] = GLOBAL_PARAMETER_SPECS.map(spec => spec.key);
@@ -173,12 +219,15 @@ export const GLOBAL_PARAMETER_KEYS: readonly string[] = GLOBAL_PARAMETER_SPECS.m
 export type GlobalParameterKey = (typeof GLOBAL_PARAMETER_SPECS)[number]['key'];
 
 export function defaultGlobalParameters(): ParameterBag {
-  return Object.fromEntries(GLOBAL_PARAMETER_SPECS.map(spec => [spec.key, spec.defaultValue]));
+  const values: ParameterBag = {};
+  for (const spec of GLOBAL_PARAMETER_SPECS) {
+    const descriptor = findParameterDescriptor(GLOBAL_PARAMETER_SCHEMA, spec.key);
+    values[spec.key] = descriptor?.default ?? 0;
+  }
+  return values;
 }
 
 // --- v1 shapes (migration input only) ---
-
-const SIZE_KEYS = ['romPageSize', 'romReadPageSize', 'ramPageSize'] as const;
 
 /** The historical v1 record. Only read during migration. */
 interface LegacyAdvancedSettings {
@@ -213,24 +262,34 @@ function emptyRecord(): AdvancedSettingsV2 {
   };
 }
 
-function normalizeSize(value: unknown, key: (typeof SIZE_KEYS)[number]): number | undefined {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    return undefined;
-  }
-  return normalizeValue(value, key === 'romReadPageSize' ? 'readPageSize' : 'pageSize');
-}
-
-/** Fills the namespace page sizes of `target` from a v1 size bag. */
-function applyLegacySizes(target: ParameterBag, sizes: Partial<SizeSettings> | undefined): void {
+/**
+ * Writes one v1 size bag into a namespace, normalized against that namespace's descriptors.
+ *
+ * The ceiling is namespace specific (STM shares the Boost ceiling, FlashGBX caps an editable
+ * packet at 0x2000), so a value is never carried over between namespaces without being
+ * re-validated by the target schema.
+ */
+function applyLegacySizes(
+  record: AdvancedSettingsV2,
+  namespace: string,
+  sizes: Partial<SizeSettings> | undefined,
+): void {
   if (!sizes) {
     return;
   }
+  const bag = { ...(record.parametersByNamespace[namespace] ?? {}) };
   for (const key of SIZE_KEYS) {
-    const value = normalizeSize(sizes[key], key);
-    if (value !== undefined) {
-      target[key] = value;
+    const normalized = normalizeStoredParameter(namespace, key, sizes[key]);
+    if (typeof normalized === 'number') {
+      bag[key] = normalized;
     }
   }
+  record.parametersByNamespace[namespace] = bag;
+}
+
+/** Link group declared by a namespace's page-size descriptor, if it declares one. */
+function sizeLinkGroup(namespace: string): string | undefined {
+  return descriptorOf(namespace, 'romPageSize')?.linkGroup;
 }
 
 function migrateLegacy(config: LegacyAdvancedSettings): AdvancedSettingsV2 {
@@ -253,15 +312,17 @@ function migrateLegacy(config: LegacyAdvancedSettings): AdvancedSettingsV2 {
       if (!namespace) {
         continue;
       }
-      const bag = record.parametersByNamespace[namespace] ?? {};
-      applyLegacySizes(bag, sizes);
-      record.parametersByNamespace[namespace] = bag;
+      applyLegacySizes(record, namespace, sizes);
     }
   }
 
-  if (config.size) {
-    // Legacy pre-parameter builds wrote placeholder 0x200/0x100 defaults; replace them
-    // with the current defaults exactly like the old loader did.
+  if (!hasProfileSizes && config.size) {
+    // v1 only ever read the flat `size` bag when `profileSizes` was absent (`setSettings`
+    // skipped it otherwise), so a partially written `profileSizes` must win outright rather
+    // than be patched up key by key from a stale `size`.
+    //
+    // Legacy pre-parameter builds wrote placeholder 0x200/0x100 defaults; replace them with
+    // the current defaults exactly like the old loader did.
     const sizes: Partial<SizeSettings> = { ...config.size };
     const defaults = defaultSizesForNamespace(activeNamespace);
     if (sizes.romPageSize === LEGACY_DEFAULTS.romPageSize) {
@@ -270,45 +331,32 @@ function migrateLegacy(config: LegacyAdvancedSettings): AdvancedSettingsV2 {
     if (sizes.ramPageSize === LEGACY_DEFAULTS.ramPageSize) {
       sizes.ramPageSize = defaults.ramPageSize;
     }
-    const bag = record.parametersByNamespace[activeNamespace] ?? {};
-    for (const key of SIZE_KEYS) {
-      if (bag[key] !== undefined) {
-        continue;
-      }
-      const value = normalizeSize(sizes[key], key);
-      if (value !== undefined) {
-        bag[key] = value;
-      }
-    }
-    record.parametersByNamespace[activeNamespace] = bag;
+    applyLegacySizes(record, activeNamespace, sizes);
 
-    if (!record.independentSizes) {
-      // Linked sizes: keep the Beggar namespaces identical to the active selection.
+    // Linked sizes: the flat bag was shared by the Beggar profiles, so STM and STC inherit it.
+    // Only a namespace that actually declares the link group is a valid source — a FlashGBX
+    // `size` says nothing about the Beggar packet sizes and must not leak into them.
+    const linkGroup = sizeLinkGroup(activeNamespace);
+    if (linkGroup) {
       for (const namespace of PARAMETER_NAMESPACES) {
-        if (namespace === activeNamespace || namespace === GBFLASH_BINDING.parameterNamespace) {
+        if (namespace === activeNamespace || sizeLinkGroup(namespace) !== linkGroup) {
           continue;
         }
-        const sibling = record.parametersByNamespace[namespace] ?? {};
-        for (const key of SIZE_KEYS) {
-          if (bag[key] !== undefined) {
-            sibling[key] = bag[key];
-          }
-        }
-        record.parametersByNamespace[namespace] = sibling;
+        applyLegacySizes(record, namespace, sizes);
       }
     }
   }
 
   for (const spec of GLOBAL_PARAMETER_SPECS) {
     const group: Record<string, unknown> | undefined = config[spec.legacyGroup];
-    const raw = group?.[spec.legacyField];
-    if (typeof raw === 'number' && Number.isFinite(raw)) {
-      record.global[spec.key] = normalizeValue(raw, spec.validator);
+    const normalized = normalizeGlobalParameter(spec.key, group?.[spec.legacyField]);
+    if (normalized !== undefined) {
+      record.global[spec.key] = normalized;
     }
   }
 
   if (config.firmware?.flashgbxBaudRate !== undefined) {
-    const namespace = GBFLASH_BINDING.parameterNamespace;
+    const namespace = GBFLASH_NAMESPACE;
     record.parametersByNamespace[namespace] = {
       ...(record.parametersByNamespace[namespace] ?? {}),
       baudRate: normalizeBaudRate(config.firmware.flashgbxBaudRate),
@@ -322,6 +370,37 @@ function migrateLegacy(config: LegacyAdvancedSettings): AdvancedSettingsV2 {
 
 function isBag(value: unknown): value is ParameterBag {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isStoredValue(value: unknown): value is StoredValue {
+  return typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean';
+}
+
+/**
+ * Validates a persisted bag against the schema that will serve it.
+ *
+ * Without this the store would only clamp on read, so a `baudRate: 123456` or a `"bogus"`
+ * string would still reach a connection plan and the settings form, and the record would
+ * never converge. Entries the schema cannot serve are dropped, which makes the descriptor
+ * default the effective value; keys the schema does not know are kept verbatim (a newer
+ * build may own them) as long as they are plain storage values.
+ */
+function normalizeBag(bag: Record<string, unknown>, schema: ParameterSchema | undefined): ParameterBag {
+  const next: ParameterBag = {};
+  for (const [key, value] of Object.entries(bag)) {
+    const descriptor = schema ? findParameterDescriptor(schema, key) : undefined;
+    if (!descriptor) {
+      if (isStoredValue(value)) {
+        next[key] = value;
+      }
+      continue;
+    }
+    const normalized = normalizeStoredValue(descriptor, value);
+    if (normalized !== undefined) {
+      next[key] = normalized;
+    }
+  }
+  return next;
 }
 
 function parseV2(value: Record<string, unknown>): AdvancedSettingsV2 | null {
@@ -340,15 +419,12 @@ function parseV2(value: Record<string, unknown>): AdvancedSettingsV2 | null {
       if (!isBag(bag)) {
         continue;
       }
-      record.parametersByNamespace[namespace] = { ...bag };
+      // Unknown namespaces keep their raw values: their schema lives in another build.
+      record.parametersByNamespace[namespace] = normalizeBag(bag, registeredSchema(namespace));
     }
   }
   if (isBag(value.global)) {
-    for (const [key, entry] of Object.entries(value.global)) {
-      if (typeof entry === 'number' || typeof entry === 'string' || typeof entry === 'boolean') {
-        record.global[key] = entry;
-      }
-    }
+    record.global = { ...record.global, ...normalizeBag(value.global, GLOBAL_PARAMETER_SCHEMA) };
   }
   record.independentSizes = value.independentSizes === true;
   return record;
