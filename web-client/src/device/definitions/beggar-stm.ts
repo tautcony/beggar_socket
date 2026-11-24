@@ -59,7 +59,7 @@ export const BEGGAR_STM_CAPABILITIES: CompleteCapabilityDeclarations = {
   'tool.rumble.gba': SUPPORTED,
   'tool.debug': SUPPORTED,
   'tool.ppbUnlock': SUPPORTED,
-  'profile.flashcartDb': unsupported('flashcart database profiles are FlashGBX only'),
+  'profile.flashcartDb': unsupported('flashcart database profiles are GBFlash only'),
 };
 
 export const BEGGAR_STM_FIRMWARE: FirmwareDefinition = createFirmwareDefinition({

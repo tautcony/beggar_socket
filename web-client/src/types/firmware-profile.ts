@@ -7,7 +7,7 @@
  *
  * Deprecated (removed in P4): use `SessionProfile` from `@/device` and capability queries instead.
  */
-export type FirmwareProfileId = 'stm' | 'stc' | 'flashgbx' | 'unknown';
+export type FirmwareProfileId = 'stm' | 'stc' | 'gbflash' | 'unknown';
 export type ConfigurableFirmwareProfileId = Exclude<FirmwareProfileId, 'unknown'>;
 
 export interface FirmwareCapabilities {
@@ -16,7 +16,7 @@ export interface FirmwareCapabilities {
   readonly gbcFramRam: boolean;
   readonly cartPowerControl: boolean;
   readonly boostMode: boolean;
-  readonly nativeFlashgbxProtocol: boolean;
+  readonly nativeGbflashProtocol: boolean;
   readonly audioWePin: boolean;
 }
 

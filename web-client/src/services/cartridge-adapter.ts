@@ -233,8 +233,8 @@ export class CartridgeAdapter {
     switch (this.device.firmwareProfile?.id) {
       case 'stc':
         return 'beggar.stc';
-      case 'flashgbx':
-        return 'flashgbx.cfw';
+      case 'gbflash':
+        return 'gbflash.cfw';
       default:
         return 'beggar.stm';
     }

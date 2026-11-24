@@ -1,12 +1,12 @@
 /**
- * FlashGBX DMG/GBC (MBC1/2/3/5) cartridge adapter.
+ * GBFlash DMG/GBC (MBC1/2/3/5) cartridge adapter.
  * Derived from FlashGBX (GPL-3.0) LK_Device.py.
  */
 import {
   FLASH_COMMAND_SET,
   FLASH_METHOD,
   FLASH_WE_PIN,
-  type FlashgbxCommandClient,
+  type GbflashCommandClient,
   throwIfAborted,
 } from '@/protocol';
 import { CommandOptions, type MbcType } from '@/types/command-options';
@@ -25,19 +25,19 @@ import {
   unlockProfileFlash,
   waitForProfileFlash,
 } from './flashcart-profile-runner';
-import { FlashgbxBaseAdapter } from './flashgbx-base-adapter';
+import { GbflashBaseAdapter } from './gbflash-base-adapter';
 
 const DMG_ROM_BANK_SIZE = 0x4000;
 const DMG_RAM_BANK_SIZE = 0x2000;
 const MBC2_RAM_SIZE = 0x200;
 
-export class FlashgbxMbcAdapter extends FlashgbxBaseAdapter {
+export class GbflashMbcAdapter extends GbflashBaseAdapter {
   constructor(
     device: DeviceInfo,
     logCallback: LogCallback | null = null,
     progressCallback: ProgressCallback | null = null,
     translateFunc: TranslateFunction | null = null,
-    clientOverride?: FlashgbxCommandClient,
+    clientOverride?: GbflashCommandClient,
   ) {
     super(device, logCallback, progressCallback, translateFunc, clientOverride);
   }
@@ -46,11 +46,11 @@ export class FlashgbxMbcAdapter extends FlashgbxBaseAdapter {
     return enable5V === false ? '3.3V' : '5V';
   }
 
-  private async resetFlashToRead(client: FlashgbxCommandClient): Promise<void> {
+  private async resetFlashToRead(client: GbflashCommandClient): Promise<void> {
     await client.cartWrite('DMG', 0x0000, 0xF0, { flashcart: true });
   }
 
-  private async selectRomBank(client: FlashgbxCommandClient, mbcType: MbcType, bank: number): Promise<void> {
+  private async selectRomBank(client: GbflashCommandClient, mbcType: MbcType, bank: number): Promise<void> {
     if (bank === 0) {
       return;
     }
@@ -83,7 +83,7 @@ export class FlashgbxMbcAdapter extends FlashgbxBaseAdapter {
   }
 
   private async enableAndSelectRamBank(
-    client: FlashgbxCommandClient,
+    client: GbflashCommandClient,
     mbcType: MbcType,
     bank: number,
   ): Promise<void> {
@@ -98,7 +98,7 @@ export class FlashgbxMbcAdapter extends FlashgbxBaseAdapter {
     }
   }
 
-  private async disableRam(client: FlashgbxCommandClient): Promise<void> {
+  private async disableRam(client: GbflashCommandClient): Promise<void> {
     await client.cartWrite('DMG', 0x0000, 0x00);
   }
 
@@ -126,22 +126,45 @@ export class FlashgbxMbcAdapter extends FlashgbxBaseAdapter {
             return this.resolveManualProfileCartInfo(client, 'DMG', 'MBC5', manualProfileId);
           }
 
+          await client.setVariable('DMG_READ_CS_PULSE', 0);
+          await client.setVariable('DMG_WRITE_CS_PULSE', 0);
+          await client.setVariable('FLASH_WE_PIN', FLASH_WE_PIN.WR);
           await client.cartWriteFlash('DMG', [[0x0000, 0xF0]], true);
           const romBaseline = await client.readRom('DMG', 0x0000, 0x20, { maxLength: 0x20 });
           await client.cartWriteFlash('DMG', [[0x555, 0xAA], [0x2AA, 0x55], [0x555, 0x90]], true);
-          const idBytes = await client.readRom('DMG', 0x0000, 0x20, { maxLength: 0x20 });
+          let idBytes = await client.readRom('DMG', 0x0000, 0x20, { maxLength: 0x20 });
           await this.resetFlashToRead(client);
 
           await client.cartWriteFlash('DMG', [[0x55, 0x98]], true);
-          const cfiRaw = await client.readRom('DMG', 0x0000, 0x100, { maxLength: 0x100 });
+          let cfiRaw = await client.readRom('DMG', 0x0000, 0x100, { maxLength: 0x100 });
           await this.resetFlashToRead(client);
 
-          const parsed = parseCFI(cfiRaw);
+          let parsed = parseCFI(cfiRaw);
+          if (!parsed || parsed.deviceSize <= 0) {
+            await client.cartWriteFlash('DMG', [[0xAAA, 0xAA], [0x555, 0x55], [0xAAA, 0x90]], true);
+            idBytes = await client.readRom('DMG', 0x0000, 0x20, { maxLength: 0x20 });
+            await this.resetFlashToRead(client);
+
+            for (const cfiAddr of [0xAA, 0xAAA]) {
+              await client.cartWriteFlash('DMG', [[cfiAddr, 0x98]], true);
+              cfiRaw = await client.readRom('DMG', 0x0000, 0x100, { maxLength: 0x100 });
+              await this.resetFlashToRead(client);
+              parsed = parseCFI(cfiRaw);
+              if (parsed && parsed.deviceSize > 0) {
+                break;
+              }
+            }
+          }
+
           if (parsed && parsed.deviceSize > 0) {
             parsed.flashId = idBytes.slice(0, 4);
-            await this.logMatchedProfileForCfi('MBC5', romBaseline, idBytes);
+            await this.logMatchedProfileForCfi('MBC5', romBaseline, idBytes, parsed.deviceSize);
             return parsed;
           }
+
+          const toHex = (bytes: Uint8Array) =>
+            Array.from(bytes).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+          this.log(`DMG CFI not detected (ROM[0..31]: ${toHex(romBaseline)}, ID[0..31]: ${toHex(idBytes)})`, 'warn');
 
           return this.runAutoProfileFallback(client, 'DMG', 'MBC5');
         },
@@ -154,7 +177,7 @@ export class FlashgbxMbcAdapter extends FlashgbxBaseAdapter {
   }
 
   private async pollDmgEraseStatus(
-    client: FlashgbxCommandClient,
+    client: GbflashCommandClient,
     address: number,
     timeoutMs = 15000,
     signal?: AbortSignal,

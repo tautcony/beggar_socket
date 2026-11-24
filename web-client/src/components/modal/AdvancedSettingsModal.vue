@@ -249,19 +249,6 @@
               >{{ field.hint }}</small>
             </div>
           </div>
-
-          <div class="setting-row">
-            <div class="setting-item">
-              <RetroSwitch
-                id="independent-sizes"
-                v-model="independentSizes"
-                :label="$t('ui.settings.size.independentSizes')"
-                data-testid="independent-sizes"
-                @update:model-value="onIndependentSizesChange"
-              />
-              <small class="hint">{{ independentSizesHint }}</small>
-            </div>
-          </div>
         </div>
 
         <!-- 读写异常控制（超时、节流、重试）：分组、范围、单位都来自参数描述符 -->
@@ -348,7 +335,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { RetroButton, RetroModal, RetroSelect, RetroSwitch } from '@/components/retro';
+import { RetroButton, RetroModal, RetroSelect } from '@/components/retro';
 import { DEFAULT_FONT_FAMILY, type FontFamilyId, useFont } from '@/composables/useFont';
 import { DEFAULT_COLOR_MODE, DEFAULT_COLOR_THEME, useTheme } from '@/composables/useTheme';
 import { VARIANT_IDS } from '@/device/definitions';
@@ -407,14 +394,14 @@ const VARIANT_LABEL_KEYS: Readonly<Record<string, string>> = {
   [VARIANT_IDS.stm]: 'ui.settings.firmware.stm',
   [VARIANT_IDS.stmBoost]: 'ui.settings.firmware.stmBoostOption',
   [VARIANT_IDS.stc]: 'ui.settings.firmware.stc',
-  [VARIANT_IDS.gbflash]: 'ui.settings.firmware.flashgbx',
+  [VARIANT_IDS.gbflash]: 'ui.settings.firmware.gbflash',
 };
 
 const VARIANT_HINT_KEYS: Readonly<Record<string, string>> = {
   [VARIANT_IDS.stm]: 'ui.settings.firmware.stmHint',
   [VARIANT_IDS.stmBoost]: 'ui.settings.firmware.stmBoostHint',
   [VARIANT_IDS.stc]: 'ui.settings.firmware.stcHint',
-  [VARIANT_IDS.gbflash]: 'ui.settings.firmware.flashgbxHint',
+  [VARIANT_IDS.gbflash]: 'ui.settings.firmware.gbflashHint',
 };
 
 const variantOptions = computed(() => runtime.registry.listSelectable().map(variant => ({
@@ -442,7 +429,7 @@ const activeSessionLabel = computed(() => {
 const NAMESPACE_LABEL_KEYS: Readonly<Record<string, string>> = {
   'beggar.stm': 'ui.settings.firmware.stm',
   'beggar.stc': 'ui.settings.firmware.stc',
-  'flashgbx.cfw': 'ui.settings.firmware.flashgbx',
+  'gbflash.cfw': 'ui.settings.firmware.gbflash',
 };
 
 /** Labels come from the locale files; the schema only declares the parameter itself. */
@@ -450,25 +437,20 @@ const PARAMETER_LABEL_KEYS: Readonly<Record<string, string>> = {
   romPageSize: 'ui.settings.size.romPageSize',
   romReadPageSize: 'ui.settings.size.romReadPageSize',
   ramPageSize: 'ui.settings.size.ramPageSize',
-  baudRate: 'ui.settings.firmware.flashgbxBaudRate',
+  baudRate: 'ui.settings.firmware.gbflashBaudRate',
 };
 
 const editingNamespace = ref<string>(CORE_PARAMETER_NAMESPACE);
-const independentSizes = ref(AdvancedSettings.getIndependentSizes());
 /** Draft values per namespace; the schema supplies defaults and ranges. */
 const namespaceDrafts = ref<Record<string, Record<string, ParameterValue>>>({});
 const fieldErrors = ref<Record<string, Record<string, string>>>({});
 
-const namespaceTabs = computed(() => {
-  const namespaces = independentSizes.value
-    ? ['beggar.stm', 'beggar.stc', 'flashgbx.cfw']
-    // Linked sizes: STM and STC are one group, so only the shared entry is offered.
-    : ['beggar.stm', 'flashgbx.cfw'];
-  return namespaces.map(namespace => ({
-    id: namespace,
-    label: t(NAMESPACE_LABEL_KEYS[namespace] ?? ''),
-  }));
-});
+const ALL_PARAMETER_NAMESPACES = ['beggar.stm', 'beggar.stc', 'gbflash.cfw'] as const;
+
+const namespaceTabs = computed(() => ALL_PARAMETER_NAMESPACES.map(namespace => ({
+  id: namespace,
+  label: t(NAMESPACE_LABEL_KEYS[namespace] ?? ''),
+})));
 
 function selectVariant(variantId: string) {
   selectedVariantId.value = variantId;
@@ -478,35 +460,10 @@ function selectVariant(variantId: string) {
   validateNamespaceFields();
 }
 
-/** Link group declared by a namespace's page-size descriptor, when it declares one. */
-function sizeLinkGroupOf(namespace: string): string | undefined {
-  return schemaFor(namespace).find(descriptor => descriptor.key === 'romPageSize')?.linkGroup;
-}
-
-/**
- * Namespace the size editor can actually show for a selection.
- *
- * Applying writes only the visible tabs, so leaving the editor on a hidden namespace would
- * drop the edit without a word. A linked namespace (STC while sizes are shared) maps onto the
- * tab that owns the same link group; anything else falls back to the first visible tab.
- */
 function visibleNamespaceFor(namespace: string): string {
   const tabs = namespaceTabs.value;
-  if (tabs.some(tab => tab.id === namespace)) {
-    return namespace;
-  }
-  const linkGroup = sizeLinkGroupOf(namespace);
-  const linked = linkGroup
-    ? tabs.find(tab => sizeLinkGroupOf(tab.id) === linkGroup)
-    : undefined;
-  return linked?.id ?? tabs[0]?.id ?? namespace;
+  return tabs.some(tab => tab.id === namespace) ? namespace : (tabs[0]?.id ?? namespace);
 }
-
-const independentSizesHint = computed(() => (
-  independentSizes.value
-    ? t('ui.settings.size.independentHint')
-    : t('ui.settings.size.linkedHint')
-));
 
 function schemaFor(namespace: string): ParameterSchema {
   return runtime.registry.resolveNamespaceSchema(namespace)?.schema ?? [];
@@ -520,7 +477,7 @@ function labelFor(descriptor: ParameterDescriptor): string {
 const namespaceFields = computed(() => schemaFor(editingNamespace.value).map((descriptor) => {
   const value = namespaceDrafts.value[editingNamespace.value]?.[descriptor.key] ?? descriptor.default;
   const hint = descriptor.key === 'baudRate'
-    ? t('ui.settings.firmware.flashgbxBaudHint')
+    ? t('ui.settings.firmware.gbflashBaudHint')
     : typeof value === 'number'
       ? formatBytes(value)
       : descriptor.description
@@ -540,7 +497,7 @@ const namespaceFields = computed(() => schemaFor(editingNamespace.value).map((de
 }));
 
 function formatEnumOption(option: ParameterValue): string {
-  return option === 'auto' ? t('ui.settings.firmware.flashgbxBaudAuto') : String(option);
+  return option === 'auto' ? t('ui.settings.firmware.gbflashBaudAuto') : String(option);
 }
 
 function onEnumFieldChange(key: string, value: string | number | undefined) {
@@ -555,14 +512,6 @@ function onEnumFieldChange(key: string, value: string | number | undefined) {
 function switchNamespace(namespace: string) {
   if (editingNamespace.value === namespace) return;
   editingNamespace.value = namespace;
-  validateNamespaceFields();
-}
-
-function onIndependentSizesChange(next: boolean | undefined) {
-  independentSizes.value = next === true;
-  if (!independentSizes.value && editingNamespace.value === 'beggar.stc') {
-    editingNamespace.value = 'beggar.stm';
-  }
   validateNamespaceFields();
 }
 
@@ -824,7 +773,8 @@ const applySettings = () => {
 
   try {
     const namespace = CORE_PARAMETER_NAMESPACE;
-    AdvancedSettings.setIndependentSizes(independentSizes.value);
+    // Every device/firmware namespace stores its own packet settings independently.
+    AdvancedSettings.setIndependentSizes(true);
 
     for (const tab of namespaceTabs.value) {
       for (const descriptor of schemaFor(tab.id)) {
@@ -854,10 +804,9 @@ const applySettings = () => {
 // 组件挂载或打开时加载当前设置
 function loadCurrentSettings() {
   selectedVariantId.value = runtime.selection.read().variantId ?? null;
-  independentSizes.value = AdvancedSettings.getIndependentSizes();
 
   const drafts: Record<string, Record<string, ParameterValue>> = {};
-  for (const namespace of ['beggar.stm', 'beggar.stc', 'flashgbx.cfw']) {
+  for (const namespace of ['beggar.stm', 'beggar.stc', 'gbflash.cfw']) {
     drafts[namespace] = { ...runtime.store.snapshot(namespace) };
   }
   namespaceDrafts.value = drafts;

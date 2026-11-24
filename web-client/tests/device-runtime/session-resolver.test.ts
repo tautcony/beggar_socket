@@ -14,10 +14,10 @@ import {
   createRuntimeComposition,
   createRuntimeCompositionRegistry,
   createSessionResolver,
-  type FlashgbxProbeFacts,
+  type GbflashProbeFacts,
   SessionResolutionError,
 } from '@/device-runtime';
-import type { FlashgbxFirmwareInfo } from '@/protocol/flashgbx';
+import type { GbflashFirmwareInfo } from '@/protocol/gbflash';
 
 import { createFakeSettingsStorage } from '../helpers/fake-settings-storage';
 
@@ -52,7 +52,7 @@ function resolve(
   );
 }
 
-function flashgbxInfo(overrides: Partial<FlashgbxFirmwareInfo> = {}): FlashgbxFirmwareInfo {
+function gbflashInfo(overrides: Partial<GbflashFirmwareInfo> = {}): GbflashFirmwareInfo {
   return {
     family: 'gbflash',
     cfwId: 'L',
@@ -130,8 +130,8 @@ describe('session resolver', () => {
 
   it('does not leak raw probe facts into the public session', () => {
     const selection = registry.selectVariant(VARIANT_IDS.gbflash);
-    const probe: FlashgbxProbeFacts = {
-      firmwareInfo: flashgbxInfo({ pcbName: 'GBFlash L14', cartPowerCtrl: false }),
+    const probe: GbflashProbeFacts = {
+      firmwareInfo: gbflashInfo({ pcbName: 'GBFlash L14', cartPowerCtrl: false }),
     };
     const profile = resolve(
       selection,
@@ -151,7 +151,7 @@ describe('session resolver', () => {
     const selection = registry.selectVariant(VARIANT_IDS.gbflash);
     const withFacts = resolve(
       selection,
-      { firmwareId: selection.firmware.id, verification: 'verified', facts: { firmwareInfo: flashgbxInfo() } },
+      { firmwareId: selection.firmware.id, verification: 'verified', facts: { firmwareInfo: gbflashInfo() } },
       { backend: 'serial' },
       createStore(),
     );
@@ -224,7 +224,7 @@ describe('session resolver', () => {
         { backend: 'serial' },
         createStore().operationSnapshot(selection.parameterNamespace).values,
       ),
-    ).toThrow(/runtime binding flashgbx is not registered/);
+    ).toThrow(/runtime binding gbflash is not registered/);
   });
 
   it('records probe-skipped as a diagnostic for simulated backends', () => {

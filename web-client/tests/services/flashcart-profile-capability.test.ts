@@ -7,18 +7,18 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
-import { FLASHGBX_FIRMWARE_PROFILE } from '@/device/compat/firmware-profile';
+import { GBFLASH_FIRMWARE_PROFILE } from '@/device/compat/firmware-profile';
 import { VARIANT_IDS } from '@/device/definitions';
-import { FlashgbxMbcAdapter } from '@/services/flashgbx-mbc-adapter';
+import { GbflashMbcAdapter } from '@/services/gbflash-mbc-adapter';
 import type { CommandOptions } from '@/types/command-options';
 import type { DeviceInfo } from '@/types/device-info';
 
-import { buildFlashgbxSession, buildTestSession, TEST_FLASHGBX_INFO } from '../helpers/session-profile';
+import { buildGbflashSession, buildTestSession, TEST_GBFLASH_INFO } from '../helpers/session-profile';
 
 const PROFILE_ID = 'dmg:some-profile';
 
 /** Exposes the protected profile gate so the decision can be asserted without I/O. */
-class ProbeAdapter extends FlashgbxMbcAdapter {
+class ProbeAdapter extends GbflashMbcAdapter {
   supportsProfiles(): boolean {
     return this.supportsFlashcartProfiles();
   }
@@ -40,15 +40,15 @@ function deviceWith(session: DeviceInfo['session']): DeviceInfo {
       flushInput: vi.fn(() => Promise.resolve()),
       flushOutput: vi.fn(() => Promise.resolve()),
     },
-    firmwareProfile: FLASHGBX_FIRMWARE_PROFILE,
-    flashgbxInfo: TEST_FLASHGBX_INFO,
+    firmwareProfile: GBFLASH_FIRMWARE_PROFILE,
+    gbflashInfo: TEST_GBFLASH_INFO,
     session,
   };
 }
 
 describe('flashcart profile capability gate', () => {
   it('lets a GBFlash session adopt an externally supplied profile', () => {
-    const adapter = new ProbeAdapter(deviceWith(buildFlashgbxSession()));
+    const adapter = new ProbeAdapter(deviceWith(buildGbflashSession()));
 
     expect(adapter.supportsProfiles()).toBe(true);
     expect(adapter.profileIdFor({ flashcartProfileId: PROFILE_ID })).toBe(PROFILE_ID);

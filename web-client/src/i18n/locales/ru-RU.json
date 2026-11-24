@@ -56,9 +56,8 @@
       },
       "selectOtherPort": "Другой порт",
       "resetConnection": "Сброс",
-      "flashgbxPowerCapable": "Управление питанием",
-      "flashgbxNoPowerControl": "Без управления питанием",
-      "flashgbxReadOnlyNotice": "Устройство FlashGBX подключено; операции чтения/записи появятся в следующем обновлении."
+      "gbflashPowerCapable": "Управление питанием",
+      "gbflashNoPowerControl": "Без управления питанием"
     },
     "mode": {
       "gba": "GBA",
@@ -241,7 +240,7 @@
         "shortcutHint": "Ctrl/Cmd + Enter — отправить",
         "deviceConnected": "Устройство подключено",
         "deviceDisconnected": "Устройство не подключено",
-        "flashgbxDisabled": "Отключено для устройств FlashGBX"
+        "gbflashDisabled": "Отключено для устройств GBFlash"
       }
     },
     "chip": {
@@ -493,7 +492,7 @@
         "sectorCountPrompt": "Введите количество секторов для проверки (1-{max}):",
         "sectorCountError": "Количество секторов должно быть целым числом от {min} до {max}"
       },
-      "flashgbxDisabled": "Отключено для устройств FlashGBX"
+      "gbflashDisabled": "Отключено для устройств GBFlash"
     },
     "file": {
       "dropArea": "Или перетащите файл сюда",
@@ -517,22 +516,22 @@
       "title": "Расширенные настройки",
       "tooltip": "Настроить расширенные параметры",
       "firmware": {
-        "title": "Тип прошивки",
-        "profile": "Прошивка текущего устройства",
+        "title": "Устройство / прошивка",
+        "profile": "Выбор устройства / прошивки",
         "activeProfile": "Активный профиль подключения",
         "reconnectNotice": "Изменения вступят в силу после переподключения или повторной инициализации.",
         "stm": "丐中丐",
         "stc": "碳酸丐",
         "stmBoost": "Включить улучшение Boost",
         "stmBoostHint": "Использует прошивку ChisFlash-Beggar-Boost для ускоренной передачи данных, аппаратной проверки и нативных расширений протокола.",
-        "flashgbx": "FlashGBX",
-        "flashgbxBaudRate": "Скорость (FlashGBX)",
-        "flashgbxBaudAuto": "Авто",
-        "flashgbxBaudHint": "Авто использует 2M для CH340 GBFlash и игнорирует скорость на CDC-устройствах.",
+        "gbflash": "GBFlash",
+        "gbflashBaudRate": "Скорость (GBFlash)",
+        "gbflashBaudAuto": "Авто",
+        "gbflashBaudHint": "Авто использует 2M для CH340 GBFlash и игнорирует скорость на CDC-устройствах.",
         "stmBoostOption": "丐中丐 (Boost)",
         "stmHint": "Стандартная прошивка STM32 с обычным профилем передачи 丐中丐.",
         "stcHint": "Прошивка 碳酸丐 (STC8): операции с RAM без GBA FRAM и программное управление питанием картриджа.",
-        "flashgbxHint": "Оборудование GBFlash с прошивкой FlashGBX, включая поддержку базы флеш-картриджей.",
+        "gbflashHint": "Оборудование и прошивка GBFlash, включая поддержку базы флеш-картриджей.",
         "noActiveSession": "Устройство не подключено",
         "selectionRequired": "Выберите устройство и прошивку для подключения"
       },
@@ -563,10 +562,7 @@
           "invalid": "Введите допустимое значение",
           "range": "Размер должен быть от {min} до {max} байт",
           "multiple": "Размер должен быть кратен {multipler}"
-        },
-        "independentSizes": "Хранить настройки пакетов отдельно для каждой прошивки",
-        "independentHint": "丐中丐 и 碳酸丐 хранят размеры пакетов раздельно.",
-        "linkedHint": "丐中丐 и 碳酸丐 используют общие настройки пакетов; включите раздельные настройки, чтобы изменить их независимо."
+        }
       },
       "control": {
         "title": "Контроль сбоев чтения/записи"

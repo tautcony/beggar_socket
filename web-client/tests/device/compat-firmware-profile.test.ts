@@ -9,20 +9,20 @@ import { describe, expect, it } from 'vitest';
 import {
   firmwareProfileFromSession,
   firmwareUnsupportedResult,
-  FLASHGBX_FIRMWARE_PROFILE,
+  GBFLASH_FIRMWARE_PROFILE,
   STC_FIRMWARE_PROFILE,
   STM_FIRMWARE_PROFILE,
 } from '@/device/compat/firmware-profile';
 import { VARIANT_IDS } from '@/device/definitions';
 
-import { buildFlashgbxSession, buildStmSession, buildTestSession } from '../helpers/session-profile';
+import { buildGbflashSession, buildStmSession, buildTestSession } from '../helpers/session-profile';
 
 describe('legacy firmware profile facade', () => {
   it('derives the legacy ids, labels and read ceilings from registered definitions', () => {
     expect(STM_FIRMWARE_PROFILE).toMatchObject({ label: '丐中丐', maxReadChunk: 0x1000 });
     expect(STC_FIRMWARE_PROFILE).toMatchObject({ label: '碳酸丐', maxReadChunk: 0x8000 });
-    // FlashGBX reads one 4 KiB buffer per request; the 256B cap is a frame limit.
-    expect(FLASHGBX_FIRMWARE_PROFILE).toMatchObject({ label: 'FlashGBX', maxReadChunk: 0x1000 });
+    // GBFlash reads one 4 KiB buffer per request; the 256B cap is a frame limit.
+    expect(GBFLASH_FIRMWARE_PROFILE).toMatchObject({ label: 'GBFlash', maxReadChunk: 0x1000 });
   });
 
   it('projects capability declarations onto the legacy boolean flags', () => {
@@ -32,7 +32,7 @@ describe('legacy firmware profile facade', () => {
       gbcFramRam: true,
       cartPowerControl: false,
       boostMode: false,
-      nativeFlashgbxProtocol: false,
+      nativeGbflashProtocol: false,
       audioWePin: false,
     });
 
@@ -40,10 +40,10 @@ describe('legacy firmware profile facade', () => {
     expect(STC_FIRMWARE_PROFILE.capabilities.gbcFramRam).toBe(true);
     expect(STC_FIRMWARE_PROFILE.capabilities.cartPowerControl).toBe(true);
 
-    expect(FLASHGBX_FIRMWARE_PROFILE.capabilities.nativeFlashgbxProtocol).toBe(true);
+    expect(GBFLASH_FIRMWARE_PROFILE.capabilities.nativeGbflashProtocol).toBe(true);
     // Conditional capabilities read as unavailable in the static legacy view.
-    expect(FLASHGBX_FIRMWARE_PROFILE.capabilities.cartPowerControl).toBe(false);
-    expect(FLASHGBX_FIRMWARE_PROFILE.capabilities.audioWePin).toBe(false);
+    expect(GBFLASH_FIRMWARE_PROFILE.capabilities.cartPowerControl).toBe(false);
+    expect(GBFLASH_FIRMWARE_PROFILE.capabilities.audioWePin).toBe(false);
   });
 
   it('projects a committed session without drifting from it', () => {
@@ -61,9 +61,9 @@ describe('legacy firmware profile facade', () => {
     const stc = firmwareProfileFromSession(buildTestSession(VARIANT_IDS.stc));
     expect(stc.id).toBe('stc');
 
-    const flashgbx = firmwareProfileFromSession(buildFlashgbxSession());
-    expect(flashgbx.id).toBe('flashgbx');
-    expect(flashgbx.capabilities.nativeFlashgbxProtocol).toBe(true);
+    const gbflash = firmwareProfileFromSession(buildGbflashSession());
+    expect(gbflash.id).toBe('gbflash');
+    expect(gbflash.capabilities.nativeGbflashProtocol).toBe(true);
   });
 
   it('formats the unsupported-operation message from the profile label', () => {

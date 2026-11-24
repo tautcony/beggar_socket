@@ -5,17 +5,17 @@ import type { SessionProfile } from '@/device/session';
 import {
   type AdapterContext,
   createBeggarAdapterFactory,
-  createFlashgbxAdapterFactory,
-  flashgbxModeSync,
+  createGbflashAdapterFactory,
+  gbflashModeSync,
 } from '@/device-runtime';
-import { FlashgbxBaseAdapter } from '@/services/flashgbx-base-adapter';
-import { FlashgbxGbaAdapter } from '@/services/flashgbx-gba-adapter';
-import { FlashgbxMbcAdapter } from '@/services/flashgbx-mbc-adapter';
+import { GbflashBaseAdapter } from '@/services/gbflash-base-adapter';
+import { GbflashGbaAdapter } from '@/services/gbflash-gba-adapter';
+import { GbflashMbcAdapter } from '@/services/gbflash-mbc-adapter';
 import { GBAAdapter } from '@/services/gba-adapter';
 import { MBC5Adapter } from '@/services/mbc5-adapter';
 import type { DeviceInfo } from '@/types/device-info';
 
-import { buildFlashgbxSession, buildStmSession, buildTestSession } from '../helpers/session-profile';
+import { buildGbflashSession, buildStmSession, buildTestSession } from '../helpers/session-profile';
 
 /** The factories are the only place adapters learn which session they belong to. */
 function sessionOf(adapter: unknown): SessionProfile | undefined {
@@ -25,7 +25,7 @@ function sessionOf(adapter: unknown): SessionProfile | undefined {
 function contextFor(profile: SessionProfile): AdapterContext {
   const device: DeviceInfo = {
     port: null,
-    // The FlashGBX adapters bind a command client to the transport of their device.
+    // The GBFlash adapters bind a command client to the transport of their device.
     transport: {
       send: vi.fn(() => Promise.resolve(true)),
       read: vi.fn(() => Promise.resolve({ data: new Uint8Array(0) })),
@@ -63,16 +63,16 @@ describe('Runtime adapter factories', () => {
     expect((gba as unknown as { device: DeviceInfo }).device).toBe(context.device);
   });
 
-  it('assembles the FlashGBX GBA / DMG adapters from the committed session', () => {
-    const profile = buildFlashgbxSession();
-    const factory = createFlashgbxAdapterFactory();
+  it('assembles the GBFlash GBA / DMG adapters from the committed session', () => {
+    const profile = buildGbflashSession();
+    const factory = createGbflashAdapterFactory();
     const context = contextFor(profile);
 
     const gba = factory.create('gba', context);
     const mbc5 = factory.create('mbc5', context);
 
-    expect(gba).toBeInstanceOf(FlashgbxGbaAdapter);
-    expect(mbc5).toBeInstanceOf(FlashgbxMbcAdapter);
+    expect(gba).toBeInstanceOf(GbflashGbaAdapter);
+    expect(mbc5).toBeInstanceOf(GbflashMbcAdapter);
     expect(sessionOf(gba)?.variantId).toBe(VARIANT_IDS.gbflash);
     expect(sessionOf(mbc5)?.variantId).toBe(VARIANT_IDS.gbflash);
   });
@@ -92,25 +92,26 @@ describe('Runtime adapter factories', () => {
     expect(first.variantId).toBe(VARIANT_IDS.stm);
   });
 
-  it('routes mode sync through the FlashGBX hardware switch', async () => {
-    const spy = vi.spyOn(FlashgbxBaseAdapter.prototype, 'syncHardwareMode').mockResolvedValue(undefined);
+  it('routes mode sync through the GBFlash hardware switch', async () => {
+    const spy = vi.spyOn(GbflashBaseAdapter.prototype, 'syncHardwareMode').mockResolvedValue(undefined);
 
     try {
-      const adapter = createFlashgbxAdapterFactory().create('gba', contextFor(buildFlashgbxSession()));
+      const adapter = createGbflashAdapterFactory().create('gba', contextFor(buildGbflashSession()));
 
-      await flashgbxModeSync(adapter, 'gba');
-      await flashgbxModeSync(adapter, 'mbc5');
+      await gbflashModeSync(adapter, 'gba');
+      await gbflashModeSync(adapter, 'mbc5');
+      await gbflashModeSync(adapter, 'mbc5', true);
 
-      expect(spy.mock.calls).toEqual([['GBA'], ['MBC5']]);
+      expect(spy.mock.calls).toEqual([['GBA', false], ['MBC5', false], ['MBC5', true]]);
     } finally {
       spy.mockRestore();
     }
   });
 
   it('leaves the Beggar binding without a mode-sync strategy (it switches in hardware)', async () => {
-    const { createBeggarRuntimeBinding, createFlashgbxRuntimeBinding } = await import('@/device-runtime');
+    const { createBeggarRuntimeBinding, createGbflashRuntimeBinding } = await import('@/device-runtime');
 
     expect(createBeggarRuntimeBinding().modeSyncStrategy).toBeUndefined();
-    expect(createFlashgbxRuntimeBinding().modeSyncStrategy).toBe(flashgbxModeSync);
+    expect(createGbflashRuntimeBinding().modeSyncStrategy).toBe(gbflashModeSync);
   });
 });

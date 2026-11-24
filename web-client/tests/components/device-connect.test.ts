@@ -5,7 +5,7 @@ import DeviceConnect from '@/components/DeviceConnect.vue';
 import PortSelectorModal from '@/components/modal/PortSelectorModal.vue';
 import type { ConnectionLogEntry } from '@/device-runtime/connection-report';
 
-import { buildFlashgbxSession, buildStmSession } from '../helpers/session-profile';
+import { buildGbflashSession, buildStmSession } from '../helpers/session-profile';
 
 const { showToastMock, requestDeviceMock, connectWithSelectedPortMock, disconnectDeviceMock, initializeDeviceMock, listAvailablePortsMock, listPortsMatchingSelectionMock, isDeviceConnectedMock } = vi.hoisted(() => ({
   showToastMock: vi.fn(),
@@ -74,7 +74,7 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-function flashgbxDevice() {
+function gbflashDevice() {
   return {
     port: null,
     transport: {},
@@ -82,7 +82,7 @@ function flashgbxDevice() {
     connectionId: 'session-1',
     portInfo: { path: '/dev/cu.usbserial-110', vendorId: '1a86', productId: '7523' },
     // The session facts and the port metadata describe the same port, as they do in the app.
-    session: buildFlashgbxSession({ usb: { vendorId: '1a86', productId: '7523' } }),
+    session: buildGbflashSession({ usb: { vendorId: '1a86', productId: '7523' } }),
   };
 }
 
@@ -150,7 +150,7 @@ describe('DeviceConnect', () => {
   });
 
   it('requests the saved variant, then logs device, firmware, port match and diagnostics to the right-hand log area', async () => {
-    requestDeviceMock.mockResolvedValue(flashgbxDevice());
+    requestDeviceMock.mockResolvedValue(gbflashDevice());
 
     const wrapper = mount(DeviceConnect, {
       global: {
@@ -172,7 +172,7 @@ describe('DeviceConnect', () => {
     expect(requestDeviceMock).toHaveBeenCalledWith({});
 
     // No permanent summary element: the log area is the only place this is rendered.
-    expect(wrapper.find('[data-testid="flashgbx-device-summary"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="gbflash-device-summary"]').exists()).toBe(false);
 
     const entries = connectionLogEntries(wrapper);
     expect(entries[0]).toMatchObject({
@@ -229,25 +229,40 @@ describe('DeviceConnect', () => {
     });
   });
 
-  it('passes allowAnyPort only when the user explicitly picks another port', async () => {
-    requestDeviceMock.mockResolvedValue(flashgbxDevice());
+  it('hides select-other-port in the connect button context menu and passes allowAnyPort when clicked', async () => {
+    requestDeviceMock.mockResolvedValue(gbflashDevice());
 
     const wrapper = mount(DeviceConnect, {
       global: {
         stubs: {
           RetroButton: {
-            template: '<button @click="$emit(\'click\')" />',
+            props: ['text'],
+            template: '<button @click="$emit(\'click\')" @contextmenu="$emit(\'contextmenu\', $event)">{{ text }}</button>',
           },
           PortSelectorModal: true,
+          Teleport: true,
         },
       },
     });
 
-    const vm = wrapper.vm as unknown as { connectWithAnyPort: () => Promise<void> };
-    await vm.connectWithAnyPort();
+    // No standalone "select other port" button in the toolbar
+    const buttons = wrapper.findAll('button');
+    expect(buttons).toHaveLength(1);
+    expect(wrapper.find('[data-testid="connect-context-menu"]').exists()).toBe(false);
+
+    // Right-click opens the context menu with "select other port"
+    await wrapper.get('[data-testid="connect-device-btn"]').trigger('contextmenu', { clientX: 120, clientY: 60 });
+    expect(wrapper.find('[data-testid="connect-context-menu"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="select-other-port-item"]').trigger('click');
     await flushPromises();
 
+    expect(wrapper.find('[data-testid="connect-context-menu"]').exists()).toBe(false);
     expect(requestDeviceMock).toHaveBeenCalledWith({ allowAnyPort: true });
+
+    // Once connected, right-clicking the button does not reopen the menu
+    await wrapper.get('[data-testid="connect-device-btn"]').trigger('contextmenu', { clientX: 120, clientY: 60 });
+    expect(wrapper.find('[data-testid="connect-context-menu"]').exists()).toBe(false);
   });
 
   it('offers the matching ports first, the full list on refresh, and connects a manually chosen mismatch port', async () => {
@@ -257,7 +272,7 @@ describe('DeviceConnect', () => {
     requestDeviceMock.mockRejectedValue(new PortSelectionRequiredError([matching]));
     listPortsMatchingSelectionMock.mockResolvedValue([matching]);
     listAvailablePortsMock.mockResolvedValue([matching, other]);
-    connectWithSelectedPortMock.mockResolvedValue(flashgbxDevice());
+    connectWithSelectedPortMock.mockResolvedValue(gbflashDevice());
 
     const wrapper = mount(DeviceConnect, {
       global: {
@@ -306,7 +321,7 @@ describe('DeviceConnect', () => {
     // resolver records a transport-stage mismatch and the session still commits.
     const stmOnCh340 = buildStmSession({ usb: { vendorId: '1a86', productId: '7523' } });
     connectWithSelectedPortMock.mockResolvedValue({
-      ...flashgbxDevice(),
+      ...gbflashDevice(),
       portInfo: other,
       session: stmOnCh340,
       diagnostics: stmOnCh340.diagnostics,

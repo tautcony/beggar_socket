@@ -1,5 +1,5 @@
 /**
- * FlashGBX LK_Device command client, session-level mutex, and protocol helpers.
+ * GBFlash LK_Device command client, session-level mutex, and protocol helpers.
  * Derived from FlashGBX (GPL-3.0) LK_Device.py.
  */
 import type { Transport } from '@/platform/serial';
@@ -9,24 +9,24 @@ import {
   DEVICE_VAR,
   DMG_ACCESS_MODE,
   FLASH_WE_PIN,
-  FLASHGBX_ACK_FLASH_CONTINUE,
-  FLASHGBX_ACK_OK,
-  FLASHGBX_CMD,
-  FLASHGBX_CRC32_CHUNK_SIZE,
-  type FlashgbxDeviceVarName,
+  GBFLASH_ACK_FLASH_CONTINUE,
+  GBFLASH_ACK_OK,
+  GBFLASH_CMD,
+  GBFLASH_CRC32_CHUNK_SIZE,
+  type GbflashDeviceVarName,
   FW_VER_THRESHOLDS,
 } from './constants';
 import {
-  computeFlashgbxBufferLimits,
-  type FlashgbxBufferLimits,
-  FlashgbxFramingLayer,
+  computeGbflashBufferLimits,
+  type GbflashBufferLimits,
+  GbflashFramingLayer,
 } from './framing';
-import type { FlashgbxFirmwareInfo } from './handshake';
+import type { GbflashFirmwareInfo } from './handshake';
 
-export type FlashgbxCartMode = 'DMG' | 'AGB';
-export type FlashgbxVoltage = '3.3V' | '5V';
+export type GbflashCartMode = 'DMG' | 'AGB';
+export type GbflashVoltage = '3.3V' | '5V';
 
-export interface FlashgbxCommandClientOptions {
+export interface GbflashCommandClientOptions {
   baudRate?: number;
   /** Receive deadline; kept as the single option the client historically accepted. */
   timeoutMs?: number;
@@ -34,16 +34,16 @@ export interface FlashgbxCommandClientOptions {
   sendTimeoutMs?: number;
 }
 
-export class FlashgbxProtocolError extends Error {
+export class GbflashProtocolError extends Error {
   constructor(message: string, readonly code: 'timeout' | 'bad_ack' | 'unsupported' | 'aborted' | 'io' = 'io') {
     super(message);
-    this.name = 'FlashgbxProtocolError';
+    this.name = 'GbflashProtocolError';
   }
 }
 
 export function throwIfAborted(signal?: AbortSignal): void {
   if (signal?.aborted) {
-    throw new FlashgbxProtocolError('Operation cancelled by user', 'aborted');
+    throw new GbflashProtocolError('Operation cancelled by user', 'aborted');
   }
 }
 
@@ -51,7 +51,7 @@ export function throwIfAborted(signal?: AbortSignal): void {
  * Session-level mutex serializing multi-step LK_Device transactions
  * (e.g., SET_VARIABLE -> command -> read/ack) on a single device transport.
  */
-export class FlashgbxSessionMutex {
+export class GbflashSessionMutex {
   private tail: Promise<void> = Promise.resolve();
 
   run<T>(fn: () => Promise<T>, signal?: AbortSignal): Promise<T> {
@@ -91,39 +91,40 @@ function decodeUint16BE(bytes: Uint8Array, offset = 0): number {
   return ((bytes[offset] << 8) | bytes[offset + 1]) & 0xFFFF;
 }
 
-export class FlashgbxCommandClient {
-  readonly framing: FlashgbxFramingLayer;
-  readonly mutex = new FlashgbxSessionMutex();
-  private readonly fwVars = new Map<FlashgbxDeviceVarName, number>();
-  private mode: FlashgbxCartMode | null = null;
+export class GbflashCommandClient {
+  readonly framing: GbflashFramingLayer;
+  readonly mutex = new GbflashSessionMutex();
+  private readonly fwVars = new Map<GbflashDeviceVarName, number>();
+  private mode: GbflashCartMode | null = null;
+  private voltage: GbflashVoltage | null = null;
   private baudRate: number;
   private sendTimeoutMs: number;
   private receiveTimeoutMs: number;
-  private limits: FlashgbxBufferLimits;
+  private limits: GbflashBufferLimits;
 
   constructor(
     readonly transport: Transport,
-    readonly fwInfo: FlashgbxFirmwareInfo,
-    options: FlashgbxCommandClientOptions = {},
+    readonly fwInfo: GbflashFirmwareInfo,
+    options: GbflashCommandClientOptions = {},
   ) {
     this.baudRate = options.baudRate ?? 2_000_000;
     this.receiveTimeoutMs = options.timeoutMs ?? 1500;
     this.sendTimeoutMs = options.sendTimeoutMs ?? this.receiveTimeoutMs;
-    this.framing = new FlashgbxFramingLayer(transport);
-    this.limits = computeFlashgbxBufferLimits(fwInfo, this.baudRate);
+    this.framing = new GbflashFramingLayer(transport);
+    this.limits = computeGbflashBufferLimits(fwInfo, this.baudRate);
   }
 
-  get bufferLimits(): FlashgbxBufferLimits {
+  get bufferLimits(): GbflashBufferLimits {
     return this.limits;
   }
 
-  get currentMode(): FlashgbxCartMode | null {
+  get currentMode(): GbflashCartMode | null {
     return this.mode;
   }
 
   setBaudRate(baudRate: number): void {
     this.baudRate = baudRate;
-    this.limits = computeFlashgbxBufferLimits(this.fwInfo, this.baudRate);
+    this.limits = computeGbflashBufferLimits(this.fwInfo, this.baudRate);
   }
 
   /**
@@ -165,7 +166,7 @@ export class FlashgbxCommandClient {
   private async readExact(length: number): Promise<Uint8Array> {
     const data = await this.framing.read(length, this.receiveTimeoutMs);
     if (data.length < length) {
-      throw new FlashgbxProtocolError(`Expected ${length} bytes, got ${data.length}`, 'timeout');
+      throw new GbflashProtocolError(`Expected ${length} bytes, got ${data.length}`, 'timeout');
     }
     return data;
   }
@@ -173,10 +174,10 @@ export class FlashgbxCommandClient {
   private async waitForAck(acceptFlashContinue = false): Promise<number> {
     const resp = await this.readExact(1);
     const ack = resp[0];
-    if (ack === FLASHGBX_ACK_OK || (acceptFlashContinue && ack === FLASHGBX_ACK_FLASH_CONTINUE)) {
+    if (ack === GBFLASH_ACK_OK || (acceptFlashContinue && ack === GBFLASH_ACK_FLASH_CONTINUE)) {
       return ack;
     }
-    throw new FlashgbxProtocolError(`Unexpected FlashGBX ACK: 0x${ack.toString(16)}`, 'bad_ack');
+    throw new GbflashProtocolError(`Unexpected GBFlash ACK: 0x${ack.toString(16)}`, 'bad_ack');
   }
 
   private async writeCommand(bytes: Uint8Array | readonly number[], waitAck: boolean, acceptFlashContinue = false): Promise<number | undefined> {
@@ -189,23 +190,23 @@ export class FlashgbxCommandClient {
 
   // --- Variable commands ---
 
-  async getVariable(name: FlashgbxDeviceVarName): Promise<number> {
+  async getVariable(name: GbflashDeviceVarName): Promise<number> {
     if (this.fwInfo.fwVer < FW_VER_THRESHOLDS.GET_VARIABLE) {
       return 0;
     }
     const [bits, key] = DEVICE_VAR[name];
     const size = bits / 8;
-    await this.writeRaw([FLASHGBX_CMD.GET_VARIABLE, size, ...encodeUint32BE(key)]);
+    await this.writeRaw([GBFLASH_CMD.GET_VARIABLE, size, ...encodeUint32BE(key)]);
     const resp = await this.readExact(4);
     return decodeUint32BE(resp);
   }
 
-  async setVariable(name: FlashgbxDeviceVarName, value: number): Promise<void> {
+  async setVariable(name: GbflashDeviceVarName, value: number): Promise<void> {
     this.fwVars.set(name, value >>> 0);
     const [bits, key] = DEVICE_VAR[name];
     const size = bits / 8;
     const payload = [
-      FLASHGBX_CMD.SET_VARIABLE,
+      GBFLASH_CMD.SET_VARIABLE,
       size,
       ...encodeUint32BE(key),
       ...encodeUint32BE(value),
@@ -213,12 +214,12 @@ export class FlashgbxCommandClient {
     await this.writeCommand(payload, this.fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK, true);
   }
 
-  getCachedVariable(name: FlashgbxDeviceVarName): number | undefined {
+  getCachedVariable(name: GbflashDeviceVarName): number | undefined {
     return this.fwVars.get(name);
   }
 
   async getVarState(): Promise<Uint8Array> {
-    await this.writeRaw([FLASHGBX_CMD.GET_VAR_STATE]);
+    await this.writeRaw([GBFLASH_CMD.GET_VAR_STATE]);
     if (this.transport.readAvailable) {
       const { data } = await this.transport.readAvailable(250);
       return data;
@@ -244,7 +245,7 @@ export class FlashgbxCommandClient {
   }
 
   async setVarState(state: Uint8Array): Promise<void> {
-    await this.writeRaw([FLASHGBX_CMD.SET_VAR_STATE]);
+    await this.writeRaw([GBFLASH_CMD.SET_VAR_STATE]);
     await this.writeRaw(state);
     if (this.fwInfo.fwVer >= FW_VER_THRESHOLDS.PING) {
       await this.waitForAck(true);
@@ -258,7 +259,7 @@ export class FlashgbxCommandClient {
       return false;
     }
     const byte = challenge & 0xFF;
-    await this.writeRaw([FLASHGBX_CMD.PING, byte]);
+    await this.writeRaw([GBFLASH_CMD.PING, byte]);
     const resp = await this.readExact(1);
     return resp[0] === ((~byte) & 0xFF);
   }
@@ -267,7 +268,7 @@ export class FlashgbxCommandClient {
     if (this.fwInfo.fwVer < FW_VER_THRESHOLDS.GET_SWITCH_STATE) {
       return null;
     }
-    await this.writeRaw([FLASHGBX_CMD.GET_SWITCH_STATE]);
+    await this.writeRaw([GBFLASH_CMD.GET_SWITCH_STATE]);
     const state = (await this.readExact(1))[0];
     return {
       presence: Boolean(state & 0x01),
@@ -277,29 +278,30 @@ export class FlashgbxCommandClient {
 
   // --- Mode, voltage, power ---
 
-  async setVoltage(voltage: FlashgbxVoltage): Promise<void> {
-    const cmd = voltage === '5V' ? FLASHGBX_CMD.SET_VOLTAGE_5V : FLASHGBX_CMD.SET_VOLTAGE_3_3V;
+  async setVoltage(voltage: GbflashVoltage): Promise<void> {
+    const cmd = voltage === '5V' ? GBFLASH_CMD.SET_VOLTAGE_5V : GBFLASH_CMD.SET_VOLTAGE_3_3V;
     await this.writeCommand([cmd], this.fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK, true);
+    this.voltage = voltage;
   }
 
   async queryCartPower(): Promise<boolean> {
     if (!this.fwInfo.cartPowerCtrl) {
       return true;
     }
-    await this.writeRaw([FLASHGBX_CMD.QUERY_CART_PWR]);
+    await this.writeRaw([GBFLASH_CMD.QUERY_CART_PWR]);
     const resp = await this.readExact(1);
     return resp[0] === 1;
   }
 
   async cartPowerOff(): Promise<void> {
     if (this.fwInfo.cartPowerCtrl) {
-      await this.writeCommand([FLASHGBX_CMD.CART_PWR_OFF], this.fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK, true);
+      await this.writeCommand([GBFLASH_CMD.CART_PWR_OFF], this.fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK, true);
     } else {
-      await this.writeCommand([FLASHGBX_CMD.SET_ADDR_AS_INPUTS], this.fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK, true);
+      await this.writeCommand([GBFLASH_CMD.SET_ADDR_AS_INPUTS], this.fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK, true);
     }
   }
 
-  async cartPowerOn(mode: FlashgbxCartMode): Promise<void> {
+  async cartPowerOn(mode: GbflashCartMode): Promise<void> {
     if (!this.fwInfo.cartPowerCtrl) {
       if (mode === 'AGB') {
         await this.agbBootupSequence();
@@ -313,9 +315,9 @@ export class FlashgbxCommandClient {
     }
 
     if (!alreadyPowered) {
-      const modeCmd = mode === 'DMG' ? FLASHGBX_CMD.SET_MODE_DMG : FLASHGBX_CMD.SET_MODE_AGB;
+      const modeCmd = mode === 'DMG' ? GBFLASH_CMD.SET_MODE_DMG : GBFLASH_CMD.SET_MODE_AGB;
       await this.writeCommand([modeCmd], this.fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK, true);
-      await this.writeCommand([FLASHGBX_CMD.CART_PWR_ON], this.fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK, true);
+      await this.writeCommand([GBFLASH_CMD.CART_PWR_ON], this.fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK, true);
       if (this.fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK) {
         await this.queryCartPower();
       }
@@ -332,29 +334,37 @@ export class FlashgbxCommandClient {
       return;
     }
     await this.writeCommand(
-      [FLASHGBX_CMD.SET_PIN, ...encodeUint32BE(pinMask), high ? 1 : 0],
+      [GBFLASH_CMD.SET_PIN, ...encodeUint32BE(pinMask), high ? 1 : 0],
       true,
       true,
     );
   }
 
-  async syncModeOnly(mode: FlashgbxCartMode): Promise<void> {
-    const modeCmd = mode === 'DMG' ? FLASHGBX_CMD.SET_MODE_DMG : FLASHGBX_CMD.SET_MODE_AGB;
+  async syncModeOnly(mode: GbflashCartMode): Promise<void> {
+    const modeCmd = mode === 'DMG' ? GBFLASH_CMD.SET_MODE_DMG : GBFLASH_CMD.SET_MODE_AGB;
     await this.writeCommand([modeCmd], this.fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK, true);
     await this.setVariable('CART_MODE', mode === 'DMG' ? 1 : 2);
     this.mode = mode;
   }
 
-  async setMode(mode: FlashgbxCartMode, voltage?: FlashgbxVoltage): Promise<void> {
+  async setMode(mode: GbflashCartMode, voltage?: GbflashVoltage): Promise<void> {
+    const targetVoltage: GbflashVoltage = voltage ?? (mode === 'DMG' ? '5V' : '3.3V');
+    if (
+      this.fwInfo.cartPowerCtrl
+      && this.mode !== null
+      && (this.mode !== mode || (this.voltage !== null && this.voltage !== targetVoltage))
+    ) {
+      await this.cartPowerOff();
+    }
     if (mode === 'DMG') {
-      await this.writeCommand([FLASHGBX_CMD.SET_MODE_DMG], this.fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK, true);
-      await this.setVoltage(voltage ?? '5V');
+      await this.writeCommand([GBFLASH_CMD.SET_MODE_DMG], this.fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK, true);
+      await this.setVoltage(targetVoltage);
       await this.setVariable('DMG_READ_METHOD', 1);
       await this.setVariable('CART_MODE', 1);
       this.mode = 'DMG';
     } else {
-      await this.writeCommand([FLASHGBX_CMD.SET_MODE_AGB], this.fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK, true);
-      await this.setVoltage(voltage ?? '3.3V');
+      await this.writeCommand([GBFLASH_CMD.SET_MODE_AGB], this.fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK, true);
+      await this.setVoltage(targetVoltage);
       await this.setVariable('AGB_READ_METHOD', 0);
       await this.setVariable('CART_MODE', 2);
       if (this.fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK) {
@@ -396,6 +406,13 @@ export class FlashgbxCommandClient {
       return null;
     }
     const previous = await this.getVariable('AUTO_POWEROFF_TIME');
+    if (previous === 0) {
+      // GBFlash L14 can power up with AUTO_POWEROFF_ENABLED=1 and AUTO_POWEROFF_TIME=0,
+      // which cuts cartridge power immediately after CART_PWR_ON. Disable it rather than
+      // restoring 0 on transaction exit.
+      await this.setVariable('AUTO_POWEROFF_ENABLED', 0);
+      return null;
+    }
     await this.setVariable('AUTO_POWEROFF_TIME', keepAliveMs);
     return previous;
   }
@@ -410,7 +427,7 @@ export class FlashgbxCommandClient {
   // --- MBC / Bootup / RTC ---
 
   async dmgMbcReset(): Promise<void> {
-    await this.writeCommand([FLASHGBX_CMD.DMG_MBC_RESET], true, true);
+    await this.writeCommand([GBFLASH_CMD.DMG_MBC_RESET], true, true);
   }
 
   async dmgSetBankChangeCmd(commands: readonly { address?: number; value?: number }[]): Promise<void> {
@@ -418,10 +435,10 @@ export class FlashgbxCommandClient {
       return;
     }
     if (commands.length === 0) {
-      await this.writeCommand([FLASHGBX_CMD.DMG_SET_BANK_CHANGE_CMD, 0], true, true);
+      await this.writeCommand([GBFLASH_CMD.DMG_SET_BANK_CHANGE_CMD, 0], true, true);
       return;
     }
-    const buf: number[] = [FLASHGBX_CMD.DMG_SET_BANK_CHANGE_CMD, commands.length];
+    const buf: number[] = [GBFLASH_CMD.DMG_SET_BANK_CHANGE_CMD, commands.length];
     for (const cmd of commands) {
       if (cmd.address !== undefined) {
         buf.push(...encodeUint32BE(cmd.address), 0);
@@ -433,21 +450,21 @@ export class FlashgbxCommandClient {
   }
 
   async agbBootupSequence(): Promise<void> {
-    await this.writeCommand([FLASHGBX_CMD.AGB_BOOTUP_SEQUENCE], this.fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK, true);
+    await this.writeCommand([GBFLASH_CMD.AGB_BOOTUP_SEQUENCE], this.fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK, true);
   }
 
   async agbReadGpioRtc(): Promise<Uint8Array | null> {
     if (this.fwInfo.fwVer < FW_VER_THRESHOLDS.AGB_READ_GPIO_RTC) {
       return null;
     }
-    await this.writeRaw([FLASHGBX_CMD.AGB_READ_GPIO_RTC]);
+    await this.writeRaw([GBFLASH_CMD.AGB_READ_GPIO_RTC]);
     return this.readExact(8);
   }
 
   // --- Cartridge Read/Write primitives ---
 
   async readRom(
-    mode: FlashgbxCartMode,
+    mode: GbflashCartMode,
     address: number,
     length: number,
     options: { maxLength?: number; skipInit?: boolean; signal?: AbortSignal; onChunk?: (chunk: Uint8Array) => void } = {},
@@ -467,7 +484,7 @@ export class FlashgbxCommandClient {
       }
     }
 
-    const cmd = mode === 'DMG' ? FLASHGBX_CMD.DMG_CART_READ : FLASHGBX_CMD.AGB_CART_READ;
+    const cmd = mode === 'DMG' ? GBFLASH_CMD.DMG_CART_READ : GBFLASH_CMD.AGB_CART_READ;
     while (offset < length) {
       throwIfAborted(options.signal);
       const readLen = Math.min(length - offset, maxLen);
@@ -489,7 +506,7 @@ export class FlashgbxCommandClient {
   }
 
   async readRam(
-    mode: FlashgbxCartMode,
+    mode: GbflashCartMode,
     address: number,
     length: number,
     options: { command?: readonly number[] | number; maxLength?: number; signal?: AbortSignal; onChunk?: (chunk: Uint8Array) => void } = {},
@@ -509,12 +526,12 @@ export class FlashgbxCommandClient {
       await this.setVariable('DMG_ACCESS_MODE', DMG_ACCESS_MODE.RAM_READ);
       await this.setVariable('DMG_READ_CS_PULSE', 1);
       cmdBytes = options.command === undefined
-        ? [FLASHGBX_CMD.DMG_CART_READ]
+        ? [GBFLASH_CMD.DMG_CART_READ]
         : (typeof options.command === 'number' ? [options.command] : options.command);
     } else {
       await this.setVariable('ADDRESS', address);
       cmdBytes = options.command === undefined
-        ? [FLASHGBX_CMD.AGB_CART_READ_SRAM]
+        ? [GBFLASH_CMD.AGB_CART_READ_SRAM]
         : (typeof options.command === 'number' ? [options.command] : options.command);
     }
 
@@ -545,7 +562,7 @@ export class FlashgbxCommandClient {
   }
 
   async writeRam(
-    mode: FlashgbxCartMode,
+    mode: GbflashCartMode,
     address: number,
     data: Uint8Array,
     options: { command?: readonly number[] | number; maxLength?: number; signal?: AbortSignal; onChunk?: (written: number) => void } = {},
@@ -563,12 +580,12 @@ export class FlashgbxCommandClient {
       await this.setVariable('DMG_ACCESS_MODE', DMG_ACCESS_MODE.RAM_WRITE);
       await this.setVariable('DMG_WRITE_CS_PULSE', 1);
       cmdBytes = options.command === undefined
-        ? [FLASHGBX_CMD.DMG_CART_WRITE_SRAM]
+        ? [GBFLASH_CMD.DMG_CART_WRITE_SRAM]
         : (typeof options.command === 'number' ? [options.command] : options.command);
     } else {
       await this.setVariable('ADDRESS', address);
       cmdBytes = options.command === undefined
-        ? [FLASHGBX_CMD.AGB_CART_WRITE_SRAM]
+        ? [GBFLASH_CMD.AGB_CART_WRITE_SRAM]
         : (typeof options.command === 'number' ? [options.command] : options.command);
     }
 
@@ -592,7 +609,7 @@ export class FlashgbxCommandClient {
     }
   }
 
-  async cartRead(mode: FlashgbxCartMode, address: number, agbSaveFlash = false): Promise<number> {
+  async cartRead(mode: GbflashCartMode, address: number, agbSaveFlash = false): Promise<number> {
     if (mode === 'DMG') {
       const raw = address < 0xA000
         ? await this.readRom('DMG', address, 1)
@@ -600,7 +617,7 @@ export class FlashgbxCommandClient {
       return raw[0];
     }
     if (agbSaveFlash) {
-      const raw = await this.readRam('AGB', address, 1, { command: FLASHGBX_CMD.AGB_CART_READ_SRAM });
+      const raw = await this.readRam('AGB', address, 1, { command: GBFLASH_CMD.AGB_CART_READ_SRAM });
       return raw[0];
     }
     const raw = await this.readRom('AGB', address, 2);
@@ -608,7 +625,7 @@ export class FlashgbxCommandClient {
   }
 
   async cartWrite(
-    mode: FlashgbxCartMode,
+    mode: GbflashCartMode,
     address: number,
     value: number,
     options: { flashcart?: boolean; sram?: boolean } = {},
@@ -621,12 +638,12 @@ export class FlashgbxCommandClient {
         await this.setVariable('DMG_WRITE_CS_PULSE', 1);
         await this.setVariable('ADDRESS', address);
         await this.setVariable('TRANSFER_SIZE', 1);
-        await this.writeRaw([FLASHGBX_CMD.DMG_CART_WRITE_SRAM]);
+        await this.writeRaw([GBFLASH_CMD.DMG_CART_WRITE_SRAM]);
         await this.writeCommand([value & 0xFF], true, true);
         await this.setVariable('DMG_WRITE_CS_PULSE', 0);
         return;
       }
-      const cmd = flashcart ? FLASHGBX_CMD.DMG_FLASH_WRITE_BYTE : FLASHGBX_CMD.DMG_CART_WRITE;
+      const cmd = flashcart ? GBFLASH_CMD.DMG_FLASH_WRITE_BYTE : GBFLASH_CMD.DMG_CART_WRITE;
       await this.writeCommand(
         [cmd, ...encodeUint32BE(address), value & 0xFF],
         this.fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK,
@@ -638,12 +655,12 @@ export class FlashgbxCommandClient {
     if (sram) {
       await this.setVariable('TRANSFER_SIZE', 1);
       await this.setVariable('ADDRESS', address);
-      await this.writeRaw([FLASHGBX_CMD.AGB_CART_WRITE_SRAM]);
+      await this.writeRaw([GBFLASH_CMD.AGB_CART_WRITE_SRAM]);
       await this.writeCommand([value & 0xFF], true, true);
       return;
     }
 
-    const cmd = flashcart ? FLASHGBX_CMD.AGB_FLASH_WRITE_SHORT : FLASHGBX_CMD.AGB_CART_WRITE;
+    const cmd = flashcart ? GBFLASH_CMD.AGB_FLASH_WRITE_SHORT : GBFLASH_CMD.AGB_CART_WRITE;
     await this.writeCommand(
       [cmd, ...encodeUint32BE(address >>> 1), ...encodeUint16BE(value)],
       this.fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK,
@@ -652,7 +669,7 @@ export class FlashgbxCommandClient {
   }
 
   async cartWriteFlash(
-    mode: FlashgbxCartMode,
+    mode: GbflashCartMode,
     commands: readonly (readonly [number, number])[],
     flashcart = false,
   ): Promise<void> {
@@ -663,7 +680,7 @@ export class FlashgbxCommandClient {
       return;
     }
 
-    const buf: number[] = [FLASHGBX_CMD.CART_WRITE_FLASH_CMD];
+    const buf: number[] = [GBFLASH_CMD.CART_WRITE_FLASH_CMD];
     if (this.fwInfo.fwVer >= FW_VER_THRESHOLDS.CART_WRITE_FLASH_CMD) {
       buf.push(flashcart ? 1 : 0);
     }
@@ -683,14 +700,14 @@ export class FlashgbxCommandClient {
   }
 
   async setFlashCmd(
-    mode: FlashgbxCartMode,
+    mode: GbflashCartMode,
     flashCommandSet: number,
     flashMethod: number,
     wePin: number,
     commands: readonly (readonly [number, number])[],
   ): Promise<void> {
     const buf: number[] = [
-      FLASHGBX_CMD.SET_FLASH_CMD,
+      GBFLASH_CMD.SET_FLASH_CMD,
       flashCommandSet & 0xFF,
       flashMethod & 0xFF,
       wePin & 0xFF,
@@ -719,7 +736,7 @@ export class FlashgbxCommandClient {
   }
 
   async writeFlashRom(
-    mode: FlashgbxCartMode,
+    mode: GbflashCartMode,
     startAddress: number,
     data: Uint8Array,
     flashBufferSize = 0,
@@ -750,7 +767,7 @@ export class FlashgbxCommandClient {
 
       // A 0x03 continue ACK leaves the device waiting for raw payload bytes, so a skip here
       // would strand it mid-buffer: the next command would be consumed as data.
-      const resuming = lastAck === FLASHGBX_ACK_FLASH_CONTINUE;
+      const resuming = lastAck === GBFLASH_ACK_FLASH_CONTINUE;
 
       // Buffer-aligned all-0xFF skip when chunkLen < flashBufferSize (e.g. 0x80 chunks for 0x200 buffer)
       if (
@@ -800,9 +817,9 @@ export class FlashgbxCommandClient {
         }
         let ack: number | undefined;
         let payload: Uint8Array;
-        if (lastAck !== FLASHGBX_ACK_FLASH_CONTINUE) {
+        if (lastAck !== GBFLASH_ACK_FLASH_CONTINUE) {
           payload = new Uint8Array(1 + chunk.length);
-          payload[0] = FLASHGBX_CMD.FLASH_PROGRAM;
+          payload[0] = GBFLASH_CMD.FLASH_PROGRAM;
           payload.set(chunk, 1);
         } else {
           payload = chunk;
@@ -824,7 +841,7 @@ export class FlashgbxCommandClient {
         } else {
           ack = (await this.writeCommand(payload, true, true)) ?? undefined;
         }
-        lastAck = typeof ack === 'number' ? ack : FLASHGBX_ACK_OK;
+        lastAck = typeof ack === 'number' ? ack : GBFLASH_ACK_OK;
       }
 
       address += chunk.length;
@@ -836,7 +853,7 @@ export class FlashgbxCommandClient {
   // --- CRC32 ---
 
   async calcCrc32(
-    mode: FlashgbxCartMode,
+    mode: GbflashCartMode,
     address: number,
     length: number,
     options: { signal?: AbortSignal; onChunk?: (chunkLen: number) => void } = {},
@@ -851,10 +868,10 @@ export class FlashgbxCommandClient {
 
     while (left > 0) {
       throwIfAborted(options.signal);
-      const chunkLen = Math.min(left, FLASHGBX_CRC32_CHUNK_SIZE);
+      const chunkLen = Math.min(left, GBFLASH_CRC32_CHUNK_SIZE);
       const targetAddr = address + chunkPos;
       await this.setVariable('ADDRESS', mode === 'AGB' ? targetAddr >>> 1 : targetAddr);
-      await this.writeRaw([FLASHGBX_CMD.CALC_CRC32, ...encodeUint32BE(chunkLen)]);
+      await this.writeRaw([GBFLASH_CMD.CALC_CRC32, ...encodeUint32BE(chunkLen)]);
       const resp = await this.readExact(4);
       chunkCrcs.push(decodeUint32BE(resp));
       left -= chunkLen;
@@ -866,7 +883,7 @@ export class FlashgbxCommandClient {
   }
 
   async verifyRomCrc32(
-    mode: FlashgbxCartMode,
+    mode: GbflashCartMode,
     address: number,
     expectedData: Uint8Array,
     options: { signal?: AbortSignal; onChunk?: (chunkLen: number) => void } = {},
@@ -883,7 +900,7 @@ export class FlashgbxCommandClient {
       let pos = 0;
       while (pos < expectedData.length) {
         throwIfAborted(options.signal);
-        const chunkLen = Math.min(expectedData.length - pos, FLASHGBX_CRC32_CHUNK_SIZE);
+        const chunkLen = Math.min(expectedData.length - pos, GBFLASH_CRC32_CHUNK_SIZE);
         const { chunkCrcs } = await this.calcCrc32(mode, address + pos, chunkLen, {
           signal: options.signal,
         });

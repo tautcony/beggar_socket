@@ -6,12 +6,12 @@ import { nextTick } from 'vue';
 import CartBurner from '@/components/CartBurner.vue';
 import CartridgeToolsModal from '@/components/modal/CartridgeToolsModal.vue';
 import DebugToolModal from '@/components/modal/DebugToolModal.vue';
-import { FLASHGBX_FIRMWARE_PROFILE, STM_FIRMWARE_PROFILE } from '@/device/compat/firmware-profile';
-import { FLASHGBX_CMD } from '@/protocol/flashgbx';
+import { GBFLASH_FIRMWARE_PROFILE, STM_FIRMWARE_PROFILE } from '@/device/compat/firmware-profile';
+import { GBFLASH_CMD } from '@/protocol/gbflash';
 import { ppbUnlockGBA, ppbUnlockMBC5, readRTC, rumbleTest, setRTC } from '@/services/tool-functions';
 import type { DeviceInfo } from '@/types/device-info';
 
-import { buildFlashgbxSession, buildStmSession } from '../helpers/session-profile';
+import { buildGbflashSession, buildStmSession } from '../helpers/session-profile';
 
 vi.mock('@/composables/useToast', () => ({
   useToast: () => ({
@@ -30,7 +30,7 @@ vi.mock('vue-i18n', () => ({
   }),
 }));
 
-function createFlashgbxDevice(): {
+function createGbflashDevice(): {
   device: DeviceInfo;
   sendMock: ReturnType<typeof vi.fn>;
   setSignalsMock: ReturnType<typeof vi.fn>;
@@ -50,26 +50,26 @@ function createFlashgbxDevice(): {
       port: null,
       connection: null,
       transport,
-      connectionId: 'flashgbx-session',
+      connectionId: 'gbflash-session',
       firmwareProfile: {
-        ...FLASHGBX_FIRMWARE_PROFILE,
+        ...GBFLASH_FIRMWARE_PROFILE,
         label: 'GBFlash',
         firmwareVersion: 'L14',
       },
-      session: buildFlashgbxSession(),
+      session: buildGbflashSession(),
     },
     sendMock,
     setSignalsMock,
   };
 }
 
-describe('FlashGBX operation guards', () => {
+describe('GBFlash operation guards', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
   });
 
-  it('instantiates FlashGBX GBA and MBC adapters in CartBurner with no DTR/RTS on resetCommandBuffer', async () => {
-    const { device, setSignalsMock } = createFlashgbxDevice();
+  it('instantiates GBFlash GBA and MBC adapters in CartBurner with no DTR/RTS on resetCommandBuffer', async () => {
+    const { device, setSignalsMock } = createGbflashDevice();
     const wrapper = mount(CartBurner, {
       props: {
         device,
@@ -106,15 +106,15 @@ describe('FlashGBX operation guards', () => {
       mbc5Adapter: { id: string } | null;
     };
 
-    expect(vm.gbaAdapter?.id).toBe('cartridge:flashgbx-gba');
-    expect(vm.mbc5Adapter?.id).toBe('cartridge:flashgbx-mbc');
+    expect(vm.gbaAdapter?.id).toBe('cartridge:gbflash-gba');
+    expect(vm.mbc5Adapter?.id).toBe('cartridge:gbflash-mbc');
 
     await vm.gbaAdapter?.resetCommandBuffer();
     expect(setSignalsMock).not.toHaveBeenCalled();
   });
 
   it('keeps stm/stc adapter instantiation unchanged', async () => {
-    const { device } = createFlashgbxDevice();
+    const { device } = createGbflashDevice();
     device.firmwareProfile = STM_FIRMWARE_PROFILE;
     device.session = buildStmSession();
 
@@ -153,7 +153,7 @@ describe('FlashGBX operation guards', () => {
   });
 
   it('drops the adapters of the previous connection when the session is replaced', async () => {
-    const { device } = createFlashgbxDevice();
+    const { device } = createGbflashDevice();
 
     const wrapper = mount(CartBurner, {
       props: { device, deviceReady: true },
@@ -179,9 +179,9 @@ describe('FlashGBX operation guards', () => {
     await nextTick();
 
     const vm = wrapper.vm as unknown as { gbaAdapter: { id: string } | null };
-    expect(vm.gbaAdapter?.id).toBe('cartridge:flashgbx-gba');
+    expect(vm.gbaAdapter?.id).toBe('cartridge:gbflash-gba');
 
-    // A reconnect publishes a new connectionId: the old FlashGBX adapters must not survive.
+    // A reconnect publishes a new connectionId: the old GBFlash adapters must not survive.
     await wrapper.setProps({
       device: {
         ...device,
@@ -195,9 +195,9 @@ describe('FlashGBX operation guards', () => {
     expect(vm.gbaAdapter?.id).toBe('cartridge:gba');
   });
 
-  it('syncs the FlashGBX hardware mode when the GBA/MBC5 tab changes', async () => {
+  it('syncs the GBFlash hardware mode when the GBA/MBC5 tab changes', async () => {
     const sentPackets: number[][] = [];
-    const device = createFlashgbxDevice().device;
+    const device = createGbflashDevice().device;
     // Every safety command needs one ACK before the next one is allowed out.
     device.transport = {
       send: vi.fn((data: Uint8Array) => {
@@ -241,12 +241,12 @@ describe('FlashGBX operation guards', () => {
 
     // Mode sync is a method of the adapter, not of the protocol-session wrapper, so this
     // asserts the component hands the real adapter to the binding's strategy.
-    expect(sentPackets.some(p => p[0] === FLASHGBX_CMD.CART_PWR_OFF)).toBe(true);
-    expect(sentPackets.some(p => p[0] === FLASHGBX_CMD.SET_VOLTAGE_3_3V)).toBe(true);
+    expect(sentPackets.some(p => p[0] === GBFLASH_CMD.CART_PWR_OFF)).toBe(true);
+    expect(sentPackets.some(p => p[0] === GBFLASH_CMD.SET_VOLTAGE_3_3V)).toBe(true);
   });
 
   it('drops the CFI geometry when the flashcart profile changes', async () => {
-    const { device } = createFlashgbxDevice();
+    const { device } = createGbflashDevice();
     const wrapper = mount(CartBurner, {
       props: { device, deviceReady: true },
       global: {
@@ -285,8 +285,8 @@ describe('FlashGBX operation guards', () => {
     expect(vm.chipId).toBeUndefined();
   });
 
-  it('blocks ChisFlash-only ppbUnlock functions on flashgbx devices without touching transport', async () => {
-    const { device, sendMock, setSignalsMock } = createFlashgbxDevice();
+  it('blocks ChisFlash-only ppbUnlock functions on gbflash devices without touching transport', async () => {
+    const { device, sendMock, setSignalsMock } = createGbflashDevice();
 
     await expect(ppbUnlockGBA(device)).rejects.toThrow(/no PPB unlock command/i);
     await expect(ppbUnlockMBC5(device)).rejects.toThrow(/no PPB unlock command/i);
@@ -295,7 +295,7 @@ describe('FlashGBX operation guards', () => {
     expect(setSignalsMock).not.toHaveBeenCalled();
   });
 
-  it('routes FlashGBX readRTC, setRTC, and rumbleTest through LK_Device commands with zero DTR/RTS and zero ChisFlash bytes', async () => {
+  it('routes GBFlash readRTC, setRTC, and rumbleTest through LK_Device commands with zero DTR/RTS and zero ChisFlash bytes', async () => {
     vi.useFakeTimers();
     try {
       const sentPackets: number[][] = [];
@@ -334,13 +334,13 @@ describe('FlashGBX operation guards', () => {
 
           const cmd = bytes[0];
           switch (cmd) {
-            case FLASHGBX_CMD.QUERY_CART_PWR:
+            case GBFLASH_CMD.QUERY_CART_PWR:
               rxQueue.push(0x00);
               break;
-            case FLASHGBX_CMD.AGB_READ_GPIO_RTC:
+            case GBFLASH_CMD.AGB_READ_GPIO_RTC:
               rxQueue.push(0x01, 0x26, 0x11, 0x22, 0x05, 0x13, 0x30, 0x00);
               break;
-            case FLASHGBX_CMD.SET_VARIABLE: {
+            case GBFLASH_CMD.SET_VARIABLE: {
               const size = bytes[1];
               const key = ((bytes[2] << 24) | (bytes[3] << 16) | (bytes[4] << 8) | bytes[5]) >>> 0;
               const val = ((bytes[6] << 24) | (bytes[7] << 16) | (bytes[8] << 8) | bytes[9]) >>> 0;
@@ -353,7 +353,7 @@ describe('FlashGBX operation guards', () => {
               rxQueue.push(0x01);
               break;
             }
-            case FLASHGBX_CMD.AGB_CART_READ: {
+            case GBFLASH_CMD.AGB_CART_READ: {
               if (transferSize === 6) {
                 const marker = gpioEnabled ? 0x02 : 0x00;
                 rxQueue.push(marker, 0, 0, 0, 0, 0);
@@ -364,7 +364,7 @@ describe('FlashGBX operation guards', () => {
               }
               break;
             }
-            case FLASHGBX_CMD.AGB_CART_WRITE: {
+            case GBFLASH_CMD.AGB_CART_WRITE: {
               const wordAddr = ((bytes[1] << 24) | (bytes[2] << 16) | (bytes[3] << 8) | bytes[4]) >>> 0;
               const val = ((bytes[5] << 8) | bytes[6]) & 0xFFFF;
               if (wordAddr === (0xc8 >>> 1)) {
@@ -376,7 +376,7 @@ describe('FlashGBX operation guards', () => {
               rxQueue.push(0x01);
               break;
             }
-            case FLASHGBX_CMD.DMG_CART_WRITE: {
+            case GBFLASH_CMD.DMG_CART_WRITE: {
               const addr = ((bytes[1] << 24) | (bytes[2] << 16) | (bytes[3] << 8) | bytes[4]) >>> 0;
               const val = bytes[5];
               if (addr === 0x4000) {
@@ -385,7 +385,7 @@ describe('FlashGBX operation guards', () => {
               rxQueue.push(0x01);
               break;
             }
-            case FLASHGBX_CMD.DMG_CART_READ: {
+            case GBFLASH_CMD.DMG_CART_READ: {
               if (lastAddress === 0xa000) {
                 rxQueue.push(mbc3Regs[selectedMbc3Reg] ?? 0);
               } else {
@@ -393,7 +393,7 @@ describe('FlashGBX operation guards', () => {
               }
               break;
             }
-            case FLASHGBX_CMD.DMG_CART_WRITE_SRAM:
+            case GBFLASH_CMD.DMG_CART_WRITE_SRAM:
               awaitingSramByte = true;
               break;
             default:
@@ -420,13 +420,13 @@ describe('FlashGBX operation guards', () => {
         connection: null,
         transport,
         // Tool availability is a session capability, so the fixture carries the session.
-        session: buildFlashgbxSession(),
+        session: buildGbflashSession(),
         firmwareProfile: {
-          ...FLASHGBX_FIRMWARE_PROFILE,
+          ...GBFLASH_FIRMWARE_PROFILE,
           label: 'GBFlash',
           firmwareVersion: 'L14',
         },
-        flashgbxInfo: {
+        gbflashInfo: {
           family: 'gbflash',
           cfwId: 'L',
           fwVer: 14,
@@ -449,7 +449,7 @@ describe('FlashGBX operation guards', () => {
       const gbaRead = await readRTC(device, 'GBA');
       expect(gbaRead.status).toBe(true);
       expect(gbaRead.time?.toFormat('yyyy-MM-dd HH:mm:ss')).toBe('2026-11-22 13:30:00');
-      expect(sentPackets.some(p => p[0] === FLASHGBX_CMD.AGB_READ_GPIO_RTC)).toBe(true);
+      expect(sentPackets.some(p => p[0] === GBFLASH_CMD.AGB_READ_GPIO_RTC)).toBe(true);
 
       // 2. GBA setRTC
       await setRTC(device, 'GBA', {
@@ -461,7 +461,7 @@ describe('FlashGBX operation guards', () => {
         minute: 45,
         second: 10,
       });
-      expect(sentPackets.some(p => p[0] === FLASHGBX_CMD.AGB_CART_WRITE)).toBe(true);
+      expect(sentPackets.some(p => p[0] === GBFLASH_CMD.AGB_CART_WRITE)).toBe(true);
 
       // 3. MBC3 setRTC & readRTC
       await setRTC(device, 'MBC3', { day: 12, hour: 9, minute: 8, second: 7 });
@@ -470,8 +470,8 @@ describe('FlashGBX operation guards', () => {
       expect(mbc3Read.time?.hour).toBe(9);
       expect(mbc3Read.time?.minute).toBe(8);
       expect(mbc3Read.time?.second).toBe(7);
-      expect(sentPackets.some(p => p[0] === FLASHGBX_CMD.DMG_CART_WRITE_SRAM)).toBe(true);
-      expect(sentPackets.some(p => p[0] === FLASHGBX_CMD.DMG_CART_READ)).toBe(true);
+      expect(sentPackets.some(p => p[0] === GBFLASH_CMD.DMG_CART_WRITE_SRAM)).toBe(true);
+      expect(sentPackets.some(p => p[0] === GBFLASH_CMD.DMG_CART_READ)).toBe(true);
 
       // 4. GBA rumbleTest
       const rumblePromise = rumbleTest(device);
@@ -487,8 +487,8 @@ describe('FlashGBX operation guards', () => {
     }
   });
 
-  it('disables DebugToolModal send button and enables FlashGBX RTC/rumble buttons while keeping PPB unlock disabled in CartridgeToolsModal', () => {
-    const { device } = createFlashgbxDevice();
+  it('disables DebugToolModal send button and enables GBFlash RTC/rumble buttons while keeping PPB unlock disabled in CartridgeToolsModal', () => {
+    const { device } = createGbflashDevice();
 
     const debugWrapper = mount(DebugToolModal, {
       props: { modelValue: true, device },

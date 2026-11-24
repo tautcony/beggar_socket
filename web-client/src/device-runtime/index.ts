@@ -14,14 +14,14 @@ import type { HostPlatform } from '@/types/host-platform';
 
 import { createSettingsStorageAdapter } from './adapters/settings-storage-adapter';
 import type { RuntimeCompositionRegistry } from './composition-registry';
-import { createBeggarRuntimeBinding, createFlashgbxRuntimeBinding, createRuntimeComposition } from './runtime-bindings';
+import { createBeggarRuntimeBinding, createGbflashRuntimeBinding, createRuntimeComposition } from './runtime-bindings';
 import { createSessionEstablishment, type SessionEstablishment } from './session-establishment';
 import { createSessionResolver, type SessionResolver } from './session-resolver';
 
 export {
   createBeggarAdapterFactory,
-  createFlashgbxAdapterFactory,
-  flashgbxModeSync,
+  createGbflashAdapterFactory,
+  gbflashModeSync,
 } from './adapters/adapter-factory';
 export {
   type AdapterContext,
@@ -48,8 +48,8 @@ export {
   type SessionStageErrorOptions,
 } from './diagnostics';
 export { type BeggarProbeFacts, createBeggarDriver } from './drivers/beggar-driver';
-export { createFlashgbxDriver, flashgbxCapabilitySignals, type FlashgbxProbeFacts } from './drivers/flashgbx-driver';
-export { createBeggarRuntimeBinding, createFlashgbxRuntimeBinding, createRuntimeComposition } from './runtime-bindings';
+export { createGbflashDriver, gbflashCapabilitySignals, type GbflashProbeFacts } from './drivers/gbflash-driver';
+export { createBeggarRuntimeBinding, createGbflashRuntimeBinding, createRuntimeComposition } from './runtime-bindings';
 export {
   createSessionEstablishment,
   type EstablishedSession,

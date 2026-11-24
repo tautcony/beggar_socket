@@ -31,7 +31,7 @@ export function createFakeSettingsStorage(
     values: new Map<string, ParameterValue>(),
     selectedVariantId: options.selectedVariantId ?? null,
     independentSizes: options.independentSizes ?? false,
-    linkableNamespaces: options.linkableNamespaces ?? ['beggar.stm', 'beggar.stc', 'flashgbx.cfw'],
+    linkableNamespaces: options.linkableNamespaces ?? ['beggar.stm', 'beggar.stc', 'gbflash.cfw'],
     writes: [],
     adapter: undefined as unknown as SettingsStorageAdapter,
   };

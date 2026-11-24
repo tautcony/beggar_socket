@@ -254,7 +254,7 @@ describe('operation boundary', () => {
     const live = sessionFor(resolver, store, VARIANT_IDS.gbflash);
     expect(live.transport.baudRate).toBe(GBFLASH_AUTO_BAUD_RATE);
 
-    store.set('flashgbx.cfw', 'baudRate', 1_500_000);
+    store.set('gbflash.cfw', 'baudRate', 1_500_000);
 
     // `requiresReconnect`: the open port keeps the speed it was opened with.
     expect(live.transport.baudRate).toBe(GBFLASH_AUTO_BAUD_RATE);
@@ -267,8 +267,8 @@ describe('operation boundary', () => {
     const adapter = createBeggarAdapterFactory().create('gba', adapterContext(live, store));
     const view = adapter as unknown as { parameterNamespace(): string; beginOperation(): void };
 
-    // FlashGBX values stay untouched by a Beggar session, even after an edit elsewhere.
-    store.set('flashgbx.cfw', 'romPageSize', 0x2000);
+    // GBFlash values stay untouched by a Beggar session, even after an edit elsewhere.
+    store.set('gbflash.cfw', 'romPageSize', 0x2000);
     view.beginOperation();
 
     expect(view.parameterNamespace()).toBe('beggar.stm');

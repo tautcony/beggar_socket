@@ -6,9 +6,9 @@
  * session it came from, and every adapter reads its transfer limits from that profile.
  */
 import type { CartridgeAdapter } from '@/services/cartridge-adapter';
-import { FlashgbxBaseAdapter } from '@/services/flashgbx-base-adapter';
-import { FlashgbxGbaAdapter } from '@/services/flashgbx-gba-adapter';
-import { FlashgbxMbcAdapter } from '@/services/flashgbx-mbc-adapter';
+import { GbflashBaseAdapter } from '@/services/gbflash-base-adapter';
+import { GbflashGbaAdapter } from '@/services/gbflash-gba-adapter';
+import { GbflashMbcAdapter } from '@/services/gbflash-mbc-adapter';
 import { GBAAdapter } from '@/services/gba-adapter';
 import { MBC5Adapter } from '@/services/mbc5-adapter';
 
@@ -86,27 +86,27 @@ export function createBeggarAdapterFactory(): AdapterFactory {
   };
 }
 
-/** FlashGBX GBA / DMG adapters, plus the shared hardware mode sync. */
-export function createFlashgbxAdapterFactory(): AdapterFactory {
+/** GBFlash GBA / DMG adapters, plus the shared hardware mode sync. */
+export function createGbflashAdapterFactory(): AdapterFactory {
   return {
     create(platform, context) {
       const adapter = platform === 'gba'
-        ? new FlashgbxGbaAdapter(context.device, context.log, context.updateProgress, context.t)
-        : new FlashgbxMbcAdapter(context.device, context.log, context.updateProgress, context.t);
+        ? new GbflashGbaAdapter(context.device, context.log, context.updateProgress, context.t)
+        : new GbflashMbcAdapter(context.device, context.log, context.updateProgress, context.t);
       return bindSession(adapter, context);
     },
   };
 }
 
 /**
- * FlashGBX models expose one GBA/DMG switch over the shared command client, so mode sync
+ * GBFlash models expose one GBA/DMG switch over the shared command client, so mode sync
  * belongs to the session that owns it.
  */
-export const flashgbxModeSync: ModeSyncStrategy = async (adapter, mode) => {
-  // Both FlashGBX models extend the shared base class; anything else must not be forced
+export const gbflashModeSync: ModeSyncStrategy = async (adapter, mode, enable5V = false) => {
+  // Both GBFlash models extend the shared base class; anything else must not be forced
   // through a cast, because the hardware switch only exists on that transport.
-  if (!(adapter instanceof FlashgbxBaseAdapter)) {
-    throw new Error('FlashGBX mode sync requires a FlashGBX adapter');
+  if (!(adapter instanceof GbflashBaseAdapter)) {
+    throw new Error('GBFlash mode sync requires a GBFlash adapter');
   }
-  await adapter.syncHardwareMode(mode === 'gba' ? 'GBA' : 'MBC5');
+  await adapter.syncHardwareMode(mode === 'gba' ? 'GBA' : 'MBC5', enable5V);
 };

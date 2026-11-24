@@ -10,10 +10,10 @@ import type { ProbeResult, SessionProfile, TransportFacts } from '@/device/sessi
 import type { VerificationStatus } from '@/device/types';
 import { createDeviceRuntime, type DeviceRuntime } from '@/device-runtime';
 import { getDeviceRuntime } from '@/device-runtime/runtime-instance';
-import type { FlashgbxFirmwareInfo } from '@/protocol/flashgbx';
+import type { GbflashFirmwareInfo } from '@/protocol/gbflash';
 import type { HostPlatform } from '@/types/host-platform';
 
-export const TEST_FLASHGBX_INFO: FlashgbxFirmwareInfo = {
+export const TEST_GBFLASH_INFO: GbflashFirmwareInfo = {
   family: 'gbflash',
   cfwId: 'L',
   fwVer: 14,
@@ -37,8 +37,8 @@ export interface BuildTestSessionOptions {
   readonly usb?: { readonly vendorId?: string; readonly productId?: string };
   readonly firmwareVersion?: string;
   readonly verification?: VerificationStatus;
-  /** Only used by the FlashGBX variants; defaults to {@link TEST_FLASHGBX_INFO}. */
-  readonly flashgbxInfo?: FlashgbxFirmwareInfo | null;
+  /** Only used by the GBFlash variants; defaults to {@link TEST_GBFLASH_INFO}. */
+  readonly gbflashInfo?: GbflashFirmwareInfo | null;
   readonly boostBanner?: string;
   /** Overrides the detected host so packet limits can be asserted per platform. */
   readonly hostPlatform?: HostPlatform;
@@ -65,8 +65,8 @@ export function buildTestSession(
   const runtime = runtimeFor(options.hostPlatform);
   const selection = runtime.registry.selectVariant(variantId);
   const backend = options.backend ?? 'serial';
-  const facts = selection.firmware.protocol === 'flashgbx'
-    ? { firmwareInfo: options.flashgbxInfo === undefined ? TEST_FLASHGBX_INFO : options.flashgbxInfo ?? undefined }
+  const facts = selection.firmware.protocol === 'gbflash'
+    ? { firmwareInfo: options.gbflashInfo === undefined ? TEST_GBFLASH_INFO : options.gbflashInfo ?? undefined }
     : {
       ...(variantId === VARIANT_IDS.stmBoost ? { boostSupported: true } : {}),
       ...(options.boostBanner ? { boostBanner: options.boostBanner } : {}),
@@ -91,8 +91,8 @@ export function buildTestSession(
   );
 }
 
-/** Convenience: FlashGBX session with an STM-style default port identity. */
-export function buildFlashgbxSession(options: BuildTestSessionOptions = {}): SessionProfile {
+/** Convenience: GBFlash session with an STM-style default port identity. */
+export function buildGbflashSession(options: BuildTestSessionOptions = {}): SessionProfile {
   return buildTestSession(VARIANT_IDS.gbflash, {
     firmwareVersion: 'L14',
     ...options,

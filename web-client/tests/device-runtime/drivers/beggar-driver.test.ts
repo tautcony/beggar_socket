@@ -109,13 +109,13 @@ describe('BeggarDriver', () => {
     expect(fake.signals).toEqual([]);
   });
 
-  it('never sends FlashGBX bytes for a Beggar selection on a GBFlash-looking port', async () => {
+  it('never sends GBFlash bytes for a Beggar selection on a GBFlash-looking port', async () => {
     const fake = createTransport();
     const driver = createBeggarDriver();
-    const flashgbxPort = { path: '/dev/cu.usbserial-110', vendorId: '1a86', productId: '7523' };
+    const gbflashPort = { path: '/dev/cu.usbserial-110', vendorId: '1a86', productId: '7523' };
 
     const result = await driver.probe({
-      pending: { ...pending(VARIANT_IDS.stm, fake), portInfo: flashgbxPort },
+      pending: { ...pending(VARIANT_IDS.stm, fake), portInfo: gbflashPort },
     });
 
     expect(result.verification).toBe('assumed');

@@ -5,7 +5,7 @@ import { displayTextToString } from '@/device/display';
 import i18n from '@/i18n';
 import type { Transport } from '@/platform/serial';
 import {
-  type FlashgbxCommandClient,
+  type GbflashCommandClient,
   gbc_read,
   gbc_write,
   rom_read,
@@ -17,7 +17,7 @@ import { DeviceInfo } from '@/types/device-info';
 import { ProgressInfo } from '@/types/progress-info';
 import { type BurnerLogInput, formatBurnerLogMessage } from '@/utils/burner-log';
 
-import { getOrCreateFlashgbxClient } from './flashgbx-base-adapter';
+import { getOrCreateGbflashClient } from './gbflash-base-adapter';
 import { GBAAdapter } from './gba-adapter';
 import { MBC5Adapter } from './mbc5-adapter';
 import { type GBARTCData, type MBC3RTCData, RTCManager } from './rtc';
@@ -52,8 +52,8 @@ function createProgressCallback(onProgress?: (progress: PPBProgress) => void): P
   };
 }
 /** Implementation routing only: availability is decided by the capability matrix. */
-function usesFlashgbxProtocol(device: DeviceInfo): boolean {
-  return device.session?.firmware.protocol === 'flashgbx';
+function usesGbflashProtocol(device: DeviceInfo): boolean {
+  return device.session?.firmware.protocol === 'gbflash';
 }
 
 /** Throws the resolved capability reason when the session cannot perform a tool action. */
@@ -89,12 +89,12 @@ function bcdToInt(bcd: number): number {
   return tens * 10 + units;
 }
 
-async function withFlashgbxMode<T>(
+async function withGbflashMode<T>(
   device: DeviceInfo,
   mode: 'AGB' | 'DMG',
-  fn: (client: FlashgbxCommandClient) => Promise<T>,
+  fn: (client: GbflashCommandClient) => Promise<T>,
 ): Promise<T> {
-  const client = getOrCreateFlashgbxClient(device);
+  const client = getOrCreateGbflashClient(device);
   return await client.mutex.run(async () => {
     try {
       await client.setMode(mode, mode === 'DMG' ? '5V' : '3.3V');
@@ -109,7 +109,7 @@ async function withFlashgbxMode<T>(
   });
 }
 
-async function flashgbxGbaS3511WriteByte(client: FlashgbxCommandClient, value: number): Promise<void> {
+async function gbflashGbaS3511WriteByte(client: GbflashCommandClient, value: number): Promise<void> {
   await client.cartWrite('AGB', 0xc6, 0x07);
   let remaining = value;
   for (let i = 0; i < 8; i++) {
@@ -120,7 +120,7 @@ async function flashgbxGbaS3511WriteByte(client: FlashgbxCommandClient, value: n
   }
 }
 
-async function flashgbxGbaS3511ReadByte(client: FlashgbxCommandClient): Promise<number> {
+async function gbflashGbaS3511ReadByte(client: GbflashCommandClient): Promise<number> {
   let value = 0;
   await client.cartWrite('AGB', 0xc6, 0x05);
   for (let i = 0; i < 8; i++) {
@@ -135,40 +135,40 @@ async function flashgbxGbaS3511ReadByte(client: FlashgbxCommandClient): Promise<
   return value;
 }
 
-async function flashgbxGbaCleanupGpio(client: FlashgbxCommandClient): Promise<void> {
+async function gbflashGbaCleanupGpio(client: GbflashCommandClient): Promise<void> {
   await client.cartWrite('AGB', 0xc4, 0x01).catch(() => undefined);
   await client.cartWrite('AGB', 0xc8, 0x00).catch(() => undefined);
 }
 
-async function flashgbxGbaCheckGpio(client: FlashgbxCommandClient): Promise<boolean> {
+async function gbflashGbaCheckGpio(client: GbflashCommandClient): Promise<boolean> {
   try {
     const read1 = await client.readRom('AGB', 0xc4, 6);
     await client.cartWrite('AGB', 0xc8, 0x01);
     const read2 = await client.readRom('AGB', 0xc4, 6);
     return read1.some((byte, i) => byte !== read2[i]);
   } finally {
-    await flashgbxGbaCleanupGpio(client);
+    await gbflashGbaCleanupGpio(client);
   }
 }
 
-async function flashgbxGbaInitAndNormalizeStatus(client: FlashgbxCommandClient, normalize24Hour: boolean): Promise<number> {
+async function gbflashGbaInitAndNormalizeStatus(client: GbflashCommandClient, normalize24Hour: boolean): Promise<number> {
   await client.cartWrite('AGB', 0xc4, 0x01);
   await client.cartWrite('AGB', 0xc6, 0x07);
   await client.cartWrite('AGB', 0xc8, 0x01);
 
-  await flashgbxGbaS3511WriteByte(client, 0xc6);
-  const status = await flashgbxGbaS3511ReadByte(client);
+  await gbflashGbaS3511WriteByte(client, 0xc6);
+  const status = await gbflashGbaS3511ReadByte(client);
   await client.cartWrite('AGB', 0xc4, 0x01);
 
   if ((status & 0x80) !== 0) {
-    await flashgbxGbaS3511WriteByte(client, 0x06);
+    await gbflashGbaS3511WriteByte(client, 0x06);
     await client.cartWrite('AGB', 0xc4, 0x01);
-    await flashgbxGbaS3511WriteByte(client, 0x46);
-    await flashgbxGbaS3511WriteByte(client, 0x40);
+    await gbflashGbaS3511WriteByte(client, 0x46);
+    await gbflashGbaS3511WriteByte(client, 0x40);
     await client.cartWrite('AGB', 0xc4, 0x01);
   } else if (normalize24Hour && (status & 0xc0) === 0) {
-    await flashgbxGbaS3511WriteByte(client, 0x46);
-    await flashgbxGbaS3511WriteByte(client, (status & 0x2a) | 0x40);
+    await gbflashGbaS3511WriteByte(client, 0x46);
+    await gbflashGbaS3511WriteByte(client, (status & 0x2a) | 0x40);
     await client.cartWrite('AGB', 0xc4, 0x01);
   }
 
@@ -239,64 +239,64 @@ function validateMbc3RtcData(data: MBC3RTCData): void {
   }
 }
 
-async function flashgbxMbc3Cleanup(client: FlashgbxCommandClient): Promise<void> {
+async function gbflashMbc3Cleanup(client: GbflashCommandClient): Promise<void> {
   await client.cartWrite('DMG', 0x6000, 0x00).catch(() => undefined);
   await client.cartWrite('DMG', 0x4000, 0x00).catch(() => undefined);
   await client.cartWrite('DMG', 0x0000, 0x00).catch(() => undefined);
 }
 
-async function flashgbxMbc3Latch(client: FlashgbxCommandClient): Promise<void> {
+async function gbflashMbc3Latch(client: GbflashCommandClient): Promise<void> {
   await client.cartWrite('DMG', 0x6000, 0x00);
   await client.cartWrite('DMG', 0x6000, 0x01);
 }
 
-async function flashgbxMbc3ReadReg(client: FlashgbxCommandClient, reg: number): Promise<number> {
+async function gbflashMbc3ReadReg(client: GbflashCommandClient, reg: number): Promise<number> {
   await client.cartWrite('DMG', 0x4000, reg);
   return await client.cartRead('DMG', 0xa000);
 }
 
-async function flashgbxMbc3WriteReg(client: FlashgbxCommandClient, reg: number, value: number): Promise<void> {
+async function gbflashMbc3WriteReg(client: GbflashCommandClient, reg: number, value: number): Promise<void> {
   await client.cartWrite('DMG', 0x4000, reg);
   await client.cartWrite('DMG', 0xa000, value, { sram: true });
 }
 
-async function flashgbxSetRTC(device: DeviceInfo, type: 'GBA' | 'MBC3', rtcData: GBARTCData | MBC3RTCData): Promise<void> {
+async function gbflashSetRTC(device: DeviceInfo, type: 'GBA' | 'MBC3', rtcData: GBARTCData | MBC3RTCData): Promise<void> {
   if (type === 'GBA') {
     const gbaData = rtcData as GBARTCData;
     validateGbaRtcData(gbaData);
-    await withFlashgbxMode(device, 'AGB', async (client) => {
-      if (!(await flashgbxGbaCheckGpio(client))) {
+    await withGbflashMode(device, 'AGB', async (client) => {
+      if (!(await gbflashGbaCheckGpio(client))) {
         throw new Error('Cartridge does not have GPIO functionality');
       }
       try {
-        await flashgbxGbaInitAndNormalizeStatus(client, true);
-        await flashgbxGbaS3511WriteByte(client, 0x26);
-        await flashgbxGbaS3511WriteByte(client, intToBcd(gbaData.year % 100));
-        await flashgbxGbaS3511WriteByte(client, intToBcd(gbaData.month));
-        await flashgbxGbaS3511WriteByte(client, intToBcd(gbaData.date));
-        await flashgbxGbaS3511WriteByte(client, intToBcd(gbaData.day));
-        await flashgbxGbaS3511WriteByte(client, intToBcd(gbaData.hour));
-        await flashgbxGbaS3511WriteByte(client, intToBcd(gbaData.minute));
-        await flashgbxGbaS3511WriteByte(client, intToBcd(gbaData.second));
+        await gbflashGbaInitAndNormalizeStatus(client, true);
+        await gbflashGbaS3511WriteByte(client, 0x26);
+        await gbflashGbaS3511WriteByte(client, intToBcd(gbaData.year % 100));
+        await gbflashGbaS3511WriteByte(client, intToBcd(gbaData.month));
+        await gbflashGbaS3511WriteByte(client, intToBcd(gbaData.date));
+        await gbflashGbaS3511WriteByte(client, intToBcd(gbaData.day));
+        await gbflashGbaS3511WriteByte(client, intToBcd(gbaData.hour));
+        await gbflashGbaS3511WriteByte(client, intToBcd(gbaData.minute));
+        await gbflashGbaS3511WriteByte(client, intToBcd(gbaData.second));
         await client.cartWrite('AGB', 0xc4, 0x01);
       } finally {
-        await flashgbxGbaCleanupGpio(client);
+        await gbflashGbaCleanupGpio(client);
       }
     });
     return;
   }
 
   validateMbc3RtcData(rtcData);
-  await withFlashgbxMode(device, 'DMG', async (client) => {
+  await withGbflashMode(device, 'DMG', async (client) => {
     try {
       await client.cartWrite('DMG', 0x0000, 0x0a);
-      await flashgbxMbc3Latch(client);
-      const originalHigh = await flashgbxMbc3ReadReg(client, 0x0c);
+      await gbflashMbc3Latch(client);
+      const originalHigh = await gbflashMbc3ReadReg(client, 0x0c);
       await client.cartWrite('DMG', 0x6000, 0x00);
 
       // Stop timer before updating registers
-      await flashgbxMbc3Latch(client);
-      await flashgbxMbc3WriteReg(client, 0x0c, originalHigh | 0x40);
+      await gbflashMbc3Latch(client);
+      await gbflashMbc3WriteReg(client, 0x0c, originalHigh | 0x40);
 
       const registers = [
         rtcData.second,
@@ -306,22 +306,22 @@ async function flashgbxSetRTC(device: DeviceInfo, type: 'GBA' | 'MBC3', rtcData:
         (rtcData.day & 0x100) >> 8,
       ];
       for (let i = 0; i < registers.length; i++) {
-        await flashgbxMbc3WriteReg(client, 0x08 + i, registers[i]);
+        await gbflashMbc3WriteReg(client, 0x08 + i, registers[i]);
       }
 
       // Restart timer
-      await flashgbxMbc3Latch(client);
+      await gbflashMbc3Latch(client);
       await client.cartWrite('DMG', 0x6000, 0x00);
     } finally {
-      await flashgbxMbc3Cleanup(client);
+      await gbflashMbc3Cleanup(client);
     }
   });
 }
 
-async function flashgbxReadRTC(device: DeviceInfo, type: 'GBA' | 'MBC3'): Promise<{ status: boolean; time?: DateTime; error?: string }> {
+async function gbflashReadRTC(device: DeviceInfo, type: 'GBA' | 'MBC3'): Promise<{ status: boolean; time?: DateTime; error?: string }> {
   try {
     if (type === 'GBA') {
-      return await withFlashgbxMode(device, 'AGB', async (client) => {
+      return await withGbflashMode(device, 'AGB', async (client) => {
         const nativeRaw = await client.agbReadGpioRtc();
         if (nativeRaw !== null) {
           if (nativeRaw.length < 8 || nativeRaw[0] === 0) {
@@ -333,34 +333,34 @@ async function flashgbxReadRTC(device: DeviceInfo, type: 'GBA' | 'MBC3'): Promis
           return parseGbaRtcBytes(nativeRaw.subarray(1, 8));
         }
 
-        if (!(await flashgbxGbaCheckGpio(client))) {
+        if (!(await gbflashGbaCheckGpio(client))) {
           return { status: false, error: 'Cartridge does not have GPIO functionality' };
         }
         try {
-          await flashgbxGbaInitAndNormalizeStatus(client, false);
-          await flashgbxGbaS3511WriteByte(client, 0xa6);
+          await gbflashGbaInitAndNormalizeStatus(client, false);
+          await gbflashGbaS3511WriteByte(client, 0xa6);
           const raw = new Uint8Array(7);
           for (let i = 0; i < 7; i++) {
-            raw[i] = await flashgbxGbaS3511ReadByte(client);
+            raw[i] = await gbflashGbaS3511ReadByte(client);
           }
           await client.cartWrite('AGB', 0xc4, 0x01);
           return parseGbaRtcBytes(raw);
         } finally {
-          await flashgbxGbaCleanupGpio(client);
+          await gbflashGbaCleanupGpio(client);
         }
       });
     }
 
-    return await withFlashgbxMode(device, 'DMG', async (client) => {
+    return await withGbflashMode(device, 'DMG', async (client) => {
       try {
         await client.cartWrite('DMG', 0x0000, 0x0a);
-        await flashgbxMbc3Latch(client);
+        await gbflashMbc3Latch(client);
 
-        const second = (await flashgbxMbc3ReadReg(client, 0x08)) & 0x3f;
-        const minute = (await flashgbxMbc3ReadReg(client, 0x09)) & 0x3f;
-        const hour = (await flashgbxMbc3ReadReg(client, 0x0a)) & 0x1f;
-        const dayLow = await flashgbxMbc3ReadReg(client, 0x0b);
-        const dayHigh = (await flashgbxMbc3ReadReg(client, 0x0c)) & 0x01;
+        const second = (await gbflashMbc3ReadReg(client, 0x08)) & 0x3f;
+        const minute = (await gbflashMbc3ReadReg(client, 0x09)) & 0x3f;
+        const hour = (await gbflashMbc3ReadReg(client, 0x0a)) & 0x1f;
+        const dayLow = await gbflashMbc3ReadReg(client, 0x0b);
+        const dayHigh = (await gbflashMbc3ReadReg(client, 0x0c)) & 0x01;
         const day = dayLow | (dayHigh << 8);
 
         const currentYear = DateTime.now().year;
@@ -373,7 +373,7 @@ async function flashgbxReadRTC(device: DeviceInfo, type: 'GBA' | 'MBC3'): Promis
         }
         return { status: true, time };
       } finally {
-        await flashgbxMbc3Cleanup(client);
+        await gbflashMbc3Cleanup(client);
       }
     });
   } catch (error) {
@@ -389,8 +389,8 @@ async function flashgbxReadRTC(device: DeviceInfo, type: 'GBA' | 'MBC3'): Promis
  */
 export async function setRTC(device: DeviceInfo, type: 'GBA' | 'MBC3', rtcData: GBARTCData | MBC3RTCData): Promise<void> {
   requireCapability(device, type === 'GBA' ? 'tool.rtc.gba' : 'tool.rtc.mbc3');
-  if (usesFlashgbxProtocol(device)) {
-    await flashgbxSetRTC(device, type, rtcData);
+  if (usesGbflashProtocol(device)) {
+    await gbflashSetRTC(device, type, rtcData);
     return;
   }
   const rtcManager = new RTCManager(type, device);
@@ -404,8 +404,8 @@ export async function setRTC(device: DeviceInfo, type: 'GBA' | 'MBC3', rtcData: 
  */
 export async function readRTC(device: DeviceInfo, type: 'GBA' | 'MBC3'): Promise<{ status: boolean; time?: DateTime; error?: string }> {
   requireCapability(device, type === 'GBA' ? 'tool.rtc.gba' : 'tool.rtc.mbc3');
-  if (usesFlashgbxProtocol(device)) {
-    return await flashgbxReadRTC(device, type);
+  if (usesGbflashProtocol(device)) {
+    return await gbflashReadRTC(device, type);
   }
   const rtcManager = new RTCManager(type, device);
   return await rtcManager.readTime();
@@ -416,8 +416,8 @@ export async function readRTC(device: DeviceInfo, type: 'GBA' | 'MBC3'): Promise
  */
 export async function rumbleTest(device: DeviceInfo): Promise<void> {
   requireCapability(device, 'tool.rumble.gba');
-  if (usesFlashgbxProtocol(device)) {
-    await withFlashgbxMode(device, 'AGB', async (client) => {
+  if (usesGbflashProtocol(device)) {
+    await withGbflashMode(device, 'AGB', async (client) => {
       try {
         await client.cartWrite('AGB', 0xc8, 0x01); // enable gpio
         await client.cartWrite('AGB', 0xc6, 0x08); // gpio3 output

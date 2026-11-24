@@ -56,9 +56,8 @@
       },
       "selectOtherPort": "选择其他串口",
       "resetConnection": "重置",
-      "flashgbxPowerCapable": "支持电源控制",
-      "flashgbxNoPowerControl": "无电源控制",
-      "flashgbxReadOnlyNotice": "FlashGBX 设备已连接，读写功能将在后续版本提供。"
+      "gbflashPowerCapable": "支持电源控制",
+      "gbflashNoPowerControl": "无电源控制"
     },
     "mode": {
       "gba": "GBA",
@@ -249,7 +248,7 @@
         "shortcutHint": "Ctrl/Cmd + Enter 发送",
         "deviceConnected": "设备已连接",
         "deviceDisconnected": "未连接设备，请先连接烧录器",
-        "flashgbxDisabled": "FlashGBX 设备下已禁用"
+        "gbflashDisabled": "GBFlash 设备下已禁用"
       }
     },
     "chip": {
@@ -501,7 +500,7 @@
         "sectorCountPrompt": "请输入要检查的扇区数量 (1-{max}):",
         "sectorCountError": "扇区数量必须是{min}-{max}之间的整数"
       },
-      "flashgbxDisabled": "FlashGBX 设备下已禁用"
+      "gbflashDisabled": "GBFlash 设备下已禁用"
     },
     "file": {
       "dropArea": "或移入文件到此处",
@@ -525,22 +524,22 @@
       "title": "高级设置",
       "tooltip": "配置高级选项",
       "firmware": {
-        "title": "固件类型",
-        "profile": "当前插入设备固件",
+        "title": "设备 / 固件",
+        "profile": "选择设备 / 固件",
         "activeProfile": "当前连接生效固件",
         "reconnectNotice": "修改将在重连或重新初始化连接后生效。",
         "stm": "丐中丐",
         "stc": "碳酸丐",
         "stmBoost": "启用 Boost 增强",
         "stmBoostHint": "启用后可利用 ChisFlash-Beggar-Boost 固件的高速传输、硬件校验及原生协议加速能力。",
-        "flashgbx": "FlashGBX",
-        "flashgbxBaudRate": "FlashGBX 波特率",
-        "flashgbxBaudAuto": "自动",
-        "flashgbxBaudHint": "自动模式对 CH340 GBFlash 使用 2M，CDC 设备忽略波特率。",
+        "gbflash": "GBFlash",
+        "gbflashBaudRate": "GBFlash 波特率",
+        "gbflashBaudAuto": "自动",
+        "gbflashBaudHint": "自动模式对 CH340 GBFlash 使用 2M，CDC 设备忽略波特率。",
         "stmBoostOption": "丐中丐（Boost）",
         "stmHint": "标准 STM32 固件，使用丐中丐的常规传输能力。",
         "stcHint": "碳酸丐（STC8）固件，支持 GBA FRAM 以外的 RAM 操作与软件供电控制。",
-        "flashgbxHint": "GBFlash 硬件运行 FlashGBX 固件，支持烧录卡数据库能力。",
+        "gbflashHint": "GBFlash 硬件与固件，支持烧录卡数据库能力。",
         "noActiveSession": "当前未连接设备",
         "selectionRequired": "请选择要连接的设备与固件"
       },
@@ -571,10 +570,7 @@
           "invalid": "请输入有效数值",
           "range": "大小必须在 {min} - {max} 字节之间",
           "multiple": "大小必须是{multipler}的倍数"
-        },
-        "independentSizes": "为每个固件单独保存封包设置",
-        "independentHint": "丐中丐与碳酸丐分别保存封包大小，互不影响。",
-        "linkedHint": "丐中丐与碳酸丐共用同一份封包设置；打开独立设置可分别调整。"
+        }
       },
       "control": {
         "title": "读写异常控制"

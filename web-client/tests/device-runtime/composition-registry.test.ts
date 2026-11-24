@@ -4,34 +4,34 @@ import { BEGGAR_RUNTIME_BINDING_ID, GBFLASH_RUNTIME_BINDING_ID } from '@/device/
 import {
   type BeggarProbeFacts,
   createBeggarRuntimeBinding,
-  createFlashgbxRuntimeBinding,
+  createGbflashRuntimeBinding,
   createPendingAdapterFactory,
   createRuntimeComposition,
   createRuntimeCompositionRegistry,
-  type FlashgbxProbeFacts,
+  type GbflashProbeFacts,
   type RuntimeBinding,
 } from '@/device-runtime';
 
 type IsAssignable<A, B> = [A] extends [B] ? true : false;
 
 /**
- * Type-level closure: a Beggar binding must never satisfy a FlashGBX binding. If the
+ * Type-level closure: a Beggar binding must never satisfy a GBFlash binding. If the
  * facts type stopped constraining the driver / contributor, this assignment would fail
  * to compile because `true` is not assignable to `false`.
  */
-const BEGGAR_BINDING_IS_NOT_FLASHGBX: IsAssignable<
+const BEGGAR_BINDING_IS_NOT_GBFLASH: IsAssignable<
   RuntimeBinding<BeggarProbeFacts>,
-  RuntimeBinding<FlashgbxProbeFacts>
+  RuntimeBinding<GbflashProbeFacts>
 > = false;
 
 describe('runtime composition registry', () => {
   it('keeps the facts type closed at the binding definition site', () => {
-    expect(BEGGAR_BINDING_IS_NOT_FLASHGBX).toBe(false);
+    expect(BEGGAR_BINDING_IS_NOT_GBFLASH).toBe(false);
 
     const beggar: RuntimeBinding<BeggarProbeFacts> = createBeggarRuntimeBinding();
-    const flashgbx: RuntimeBinding<FlashgbxProbeFacts> = createFlashgbxRuntimeBinding();
+    const gbflash: RuntimeBinding<GbflashProbeFacts> = createGbflashRuntimeBinding();
     expect(beggar.driver).toBeDefined();
-    expect(flashgbx.driver).toBeDefined();
+    expect(gbflash.driver).toBeDefined();
   });
 
   it('registers both runtime families', () => {
@@ -43,11 +43,11 @@ describe('runtime composition registry', () => {
   it('only exposes capability signals for firmwares with conditional capabilities', () => {
     const composition = createRuntimeComposition();
     const beggar = composition.resolve<BeggarProbeFacts>(BEGGAR_RUNTIME_BINDING_ID);
-    const flashgbx = composition.resolve<FlashgbxProbeFacts>(GBFLASH_RUNTIME_BINDING_ID);
+    const gbflash = composition.resolve<GbflashProbeFacts>(GBFLASH_RUNTIME_BINDING_ID);
 
     expect(beggar.capabilitySignals).toBeUndefined();
     expect(
-      flashgbx.capabilitySignals?.({
+      gbflash.capabilitySignals?.({
         firmwareInfo: {
           family: 'gbflash',
           cfwId: 'L',
@@ -67,7 +67,7 @@ describe('runtime composition registry', () => {
         },
       }),
     ).toEqual({ powerControlPresent: true, audioWriteEnabled: true, presenceDetectPresent: false });
-    expect(flashgbx.capabilitySignals?.({})).toEqual({
+    expect(gbflash.capabilitySignals?.({})).toEqual({
       powerControlPresent: false,
       audioWriteEnabled: false,
       presenceDetectPresent: false,

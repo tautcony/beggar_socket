@@ -6,8 +6,8 @@
  * the numeric accessors the transfer, protocol and adapter layers already use, and resolves
  * page sizes through the namespace of the selected variant instead of a firmware profile id.
  *
- * There is deliberately no `firmwareProfile` / `stmBoost` / `flashgbxBaudRate` alias any
- * more: the selection is `selectedVariantId` and the baud rate is `flashgbx.cfw.baudRate`.
+ * There is deliberately no `firmwareProfile` / `stmBoost` / `gbflashBaudRate` alias any
+ * more: the selection is `selectedVariantId` and the baud rate is `gbflash.cfw.baudRate`.
  */
 import { displayTextToString } from '@/device/display';
 import {
@@ -26,8 +26,8 @@ import {
   advancedSettingsStorage,
   defaultGlobalParameters,
   defaultSizesForNamespace,
-  FLASHGBX_BAUD_RATES,
-  type FlashgbxBaudRate,
+  GBFLASH_BAUD_RATES,
+  type GbflashBaudRate,
   GLOBAL_PARAMETER_KEYS,
   GLOBAL_PARAMETER_SPECS,
   namespaceForVariant,
@@ -46,7 +46,7 @@ export {
   ADVANCED_SETTINGS_STORAGE_KEY,
   ADVANCED_SETTINGS_VERSION,
   type AdvancedSettingsV2,
-  type FlashgbxBaudRate,
+  type GbflashBaudRate,
   type GlobalParameterKey,
   LEGACY_SETTINGS_BACKUP_KEY,
   NAMESPACE_BY_VARIANT,
@@ -156,7 +156,7 @@ export class AdvancedSettings {
 
     // Linked sizes: every namespace that declares the same `linkGroup` follows (STM and STC
     // share one group). A namespace without the group keeps its own value, so the rule is the
-    // schema's, not a hard-coded "everything except FlashGBX".
+    // schema's, not a hard-coded "everything except GBFlash".
     if (!advancedSettingsStorage.independentSizes && descriptor.linkGroup) {
       for (const sibling of PARAMETER_NAMESPACES) {
         if (sibling === namespace) {
@@ -183,13 +183,13 @@ export class AdvancedSettings {
     advancedSettingsStorage.writeParameter(namespace, key, normalized ?? value);
   }
 
-  static getBaudRate(): FlashgbxBaudRate {
-    const stored = advancedSettingsStorage.readParameter('flashgbx.cfw', 'baudRate');
+  static getBaudRate(): GbflashBaudRate {
+    const stored = advancedSettingsStorage.readParameter('gbflash.cfw', 'baudRate');
     return normalizeBaudRate(stored);
   }
 
   static setBaudRate(value: unknown): void {
-    advancedSettingsStorage.writeParameter('flashgbx.cfw', 'baudRate', normalizeBaudRate(value));
+    advancedSettingsStorage.writeParameter('gbflash.cfw', 'baudRate', normalizeBaudRate(value));
   }
 
   /** Global (namespace independent) operation parameters with defaults applied. */
@@ -251,7 +251,7 @@ export const CORE_PARAMETER_NAMESPACE = 'beggar.stm';
 /** Namespaces known to the persisted layout; used by the UI and the adapter. */
 export const CONFIGURABLE_NAMESPACES = PARAMETER_NAMESPACES;
 
-export const CONFIGURABLE_BAUD_RATES = FLASHGBX_BAUD_RATES;
+export const CONFIGURABLE_BAUD_RATES = GBFLASH_BAUD_RATES;
 
 // --- numeric compatibility accessors ---
 

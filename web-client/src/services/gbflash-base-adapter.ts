@@ -1,15 +1,16 @@
 /**
- * Shared base adapter for FlashGBX GBA and DMG/MBC adapters.
+ * Shared base adapter for GBFlash GBA and DMG/MBC adapters.
  * Derived from FlashGBX (GPL-3.0) LK_Device.py.
  */
 import type { Transport } from '@/platform/serial';
 import {
-  FLASHGBX_CRC32_CHUNK_SIZE,
-  type FlashgbxCartMode,
-  FlashgbxCommandClient,
-  type FlashgbxFirmwareInfo,
-  FlashgbxProtocolError,
-  type FlashgbxVoltage,
+  FLASH_WE_PIN,
+  GBFLASH_CRC32_CHUNK_SIZE,
+  type GbflashCartMode,
+  GbflashCommandClient,
+  type GbflashFirmwareInfo,
+  GbflashProtocolError,
+  type GbflashVoltage,
   FW_VER_THRESHOLDS,
   throwIfAborted,
 } from '@/protocol';
@@ -36,29 +37,30 @@ import {
   executeProfileSteps,
   probeFlashcartProfiles,
   resetProfileFlash,
+  resolveProfileWePin,
 } from './flashcart-profile-runner';
 import { FlashcartProfileService } from './flashcart-profile-service';
 
-const clientRegistry = new WeakMap<Transport, FlashgbxCommandClient>();
+const clientRegistry = new WeakMap<Transport, GbflashCommandClient>();
 const blankCrc32Cache = new Map<number, number>();
 
-export function getOrCreateFlashgbxClient(device: DeviceInfo): FlashgbxCommandClient {
+export function getOrCreateGbflashClient(device: DeviceInfo): GbflashCommandClient {
   const transport = device.transport ?? device.serialHandle?.transport;
   if (!transport) {
-    throw new Error('FlashGBX transport is not initialized');
+    throw new Error('GBFlash transport is not initialized');
   }
   const existing = clientRegistry.get(transport);
   if (existing) {
     return existing;
   }
-  const fwInfo: FlashgbxFirmwareInfo = device.flashgbxInfo ?? {
+  const fwInfo: GbflashFirmwareInfo = device.gbflashInfo ?? {
     family: 'gbflash',
     cfwId: 'L',
     fwVer: 12,
     pcbVer: 13,
     fwTs: 0,
     ofwVer: null,
-    pcbName: 'FlashGBX',
+    pcbName: 'GBFlash',
     cartPowerCtrl: true,
     cartPresenceSwitch: false,
     cartModeSwitch: false,
@@ -73,7 +75,7 @@ export function getOrCreateFlashgbxClient(device: DeviceInfo): FlashgbxCommandCl
   const storedBaudRate = AdvancedSettings.getBaudRate();
   const baudRate = device.session?.transport.baudRate
     ?? (storedBaudRate === 'auto' ? 2_000_000 : storedBaudRate);
-  const client = new FlashgbxCommandClient(transport, fwInfo, {
+  const client = new GbflashCommandClient(transport, fwInfo, {
     baudRate,
     timeoutMs: AdvancedSettings.packageReceiveTimeout || 1500,
     sendTimeoutMs: AdvancedSettings.packageSendTimeout || 1500,
@@ -82,18 +84,18 @@ export function getOrCreateFlashgbxClient(device: DeviceInfo): FlashgbxCommandCl
   return client;
 }
 
-export interface FlashgbxModeTransactionOptions {
-  voltage?: FlashgbxVoltage;
+export interface GbflashModeTransactionOptions {
+  voltage?: GbflashVoltage;
   enable5V?: boolean;
   signal?: AbortSignal;
-  onCleanupReset?: (client: FlashgbxCommandClient) => Promise<void>;
+  onCleanupReset?: (client: GbflashCommandClient) => Promise<void>;
 }
 
-export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
+export abstract class GbflashBaseAdapter extends CartridgeAdapter {
   /** Smallest transfer the parameter schema accepts; keeps a stale 0 from reaching the wire. */
   private static readonly MIN_READ_CHUNK = 0x40;
 
-  protected readonly client: FlashgbxCommandClient;
+  protected readonly client: GbflashCommandClient;
   protected activeFlashcartProfile: FlashcartProfile | null = null;
 
   constructor(
@@ -101,10 +103,10 @@ export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
     logCallback: LogCallback | null = null,
     progressCallback: ProgressCallback | null = null,
     translateFunc: TranslateFunction | null = null,
-    clientOverride?: FlashgbxCommandClient,
+    clientOverride?: GbflashCommandClient,
   ) {
     super(device, logCallback, progressCallback, translateFunc);
-    this.client = clientOverride ?? getOrCreateFlashgbxClient(device);
+    this.client = clientOverride ?? getOrCreateGbflashClient(device);
   }
 
   /**
@@ -136,28 +138,27 @@ export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
   }
 
   /**
-   * FlashGBX devices MUST NOT pulse DTR/RTS. Only flush/drain buffers.
+   * GBFlash devices MUST NOT pulse DTR/RTS. Only flush/drain buffers.
    */
   override async resetCommandBuffer(): Promise<void> {
     await this.client.resetChannel();
   }
 
   /**
-   * FlashGBX devices MUST NOT pulse DTR/RTS on channel stabilization.
+   * GBFlash devices MUST NOT pulse DTR/RTS on channel stabilization.
    */
   protected override async stabilizeCommandChannel(): Promise<void> {
     await this.client.resetChannel();
   }
 
   /**
-   * Safely updates GBFlash hardware mode and LEDs without turning on cartridge power or 5V.
+   * Switches GBFlash hardware mode (3.3V by default, or 5V in MBC5 mode when explicitly enabled).
    */
-  async syncHardwareMode(mode: 'GBA' | 'MBC5'): Promise<void> {
-    const lkMode: FlashgbxCartMode = mode === 'MBC5' ? 'DMG' : 'AGB';
+  async syncHardwareMode(mode: 'GBA' | 'MBC5', enable5V = false): Promise<void> {
+    const lkMode: GbflashCartMode = mode === 'MBC5' ? 'DMG' : 'AGB';
+    const voltage: GbflashVoltage = mode === 'MBC5' && enable5V ? '5V' : '3.3V';
     await this.client.mutex.run(async () => {
-      await this.client.cartPowerOff();
-      await this.client.setVoltage('3.3V');
-      await this.client.syncModeOnly(lkMode);
+      await this.client.setMode(lkMode, voltage);
     });
   }
 
@@ -173,7 +174,7 @@ export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
     const ceiling = Math.min(this.resolveMaxReadChunk(), this.client.bufferLimits.maxRead);
     const configured = this.settings.romReadPageSize;
     const requested = configured > 0 ? configured : ceiling;
-    return Math.max(Math.min(requested, ceiling), FlashgbxBaseAdapter.MIN_READ_CHUNK);
+    return Math.max(Math.min(requested, ceiling), GbflashBaseAdapter.MIN_READ_CHUNK);
   }
 
   protected getWriteChunkLimit(): number {
@@ -199,7 +200,7 @@ export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
   }
 
   protected async isRegionBlankCrc32(
-    client: FlashgbxCommandClient,
+    client: GbflashCommandClient,
     mode: 'AGB' | 'DMG',
     address: number,
     length: number,
@@ -218,7 +219,7 @@ export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
       if (idx >= chunkCrcs.length) {
         return false;
       }
-      const chunkLen = Math.min(remaining, FLASHGBX_CRC32_CHUNK_SIZE);
+      const chunkLen = Math.min(remaining, GBFLASH_CRC32_CHUNK_SIZE);
       if ((chunkCrcs[idx] >>> 0) !== this.getBlankCrc32(chunkLen)) {
         return false;
       }
@@ -229,14 +230,14 @@ export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
   }
 
   protected async withModeTransaction<T>(
-    mode: FlashgbxCartMode,
-    options: FlashgbxModeTransactionOptions,
-    fn: (client: FlashgbxCommandClient) => Promise<T>,
+    mode: GbflashCartMode,
+    options: GbflashModeTransactionOptions,
+    fn: (client: GbflashCommandClient) => Promise<T>,
   ): Promise<T> {
     return this.client.mutex.run(async () => {
       throwIfAborted(options.signal);
 
-      const voltage: FlashgbxVoltage = options.voltage ?? (mode === 'DMG' && options.enable5V !== false ? '5V' : '3.3V');
+      const voltage: GbflashVoltage = options.voltage ?? (mode === 'DMG' && options.enable5V !== false ? '5V' : '3.3V');
       const previousAutoPowerOff = await this.client.enterAutoPowerOffKeepAlive(600_000);
 
       let failedOrCancelled = false;
@@ -250,7 +251,7 @@ export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
         if (failedOrCancelled && options.onCleanupReset) {
           await options.onCleanupReset(this.client).catch(() => undefined);
         }
-        if (failedOrCancelled || voltage === '5V') {
+        if (failedOrCancelled) {
           await this.restoreVoltageAndPower(mode).catch(() => undefined);
         }
         await this.client.leaveAutoPowerOffKeepAlive(previousAutoPowerOff).catch(() => undefined);
@@ -258,7 +259,7 @@ export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
     }, options.signal);
   }
 
-  protected async restoreVoltageAndPower(mode: FlashgbxCartMode): Promise<void> {
+  protected async restoreVoltageAndPower(mode: GbflashCartMode): Promise<void> {
     if (mode === 'DMG') {
       await this.client.dmgMbcReset().catch(() => undefined);
     }
@@ -440,7 +441,7 @@ export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
 
   protected mapOperationError(error: unknown, fallbackMessage: string): CommandResult {
     if (
-      (error instanceof FlashgbxProtocolError && error.code === 'aborted')
+      (error instanceof GbflashProtocolError && error.code === 'aborted')
       || (error instanceof Error && error.name === 'AbortError')
     ) {
       const cancelMsg = this.t('messages.operation.cancelled') || 'Operation cancelled';
@@ -548,8 +549,8 @@ export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
   }
 
   protected async resolveManualProfileCartInfo(
-    client: FlashgbxCommandClient,
-    mode: FlashgbxCartMode,
+    client: GbflashCommandClient,
+    mode: GbflashCartMode,
     flashcartMode: FlashcartMode,
     profileId: string,
   ): Promise<CFIInfo | false> {
@@ -571,11 +572,17 @@ export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
     let observedId: Uint8Array | undefined;
     if (profile.commands.read_identifier?.length) {
       try {
+        if (mode === 'DMG') {
+          await client.setVariable('FLASH_WE_PIN', resolveProfileWePin(profile.write_pin, mode));
+        }
         await resetProfileFlash(client, mode, profile);
         await executeProfileSteps(client, mode, profile.commands.read_identifier);
         observedId = await client.readRom(mode, profile.read_identifier_at ?? 0, 8, { maxLength: 8 });
       } finally {
         await resetProfileFlash(client, mode, profile);
+        if (mode === 'DMG') {
+          await client.setVariable('FLASH_WE_PIN', FLASH_WE_PIN.WR).catch(() => undefined);
+        }
       }
     }
 
@@ -585,14 +592,20 @@ export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
   }
 
   protected async runAutoProfileFallback(
-    client: FlashgbxCommandClient,
-    mode: FlashgbxCartMode,
+    client: GbflashCommandClient,
+    mode: GbflashCartMode,
     flashcartMode: FlashcartMode,
   ): Promise<CFIInfo | false> {
     const outcome = await probeFlashcartProfiles(client, mode, flashcartMode);
     if (outcome.match.status === 'none') {
+      const idHint = outcome.observedId?.length
+        ? ` (observed ID: ${Array.from(outcome.observedId).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')})`
+        : '';
       this.lastCartInfoErrorCode = 'profile_not_found';
-      this.lastCartInfoError = `No matching flashcart profile found for ${mode} cartridge`;
+      this.lastCartInfoError = `No matching flashcart profile found for ${mode} cartridge${idHint}`;
+      if (idHint) {
+        this.log(this.lastCartInfoError, 'warn');
+      }
       return false;
     }
 
@@ -628,13 +641,21 @@ export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
     flashcartMode: FlashcartMode,
     romBaseline: Uint8Array,
     idBytes: Uint8Array,
+    deviceSize?: number,
   ): Promise<void> {
     const profiles = await FlashcartProfileService.loadByMode(flashcartMode);
-    const match = FlashcartProfileService.matchFlashId(profiles, {
-      rom: romBaseline,
-      id: idBytes,
-    });
+    const match = FlashcartProfileService.matchFlashId(
+      profiles,
+      {
+        rom: romBaseline,
+        id: idBytes,
+      },
+      { deviceSize },
+    );
     if (match.status === 'unique') {
+      if (this.supportsFlashcartProfiles() && this.validateProfileCapabilities(match.profile).valid) {
+        this.activeFlashcartProfile = match.profile;
+      }
       this.log(`Matched flashcart profile: ${match.profile.names[0]}`, 'info');
     } else if (match.status === 'ambiguous') {
       this.log(

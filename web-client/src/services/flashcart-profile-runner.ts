@@ -1,14 +1,14 @@
 /**
  * Shared FlashcartProfile command resolution, LK_Device.py auto-probing,
- * and erase/write/reset execution for FlashGBX adapters.
+ * and erase/write/reset execution for GBFlash adapters.
  * Derived from FlashGBX (GPL-3.0) LK_Device.py & Flashcart.py.
  */
 import {
   FLASH_COMMAND_SET,
   FLASH_METHOD,
   FLASH_WE_PIN,
-  type FlashgbxCartMode,
-  type FlashgbxCommandClient,
+  type GbflashCartMode,
+  type GbflashCommandClient,
   FW_VER_THRESHOLDS,
 } from '@/protocol';
 import type {
@@ -80,7 +80,7 @@ export function resolveProfileCommands(
 
 export function resolveProfileWePin(
   writePin: FlashcartWritePin | undefined,
-  mode: FlashgbxCartMode,
+  mode: GbflashCartMode,
 ): number {
   switch (writePin) {
     case 'AUDIO':
@@ -96,8 +96,8 @@ export function resolveProfileWePin(
 }
 
 export async function executeProfileSteps(
-  client: FlashgbxCommandClient,
-  mode: FlashgbxCartMode,
+  client: GbflashCommandClient,
+  mode: GbflashCartMode,
   steps: readonly FlashcartCommandStep[] | undefined,
   ctx: ProfileCommandContext = {},
 ): Promise<void> {
@@ -108,8 +108,8 @@ export async function executeProfileSteps(
 }
 
 export async function resetProfileFlash(
-  client: FlashgbxCommandClient,
-  mode: FlashgbxCartMode,
+  client: GbflashCommandClient,
+  mode: GbflashCartMode,
   profile?: FlashcartProfile | null,
 ): Promise<void> {
   const resetCmds = resolveProfileCommands(profile?.commands.reset);
@@ -121,8 +121,8 @@ export async function resetProfileFlash(
 }
 
 export async function unlockProfileFlash(
-  client: FlashgbxCommandClient,
-  mode: FlashgbxCartMode,
+  client: GbflashCommandClient,
+  mode: GbflashCartMode,
   profile?: FlashcartProfile | null,
 ): Promise<void> {
   if (profile?.commands.unlock_read?.length) {
@@ -136,8 +136,8 @@ export async function unlockProfileFlash(
 }
 
 export async function waitForProfileFlash(
-  client: FlashgbxCommandClient,
-  mode: FlashgbxCartMode,
+  client: GbflashCommandClient,
+  mode: GbflashCartMode,
   defaultAddress: number,
   waitFor: readonly FlashcartWaitForTuple[] | undefined,
   timeoutMs: number,
@@ -184,8 +184,8 @@ function resolveProfileCommandSet(commandSet?: string): number {
 }
 
 export async function configureProfileWriteCommand(
-  client: FlashgbxCommandClient,
-  mode: FlashgbxCartMode,
+  client: GbflashCommandClient,
+  mode: GbflashCartMode,
   profile: FlashcartProfile,
 ): Promise<number> {
   const commandSet = resolveProfileCommandSet(profile.command_set);
@@ -249,7 +249,7 @@ function getRequiredIdLength(profile: FlashcartProfile): number {
   return Math.max(8, maxIdLen, maxOffset);
 }
 
-function isSpecialCaseProfile(profile: FlashcartProfile, mode: FlashgbxCartMode): boolean {
+function isSpecialCaseProfile(profile: FlashcartProfile, mode: GbflashCartMode): boolean {
   if (profile.m29w640) {
     return true;
   }
@@ -266,8 +266,8 @@ function isSpecialCaseProfile(profile: FlashcartProfile, mode: FlashgbxCartMode)
 }
 
 async function trySpecialCaseProbe(
-  client: FlashgbxCommandClient,
-  mode: FlashgbxCartMode,
+  client: GbflashCommandClient,
+  mode: GbflashCartMode,
   profile: FlashcartProfile,
 ): Promise<Uint8Array | null> {
   if (profile.m29w640 && profile.commands.read_identifier?.length) {
@@ -432,8 +432,8 @@ async function trySpecialCaseProbe(
  * 5. Probe grouped commands across we_pins with reset in finally after every probe
  */
 export async function probeFlashcartProfiles(
-  client: FlashgbxCommandClient,
-  mode: FlashgbxCartMode,
+  client: GbflashCommandClient,
+  mode: GbflashCartMode,
   flashcartMode: FlashcartMode,
 ): Promise<ProfileProbeOutcome> {
   const allProfiles = await FlashcartProfileService.loadByMode(flashcartMode);
@@ -532,6 +532,7 @@ export async function probeFlashcartProfiles(
 
   const matchedProfiles = new Map<string, FlashcartProfile>();
   let firstObservedId: Uint8Array | undefined;
+  let lastProbeId: Uint8Array | undefined;
 
   // Step 5: Generic grouped Flash ID probe
   for (const we of wePins) {
@@ -549,6 +550,10 @@ export async function probeFlashcartProfiles(
         idBytes = await client.readRom(mode, group.address, readLen, { maxLength: readLen });
       } finally {
         await executeProfileSteps(client, mode, group.resetSteps);
+      }
+
+      if (idBytes.length > 0 && !idBytes.every((b, idx) => b === baseline[idx])) {
+        lastProbeId ??= idBytes;
       }
 
       for (const profile of group.profiles) {
@@ -571,9 +576,49 @@ export async function probeFlashcartProfiles(
     await client.setVariable('FLASH_WE_PIN', FLASH_WE_PIN.WR).catch(() => undefined);
   }
 
-  const uniqueMatches = Array.from(matchedProfiles.values());
+  let uniqueMatches = Array.from(matchedProfiles.values());
+  if (uniqueMatches.length > 1) {
+    // Disambiguate multiple Flash ID matches using CFI device_size (matches LK_Device.py:2812-2817)
+    const distinctSizes = new Set(uniqueMatches.map(p => p.flash_size).filter((s): s is number => typeof s === 'number' && s > 0));
+    if (distinctSizes.size > 1) {
+      const cfiTried = new Set<string>();
+      for (const profile of uniqueMatches) {
+        const readCfi = profile.commands.read_cfi?.length
+          ? profile.commands.read_cfi
+          : [[mode === 'DMG' ? 0xAA : 0xAA, 0x98] as FlashcartCommandStep];
+        const wePin = mode === 'DMG' ? resolveProfileWePin(profile.write_pin, mode) : FLASH_WE_PIN.UNSET;
+        const addr = profile.read_identifier_at ?? 0;
+        const sig = `${wePin}:${addr}:${JSON.stringify(readCfi)}`;
+        if (cfiTried.has(sig)) {
+          continue;
+        }
+        cfiTried.add(sig);
+        try {
+          if (mode === 'DMG') {
+            await client.setVariable('FLASH_WE_PIN', wePin);
+          }
+          await resetProfileFlash(client, mode, profile);
+          await executeProfileSteps(client, mode, readCfi);
+          const cfiRaw = await client.readRom(mode, addr, 0x100, { maxLength: 0x100 });
+          const cfi = parseCFI(cfiRaw);
+          if (cfi && cfi.deviceSize > 0) {
+            const sized = uniqueMatches.filter(p => p.flash_size === cfi.deviceSize);
+            if (sized.length > 0) {
+              uniqueMatches = sized;
+            }
+            break;
+          }
+        } finally {
+          await resetProfileFlash(client, mode, profile).catch(() => undefined);
+          if (mode === 'DMG') {
+            await client.setVariable('FLASH_WE_PIN', FLASH_WE_PIN.WR).catch(() => undefined);
+          }
+        }
+      }
+    }
+  }
   if (uniqueMatches.length === 0) {
-    return { match: { status: 'none' } };
+    return { match: { status: 'none' }, observedId: lastProbeId };
   }
   if (uniqueMatches.length === 1) {
     return { match: { status: 'unique', profile: uniqueMatches[0] }, observedId: firstObservedId };

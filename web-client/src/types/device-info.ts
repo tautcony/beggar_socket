@@ -1,6 +1,6 @@
 import type { DeviceDiagnostic, SessionProfile } from '@/device/session';
 import type { DeviceHandle, Transport } from '@/platform/serial';
-import type { FlashgbxFirmwareInfo } from '@/protocol/flashgbx';
+import type { GbflashFirmwareInfo } from '@/protocol/gbflash';
 import type { FirmwareProfile } from '@/types/firmware-profile';
 import type { SerialPortInfo } from '@/types/serial';
 
@@ -11,7 +11,7 @@ export interface DeviceInfo {
   serialHandle?: DeviceHandle | null;
   portInfo?: SerialPortInfo;
   firmwareProfile?: FirmwareProfile;
-  flashgbxInfo?: FlashgbxFirmwareInfo;
+  gbflashInfo?: GbflashFirmwareInfo;
   connectionGeneration?: number;
   connectionId?: string;
   /** Committed session profile: the device/firmware/transport authority of this connection. */

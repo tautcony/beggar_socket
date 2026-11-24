@@ -13,15 +13,9 @@
         :title="connectionTooltip"
         :icon="buttonIcon"
         :text="buttonText"
+        data-testid="connect-device-btn"
         @click="handleConnectDisconnect"
-      />
-      <!-- 手动选择其他串口：自动发现只接受 match，用户在无过滤器列表里显式选择才算数 -->
-      <RetroButton
-        v-if="!connected"
-        variant="secondary"
-        :disabled="isConnecting || connectionBusy"
-        :text="t('ui.device.selectOtherPort')"
-        @click="connectWithAnyPort"
+        @contextmenu.prevent="openConnectContextMenu"
       />
       <!-- 重置连接状态按钮，仅在已连接时显示 -->
       <RetroButton
@@ -32,6 +26,28 @@
         @click="() => initializeSerialState(deviceInfo, true)"
       />
     </div>
+    <!-- 连接按钮右键菜单：手动选择其他串口 -->
+    <Teleport to="body">
+      <div
+        v-if="contextMenu.visible"
+        ref="contextMenuRef"
+        class="connect-context-menu"
+        role="menu"
+        data-testid="connect-context-menu"
+        :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
+        @click.stop
+      >
+        <button
+          type="button"
+          class="connect-context-menu-item"
+          role="menuitem"
+          data-testid="select-other-port-item"
+          @click="handleSelectOtherPortFromMenu"
+        >
+          {{ t('ui.device.selectOtherPort') }}
+        </button>
+      </div>
+    </Teleport>
     <!-- 串口选择模态框 -->
     <PortSelectorModal
       :visible="showPortSelector"
@@ -44,7 +60,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import PortSelectorModal from '@/components/modal/PortSelectorModal.vue';
@@ -83,6 +99,47 @@ const isConnecting = ref(false);
 const isProcessing = ref(false);
 const showPortSelector = ref(false);
 const availablePorts = ref<SerialPortInfo[]>([]);
+const contextMenuRef = ref<HTMLElement | null>(null);
+const contextMenu = reactive({
+  visible: false,
+  x: 0,
+  y: 0,
+});
+
+function closeContextMenu() {
+  contextMenu.visible = false;
+}
+
+function openConnectContextMenu(event: MouseEvent) {
+  if (connected.value || isConnecting.value || connectionBusy.value) {
+    return;
+  }
+  const margin = 8;
+  const approxWidth = 180;
+  const approxHeight = 44;
+  const maxX = Math.max(margin, window.innerWidth - approxWidth - margin);
+  const maxY = Math.max(margin, window.innerHeight - approxHeight - margin);
+  contextMenu.x = Math.min(Math.max(event.clientX, margin), maxX);
+  contextMenu.y = Math.min(Math.max(event.clientY, margin), maxY);
+  contextMenu.visible = true;
+}
+
+function handleGlobalPointerDown(event: MouseEvent) {
+  if (!contextMenu.visible) return;
+  if (contextMenuRef.value?.contains(event.target as Node)) return;
+  closeContextMenu();
+}
+
+function handleGlobalKeyDown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && contextMenu.visible) {
+    closeContextMenu();
+  }
+}
+
+async function handleSelectOtherPortFromMenu() {
+  closeContextMenu();
+  await connectWithAnyPort();
+}
 
 const deviceInfo = ref<DeviceInfo | null>(null);
 const deviceManager = DeviceConnectionManager.getInstance();
@@ -135,6 +192,8 @@ if (import.meta.hot) {
 
 // 组件挂载时验证连接状态
 onMounted(async () => {
+  window.addEventListener('mousedown', handleGlobalPointerDown);
+  window.addEventListener('keydown', handleGlobalKeyDown);
   // 如果显示已连接但实际连接对象为空，重置状态
   if (connected.value) {
     if (!deviceInfo.value || !deviceManager.isDeviceConnected(deviceInfo.value)) {
@@ -142,6 +201,11 @@ onMounted(async () => {
       await disposeConnection();
     }
   }
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('mousedown', handleGlobalPointerDown);
+  window.removeEventListener('keydown', handleGlobalKeyDown);
 });
 
 /** Maps any connection error onto the stage-aware report the log area renders. */
@@ -405,5 +469,37 @@ defineExpose({
   margin-bottom: 0;
   width: auto;
   justify-content: flex-start;
+}
+</style>
+
+<style>
+.connect-context-menu {
+  position: fixed;
+  z-index: 2000;
+  min-width: 150px;
+  padding: 4px;
+  border: 1.5px solid var(--retro-border);
+  border-radius: 4px;
+  background: var(--retro-bg-surface);
+  box-shadow: var(--retro-shadow-btn);
+}
+
+.connect-context-menu-item {
+  display: block;
+  width: 100%;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--retro-ink);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.connect-context-menu-item:hover {
+  background: var(--retro-bg-tint);
 }
 </style>

@@ -2,7 +2,7 @@
  * Runtime composition registry: the only place that maps a `runtimeBindingId` to the
  * concrete driver, display contributor, adapter factory and mode-sync strategy.
  *
- * `RuntimeBinding<TFacts>` closes the facts type at the definition site, so a FlashGBX
+ * `RuntimeBinding<TFacts>` closes the facts type at the definition site, so a GBFlash
  * contributor cannot be combined with Beggar probe facts.
  */
 import type { CapabilitySignals } from '@/device/capabilities';
@@ -27,7 +27,7 @@ export interface AdapterFactory {
   syncMode?(adapter: CartridgeAdapter, mode: PlatformId): Promise<void>;
 }
 
-export type ModeSyncStrategy = (adapter: CartridgeAdapter, mode: PlatformId) => Promise<void>;
+export type ModeSyncStrategy = (adapter: CartridgeAdapter, mode: PlatformId, enable5V?: boolean) => Promise<void>;
 
 export interface RuntimeBinding<TFacts> {
   readonly driver: ProtocolDriver<TFacts>;

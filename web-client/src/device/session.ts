@@ -104,7 +104,7 @@ export interface PendingSessionContext {
   readonly pending: PendingSession;
 }
 
-/** Probe / initialize / teardown lifecycle, replacing inline `isFlashgbx` branches. */
+/** Probe / initialize / teardown lifecycle, replacing inline `isGbflash` branches. */
 export interface ProtocolDriver<TFacts> {
   probe(context: PendingSessionContext): Promise<ProbeResult<TFacts>>;
   initialize?(session: PendingSession): Promise<void>;
@@ -186,7 +186,7 @@ export interface InternalResolveContext<TFacts> {
 
 /**
  * Builds the normalized display model for a binding. The facts type parameter lives on
- * the interface, not on `build`, so a FlashGBX contributor cannot receive Beggar facts.
+ * the interface, not on `build`, so a GBFlash contributor cannot receive Beggar facts.
  */
 export interface DisplayContributor<TFacts> {
   build(context: InternalResolveContext<TFacts>): DeviceDisplayModel;

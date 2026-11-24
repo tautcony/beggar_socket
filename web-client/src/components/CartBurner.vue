@@ -310,7 +310,7 @@ const mbc5Adapter = ref<BurnerProtocolSession | null>();
  */
 let gbaCartridgeAdapter: CartridgeAdapter | null = null;
 /** Mode sync strategy of the binding that owns the current session. */
-let modeSyncStrategy: ((adapter: CartridgeAdapter, mode: 'gba' | 'mbc5') => Promise<void>) | undefined;
+let modeSyncStrategy: ((adapter: CartridgeAdapter, mode: 'gba' | 'mbc5', enable5V?: boolean) => Promise<void>) | undefined;
 
 function createSession(adapter: CartridgeAdapter, modeName: string): BurnerProtocolSession {
   return createCartridgeProtocolSession(adapter, modeName.toLowerCase(), {
@@ -318,18 +318,20 @@ function createSession(adapter: CartridgeAdapter, modeName: string): BurnerProto
   });
 }
 
-watch(mode, (newMode) => {
-  if (newMode !== 'MBC5') {
+watch([mode, mbcPower5V], ([newMode, newPower5V]) => {
+  if (newMode !== 'MBC5' && newPower5V) {
     mbcPower5V.value = false;
+    return;
   }
   const adapter = gbaCartridgeAdapter;
   if (!modeSyncStrategy || !props.deviceReady || busy.value || !adapter) {
     return;
   }
   const target = newMode === 'MBC5' ? 'mbc5' : 'gba';
-  void modeSyncStrategy(adapter, target).catch((error: unknown) => {
+  const enable5V = newMode === 'MBC5' && newPower5V;
+  void modeSyncStrategy(adapter, target, enable5V).catch((error: unknown) => {
     const msg = error instanceof Error ? error.message : String(error);
-    log(`Failed to sync FlashGBX hardware mode (${newMode}): ${msg}`, 'warn');
+    log(`Failed to sync GBFlash hardware mode (${newMode}): ${msg}`, 'warn');
   });
 });
 
@@ -405,16 +407,24 @@ function initializeAdapters() {
       updateProgress,
       t,
     };
-    const isFlashgbx = profile.firmware.protocol === 'flashgbx';
+    const isGbflash = profile.firmware.protocol === 'gbflash';
     gbaCartridgeAdapter = runtimeBinding.adapterFactory.create('gba', context);
     gbaAdapter.value = createSession(
       gbaCartridgeAdapter,
-      isFlashgbx ? 'flashgbx-gba' : 'gba',
+      isGbflash ? 'gbflash-gba' : 'gba',
     );
     mbc5Adapter.value = createSession(
       runtimeBinding.adapterFactory.create('mbc5', context),
-      isFlashgbx ? 'flashgbx-mbc' : 'mbc5',
+      isGbflash ? 'gbflash-mbc' : 'mbc5',
     );
+    if (modeSyncStrategy && gbaCartridgeAdapter) {
+      const target = mode.value === 'MBC5' ? 'mbc5' : 'gba';
+      const enable5V = mode.value === 'MBC5' && mbcPower5V.value;
+      void modeSyncStrategy(gbaCartridgeAdapter, target, enable5V).catch((error: unknown) => {
+        const msg = error instanceof Error ? error.message : String(error);
+        log(`Failed to sync GBFlash hardware mode (${mode.value}): ${msg}`, 'warn');
+      });
+    }
   } else {
     // 设备未连接时清空适配器
     if (gbaAdapter.value || mbc5Adapter.value) {

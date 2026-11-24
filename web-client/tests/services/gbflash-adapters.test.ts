@@ -1,20 +1,20 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { FLASHGBX_FIRMWARE_PROFILE } from '@/device/compat/firmware-profile';
+import { GBFLASH_FIRMWARE_PROFILE } from '@/device/compat/firmware-profile';
 import type { Transport } from '@/platform/serial';
 import {
-  FLASHGBX_CMD,
-  FlashgbxCommandClient,
-  type FlashgbxFirmwareInfo,
-} from '@/protocol/flashgbx';
-import { FlashgbxGbaAdapter } from '@/services/flashgbx-gba-adapter';
-import { FlashgbxMbcAdapter } from '@/services/flashgbx-mbc-adapter';
+  GBFLASH_CMD,
+  GbflashCommandClient,
+  type GbflashFirmwareInfo,
+} from '@/protocol/gbflash';
+import { GbflashGbaAdapter } from '@/services/gbflash-gba-adapter';
+import { GbflashMbcAdapter } from '@/services/gbflash-mbc-adapter';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 import type { DeviceInfo } from '@/types/device-info';
 import { crc32 } from '@/utils/crc-utils';
 import type { CFIInfo } from '@/utils/parsers/cfi-parser';
 
-function makeFwInfo(overrides: Partial<FlashgbxFirmwareInfo> = {}): FlashgbxFirmwareInfo {
+function makeFwInfo(overrides: Partial<GbflashFirmwareInfo> = {}): GbflashFirmwareInfo {
   return {
     family: 'gbflash',
     cfwId: 'L',
@@ -36,7 +36,7 @@ function makeFwInfo(overrides: Partial<FlashgbxFirmwareInfo> = {}): FlashgbxFirm
 }
 
 function createScriptedDevice(
-  fwInfo: FlashgbxFirmwareInfo,
+  fwInfo: GbflashFirmwareInfo,
   readChunks: (number[] | Uint8Array)[],
 ) {
   const sent: number[][] = [];
@@ -67,11 +67,11 @@ function createScriptedDevice(
     port: null,
     connection: null,
     transport,
-    firmwareProfile: { ...FLASHGBX_FIRMWARE_PROFILE, label: fwInfo.pcbName },
-    flashgbxInfo: fwInfo,
+    firmwareProfile: { ...GBFLASH_FIRMWARE_PROFILE, label: fwInfo.pcbName },
+    gbflashInfo: fwInfo,
   };
 
-  const client = new FlashgbxCommandClient(transport, fwInfo, { baudRate: 2_000_000 });
+  const client = new GbflashCommandClient(transport, fwInfo, { baudRate: 2_000_000 });
   return { device, client, sent, setSignals };
 }
 
@@ -115,7 +115,7 @@ const dummyCfi: CFIInfo = {
   info: '',
 };
 
-describe('FlashgbxGbaAdapter', () => {
+describe('GbflashGbaAdapter', () => {
   afterEach(() => {
     vi.useRealTimers();
   });
@@ -128,9 +128,11 @@ describe('FlashgbxGbaAdapter', () => {
       [0x01], [0x01], [0x01], [0x01], [0x01], [0x01], // setMode AGB
       [0x00], [0x01], [0x01], [0x01], [0x01], // cartPowerOn (QUERY=0, SET_MODE, PWR_ON, QUERY=1, BOOTUP)
       [0x01], // CART_WRITE_FLASH_CMD F0
+      [0x01], [0x01], // readRom baseline setup
+      new Array(32).fill(0xFF), // baseline bytes
       [0x01], // CART_WRITE_FLASH_CMD 90
       [0x01], [0x01], // readRom ID setup
-      [0x00, 0x01, 0x22, 0x7E, 0, 0, 0, 0], // ID bytes
+      [0x00, 0x01, 0x22, 0x7E, ...new Array(28).fill(0)], // ID bytes
       [0x01], // reset F0
       [0x01], // CFI 98
       [0x01], [0x01], // readRom CFI setup
@@ -138,7 +140,7 @@ describe('FlashgbxGbaAdapter', () => {
       [0x01], // reset F0
     ]);
 
-    const adapter = new FlashgbxGbaAdapter(device, null, null, null, client);
+    const adapter = new GbflashGbaAdapter(device, null, null, null, client);
     await adapter.resetCommandBuffer();
     const info = await adapter.getCartInfo(false);
     if (!info) {
@@ -177,7 +179,7 @@ describe('FlashgbxGbaAdapter', () => {
 
     const progressEvents: { showProgress?: boolean; totalBytes?: number; state?: string }[] = [];
     const logs: { msg: string; level: string }[] = [];
-    const adapter = new FlashgbxGbaAdapter(
+    const adapter = new GbflashGbaAdapter(
       device,
       (msg, level) => logs.push({ msg: typeof msg === 'string' ? msg : msg.message, level }),
       info => progressEvents.push(info),
@@ -201,8 +203,8 @@ describe('FlashgbxGbaAdapter', () => {
     expect(logs.some(e => e.msg === 'messages.rom.verifySummary')).toBe(true);
   });
 
-  it('sizes a CART_READ from the saved FlashGBX read page instead of forcing 0x1000', () => {
-    class ChunkProbe extends FlashgbxGbaAdapter {
+  it('sizes a CART_READ from the saved GBFlash read page instead of forcing 0x1000', () => {
+    class ChunkProbe extends GbflashGbaAdapter {
       chunk(): number {
         return this.getReadChunkLimit();
       }
@@ -215,16 +217,16 @@ describe('FlashgbxGbaAdapter', () => {
     expect(adapter.chunk()).toBe(0x1000);
 
     // A saved smaller page must reach the wire: this is what users change on flaky CH340s.
-    AdvancedSettings.setNamespaceSize('flashgbx.cfw', 'romReadPageSize', 0x80);
+    AdvancedSettings.setNamespaceSize('gbflash.cfw', 'romReadPageSize', 0x80);
     adapter.beginOperation();
     expect(adapter.chunk()).toBe(0x80);
 
-    AdvancedSettings.setNamespaceSize('flashgbx.cfw', 'romReadPageSize', 0x200);
+    AdvancedSettings.setNamespaceSize('gbflash.cfw', 'romReadPageSize', 0x200);
     adapter.beginOperation();
     expect(adapter.chunk()).toBe(0x200);
 
     // The device buffer stays the ceiling even when the schema allows a bigger value.
-    AdvancedSettings.setNamespaceSize('flashgbx.cfw', 'romReadPageSize', 0x2000);
+    AdvancedSettings.setNamespaceSize('gbflash.cfw', 'romReadPageSize', 0x2000);
     adapter.beginOperation();
     expect(adapter.chunk()).toBe(0x1000);
 
@@ -246,7 +248,7 @@ describe('FlashgbxGbaAdapter', () => {
     AdvancedSettings.setGlobalParameter('packageSendTimeout', 1234);
     AdvancedSettings.setGlobalParameter('packageReceiveTimeout', 4321);
 
-    class TimeoutProbe extends FlashgbxGbaAdapter {
+    class TimeoutProbe extends GbflashGbaAdapter {
       deadlines(): { send: number; receive: number } {
         return { send: this.client.operationSendTimeoutMs, receive: this.client.operationTimeoutMs };
       }
@@ -290,7 +292,7 @@ describe('FlashgbxGbaAdapter', () => {
     ]);
 
     const events: { state?: string; showProgress?: boolean; detail?: string }[] = [];
-    const adapter = new FlashgbxGbaAdapter(device, null, info => events.push(info), null, client);
+    const adapter = new GbflashGbaAdapter(device, null, info => events.push(info), null, client);
     const res = await adapter.verifyROM(expectedRom, { cfiInfo: dummyCfi }, new AbortController().signal);
 
     expect(res.success).toBe(false);
@@ -300,7 +302,7 @@ describe('FlashgbxGbaAdapter', () => {
   });
 });
 
-describe('FlashgbxMbcAdapter & Task 2.3 cleanup/keep-alive', () => {
+describe('GbflashMbcAdapter & Task 2.3 cleanup/keep-alive', () => {
   it('restores voltage/power and AUTO_POWEROFF_TIME on cancellation/failure', async () => {
     const fw14 = makeFwInfo({ fwVer: 14, cartPowerCtrl: true });
     const { device, client, sent } = createScriptedDevice(fw14, [
@@ -314,7 +316,7 @@ describe('FlashgbxMbcAdapter & Task 2.3 cleanup/keep-alive', () => {
       [0x01], [0x01], [0x01], [0x01],
     ]);
 
-    const adapter = new FlashgbxMbcAdapter(device, null, null, null, client);
+    const adapter = new GbflashMbcAdapter(device, null, null, null, client);
     const ac = new AbortController();
     // Abort right after setMode begins by passing an already-aborted signal to readRom
     // First test pre-aborted signal returns cancelled
@@ -329,12 +331,12 @@ describe('FlashgbxMbcAdapter & Task 2.3 cleanup/keep-alive', () => {
     // Will fail on read timeout since queue is exhausted after setup, triggering cleanup
     expect(res2.success).toBe(false);
     const opcodes = sent.map(p => p[0]);
-    expect(opcodes).toContain(FLASHGBX_CMD.DMG_MBC_RESET);
-    expect(opcodes).toContain(FLASHGBX_CMD.CART_PWR_OFF);
-    expect(opcodes).toContain(FLASHGBX_CMD.SET_VOLTAGE_3_3V);
+    expect(opcodes).toContain(GBFLASH_CMD.DMG_MBC_RESET);
+    expect(opcodes).toContain(GBFLASH_CMD.CART_PWR_OFF);
+    expect(opcodes).toContain(GBFLASH_CMD.SET_VOLTAGE_3_3V);
     // Verify AUTO_POWEROFF_TIME was set to 600000 on entry and restored to 3000 on exit
     const autoPowerOffSets = sent.filter(
-      p => p[0] === FLASHGBX_CMD.SET_VARIABLE && p[1] === 4 && p[5] === 0x01,
+      p => p[0] === GBFLASH_CMD.SET_VARIABLE && p[1] === 4 && p[5] === 0x01,
     );
     expect(autoPowerOffSets.length).toBe(2);
   });
@@ -354,13 +356,13 @@ describe('FlashgbxMbcAdapter & Task 2.3 cleanup/keep-alive', () => {
       [0x01], // CART_WRITE_FLASH_CMD F0
       [0x01], [0x01], [0x01], // writeRam TRANSFER_SIZE, ADDRESS, data ACK
     ]);
-    const atmelAdapter = new FlashgbxGbaAdapter(tAtmel.device, null, null, null, tAtmel.client);
+    const atmelAdapter = new GbflashGbaAdapter(tAtmel.device, null, null, null, tAtmel.client);
     const atmelRes = await atmelAdapter.writeRAM(saveData, { cfiInfo: dummyCfi, ramType: 'FLASH' });
     expect(atmelRes.success).toBe(true);
-    const atmelWriteCmd = tAtmel.sent.find(p => p[0] === FLASHGBX_CMD.AGB_CART_WRITE_FLASH_DATA);
-    expect(atmelWriteCmd).toEqual([FLASHGBX_CMD.AGB_CART_WRITE_FLASH_DATA, 2]);
+    const atmelWriteCmd = tAtmel.sent.find(p => p[0] === GBFLASH_CMD.AGB_CART_WRITE_FLASH_DATA);
+    expect(atmelWriteCmd).toEqual([GBFLASH_CMD.AGB_CART_WRITE_FLASH_DATA, 2]);
     // Only 2 CART_WRITE_FLASH_CMD calls (ID + F0), no chip erase!
-    expect(tAtmel.sent.filter(p => p[0] === FLASHGBX_CMD.CART_WRITE_FLASH_CMD).length).toBe(2);
+    expect(tAtmel.sent.filter(p => p[0] === GBFLASH_CMD.CART_WRITE_FLASH_CMD).length).toBe(2);
 
     // 2) Non-Atmel 0xC21C: erases chip + polls 0xFF, uses [AGB_CART_WRITE_FLASH_DATA, 1]
     const tMacronix = createScriptedDevice(fw14, [
@@ -375,12 +377,12 @@ describe('FlashgbxMbcAdapter & Task 2.3 cleanup/keep-alive', () => {
       [0x01], [0x01], [0xFF], [0x01], // poll 0x0000 -> 0xFF
       [0x01], [0x01], [0x01], // writeRam
     ]);
-    const macronixAdapter = new FlashgbxGbaAdapter(tMacronix.device, null, null, null, tMacronix.client);
+    const macronixAdapter = new GbflashGbaAdapter(tMacronix.device, null, null, null, tMacronix.client);
     const macronixRes = await macronixAdapter.writeRAM(saveData, { cfiInfo: dummyCfi, ramType: 'FLASH' });
     expect(macronixRes.success).toBe(true);
-    const macronixWriteCmd = tMacronix.sent.find(p => p[0] === FLASHGBX_CMD.AGB_CART_WRITE_FLASH_DATA);
-    expect(macronixWriteCmd).toEqual([FLASHGBX_CMD.AGB_CART_WRITE_FLASH_DATA, 1]);
-    expect(tMacronix.sent.filter(p => p[0] === FLASHGBX_CMD.CART_WRITE_FLASH_CMD).length).toBe(3);
+    const macronixWriteCmd = tMacronix.sent.find(p => p[0] === GBFLASH_CMD.AGB_CART_WRITE_FLASH_DATA);
+    expect(macronixWriteCmd).toEqual([GBFLASH_CMD.AGB_CART_WRITE_FLASH_DATA, 1]);
+    expect(tMacronix.sent.filter(p => p[0] === GBFLASH_CMD.CART_WRITE_FLASH_CMD).length).toBe(3);
   });
 
   it('aborts the save write when the Flash chip erase never confirms', async () => {
@@ -397,7 +399,7 @@ describe('FlashgbxMbcAdapter & Task 2.3 cleanup/keep-alive', () => {
       [0x01], // chip erase
       ...[0, 1, 2, 3, 4].flatMap(() => [[0x01], [0x01], [0x00], [0x01]]), // never 0xFF
     ]);
-    const adapter = new FlashgbxGbaAdapter(neverErased.device, null, null, null, neverErased.client);
+    const adapter = new GbflashGbaAdapter(neverErased.device, null, null, null, neverErased.client);
 
     // The 15s poll budget is wall-clock based; advance the clock instead of waiting.
     let clock = 0;
@@ -411,7 +413,7 @@ describe('FlashgbxMbcAdapter & Task 2.3 cleanup/keep-alive', () => {
     }
 
     // An unconfirmed erase must never be followed by a programming command.
-    expect(neverErased.sent.some(p => p[0] === FLASHGBX_CMD.AGB_CART_WRITE_FLASH_DATA)).toBe(false);
+    expect(neverErased.sent.some(p => p[0] === GBFLASH_CMD.AGB_CART_WRITE_FLASH_DATA)).toBe(false);
   });
 
   it('switches 32 MiB GBA ROM banks across 0x02000000 and restores bank 0', async () => {
@@ -437,39 +439,60 @@ describe('FlashgbxMbcAdapter & Task 2.3 cleanup/keep-alive', () => {
       [0x01], [0x01], [0x01],
     ]);
 
-    const adapter = new FlashgbxGbaAdapter(device, null, null, null, client);
+    const adapter = new GbflashGbaAdapter(device, null, null, null, client);
     const largeCfi: CFIInfo = { ...dummyCfi, deviceSize: 0x08000000 };
     const res = await adapter.readROM(8, { cfiInfo: largeCfi, baseAddress: 0x01FFFFFC });
 
     expect(res.success).toBe(true);
     expect(Array.from(res.data ?? [])).toEqual([0x01, 0x02, 0x03, 0x04, 0xA1, 0xA2, 0xA3, 0xA4]);
     // Verify bank 1 switch wrote 0x10 and 0x40 via AGB_CART_WRITE_SRAM (0xC4)
-    const sramWrites = sent.filter(p => p[0] === FLASHGBX_CMD.AGB_CART_WRITE_SRAM);
+    const sramWrites = sent.filter(p => p[0] === GBFLASH_CMD.AGB_CART_WRITE_SRAM);
     expect(sramWrites.length).toBe(6);
     expect(sent.some(p => p.length === 1 && p[0] === 0x10)).toBe(true);
     expect(sent.some(p => p.length === 1 && p[0] === 0x40)).toBe(true);
   });
 
-  it('syncHardwareMode safely updates mode and LEDs without CART_PWR_ON or 5V', async () => {
+  it('syncHardwareMode switches mode and cart power at 3.3V by default', async () => {
     const fw14 = makeFwInfo({ fwVer: 14, cartPowerCtrl: true });
     const { device, client, sent } = createScriptedDevice(fw14, [
-      // MBC5: CART_PWR_OFF, SET_VOLTAGE_3_3V, SET_MODE_DMG, CART_MODE=1
-      [0x01], [0x01], [0x01], [0x01],
-      // GBA: CART_PWR_OFF, SET_VOLTAGE_3_3V, SET_MODE_AGB, CART_MODE=2
-      [0x01], [0x01], [0x01], [0x01],
+      // MBC5 (DMG): SET_MODE_DMG, SET_VOLTAGE_3_3V, DMG_READ_METHOD, CART_MODE, ADDRESS, QUERY_CART_PWR=0, SET_MODE_DMG, CART_PWR_ON, QUERY_CART_PWR=1, DMG_MBC_RESET
+      [0x01], [0x01], [0x01], [0x01], [0x01], [0x00], [0x01], [0x01], [0x01], [0x01],
+      // GBA (AGB): CART_PWR_OFF, SET_MODE_AGB, SET_VOLTAGE_3_3V, AGB_READ_METHOD, CART_MODE, AGB_IRQ_ENABLED, ADDRESS, QUERY_CART_PWR=0, SET_MODE_AGB, CART_PWR_ON, QUERY_CART_PWR=1, AGB_BOOTUP_SEQUENCE
+      [0x01], [0x01], [0x01], [0x01], [0x01], [0x01], [0x01], [0x00], [0x01], [0x01], [0x01], [0x01],
     ]);
 
-    const adapter = new FlashgbxGbaAdapter(device, null, null, null, client);
+    const adapter = new GbflashGbaAdapter(device, null, null, null, client);
     await adapter.syncHardwareMode('MBC5');
     await adapter.syncHardwareMode('GBA');
 
     const opcodes = sent.map(p => p[0]);
-    expect(opcodes).toContain(FLASHGBX_CMD.CART_PWR_OFF);
-    expect(opcodes).toContain(FLASHGBX_CMD.SET_VOLTAGE_3_3V);
-    expect(opcodes).toContain(FLASHGBX_CMD.SET_MODE_DMG);
-    expect(opcodes).toContain(FLASHGBX_CMD.SET_MODE_AGB);
-    expect(opcodes).not.toContain(FLASHGBX_CMD.CART_PWR_ON);
-    expect(opcodes).not.toContain(FLASHGBX_CMD.SET_VOLTAGE_5V);
+    expect(opcodes).toContain(GBFLASH_CMD.SET_MODE_DMG);
+    expect(opcodes).toContain(GBFLASH_CMD.SET_VOLTAGE_3_3V);
+    expect(opcodes).not.toContain(GBFLASH_CMD.SET_VOLTAGE_5V);
+    expect(opcodes).toContain(GBFLASH_CMD.DMG_MBC_RESET);
+    expect(opcodes).toContain(GBFLASH_CMD.CART_PWR_OFF);
+    expect(opcodes).toContain(GBFLASH_CMD.SET_MODE_AGB);
+    expect(opcodes).toContain(GBFLASH_CMD.AGB_BOOTUP_SEQUENCE);
+    expect(opcodes).toContain(GBFLASH_CMD.CART_PWR_ON);
+  });
+
+  it('syncHardwareMode switches to 5V and power-cycles when enable5V changes in MBC5 mode', async () => {
+    const fw14 = makeFwInfo({ fwVer: 14, cartPowerCtrl: true });
+    const { device, client, sent } = createScriptedDevice(fw14, [
+      // MBC5 3.3V: SET_MODE_DMG, SET_VOLTAGE_3_3V, DMG_READ_METHOD, CART_MODE, ADDRESS, QUERY_CART_PWR=0, SET_MODE_DMG, CART_PWR_ON, QUERY_CART_PWR=1, DMG_MBC_RESET
+      [0x01], [0x01], [0x01], [0x01], [0x01], [0x00], [0x01], [0x01], [0x01], [0x01],
+      // MBC5 5V: CART_PWR_OFF, SET_MODE_DMG, SET_VOLTAGE_5V, DMG_READ_METHOD, CART_MODE, ADDRESS, QUERY_CART_PWR=0, SET_MODE_DMG, CART_PWR_ON, QUERY_CART_PWR=1, DMG_MBC_RESET
+      [0x01], [0x01], [0x01], [0x01], [0x01], [0x01], [0x00], [0x01], [0x01], [0x01], [0x01],
+    ]);
+
+    const adapter = new GbflashGbaAdapter(device, null, null, null, client);
+    await adapter.syncHardwareMode('MBC5', false);
+    await adapter.syncHardwareMode('MBC5', true);
+
+    const opcodes = sent.map(p => p[0]);
+    expect(opcodes).toContain(GBFLASH_CMD.SET_VOLTAGE_3_3V);
+    expect(opcodes).toContain(GBFLASH_CMD.CART_PWR_OFF);
+    expect(opcodes).toContain(GBFLASH_CMD.SET_VOLTAGE_5V);
   });
 
   it('emits sectorProgress during eraseSectors and multi-bank writeROM', async () => {
@@ -499,7 +522,7 @@ describe('FlashgbxMbcAdapter & Task 2.3 cleanup/keep-alive', () => {
       [0x01],
     ]);
 
-    const eraseAdapter = new FlashgbxGbaAdapter(
+    const eraseAdapter = new GbflashGbaAdapter(
       tErase.device,
       null,
       info => eraseEvents.push(info),
@@ -566,7 +589,7 @@ describe('FlashgbxMbcAdapter & Task 2.3 cleanup/keep-alive', () => {
       // single resetFlashToRead at end
       [0x01],
     ]);
-    const writeAdapter = new FlashgbxGbaAdapter(
+    const writeAdapter = new GbflashGbaAdapter(
       tWrite.device,
       null,
       info => writeEvents.push(info),
@@ -591,8 +614,8 @@ describe('FlashgbxMbcAdapter & Task 2.3 cleanup/keep-alive', () => {
     const startWriteLog = writeLogs.find(e => e.key === 'messages.operation.startWriteROM');
     expect(startWriteLog?.params).toMatchObject({ fileSize: 8, pageSize: 0x80, bufferSize: 0 });
     // Auto-erase ran (CART_WRITE_FLASH_CMD 0xD4 x2 for 2 sectors) before FLASH_PROGRAM (0xD3)
-    const firstEraseCmdIdx = tWrite.sent.findIndex(p => p[0] === FLASHGBX_CMD.CART_WRITE_FLASH_CMD);
-    const firstProgramCmdIdx = tWrite.sent.findIndex(p => p[0] === FLASHGBX_CMD.FLASH_PROGRAM);
+    const firstEraseCmdIdx = tWrite.sent.findIndex(p => p[0] === GBFLASH_CMD.CART_WRITE_FLASH_CMD);
+    const firstProgramCmdIdx = tWrite.sent.findIndex(p => p[0] === GBFLASH_CMD.FLASH_PROGRAM);
     expect(firstEraseCmdIdx).toBeGreaterThanOrEqual(0);
     expect(firstProgramCmdIdx).toBeGreaterThan(firstEraseCmdIdx);
   });
@@ -620,7 +643,7 @@ describe('FlashgbxMbcAdapter & Task 2.3 cleanup/keep-alive', () => {
       [0x01], // reset F0
     ]);
 
-    const adapter = new FlashgbxGbaAdapter(
+    const adapter = new GbflashGbaAdapter(
       t.device,
       null,
       info => events.push(info),
@@ -633,10 +656,31 @@ describe('FlashgbxMbcAdapter & Task 2.3 cleanup/keep-alive', () => {
     );
 
     expect(res.success).toBe(true);
-    const eraseCmds = t.sent.filter(p => p[0] === FLASHGBX_CMD.CART_WRITE_FLASH_CMD);
+    const eraseCmds = t.sent.filter(p => p[0] === GBFLASH_CMD.CART_WRITE_FLASH_CMD);
     expect(eraseCmds).toHaveLength(1);
     const finalSector = events[events.length - 1]?.sectorProgress;
     expect(finalSector?.totalSectors).toBe(2);
     expect(finalSector?.completedSectors).toBe(2);
+  });
+
+  it('disables AUTO_POWEROFF_ENABLED instead of restoring 0 when GBFlash boots with enabled=1 and time=0', async () => {
+    const fw14 = makeFwInfo({ fwVer: 14 });
+    const { client, sent } = createScriptedDevice(fw14, [
+      [0x00, 0x00, 0x00, 0x01], // AUTO_POWEROFF_ENABLED = 1
+      [0x00, 0x00, 0x00, 0x00], // AUTO_POWEROFF_TIME = 0
+      [0x01], // ACK for SET_VARIABLE AUTO_POWEROFF_ENABLED = 0
+    ]);
+
+    const prev = await client.enterAutoPowerOffKeepAlive(600_000);
+    expect(prev).toBeNull();
+    // Should have written AUTO_POWEROFF_ENABLED (size=1, key=0x0F) = 0
+    const disableCmd = sent.find(
+      p => p[0] === GBFLASH_CMD.SET_VARIABLE && p[1] === 1 && p[5] === 0x0F && p[9] === 0,
+    );
+    expect(disableCmd).toBeDefined();
+    // leaveAutoPowerOffKeepAlive(null) must be a no-op
+    const countBeforeLeave = sent.length;
+    await client.leaveAutoPowerOffKeepAlive(prev);
+    expect(sent.length).toBe(countBeforeLeave);
   });
 });

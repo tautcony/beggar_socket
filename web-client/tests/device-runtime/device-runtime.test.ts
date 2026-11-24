@@ -9,7 +9,7 @@ describe('device runtime assembly', () => {
   it('wires the catalog, composition, resolver, store and selection provider', () => {
     expect(runtime.registry.listBindings()).toHaveLength(4);
     expect(runtime.composition.ids()).toHaveLength(2);
-    expect(runtime.registry.selectVariant(VARIANT_IDS.gbflash).runtimeBindingId).toBe('flashgbx');
+    expect(runtime.registry.selectVariant(VARIANT_IDS.gbflash).runtimeBindingId).toBe('gbflash');
     expect(typeof runtime.store.get('beggar.stm', 'romPageSize')).toBe('number');
     expect(['legacy', 'v2', 'invalid']).toContain(runtime.selection.read().source);
     expect(typeof runtime.resolver.resolve).toBe('function');

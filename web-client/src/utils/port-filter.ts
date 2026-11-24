@@ -190,9 +190,9 @@ export const PortFilters = {
     ]),
 
     /**
-     * FlashGBX 设备过滤器（GBFlash CH340 / CDC）
+     * GBFlash 设备过滤器（GBFlash CH340 / CDC）
      */
-    flashgbx: (): PortFilter => PortFilters.devices([
+    gbflash: (): PortFilter => PortFilters.devices([
       { vendorId: 0x1a86, productId: 0x7523 }, // CH340 (GBFlash)
       { vendorId: 0x16c0, productId: 0x27dd }, // CDC (GBFlash)
     ]),

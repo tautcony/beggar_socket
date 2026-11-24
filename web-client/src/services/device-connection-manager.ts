@@ -16,7 +16,7 @@ import type {
 } from '@/features/burner/application';
 import { isTauriRuntime } from '@/platform/runtime';
 import type { DeviceHandle } from '@/platform/serial';
-import type { FlashgbxFirmwareInfo } from '@/protocol';
+import type { GbflashFirmwareInfo } from '@/protocol';
 import { DeviceInfo } from '@/types/device-info';
 import type { SerialPortInfo } from '@/types/serial';
 import { PortSelectionRequiredError } from '@/utils/errors/PortSelectionRequiredError';
@@ -51,17 +51,17 @@ export class DeviceSelectionError extends Error {
 
 /**
  * Narrows the opaque probe facts of a committed session onto the legacy
- * `DeviceInfo.flashgbxInfo` facade.
+ * `DeviceInfo.gbflashInfo` facade.
  *
  * `EstablishedSession.probeFacts` is intentionally untyped: each runtime binding closes
- * its own facts type. The FlashGBX binding publishes `{ firmwareInfo }`, and the legacy
- * facade (FlashGBX command client) needs the bare handshake result.
+ * its own facts type. The GBFlash binding publishes `{ firmwareInfo }`, and the legacy
+ * facade (GBFlash command client) needs the bare handshake result.
  */
-function flashgbxInfoFromProbeFacts(probeFacts: unknown): FlashgbxFirmwareInfo | undefined {
+function gbflashInfoFromProbeFacts(probeFacts: unknown): GbflashFirmwareInfo | undefined {
   if (!probeFacts || typeof probeFacts !== 'object') {
     return undefined;
   }
-  const info = (probeFacts as { firmwareInfo?: FlashgbxFirmwareInfo | null }).firmwareInfo;
+  const info = (probeFacts as { firmwareInfo?: GbflashFirmwareInfo | null }).firmwareInfo;
   return info ?? undefined;
 }
 
@@ -193,7 +193,7 @@ export class DeviceConnectionManager {
 
     const profile = session?.profile;
     const firmwareProfile = profile ? firmwareProfileFromSession(profile) : undefined;
-    const flashgbxInfo = flashgbxInfoFromProbeFacts(session?.probeFacts);
+    const gbflashInfo = gbflashInfoFromProbeFacts(session?.probeFacts);
 
     const device: DeviceInfo = {
       port: ctx.port,
@@ -206,7 +206,7 @@ export class DeviceConnectionManager {
       ...(firmwareProfile ? { firmwareProfile } : {}),
       ...(profile ? { session: profile } : {}),
       ...(session ? { diagnostics: session.diagnostics } : {}),
-      ...(flashgbxInfo ? { flashgbxInfo } : {}),
+      ...(gbflashInfo ? { gbflashInfo } : {}),
     };
 
     if (device.firmwareProfile) {
@@ -536,7 +536,7 @@ export class DeviceConnectionManager {
           device.port = null;
           device.transport = null;
           device.serialHandle = null;
-          device.flashgbxInfo = undefined;
+          device.gbflashInfo = undefined;
           device.session = undefined;
           device.diagnostics = undefined;
           device.connectionGeneration = undefined;

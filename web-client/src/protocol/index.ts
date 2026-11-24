@@ -1,2 +1,2 @@
 export * from './beggar_socket';
-export * from './flashgbx';
+export * from './gbflash';

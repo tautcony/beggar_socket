@@ -110,8 +110,8 @@ describe('advanced settings v2 storage', () => {
 
     it('normalizes the GBFlash namespace independently from the active selection', () => {
       AdvancedSettings.setVariantId('gbflash');
-      AdvancedSettings.setNamespaceSize('flashgbx.cfw', 'romPageSize', 0x8000);
-      expect(AdvancedSettings.getNamespaceSizes('flashgbx.cfw').romPageSize).toBe(0x2000);
+      AdvancedSettings.setNamespaceSize('gbflash.cfw', 'romPageSize', 0x8000);
+      expect(AdvancedSettings.getNamespaceSizes('gbflash.cfw').romPageSize).toBe(0x2000);
       // Beggar namespaces keep their own values.
       expect(AdvancedSettings.getNamespaceSizes('beggar.stm').romPageSize).toBe(0x1000);
     });
@@ -208,10 +208,10 @@ describe('advanced settings v2 storage', () => {
 
     it('migrates GBFlash and STC selections with their own parameters', () => {
       writeLegacy({
-        firmware: { profile: 'flashgbx', flashgbxBaudRate: 1500000 },
+        firmware: { profile: 'gbflash', gbflashBaudRate: 1500000 },
         profileSizes: {
           stm: { romPageSize: 0x800, romReadPageSize: 0x0c00, ramPageSize: 0x800 },
-          flashgbx: { romPageSize: 0x100, romReadPageSize: 0x100, ramPageSize: 0x100 },
+          gbflash: { romPageSize: 0x100, romReadPageSize: 0x100, ramPageSize: 0x100 },
         },
       });
 
@@ -274,17 +274,17 @@ describe('advanced settings v2 storage', () => {
       expect(AdvancedSettings.getIndependentSizes()).toBe(true);
     });
 
-    it('does not leak a FlashGBX size bag into the Beggar namespaces', () => {
+    it('does not leak a GBFlash size bag into the Beggar namespaces', () => {
       // Linked sizes only link the namespaces that declare the link group. A GBFlash `size`
       // says nothing about the Beggar packet sizes, so it stays in its own namespace.
       writeLegacy({
-        firmware: { profile: 'flashgbx' },
+        firmware: { profile: 'gbflash' },
         size: { romPageSize: 0x100, romReadPageSize: 0x100, ramPageSize: 0x100 },
       });
 
       AdvancedSettings.reloadFromStorage();
 
-      expect(AdvancedSettings.getNamespaceSizes('flashgbx.cfw').romPageSize).toBe(0x100);
+      expect(AdvancedSettings.getNamespaceSizes('gbflash.cfw').romPageSize).toBe(0x100);
       for (const namespace of ['beggar.stm', 'beggar.stc']) {
         const sizes = AdvancedSettings.getNamespaceSizes(namespace);
         const defaults = defaultSizesForNamespace(namespace);
@@ -376,7 +376,7 @@ describe('advanced settings v2 storage', () => {
         version: 2,
         selectedVariantId: 'gbflash',
         parametersByNamespace: {
-          'flashgbx.cfw': { baudRate: 123456, romPageSize: 0x4000, ramPageSize: 'bogus' },
+          'gbflash.cfw': { baudRate: 123456, romPageSize: 0x4000, ramPageSize: 'bogus' },
           'beggar.stm': { romReadPageSize: 0x4000 },
         },
         global: { defaultTimeout: 999999, romReadRetryCount: 'many' },
@@ -387,9 +387,9 @@ describe('advanced settings v2 storage', () => {
 
       expect(AdvancedSettings.getBaudRate()).toBe('auto');
       // Clamped to the GBFlash packet ceiling, and the unusable string falls back to default.
-      expect(AdvancedSettings.getNamespaceSizes('flashgbx.cfw').romPageSize).toBe(0x2000);
-      expect(AdvancedSettings.getNamespaceSizes('flashgbx.cfw').ramPageSize)
-        .toBe(defaultSizesForNamespace('flashgbx.cfw').ramPageSize);
+      expect(AdvancedSettings.getNamespaceSizes('gbflash.cfw').romPageSize).toBe(0x2000);
+      expect(AdvancedSettings.getNamespaceSizes('gbflash.cfw').ramPageSize)
+        .toBe(defaultSizesForNamespace('gbflash.cfw').ramPageSize);
       expect(AdvancedSettings.getNamespaceSizes('beggar.stm').romReadPageSize)
         .toBe(stmCeilings().romReadMax);
       expect(AdvancedSettings.defaultTimeout).toBe(300000);
@@ -401,7 +401,7 @@ describe('advanced settings v2 storage', () => {
     const registry = createDeviceCatalog({ platform: 'windows' });
 
     it('validates values against the namespace descriptor ranges', () => {
-      const schema = registry.resolveNamespaceSchema('flashgbx.cfw')?.schema ?? [];
+      const schema = registry.resolveNamespaceSchema('gbflash.cfw')?.schema ?? [];
 
       expect(validateSettings(schema, { romPageSize: 0x2000 }).valid).toBe(true);
       const tooLarge = validateSettings(schema, { romPageSize: 0x4000 });

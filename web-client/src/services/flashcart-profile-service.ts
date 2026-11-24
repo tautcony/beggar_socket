@@ -190,10 +190,17 @@ export class FlashcartProfileService {
     observation:
       | FlashcartProbeObservation
       | ReadonlyMap<number | null, FlashcartProbeObservation>,
+    options: { deviceSize?: number } = {},
   ): FlashcartMatchResult {
-    const candidates = profiles.filter(profile =>
+    let candidates = profiles.filter(profile =>
       FlashcartProfileService.matchesObservation(profile, observation),
     );
+    if (candidates.length > 1 && options.deviceSize && options.deviceSize > 0) {
+      const sized = candidates.filter(profile => profile.flash_size === options.deviceSize);
+      if (sized.length > 0) {
+        candidates = sized;
+      }
+    }
     if (candidates.length === 0) {
       return { status: 'none' };
     }
