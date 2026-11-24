@@ -273,6 +273,11 @@ const chipInfoValid = computed(() => {
 }
 
 .chip-info-display {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content minmax(0, 1fr);
+  column-gap: var(--space-2);
+  row-gap: var(--space-1);
+  align-items: center;
   margin-top: var(--space-2);
   background: var(--retro-bg-elevated);
   border: 1px solid var(--retro-border-subtle);
@@ -282,42 +287,43 @@ const chipInfoValid = computed(() => {
   color: var(--retro-ink);
 }
 
-.chip-info-row {
+.chip-info-row.id-row {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  width: 100%;
+  gap: var(--space-2);
   margin-bottom: var(--space-1);
+  min-width: 0;
 }
 
-.chip-info-row.id-row {
-  margin-bottom: var(--space-2);
+.chip-info-row:not(.id-row) {
+  display: contents;
 }
 
 .chip-info-label {
-  min-width: 60px;
-  max-width: 80px;
-  width: 60px;
   color: var(--retro-ink-muted);
   font-weight: var(--font-weight-semibold);
   font-size: var(--font-size-xs);
   white-space: nowrap;
-  flex: none;
-  margin-right: var(--space-2);
+  flex-shrink: 0;
+}
+
+.chip-info-row:not(.id-row) > .chip-info-label:nth-child(3) {
+  padding-left: var(--space-3);
 }
 
 .chip-info-value {
-  flex: 1 1 0;
+  min-width: 0;
   font-family: var(--retro-font-mono);
   color: var(--retro-ink);
   font-size: var(--font-size-xs);
-  margin-right: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.chip-info-row:not(.id-row) {
-  justify-content: flex-start;
+.chip-info-row.id-row > .chip-info-value {
+  flex: 1 1 0;
 }
 
 /* MBC 设置样式 - 与 RomOperations / RamOperations 保持一致 */

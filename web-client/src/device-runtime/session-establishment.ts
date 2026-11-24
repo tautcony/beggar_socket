@@ -54,7 +54,7 @@ export interface EstablishedSession {
   /** Immutable snapshot produced by the resolver. */
   readonly active: ActiveSession;
   /**
-   * Typed probe facts, only for the legacy `DeviceInfo` compat facade (e.g. the FlashGBX
+   * Typed probe facts, only for the legacy `DeviceInfo` compat facade (e.g. the GBFlash
    * command client). They are deliberately not part of `SessionProfile`.
    */
   readonly probeFacts?: unknown;

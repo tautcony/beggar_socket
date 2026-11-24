@@ -1,5 +1,5 @@
 /**
- * GBFlash hardware running the FlashGBX protocol firmware.
+ * GBFlash hardware running the GBFlash protocol firmware.
  *
  * Per-PCB reality (power control, presence detect, Audio WE pin) is reported by the
  * `0xA1` handshake, so those three capabilities are conditional rules rather than a
@@ -13,10 +13,10 @@ import {
   type DeviceFirmwareBinding,
   type FirmwareDefinition,
 } from '../types';
-import { FLASHGBX_PACKET_LIMITS } from './packet-limits';
-import { conditional, createFirmwareDefinition, createFlashgbxParameterSchema, SUPPORTED, unsupported } from './shared';
+import { GBFLASH_PACKET_LIMITS } from './packet-limits';
+import { conditional, createFirmwareDefinition, createGbflashParameterSchema, SUPPORTED, unsupported } from './shared';
 
-export const GBFLASH_RUNTIME_BINDING_ID = createRuntimeBindingId('flashgbx');
+export const GBFLASH_RUNTIME_BINDING_ID = createRuntimeBindingId('gbflash');
 
 /** `auto` has always expanded to a fixed 2 Mbps; there is no host or port dimension. */
 export const GBFLASH_AUTO_BAUD_RATE = 2_000_000;
@@ -34,7 +34,7 @@ export const GBFLASH_DEVICE: DeviceDefinition = {
   },
 };
 
-export const FLASHGBX_CAPABILITIES: CompleteCapabilityDeclarations = {
+export const GBFLASH_CAPABILITIES: CompleteCapabilityDeclarations = {
   'rom.read': SUPPORTED,
   'rom.write': SUPPORTED,
   'rom.erase.chip': SUPPORTED,
@@ -53,17 +53,17 @@ export const FLASHGBX_CAPABILITIES: CompleteCapabilityDeclarations = {
   'tool.rtc.gba': SUPPORTED,
   'tool.rtc.mbc3': SUPPORTED,
   'tool.rumble.gba': SUPPORTED,
-  'tool.debug': unsupported('FlashGBX firmware has no debug command'),
-  'tool.ppbUnlock': unsupported('FlashGBX firmware has no PPB unlock command'),
+  'tool.debug': unsupported('GBFlash firmware has no debug command'),
+  'tool.ppbUnlock': unsupported('GBFlash firmware has no PPB unlock command'),
   'profile.flashcartDb': SUPPORTED,
 };
 
-export const FLASHGBX_FIRMWARE: FirmwareDefinition = createFirmwareDefinition({
-  id: 'flashgbx.cfw',
-  displayName: 'FlashGBX',
-  protocol: 'flashgbx',
-  baseCapabilities: FLASHGBX_CAPABILITIES,
-  parameters: createFlashgbxParameterSchema,
+export const GBFLASH_FIRMWARE: FirmwareDefinition = createFirmwareDefinition({
+  id: 'gbflash.cfw',
+  displayName: 'GBFlash',
+  protocol: 'gbflash',
+  baseCapabilities: GBFLASH_CAPABILITIES,
+  parameters: createGbflashParameterSchema,
 });
 
 /**
@@ -77,7 +77,7 @@ export const GBFLASH_TRANSPORT: TransportRequirements = {
   defaultBaudRate: 'auto',
   allowedBaudRates: [1_000_000, 1_500_000, 2_000_000],
   signalInit: 'none',
-  packetLimits: FLASHGBX_PACKET_LIMITS,
+  packetLimits: GBFLASH_PACKET_LIMITS,
   maxReadChunk: 0x1000,
   readPageDefault: 0x1000,
 };
@@ -85,7 +85,7 @@ export const GBFLASH_TRANSPORT: TransportRequirements = {
 export const GBFLASH_BINDING: DeviceFirmwareBinding = {
   id: 'gbflash',
   deviceId: GBFLASH_DEVICE.id,
-  firmwareId: FLASHGBX_FIRMWARE.id,
+  firmwareId: GBFLASH_FIRMWARE.id,
   discoveryFilters: [
     { vendorId: '1a86', productId: '7523' },
     { vendorId: '16c0', productId: '27dd' },
@@ -95,12 +95,12 @@ export const GBFLASH_BINDING: DeviceFirmwareBinding = {
     { id: 'gbflash-cdc', vendorId: '16c0', productId: '27dd', description: 'CDC' },
   ],
   transport: GBFLASH_TRANSPORT,
-  parameterNamespace: 'flashgbx.cfw',
+  parameterNamespace: 'gbflash.cfw',
   runtimeBindingId: GBFLASH_RUNTIME_BINDING_ID,
-  // FlashGBX framing (0x00/0xA1 handshake, CART_* commands) has no simulated backend;
+  // GBFlash framing (0x00/0xA1 handshake, CART_* commands) has no simulated backend;
   // a simulated GBFlash session would commit and then fail on its first command.
   simulated: {
     supported: false,
-    reason: 'The debug simulator only executes the Beggar command frames; the FlashGBX framing protocol is not simulated.',
+    reason: 'The debug simulator only executes the Beggar command frames; the GBFlash framing protocol is not simulated.',
   },
 };

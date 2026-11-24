@@ -3,44 +3,44 @@ import type { SerialPortInfo } from '@/types/serial';
 
 import {
   DEVICE_MIN_FW,
-  FLASHGBX_ACK_OK,
-  FLASHGBX_CMD,
-  FLASHGBX_USB_IDS,
+  GBFLASH_ACK_OK,
+  GBFLASH_CMD,
+  GBFLASH_USB_IDS,
   FW_VER_THRESHOLDS,
   HANDSHAKE_TIMEOUT_MS,
 } from './constants';
 
-export type FlashgbxDeviceFamily = 'gbflash';
+export type GbflashDeviceFamily = 'gbflash';
 
-export type FlashgbxHandshakeStage =
+export type GbflashHandshakeStage =
   | 'buffer_clear'
   | 'query_fw_info'
   | 'fw_info_header'
   | 'fw_info_extended'
   | 'unsupported';
 
-export type FlashgbxHandshakeErrorCode =
+export type GbflashHandshakeErrorCode =
   | 'unsupported'
   | 'timeout'
   | 'invalid_response';
 
-export class FlashgbxHandshakeError extends Error {
-  readonly stage: FlashgbxHandshakeStage;
-  readonly code: FlashgbxHandshakeErrorCode;
-  readonly family?: FlashgbxDeviceFamily;
+export class GbflashHandshakeError extends Error {
+  readonly stage: GbflashHandshakeStage;
+  readonly code: GbflashHandshakeErrorCode;
+  readonly family?: GbflashDeviceFamily;
   readonly cause?: unknown;
 
   constructor(
-    stage: FlashgbxHandshakeStage,
-    code: FlashgbxHandshakeErrorCode,
+    stage: GbflashHandshakeStage,
+    code: GbflashHandshakeErrorCode,
     message: string,
     options?: {
-      family?: FlashgbxDeviceFamily;
+      family?: GbflashDeviceFamily;
       cause?: unknown;
     },
   ) {
     super(message);
-    this.name = 'FlashgbxHandshakeError';
+    this.name = 'GbflashHandshakeError';
     this.stage = stage;
     this.code = code;
     this.family = options?.family;
@@ -48,8 +48,8 @@ export class FlashgbxHandshakeError extends Error {
   }
 }
 
-export interface FlashgbxFirmwareInfo {
-  family: FlashgbxDeviceFamily;
+export interface GbflashFirmwareInfo {
+  family: GbflashDeviceFamily;
   cfwId: string;
   fwVer: number;
   pcbVer: number;
@@ -66,7 +66,7 @@ export interface FlashgbxFirmwareInfo {
   isCdc: boolean;
 }
 
-export interface FlashgbxHandshakeOptions {
+export interface GbflashHandshakeOptions {
   portInfo?: SerialPortInfo | null;
   baudRate?: number;
   timeoutMs?: number;
@@ -102,8 +102,8 @@ async function readExact(
   transport: Transport,
   length: number,
   timeoutMs: number,
-  stage: FlashgbxHandshakeStage,
-  family: FlashgbxDeviceFamily,
+  stage: GbflashHandshakeStage,
+  family: GbflashDeviceFamily,
 ): Promise<Uint8Array> {
   if (length === 0) {
     return new Uint8Array(0);
@@ -111,7 +111,7 @@ async function readExact(
   try {
     const { data } = await transport.read(length, timeoutMs);
     if (data.length < length) {
-      throw new FlashgbxHandshakeError(
+      throw new GbflashHandshakeError(
         stage,
         data.length === 0 ? 'timeout' : 'invalid_response',
         `Expected ${length} bytes at ${stage}, got ${data.length}`,
@@ -120,10 +120,10 @@ async function readExact(
     }
     return data.subarray(0, length);
   } catch (error) {
-    if (error instanceof FlashgbxHandshakeError) {
+    if (error instanceof GbflashHandshakeError) {
       throw error;
     }
-    throw new FlashgbxHandshakeError(
+    throw new GbflashHandshakeError(
       stage,
       'timeout',
       `Read failed at ${stage}: ${error instanceof Error ? error.message : String(error)}`,
@@ -136,19 +136,19 @@ async function writeBytes(
   transport: Transport,
   bytes: readonly number[],
   timeoutMs: number,
-  stage: FlashgbxHandshakeStage,
-  family: FlashgbxDeviceFamily,
+  stage: GbflashHandshakeStage,
+  family: GbflashDeviceFamily,
 ): Promise<void> {
   try {
     const ok = await transport.send(new Uint8Array(bytes), timeoutMs);
     if (!ok) {
-      throw new FlashgbxHandshakeError(stage, 'timeout', `Failed to send command at ${stage}`, { family });
+      throw new GbflashHandshakeError(stage, 'timeout', `Failed to send command at ${stage}`, { family });
     }
   } catch (error) {
-    if (error instanceof FlashgbxHandshakeError) {
+    if (error instanceof GbflashHandshakeError) {
       throw error;
     }
-    throw new FlashgbxHandshakeError(
+    throw new GbflashHandshakeError(
       stage,
       'timeout',
       `Send failed at ${stage}: ${error instanceof Error ? error.message : String(error)}`,
@@ -173,14 +173,14 @@ async function queryFirmwareInfo(
   transport: Transport,
   isCdc: boolean,
   timeoutMs: number,
-): Promise<FlashgbxFirmwareInfo> {
-  const family: FlashgbxDeviceFamily = 'gbflash';
-  await writeBytes(transport, [FLASHGBX_CMD.QUERY_FW_INFO], timeoutMs, 'query_fw_info', family);
+): Promise<GbflashFirmwareInfo> {
+  const family: GbflashDeviceFamily = 'gbflash';
+  await writeBytes(transport, [GBFLASH_CMD.QUERY_FW_INFO], timeoutMs, 'query_fw_info', family);
 
   const sizeBytes = await readExact(transport, 1, timeoutMs, 'fw_info_header', family);
   const size = sizeBytes[0];
   if (size !== 8) {
-    throw new FlashgbxHandshakeError(
+    throw new GbflashHandshakeError(
       'fw_info_header',
       'invalid_response',
       `Invalid QUERY_FW_INFO size: expected 8, got ${size}`,
@@ -195,7 +195,7 @@ async function queryFirmwareInfo(
   const fwTs = ((info[4] << 24) | (info[5] << 16) | (info[6] << 8) | info[7]) >>> 0;
 
   if (cfwId !== 'L' || fwVer < DEVICE_MIN_FW) {
-    throw new FlashgbxHandshakeError(
+    throw new GbflashHandshakeError(
       'unsupported',
       'unsupported',
       `Unsupported firmware: cfwId=${cfwId}, fwVer=${fwVer}`,
@@ -253,53 +253,53 @@ async function queryFirmwareInfo(
 
 export async function handshakeGbflash(
   transport: Transport,
-  options: FlashgbxHandshakeOptions = {},
+  options: GbflashHandshakeOptions = {},
   isCdc = false,
-): Promise<FlashgbxFirmwareInfo> {
+): Promise<GbflashFirmwareInfo> {
   const timeoutMs = options.timeoutMs ?? HANDSHAKE_TIMEOUT_MS;
   await clearBuffers(transport);
   return queryFirmwareInfo(transport, isCdc, timeoutMs);
 }
 
-export async function performFlashgbxHandshake(
+export async function performGbflashHandshake(
   transport: Transport,
-  options: FlashgbxHandshakeOptions = {},
-): Promise<FlashgbxFirmwareInfo> {
-  const isCdc = isSameUsbId(options.portInfo, FLASHGBX_USB_IDS.GBFLASH_CDC);
+  options: GbflashHandshakeOptions = {},
+): Promise<GbflashFirmwareInfo> {
+  const isCdc = isSameUsbId(options.portInfo, GBFLASH_USB_IDS.GBFLASH_CDC);
   return handshakeGbflash(transport, options, isCdc);
 }
 
 /** A single safety command that failed during teardown; the transport still closes. */
-export interface FlashgbxTeardownFailure {
+export interface GbflashTeardownFailure {
   readonly command: 'cart-power-off' | 'set-voltage-3v3';
   readonly error: unknown;
 }
 
-export interface FlashgbxTeardownResult {
-  readonly failures: readonly FlashgbxTeardownFailure[];
+export interface GbflashTeardownResult {
+  readonly failures: readonly GbflashTeardownFailure[];
 }
 
 async function sendSafetyCommand(
   transport: Transport,
   command: number,
-  label: FlashgbxTeardownFailure['command'],
+  label: GbflashTeardownFailure['command'],
   ackExpected: boolean,
   timeoutMs: number,
-  failures: FlashgbxTeardownFailure[],
+  failures: GbflashTeardownFailure[],
 ): Promise<void> {
   try {
     const sent = await transport.send(new Uint8Array([command]), timeoutMs);
     if (!sent) {
-      throw new Error(`FlashGBX teardown command 0x${command.toString(16)} was not sent`);
+      throw new Error(`GBFlash teardown command 0x${command.toString(16)} was not sent`);
     }
     if (ackExpected) {
       // A silent or negative ACK means the safety command may not have run; report it
       // instead of closing the port as if the sequence had succeeded.
       const response = await transport.read(1, timeoutMs);
       const ack = response.data[0];
-      if (ack !== FLASHGBX_ACK_OK) {
+      if (ack !== GBFLASH_ACK_OK) {
         throw new Error(
-          `FlashGBX teardown command 0x${command.toString(16)} was not acknowledged`
+          `GBFlash teardown command 0x${command.toString(16)} was not acknowledged`
           + ` (got ${ack === undefined ? 'nothing' : `0x${ack.toString(16)}`})`,
         );
       }
@@ -316,28 +316,28 @@ async function sendSafetyCommand(
  * A failing safety command never aborts the sequence; every failure is reported so the
  * caller can record a `disconnect` diagnostic and still close the port.
  */
-export async function performFlashgbxTeardown(
+export async function performGbflashTeardown(
   transport: Transport,
-  fwInfo?: FlashgbxFirmwareInfo | null,
+  fwInfo?: GbflashFirmwareInfo | null,
   timeoutMs = HANDSHAKE_TIMEOUT_MS,
-): Promise<FlashgbxTeardownResult> {
+): Promise<GbflashTeardownResult> {
   if (!fwInfo) {
     return { failures: [] };
   }
 
-  const failures: FlashgbxTeardownFailure[] = [];
+  const failures: GbflashTeardownFailure[] = [];
   const ackExpected = fwInfo.fwVer >= FW_VER_THRESHOLDS.COMMAND_ACK;
   if (fwInfo.cartPowerCtrl) {
-    await sendSafetyCommand(transport, FLASHGBX_CMD.CART_PWR_OFF, 'cart-power-off', ackExpected, timeoutMs, failures);
+    await sendSafetyCommand(transport, GBFLASH_CMD.CART_PWR_OFF, 'cart-power-off', ackExpected, timeoutMs, failures);
   }
-  await sendSafetyCommand(transport, FLASHGBX_CMD.SET_VOLTAGE_3_3V, 'set-voltage-3v3', ackExpected, timeoutMs, failures);
+  await sendSafetyCommand(transport, GBFLASH_CMD.SET_VOLTAGE_3_3V, 'set-voltage-3v3', ackExpected, timeoutMs, failures);
   return { failures };
 }
 
-export async function performFlashgbxDisconnect(
+export async function performGbflashDisconnect(
   transport: Transport,
-  fwInfo?: FlashgbxFirmwareInfo | null,
+  fwInfo?: GbflashFirmwareInfo | null,
   timeoutMs = HANDSHAKE_TIMEOUT_MS,
 ): Promise<void> {
-  await performFlashgbxTeardown(transport, fwInfo, timeoutMs);
+  await performGbflashTeardown(transport, fwInfo, timeoutMs);
 }

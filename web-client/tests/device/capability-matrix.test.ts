@@ -14,11 +14,11 @@ import {
   BEGGAR_STM_BOOST_FIRMWARE,
   BEGGAR_STM_DEVICE,
   BEGGAR_STM_FIRMWARE,
-  FLASHGBX_FIRMWARE,
+  GBFLASH_FIRMWARE,
   GBFLASH_DEVICE,
 } from '@/device/definitions';
 
-type Column = 'stm' | 'boost' | 'stc' | 'flashgbx';
+type Column = 'stm' | 'boost' | 'stc' | 'gbflash';
 /** `supported`, `unsupported`, or the rule id of a conditional capability. */
 type Expectation = 'supported' | 'unsupported' | CapabilityRuleId;
 
@@ -28,55 +28,55 @@ type Expectation = 'supported' | 'unsupported' | CapabilityRuleId;
  * firmware column fails to compile until this table is updated.
  */
 const MATRIX: Record<CapabilityKey, Record<Column, Expectation>> = {
-  'rom.read': { stm: 'supported', boost: 'supported', stc: 'supported', flashgbx: 'supported' },
-  'rom.write': { stm: 'supported', boost: 'supported', stc: 'supported', flashgbx: 'supported' },
-  'rom.erase.chip': { stm: 'supported', boost: 'supported', stc: 'supported', flashgbx: 'supported' },
-  'rom.erase.sector': { stm: 'supported', boost: 'supported', stc: 'supported', flashgbx: 'supported' },
-  'rom.verify.crc': { stm: 'supported', boost: 'supported', stc: 'supported', flashgbx: 'supported' },
+  'rom.read': { stm: 'supported', boost: 'supported', stc: 'supported', gbflash: 'supported' },
+  'rom.write': { stm: 'supported', boost: 'supported', stc: 'supported', gbflash: 'supported' },
+  'rom.erase.chip': { stm: 'supported', boost: 'supported', stc: 'supported', gbflash: 'supported' },
+  'rom.erase.sector': { stm: 'supported', boost: 'supported', stc: 'supported', gbflash: 'supported' },
+  'rom.verify.crc': { stm: 'supported', boost: 'supported', stc: 'supported', gbflash: 'supported' },
   'rom.bankSwitch.32M': {
     stm: 'unsupported',
     boost: 'unsupported',
     stc: 'unsupported',
-    flashgbx: 'unsupported',
+    gbflash: 'unsupported',
   },
-  'ram.read': { stm: 'supported', boost: 'supported', stc: 'supported', flashgbx: 'supported' },
-  'ram.write': { stm: 'supported', boost: 'supported', stc: 'supported', flashgbx: 'supported' },
-  'ram.fram.gba': { stm: 'supported', boost: 'supported', stc: 'unsupported', flashgbx: 'supported' },
-  'ram.fram.gbc': { stm: 'supported', boost: 'supported', stc: 'supported', flashgbx: 'supported' },
+  'ram.read': { stm: 'supported', boost: 'supported', stc: 'supported', gbflash: 'supported' },
+  'ram.write': { stm: 'supported', boost: 'supported', stc: 'supported', gbflash: 'supported' },
+  'ram.fram.gba': { stm: 'supported', boost: 'supported', stc: 'unsupported', gbflash: 'supported' },
+  'ram.fram.gbc': { stm: 'supported', boost: 'supported', stc: 'supported', gbflash: 'supported' },
   'cart.powerControl': {
     stm: 'unsupported',
     boost: 'unsupported',
     stc: 'supported',
-    flashgbx: 'gbflash.power-control-present',
+    gbflash: 'gbflash.power-control-present',
   },
   'cart.voltageSwitch': {
     stm: 'unsupported',
     boost: 'unsupported',
     stc: 'unsupported',
-    flashgbx: 'supported',
+    gbflash: 'supported',
   },
   'cart.presenceDetect': {
     stm: 'unsupported',
     boost: 'unsupported',
     stc: 'unsupported',
-    flashgbx: 'gbflash.presence-detect-present',
+    gbflash: 'gbflash.presence-detect-present',
   },
   'cart.audioWePin': {
     stm: 'unsupported',
     boost: 'unsupported',
     stc: 'unsupported',
-    flashgbx: 'gbflash.audio-write-enabled',
+    gbflash: 'gbflash.audio-write-enabled',
   },
-  'tool.rtc.gba': { stm: 'supported', boost: 'supported', stc: 'supported', flashgbx: 'supported' },
-  'tool.rtc.mbc3': { stm: 'supported', boost: 'supported', stc: 'supported', flashgbx: 'supported' },
-  'tool.rumble.gba': { stm: 'supported', boost: 'supported', stc: 'supported', flashgbx: 'supported' },
-  'tool.debug': { stm: 'supported', boost: 'supported', stc: 'supported', flashgbx: 'unsupported' },
-  'tool.ppbUnlock': { stm: 'supported', boost: 'supported', stc: 'supported', flashgbx: 'unsupported' },
+  'tool.rtc.gba': { stm: 'supported', boost: 'supported', stc: 'supported', gbflash: 'supported' },
+  'tool.rtc.mbc3': { stm: 'supported', boost: 'supported', stc: 'supported', gbflash: 'supported' },
+  'tool.rumble.gba': { stm: 'supported', boost: 'supported', stc: 'supported', gbflash: 'supported' },
+  'tool.debug': { stm: 'supported', boost: 'supported', stc: 'supported', gbflash: 'unsupported' },
+  'tool.ppbUnlock': { stm: 'supported', boost: 'supported', stc: 'supported', gbflash: 'unsupported' },
   'profile.flashcartDb': {
     stm: 'unsupported',
     boost: 'unsupported',
     stc: 'unsupported',
-    flashgbx: 'supported',
+    gbflash: 'supported',
   },
 };
 
@@ -88,7 +88,7 @@ const COLUMNS: readonly {
   { column: 'stm', firmware: BEGGAR_STM_FIRMWARE, device: BEGGAR_STM_DEVICE },
   { column: 'boost', firmware: BEGGAR_STM_BOOST_FIRMWARE, device: BEGGAR_STM_DEVICE },
   { column: 'stc', firmware: BEGGAR_STC_FIRMWARE, device: BEGGAR_STC_DEVICE },
-  { column: 'flashgbx', firmware: FLASHGBX_FIRMWARE, device: GBFLASH_DEVICE },
+  { column: 'gbflash', firmware: GBFLASH_FIRMWARE, device: GBFLASH_DEVICE },
 ];
 
 const ALL_SIGNALS_TRUE: CapabilitySignals = {
@@ -138,8 +138,8 @@ describe('capability matrix', () => {
     }
   });
 
-  it('keeps FlashGBX RTC available for the existing UI and service entrypoints', () => {
-    const resolved = resolveCapabilities(FLASHGBX_FIRMWARE.baseCapabilities, GBFLASH_DEVICE.hardware);
+  it('keeps GBFlash RTC available for the existing UI and service entrypoints', () => {
+    const resolved = resolveCapabilities(GBFLASH_FIRMWARE.baseCapabilities, GBFLASH_DEVICE.hardware);
     expect(resolved.has('tool.rtc.gba')).toBe(true);
     expect(resolved.has('tool.rtc.mbc3')).toBe(true);
   });

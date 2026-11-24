@@ -21,7 +21,7 @@ import {
   BEGGAR_STM_BINDING,
   BEGGAR_STM_DEVICE,
   BEGGAR_STM_FIRMWARE,
-  FLASHGBX_FIRMWARE,
+  GBFLASH_FIRMWARE,
   GBFLASH_BINDING,
   GBFLASH_DEVICE,
 } from '../definitions';
@@ -40,7 +40,7 @@ function legacyCapabilitiesFrom(
     gbcFramRam: capabilities.has('ram.fram.gbc'),
     cartPowerControl: capabilities.has('cart.powerControl'),
     boostMode: false,
-    nativeFlashgbxProtocol: firmware.protocol === 'flashgbx',
+    nativeGbflashProtocol: firmware.protocol === 'gbflash',
     audioWePin: capabilities.has('cart.audioWePin'),
   };
 }
@@ -75,10 +75,10 @@ export const STC_FIRMWARE_PROFILE: FirmwareProfile = buildLegacyProfile(
   BEGGAR_STC_BINDING.transport.maxReadChunk,
 );
 
-/** Deprecated (removed in P4): use the registered `flashgbx.cfw` definition / resolved session profile. */
-export const FLASHGBX_FIRMWARE_PROFILE: FirmwareProfile = buildLegacyProfile(
-  'flashgbx',
-  FLASHGBX_FIRMWARE,
+/** Deprecated (removed in P4): use the registered `gbflash.cfw` definition / resolved session profile. */
+export const GBFLASH_FIRMWARE_PROFILE: FirmwareProfile = buildLegacyProfile(
+  'gbflash',
+  GBFLASH_FIRMWARE,
   GBFLASH_DEVICE,
   GBFLASH_BINDING.transport.maxReadChunk,
 );
@@ -92,8 +92,8 @@ export const FLASHGBX_FIRMWARE_PROFILE: FirmwareProfile = buildLegacyProfile(
  * Deprecated (removed in P4).
  */
 export function firmwareProfileFromSession(profile: SessionProfile): FirmwareProfile {
-  const id: FirmwareProfileId = profile.firmware.protocol === 'flashgbx'
-    ? 'flashgbx'
+  const id: FirmwareProfileId = profile.firmware.protocol === 'gbflash'
+    ? 'gbflash'
     : profile.variantId === BEGGAR_STC_BINDING.id ? 'stc' : 'stm';
 
   return Object.freeze({
@@ -107,7 +107,7 @@ export function firmwareProfileFromSession(profile: SessionProfile): FirmwarePro
       gbcFramRam: profile.capabilities.has('ram.fram.gbc'),
       cartPowerControl: profile.capabilities.has('cart.powerControl'),
       boostMode: profile.runtimeFeatures.boostTransport,
-      nativeFlashgbxProtocol: profile.firmware.protocol === 'flashgbx',
+      nativeGbflashProtocol: profile.firmware.protocol === 'gbflash',
       audioWePin: profile.capabilities.has('cart.audioWePin'),
     }),
   });

@@ -143,7 +143,7 @@ export function defaultSizesForNamespace(namespace: string): SizeSettings {
   };
   return {
     romPageSize: sizeDefault('romPageSize'),
-    // FlashGBX declares the real read request size; its 256B packet limit only bounds a frame.
+    // GBFlash declares the real read request size; its 256B packet limit only bounds a frame.
     romReadPageSize: sizeDefault('romReadPageSize'),
     ramPageSize: sizeDefault('ramPageSize'),
   };
@@ -151,14 +151,14 @@ export function defaultSizesForNamespace(namespace: string): SizeSettings {
 
 // --- normalization (the parameter descriptors own every rule) ---
 
-/** Baud rates the FlashGBX binding accepts, taken from its descriptor. */
-export type FlashgbxBaudRate = 'auto' | 1_000_000 | 1_500_000 | 2_000_000;
+/** Baud rates the GBFlash binding accepts, taken from its descriptor. */
+export type GbflashBaudRate = 'auto' | 1_000_000 | 1_500_000 | 2_000_000;
 
 const GBFLASH_NAMESPACE = GBFLASH_BINDING.parameterNamespace;
 
-export const FLASHGBX_BAUD_RATES: readonly FlashgbxBaudRate[] =
+export const GBFLASH_BAUD_RATES: readonly GbflashBaudRate[] =
   (findParameterDescriptor(schemaForNamespace(GBFLASH_NAMESPACE), 'baudRate')
-    ?.constraints?.options ?? ['auto']) as readonly FlashgbxBaudRate[];
+    ?.constraints?.options ?? ['auto']) as readonly GbflashBaudRate[];
 
 /**
  * Normalizes one stored value against the descriptor of its namespace.
@@ -181,10 +181,10 @@ export function normalizeGlobalParameter(key: string, stored: unknown): number |
   return typeof normalized === 'number' ? normalized : undefined;
 }
 
-export function normalizeBaudRate(value: unknown): FlashgbxBaudRate {
+export function normalizeBaudRate(value: unknown): GbflashBaudRate {
   const normalized = normalizeStoredParameter(GBFLASH_NAMESPACE, 'baudRate', value);
   return typeof normalized === 'number' || typeof normalized === 'string'
-    ? normalized as FlashgbxBaudRate
+    ? normalized as GbflashBaudRate
     : 'auto';
 }
 
@@ -234,7 +234,7 @@ interface LegacyAdvancedSettings {
   firmware?: {
     profile?: string;
     stmBoost?: boolean;
-    flashgbxBaudRate?: unknown;
+    gbflashBaudRate?: unknown;
   };
   size?: Partial<SizeSettings>;
   profileSizes?: Partial<Record<string, Partial<SizeSettings>>>;
@@ -246,7 +246,7 @@ interface LegacyAdvancedSettings {
 const LEGACY_PROFILE_NAMESPACE: Readonly<Record<string, string>> = Object.freeze({
   stm: BEGGAR_STM_BINDING.parameterNamespace,
   stc: BEGGAR_STC_BINDING.parameterNamespace,
-  flashgbx: GBFLASH_BINDING.parameterNamespace,
+  gbflash: GBFLASH_BINDING.parameterNamespace,
 });
 
 /** v1 stored its pre-parameter default page sizes; those were replaced on load. */
@@ -265,7 +265,7 @@ function emptyRecord(): AdvancedSettingsV2 {
 /**
  * Writes one v1 size bag into a namespace, normalized against that namespace's descriptors.
  *
- * The ceiling is namespace specific (STM shares the Boost ceiling, FlashGBX caps an editable
+ * The ceiling is namespace specific (STM shares the Boost ceiling, GBFlash caps an editable
  * packet at 0x2000), so a value is never carried over between namespaces without being
  * re-validated by the target schema.
  */
@@ -334,7 +334,7 @@ function migrateLegacy(config: LegacyAdvancedSettings): AdvancedSettingsV2 {
     applyLegacySizes(record, activeNamespace, sizes);
 
     // Linked sizes: the flat bag was shared by the Beggar profiles, so STM and STC inherit it.
-    // Only a namespace that actually declares the link group is a valid source — a FlashGBX
+    // Only a namespace that actually declares the link group is a valid source — a GBFlash
     // `size` says nothing about the Beggar packet sizes and must not leak into them.
     const linkGroup = sizeLinkGroup(activeNamespace);
     if (linkGroup) {
@@ -355,11 +355,11 @@ function migrateLegacy(config: LegacyAdvancedSettings): AdvancedSettingsV2 {
     }
   }
 
-  if (config.firmware?.flashgbxBaudRate !== undefined) {
+  if (config.firmware?.gbflashBaudRate !== undefined) {
     const namespace = GBFLASH_NAMESPACE;
     record.parametersByNamespace[namespace] = {
       ...(record.parametersByNamespace[namespace] ?? {}),
-      baudRate: normalizeBaudRate(config.firmware.flashgbxBaudRate),
+      baudRate: normalizeBaudRate(config.firmware.gbflashBaudRate),
     };
   }
 

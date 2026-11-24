@@ -92,7 +92,7 @@ describe('Cartridge adapter transfer chunks', () => {
     expect(adapter.romSizes(0x8000)).toEqual([0x1000, 0x1000]);
   });
 
-  it('declares the same FlashGBX read buffer for CH340 and CDC sessions', () => {
+  it('declares the same GBFlash read buffer for CH340 and CDC sessions', () => {
     // One CART_READ fills the 4 KiB buffer; the 256B packet limit only bounds a frame, so
     // it must not become the read chunk.
     const ch340 = new ChunkAdapter(false).withSession(buildTestSession(VARIANT_IDS.gbflash));

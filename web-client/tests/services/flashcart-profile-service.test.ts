@@ -23,9 +23,9 @@ describe('FlashcartProfileService', () => {
     const gbaFiltered = FlashcartProfileService.filterByMode(combined, 'GBA');
     const mbc5Filtered = FlashcartProfileService.filterByMode(combined, 'MBC5');
 
-    expect(gbaFiltered).toHaveLength(11);
+    expect(gbaFiltered).toHaveLength(agb.length);
     expect(gbaFiltered.every(p => p.type === 'AGB')).toBe(true);
-    expect(mbc5Filtered).toHaveLength(13);
+    expect(mbc5Filtered).toHaveLength(dmg.length);
     expect(mbc5Filtered.every(p => p.type === 'DMG')).toBe(true);
   });
 

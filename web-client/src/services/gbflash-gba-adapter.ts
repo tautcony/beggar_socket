@@ -1,13 +1,13 @@
 /**
- * FlashGBX GBA (AGB) cartridge adapter.
+ * GBFlash GBA (AGB) cartridge adapter.
  * Derived from FlashGBX (GPL-3.0) LK_Device.py.
  */
 import {
   FLASH_COMMAND_SET,
   FLASH_METHOD,
   FLASH_WE_PIN,
-  FLASHGBX_CMD,
-  type FlashgbxCommandClient,
+  GBFLASH_CMD,
+  type GbflashCommandClient,
   throwIfAborted,
 } from '@/protocol';
 import { CommandOptions } from '@/types/command-options';
@@ -26,7 +26,7 @@ import {
   unlockProfileFlash,
   waitForProfileFlash,
 } from './flashcart-profile-runner';
-import { FlashgbxBaseAdapter } from './flashgbx-base-adapter';
+import { GbflashBaseAdapter } from './gbflash-base-adapter';
 
 export type GbaSaveType = 'SRAM' | 'FRAM' | 'FLASH_512K' | 'FLASH_1M' | 'EEPROM_4K' | 'EEPROM_64K';
 
@@ -37,22 +37,22 @@ export interface GbaRtcState {
   raw?: Uint8Array;
 }
 
-export class FlashgbxGbaAdapter extends FlashgbxBaseAdapter {
+export class GbflashGbaAdapter extends GbflashBaseAdapter {
   constructor(
     device: DeviceInfo,
     logCallback: LogCallback | null = null,
     progressCallback: ProgressCallback | null = null,
     translateFunc: TranslateFunction | null = null,
-    clientOverride?: FlashgbxCommandClient,
+    clientOverride?: GbflashCommandClient,
   ) {
     super(device, logCallback, progressCallback, translateFunc, clientOverride);
   }
 
-  private async resetFlashToRead(client: FlashgbxCommandClient): Promise<void> {
+  private async resetFlashToRead(client: GbflashCommandClient): Promise<void> {
     await client.cartWrite('AGB', 0x00, 0xF0, { flashcart: true });
   }
 
-  private async switchROMBank(client: FlashgbxCommandClient, bank: number): Promise<void> {
+  private async switchROMBank(client: GbflashCommandClient, bank: number): Promise<void> {
     await client.writeRam('AGB', 0x02, new Uint8Array([(bank & 0x0F) << 4]));
     await client.writeRam('AGB', 0x03, new Uint8Array([0x40]));
     if (bank !== 0) {
@@ -69,7 +69,7 @@ export class FlashgbxGbaAdapter extends FlashgbxBaseAdapter {
   }
 
   private async forEachGbaBankChunk(
-    client: FlashgbxCommandClient,
+    client: GbflashCommandClient,
     baseAddress: number,
     totalLength: number,
     cfiInfo: CFIInfo | undefined,
@@ -141,7 +141,7 @@ export class FlashgbxGbaAdapter extends FlashgbxBaseAdapter {
           const parsed = parseCFI(cfiRaw);
           if (parsed && parsed.deviceSize > 0) {
             parsed.flashId = idBytes.slice(0, 4);
-            await this.logMatchedProfileForCfi('GBA', romBaseline, idBytes);
+            await this.logMatchedProfileForCfi('GBA', romBaseline, idBytes, parsed.deviceSize);
             return parsed;
           }
 
@@ -169,7 +169,7 @@ export class FlashgbxGbaAdapter extends FlashgbxBaseAdapter {
   }
 
   private async eraseSingleGbaSector(
-    client: FlashgbxCommandClient,
+    client: GbflashCommandClient,
     sectorAddr: number,
     profile: FlashcartProfile | null,
     signal?: AbortSignal,
@@ -199,7 +199,7 @@ export class FlashgbxGbaAdapter extends FlashgbxBaseAdapter {
   }
 
   private async configureGbaWriteCommand(
-    client: FlashgbxCommandClient,
+    client: GbflashCommandClient,
     options: CommandOptions,
     profile: FlashcartProfile | null,
   ): Promise<number> {
@@ -230,7 +230,7 @@ export class FlashgbxGbaAdapter extends FlashgbxBaseAdapter {
   }
 
   private async pollToggleOrStatus(
-    client: FlashgbxCommandClient,
+    client: GbflashCommandClient,
     address: number,
     timeoutMs = 15000,
     signal?: AbortSignal,
@@ -598,7 +598,7 @@ export class FlashgbxGbaAdapter extends FlashgbxBaseAdapter {
     return 'SRAM';
   }
 
-  private async switchAgbFlashBank(client: FlashgbxCommandClient, bank: number): Promise<void> {
+  private async switchAgbFlashBank(client: GbflashCommandClient, bank: number): Promise<void> {
     await client.cartWriteFlash('AGB', [
       [0x5555, 0xAA],
       [0x2AAA, 0x55],
@@ -637,7 +637,7 @@ export class FlashgbxGbaAdapter extends FlashgbxBaseAdapter {
           if (saveType === 'EEPROM_4K' || saveType === 'EEPROM_64K') {
             const eepromMode = saveType === 'EEPROM_4K' ? 1 : 2;
             const data = await client.readRam('AGB', 0, size, {
-              command: [FLASHGBX_CMD.AGB_CART_READ_EEPROM, eepromMode],
+              command: [GBFLASH_CMD.AGB_CART_READ_EEPROM, eepromMode],
               maxLength: Math.min(maxLength, 0x200),
               signal,
               onChunk: chunk => { progress.advance(chunk.length); },
@@ -651,7 +651,7 @@ export class FlashgbxGbaAdapter extends FlashgbxBaseAdapter {
             const bank0Len = Math.min(size, 0x10000);
             await this.switchAgbFlashBank(client, 0);
             const bank0 = await client.readRam('AGB', 0, bank0Len, {
-              command: FLASHGBX_CMD.AGB_CART_READ_SRAM,
+              command: GBFLASH_CMD.AGB_CART_READ_SRAM,
               maxLength,
               signal,
               onChunk: chunk => { progress.advance(chunk.length); },
@@ -660,7 +660,7 @@ export class FlashgbxGbaAdapter extends FlashgbxBaseAdapter {
             if (size > 0x10000) {
               await this.switchAgbFlashBank(client, 1);
               const bank1 = await client.readRam('AGB', 0, size - 0x10000, {
-                command: FLASHGBX_CMD.AGB_CART_READ_SRAM,
+                command: GBFLASH_CMD.AGB_CART_READ_SRAM,
                 maxLength,
                 signal,
                 onChunk: chunk => { progress.advance(chunk.length); },
@@ -672,7 +672,7 @@ export class FlashgbxGbaAdapter extends FlashgbxBaseAdapter {
           }
 
           const data = await client.readRam('AGB', 0, size, {
-            command: FLASHGBX_CMD.AGB_CART_READ_SRAM,
+            command: GBFLASH_CMD.AGB_CART_READ_SRAM,
             maxLength,
             signal,
             onChunk: chunk => { progress.advance(chunk.length); },
@@ -716,7 +716,7 @@ export class FlashgbxGbaAdapter extends FlashgbxBaseAdapter {
           if (saveType === 'EEPROM_4K' || saveType === 'EEPROM_64K') {
             const eepromMode = saveType === 'EEPROM_4K' ? 1 : 2;
             await client.writeRam('AGB', 0, data, {
-              command: [FLASHGBX_CMD.AGB_CART_WRITE_EEPROM, eepromMode],
+              command: [GBFLASH_CMD.AGB_CART_WRITE_EEPROM, eepromMode],
               maxLength: Math.min(maxLength, 0x40),
               signal,
               onChunk: written => { progress.advance(written); },
@@ -775,7 +775,7 @@ export class FlashgbxGbaAdapter extends FlashgbxBaseAdapter {
                 }
                 const slice = data.subarray(bank * 0x10000, Math.min((bank + 1) * 0x10000, data.length));
                 await client.writeRam('AGB', 0, slice, {
-                  command: [FLASHGBX_CMD.AGB_CART_WRITE_FLASH_DATA, writeMode],
+                  command: [GBFLASH_CMD.AGB_CART_WRITE_FLASH_DATA, writeMode],
                   maxLength,
                   signal,
                   onChunk: written => { progress.advance(written); },
@@ -791,7 +791,7 @@ export class FlashgbxGbaAdapter extends FlashgbxBaseAdapter {
           }
 
           await client.writeRam('AGB', 0, data, {
-            command: FLASHGBX_CMD.AGB_CART_WRITE_SRAM,
+            command: GBFLASH_CMD.AGB_CART_WRITE_SRAM,
             maxLength,
             signal,
             onChunk: written => { progress.advance(written); },

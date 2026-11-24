@@ -3,12 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { VARIANT_IDS } from '@/device/definitions';
 import type { ActiveSession, PendingSession } from '@/device/session';
 import { isSessionStageError } from '@/device-runtime/diagnostics';
-import { createFlashgbxDriver } from '@/device-runtime/drivers/flashgbx-driver';
+import { createGbflashDriver } from '@/device-runtime/drivers/gbflash-driver';
 import { getDeviceRuntime } from '@/device-runtime/runtime-instance';
-import { FLASHGBX_CMD, HANDSHAKE_TIMEOUT_MS } from '@/protocol/flashgbx';
+import { GBFLASH_CMD, HANDSHAKE_TIMEOUT_MS } from '@/protocol/gbflash';
 
 import { captureStageError } from '../../helpers/rejection';
-import { buildTestSession, TEST_FLASHGBX_INFO } from '../../helpers/session-profile';
+import { buildTestSession, TEST_GBFLASH_INFO } from '../../helpers/session-profile';
 
 interface ScriptedStep {
   readonly expectTx?: readonly number[];
@@ -122,10 +122,10 @@ function activeSession(fake: FakeTransport): ActiveSession {
   };
 }
 
-describe('FlashgbxDriver', () => {
+describe('GbflashDriver', () => {
   it('skips the handshake on the simulated backend', async () => {
     const fake = createTransport();
-    const driver = createFlashgbxDriver();
+    const driver = createGbflashDriver();
 
     const result = await driver.probe({ pending: pending(fake, { backend: 'simulated' }) });
 
@@ -134,8 +134,8 @@ describe('FlashgbxDriver', () => {
   });
 
   it('runs the 0xA1 handshake with the unified 250 ms budget and never pulses DTR/RTS', async () => {
-    const fake = createTransport([{ expectTx: [FLASHGBX_CMD.QUERY_FW_INFO], rx: FW_INFO_RX }]);
-    const driver = createFlashgbxDriver();
+    const fake = createTransport([{ expectTx: [GBFLASH_CMD.QUERY_FW_INFO], rx: FW_INFO_RX }]);
+    const driver = createGbflashDriver();
 
     const result = await driver.probe({ pending: pending(fake) });
 
@@ -151,22 +151,22 @@ describe('FlashgbxDriver', () => {
   });
 
   it('recognises the CDC identity (16c0:27dd) as opposed to CH340', async () => {
-    const cdc = createTransport([{ expectTx: [FLASHGBX_CMD.QUERY_FW_INFO], rx: FW_INFO_RX }]);
-    const driver = createFlashgbxDriver();
+    const cdc = createTransport([{ expectTx: [GBFLASH_CMD.QUERY_FW_INFO], rx: FW_INFO_RX }]);
+    const driver = createGbflashDriver();
 
     const cdcResult = await driver.probe({
       pending: pending(cdc, { portInfo: { path: '/dev/cu.usbmodem1', vendorId: '16c0', productId: '27dd' } }),
     });
     expect((cdcResult.facts as { firmwareInfo?: { isCdc: boolean } }).firmwareInfo?.isCdc).toBe(true);
 
-    const ch340 = createTransport([{ expectTx: [FLASHGBX_CMD.QUERY_FW_INFO], rx: FW_INFO_RX }]);
+    const ch340 = createTransport([{ expectTx: [GBFLASH_CMD.QUERY_FW_INFO], rx: FW_INFO_RX }]);
     const ch340Result = await driver.probe({ pending: pending(ch340) });
     expect((ch340Result.facts as { firmwareInfo?: { isCdc: boolean } }).firmwareInfo?.isCdc).toBe(false);
   });
 
-  it('keeps the FlashGBX protocol when the port looks like a Beggar device', async () => {
-    const fake = createTransport([{ expectTx: [FLASHGBX_CMD.QUERY_FW_INFO], rx: FW_INFO_RX }]);
-    const driver = createFlashgbxDriver();
+  it('keeps the GBFlash protocol when the port looks like a Beggar device', async () => {
+    const fake = createTransport([{ expectTx: [GBFLASH_CMD.QUERY_FW_INFO], rx: FW_INFO_RX }]);
+    const driver = createGbflashDriver();
 
     const result = await driver.probe({
       pending: pending(fake, { portInfo: { path: '/dev/tty.usbmodem6D83538A48851', vendorId: '0483', productId: '0721' } }),
@@ -180,8 +180,8 @@ describe('FlashgbxDriver', () => {
   it('rejects firmware below DEVICE_MIN_FW with an actionable unsupported diagnostic', async () => {
     // fw=0 is below DEVICE_MIN_FW.
     const belowMinimum = [0x08, 0x4c, 0x00, 0x00, 0x0d, 0x68, 0x30, 0x3d, 0x4c];
-    const fake = createTransport([{ expectTx: [FLASHGBX_CMD.QUERY_FW_INFO], rx: belowMinimum }]);
-    const driver = createFlashgbxDriver();
+    const fake = createTransport([{ expectTx: [GBFLASH_CMD.QUERY_FW_INFO], rx: belowMinimum }]);
+    const driver = createGbflashDriver();
 
     const error = await captureStageError(driver.probe({ pending: pending(fake) }));
 
@@ -191,8 +191,8 @@ describe('FlashgbxDriver', () => {
   });
 
   it('reports an invalid header as a handshake failure instead of a bare connect error', async () => {
-    const fake = createTransport([{ expectTx: [FLASHGBX_CMD.QUERY_FW_INFO], rx: [0x04] }]);
-    const driver = createFlashgbxDriver();
+    const fake = createTransport([{ expectTx: [GBFLASH_CMD.QUERY_FW_INFO], rx: [0x04] }]);
+    const driver = createGbflashDriver();
 
     const error = await captureStageError(driver.probe({ pending: pending(fake) }));
 
@@ -202,11 +202,11 @@ describe('FlashgbxDriver', () => {
 
   it('tears down with the unique safety sequence and reports a disconnect diagnostic when it fails', async () => {
     const ok = createTransport([
-      { expectTx: [FLASHGBX_CMD.QUERY_FW_INFO], rx: FW_INFO_RX },
-      { expectTx: [FLASHGBX_CMD.CART_PWR_OFF], rx: [0x01] },
-      { expectTx: [FLASHGBX_CMD.SET_VOLTAGE_3_3V], rx: [0x01] },
+      { expectTx: [GBFLASH_CMD.QUERY_FW_INFO], rx: FW_INFO_RX },
+      { expectTx: [GBFLASH_CMD.CART_PWR_OFF], rx: [0x01] },
+      { expectTx: [GBFLASH_CMD.SET_VOLTAGE_3_3V], rx: [0x01] },
     ]);
-    const driver = createFlashgbxDriver();
+    const driver = createGbflashDriver();
     await driver.probe({ pending: pending(ok) });
 
     await driver.teardown(activeSession(ok));
@@ -216,12 +216,12 @@ describe('FlashgbxDriver', () => {
     // failure surfaces as a `disconnect` diagnostic instead of blocking the close.
     const failing = createTransport(
       [
-        { expectTx: [FLASHGBX_CMD.QUERY_FW_INFO], rx: FW_INFO_RX },
-        { expectTx: [FLASHGBX_CMD.SET_VOLTAGE_3_3V], rx: [0x01] },
+        { expectTx: [GBFLASH_CMD.QUERY_FW_INFO], rx: FW_INFO_RX },
+        { expectTx: [GBFLASH_CMD.SET_VOLTAGE_3_3V], rx: [0x01] },
       ],
-      [FLASHGBX_CMD.CART_PWR_OFF],
+      [GBFLASH_CMD.CART_PWR_OFF],
     );
-    const driver2 = createFlashgbxDriver();
+    const driver2 = createGbflashDriver();
     await driver2.probe({ pending: pending(failing) });
 
     const error = await captureStageError(driver2.teardown(activeSession(failing)));
@@ -234,7 +234,7 @@ describe('FlashgbxDriver', () => {
 
   it('does not invent teardown commands for a session that never completed a handshake', async () => {
     const fake = createTransport();
-    const driver = createFlashgbxDriver();
+    const driver = createGbflashDriver();
 
     await driver.teardown(activeSession(fake));
 
@@ -242,8 +242,8 @@ describe('FlashgbxDriver', () => {
   });
 
   it('flushes the transport and drops the probe facts after a failed handshake', async () => {
-    const fake = createTransport([{ expectTx: [FLASHGBX_CMD.QUERY_FW_INFO], rx: FW_INFO_RX }]);
-    const driver = createFlashgbxDriver();
+    const fake = createTransport([{ expectTx: [GBFLASH_CMD.QUERY_FW_INFO], rx: FW_INFO_RX }]);
+    const driver = createGbflashDriver();
     const session = pending(fake);
 
     await driver.probe({ pending: session });
@@ -258,14 +258,14 @@ describe('FlashgbxDriver', () => {
   });
 
   it('exposes the per-PCB facts through capability signals', async () => {
-    const { flashgbxCapabilitySignals } = await import('@/device-runtime/drivers/flashgbx-driver');
+    const { gbflashCapabilitySignals } = await import('@/device-runtime/drivers/gbflash-driver');
 
-    expect(flashgbxCapabilitySignals({ firmwareInfo: TEST_FLASHGBX_INFO })).toEqual({
+    expect(gbflashCapabilitySignals({ firmwareInfo: TEST_GBFLASH_INFO })).toEqual({
       powerControlPresent: true,
       audioWriteEnabled: true,
       presenceDetectPresent: false,
     });
-    expect(flashgbxCapabilitySignals({})).toEqual({
+    expect(gbflashCapabilitySignals({})).toEqual({
       powerControlPresent: false,
       audioWriteEnabled: false,
       presenceDetectPresent: false,

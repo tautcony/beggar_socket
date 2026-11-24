@@ -118,7 +118,7 @@ describe('AdvancedSettingsModal', () => {
     const wrapper = mountModal();
     await nextTick();
 
-    await wrapper.get('[data-testid="size-profile-flashgbx.cfw"]').trigger('click');
+    await wrapper.get('[data-testid="size-profile-gbflash.cfw"]').trigger('click');
     await nextTick();
 
     expect(wrapper.find('#param-baudRate').exists()).toBe(true);
@@ -137,7 +137,7 @@ describe('AdvancedSettingsModal', () => {
 
     expect(AdvancedSettings.getVariantId()).toBe(VARIANT_IDS.gbflash);
     expect(AdvancedSettings.getBaudRate()).toBe(1500000);
-    expect(AdvancedSettings.getNamespaceSizes('flashgbx.cfw').romPageSize).toBe(0x2000);
+    expect(AdvancedSettings.getNamespaceSizes('gbflash.cfw').romPageSize).toBe(0x2000);
     // The Beggar namespace is untouched by the GBFlash edit.
     expect(AdvancedSettings.getNamespaceSizes('beggar.stm').romPageSize).toBe(0x1000);
   });
@@ -146,7 +146,7 @@ describe('AdvancedSettingsModal', () => {
     const wrapper = mountModal();
     await nextTick();
 
-    await wrapper.get('[data-testid="size-profile-flashgbx.cfw"]').trigger('click');
+    await wrapper.get('[data-testid="size-profile-gbflash.cfw"]').trigger('click');
     await nextTick();
 
     const romPage = wrapper.get('#param-romPageSize');
@@ -174,16 +174,14 @@ describe('AdvancedSettingsModal', () => {
     expect(AdvancedSettings.getNamespaceSizes('beggar.stm').romReadPageSize).toBe(0x2000);
   });
 
-  it('keeps STM and STC linked unless independent sizes are enabled', async () => {
+  it('always offers independent packet settings for every device/firmware namespace', async () => {
     const wrapper = mountModal();
     await nextTick();
 
-    expect(wrapper.find('[data-testid="size-profile-beggar.stc"]').exists()).toBe(false);
-
-    await wrapper.get('[data-testid="independent-sizes"] input[type="checkbox"]').setValue(true);
-    await nextTick();
-
+    expect(wrapper.find('[data-testid="independent-sizes"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="size-profile-beggar.stm"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="size-profile-beggar.stc"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="size-profile-gbflash.cfw"]').exists()).toBe(true);
 
     await wrapper.get('[data-testid="size-profile-beggar.stc"]').trigger('click');
     await nextTick();
@@ -237,19 +235,17 @@ describe('AdvancedSettingsModal', () => {
     expect(AdvancedSettings.defaultTimeout).toBe(5000);
   });
 
-  it('edits the visible shared tab when a hidden linked namespace is selected', async () => {
+  it('switches the size editor directly to the selected variant namespace', async () => {
     const wrapper = mountModal();
     await nextTick();
 
-    await wrapper.get('[data-testid="size-profile-flashgbx.cfw"]').trigger('click');
+    await wrapper.get('[data-testid="size-profile-gbflash.cfw"]').trigger('click');
     await nextTick();
-    expect(wrapper.get('[data-testid="size-profile-flashgbx.cfw"]').classes()).toContain('active');
+    expect(wrapper.get('[data-testid="size-profile-gbflash.cfw"]').classes()).toContain('active');
 
-    // Sizes are linked, so STC has no tab of its own. Leaving the editor on GBFlash would
-    // show the wrong namespace and silently drop the edit, because only visible tabs are saved.
     await wrapper.get(`[data-testid="variant-${VARIANT_IDS.stc}"]`).trigger('click');
     await nextTick();
-    expect(wrapper.get('[data-testid="size-profile-beggar.stm"]').classes()).toContain('active');
+    expect(wrapper.get('[data-testid="size-profile-beggar.stc"]').classes()).toContain('active');
 
     const romRead = wrapper.get('#param-romReadPageSize');
     await romRead.setValue('2048');
@@ -257,8 +253,7 @@ describe('AdvancedSettingsModal', () => {
     await applyButton(wrapper).trigger('click');
 
     expect(AdvancedSettings.getVariantId()).toBe(VARIANT_IDS.stc);
-    expect(AdvancedSettings.getNamespaceSizes('beggar.stm').romReadPageSize).toBe(2048);
-    // The linked group is written through the same store, so STC follows the shared value.
     expect(AdvancedSettings.getNamespaceSizes('beggar.stc').romReadPageSize).toBe(2048);
+    expect(AdvancedSettings.getNamespaceSizes('beggar.stm').romReadPageSize).not.toBe(2048);
   });
 });

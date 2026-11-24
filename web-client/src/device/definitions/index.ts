@@ -13,7 +13,7 @@ import {
   BEGGAR_STM_DEVICE,
   BEGGAR_STM_FIRMWARE,
 } from './beggar-stm';
-import { FLASHGBX_FIRMWARE, GBFLASH_BINDING, GBFLASH_DEVICE } from './gbflash';
+import { GBFLASH_FIRMWARE, GBFLASH_BINDING, GBFLASH_DEVICE } from './gbflash';
 
 export const VARIANT_IDS = {
   stm: 'beggar-stm',
@@ -26,7 +26,7 @@ export const VARIANT_IDS = {
 export const LEGACY_PROFILE_VARIANT_IDS: Readonly<Record<string, VariantId>> = {
   stm: VARIANT_IDS.stm,
   stc: VARIANT_IDS.stc,
-  flashgbx: VARIANT_IDS.gbflash,
+  gbflash: VARIANT_IDS.gbflash,
 };
 
 export interface DeviceCatalogOptions {
@@ -41,7 +41,7 @@ export function createDeviceCatalog(options: DeviceCatalogOptions): DeviceRegist
     [BEGGAR_STM_BINDING, BEGGAR_STM_BOOST_BINDING],
   );
   registry.register(BEGGAR_STC_DEVICE, [BEGGAR_STC_FIRMWARE], [BEGGAR_STC_BINDING]);
-  registry.register(GBFLASH_DEVICE, [FLASHGBX_FIRMWARE], [GBFLASH_BINDING]);
+  registry.register(GBFLASH_DEVICE, [GBFLASH_FIRMWARE], [GBFLASH_BINDING]);
   return registry;
 }
 
@@ -56,11 +56,11 @@ export {
   BEGGAR_STM_FIRMWARE,
 } from './beggar-stm';
 export {
-  FLASHGBX_CAPABILITIES,
-  FLASHGBX_FIRMWARE,
+  GBFLASH_CAPABILITIES,
+  GBFLASH_FIRMWARE,
   GBFLASH_AUTO_BAUD_RATE,
   GBFLASH_BINDING,
   GBFLASH_DEVICE,
   GBFLASH_RUNTIME_BINDING_ID,
 } from './gbflash';
-export { BEGGAR_STC_PACKET_LIMITS, BEGGAR_STM_PACKET_LIMITS, FLASHGBX_PACKET_LIMITS } from './packet-limits';
+export { BEGGAR_STC_PACKET_LIMITS, BEGGAR_STM_PACKET_LIMITS, GBFLASH_PACKET_LIMITS } from './packet-limits';

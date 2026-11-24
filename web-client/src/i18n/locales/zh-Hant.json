@@ -56,9 +56,8 @@
       },
       "selectOtherPort": "選擇其他序列埠",
       "resetConnection": "重置",
-      "flashgbxPowerCapable": "支援電源控制",
-      "flashgbxNoPowerControl": "無電源控制",
-      "flashgbxReadOnlyNotice": "FlashGBX 設備已連線，讀寫功能將在後續版本提供。"
+      "gbflashPowerCapable": "支援電源控制",
+      "gbflashNoPowerControl": "無電源控制"
     },
     "mode": {
       "gba": "GBA",
@@ -216,7 +215,7 @@
         "shortcutHint": "Ctrl/Cmd + Enter 發送",
         "deviceConnected": "設備已連接",
         "deviceDisconnected": "未連接設備，請先連接燒錄器",
-        "flashgbxDisabled": "FlashGBX 設備下已停用"
+        "gbflashDisabled": "GBFlash 設備下已停用"
       },
       "readSpeed": "讀取速度",
       "writeSpeed": "寫入速度",
@@ -493,7 +492,7 @@
         "sectorCountPrompt": "請輸入要檢查的扇區數量 (1-{max}):",
         "sectorCountError": "扇區數量必須是{min}-{max}之間的整數"
       },
-      "flashgbxDisabled": "FlashGBX 設備下已停用"
+      "gbflashDisabled": "GBFlash 設備下已停用"
     },
     "file": {
       "dropArea": "或移入檔案到此處",
@@ -517,22 +516,22 @@
       "title": "進階設定",
       "tooltip": "配置進階選項",
       "firmware": {
-        "title": "固件類型",
-        "profile": "目前插入設備固件",
+        "title": "設備 / 固件",
+        "profile": "選擇設備 / 固件",
         "activeProfile": "目前連線生效固件",
         "reconnectNotice": "修改將在重新連線或重新初始化連線後生效。",
         "stm": "丐中丐",
         "stc": "碳酸丐",
         "stmBoost": "啟用 Boost 增強",
         "stmBoostHint": "啟用後可利用 ChisFlash-Beggar-Boost 固件的高速傳輸、硬體校驗及原生協定加速能力。",
-        "flashgbx": "FlashGBX",
-        "flashgbxBaudRate": "FlashGBX 鮑率",
-        "flashgbxBaudAuto": "自動",
-        "flashgbxBaudHint": "自動模式對 CH340 GBFlash 使用 2M，CDC 設備忽略鮑率。",
+        "gbflash": "GBFlash",
+        "gbflashBaudRate": "GBFlash 鮑率",
+        "gbflashBaudAuto": "自動",
+        "gbflashBaudHint": "自動模式對 CH340 GBFlash 使用 2M，CDC 設備忽略鮑率。",
         "stmBoostOption": "丐中丐（Boost）",
         "stmHint": "標準 STM32 固件，使用丐中丐的一般傳輸能力。",
         "stcHint": "碳酸丐（STC8）固件，支援 GBA FRAM 以外的 RAM 操作與軟體供電控制。",
-        "flashgbxHint": "GBFlash 硬體執行 FlashGBX 固件，支援燒錄卡資料庫能力。",
+        "gbflashHint": "GBFlash 硬體與固件，支援燒錄卡資料庫能力。",
         "noActiveSession": "目前未連線設備",
         "selectionRequired": "請選擇要連線的設備與固件"
       },
@@ -563,10 +562,7 @@
           "invalid": "請輸入有效數值",
           "range": "大小必須在 {min} - {max} 位元組之間",
           "multiple": "大小必須是{multipler}的倍數"
-        },
-        "independentSizes": "為每個固件單獨儲存封包設定",
-        "independentHint": "丐中丐與碳酸丐分別儲存封包大小，互不影響。",
-        "linkedHint": "丐中丐與碳酸丐共用同一份封包設定；開啟獨立設定可分別調整。"
+        }
       },
       "control": {
         "title": "讀寫異常控制"

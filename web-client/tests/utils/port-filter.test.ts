@@ -229,8 +229,8 @@ describe('重新设计的串口过滤器', () => {
       })).toBe(false);
     });
 
-    it('FlashGBX 预设过滤器应该仅匹配 GBFlash (CH340 / CDC)', () => {
-      const filter = PortFilters.presets.flashgbx();
+    it('GBFlash 预设过滤器应该仅匹配 GBFlash (CH340 / CDC)', () => {
+      const filter = PortFilters.presets.gbflash();
 
       expect(filter({ path: '/dev/cu.usbserial-1', vendorId: '1A86', productId: '7523' })).toBe(true);
       expect(filter({ path: '/dev/cu.usbmodem-2', vendorId: '16c0', productId: '27dd' })).toBe(true);

@@ -69,7 +69,7 @@ describe('ChipOperations flashcart profile selector', () => {
     expect(wrapper.find('.flashcart-profile-row').exists()).toBe(false);
   });
 
-  it('shows selector on FlashGBX devices, filters by mode, and defaults to Auto (CFI)', () => {
+  it('shows selector on GBFlash devices, filters by mode, and defaults to Auto (CFI)', () => {
     const wrapper = mountChipOperations({
       mode: 'GBA',
       capabilities: capabilitiesOf(VARIANT_IDS.gbflash),

@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { FLASHGBX_FIRMWARE_PROFILE } from '@/device/compat/firmware-profile';
-import { FLASH_WE_PIN, FlashgbxCommandClient, type FlashgbxFirmwareInfo } from '@/protocol';
+import { GBFLASH_FIRMWARE_PROFILE } from '@/device/compat/firmware-profile';
+import { FLASH_WE_PIN, GbflashCommandClient, type GbflashFirmwareInfo } from '@/protocol';
 import { FlashcartProfileService } from '@/services/flashcart-profile-service';
-import { FlashgbxGbaAdapter } from '@/services/flashgbx-gba-adapter';
-import { FlashgbxMbcAdapter } from '@/services/flashgbx-mbc-adapter';
+import { GbflashGbaAdapter } from '@/services/gbflash-gba-adapter';
+import { GbflashMbcAdapter } from '@/services/gbflash-mbc-adapter';
 import type { DeviceInfo } from '@/types/device-info';
 import type { FlashcartProfile } from '@/types/flashcart-profile';
 
-import { buildFlashgbxSession } from '../helpers/session-profile';
+import { buildGbflashSession } from '../helpers/session-profile';
 
-function makeFwInfo(overrides: Partial<FlashgbxFirmwareInfo> = {}): FlashgbxFirmwareInfo {
+function makeFwInfo(overrides: Partial<GbflashFirmwareInfo> = {}): GbflashFirmwareInfo {
   return {
     family: 'gbflash',
     cfwId: 'L',
@@ -32,7 +32,7 @@ function makeFwInfo(overrides: Partial<FlashgbxFirmwareInfo> = {}): FlashgbxFirm
 }
 
 function makeMockClient(
-  fwInfo: FlashgbxFirmwareInfo,
+  fwInfo: GbflashFirmwareInfo,
   readRomHandler: (mode: 'DMG' | 'AGB', address: number, length: number) => Uint8Array,
 ) {
   const client = {
@@ -68,13 +68,13 @@ function makeMockClient(
   const device: DeviceInfo = {
     port: null,
     connection: null,
-    firmwareProfile: { ...FLASHGBX_FIRMWARE_PROFILE, label: fwInfo.pcbName, firmwareVersion: `L${fwInfo.fwVer}` },
-    flashgbxInfo: fwInfo,
+    firmwareProfile: { ...GBFLASH_FIRMWARE_PROFILE, label: fwInfo.pcbName, firmwareVersion: `L${fwInfo.fwVer}` },
+    gbflashInfo: fwInfo,
     // The committed session is what grants the flashcart database capability.
-    session: buildFlashgbxSession({ flashgbxInfo: fwInfo }),
+    session: buildGbflashSession({ gbflashInfo: fwInfo }),
   };
 
-  return { client: client as unknown as FlashgbxCommandClient, mocks: client, device };
+  return { client: client as unknown as GbflashCommandClient, mocks: client, device };
 }
 
 const gbaProfileA: FlashcartProfile = {
@@ -130,7 +130,7 @@ const dmgAudioProfile: FlashcartProfile = {
   },
 };
 
-describe('FlashGBX non-CFI profile integration', () => {
+describe('GBFlash non-CFI profile integration', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -156,7 +156,7 @@ describe('FlashGBX non-CFI profile integration', () => {
       return Promise.resolve(undefined);
     });
 
-    const adapter = new FlashgbxGbaAdapter(device, null, null, null, client);
+    const adapter = new GbflashGbaAdapter(device, null, null, null, client);
     const info = await adapter.getCartInfo(false);
     expect(info).not.toBe(false);
     if (!info) return;
@@ -211,7 +211,7 @@ describe('FlashGBX non-CFI profile integration', () => {
       return Promise.resolve(undefined);
     });
 
-    const adapter = new FlashgbxGbaAdapter(device, null, null, null, client);
+    const adapter = new GbflashGbaAdapter(device, null, null, null, client);
     const info = await adapter.getCartInfo(false);
     expect(info).toBe(false);
     expect(adapter.getLastCartInfoErrorCode()).toBe('profile_ambiguous');
@@ -223,7 +223,7 @@ describe('FlashGBX non-CFI profile integration', () => {
     vi.spyOn(FlashcartProfileService, 'loadByMode').mockResolvedValue([gbaProfileA]);
     const { client, device } = makeMockClient(makeFwInfo(), (_m, _a, length) => new Uint8Array(length).fill(0x00));
 
-    const adapter = new FlashgbxGbaAdapter(device, null, null, null, client);
+    const adapter = new GbflashGbaAdapter(device, null, null, null, client);
     const info = await adapter.getCartInfo(false);
     expect(info).toBe(false);
     expect(adapter.getLastCartInfoErrorCode()).toBe('profile_not_found');
@@ -251,7 +251,7 @@ describe('FlashGBX non-CFI profile integration', () => {
       return Promise.resolve(undefined);
     });
 
-    const adapter = new FlashgbxMbcAdapter(device, null, null, null, client);
+    const adapter = new GbflashMbcAdapter(device, null, null, null, client);
     const info = await adapter.getCartInfo(true);
     expect(info).not.toBe(false);
     if (info) {
@@ -269,7 +269,7 @@ describe('FlashGBX non-CFI profile integration', () => {
       makeFwInfo({ audioWePin: false, cartPowerCtrl: true }),
       (_m, _a, len) => new Uint8Array(len),
     );
-    const noAudioAdapter = new FlashgbxMbcAdapter(noAudioDev, null, null, null, noAudioClient);
+    const noAudioAdapter = new GbflashMbcAdapter(noAudioDev, null, null, null, noAudioClient);
     const res1 = await noAudioAdapter.getCartInfo(true, { flashcartProfileId: dmgAudioProfile.id });
     expect(res1).toBe(false);
     expect(noAudioAdapter.getLastCartInfoErrorCode()).toBe('unsupported');
@@ -281,7 +281,7 @@ describe('FlashGBX non-CFI profile integration', () => {
       makeFwInfo({ audioWePin: false, cartPowerCtrl: false }),
       (_m, _a, len) => new Uint8Array(len),
     );
-    const noPwrAdapter = new FlashgbxMbcAdapter(noPwrDev, null, null, null, noPwrClient);
+    const noPwrAdapter = new GbflashMbcAdapter(noPwrDev, null, null, null, noPwrClient);
     const res2 = await noPwrAdapter.getCartInfo(true, { flashcartProfileId: dmgWr5vProfile.id });
     expect(res2).toBe(false);
     expect(noPwrAdapter.getLastCartInfoErrorCode()).toBe('voltage_mismatch');
@@ -292,7 +292,7 @@ describe('FlashGBX non-CFI profile integration', () => {
       makeFwInfo({ audioWePin: true, cartPowerCtrl: true }),
       (_m, _a, len) => new Uint8Array(len),
     );
-    const okAdapter = new FlashgbxMbcAdapter(okDev, null, null, null, okClient);
+    const okAdapter = new GbflashMbcAdapter(okDev, null, null, null, okClient);
     const res3 = await okAdapter.getCartInfo(true, { flashcartProfileId: dmgAudioProfile.id });
     expect(res3).not.toBe(false);
     if (res3) {
@@ -340,10 +340,160 @@ describe('FlashGBX non-CFI profile integration', () => {
     });
 
     const logCallback = vi.fn();
-    const adapter = new FlashgbxGbaAdapter(device, logCallback, null, null, client);
+    const adapter = new GbflashGbaAdapter(device, logCallback, null, null, client);
     const info = await adapter.getCartInfo();
 
     expect(info).not.toBe(false);
     expect(logCallback).toHaveBeenCalledWith(`Matched flashcart profile: ${gbaProfileA.names[0]}`, 'info');
+  });
+
+  it('retries DMG CFI at 0xAA/0x98 and ID at 0xAAA/0x555 for x8 NOR cartridges', async () => {
+    const x8DmgProfile: FlashcartProfile = {
+      ...dmgAudioProfile,
+      id: 'dmg:test-x8',
+      sourceFile: 'fc_DMG_TestX8.txt',
+      write_pin: 'WR',
+      voltage: 3.3,
+      flash_id_offsets: [0x00, 0x02, 0x1C, 0x1E],
+      flash_ids: [[0x01, 0x7E, 0x22, 0x01]],
+    };
+    vi.spyOn(FlashcartProfileService, 'loadByMode').mockResolvedValue([x8DmgProfile]);
+
+    let modeState: 'rom' | 'x8_id' | 'x8_cfi' = 'rom';
+    const cfiBuf = new Uint8Array(0x100);
+    // 8-bit x8 CFI: QRY at 0x20, 0x22, 0x24; device size 2^25 = 32 MiB at 0x4E
+    cfiBuf[0x20] = 0x51;
+    cfiBuf[0x22] = 0x52;
+    cfiBuf[0x24] = 0x59;
+    cfiBuf[0x4E] = 25;
+
+    const { client, mocks, device } = makeMockClient(makeFwInfo(), (_mode, _addr, len) => {
+      if (modeState === 'x8_cfi') {
+        return cfiBuf.slice(0, len);
+      }
+      if (modeState === 'x8_id') {
+        const id = new Uint8Array(len);
+        id[0x00] = 0x01;
+        id[0x02] = 0x7E;
+        id[0x1C] = 0x22;
+        id[0x1E] = 0x01;
+        return id;
+      }
+      return new Uint8Array(len).fill(0xFF);
+    });
+
+    mocks.cartWriteFlash.mockImplementation((_mode, cmds) => {
+      const last = cmds[cmds.length - 1];
+      if (last?.[0] === 0xAAA && last?.[1] === 0x90) {
+        modeState = 'x8_id';
+      } else if (last?.[0] === 0xAA && last?.[1] === 0x98) {
+        modeState = 'x8_cfi';
+      } else if (last?.[1] === 0xF0) {
+        modeState = 'rom';
+      }
+      return Promise.resolve(undefined);
+    });
+
+    const logCallback = vi.fn();
+    const adapter = new GbflashMbcAdapter(device, logCallback, null, null, client);
+    const info = await adapter.getCartInfo(false);
+
+    expect(info).not.toBe(false);
+    if (info) {
+      expect(info.deviceSize).toBe(0x2000000);
+    }
+    expect(logCallback).toHaveBeenCalledWith(`Matched flashcart profile: ${x8DmgProfile.names[0]}`, 'info');
+  });
+
+  it('disambiguates ChisFlash-MBC5 8M vs PLUS by CFI deviceSize and activates the matched profile for erase', async () => {
+    const mx29gl640eBottom: FlashcartProfile = {
+      ...dmgAudioProfile,
+      id: 'DMG_ChisFlash-MBC5-8M_MX29GL640E_B',
+      sourceFile: 'fc_DMG_ChisFlash-MBC5-8M_MX29GL640E_B.txt',
+      names: ['ChisFlash-MBC5 (8 MiB) (MX29GL640E T/B Bottom)'],
+      write_pin: 'WR',
+      voltage: 3.3,
+      flash_size: 0x800000,
+      flash_id_offsets: [0, 2, 28, 30],
+      flash_ids: [[0xC2, 0x7E, 0x10, 0x00]],
+      commands: {
+        reset: [[0x00, 0xF0]],
+        read_identifier: [[0xAAA, 0xAA], [0x555, 0x55], [0xAAA, 0x90]],
+        sector_erase: [[0xAAA, 0xAA], [0x555, 0x55], [0xAAA, 0x80], [0xAAA, 0xAA], [0x555, 0x55], ['SA', 0x30]],
+        chip_erase: [[0xAAA, 0xAA], [0x555, 0x55], [0xAAA, 0x80], [0xAAA, 0xAA], [0x555, 0x55], [0xAAA, 0x10]],
+      },
+    };
+    const chisflashPlus: FlashcartProfile = {
+      ...mx29gl640eBottom,
+      id: 'DMG_ChisFlash-MBC5-PLUS',
+      sourceFile: 'fc_DMG_ChisFlash-MBC5-PLUS.txt',
+      names: ['ChisFlash-MBC5 PLUS v1.21'],
+      flash_size: 0x2000000,
+      flash_id_offsets: undefined,
+      flash_ids: [[0xC2, 0xC2, 0x7E, 0x7E]],
+    };
+    vi.spyOn(FlashcartProfileService, 'loadByMode').mockResolvedValue([mx29gl640eBottom, chisflashPlus]);
+
+    let modeState: 'rom' | 'x8_id' | 'x8_cfi' = 'rom';
+    const cfiBuf = new Uint8Array(0x100);
+    // Real MX29GL640E CFI: QRY at 0x20/22/24, device size 2^23 = 8 MiB at 0x4E
+    cfiBuf[0x20] = 0x51;
+    cfiBuf[0x22] = 0x52;
+    cfiBuf[0x24] = 0x59;
+    cfiBuf[0x4E] = 23;
+
+    const { client, mocks, device } = makeMockClient(makeFwInfo(), (_mode, _addr, len) => {
+      if (modeState === 'x8_cfi') {
+        return cfiBuf.slice(0, len);
+      }
+      if (modeState === 'x8_id') {
+        const id = new Uint8Array(len).fill(0xFF);
+        id.set([0xC2, 0xC2, 0x7E, 0x7E, 0x00, 0x00, 0x0A, 0x0A], 0);
+        if (len > 30) {
+          id[28] = 0x10;
+          id[29] = 0x10;
+          id[30] = 0x00;
+          id[31] = 0x00;
+        }
+        return id;
+      }
+      return new Uint8Array(len).fill(0x00);
+    });
+
+    mocks.cartWriteFlash.mockImplementation((_mode, cmds) => {
+      const last = cmds[cmds.length - 1];
+      if (last?.[0] === 0xAAA && last?.[1] === 0x90) {
+        modeState = 'x8_id';
+      } else if (last?.[0] === 0xAA && last?.[1] === 0x98) {
+        modeState = 'x8_cfi';
+      } else if (last?.[1] === 0xF0) {
+        modeState = 'rom';
+      }
+      return Promise.resolve(undefined);
+    });
+
+    const logCallback = vi.fn();
+    const adapter = new GbflashMbcAdapter(device, logCallback, null, null, client);
+    const info = await adapter.getCartInfo(false);
+
+    expect(info).not.toBe(false);
+    if (!info) return;
+    expect(info.deviceSize).toBe(0x800000);
+    expect(logCallback).toHaveBeenCalledWith(
+      'Matched flashcart profile: ChisFlash-MBC5 (8 MiB) (MX29GL640E T/B Bottom)',
+      'info',
+    );
+
+    // Subsequent erase should use the activated profile's 0xAAA/0x555 commands, not fallback 0x555/0x2AA
+    const eraseRes = await adapter.eraseSectors(
+      [{ sectorSize: 0x2000, sectorCount: 1, totalSize: 0x2000, startAddress: 0, endAddress: 0x1FFF }],
+      { cfiInfo: info, enable5V: false },
+    );
+    expect(eraseRes.success).toBe(true);
+    expect(mocks.cartWriteFlash).toHaveBeenCalledWith(
+      'DMG',
+      [[0xAAA, 0xAA], [0x555, 0x55], [0xAAA, 0x80], [0xAAA, 0xAA], [0x555, 0x55], [0x0000, 0x30]],
+      true,
+    );
   });
 });

@@ -13,9 +13,9 @@ import type { ParameterSchema, ParameterSchemaFactory } from './parameters';
 
 /** Hardware product identifier, e.g. `beggar-stm` / `beggar-stc` / `gbflash`. */
 export type DeviceId = string;
-/** Firmware identifier, e.g. `beggar.stm` / `beggar.stm-boost` / `beggar.stc` / `flashgbx.cfw`. */
+/** Firmware identifier, e.g. `beggar.stm` / `beggar.stm-boost` / `beggar.stc` / `gbflash.cfw`. */
 export type FirmwareId = string;
-export type ProtocolId = 'beggar' | 'flashgbx';
+export type ProtocolId = 'beggar' | 'gbflash';
 /** The single selectable unit: a registered device + firmware binding id. */
 export type VariantId = string;
 export type TransportBackend = 'serial' | 'simulated';

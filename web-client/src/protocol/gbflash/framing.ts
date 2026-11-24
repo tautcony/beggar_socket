@@ -1,16 +1,16 @@
 import type { Transport } from '@/platform/serial';
 
-import type { FlashgbxFirmwareInfo } from './handshake';
+import type { GbflashFirmwareInfo } from './handshake';
 
-export interface FlashgbxBufferLimits {
+export interface GbflashBufferLimits {
   maxRead: number;
   maxWrite: number;
 }
 
-export function computeFlashgbxBufferLimits(
-  fwInfo: Pick<FlashgbxFirmwareInfo, 'family'> & { isCdc?: boolean },
+export function computeGbflashBufferLimits(
+  fwInfo: Pick<GbflashFirmwareInfo, 'family'> & { isCdc?: boolean },
   _baudRate?: number,
-): FlashgbxBufferLimits {
+): GbflashBufferLimits {
   if (!fwInfo.isCdc) {
     // CH340 GBFlash corrupts +0xDF..+0xE2 during FLASH_PROGRAM when TRANSFER_SIZE >= 0x100;
     // 0x80 (128B) is verified bit-exact (3/3 CRC32 matches on live L14 hardware).
@@ -22,13 +22,13 @@ export function computeFlashgbxBufferLimits(
 /**
  * Framing layer for GBFlash devices (direct transport read/write and buffer reset).
  */
-export class FlashgbxFramingLayer {
+export class GbflashFramingLayer {
   constructor(private readonly transport: Transport) {}
 
   async write(data: Uint8Array, timeoutMs: number): Promise<void> {
     const ok = await this.transport.send(data, timeoutMs);
     if (!ok) {
-      throw new Error('FlashGBX transport write failed');
+      throw new Error('GBFlash transport write failed');
     }
   }
 

@@ -4,10 +4,10 @@ import { VARIANT_IDS } from '@/device/definitions';
 import { buildConnectionLogReport } from '@/device-runtime/connection-report';
 import type { DeviceInfo } from '@/types/device-info';
 
-import { buildFlashgbxSession, buildStmSession } from '../helpers/session-profile';
+import { buildGbflashSession, buildStmSession } from '../helpers/session-profile';
 
 function device(overrides: Partial<DeviceInfo> = {}): DeviceInfo {
-  const session = buildFlashgbxSession();
+  const session = buildGbflashSession();
   return {
     port: null,
     transport: null,
@@ -23,13 +23,13 @@ function device(overrides: Partial<DeviceInfo> = {}): DeviceInfo {
 describe('buildConnectionLogReport', () => {
   it('reports the committed device, firmware, port and match result', () => {
     const entries = buildConnectionLogReport({
-      device: device({ session: buildFlashgbxSession({ usb: { vendorId: '1a86', productId: '7523' } }) }),
+      device: device({ session: buildGbflashSession({ usb: { vendorId: '1a86', productId: '7523' } }) }),
     });
 
     expect(entries).toHaveLength(1);
     expect(entries[0]).toMatchObject({ level: 'info', message: 'Connected: GBFlash (L14)' });
     expect(entries[0].details).toBe(
-      'variant=gbflash, firmware=FlashGBX L14, port=/dev/cu.usbserial-110 (1a86:7523), match=match, baud=2000000, transport=serial',
+      'variant=gbflash, firmware=GBFlash L14, port=/dev/cu.usbserial-110 (1a86:7523), match=match, baud=2000000, transport=serial',
     );
   });
 
@@ -137,7 +137,7 @@ describe('buildConnectionLogReport', () => {
             gbcFramRam: true,
             cartPowerControl: false,
             boostMode: false,
-            nativeFlashgbxProtocol: false,
+            nativeGbflashProtocol: false,
             audioWePin: false,
           },
         },

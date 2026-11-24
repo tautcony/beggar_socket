@@ -1,4 +1,4 @@
-import { BEGGAR_STC_PACKET_LIMITS, BEGGAR_STM_PACKET_LIMITS, FLASHGBX_PACKET_LIMITS } from '@/device/definitions/packet-limits';
+import { BEGGAR_STC_PACKET_LIMITS, BEGGAR_STM_PACKET_LIMITS, GBFLASH_PACKET_LIMITS } from '@/device/definitions/packet-limits';
 import type { FirmwareProfileId } from '@/types/firmware-profile';
 import type { HostPlatform, PlatformPacketLimits } from '@/types/host-platform';
 
@@ -14,7 +14,7 @@ export type { HostPacketLimits, HostPlatform, PlatformPacketLimits } from '@/typ
 export const PLATFORM_PACKET_LIMITS: Readonly<Record<FirmwareProfileId, Readonly<Record<HostPlatform, PlatformPacketLimits>>>> = {
   stm: BEGGAR_STM_PACKET_LIMITS,
   stc: BEGGAR_STC_PACKET_LIMITS,
-  flashgbx: FLASHGBX_PACKET_LIMITS,
+  gbflash: GBFLASH_PACKET_LIMITS,
   unknown: BEGGAR_STM_PACKET_LIMITS,
 };
 

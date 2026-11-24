@@ -70,15 +70,15 @@ describe('device registry', () => {
       VARIANT_IDS.gbflash,
     ]);
     expect(variants[0].deviceName).toBe('丐中丐');
-    expect(variants[3].firmwareName).toBe('FlashGBX');
+    expect(variants[3].firmwareName).toBe('GBFlash');
   });
 
   it('resolves device, firmware, runtime and namespace from one binding', () => {
     const selection = catalog.selectVariant(VARIANT_IDS.gbflash);
     expect(selection.device.id).toBe('gbflash');
-    expect(selection.firmware.id).toBe('flashgbx.cfw');
-    expect(selection.runtimeBindingId).toBe('flashgbx');
-    expect(selection.parameterNamespace).toBe('flashgbx.cfw');
+    expect(selection.firmware.id).toBe('gbflash.cfw');
+    expect(selection.runtimeBindingId).toBe('gbflash');
+    expect(selection.parameterNamespace).toBe('gbflash.cfw');
     expect(selection.transport.signalInit).toBe('none');
   });
 
@@ -132,10 +132,10 @@ describe('device registry', () => {
     expect(stc?.schema.find(descriptor => descriptor.key === 'romReadPageSize')?.default).toBe(0x2000);
     expect(stc?.transport.maxReadChunk).toBe(0x8000);
 
-    const flashgbx = catalog.resolveNamespaceSchema('flashgbx.cfw');
-    expect(flashgbx?.schema.find(descriptor => descriptor.key === 'baudRate')?.default).toBe('auto');
-    expect(flashgbx?.schema.find(descriptor => descriptor.key === 'romReadPageSize')?.default).toBe(0x1000);
-    expect(flashgbx?.transport.maxReadChunk).toBe(0x1000);
+    const gbflash = catalog.resolveNamespaceSchema('gbflash.cfw');
+    expect(gbflash?.schema.find(descriptor => descriptor.key === 'baudRate')?.default).toBe('auto');
+    expect(gbflash?.schema.find(descriptor => descriptor.key === 'romReadPageSize')?.default).toBe(0x1000);
+    expect(gbflash?.transport.maxReadChunk).toBe(0x1000);
     expect(catalog.resolveNamespaceSchema('unknown.ns')).toBeUndefined();
   });
 

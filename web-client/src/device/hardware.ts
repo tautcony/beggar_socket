@@ -45,7 +45,7 @@ export interface TransportRequirements {
    *
    * Defaults to the host `romRead` packet limit, which is also the request size for
    * firmwares that stream a read reply. Firmwares whose packet limit only bounds a
-   * transport frame (FlashGBX caps every frame at 256B) declare their real request size
+   * transport frame (GBFlash caps every frame at 256B) declare their real request size
    * here, so the read page is not silently cut into one command per frame.
    */
   readonly readPageDefault?: number;

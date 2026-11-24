@@ -235,7 +235,7 @@ describe('SessionEstablishment', () => {
       read: () => ({ variantId: VARIANT_IDS.gbflash, source: 'v2' as const }),
     };
     const { establishment, runtime } = createHarness({ selection });
-    runtime.store.set('flashgbx.cfw', 'baudRate', 1_000_000);
+    runtime.store.set('gbflash.cfw', 'baudRate', 1_000_000);
     const plan = planConnection({
       selection,
       registry: runtime.registry,
@@ -244,7 +244,7 @@ describe('SessionEstablishment', () => {
     expect(plan).toMatchObject({ variantId: VARIANT_IDS.gbflash, baudRate: 1_000_000 });
 
     // A second edit lands between the plan and the handshake.
-    runtime.store.set('flashgbx.cfw', 'baudRate', 2_000_000);
+    runtime.store.set('gbflash.cfw', 'baudRate', 2_000_000);
 
     const established = await establishment.establish({
       connectionId: 'session-1',

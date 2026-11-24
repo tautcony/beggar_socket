@@ -1,5 +1,5 @@
 /**
- * FlashGBX protocol driver (GBFlash hardware).
+ * GBFlash protocol driver (GBFlash hardware).
  *
  * The `0xA1` handshake is the only probe; it runs with the same 250 ms lifecycle budget
  * the teardown uses. Teardown follows one normative sequence and reports every failing
@@ -8,22 +8,22 @@
 import type { CapabilitySignals } from '@/device/capabilities';
 import type { DeviceDiagnostic, ProbeResult, ProtocolDriver, SessionTransport } from '@/device/session';
 import {
-  type FlashgbxFirmwareInfo,
-  FlashgbxHandshakeError,
-  performFlashgbxHandshake,
-  performFlashgbxTeardown,
-} from '@/protocol/flashgbx';
+  type GbflashFirmwareInfo,
+  GbflashHandshakeError,
+  performGbflashHandshake,
+  performGbflashTeardown,
+} from '@/protocol/gbflash';
 import type { SerialPortInfo } from '@/types/serial';
 
 import { createDiagnostic, SessionStageError } from '../diagnostics';
 import { asPlatformTransport } from '../session-transport';
 
-export interface FlashgbxProbeFacts {
-  readonly firmwareInfo?: FlashgbxFirmwareInfo;
+export interface GbflashProbeFacts {
+  readonly firmwareInfo?: GbflashFirmwareInfo;
 }
 
 /** Facts are keyed by transport because that identity survives into `ActiveSession`. */
-const probeFacts = new WeakMap<SessionTransport, FlashgbxProbeFacts>();
+const probeFacts = new WeakMap<SessionTransport, GbflashProbeFacts>();
 
 function toPortInfo(pending: { readonly transportFacts: { readonly usb?: { readonly vendorId?: string; readonly productId?: string } }; readonly portInfo?: SerialPortInfo }): SerialPortInfo | undefined {
   if (pending.portInfo) {
@@ -36,12 +36,12 @@ function toPortInfo(pending: { readonly transportFacts: { readonly usb?: { reado
   return { path: 'unknown-port', ...usb };
 }
 
-function handshakeDiagnostic(error: FlashgbxHandshakeError): DeviceDiagnostic {
+function handshakeDiagnostic(error: GbflashHandshakeError): DeviceDiagnostic {
   if (error.code === 'unsupported') {
     return createDiagnostic(
       'unsupported-firmware',
       'error',
-      `Unsupported GBFlash firmware (${error.message}). Update the FlashGBX firmware and retry.`,
+      `Unsupported GBFlash firmware (${error.message}). Update the GBFlash firmware and retry.`,
       'probe',
     );
   }
@@ -53,9 +53,9 @@ function handshakeDiagnostic(error: FlashgbxHandshakeError): DeviceDiagnostic {
   );
 }
 
-export function createFlashgbxDriver(): ProtocolDriver<FlashgbxProbeFacts> {
+export function createGbflashDriver(): ProtocolDriver<GbflashProbeFacts> {
   return {
-    async probe({ pending }): Promise<ProbeResult<FlashgbxProbeFacts>> {
+    async probe({ pending }): Promise<ProbeResult<GbflashProbeFacts>> {
       const firmwareId = pending.selection.firmware.id;
 
       if (pending.transportFacts.backend === 'simulated') {
@@ -64,10 +64,10 @@ export function createFlashgbxDriver(): ProtocolDriver<FlashgbxProbeFacts> {
 
       const transport = asPlatformTransport(pending.transport);
       try {
-        const firmwareInfo = await performFlashgbxHandshake(transport, {
+        const firmwareInfo = await performGbflashHandshake(transport, {
           portInfo: toPortInfo(pending),
         });
-        const facts: FlashgbxProbeFacts = { firmwareInfo };
+        const facts: GbflashProbeFacts = { firmwareInfo };
         probeFacts.set(pending.transport, facts);
         return {
           firmwareId,
@@ -76,7 +76,7 @@ export function createFlashgbxDriver(): ProtocolDriver<FlashgbxProbeFacts> {
           facts,
         };
       } catch (error) {
-        if (error instanceof FlashgbxHandshakeError) {
+        if (error instanceof GbflashHandshakeError) {
           throw new SessionStageError('probe', error.message, {
             code: error.code,
             diagnostics: [handshakeDiagnostic(error)],
@@ -102,7 +102,7 @@ export function createFlashgbxDriver(): ProtocolDriver<FlashgbxProbeFacts> {
     async teardown(session): Promise<void> {
       const transport = asPlatformTransport(session.transport);
       const firmwareInfo = probeFacts.get(session.transport)?.firmwareInfo;
-      const { failures } = await performFlashgbxTeardown(transport, firmwareInfo ?? null);
+      const { failures } = await performGbflashTeardown(transport, firmwareInfo ?? null);
       if (failures.length === 0) {
         return;
       }
@@ -141,7 +141,7 @@ export function createFlashgbxDriver(): ProtocolDriver<FlashgbxProbeFacts> {
  * Per-PCB facts → conditional capability signals. Without a handshake result every
  * conditional capability stays unsupported, which is the safe direction.
  */
-export function flashgbxCapabilitySignals(facts: FlashgbxProbeFacts): CapabilitySignals {
+export function gbflashCapabilitySignals(facts: GbflashProbeFacts): CapabilitySignals {
   const info = facts.firmwareInfo;
   return {
     powerControlPresent: info?.cartPowerCtrl ?? false,

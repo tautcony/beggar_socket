@@ -6,12 +6,12 @@ export const DEVICE_MIN_FW = 1;
  */
 export const HANDSHAKE_TIMEOUT_MS = 250;
 
-export const FLASHGBX_USB_IDS = {
+export const GBFLASH_USB_IDS = {
   CH340: { vendorId: '1a86', productId: '7523' },
   GBFLASH_CDC: { vendorId: '16c0', productId: '27dd' },
 } as const;
 
-export const FLASHGBX_CMD = {
+export const GBFLASH_CMD = {
   NULL: 0x30,
   DEBUG: 0xA0,
   QUERY_FW_INFO: 0xA1,
@@ -61,7 +61,7 @@ export const FLASHGBX_CMD = {
   SET_USB_MODE_CDC: 0x3E,
 } as const;
 
-export type FlashgbxDeviceVarName =
+export type GbflashDeviceVarName =
   | 'ADDRESS'
   | 'AUTO_POWEROFF_TIME'
   | 'TRANSFER_SIZE'
@@ -90,7 +90,7 @@ export type FlashgbxDeviceVarName =
   | 'AGB_IRQ_ENABLED'
   | 'DMG_AUDIO_ENABLED';
 
-export const DEVICE_VAR: Record<FlashgbxDeviceVarName, readonly [8 | 16 | 32, number]> = {
+export const DEVICE_VAR: Record<GbflashDeviceVarName, readonly [8 | 16 | 32, number]> = {
   ADDRESS: [32, 0x00],
   AUTO_POWEROFF_TIME: [32, 0x01],
   TRANSFER_SIZE: [16, 0x00],
@@ -120,9 +120,9 @@ export const DEVICE_VAR: Record<FlashgbxDeviceVarName, readonly [8 | 16 | 32, nu
   DMG_AUDIO_ENABLED: [8, 0x11],
 } as const;
 
-export const FLASHGBX_ACK_OK = 0x01;
-export const FLASHGBX_ACK_FLASH_CONTINUE = 0x03;
-export const FLASHGBX_CRC32_CHUNK_SIZE = 0x20000;
+export const GBFLASH_ACK_OK = 0x01;
+export const GBFLASH_ACK_FLASH_CONTINUE = 0x03;
+export const GBFLASH_CRC32_CHUNK_SIZE = 0x20000;
 
 export const DMG_ACCESS_MODE = {
   ROM_READ: 1,

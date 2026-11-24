@@ -457,7 +457,7 @@ describe('Protocol transport abstraction', () => {
     expect(builtNoCrc.length).toBe(9);
     expect(Array.from(builtNoCrc.slice(7))).toEqual([0x00, 0x00]);
 
-    // F4 帧长低字节对于规整后各页大小 (64B..4096B) 均不落入 RC31 FlashGBX 触发范围 (>= 0xA0 或 0x55)
+    // F4 帧长低字节对于规整后各页大小 (64B..4096B) 均不落入 RC31 GBFlash 触发范围 (>= 0xA0 或 0x55)
     for (const pageSize of [64, 128, 256, 512, 1024, 2048, 4096]) {
       sentFrames.length = 0;
       await rom_program(transport, new Uint8Array(pageSize).fill(0x12), 0x00000000, 32);

@@ -5,7 +5,7 @@ import { ConnectionOperationCoordinator } from '@/features/burner/application';
 import { isTauriRuntime } from '@/platform/runtime';
 import { AdvancedSettings } from '@/settings/advanced-settings';
 
-import { buildFlashgbxSession, buildStmSession, TEST_FLASHGBX_INFO } from '../helpers/session-profile';
+import { buildGbflashSession, buildStmSession, TEST_GBFLASH_INFO } from '../helpers/session-profile';
 
 const connectionUseCaseState = vi.hoisted(() => ({
   listAvailableSelections: vi.fn(),
@@ -253,8 +253,8 @@ describe('DeviceConnectionManager', () => {
     connectionUseCaseState.prepareConnection.mockResolvedValue({
       success: true,
       context: connectionContext(3, {
-        session: buildFlashgbxSession(),
-        probeFacts: { firmwareInfo: TEST_FLASHGBX_INFO },
+        session: buildGbflashSession(),
+        probeFacts: { firmwareInfo: TEST_GBFLASH_INFO },
       }),
     });
 
@@ -289,8 +289,8 @@ describe('DeviceConnectionManager', () => {
       success: true,
       context: connectionContext(4, {
         portInfo: STM_PORT,
-        session: buildFlashgbxSession(),
-        probeFacts: { firmwareInfo: TEST_FLASHGBX_INFO },
+        session: buildGbflashSession(),
+        probeFacts: { firmwareInfo: TEST_GBFLASH_INFO },
         diagnostics: [],
       }),
     });
@@ -302,21 +302,21 @@ describe('DeviceConnectionManager', () => {
     // STC is what the user selected, so STC is what the connection reports — the STM-looking
     // USBMODEM path no longer changes the firmware profile.
     expect(device.session?.variantId).toBe('gbflash');
-    expect(device.firmwareProfile?.id).toBe('flashgbx');
+    expect(device.firmwareProfile?.id).toBe('gbflash');
     expect(device.firmwareProfile?.label).toBe('GBFlash');
     expect(device.firmwareProfile?.firmwareVersion).toBe('L14');
     expect(device.firmwareProfile?.maxReadChunk).toBe(0x1000);
     expect(device.firmwareProfile?.capabilities.cartPowerControl).toBe(true);
-    expect(device.flashgbxInfo?.pcbName).toBe('GBFlash');
+    expect(device.gbflashInfo?.pcbName).toBe('GBFlash');
     expect(device.connectionId).toBe('tauri:1');
-    expect(device.serialHandle?.firmwareProfile?.id).toBe('flashgbx');
+    expect(device.serialHandle?.firmwareProfile?.id).toBe('gbflash');
 
     expect(infoSpy).toHaveBeenCalledWith(
       '[DeviceConnectionManager] session established',
       expect.objectContaining({
         source: 'connectWithSelectedPort',
         variant: 'gbflash',
-        firmware: 'flashgbx.cfw',
+        firmware: 'gbflash.cfw',
         baudRate: 2_000_000,
       }),
     );
@@ -351,8 +351,8 @@ describe('DeviceConnectionManager', () => {
     connectionUseCaseState.reconnectWithSelection.mockResolvedValueOnce({
       success: true,
       context: connectionContext(6, {
-        session: buildFlashgbxSession(),
-        probeFacts: { firmwareInfo: TEST_FLASHGBX_INFO },
+        session: buildGbflashSession(),
+        probeFacts: { firmwareInfo: TEST_GBFLASH_INFO },
       }),
     });
 
@@ -366,7 +366,7 @@ describe('DeviceConnectionManager', () => {
     expect(connectionUseCaseState.disconnect).toHaveBeenCalledOnce();
     expect(device.transport).toBeNull();
     expect(device.session).toBeUndefined();
-    expect(device.flashgbxInfo).toBeUndefined();
+    expect(device.gbflashInfo).toBeUndefined();
     expect(manager.isDeviceConnected(device)).toBe(false);
   });
 
@@ -405,8 +405,8 @@ describe('DeviceConnectionManager', () => {
     connectionUseCaseState.reconnectWithSelection.mockResolvedValueOnce({
       success: true,
       context: connectionContext(2, {
-        session: buildFlashgbxSession(),
-        probeFacts: { firmwareInfo: TEST_FLASHGBX_INFO },
+        session: buildGbflashSession(),
+        probeFacts: { firmwareInfo: TEST_GBFLASH_INFO },
       }),
     });
 

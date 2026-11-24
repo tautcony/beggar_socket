@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import type { Transport } from '@/platform/serial';
 import {
-  FLASHGBX_CMD,
-  FlashgbxHandshakeError,
-  performFlashgbxDisconnect,
-  performFlashgbxHandshake,
-  performFlashgbxTeardown,
-} from '@/protocol/flashgbx';
+  GBFLASH_CMD,
+  GbflashHandshakeError,
+  performGbflashDisconnect,
+  performGbflashHandshake,
+  performGbflashTeardown,
+} from '@/protocol/gbflash';
 
 interface ScriptStep {
   expectedTx?: number[];
@@ -67,7 +67,7 @@ function createReplayTransport(steps: ScriptStep[]): {
       return Promise.resolve({ data: new Uint8Array(chunk) });
     },
     sendAndReceive: () => Promise.resolve({ data: new Uint8Array(0) }),
-    setSignals: () => Promise.reject(new Error('DTR/RTS setSignals must never be called during FlashGBX handshake')),
+    setSignals: () => Promise.reject(new Error('DTR/RTS setSignals must never be called during GBFlash handshake')),
     flushInput: () => {
       flushedInput += 1;
       return Promise.resolve();
@@ -121,7 +121,7 @@ function buildFwInfoBytes(options: {
   return bytes;
 }
 
-describe('FlashGBX protocol handshake replay', () => {
+describe('GBFlash protocol handshake replay', () => {
   it('handshakes CH340 GBFlash (1A86:7523) using live /dev/cu.usbserial-110 probe bytes', async () => {
     const liveQueryFwResponse = [
       0x08, 0x4c, 0x00, 0x0e, 0x0d, 0x68, 0x30, 0x3d, 0x4c,
@@ -129,15 +129,15 @@ describe('FlashGBX protocol handshake replay', () => {
       0x01, 0x01,
     ];
     const replay = createReplayTransport([
-      { expectedTx: [FLASHGBX_CMD.QUERY_FW_INFO], rx: liveQueryFwResponse },
+      { expectedTx: [GBFLASH_CMD.QUERY_FW_INFO], rx: liveQueryFwResponse },
     ]);
 
-    const info = await performFlashgbxHandshake(replay.transport, {
+    const info = await performGbflashHandshake(replay.transport, {
       portInfo: { path: '/dev/cu.usbserial-110', vendorId: '1a86', productId: '7523' },
       baudRate: 2_000_000,
     });
 
-    expect(replay.sent).toEqual([[FLASHGBX_CMD.QUERY_FW_INFO]]);
+    expect(replay.sent).toEqual([[GBFLASH_CMD.QUERY_FW_INFO]]);
     expect(info).toMatchObject({
       family: 'gbflash',
       cfwId: 'L',
@@ -154,10 +154,10 @@ describe('FlashGBX protocol handshake replay', () => {
 
   it('sets audioWePin to false for GBFlash pcbVer < 13 with cartPowerCtrl', async () => {
     const replay = createReplayTransport([
-      { expectedTx: [FLASHGBX_CMD.QUERY_FW_INFO], rx: buildFwInfoBytes({ fwVer: 12, pcbVer: 12, pcbName: 'GBFlash', flags1: 0x01 }) },
+      { expectedTx: [GBFLASH_CMD.QUERY_FW_INFO], rx: buildFwInfoBytes({ fwVer: 12, pcbVer: 12, pcbName: 'GBFlash', flags1: 0x01 }) },
     ]);
 
-    const info = await performFlashgbxHandshake(replay.transport, {
+    const info = await performGbflashHandshake(replay.transport, {
       portInfo: { path: '/dev/cu.usbserial-110', vendorId: '1a86', productId: '7523' },
     });
 
@@ -170,16 +170,16 @@ describe('FlashGBX protocol handshake replay', () => {
   it('handshakes CDC GBFlash (16C0:27DD) with isCdc = true', async () => {
     const replay = createReplayTransport([
       {
-        expectedTx: [FLASHGBX_CMD.QUERY_FW_INFO],
+        expectedTx: [GBFLASH_CMD.QUERY_FW_INFO],
         rx: buildFwInfoBytes({ fwVer: 16, pcbVer: 13, pcbName: 'GBFlash', flags1: 0x01, flags2: 0x03 }),
       },
     ]);
 
-    const info = await performFlashgbxHandshake(replay.transport, {
+    const info = await performGbflashHandshake(replay.transport, {
       portInfo: { path: '/dev/cu.usbmodem1', vendorId: '16c0', productId: '27dd' },
     });
 
-    expect(replay.sent).toEqual([[FLASHGBX_CMD.QUERY_FW_INFO]]);
+    expect(replay.sent).toEqual([[GBFLASH_CMD.QUERY_FW_INFO]]);
     expect(info).toMatchObject({
       family: 'gbflash',
       fwVer: 16,
@@ -192,11 +192,11 @@ describe('FlashGBX protocol handshake replay', () => {
 
   it('rejects fw_ver === 0 in 0xA1 as unsupported', async () => {
     const replay = createReplayTransport([
-      { expectedTx: [FLASHGBX_CMD.QUERY_FW_INFO], rx: buildFwInfoBytes({ fwVer: 0, pcbVer: 13 }) },
+      { expectedTx: [GBFLASH_CMD.QUERY_FW_INFO], rx: buildFwInfoBytes({ fwVer: 0, pcbVer: 13 }) },
     ]);
 
     await expect(
-      performFlashgbxHandshake(replay.transport, {
+      performGbflashHandshake(replay.transport, {
         portInfo: { path: '/dev/cu.usbmodem1', vendorId: '16c0', productId: '27dd' },
       }),
     ).rejects.toMatchObject({
@@ -207,36 +207,36 @@ describe('FlashGBX protocol handshake replay', () => {
 
   it('reports exact stage on invalid 0xA1 header size', async () => {
     const replay = createReplayTransport([
-      { expectedTx: [FLASHGBX_CMD.QUERY_FW_INFO], rx: [4] },
+      { expectedTx: [GBFLASH_CMD.QUERY_FW_INFO], rx: [4] },
     ]);
 
     await expect(
-      performFlashgbxHandshake(replay.transport, {
+      performGbflashHandshake(replay.transport, {
         portInfo: { path: '/dev/cu.usbmodem1', vendorId: '16c0', productId: '27dd' },
       }),
-    ).rejects.toBeInstanceOf(FlashgbxHandshakeError);
+    ).rejects.toBeInstanceOf(GbflashHandshakeError);
 
     try {
       const replay2 = createReplayTransport([
-        { expectedTx: [FLASHGBX_CMD.QUERY_FW_INFO], rx: [4] },
+        { expectedTx: [GBFLASH_CMD.QUERY_FW_INFO], rx: [4] },
       ]);
-      await performFlashgbxHandshake(replay2.transport, {
+      await performGbflashHandshake(replay2.transport, {
         portInfo: { path: '/dev/cu.usbmodem1', vendorId: '16c0', productId: '27dd' },
       });
     } catch (error) {
-      expect(error).toBeInstanceOf(FlashgbxHandshakeError);
-      expect((error as FlashgbxHandshakeError).stage).toBe('fw_info_header');
-      expect((error as FlashgbxHandshakeError).code).toBe('invalid_response');
+      expect(error).toBeInstanceOf(GbflashHandshakeError);
+      expect((error as GbflashHandshakeError).stage).toBe('fw_info_header');
+      expect((error as GbflashHandshakeError).code).toBe('invalid_response');
     }
   });
 
   it('executes the canonical disconnect sequence (CART_PWR_OFF then SET_VOLTAGE_3_3V, voltage only without power control)', async () => {
     const pwrReplay = createReplayTransport([
-      { expectedTx: [FLASHGBX_CMD.CART_PWR_OFF], rx: [0x01] },
-      { expectedTx: [FLASHGBX_CMD.SET_VOLTAGE_3_3V], rx: [0x01] },
+      { expectedTx: [GBFLASH_CMD.CART_PWR_OFF], rx: [0x01] },
+      { expectedTx: [GBFLASH_CMD.SET_VOLTAGE_3_3V], rx: [0x01] },
     ]);
 
-    const pwrResult = await performFlashgbxTeardown(pwrReplay.transport, {
+    const pwrResult = await performGbflashTeardown(pwrReplay.transport, {
       family: 'gbflash',
       cfwId: 'L',
       fwVer: 14,
@@ -257,9 +257,9 @@ describe('FlashGBX protocol handshake replay', () => {
     expect(pwrResult.failures).toEqual([]);
 
     const noPwrReplay = createReplayTransport([
-      { expectedTx: [FLASHGBX_CMD.SET_VOLTAGE_3_3V] },
+      { expectedTx: [GBFLASH_CMD.SET_VOLTAGE_3_3V] },
     ]);
-    await performFlashgbxDisconnect(noPwrReplay.transport, {
+    await performGbflashDisconnect(noPwrReplay.transport, {
       family: 'gbflash',
       cfwId: 'L',
       fwVer: 10,
@@ -286,7 +286,7 @@ describe('FlashGBX protocol handshake replay', () => {
         const bytes = Array.from(payload);
         sent.push(bytes);
         // The cartridge power-off command is rejected, the voltage command still goes out.
-        return Promise.resolve(bytes[0] !== FLASHGBX_CMD.CART_PWR_OFF);
+        return Promise.resolve(bytes[0] !== GBFLASH_CMD.CART_PWR_OFF);
       },
       read: () => Promise.resolve({ data: new Uint8Array([0x01]) }),
       readAvailable: () => Promise.resolve({ data: new Uint8Array(0) }),
@@ -296,7 +296,7 @@ describe('FlashGBX protocol handshake replay', () => {
       flushOutput: () => Promise.resolve(),
     };
 
-    const result = await performFlashgbxTeardown(transport, {
+    const result = await performGbflashTeardown(transport, {
       family: 'gbflash',
       cfwId: 'L',
       fwVer: 14,
@@ -335,7 +335,7 @@ describe('FlashGBX protocol handshake replay', () => {
       flushOutput: () => Promise.resolve(),
     };
 
-    const result = await performFlashgbxTeardown(transport, {
+    const result = await performGbflashTeardown(transport, {
       family: 'gbflash',
       cfwId: 'L',
       fwVer: 14,
@@ -362,7 +362,7 @@ describe('FlashGBX protocol handshake replay', () => {
 
   it('does nothing when no handshake result is available', async () => {
     const replay = createReplayTransport([]);
-    const result = await performFlashgbxTeardown(replay.transport, null);
+    const result = await performGbflashTeardown(replay.transport, null);
     expect(replay.sent).toEqual([]);
     expect(result.failures).toEqual([]);
   });

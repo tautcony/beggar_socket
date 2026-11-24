@@ -29,8 +29,8 @@ export const BEGGAR_STC_PACKET_LIMITS: HostPacketLimits = {
   unknown: { romWrite: 0x1000, romRead: 0x2000, ramPage: 0x1000 },
 };
 
-/** FlashGBX framing caps every packet at 256B regardless of host. */
-export const FLASHGBX_PACKET_LIMITS: HostPacketLimits = {
+/** GBFlash framing caps every packet at 256B regardless of host. */
+export const GBFLASH_PACKET_LIMITS: HostPacketLimits = {
   windows: { romWrite: 0x100, romRead: 0x100, ramPage: 0x100 },
   macos: { romWrite: 0x100, romRead: 0x100, ramPage: 0x100 },
   linux: { romWrite: 0x100, romRead: 0x100, ramPage: 0x100 },

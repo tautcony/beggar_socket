@@ -33,17 +33,17 @@ describe('namespaced parameter store', () => {
     expect(store.get('beggar.stm', 'romPageSize')).toBe(0x1000);
     expect(store.get('beggar.stm', 'romReadPageSize')).toBe(0x1000);
     expect(store.get('beggar.stc', 'romReadPageSize')).toBe(0x2000);
-    expect(store.get('flashgbx.cfw', 'romPageSize')).toBe(0x100);
-    expect(store.get('flashgbx.cfw', 'baudRate')).toBe('auto');
+    expect(store.get('gbflash.cfw', 'romPageSize')).toBe(0x100);
+    expect(store.get('gbflash.cfw', 'baudRate')).toBe('auto');
     expect(store.get('beggar.stm', 'defaultTimeout')).toBe(3000);
   });
 
   it('declares the GBFlash editable packet ceiling at 0x2000', () => {
     const { registry } = storeFor();
-    const flashgbx = registry.resolveNamespaceSchema('flashgbx.cfw')?.schema ?? [];
+    const gbflash = registry.resolveNamespaceSchema('gbflash.cfw')?.schema ?? [];
 
-    const romPage = flashgbx.find(descriptor => descriptor.key === 'romPageSize');
-    const romRead = flashgbx.find(descriptor => descriptor.key === 'romReadPageSize');
+    const romPage = gbflash.find(descriptor => descriptor.key === 'romPageSize');
+    const romRead = gbflash.find(descriptor => descriptor.key === 'romReadPageSize');
     expect(romPage?.constraints?.max).toBe(0x2000);
     expect(romPage?.default).toBe(0x100);
     expect(romRead?.constraints?.max).toBe(0x2000);
@@ -52,13 +52,13 @@ describe('namespaced parameter store', () => {
   it('reads persisted values from the v2 record through the single adapter', () => {
     const fake = createFakeSettingsStorage({ selectedVariantId: VARIANT_IDS.gbflash });
     fake.values.set('beggar.stm.romPageSize', 0x800);
-    fake.values.set('flashgbx.cfw.baudRate', 1_500_000);
+    fake.values.set('gbflash.cfw.baudRate', 1_500_000);
     fake.values.set('global.romReadThrottleMs', 12);
 
     const { store } = storeFor(fake);
 
     expect(store.get('beggar.stm', 'romPageSize')).toBe(0x800);
-    expect(store.get('flashgbx.cfw', 'baudRate')).toBe(1_500_000);
+    expect(store.get('gbflash.cfw', 'baudRate')).toBe(1_500_000);
     expect(store.get('beggar.stm', 'romReadThrottleMs')).toBe(12);
   });
 
@@ -85,7 +85,7 @@ describe('namespaced parameter store', () => {
 
     store.set('beggar.stc', 'operationTimeout', 45_000);
     expect(fake.writes).toEqual([{ namespace: 'global', key: 'operationTimeout', value: 45_000 }]);
-    expect(store.get('flashgbx.cfw', 'operationTimeout')).toBe(45_000);
+    expect(store.get('gbflash.cfw', 'operationTimeout')).toBe(45_000);
   });
 
   it('validates a write and reports the namespace and key on failure', () => {
@@ -99,12 +99,12 @@ describe('namespaced parameter store', () => {
 
     let error: unknown;
     try {
-      store.set('flashgbx.cfw', 'baudRate', 1234);
+      store.set('gbflash.cfw', 'baudRate', 1234);
     } catch (caught) {
       error = caught;
     }
     expect(error).toBeInstanceOf(ParameterError);
-    expect((error as ParameterError).namespace).toBe('flashgbx.cfw');
+    expect((error as ParameterError).namespace).toBe('gbflash.cfw');
     expect((error as ParameterError).key).toBe('baudRate');
     expect((error as ParameterError).reason).toContain('expected one of');
 
@@ -129,7 +129,7 @@ describe('namespaced parameter store', () => {
   it('never mirrors a linked size into the independent GBFlash namespace', () => {
     const { store } = storeFor();
     store.set('beggar.stm', 'romReadPageSize', 0x2000);
-    expect(store.get('flashgbx.cfw', 'romReadPageSize')).toBe(0x1000);
+    expect(store.get('gbflash.cfw', 'romReadPageSize')).toBe(0x1000);
   });
 
   it('shares one namespace between standard STM and Boost', () => {
