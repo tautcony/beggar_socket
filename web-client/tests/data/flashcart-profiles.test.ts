@@ -18,26 +18,27 @@ import {
 } from '../../scripts/gen-flashcart-profiles.mjs';
 
 describe('Flashcart profiles generated data & schema', () => {
-  it('has exact expected AGB (59) and DMG (106) profile counts', async () => {
+  it('has exact expected AGB (11) and DMG (13) profile counts', async () => {
     const [agb, dmg] = await Promise.all([
       loadAgbFlashcartProfiles(),
       loadDmgFlashcartProfiles(),
     ]);
 
-    expect(FLASHCART_PROFILE_COUNTS.AGB).toBe(59);
-    expect(FLASHCART_PROFILE_COUNTS.DMG).toBe(106);
-    expect(FLASHCART_PROFILE_COUNTS.total).toBe(165);
-    expect(agb).toHaveLength(59);
-    expect(dmg).toHaveLength(106);
+    expect(FLASHCART_PROFILE_COUNTS.AGB).toBe(11);
+    expect(FLASHCART_PROFILE_COUNTS.DMG).toBe(13);
+    expect(FLASHCART_PROFILE_COUNTS.total).toBe(24);
+    expect(agb).toHaveLength(11);
+    expect(dmg).toHaveLength(13);
   });
 
   it('preserves FlashGBX GPL-3.0 copyright/license notice', () => {
     expect(FLASHCART_PROFILES_LICENSE_NOTICE).toContain('FlashGBX');
+    expect(FLASHCART_PROFILES_LICENSE_NOTICE).toContain('ChisFlash-Tools-Exp');
     expect(FLASHCART_PROFILES_LICENSE_NOTICE).toContain('Lesserkuma');
     expect(FLASHCART_PROFILES_LICENSE_NOTICE).toContain('GPL-3.0');
   });
 
-  it('validates schema, whitelisted fields, commands, and placeholders for all 165 profiles', async () => {
+  it('validates schema, whitelisted fields, commands, and placeholders for all 24 profiles', async () => {
     const [agb, dmg] = await Promise.all([
       loadAgbFlashcartProfiles(),
       loadDmgFlashcartProfiles(),
@@ -84,39 +85,9 @@ describe('Flashcart profiles generated data & schema', () => {
     }
   });
 
-  it('captures known geometry exceptions snapshot including fc_AGB_TH50VSF3680.txt', () => {
-    expect(FLASHCART_GEOMETRY_EXCEPTIONS).toEqual([
-      {
-        sourceFile: 'fc_AGB_TH50VSF3680.txt',
-        expectedFlashSize: 0x800000,
-        actualSectorTotal: 0x1000000,
-        note: expect.stringContaining('Dual-region/dual-die'),
-      },
-      {
-        sourceFile: 'fc_AGB_iG_32MB_EEPROM.txt',
-        expectedFlashSize: 0x1FFFF00,
-        actualSectorTotal: 0x2000000,
-        note: expect.stringContaining('EEPROM'),
-      },
-    ]);
-  });
-
-  it('captures Flash ID collision snapshot for AGB and DMG', () => {
-    expect(FLASHCART_ID_COLLISIONS.length).toBe(47);
-    const agbCollisions = FLASHCART_ID_COLLISIONS.filter(c => c.type === 'AGB');
-    const dmgCollisions = FLASHCART_ID_COLLISIONS.filter(c => c.type === 'DMG');
-    expect(agbCollisions.length).toBe(13);
-    expect(dmgCollisions.length).toBe(34);
-
-    expect(dmgCollisions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          type: 'DMG',
-          flashIdKey: '[1,164]',
-          sourceFiles: ['fc_DMG_AM29F040_AUDIO.txt', 'fc_DMG_AM29F040_WR.txt'],
-        }),
-      ]),
-    );
+  it('has no geometry exceptions or Flash ID collisions in ChisFlash profiles', () => {
+    expect(FLASHCART_GEOMETRY_EXCEPTIONS).toEqual([]);
+    expect(FLASHCART_ID_COLLISIONS).toEqual([]);
   });
 
   it('reproduces FlashGBX hex-to-dec parsing and fails on unknown fields, placeholders, wait_for, or unlisted geometry exceptions', () => {

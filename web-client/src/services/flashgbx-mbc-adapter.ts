@@ -127,8 +127,9 @@ export class FlashgbxMbcAdapter extends FlashgbxBaseAdapter {
           }
 
           await client.cartWriteFlash('DMG', [[0x0000, 0xF0]], true);
+          const romBaseline = await client.readRom('DMG', 0x0000, 0x20, { maxLength: 0x20 });
           await client.cartWriteFlash('DMG', [[0x555, 0xAA], [0x2AA, 0x55], [0x555, 0x90]], true);
-          const idBytes = await client.readRom('DMG', 0x0000, 4, { maxLength: 4 });
+          const idBytes = await client.readRom('DMG', 0x0000, 0x20, { maxLength: 0x20 });
           await this.resetFlashToRead(client);
 
           await client.cartWriteFlash('DMG', [[0x55, 0x98]], true);
@@ -137,7 +138,8 @@ export class FlashgbxMbcAdapter extends FlashgbxBaseAdapter {
 
           const parsed = parseCFI(cfiRaw);
           if (parsed && parsed.deviceSize > 0) {
-            parsed.flashId = idBytes;
+            parsed.flashId = idBytes.slice(0, 4);
+            await this.logMatchedProfileForCfi('MBC5', romBaseline, idBytes);
             return parsed;
           }
 

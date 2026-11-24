@@ -129,8 +129,9 @@ export class FlashgbxGbaAdapter extends FlashgbxBaseAdapter {
           }
 
           await client.cartWriteFlash('AGB', [[0x00, 0xF0]], true);
+          const romBaseline = await client.readRom('AGB', 0x00, 0x20, { maxLength: 0x20 });
           await client.cartWriteFlash('AGB', [[0xAAA, 0xAA], [0x555, 0x55], [0xAAA, 0x90]], true);
-          const idBytes = await client.readRom('AGB', 0x00, 8, { maxLength: 8 });
+          const idBytes = await client.readRom('AGB', 0x00, 0x20, { maxLength: 0x20 });
           await this.resetFlashToRead(client);
 
           await client.cartWriteFlash('AGB', [[0xAA, 0x98]], true);
@@ -140,6 +141,7 @@ export class FlashgbxGbaAdapter extends FlashgbxBaseAdapter {
           const parsed = parseCFI(cfiRaw);
           if (parsed && parsed.deviceSize > 0) {
             parsed.flashId = idBytes.slice(0, 4);
+            await this.logMatchedProfileForCfi('GBA', romBaseline, idBytes);
             return parsed;
           }
 
