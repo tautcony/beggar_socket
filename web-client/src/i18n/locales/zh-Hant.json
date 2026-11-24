@@ -58,7 +58,7 @@
       "resetConnection": "重置",
       "flashgbxPowerCapable": "支援電源控制",
       "flashgbxNoPowerControl": "無電源控制",
-      "flashgbxReadOnlyNotice": "FlashGBX 裝置已連線，讀寫功能將在後續版本提供。"
+      "flashgbxReadOnlyNotice": "FlashGBX 設備已連線，讀寫功能將在後續版本提供。"
     },
     "mode": {
       "gba": "GBA",
@@ -493,7 +493,7 @@
         "sectorCountPrompt": "請輸入要檢查的扇區數量 (1-{max}):",
         "sectorCountError": "扇區數量必須是{min}-{max}之間的整數"
       },
-      "flashgbxDisabled": "FlashGBX 裝置下已停用"
+      "flashgbxDisabled": "FlashGBX 設備下已停用"
     },
     "file": {
       "dropArea": "或移入檔案到此處",
@@ -564,7 +564,7 @@
           "range": "大小必須在 {min} - {max} 位元組之間",
           "multiple": "大小必須是{multipler}的倍數"
         },
-        "independentSizes": "為每個韌體單獨儲存封包設定",
+        "independentSizes": "為每個固件單獨儲存封包設定",
         "independentHint": "丐中丐與碳酸丐分別儲存封包大小，互不影響。",
         "linkedHint": "丐中丐與碳酸丐共用同一份封包設定；開啟獨立設定可分別調整。"
       },
