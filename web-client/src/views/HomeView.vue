@@ -3,16 +3,18 @@
     <header class="page-header">
       <div class="header-inner">
         <div class="left-section">
-          <AppMenu
-            :current-mode="currentMode"
-            :device="device"
-          />
-          <DeviceConnect
-            ref="deviceConnectRef"
-            :compact="true"
-            @device-ready="onDeviceReady"
-            @device-disconnected="onDeviceDisconnected"
-          />
+          <div class="header-controls">
+            <AppMenu
+              :current-mode="currentMode"
+              :device="device"
+            />
+            <DeviceConnect
+              ref="deviceConnectRef"
+              :compact="true"
+              @device-ready="onDeviceReady"
+              @device-disconnected="onDeviceDisconnected"
+            />
+          </div>
           <div class="header-divider" />
           <div class="title-section">
             <h1 class="main-title">
@@ -268,17 +270,13 @@ $title-color: #2c3e50;
 .header-inner {
   max-width: 1280px;
   margin: 0 auto;
-  padding: spacing-vars.$space-3 spacing-vars.$space-4;
+  padding: spacing-vars.$space-3 spacing-vars.$space-6;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: spacing-vars.$space-2 spacing-vars.$space-4;
+  gap: spacing-vars.$space-2 spacing-vars.$space-3;
   flex-wrap: wrap;
   box-sizing: border-box;
-
-  @include mixins.respond-to(md) {
-    padding: spacing-vars.$space-3 spacing-vars.$space-6;
-  }
 }
 
 .home-content {
@@ -312,17 +310,28 @@ $title-color: #2c3e50;
 }
 
 .left-section {
-  @include mixins.flex-center;
-
-  justify-content: flex-start;
-  flex-wrap: wrap;
-  gap: spacing-vars.$space-2;
-  flex: 1 1 0%;
-  min-width: 0;
+  display: contents;
 
   @include mixins.respond-to(lg) {
+    @include mixins.flex-center;
+
+    justify-content: flex-start;
     flex-wrap: nowrap;
     gap: spacing-vars.$space-3;
+    flex: 1 1 0%;
+    min-width: 0;
+  }
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: spacing-vars.$space-2;
+  flex-shrink: 0;
+  order: 1;
+
+  @include mixins.respond-to(lg) {
+    order: initial;
   }
 }
 
@@ -333,8 +342,10 @@ $title-color: #2c3e50;
   min-width: 0;
   flex-shrink: 0;
   margin-left: auto;
+  order: 2;
 
   @include mixins.respond-to(lg) {
+    order: initial;
     gap: spacing-vars.$space-3;
   }
 }
@@ -345,6 +356,13 @@ $title-color: #2c3e50;
   gap: spacing-vars.$space-2;
   min-width: 0;
   max-width: 100%;
+  flex: 1 1 100%;
+  order: 3;
+
+  @include mixins.respond-to(lg) {
+    order: initial;
+    flex: 0 1 auto;
+  }
 }
 
 .main-title {
