@@ -159,7 +159,7 @@
       "delayTime": "延迟时间 (ms)",
       "progressInterval": "进度更新间隔 (ms)",
       "simulateErrors": "模拟错误",
-      "errorProbability": "错误概率",
+      "errorProbability": "出错率",
       "quickActions": "快捷操作",
       "connectMockDevice": "连接模拟设备",
       "generateTestRom": "生成测试ROM",
@@ -227,14 +227,14 @@
         "noResponseData": "暂无响应数据",
         "responseLength": "响应长度",
         "bytes": "字节",
-        "executionTime": "执行时间",
+        "executionTime": "运行时间",
         "commandSent": "命令发送成功",
         "errors": {
           "noDevice": "未连接设备",
           "invalidHexLength": "16进制数据长度必须是偶数",
           "invalidHexData": "无效的16进制数据格式",
           "noResponse": "未收到设备响应",
-          "commandFailed": "命令执行失败"
+          "commandFailed": "命令运行失败"
         },
         "copy": "复制",
         "copied": "已复制",
@@ -294,7 +294,7 @@
       "edit": "编辑ROM信息"
     },
     "romAnalyzer": {
-      "uploadPrompt": "选择ROM文件或拖拽到此处",
+      "uploadPrompt": "选择ROM文件或移入此处",
       "uploadHint": "支持 .rom, .gba, .gb, .gbc 格式",
       "fileInfo": "文件信息",
       "fileName": "文件名",
@@ -330,7 +330,7 @@
       "totalSize": "总容量",
       "alignment": "对齐要求",
       "uploadFiles": "上传文件",
-      "selectFiles": "选择ROM文件或拖拽到此处",
+      "selectFiles": "选择ROM文件或移入此处",
       "pendingFiles": "待放置文件",
       "requiredSlots": "需要{count}个槽位",
       "romLayout": "ROM布局",
@@ -495,7 +495,7 @@
       }
     },
     "file": {
-      "dropArea": "或拖拽文件到此处",
+      "dropArea": "或移入文件到此处",
       "accept": "支持 {format} 格式",
       "dragOver": "释放文件",
       "browse": "浏览...",
@@ -509,8 +509,8 @@
     "log": {
       "title": "日志",
       "clear": "清除日志",
-      "autoScrollEnabled": "自动滚动已启用",
-      "autoScrollDisabled": "自动滚动已禁用"
+      "autoScrollEnabled": "自动跟随已启用",
+      "autoScrollDisabled": "自动跟随已禁用"
     },
     "settings": {
       "title": "高级设置",
@@ -639,7 +639,7 @@
         "running": "处理中",
         "completed": "已完成",
         "paused": "已停止",
-        "error": "执行失败"
+        "error": "运行失败"
       },
       "rendererCanvas": "Canvas"
     },
@@ -659,13 +659,13 @@
       "status": "状态",
       "romCode": "ROM代码",
       "menuRom": "菜单ROM",
-      "dropMenuRom": "拖拽菜单ROM文件到此处",
+      "dropMenuRom": "移入菜单ROM文件到此处",
       "gameRoms": "游戏ROM",
-      "dropGameRoms": "拖拽游戏ROM文件到此处",
+      "dropGameRoms": "移入游戏ROM文件到此处",
       "backgroundImage": "背景图像",
-      "dropBgImage": "拖拽背景图像文件到此处",
+      "dropBgImage": "移入背景图像文件到此处",
       "saveFiles": "RAM 文件",
-      "dropSaveFiles": "拖拽 RAM 文件到此处",
+      "dropSaveFiles": "移入 RAM 文件到此处",
       "configuration": "配置",
       "basicSettings": "基本设置",
       "fileSettings": "文件设置",
@@ -688,7 +688,7 @@
       "statusBuilding": "构建中",
       "statusSuccess": "成功",
       "statusReady": "就绪",
-      "dragToReorder": "拖拽以重新排序",
+      "dragToReorder": "按住移动以重新排序",
       "loadingLibrary": "正在加载图像处理库...",
       "libraryLoaded": "图像处理库加载完成",
       "libraryLoadFailed": "图像处理库加载失败",
@@ -929,7 +929,7 @@
         "flashDetectionFailed": "NOR flash识别异常",
         "deviceInfo": "容量:{capacity} 扇区数量:{sectorCount} 扇区大小:{sectorSize}",
         "checkingSectors": "检查 {count} 个扇区的PPB状态",
-        "allSectorsUnlocked": "所有扇区已解锁，但仍将执行PPB擦除操作",
+        "allSectorsUnlocked": "所有扇区已解锁，但仍将进行PPB擦除操作",
         "ppbEraseStarting": "---- All PPB Erase ----",
         "verifyingStatus": "验证PPB状态: {status}",
         "cannotUnlock": "无法解锁PPB",
@@ -946,7 +946,7 @@
         "flashDetectionFailed": "NOR flash识别异常",
         "deviceInfo": "容量:{capacity} 扇区数量:{sectorCount} 扇区大小:{sectorSize}",
         "checkingSectors": "检查 {count} 个扇区的PPB状态",
-        "allSectorsUnlocked": "所有扇区已解锁，但仍将执行PPB擦除操作",
+        "allSectorsUnlocked": "所有扇区已解锁，但仍将进行PPB擦除操作",
         "ppbEraseStarting": "---- All PPB Erase ----",
         "verifyingStatus": "验证PPB状态: {status}",
         "cannotUnlock": "无法解锁PPB",
