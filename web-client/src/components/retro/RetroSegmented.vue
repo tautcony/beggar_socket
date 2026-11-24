@@ -102,7 +102,7 @@ defineEmits<{
 
 .retro-segment-badge {
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   padding: 1px 5px;
   border-radius: 3px;
   background: rgba(128, 128, 128, 0.22);

@@ -1,4 +1,5 @@
-﻿import { createI18n } from 'vue-i18n';
+﻿import { watch } from 'vue';
+import { createI18n } from 'vue-i18n';
 
 import enUS from '@/i18n/locales/en-US.json';
 import jaJP from '@/i18n/locales/ja-JP.json';
@@ -98,5 +99,13 @@ const i18n = createI18n({
   fallbackLocale: 'zh-Hans',
   messages,
 });
+
+function syncDocumentLang(lang: string): void {
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = lang;
+  }
+}
+
+watch(i18n.global.locale, syncDocumentLang, { immediate: true });
 
 export default i18n;

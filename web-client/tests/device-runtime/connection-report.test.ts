@@ -161,4 +161,39 @@ describe('buildConnectionLogReport', () => {
     expect(entries[0].message).toContain('丐中丐');
     expect(entries[0].details).toContain(`variant=${VARIANT_IDS.stm}`);
   });
+
+  it('attaches structured DisplayText payloads without performing i18n in the runtime', () => {
+    const session = buildStmSession({ usb: { vendorId: '1a86', productId: '7523' } });
+    const entries = buildConnectionLogReport({
+      device: device({
+        portInfo: { path: '/dev/cu.usbserial-110', vendorId: '1a86', productId: '7523' },
+        session,
+        diagnostics: session.diagnostics,
+      }),
+    });
+
+    expect(entries[0].messageText).toMatchObject({
+      key: 'messages.device.log.connected',
+      params: { device: '丐中丐', version: '' },
+    });
+    expect(entries[1].messagePrefix).toBe('[transport/port-mismatch]');
+    expect(entries[1].messageText).toMatchObject({
+      key: 'messages.device.diagnostics.portMismatch',
+      params: {
+        observed: '1a86:7523',
+        variantId: VARIANT_IDS.stm,
+      },
+    });
+
+    const failureEntries = buildConnectionLogReport({
+      failure: { stage: 'probe', message: 'handshake failed' },
+    });
+    expect(failureEntries[0].messageText).toMatchObject({
+      key: 'messages.device.log.connectionFailedAt',
+      params: { stage: 'probe', message: 'handshake failed' },
+    });
+    expect(failureEntries[0].hintText).toMatchObject({
+      key: 'messages.device.stageHints.probe',
+    });
+  });
 });

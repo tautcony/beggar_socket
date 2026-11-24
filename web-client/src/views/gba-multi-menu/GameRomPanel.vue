@@ -244,7 +244,7 @@ function handleDrop(e: DragEvent, dropIndex: number) {
 
 .index-badge {
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   font-weight: var(--font-weight-bold);
   padding: 1px 5px;
   border-radius: 3px;
@@ -269,7 +269,7 @@ function handleDrop(e: DragEvent, dropIndex: number) {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   font-weight: var(--font-weight-semibold);
   color: var(--retro-ink);
 }
@@ -277,7 +277,7 @@ function handleDrop(e: DragEvent, dropIndex: number) {
 .rom-meta {
   flex-shrink: 0;
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   color: var(--retro-ink-muted);
 }
 
@@ -307,7 +307,7 @@ function handleDrop(e: DragEvent, dropIndex: number) {
 
 .config-field label {
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   font-weight: var(--font-weight-semibold);
   color: var(--retro-ink-muted);
 }

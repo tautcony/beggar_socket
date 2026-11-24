@@ -3,9 +3,10 @@
  *
  * The right-hand log area (not just `console`) renders the actual device/firmware of the
  * committed session, the port match result and an actionable hint per failure stage. The
- * UI only forwards these entries, so the wording stays next to the data that produced it.
+ * runtime builds plain-text entries plus structured `DisplayText` payloads so the UI
+ * layer can localize them without coupling the runtime to vue-i18n.
  */
-import { displayTextToString } from '@/device/display';
+import { type DisplayText, displayTextToString } from '@/device/display';
 import type { ConnectionAttemptContext, DeviceDiagnostic } from '@/device/session';
 import { formatUsbIds } from '@/device/usb-identity';
 import type { DeviceInfo } from '@/types/device-info';
@@ -15,6 +16,11 @@ export interface ConnectionLogEntry {
   readonly message: string;
   readonly details?: string;
   readonly error?: string;
+  /** Structured i18n payload for UI consumers; runtime stays i18n-free. */
+  readonly messageText?: DisplayText;
+  readonly messagePrefix?: string;
+  readonly hintText?: DisplayText;
+  readonly detailsPrefix?: string;
 }
 
 export interface ConnectionFailureReport {
@@ -37,6 +43,69 @@ const STAGE_HINTS: Readonly<Record<string, string>> = {
   disconnect: 'Protocol teardown failed while closing the port. Retry the disconnect.',
   unknown: 'Connection failed. Check the device, cable and advanced settings.',
 };
+
+function diagnosticDisplayText(diagnostic: DeviceDiagnostic): DisplayText {
+  const raw = displayTextToString(diagnostic.message);
+  if (typeof diagnostic.message !== 'string') {
+    return diagnostic.message;
+  }
+
+  switch (diagnostic.code) {
+    case 'port-mismatch': {
+      const match = /^Port (.+?) does not match the identity(?: for (.+?))? \((.+)\)$/.exec(raw);
+      if (match) {
+        const [, observed, variantId, expected] = match;
+        return {
+          key: variantId
+            ? 'messages.device.diagnostics.portMismatch'
+            : 'messages.device.diagnostics.portMismatchNoVariant',
+          params: {
+            observed,
+            expected,
+            ...(variantId ? { variantId } : {}),
+          },
+          fallback: raw,
+        };
+      }
+      return raw;
+    }
+    case 'port-identity-incomplete': {
+      const match = /^Port (.+?) does not report (.+?), so it cannot be matched against (.+)$/.exec(raw);
+      if (match) {
+        const [, observed, missing, expected] = match;
+        return {
+          key: 'messages.device.diagnostics.portIdentityIncomplete',
+          params: { observed, missing, expected },
+          fallback: raw,
+        };
+      }
+      return raw;
+    }
+    case 'port-identity-unknown': {
+      const match = /^Port reported no USB identity, so (.+?) could not be checked$/.exec(raw);
+      if (match) {
+        return {
+          key: 'messages.device.diagnostics.portIdentityUnknown',
+          params: { expected: match[1] },
+          fallback: raw,
+        };
+      }
+      return raw;
+    }
+    case 'boost-probe-failed':
+      return { key: 'messages.device.errors.boostUnsupported', fallback: raw };
+    case 'unsupported-firmware':
+      return { key: 'messages.device.errors.gbflashUnsupported', fallback: raw };
+    case 'handshake-failed':
+      return { key: 'messages.device.errors.gbflashHandshakeFailed', fallback: raw };
+    case 'teardown-failed':
+      return { key: 'messages.device.diagnostics.teardownFailed', fallback: raw };
+    case 'cleanup-failed':
+      return { key: 'messages.device.diagnostics.cleanupFailed', fallback: raw };
+    default:
+      return raw;
+  }
+}
 
 function diagnosticLevel(diagnostic: DeviceDiagnostic): ConnectionLogEntry['level'] {
   if (diagnostic.severity === 'error') {
@@ -107,16 +176,26 @@ export function buildConnectionLogReport(input: {
       profile ? `transport=${profile.transport.backend}` : null,
     ].filter(Boolean).join(', ');
 
+    const versionSuffix = firmwareVersion ? ` (${firmwareVersion})` : '';
+    const connectedMessage = `Connected: ${deviceName}${versionSuffix}`;
     entries.push({
       level: 'info',
-      message: `Connected: ${deviceName}${firmwareVersion ? ` (${firmwareVersion})` : ''}`,
+      message: connectedMessage,
+      messageText: {
+        key: 'messages.device.log.connected',
+        params: { device: deviceName, version: versionSuffix },
+        fallback: connectedMessage,
+      },
       details,
     });
 
     for (const diagnostic of (profile?.diagnostics ?? device.diagnostics ?? [])) {
+      const prefix = `[${diagnostic.stage ?? 'connection'}/${diagnostic.code}]`;
       entries.push({
         level: diagnosticLevel(diagnostic),
-        message: `[${diagnostic.stage ?? 'connection'}/${diagnostic.code}] ${displayTextToString(diagnostic.message)}`,
+        message: `${prefix} ${displayTextToString(diagnostic.message)}`,
+        messagePrefix: prefix,
+        messageText: diagnosticDisplayText(diagnostic),
       });
     }
   }
@@ -130,16 +209,31 @@ export function buildConnectionLogReport(input: {
         `match=${describeAssessment(context.portIdentity, context.port)}`,
       ].join(', ')
       : null;
-    const hint = STAGE_HINTS[failure.stage] ?? STAGE_HINTS.unknown;
+    const hintKey = failure.stage in STAGE_HINTS ? failure.stage : 'unknown';
+    const hint = STAGE_HINTS[hintKey];
+    const failureMessage = `Connection failed at ${failure.stage}: ${failure.message}`;
     entries.push({
       level: 'error',
-      message: `Connection failed at ${failure.stage}: ${failure.message}`,
+      message: failureMessage,
+      messageText: {
+        key: 'messages.device.log.connectionFailedAt',
+        params: { stage: failure.stage, message: failure.message },
+        fallback: failureMessage,
+      },
       details: attemptDetails ? `${attemptDetails} — ${hint}` : hint,
+      ...(attemptDetails ? { detailsPrefix: attemptDetails } : {}),
+      hintText: {
+        key: `messages.device.stageHints.${hintKey}`,
+        fallback: hint,
+      },
     });
     for (const diagnostic of failure.diagnostics ?? []) {
+      const prefix = `[${diagnostic.stage ?? 'connection'}/${diagnostic.code}]`;
       entries.push({
         level: diagnosticLevel(diagnostic),
-        message: `[${diagnostic.stage ?? 'connection'}/${diagnostic.code}] ${displayTextToString(diagnostic.message)}`,
+        message: `${prefix} ${displayTextToString(diagnostic.message)}`,
+        messagePrefix: prefix,
+        messageText: diagnosticDisplayText(diagnostic),
       });
     }
   }

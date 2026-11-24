@@ -301,7 +301,7 @@ function handleBgImageChange(e: Event) {
 
 .header-badge {
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   padding: 1px 6px;
   border-radius: 4px;
   border: 1px solid var(--retro-border-subtle);
@@ -335,7 +335,7 @@ function handleBgImageChange(e: Event) {
   background: var(--retro-bg-surface);
   color: var(--retro-ink);
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   line-height: 1.3;
   transition: box-shadow 0.12s ease;
 }
@@ -355,7 +355,7 @@ function handleBgImageChange(e: Event) {
   gap: 8px;
   margin-top: 2px;
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   font-weight: var(--font-weight-medium);
   color: var(--retro-ink);
   cursor: pointer;
@@ -420,7 +420,7 @@ function handleBgImageChange(e: Event) {
   justify-content: space-between;
   gap: 6px;
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   color: var(--retro-ink);
 }
 
@@ -438,7 +438,7 @@ function handleBgImageChange(e: Event) {
 
 .file-meta-empty {
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   color: var(--retro-ink-subtle);
 }
 
@@ -470,7 +470,7 @@ function handleBgImageChange(e: Event) {
 
 .result-badge {
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   font-weight: var(--font-weight-bold);
   padding: 2px 6px;
   border-radius: 4px;
@@ -481,7 +481,7 @@ function handleBgImageChange(e: Event) {
 
 .result-specs {
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   color: var(--retro-ink-muted);
 }
 
@@ -516,14 +516,14 @@ function handleBgImageChange(e: Event) {
 .preview-item h6 {
   margin: 0;
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   font-weight: var(--font-weight-bold);
   color: var(--retro-ink);
 }
 
 .image-dimensions {
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   color: var(--retro-ink-muted);
 }
 

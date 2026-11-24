@@ -599,10 +599,10 @@ export abstract class GbflashBaseAdapter extends CartridgeAdapter {
     const outcome = await probeFlashcartProfiles(client, mode, flashcartMode);
     if (outcome.match.status === 'none') {
       const idHint = outcome.observedId?.length
-        ? ` (observed ID: ${Array.from(outcome.observedId).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')})`
+        ? ` (ID: ${Array.from(outcome.observedId).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')})`
         : '';
       this.lastCartInfoErrorCode = 'profile_not_found';
-      this.lastCartInfoError = `No matching flashcart profile found for ${mode} cartridge${idHint}`;
+      this.lastCartInfoError = this.t('messages.operation.profileNotFoundForMode', { mode, idHint });
       if (idHint) {
         this.log(this.lastCartInfoError, 'warn');
       }

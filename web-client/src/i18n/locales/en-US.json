@@ -411,7 +411,8 @@
       "saveAssociationMessage": "ROM: {rom}\nRAM: {save}\nThese names differ. Choose whether to use this RAM.",
       "useSelectedSave": "Use selected RAM",
       "exportStarted": "RAM download started: {name}",
-      "exportSaved": "RAM saved to {name}"
+      "exportSaved": "RAM saved to {name}",
+      "startGameFailed": "Failed to start game"
     },
     "ram": {
       "title": "RAM Operations",
@@ -670,7 +671,8 @@
       "close": "Close",
       "details": "Details",
       "error": "Error",
-      "detail": "Detail"
+      "detail": "Detail",
+      "remove": "Remove"
     },
     "gbaMultiMenu": {
       "title": "GBA ROM Builder",
@@ -725,7 +727,58 @@
       "connectionFailed": "Device connection failed: {error}",
       "disconnectionSuccess": "Device disconnected successfully",
       "disconnectionFailed": "Device disconnection failed: {error}",
-      "initializationSuccess": "Device initialized successfully"
+      "initializationSuccess": "Device initialized successfully",
+      "notConnected": "Device not connected",
+      "initializationFailed": "Device initialization failed: {error}",
+      "refreshPortsFailed": "Failed to refresh port list",
+      "errors": {
+        "noValidSelection": "No valid device selection. Choose a device and firmware in the advanced settings.",
+        "selectionNotRegistered": "Device selection {variantId} is not registered.",
+        "runtimeBindingMissing": "No runtime binding is registered for {variantId}.",
+        "simulatedUnsupported": "The debug simulator does not support {variantId}. Choose a supported variant or disable simulation.",
+        "boostUnsupported": "Beggar Boost handshake did not respond. Flash ChisFlash-Beggar-Boost firmware or switch back to standard Beggar in advanced settings.",
+        "beggarTeardownFailed": "Failed to leave Beggar Boost mode.",
+        "gbflashUnsupported": "Unsupported GBFlash firmware version. Update the firmware and retry.",
+        "gbflashHandshakeFailed": "GBFlash handshake failed. Check the USB cable and selected port.",
+        "gbflashTeardownFailed": "Failed to send teardown commands while disconnecting the GBFlash device.",
+        "connectionInProgress": "Device connection is already in progress.",
+        "tauriOnly": "This operation is only available in the desktop (Tauri) environment.",
+        "invalidConnectionHandle": "Invalid connection handle.",
+        "connectFailed": "Failed to connect to the selected port.",
+        "initFailed": "Failed to initialize serial signals.",
+        "listFailed": "Failed to list serial ports.",
+        "disconnectFailed": "Failed to disconnect device.",
+        "probeFailed": "Device handshake probe failed.",
+        "resolveFailed": "Failed to resolve device session.",
+        "initializeFailed": "Failed to initialize device session.",
+        "unknown": "Unknown connection error."
+      },
+      "diagnostics": {
+        "portMismatch": "Port {observed} does not match the identity for {variantId} ({expected})",
+        "portMismatchNoVariant": "Port {observed} does not match the identity ({expected})",
+        "portIdentityIncomplete": "Port {observed} does not report {missing}, so it cannot be matched against {expected}",
+        "portIdentityUnknown": "Port reported no USB identity, so {expected} could not be checked",
+        "teardownFailed": "Failed to reset the device protocol while disconnecting",
+        "cleanupFailed": "Protocol cleanup after the stage failure also failed"
+      },
+      "stageHints": {
+        "list": "Could not enumerate serial ports. Check the USB connection and the platform permissions.",
+        "select": "Choose a device and firmware in the advanced settings, then retry.",
+        "connect": "Check the USB cable and close other applications that may hold the port.",
+        "init": "The port opened but signal initialisation failed. Retry or choose another port.",
+        "probe": "The device did not answer the selected firmware handshake. Check the advanced settings; a Boost selection needs ChisFlash-Beggar-Boost firmware.",
+        "resolve": "The device responded but the session could not be resolved. Check the advanced settings.",
+        "initialize": "The handshake succeeded but session initialisation failed. Retry the connection.",
+        "disconnect": "Protocol teardown failed while closing the port. Retry the disconnect.",
+        "unknown": "Connection failed. Check the device, cable and advanced settings."
+      },
+      "log": {
+        "connected": "Connected: {device}{version}",
+        "connectionFailedAt": "Connection failed at {stage}: {message}",
+        "matchMismatch": "mismatch (expected {expected})",
+        "matchIncomplete": "incomplete — the port does not report {missing}",
+        "matchUnknown": "unknown — the port reported no USB identity"
+      }
     },
     "operation": {
       "readId": "Reading ID...",
@@ -735,6 +788,7 @@
       "readCartFailed": "Failed to read cartridge information",
       "profileAmbiguous": "Multiple flashcart profiles matched; please select a profile manually",
       "profileNotFound": "No matching flashcart profile found",
+      "profileNotFoundForMode": "No matching flashcart profile found for {mode} cartridge{idHint}",
       "startEraseSectors": "Starting sector erase - Start address: {startAddress}, End address: {endAddress}, Sector size: {sectorSize} bytes",
       "startWriteROM": "Starting ROM write - Data size: {fileSize} bytes, Base address: {baseAddress}, Page size: {pageSize} bytes, Buffer size: {bufferSize} bytes",
       "startReadROM": "Starting ROM read - Size: {size} bytes, Base address: {baseAddress}",
@@ -777,7 +831,9 @@
       "cfiParseSuccess": "CFI parsing successful",
       "cfiParseFailed": "CFI parsing failed",
       "eraseSectorFailed": "Sector erase failed",
-      "eraseSummary": "Erase completed - Total time: {totalTime}, Average speed: {avgSpeed}, Max speed: {maxSpeed}, Total sectors: {totalSectors}"
+      "eraseSummary": "Erase completed - Total time: {totalTime}, Average speed: {avgSpeed}, Max speed: {maxSpeed}, Total sectors: {totalSectors}",
+      "eraseTimeout": "Estimated erase timeout",
+      "calculateEraseTimeoutFailed": "Failed to calculate erase timeout"
     },
     "rom": {
       "writing": "Writing ROM, size {size} bytes",
@@ -1001,6 +1057,12 @@
       "romDownloaded": "ROM downloaded",
       "romApplied": "ROM applied to main page",
       "romDownloadFailed": "ROM download failed: {error}"
+    },
+    "gba": {
+      "erasingFlash": "Erasing Flash save...",
+      "eraseStatus": "Flash erase status: {status}",
+      "eraseComplete": "Flash save erase complete",
+      "bankSwitchFlash": "Switched Flash bank to {bank}"
     }
   }
 }

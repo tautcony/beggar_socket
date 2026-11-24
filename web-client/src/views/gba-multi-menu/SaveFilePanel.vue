@@ -149,7 +149,7 @@ function handleSaveFileDrop(e: DragEvent) {
 .save-size {
   flex-shrink: 0;
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   color: var(--retro-ink-muted);
 }
 </style>

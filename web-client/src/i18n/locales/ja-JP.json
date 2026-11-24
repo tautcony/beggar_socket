@@ -403,7 +403,8 @@
       "saveAssociationMessage": "ROM：{rom}\nRAM：{save}\n名前が異なります。このRAMを使うか選択してください。",
       "useSelectedSave": "選択したRAMを使う",
       "exportStarted": "RAMのダウンロードを開始しました：{name}",
-      "exportSaved": "RAMを保存しました：{name}"
+      "exportSaved": "RAMを保存しました：{name}",
+      "startGameFailed": "ゲームの起動に失敗しました"
     },
     "ram": {
       "title": "RAM操作",
@@ -662,7 +663,8 @@
       "close": "閉じる",
       "details": "詳細",
       "error": "エラー",
-      "detail": "詳細情報"
+      "detail": "詳細情報",
+      "remove": "削除"
     },
     "gbaMultiMenu": {
       "title": "GBA ROMビルダー",
@@ -725,7 +727,58 @@
       "connectionFailed": "デバイス接続失敗: {error}",
       "disconnectionSuccess": "デバイス切断成功",
       "disconnectionFailed": "デバイス切断失敗: {error}",
-      "initializationSuccess": "デバイス初期化成功"
+      "initializationSuccess": "デバイス初期化成功",
+      "notConnected": "デバイスが接続されていません",
+      "initializationFailed": "デバイスの初期化に失敗しました: {error}",
+      "refreshPortsFailed": "ポートリストの更新に失敗しました",
+      "errors": {
+        "noValidSelection": "有効なデバイスとファームウェアが選択されていません。詳細設定で選択してください。",
+        "selectionNotRegistered": "選択されたデバイス設定 {variantId} は登録されていません。",
+        "runtimeBindingMissing": "デバイス設定 {variantId} のランタイムバインディングが見つかりません。",
+        "simulatedUnsupported": "デバッグシミュレーターはこのファームウェア ({variantId}) をサポートしていません。対応ファームウェアを選択するかシミュレーションを無効にしてください。",
+        "boostUnsupported": "Beggar Boost ハンドシェイクに応答がありません。ChisFlash-Beggar-Boost ファームウェアを書き込むか、詳細設定で標準モードに切り替えてください。",
+        "beggarTeardownFailed": "Beggar Boost モードの終了に失敗しました。",
+        "gbflashUnsupported": "未対応の GBFlash ファームウェアバージョンです。ファームウェアを更新して再試行してください。",
+        "gbflashHandshakeFailed": "GBFlash ハンドシェイクに失敗しました。USB ケーブルと選択したポートを確認してください。",
+        "gbflashTeardownFailed": "GBFlash デバイスの切断中に終了コマンドの送信に失敗しました。",
+        "connectionInProgress": "デバイス接続がすでに進行中です。",
+        "tauriOnly": "この操作はデスクトップ (Tauri) 環境でのみ利用可能です。",
+        "invalidConnectionHandle": "無効な接続ハンドルです。",
+        "connectFailed": "選択したポートへの接続に失敗しました。",
+        "initFailed": "シリアル信号の初期化に失敗しました。",
+        "listFailed": "シリアルポートの列挙に失敗しました。",
+        "disconnectFailed": "デバイスの切断に失敗しました。",
+        "probeFailed": "デバイスのハンドシェイク検出に失敗しました。",
+        "resolveFailed": "デバイスセッションの解決に失敗しました。",
+        "initializeFailed": "デバイスセッションの初期化に失敗しました。",
+        "unknown": "不明な接続エラーです。"
+      },
+      "diagnostics": {
+        "portMismatch": "ポート {observed} は選択された設定 {variantId} の USB ID（{expected}）と一致しません",
+        "portMismatchNoVariant": "ポート {observed} は選択された設定の USB ID（{expected}）と一致しません",
+        "portIdentityIncomplete": "ポート {observed} は {missing} を報告していないため、{expected} と照合できません",
+        "portIdentityUnknown": "ポートが USB ID を報告していないため、{expected} を確認できませんでした",
+        "teardownFailed": "切断中のプロトコルリセットコマンドの送信に失敗しました",
+        "cleanupFailed": "ステージ失敗後のプロトコルクリーンアップも失敗しました"
+      },
+      "stageHints": {
+        "list": "シリアルポートを列挙できませんでした。USB 接続とシステム許可を確認してください。",
+        "select": "詳細設定でデバイスとファームウェアを選択してから再試行してください。",
+        "connect": "USB ケーブルを確認し、ポートを使用している他のアプリケーションを閉じてください。",
+        "init": "ポートは開きましたが信号の初期化に失敗しました。再試行するか別のポートを選択してください。",
+        "probe": "デバイスが選択したファームウェアのハンドシェイクに応答しませんでした。詳細設定を確認してください。Boost を選択する場合は ChisFlash-Beggar-Boost ファームウェアが必要です。",
+        "resolve": "デバイスは応答しましたがセッションを解決できませんでした。詳細設定を確認してください。",
+        "initialize": "ハンドシェイクは成功しましたがセッションの初期化に失敗しました。接続を再試行してください。",
+        "disconnect": "ポートを閉じる際のプロトコル終了に失敗しました。切断を再試行してください。",
+        "unknown": "接続に失敗しました。デバイス、ケーブル、詳細設定を確認してください。"
+      },
+      "log": {
+        "connected": "接続済み: {device}{version}",
+        "connectionFailedAt": "{stage} ステージで接続に失敗しました: {message}",
+        "matchMismatch": "不一致（期待値 {expected}）",
+        "matchIncomplete": "情報不完全 — ポートが {missing} を報告していません",
+        "matchUnknown": "不明 — ポートが USB ID を報告していません"
+      }
     },
     "operation": {
       "readId": "ID読み取り中...",
@@ -735,6 +788,7 @@
       "readCartFailed": "カートリッジ情報読み取り失敗",
       "profileAmbiguous": "複数のフラッシュカート設定が一致しました。手動で選択してください",
       "profileNotFound": "一致するフラッシュカート設定が見つかりません",
+      "profileNotFoundForMode": "{mode} カートリッジに一致するフラッシュカート設定が見つかりません{idHint}",
       "startEraseSectors": "セクタ消去を開始 - 開始アドレス: {startAddress}, 終了アドレス: {endAddress}, セクタサイズ: {sectorSize} バイト",
       "startWriteROM": "ROM書き込みを開始 - データサイズ: {fileSize} バイト, ベースアドレス: {baseAddress}, ページサイズ: {pageSize} バイト, バッファサイズ: {bufferSize} バイト",
       "startReadROM": "ROM読み取りを開始 - サイズ: {size} バイト, ベースアドレス: {baseAddress}",
@@ -777,7 +831,9 @@
       "cfiParseFailed": "CFI解析失敗",
       "eraseSectorFailed": "セクター消去失敗",
       "eraseSummary": "消去完了 - 合計時間: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 合計セクター数: {totalSectors}",
-      "cancelling": "キャンセル中..."
+      "cancelling": "キャンセル中...",
+      "eraseTimeout": "推定消去タイムアウト",
+      "calculateEraseTimeoutFailed": "消去タイムアウトの計算に失敗しました"
     },
     "rom": {
       "writing": "ROMを書き込み中、サイズ {size} バイト",
@@ -1001,6 +1057,12 @@
       "romDownloaded": "ROMがダウンロードされました",
       "romApplied": "ROMをメインページに適用しました",
       "romDownloadFailed": "ROMダウンロード失敗: {error}"
+    },
+    "gba": {
+      "erasingFlash": "Flash セーブを消去中...",
+      "eraseStatus": "Flash 消去ステータス: {status}",
+      "eraseComplete": "Flash セーブの消去が完了しました",
+      "bankSwitchFlash": "Flash バンクを {bank} に切り替えました"
     }
   }
 }

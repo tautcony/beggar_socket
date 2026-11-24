@@ -1016,7 +1016,7 @@ function generateTestRam(): void {
   border: 1px solid var(--retro-border);
   padding: 2px 7px;
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   font-weight: var(--font-weight-bold);
 }
 
