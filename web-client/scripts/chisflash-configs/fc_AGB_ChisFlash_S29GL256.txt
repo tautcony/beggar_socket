@@ -1,0 +1,277 @@
+{
+	"type": "AGB",
+	"names": [
+		"ChisFlash AGB (32 MiB) (S29GL256N/P)"
+	],
+	"flash_id_offsets": [
+		0,
+		1,
+		2,
+		3,
+		28,
+		29,
+		30,
+		31
+	],
+	"flash_ids": [
+		[
+			1,
+			0,
+			126,
+			34,
+			34,
+			34,
+			1,
+			34
+		]
+	],
+	"voltage": 3.3,
+	"flash_size": 33554432,
+	"buffer_size": 32,
+	"sector_size": 131072,
+	"chip_erase_timeout": 300,
+	"enable_pullups": true,
+	"command_set": "AMD",
+	"commands": {
+		"reset": [
+			[
+				0,
+				240
+			]
+		],
+		"read_identifier": [
+			[
+				2730,
+				170
+			],
+			[
+				1365,
+				85
+			],
+			[
+				2730,
+				144
+			]
+		],
+		"read_cfi": [
+			[
+				170,
+				152
+			]
+		],
+		"sector_erase": [
+			[
+				2730,
+				170
+			],
+			[
+				1365,
+				85
+			],
+			[
+				2730,
+				128
+			],
+			[
+				2730,
+				170
+			],
+			[
+				1365,
+				85
+			],
+			[
+				"SA",
+				48
+			]
+		],
+		"sector_erase_wait_for": [
+			[
+				null,
+				null,
+				null
+			],
+			[
+				null,
+				null,
+				null
+			],
+			[
+				null,
+				null,
+				null
+			],
+			[
+				null,
+				null,
+				null
+			],
+			[
+				null,
+				null,
+				null
+			],
+			[
+				"SA",
+				65535,
+				65535
+			]
+		],
+		"chip_erase": [
+			[
+				2730,
+				170
+			],
+			[
+				1365,
+				85
+			],
+			[
+				2730,
+				128
+			],
+			[
+				2730,
+				170
+			],
+			[
+				1365,
+				85
+			],
+			[
+				2730,
+				16
+			]
+		],
+		"chip_erase_wait_for": [
+			[
+				null,
+				null,
+				null
+			],
+			[
+				null,
+				null,
+				null
+			],
+			[
+				null,
+				null,
+				null
+			],
+			[
+				null,
+				null,
+				null
+			],
+			[
+				null,
+				null,
+				null
+			],
+			[
+				0,
+				65535,
+				65535
+			]
+		],
+		"buffer_write": [
+			[
+				2730,
+				170
+			],
+			[
+				1365,
+				85
+			],
+			[
+				"SA",
+				37
+			],
+			[
+				"SA",
+				"BS"
+			],
+			[
+				"PA",
+				"PD"
+			],
+			[
+				"SA",
+				41
+			]
+		],
+		"buffer_write_wait_for": [
+			[
+				null,
+				null,
+				null
+			],
+			[
+				null,
+				null,
+				null
+			],
+			[
+				null,
+				null,
+				null
+			],
+			[
+				null,
+				null,
+				null
+			],
+			[
+				null,
+				null,
+				null
+			],
+			[
+				"SA",
+				"PD",
+				65535
+			]
+		],
+		"single_write": [
+			[
+				2730,
+				170
+			],
+			[
+				1365,
+				85
+			],
+			[
+				2730,
+				160
+			],
+			[
+				"PA",
+				"PD"
+			]
+		],
+		"single_write_wait_for": [
+			[
+				null,
+				null,
+				null
+			],
+			[
+				null,
+				null,
+				null
+			],
+			[
+				null,
+				null,
+				null
+			],
+			[
+				null,
+				null,
+				null
+			]
+		]
+	}
+}

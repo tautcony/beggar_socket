@@ -299,4 +299,51 @@ describe('FlashGBX non-CFI profile integration', () => {
       expect(res3.deviceSize).toBe(0x80000);
     }
   });
+
+  it('logs the matched flashcart profile in Auto mode even when CFI succeeds', async () => {
+    vi.spyOn(FlashcartProfileService, 'loadByMode').mockResolvedValue([gbaProfileA]);
+    let inIdMode = false;
+    let inCfiMode = false;
+
+    const cfiBuf = new Uint8Array(0x100);
+    // Standard 16-bit interleaved CFI: QRY at 0x20, 0x22, 0x24; device size 2^24 = 16 MiB at 0x4E
+    cfiBuf[0x20] = 0x51;
+    cfiBuf[0x22] = 0x52;
+    cfiBuf[0x24] = 0x59;
+    cfiBuf[0x4E] = 24;
+
+    const { client, mocks, device } = makeMockClient(makeFwInfo(), (_mode, _addr, len) => {
+      if (inCfiMode) {
+        return cfiBuf.slice(0, len);
+      }
+      if (inIdMode) {
+        const id = new Uint8Array(len);
+        id.set([0x01, 0x00, 0x7E, 0x22]);
+        return id;
+      }
+      return new Uint8Array(len).fill(0xFF);
+    });
+
+    mocks.cartWriteFlash.mockImplementation((_mode, cmds) => {
+      const lastVal = cmds[cmds.length - 1]?.[1];
+      if (lastVal === 0x90) {
+        inIdMode = true;
+        inCfiMode = false;
+      } else if (lastVal === 0x98) {
+        inCfiMode = true;
+        inIdMode = false;
+      } else if (lastVal === 0xF0) {
+        inIdMode = false;
+        inCfiMode = false;
+      }
+      return Promise.resolve(undefined);
+    });
+
+    const logCallback = vi.fn();
+    const adapter = new FlashgbxGbaAdapter(device, logCallback, null, null, client);
+    const info = await adapter.getCartInfo();
+
+    expect(info).not.toBe(false);
+    expect(logCallback).toHaveBeenCalledWith(`Matched flashcart profile: ${gbaProfileA.names[0]}`, 'info');
+  });
 });

@@ -1,5 +1,6 @@
 /*!
- * Flashcart profile data converted from FlashGBX (https://github.com/Lesserkuma/FlashGBX).
+ * Flashcart profile data based on ChisFlash-Tools-Exp (https://github.com/ChisLightyear/ChisFlash-Tools-Exp)
+ * using the FlashGBX (https://github.com/Lesserkuma/FlashGBX) profile schema.
  * Copyright (C) Lesserkuma — Licensed under GNU General Public License v3.0 (GPL-3.0).
  */
 /* eslint-disable */
@@ -11,7 +12,7 @@ export {
   FLASHCART_PROFILE_COUNTS,
 } from './snapshots';
 
-export const FLASHCART_PROFILES_LICENSE_NOTICE = "Flashcart profile data converted from FlashGBX (https://github.com/Lesserkuma/FlashGBX).\nCopyright (C) Lesserkuma — Licensed under GNU General Public License v3.0 (GPL-3.0).";
+export const FLASHCART_PROFILES_LICENSE_NOTICE = "Flashcart profile data based on ChisFlash-Tools-Exp (https://github.com/ChisLightyear/ChisFlash-Tools-Exp)\nusing the FlashGBX (https://github.com/Lesserkuma/FlashGBX) profile schema.\nCopyright (C) Lesserkuma — Licensed under GNU General Public License v3.0 (GPL-3.0).";
 
 export async function loadAgbFlashcartProfiles(): Promise<readonly FlashcartProfile[]> {
   const mod = await import('./agb');

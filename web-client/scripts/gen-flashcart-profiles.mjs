@@ -6,11 +6,12 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const WEB_CLIENT_ROOT = path.resolve(__dirname, '..');
-const DEFAULT_CONFIG_DIR = path.resolve(WEB_CLIENT_ROOT, '../FlashGBX/FlashGBX/config');
+const DEFAULT_CONFIG_DIR = path.resolve(__dirname, 'chisflash-configs');
 const DEFAULT_OUTPUT_DIR = path.resolve(WEB_CLIENT_ROOT, 'src/data/flashcart-profiles');
 
 export const FLASHGBX_LICENSE_NOTICE = [
-  'Flashcart profile data converted from FlashGBX (https://github.com/Lesserkuma/FlashGBX).',
+  'Flashcart profile data based on ChisFlash-Tools-Exp (https://github.com/ChisLightyear/ChisFlash-Tools-Exp)',
+  'using the FlashGBX (https://github.com/Lesserkuma/FlashGBX) profile schema.',
   'Copyright (C) Lesserkuma — Licensed under GNU General Public License v3.0 (GPL-3.0).',
 ].join('\n');
 
@@ -337,12 +338,6 @@ export function buildProfilesFromDirectory(configDir = DEFAULT_CONFIG_DIR) {
       agb.push(profile);
     } else {
       dmg.push(profile);
-    }
-  }
-
-  for (const knownFile of KNOWN_GEOMETRY_EXCEPTIONS.keys()) {
-    if (!geometryExceptions.some(item => item.sourceFile === knownFile)) {
-      throw new Error(`Known geometry exception "${knownFile}" was not encountered during generation`);
     }
   }
 

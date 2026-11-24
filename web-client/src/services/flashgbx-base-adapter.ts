@@ -623,4 +623,24 @@ export abstract class FlashgbxBaseAdapter extends CartridgeAdapter {
     this.log(`Matched flashcart profile: ${profile.names[0]}`, 'info');
     return FlashcartProfileService.synthesizeCfiInfo(profile, outcome.observedId);
   }
+
+  protected async logMatchedProfileForCfi(
+    flashcartMode: FlashcartMode,
+    romBaseline: Uint8Array,
+    idBytes: Uint8Array,
+  ): Promise<void> {
+    const profiles = await FlashcartProfileService.loadByMode(flashcartMode);
+    const match = FlashcartProfileService.matchFlashId(profiles, {
+      rom: romBaseline,
+      id: idBytes,
+    });
+    if (match.status === 'unique') {
+      this.log(`Matched flashcart profile: ${match.profile.names[0]}`, 'info');
+    } else if (match.status === 'ambiguous') {
+      this.log(
+        `Matched flashcart profile candidates: ${match.candidates.map(c => c.names[0]).join(', ')}`,
+        'info',
+      );
+    }
+  }
 }
