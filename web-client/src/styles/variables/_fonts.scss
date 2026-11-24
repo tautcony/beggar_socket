@@ -125,16 +125,25 @@
   --font-family-mono: var(--retro-font-mono);
 }
 
+// 中日文环境下 10px 字库缺字较多，micro 文本统一切换为 12px，仅英文等非 CJK 场景使用 10px
+:root[data-font-family='ark-pixel']:lang(zh),
+:root:not([data-font-family='system']):lang(zh) {
+  --font-size-micro: 12px;
+  --retro-font-micro: 'Ark Pixel 12px', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
 :root[data-font-family='ark-pixel']:lang(zh-Hant),
 :root:not([data-font-family='system']):lang(zh-Hant) {
+  --font-size-micro: 12px;
   --app-font-sans: 'Ark Pixel 12px TC', 'Ark Pixel 12px', system-ui, sans-serif;
   --retro-font-mono: 'Ark Pixel 12px TC', 'Ark Pixel 12px', ui-monospace, monospace;
-  --retro-font-micro: 'Ark Pixel 10px TC', 'Ark Pixel 10px', ui-monospace, monospace;
+  --retro-font-micro: 'Ark Pixel 12px TC', 'Ark Pixel 12px', ui-monospace, monospace;
 }
 
 :root[data-font-family='ark-pixel']:lang(ja),
 :root:not([data-font-family='system']):lang(ja) {
+  --font-size-micro: 12px;
   --app-font-sans: 'Ark Pixel 12px JA', 'Ark Pixel 12px', system-ui, sans-serif;
   --retro-font-mono: 'Ark Pixel 12px JA', 'Ark Pixel 12px', ui-monospace, monospace;
-  --retro-font-micro: 'Ark Pixel 10px JA', 'Ark Pixel 10px', ui-monospace, monospace;
+  --retro-font-micro: 'Ark Pixel 12px JA', 'Ark Pixel 12px', ui-monospace, monospace;
 }

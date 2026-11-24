@@ -77,6 +77,7 @@ import { getRuntimeKind } from '@/platform/runtime';
 import { DeviceConnectionManager, PortSelectionRequiredError } from '@/services/device-connection-manager';
 import { DeviceInfo } from '@/types/device-info';
 import type { SerialPortInfo } from '@/types/serial';
+import { formatDeviceError, localizeConnectionLogEntries } from '@/utils/device-error';
 
 const props = withDefaults(defineProps<{
   compact?: boolean
@@ -210,11 +211,12 @@ onBeforeUnmount(() => {
 
 /** Maps any connection error onto the stage-aware report the log area renders. */
 function toFailureReport(error: unknown): ConnectionFailureReport {
+  const localizedMessage = formatDeviceError(error, t);
   const failure = (error as { failure?: ConnectionFailure } | null)?.failure;
   if (failure) {
     return {
       stage: failure.stage,
-      message: failure.message,
+      message: localizedMessage,
       ...(failure.diagnostics ? { diagnostics: failure.diagnostics } : {}),
       ...(failure.context ? { context: failure.context } : {}),
     };
@@ -222,16 +224,16 @@ function toFailureReport(error: unknown): ConnectionFailureReport {
   const stage = (error as { stage?: string } | null)?.stage ?? 'unknown';
   return {
     stage,
-    message: error instanceof Error ? error.message : String(error),
+    message: localizedMessage,
   };
 }
 
 function reportConnection(device: DeviceInfo) {
-  emit('connection-log', buildConnectionLogReport({ device }));
+  emit('connection-log', localizeConnectionLogEntries(buildConnectionLogReport({ device }), t));
 }
 
 function reportFailure(error: unknown) {
-  emit('connection-log', buildConnectionLogReport({ failure: toFailureReport(error) }));
+  emit('connection-log', localizeConnectionLogEntries(buildConnectionLogReport({ failure: toFailureReport(error) }), t));
 }
 
 async function connect(options: { allowAnyPort?: boolean } = {}) {
@@ -264,7 +266,7 @@ async function connect(options: { allowAnyPort?: boolean } = {}) {
 
     console.error('[DeviceConnect] connect failed', e);
     reportFailure(e);
-    showToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
+    showToast(t('messages.device.connectionFailed', { error: formatDeviceError(e, t) }), 'error');
     await disposeConnection();
   } finally {
     isConnecting.value = false;
@@ -301,7 +303,7 @@ async function onPortSelected(selectedPort: SerialPortInfo) {
       error: e,
     });
     reportFailure(e);
-    showToast(t('messages.device.connectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
+    showToast(t('messages.device.connectionFailed', { error: formatDeviceError(e, t) }), 'error');
     await disposeConnection();
   } finally {
     isConnecting.value = false;
@@ -323,7 +325,7 @@ async function onRefreshPorts() {
     availablePorts.value = matching.length > 0 ? matching : all;
   } catch (error) {
     console.error('Failed to refresh ports:', error);
-    showToast('刷新串口列表失败', 'error');
+    showToast(t('messages.device.refreshPortsFailed'), 'error');
   }
 }
 
@@ -341,8 +343,9 @@ async function disconnect() {
       showToast(t('ui.operation.busy'), 'error');
       return;
     }
-    console.error(t('messages.device.disconnectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), e);
-    showToast(t('messages.device.disconnectionFailed', { error: (e instanceof Error ? e.message : String(e)) }), 'error');
+    const errorMessage = formatDeviceError(e, t);
+    console.error(t('messages.device.disconnectionFailed', { error: errorMessage }), e);
+    showToast(t('messages.device.disconnectionFailed', { error: errorMessage }), 'error');
   } finally {
     isProcessing.value = false;
     isConnecting.value = false;
@@ -374,7 +377,7 @@ async function initializeSerialState(device?: DeviceInfo | null, toast = false) 
     }
     console.error('Failed to initialize device:', error);
     if (toast) {
-      showToast(t('messages.device.initializationFailed', { error: error instanceof Error ? error.message : String(error) }), 'error');
+      showToast(t('messages.device.initializationFailed', { error: formatDeviceError(error, t) }), 'error');
     }
   }
 }

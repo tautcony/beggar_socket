@@ -403,7 +403,8 @@
       "saveAssociationMessage": "ROM: {rom}\nRAM: {save}\nИмена различаются. Выберите, использовать ли эту RAM.",
       "useSelectedSave": "Использовать выбранную RAM",
       "exportStarted": "Загрузка RAM начата: {name}",
-      "exportSaved": "RAM сохранена в {name}"
+      "exportSaved": "RAM сохранена в {name}",
+      "startGameFailed": "Не удалось запустить игру"
     },
     "ram": {
       "title": "Операции с RAM",
@@ -662,7 +663,8 @@
       "close": "Закрыть",
       "details": "Подробнее",
       "error": "Ошибка",
-      "detail": "Детали"
+      "detail": "Детали",
+      "remove": "Удалить"
     },
     "gbaMultiMenu": {
       "title": "Конструктор ROM для GBA",
@@ -725,7 +727,58 @@
       "connectionFailed": "Ошибка подключения к устройству: {error}",
       "disconnectionSuccess": "Отключение устройства успешно",
       "disconnectionFailed": "Ошибка отключения устройства: {error}",
-      "initializationSuccess": "Инициализация устройства успешна"
+      "initializationSuccess": "Инициализация устройства успешна",
+      "notConnected": "Устройство не подключено",
+      "initializationFailed": "Ошибка инициализации устройства: {error}",
+      "refreshPortsFailed": "Не удалось обновить список портов",
+      "errors": {
+        "noValidSelection": "Не выбрано допустимое устройство и прошивка. Выберите их в расширенных настройках.",
+        "selectionNotRegistered": "Выбранная конфигурация устройства {variantId} не зарегистрирована.",
+        "runtimeBindingMissing": "Для конфигурации {variantId} не зарегистрирована привязка среды выполнения.",
+        "simulatedUnsupported": "Отладочный симулятор не поддерживает прошивку {variantId}. Выберите поддерживаемый вариант или отключите симуляцию.",
+        "boostUnsupported": "Нет ответа на рукопожатие Beggar Boost. Прошейте ChisFlash-Beggar-Boost или переключитесь на стандартный Beggar в расширенных настройках.",
+        "beggarTeardownFailed": "Не удалось выйти из режима Beggar Boost.",
+        "gbflashUnsupported": "Неподдерживаемая версия прошивки GBFlash. Обновите прошивку и повторите попытку.",
+        "gbflashHandshakeFailed": "Ошибка рукопожатия GBFlash. Проверьте USB-кабель и выбранный порт.",
+        "gbflashTeardownFailed": "Не удалось отправить команды завершения при отключении устройства GBFlash.",
+        "connectionInProgress": "Подключение устройства уже выполняется.",
+        "tauriOnly": "Эта операция доступна только в настольном приложении (Tauri).",
+        "invalidConnectionHandle": "Недопустимый дескриптор подключения.",
+        "connectFailed": "Не удалось подключиться к выбранному порту.",
+        "initFailed": "Не удалось инициализировать сигналы последовательного порта.",
+        "listFailed": "Не удалось получить список последовательных портов.",
+        "disconnectFailed": "Не удалось отключить устройство.",
+        "probeFailed": "Ошибка проверки рукопожатия устройства.",
+        "resolveFailed": "Не удалось определить сеанс устройства.",
+        "initializeFailed": "Не удалось инициализировать сеанс устройства.",
+        "unknown": "Неизвестная ошибка подключения."
+      },
+      "diagnostics": {
+        "portMismatch": "Порт {observed} не соответствует USB-идентификатору для {variantId} ({expected})",
+        "portMismatchNoVariant": "Порт {observed} не соответствует USB-идентификатору ({expected})",
+        "portIdentityIncomplete": "Порт {observed} не сообщает {missing}, поэтому не может быть сопоставлен с {expected}",
+        "portIdentityUnknown": "Порт не сообщил USB-идентификатор, поэтому {expected} не удалось проверить",
+        "teardownFailed": "Не удалось сбросить протокол устройства при отключении",
+        "cleanupFailed": "Очистка протокола после сбоя этапа также завершилась ошибкой"
+      },
+      "stageHints": {
+        "list": "Не удалось получить список портов. Проверьте USB-подключение и разрешения системы.",
+        "select": "Выберите устройство и прошивку в расширенных настройках и повторите попытку.",
+        "connect": "Проверьте USB-кабель и закройте другие программы, которые могут занимать порт.",
+        "init": "Порт открыт, но инициализация сигналов не удалась. Повторите попытку или выберите другой порт.",
+        "probe": "Устройство не ответило на рукопожатие выбранной прошивки. Проверьте расширенные настройки; для режима Boost требуется прошивка ChisFlash-Beggar-Boost.",
+        "resolve": "Устройство ответило, но не удалось определить сеанс. Проверьте расширенные настройки.",
+        "initialize": "Рукопожатие прошло успешно, но инициализация сеанса не удалась. Повторите подключение.",
+        "disconnect": "Ошибка завершения протокола при закрытии порта. Повторите отключение.",
+        "unknown": "Ошибка подключения. Проверьте устройство, кабель и расширенные настройки."
+      },
+      "log": {
+        "connected": "Подключено: {device}{version}",
+        "connectionFailedAt": "Сбой подключения на этапе {stage}: {message}",
+        "matchMismatch": "несовпадение (ожидалось {expected})",
+        "matchIncomplete": "неполные данные — порт не сообщает {missing}",
+        "matchUnknown": "неизвестно — порт не сообщил USB-идентификатор"
+      }
     },
     "operation": {
       "readId": "Чтение ID...",
@@ -735,6 +788,7 @@
       "readCartFailed": "Ошибка чтения информации о картридже",
       "profileAmbiguous": "Найдено несколько профилей; выберите профиль вручную",
       "profileNotFound": "Подходящий профиль флеш-картриджа не найден",
+      "profileNotFoundForMode": "Не найден подходящий профиль флеш-картриджа для картриджа {mode}{idHint}",
       "startEraseSectors": "Начало стирания секторов - начальный адрес: {startAddress}, конечный адрес: {endAddress}, размер сектора: {sectorSize} байт",
       "startWriteROM": "Начало записи ROM - размер данных: {fileSize} байт, базовый адрес: {baseAddress}, размер страницы: {pageSize} байт, размер буфера: {bufferSize} байт",
       "startReadROM": "Начало чтения ROM - размер: {size} байт, базовый адрес: {baseAddress}",
@@ -777,7 +831,9 @@
       "cfiParseFailed": "Ошибка CFI разбора",
       "eraseSectorFailed": "Ошибка стирания сектора",
       "eraseSummary": "Стирание завершено - общее время: {totalTime}, средняя скорость: {avgSpeed}, максимальная скорость: {maxSpeed}, общее количество секторов: {totalSectors}",
-      "cancelling": "Отмена..."
+      "cancelling": "Отмена...",
+      "eraseTimeout": "Расчетный тайм-аут стирания",
+      "calculateEraseTimeoutFailed": "Не удалось рассчитать тайм-аут стирания"
     },
     "rom": {
       "writing": "Запись ROM, размер {size} байт",
@@ -1001,6 +1057,12 @@
       "romDownloaded": "ROM скачан",
       "romApplied": "ROM применен к главной странице",
       "romDownloadFailed": "Ошибка скачивания ROM: {error}"
+    },
+    "gba": {
+      "erasingFlash": "Стирание сохранения Flash...",
+      "eraseStatus": "Статус стирания Flash: {status}",
+      "eraseComplete": "Стирание сохранения Flash завершено",
+      "bankSwitchFlash": "Банк Flash переключен на {bank}"
     }
   }
 }

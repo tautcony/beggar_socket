@@ -403,7 +403,8 @@
       "saveAssociationMessage": "ROM：{rom}\nRAM：{save}\n檔名不同。請選擇是否使用此 RAM。",
       "useSelectedSave": "使用所選 RAM",
       "exportStarted": "已開始下載 RAM：{name}",
-      "exportSaved": "RAM 已儲存至 {name}"
+      "exportSaved": "RAM 已儲存至 {name}",
+      "startGameFailed": "啟動遊戲失敗"
     },
     "ram": {
       "title": "RAM操作",
@@ -662,7 +663,8 @@
       "close": "關閉",
       "details": "詳情",
       "error": "報錯",
-      "detail": "詳情"
+      "detail": "詳情",
+      "remove": "移除"
     },
     "gbaMultiMenu": {
       "title": "GBA ROM建構器",
@@ -725,7 +727,58 @@
       "connectionFailed": "設備連接失敗: {error}",
       "disconnectionSuccess": "設備斷開連接成功",
       "disconnectionFailed": "設備斷開連接失敗: {error}",
-      "initializationSuccess": "設備初始化成功"
+      "initializationSuccess": "設備初始化成功",
+      "notConnected": "設備未連接",
+      "initializationFailed": "設備初始化失敗: {error}",
+      "refreshPortsFailed": "重新整理序列埠列表失敗",
+      "errors": {
+        "noValidSelection": "未選擇有效的設備與固件，請在進階設定中選擇設備與固件。",
+        "selectionNotRegistered": "所選設備配置 {variantId} 未註冊。",
+        "runtimeBindingMissing": "未找到設備配置 {variantId} 所屬的執行時綁定。",
+        "simulatedUnsupported": "除錯模擬器不支援目前固件 ({variantId})，請選擇模擬器支援的固件或關閉模擬模式。",
+        "boostUnsupported": "丐中丐 (Boost) 握手無回覆，所選配置需要燒錄 ChisFlash-Beggar-Boost 固件；請刷寫 Boost 固件或在進階設定中改回標準丐中丐。",
+        "beggarTeardownFailed": "退出丐中丐 Boost 模式失敗。",
+        "gbflashUnsupported": "不支援的 GBFlash 固件版本，請更新固件後重試。",
+        "gbflashHandshakeFailed": "GBFlash 握手失敗，請檢查傳輸線與所選序列埠。",
+        "gbflashTeardownFailed": "中斷連接 GBFlash 設備時發送清理命令失敗。",
+        "connectionInProgress": "設備正在連接中，請勿重複操作。",
+        "tauriOnly": "此操作僅在桌面端 (Tauri) 環境下可用。",
+        "invalidConnectionHandle": "無效的連接控制代碼。",
+        "connectFailed": "無法連接到所選序列埠。",
+        "initFailed": "設備序列埠控制線初始化失敗。",
+        "listFailed": "列舉序列埠列表失敗。",
+        "disconnectFailed": "中斷設備連接失敗。",
+        "probeFailed": "設備握手探測失敗。",
+        "resolveFailed": "設備工作階段解析失敗。",
+        "initializeFailed": "設備工作階段初始化失敗。",
+        "unknown": "未知連接錯誤。"
+      },
+      "diagnostics": {
+        "portMismatch": "序列埠 {observed} 與所選配置 {variantId} 的 USB 識別（{expected}）不符",
+        "portMismatchNoVariant": "序列埠 {observed} 與所選配置的 USB 識別（{expected}）不符",
+        "portIdentityIncomplete": "序列埠 {observed} 未回報 {missing}，無法與 {expected} 比對",
+        "portIdentityUnknown": "序列埠未回報 USB 識別，無法驗證是否符合 {expected}",
+        "teardownFailed": "中斷連接設備時發送協定重設命令失敗",
+        "cleanupFailed": "階段失敗後的協定清理亦未能完成"
+      },
+      "stageHints": {
+        "list": "無法列舉序列埠，請檢查 USB 連接與系統權限。",
+        "select": "請在進階設定中選擇設備與固件後重試。",
+        "connect": "請檢查 USB 傳輸線，並關閉可能佔用該序列埠的其他程式。",
+        "init": "序列埠已開啟但控制線初始化失敗，請重試或選擇其他序列埠。",
+        "probe": "設備未回覆所選固件的握手協定，請檢查進階設定；選擇 Boost 配置需要設備已刷寫 ChisFlash-Beggar-Boost 固件。",
+        "resolve": "設備已回覆但無法解析工作階段配置，請檢查進階設定。",
+        "initialize": "握手成功但工作階段初始化失敗，請重試連接。",
+        "disconnect": "關閉序列埠時協定重設失敗，請重試中斷連接。",
+        "unknown": "連接失敗，請檢查設備、傳輸線及進階設定。"
+      },
+      "log": {
+        "connected": "已連接: {device}{version}",
+        "connectionFailedAt": "連接在 {stage} 階段失敗: {message}",
+        "matchMismatch": "不符（預期 {expected}）",
+        "matchIncomplete": "資訊不完整 — 序列埠未回報 {missing}",
+        "matchUnknown": "未知 — 序列埠未回報 USB 識別"
+      }
     },
     "operation": {
       "readId": "正在讀取ID...",
@@ -735,6 +788,7 @@
       "readCartFailed": "讀取卡帶資訊失敗",
       "profileAmbiguous": "符合多個燒錄卡設定檔，請手動選擇",
       "profileNotFound": "找不到符合的燒錄卡設定檔",
+      "profileNotFoundForMode": "找不到符合的 {mode} 燒錄卡設定檔{idHint}",
       "startEraseSectors": "開始扇區擦除 - 起始位址: {startAddress}, 結束位址: {endAddress}, 扇區大小: {sectorSize} 位元組",
       "startWriteROM": "開始寫入ROM - 資料大小: {fileSize} 位元組, 基址: {baseAddress}, 頁大小: {pageSize} 位元組, 緩衝區大小: {bufferSize} 位元組",
       "startReadROM": "開始讀取ROM - 大小: {size} 位元組, 基址: {baseAddress}",
@@ -777,7 +831,9 @@
       "cfiParseFailed": "CFI解析失敗",
       "eraseSectorFailed": "扇區擦除失敗",
       "eraseSummary": "擦除完成 - 總耗時: {totalTime}, 平均速度: {avgSpeed}, 最高速度: {maxSpeed}, 總扇區數: {totalSectors}",
-      "cancelling": "正在取消..."
+      "cancelling": "正在取消...",
+      "eraseTimeout": "預計抹除超時",
+      "calculateEraseTimeoutFailed": "計算抹除超時失敗"
     },
     "rom": {
       "writing": "正在寫入ROM，大小 {size} 位元組",
@@ -1001,6 +1057,12 @@
       "romDownloaded": "ROM已下載",
       "romApplied": "ROM已套用到主頁面",
       "romDownloadFailed": "ROM下載失敗: {error}"
+    },
+    "gba": {
+      "erasingFlash": "正在抹除 Flash 存檔...",
+      "eraseStatus": "Flash 抹除狀態: {status}",
+      "eraseComplete": "Flash 存檔抹除完成",
+      "bankSwitchFlash": "已變更 Flash Bank 至 {bank}"
     }
   }
 }

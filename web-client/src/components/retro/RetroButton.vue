@@ -89,7 +89,7 @@ defineEmits<{
   padding: 3px 8px;
   min-height: 24px;
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   line-height: 1.2;
 }
 

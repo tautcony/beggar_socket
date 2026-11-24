@@ -760,7 +760,7 @@ function getUsageBarColor(percentage: number): string {
   color: var(--color-text-secondary);
   font-family: var(--retro-font-mono);
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   font-weight: var(--font-weight-semibold);
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
@@ -773,7 +773,7 @@ function getUsageBarColor(percentage: number): string {
 
 .spec-chip {
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   color: var(--color-text-secondary);
   letter-spacing: var(--letter-spacing-wide);
 }
@@ -792,7 +792,7 @@ function getUsageBarColor(percentage: number): string {
   gap: 6px;
   font-family: var(--retro-font-mono);
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
 }
 
 .capacity-size {
@@ -895,7 +895,7 @@ function getUsageBarColor(percentage: number): string {
 
 .count-pill {
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   color: var(--color-text-secondary);
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border-light);
@@ -950,7 +950,7 @@ function getUsageBarColor(percentage: number): string {
   gap: 6px;
   margin-top: 4px;
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   color: var(--color-text-secondary);
 }
 
@@ -975,7 +975,7 @@ function getUsageBarColor(percentage: number): string {
 .empty-hint {
   margin: 0;
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   color: var(--color-text-muted);
 }
 
@@ -1021,7 +1021,7 @@ function getUsageBarColor(percentage: number): string {
 
 .split-cont-tag {
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   font-weight: var(--font-weight-semibold);
   color: #4f465e;
   letter-spacing: var(--letter-spacing-wide);
@@ -1060,7 +1060,7 @@ function getUsageBarColor(percentage: number): string {
 
 .cart-num {
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   font-weight: var(--font-weight-semibold);
   color: #4f465e;
   letter-spacing: var(--letter-spacing-wide);
@@ -1099,7 +1099,7 @@ function getUsageBarColor(percentage: number): string {
   justify-content: space-between;
   gap: 6px;
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
 }
 
 .label-type-badge {
@@ -1137,7 +1137,7 @@ function getUsageBarColor(percentage: number): string {
 
 .label-specs {
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   color: rgba(248, 250, 252, 0.78);
 }
 
@@ -1149,7 +1149,7 @@ function getUsageBarColor(percentage: number): string {
   padding-top: 6px;
   border-top: 1px solid rgba(255, 255, 255, 0.14);
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   color: rgba(248, 250, 252, 0.65);
 }
 
@@ -1226,7 +1226,7 @@ function getUsageBarColor(percentage: number): string {
 
 .socket-offset {
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   color: var(--color-text-secondary);
 }
 
@@ -1250,7 +1250,7 @@ function getUsageBarColor(percentage: number): string {
 
 .socket-hint {
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   color: var(--color-text-muted);
 }
 

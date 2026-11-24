@@ -1125,7 +1125,7 @@ watch(() => props.modelValue, (visible) => {
 
 .theme-option-hex {
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   color: var(--retro-ink-muted);
 }
 

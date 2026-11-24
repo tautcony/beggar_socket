@@ -119,7 +119,7 @@ const hasHeader = computed(
 
 .retro-count-pill {
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   padding: 1px 7px;
   border-radius: 999px;
   border: 1px solid var(--retro-border-subtle);

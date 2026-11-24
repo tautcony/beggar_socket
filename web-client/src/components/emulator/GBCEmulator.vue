@@ -792,7 +792,7 @@ function cleanup(isFinalUnmount = false) {
   padding: 2px 7px;
   border-radius: 4px;
   font-family: var(--retro-font-micro);
-  font-size: 10px;
+  font-size: var(--font-size-micro);
   color: var(--retro-ink);
   border: 1px solid var(--retro-border-subtle);
   white-space: nowrap;
