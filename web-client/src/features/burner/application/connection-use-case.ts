@@ -1,4 +1,5 @@
-import type { DeviceDiagnostic } from '@/device/session';
+import type { ConnectionAttemptContext, DeviceDiagnostic } from '@/device/session';
+import { assessPortIdentityFromMatchers } from '@/device/usb-identity';
 
 import { ConnectionOperationCoordinator } from './connection-operation-coordinator';
 import type {
@@ -23,6 +24,37 @@ function hasWebPort(selection: ConnectionContext['selection']): boolean {
   );
 }
 
+/**
+ * Discovery of one attempt, built from the selection alone.
+ *
+ * Opening a port can fail before any session exists (busy, unplugged, permission denied),
+ * and that failure must still report the variant and the port match the attempt was made
+ * with — otherwise the log falls back to "unknown" for exactly the cases where the user
+ * needs to know whether the right device was addressed.
+ */
+function attemptContextFor(
+  selection: ConnectionContext['selection'],
+): ConnectionAttemptContext | undefined {
+  if (!selection) {
+    return undefined;
+  }
+  const portInfo = selection.portInfo;
+  const port = portInfo
+    ? { path: portInfo.path, vendorId: portInfo.vendorId, productId: portInfo.productId }
+    : undefined;
+  const matchers = selection.plan?.identityMatchers;
+  const portIdentity = matchers ? assessPortIdentityFromMatchers(matchers, portInfo) : undefined;
+  const variantId = selection.plan?.variantId;
+  if (variantId === undefined && !port && !portIdentity) {
+    return undefined;
+  }
+  return {
+    ...(variantId !== undefined ? { variantId } : {}),
+    ...(port ? { port } : {}),
+    ...(portIdentity ? { portIdentity } : {}),
+  };
+}
+
 function normalizeFailure(
   stage: ConnectionFailureStage,
   error: unknown,
@@ -35,6 +67,7 @@ function normalizeFailure(
       message: string;
       cause?: unknown;
       diagnostics?: ConnectionFailure['diagnostics'];
+      context?: ConnectionFailure['context'];
     };
     return {
       stage: mapped.stage,
@@ -42,6 +75,7 @@ function normalizeFailure(
       message: mapped.message,
       cause: mapped.cause,
       ...(mapped.diagnostics ? { diagnostics: mapped.diagnostics } : {}),
+      ...(mapped.context ? { context: mapped.context } : {}),
     };
   }
 
@@ -80,6 +114,19 @@ function toFailure(state: ConnectionState, context: ConnectionContext, failure: 
   };
 }
 
+type CleanupResource = Pick<ConnectionContext, 'selection' | 'handle' | 'pendingCleanup'>;
+
+const NO_RESOURCE: CleanupResource = { selection: null, handle: null, pendingCleanup: null };
+
+/** Keeps the retry paths (authorized selection, un-closed resource) but never a handle. */
+function releasedResource(context: ConnectionContext): CleanupResource {
+  return {
+    selection: context.selection,
+    handle: null,
+    pendingCleanup: context.pendingCleanup ?? null,
+  };
+}
+
 function appendCleanupCause(failure: ConnectionFailure, cleanupError: unknown): ConnectionFailure {
   return {
     ...failure,
@@ -92,6 +139,23 @@ function appendCleanupCause(failure: ConnectionFailure, cleanupError: unknown): 
   };
 }
 
+/** Appends diagnostics of an earlier step without dropping the ones already attached. */
+function mergeDiagnostics(
+  failure: ConnectionFailure,
+  diagnostics?: readonly DeviceDiagnostic[],
+): ConnectionFailure {
+  if (!diagnostics || diagnostics.length === 0) {
+    return failure;
+  }
+  const existing = failure.diagnostics ?? [];
+  const codes = new Set(existing.map(diagnostic => `${diagnostic.code}:${diagnostic.stage ?? ''}`));
+  const merged = [
+    ...existing,
+    ...diagnostics.filter(diagnostic => !codes.has(`${diagnostic.code}:${diagnostic.stage ?? ''}`)),
+  ];
+  return { ...failure, diagnostics: merged };
+}
+
 export class ConnectionOrchestrationUseCase {
   readonly operationCoordinator = new ConnectionOperationCoordinator();
   private snapshotState: ConnectionSnapshot = {
@@ -100,6 +164,7 @@ export class ConnectionOrchestrationUseCase {
       generation: 0,
       selection: null,
       handle: null,
+      pendingCleanup: null,
     },
   };
 
@@ -109,6 +174,18 @@ export class ConnectionOrchestrationUseCase {
 
   get snapshot(): ConnectionSnapshot {
     return this.snapshotState;
+  }
+
+  /**
+   * Selection of a failed attempt whose port authorization still holds (Web Serial).
+   * Present means the next attempt may reuse the granted port instead of prompting.
+   */
+  get retryableSelection(): ConnectionContext['selection'] {
+    const { state, context } = this.snapshotState;
+    if (state === 'connected') {
+      return null;
+    }
+    return hasWebPort(context.selection) && this.connectionPort.reuseSelection ? context.selection : null;
   }
 
   private enqueueLifecycle<T>(operation: () => Promise<T>): Promise<T> {
@@ -126,7 +203,7 @@ export class ConnectionOrchestrationUseCase {
 
   private markFailure(
     failure: ConnectionFailure,
-    resource: Pick<ConnectionContext, 'selection' | 'handle'> = this.snapshotState.context,
+    resource: CleanupResource = this.snapshotState.context,
     options: { readonly keepSession?: boolean } = {},
   ): ConnectionUseCaseResult {
     const session = options.keepSession ? this.snapshotState.context.session ?? null : null;
@@ -137,6 +214,7 @@ export class ConnectionOrchestrationUseCase {
         selection: resource.selection,
         handle: resource.handle,
         session,
+        pendingCleanup: resource.pendingCleanup ?? null,
       },
       lastFailure: failure,
     };
@@ -162,6 +240,7 @@ export class ConnectionOrchestrationUseCase {
         selection,
         handle,
         session,
+        pendingCleanup: null,
       },
       lastFailure: undefined,
     };
@@ -187,7 +266,7 @@ export class ConnectionOrchestrationUseCase {
     const listResult = await this.connectionPort.list();
     if (!listResult.ok) {
       const failure = normalizeFailure('list', listResult.error, 'list_failed');
-      const result = this.markFailure(failure);
+      const result = this.markFailure(failure, releasedResource(this.snapshotState.context));
       return toFailure(result.state, result.context, failure);
     }
 
@@ -195,7 +274,7 @@ export class ConnectionOrchestrationUseCase {
     const selectResult = await this.connectionPort.select(options);
     if (!selectResult.ok) {
       const failure = normalizeFailure('select', selectResult.error, 'select_failed');
-      const result = this.markFailure(failure);
+      const result = this.markFailure(failure, releasedResource(this.snapshotState.context));
       return toFailure(result.state, result.context, failure);
     }
 
@@ -205,7 +284,7 @@ export class ConnectionOrchestrationUseCase {
         code: 'selection_required',
         message: 'Device selection required',
       };
-      const result = this.markFailure(failure);
+      const result = this.markFailure(failure, NO_RESOURCE);
       return toFailure(result.state, result.context, failure);
     }
 
@@ -221,8 +300,40 @@ export class ConnectionOrchestrationUseCase {
     });
   }
 
+  /**
+   * Retries with a port the user already authorized: the selection is rebuilt from this
+   * attempt's options, so a baud rate or variant saved since the failed attempt is what
+   * the port is opened with.
+   */
+  async retryConnection(options?: BurnerConnectionSelectOptions): Promise<ConnectionCommandResult> {
+    return this.enqueueLifecycle(async () => {
+      if (this.snapshotState.context.handle) {
+        const disconnectResult = await this._disconnect();
+        if (!disconnectResult.success) return disconnectResult;
+      }
+      const preserved = this.snapshotState.context.selection;
+      if (hasWebPort(preserved) && this.connectionPort.reuseSelection && preserved) {
+        return this._prepareConnectionWithSelection(this.connectionPort.reuseSelection(preserved, options));
+      }
+      return this._prepareConnection(options);
+    });
+  }
+
+  /**
+   * Connects to an explicitly chosen port, releasing whatever is open first.
+   *
+   * The manual port picker already knows the port: reporting "already connected" would
+   * ignore the user's choice, so the previous handle (or a pending close) is released and the
+   * selected port is opened with this attempt's plan.
+   */
   async reconnectWithSelection(selection: ConnectionContext['selection']): Promise<ConnectionCommandResult> {
-    return this.enqueueLifecycle(() => this._prepareConnectionWithSelection(selection));
+    return this.enqueueLifecycle(async () => {
+      if (this.snapshotState.context.handle || this.snapshotState.context.pendingCleanup) {
+        const cleanup = await this._disconnect();
+        if (!cleanup.success) return cleanup;
+      }
+      return this._prepareConnectionWithSelection(selection);
+    });
   }
 
   private async _prepareConnectionWithSelection(selection: ConnectionContext['selection']): Promise<ConnectionCommandResult> {
@@ -232,7 +343,7 @@ export class ConnectionOrchestrationUseCase {
         code: 'selection_required',
         message: 'Device selection required',
       };
-      const result = this.markFailure(failure);
+      const result = this.markFailure(failure, NO_RESOURCE);
       return toFailure(result.state, result.context, failure);
     }
     return this.connectAndInit(selection);
@@ -263,46 +374,81 @@ export class ConnectionOrchestrationUseCase {
   ): Promise<{ error?: unknown; diagnostics?: readonly DeviceDiagnostic[] } | undefined> {
     try {
       const result = await this.connectionPort.disconnect(handle);
+      // A failure carries its diagnostics on the error, so a close that fails after a
+      // successful teardown still reports why the port could not be released.
+      const diagnostics = (result.ok ? result.diagnostics : result.error.diagnostics) ?? [];
       if (!result.ok) {
-        return { error: result.error };
+        return {
+          error: result.error,
+          ...(diagnostics.length > 0 ? { diagnostics } : {}),
+        };
       }
-      const diagnostics = result.diagnostics ?? [];
       return diagnostics.length > 0 ? { diagnostics } : undefined;
     } catch (error) {
       return { error };
     }
   }
 
+  /**
+   * Releases a port that never became an active session. The handle is kept only as
+   * `pendingCleanup`, never as `handle`: nothing may use it as a connection again.
+   */
   private async rollbackConnection(
     failure: ConnectionFailure,
     selection: ConnectionContext['selection'],
     handle: NonNullable<ConnectionContext['handle']>,
   ): Promise<ConnectionCommandResult> {
     const cleanup = await this.closeHandle(handle);
-    const failureWithCleanup = appendCleanupCause(failure, cleanup?.error);
+    const failureWithCleanup = mergeDiagnostics(appendCleanupCause(failure, cleanup?.error), cleanup?.diagnostics);
     const preservedSelection = hasWebPort(selection) ? selection : null;
-    const result = this.markFailure(
-      failureWithCleanup,
-      cleanup?.error ? { selection, handle } : { selection: preservedSelection, handle: null },
-    );
+    const resource: CleanupResource = cleanup?.error
+      ? { selection, handle: null, pendingCleanup: handle }
+      : { selection: preservedSelection, handle: null, pendingCleanup: null };
+    const result = this.markFailure(failureWithCleanup, resource);
     return toFailure(result.state, result.context, failureWithCleanup);
   }
 
+  /** Attaches the attempt discovery to a failure that has none of its own. */
+  private withAttemptDiscovery(
+    failure: ConnectionFailure,
+    selection: ConnectionContext['selection'],
+  ): ConnectionFailure {
+    if (failure.context) {
+      return failure;
+    }
+    const context = attemptContextFor(selection);
+    return context ? { ...failure, context } : failure;
+  }
+
   private async connectAndInit(selection: ConnectionContext['selection']): Promise<ConnectionCommandResult> {
-    const previousHandle = this.snapshotState.context.handle;
-    if (previousHandle) {
+    const previousHandleId = this.snapshotState.context.handle?.id
+      ?? this.snapshotState.context.pendingCleanup?.id
+      ?? null;
+    // A handle or a not-yet-closed resource must be released before another port opens:
+    // two open ports on one device is exactly the stale-handle failure this prevents.
+    if (this.snapshotState.context.handle || this.snapshotState.context.pendingCleanup) {
       const cleanup = await this._disconnect();
       if (!cleanup.success) return cleanup;
     }
     this.setState('connecting');
     const connectResult = await this.connectionPort.connect(selection);
     if (!connectResult.ok) {
-      const failure = normalizeFailure('connect', connectResult.error, 'connect_failed');
-      const result = this.markFailure(failure);
+      // The port never opened (busy, unplugged, permission denied): the failure keeps the
+      // same variant / port / match triplet a committed session reports.
+      const failure = this.withAttemptDiscovery(
+        normalizeFailure('connect', connectResult.error, 'connect_failed'),
+        selection,
+      );
+      // An authorized port stays retryable even when opening it failed (busy, unplugged).
+      const result = this.markFailure(failure, {
+        selection: hasWebPort(selection) ? selection : null,
+        handle: null,
+        pendingCleanup: null,
+      });
       return toFailure(result.state, result.context, failure);
     }
 
-    if (connectResult.data.id === previousHandle?.id) {
+    if (previousHandleId !== null && connectResult.data.id === previousHandleId) {
       return this.rollbackConnection({
         stage: 'connect',
         code: 'stale_context',
@@ -320,7 +466,11 @@ export class ConnectionOrchestrationUseCase {
       initFailure = normalizeFailure('init', error, 'init_failed');
     }
     if (initFailure) {
-      return this.rollbackConnection(initFailure, selection, connectResult.data);
+      return this.rollbackConnection(
+        this.withAttemptDiscovery(initFailure, selection),
+        selection,
+        connectResult.data,
+      );
     }
 
     // Probe → resolve → initialize run inside the same lifecycle queue entry, so a connect
@@ -377,7 +527,8 @@ export class ConnectionOrchestrationUseCase {
   }
 
   private async _disconnect(): Promise<ConnectionCommandResult> {
-    if (!this.snapshotState.context.handle) {
+    const handle = this.snapshotState.context.handle ?? this.snapshotState.context.pendingCleanup ?? null;
+    if (!handle) {
       this.snapshotState = {
         state: 'idle',
         context: {
@@ -385,6 +536,7 @@ export class ConnectionOrchestrationUseCase {
           selection: null,
           handle: null,
           session: null,
+          pendingCleanup: null,
         },
       };
       return toSuccess(this.snapshotState.state, this.snapshotState.context, 'No active connection');
@@ -393,10 +545,19 @@ export class ConnectionOrchestrationUseCase {
     this.setState('disconnecting');
     // The port runs `teardown(activeSession)` and then closes the transport; teardown
     // failures come back as `disconnect` diagnostics instead of blocking the close.
-    const cleanup = await this.closeHandle(this.snapshotState.context.handle);
+    const cleanup = await this.closeHandle(handle);
     if (cleanup?.error) {
-      const failure = normalizeFailure('disconnect', cleanup.error, 'disconnect_failed');
-      const result = this.markFailure(failure);
+      const failure = mergeDiagnostics(
+        normalizeFailure('disconnect', cleanup.error, 'disconnect_failed'),
+        cleanup.diagnostics,
+      );
+      // The session, identity and adapters are already invalid; only the close is left to
+      // retry, so the resource moves to `pendingCleanup` instead of staying `handle`.
+      const result = this.markFailure(failure, {
+        selection: this.snapshotState.context.selection,
+        handle: null,
+        pendingCleanup: handle,
+      });
       return toFailure(result.state, result.context, failure);
     }
 
@@ -407,23 +568,10 @@ export class ConnectionOrchestrationUseCase {
         selection: null,
         handle: null,
         session: null,
+        pendingCleanup: null,
       },
       lastFailure: undefined,
     };
     return toSuccess(this.snapshotState.state, this.snapshotState.context, 'Disconnected', cleanup?.diagnostics);
-  }
-
-  async retryConnection(options?: BurnerConnectionSelectOptions): Promise<ConnectionCommandResult> {
-    return this.enqueueLifecycle(async () => {
-      if (this.snapshotState.context.handle) {
-        const disconnectResult = await this._disconnect();
-        if (!disconnectResult.success) return disconnectResult;
-      }
-      const preserved = this.snapshotState.context.selection;
-      if (hasWebPort(preserved)) {
-        return this._prepareConnectionWithSelection(preserved);
-      }
-      return this._prepareConnection(options);
-    });
   }
 }

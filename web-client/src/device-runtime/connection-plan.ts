@@ -53,10 +53,14 @@ export function planConnection(deps: ConnectionPlanDeps): ConnectionPlan {
   const resolved = requireVariant(deps.registry, snapshot.variantId);
   const settings = deps.store.operationSnapshot(resolved.parameterNamespace);
   const baudRate = resolveConnectionBaudRate(resolved, settings.values);
+  // Copied, not referenced: the plan is frozen and the registry array stays private, so a
+  // failure report cannot hand out a handle to the definition's own matcher list.
+  const identityMatchers = resolved.binding.identityMatchers.map(matcher => Object.freeze({ ...matcher }));
 
   return Object.freeze({
     variantId: resolved.variantId,
     parameters: Object.freeze({ ...settings.values }),
     ...(baudRate !== undefined ? { baudRate } : {}),
+    ...(identityMatchers.length > 0 ? { identityMatchers: Object.freeze(identityMatchers) } : {}),
   });
 }

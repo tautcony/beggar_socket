@@ -228,7 +228,7 @@
                   type="number"
                   :min="field.min"
                   :max="field.max"
-                  :step="64"
+                  :step="field.step"
                   :data-testid="`param-${editingNamespace}-${field.key}`"
                   @input="validateNamespaceFields"
                 >
@@ -264,351 +264,50 @@
           </div>
         </div>
 
-        <!-- 读写异常控制（超时、节流、重试） -->
+        <!-- 读写异常控制（超时、节流、重试）：分组、范围、单位都来自参数描述符 -->
         <div
           v-show="activeSection === 'control'"
           class="control-sections"
         >
-          <div class="setting-group">
-            <h4>{{ $t('ui.settings.timeout.title') }}</h4>
+          <div
+            v-for="group in controlGroups"
+            :key="group.id"
+            class="setting-group"
+          >
+            <h4>{{ group.title }}</h4>
 
-            <div class="setting-row">
-              <div class="setting-item">
-                <label for="default-timeout">{{ $t('ui.settings.timeout.defaultTimeout') }}</label>
+            <div
+              v-for="(row, rowIndex) in group.rows"
+              :key="rowIndex"
+              class="setting-row"
+            >
+              <div
+                v-for="field in row"
+                :key="field.key"
+                class="setting-item"
+              >
+                <label :for="field.id">{{ field.label }}</label>
                 <div class="input-group">
                   <input
-                    id="default-timeout"
-                    v-model.number="localSettings.timeout.default"
+                    :id="field.id"
+                    v-model.number="controlValues[field.key]"
                     type="number"
-                    :min="limits.timeout.min"
-                    :max="limits.timeout.max"
-                    :step="100"
-                    @input="validateAndUpdate"
+                    :min="field.min"
+                    :max="field.max"
+                    :step="field.step"
                   >
-                  <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
+                  <span class="unit">{{ field.unitLabel }}</span>
                 </div>
                 <div
-                  v-if="validationErrors.defaultTimeout"
+                  v-if="field.error"
                   class="validation-error"
                 >
-                  {{ validationErrors.defaultTimeout }}
+                  {{ field.error }}
                 </div>
-                <small class="hint">{{ formatTimeClock(localSettings.timeout.default, 'ms') }}</small>
-              </div>
-
-              <div class="setting-item">
-                <label for="package-send-timeout">{{ $t('ui.settings.timeout.packageSendTimeout') }}</label>
-                <div class="input-group">
-                  <input
-                    id="package-send-timeout"
-                    v-model.number="localSettings.timeout.packageSend"
-                    type="number"
-                    :min="limits.timeout.min"
-                    :max="limits.timeout.max"
-                    :step="100"
-                    @input="validateAndUpdate"
-                  >
-                  <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
-                </div>
-                <div
-                  v-if="validationErrors.packageSendTimeout"
-                  class="validation-error"
-                >
-                  {{ validationErrors.packageSendTimeout }}
-                </div>
-                <small class="hint">{{ formatTimeClock(localSettings.timeout.packageSend, 'ms') }}</small>
-              </div>
-            </div>
-
-            <div class="setting-row">
-              <div class="setting-item">
-                <label for="package-receive-timeout">{{ $t('ui.settings.timeout.packageReceiveTimeout') }}</label>
-                <div class="input-group">
-                  <input
-                    id="package-receive-timeout"
-                    v-model.number="localSettings.timeout.packageReceive"
-                    type="number"
-                    :min="limits.timeout.min"
-                    :max="limits.timeout.max"
-                    :step="100"
-                    @input="validateAndUpdate"
-                  >
-                  <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
-                </div>
-                <div
-                  v-if="validationErrors.packageReceiveTimeout"
-                  class="validation-error"
-                >
-                  {{ validationErrors.packageReceiveTimeout }}
-                </div>
-                <small class="hint">{{ formatTimeClock(localSettings.timeout.packageReceive, 'ms') }}</small>
-              </div>
-
-              <div class="setting-item">
-                <label for="operation-timeout">{{ $t('ui.settings.timeout.operationTimeout') }}</label>
-                <div class="input-group">
-                  <input
-                    id="operation-timeout"
-                    v-model.number="localSettings.timeout.operation"
-                    type="number"
-                    :min="limits.timeout.min"
-                    :max="limits.timeout.max"
-                    :step="1000"
-                    @input="validateAndUpdate"
-                  >
-                  <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
-                </div>
-                <div
-                  v-if="validationErrors.operationTimeout"
-                  class="validation-error"
-                >
-                  {{ validationErrors.operationTimeout }}
-                </div>
-                <small class="hint">{{ formatTimeClock(localSettings.timeout.operation, 'ms') }}</small>
-              </div>
-            </div>
-          </div>
-
-          <div class="setting-group">
-            <h4>{{ $t('ui.settings.throttle.title') }}</h4>
-
-            <div class="setting-row">
-              <div class="setting-item">
-                <label for="rom-read-throttle">{{ $t('ui.settings.throttle.romRead') }}</label>
-                <div class="input-group">
-                  <input
-                    id="rom-read-throttle"
-                    v-model.number="localSettings.throttle.romRead"
-                    type="number"
-                    :min="limits.throttle.min"
-                    :max="limits.throttle.max"
-                    :step="1"
-                    @input="validateAndUpdate"
-                  >
-                  <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
-                </div>
-                <div
-                  v-if="validationErrors.romReadThrottle"
-                  class="validation-error"
-                >
-                  {{ validationErrors.romReadThrottle }}
-                </div>
-                <small class="hint">{{ formatTimeClock(localSettings.throttle.romRead, 'ms') }}</small>
-              </div>
-
-              <div class="setting-item">
-                <label for="ram-read-throttle">{{ $t('ui.settings.throttle.ramRead') }}</label>
-                <div class="input-group">
-                  <input
-                    id="ram-read-throttle"
-                    v-model.number="localSettings.throttle.ramRead"
-                    type="number"
-                    :min="limits.throttle.min"
-                    :max="limits.throttle.max"
-                    :step="1"
-                    @input="validateAndUpdate"
-                  >
-                  <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
-                </div>
-                <div
-                  v-if="validationErrors.ramReadThrottle"
-                  class="validation-error"
-                >
-                  {{ validationErrors.ramReadThrottle }}
-                </div>
-                <small class="hint">{{ formatTimeClock(localSettings.throttle.ramRead, 'ms') }}</small>
-              </div>
-            </div>
-          </div>
-
-          <div class="setting-group">
-            <h4>{{ $t('ui.settings.retry.title') }}</h4>
-
-            <div class="setting-row">
-              <div class="setting-item">
-                <label for="rom-read-retry-count">{{ $t('ui.settings.retry.romReadCount') }}</label>
-                <div class="input-group">
-                  <input
-                    id="rom-read-retry-count"
-                    v-model.number="localSettings.retry.romReadCount"
-                    type="number"
-                    :min="limits.retryCount.min"
-                    :max="limits.retryCount.max"
-                    :step="1"
-                    @input="validateAndUpdate"
-                  >
-                  <span class="unit">x</span>
-                </div>
-                <div
-                  v-if="validationErrors.romReadRetryCount"
-                  class="validation-error"
-                >
-                  {{ validationErrors.romReadRetryCount }}
-                </div>
-              </div>
-
-              <div class="setting-item">
-                <label for="ram-read-retry-count">{{ $t('ui.settings.retry.ramReadCount') }}</label>
-                <div class="input-group">
-                  <input
-                    id="ram-read-retry-count"
-                    v-model.number="localSettings.retry.ramReadCount"
-                    type="number"
-                    :min="limits.retryCount.min"
-                    :max="limits.retryCount.max"
-                    :step="1"
-                    @input="validateAndUpdate"
-                  >
-                  <span class="unit">x</span>
-                </div>
-                <div
-                  v-if="validationErrors.ramReadRetryCount"
-                  class="validation-error"
-                >
-                  {{ validationErrors.ramReadRetryCount }}
-                </div>
-              </div>
-            </div>
-
-            <div class="setting-row">
-              <div class="setting-item">
-                <label for="rom-erase-retry-count">{{ $t('ui.settings.retry.romEraseRetryCount') }}</label>
-                <div class="input-group">
-                  <input
-                    id="rom-erase-retry-count"
-                    v-model.number="localSettings.retry.romEraseRetryCount"
-                    type="number"
-                    :min="limits.retryCount.min"
-                    :max="limits.retryCount.max"
-                    :step="1"
-                    @input="validateAndUpdate"
-                  >
-                  <span class="unit">x</span>
-                </div>
-                <div
-                  v-if="validationErrors.romEraseRetryCount"
-                  class="validation-error"
-                >
-                  {{ validationErrors.romEraseRetryCount }}
-                </div>
-              </div>
-
-              <div class="setting-item">
-                <label for="rom-write-retry-count">{{ $t('ui.settings.retry.romWriteRetryCount') }}</label>
-                <div class="input-group">
-                  <input
-                    id="rom-write-retry-count"
-                    v-model.number="localSettings.retry.romWriteRetryCount"
-                    type="number"
-                    :min="limits.retryCount.min"
-                    :max="limits.retryCount.max"
-                    :step="1"
-                    @input="validateAndUpdate"
-                  >
-                  <span class="unit">x</span>
-                </div>
-                <div
-                  v-if="validationErrors.romWriteRetryCount"
-                  class="validation-error"
-                >
-                  {{ validationErrors.romWriteRetryCount }}
-                </div>
-              </div>
-            </div>
-
-            <div class="setting-row">
-              <div class="setting-item">
-                <label for="rom-read-retry-delay">{{ $t('ui.settings.retry.romReadDelay') }}</label>
-                <div class="input-group">
-                  <input
-                    id="rom-read-retry-delay"
-                    v-model.number="localSettings.retry.romReadDelay"
-                    type="number"
-                    :min="limits.retryDelay.min"
-                    :max="limits.retryDelay.max"
-                    :step="1"
-                    @input="validateAndUpdate"
-                  >
-                  <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
-                </div>
-                <div
-                  v-if="validationErrors.romReadRetryDelay"
-                  class="validation-error"
-                >
-                  {{ validationErrors.romReadRetryDelay }}
-                </div>
-                <small class="hint">{{ formatTimeClock(localSettings.retry.romReadDelay, 'ms') }}</small>
-              </div>
-
-              <div class="setting-item">
-                <label for="ram-read-retry-delay">{{ $t('ui.settings.retry.ramReadDelay') }}</label>
-                <div class="input-group">
-                  <input
-                    id="ram-read-retry-delay"
-                    v-model.number="localSettings.retry.ramReadDelay"
-                    type="number"
-                    :min="limits.retryDelay.min"
-                    :max="limits.retryDelay.max"
-                    :step="1"
-                    @input="validateAndUpdate"
-                  >
-                  <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
-                </div>
-                <div
-                  v-if="validationErrors.ramReadRetryDelay"
-                  class="validation-error"
-                >
-                  {{ validationErrors.ramReadRetryDelay }}
-                </div>
-                <small class="hint">{{ formatTimeClock(localSettings.retry.ramReadDelay, 'ms') }}</small>
-              </div>
-            </div>
-
-            <div class="setting-row">
-              <div class="setting-item">
-                <label for="rom-erase-retry-delay">{{ $t('ui.settings.retry.romEraseRetryDelay') }}</label>
-                <div class="input-group">
-                  <input
-                    id="rom-erase-retry-delay"
-                    v-model.number="localSettings.retry.romEraseRetryDelay"
-                    type="number"
-                    :min="limits.retryDelay.min"
-                    :max="limits.retryDelay.max"
-                    :step="1"
-                    @input="validateAndUpdate"
-                  >
-                  <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
-                </div>
-                <div
-                  v-if="validationErrors.romEraseRetryDelay"
-                  class="validation-error"
-                >
-                  {{ validationErrors.romEraseRetryDelay }}
-                </div>
-                <small class="hint">{{ formatTimeClock(localSettings.retry.romEraseRetryDelay, 'ms') }}</small>
-              </div>
-
-              <div class="setting-item">
-                <label for="rom-write-retry-delay">{{ $t('ui.settings.retry.romWriteRetryDelay') }}</label>
-                <div class="input-group">
-                  <input
-                    id="rom-write-retry-delay"
-                    v-model.number="localSettings.retry.romWriteRetryDelay"
-                    type="number"
-                    :min="limits.retryDelay.min"
-                    :max="limits.retryDelay.max"
-                    :step="1"
-                    @input="validateAndUpdate"
-                  >
-                  <span class="unit">{{ $t('ui.settings.timeout.milliseconds') }}</span>
-                </div>
-                <div
-                  v-if="validationErrors.romWriteRetryDelay"
-                  class="validation-error"
-                >
-                  {{ validationErrors.romWriteRetryDelay }}
-                </div>
-                <small class="hint">{{ formatTimeClock(localSettings.retry.romWriteRetryDelay, 'ms') }}</small>
+                <small
+                  v-if="field.hint"
+                  class="hint"
+                >{{ field.hint }}</small>
               </div>
             </div>
           </div>
@@ -654,9 +353,14 @@ import { DEFAULT_FONT_FAMILY, type FontFamilyId, useFont } from '@/composables/u
 import { DEFAULT_COLOR_MODE, DEFAULT_COLOR_THEME, useTheme } from '@/composables/useTheme';
 import { VARIANT_IDS } from '@/device/definitions';
 import { displayTextToString } from '@/device/display';
-import type { ParameterDescriptor, ParameterSchema, ParameterValue } from '@/device/parameters';
+import {
+  GLOBAL_PARAMETER_SCHEMA,
+  type ParameterDescriptor,
+  type ParameterSchema,
+  type ParameterValue,
+} from '@/device/parameters';
 import { getDeviceRuntime } from '@/device-runtime/runtime-instance';
-import { AdvancedSettings, CORE_PARAMETER_NAMESPACE, type GlobalParameterKey } from '@/settings/advanced-settings';
+import { AdvancedSettings, CORE_PARAMETER_NAMESPACE } from '@/settings/advanced-settings';
 import type { DeviceInfo } from '@/types/device-info';
 import { formatBytes, formatTimeClock } from '@/utils/formatter-utils';
 
@@ -696,9 +400,6 @@ const localVisible = computed({
     emit('update:modelValue', value);
   },
 });
-
-// 获取限制值
-const limits = AdvancedSettings.getLimits();
 
 // --- 设备与固件选择（来自注册定义） ---
 
@@ -772,9 +473,33 @@ const namespaceTabs = computed(() => {
 function selectVariant(variantId: string) {
   selectedVariantId.value = variantId;
   const namespace = runtime.registry.findVariant(variantId)?.parameterNamespace;
-  if (namespace && !namespaceTabs.value.some(tab => tab.id === namespace)) {
-    editingNamespace.value = namespace;
+  if (!namespace) return;
+  editingNamespace.value = visibleNamespaceFor(namespace);
+  validateNamespaceFields();
+}
+
+/** Link group declared by a namespace's page-size descriptor, when it declares one. */
+function sizeLinkGroupOf(namespace: string): string | undefined {
+  return schemaFor(namespace).find(descriptor => descriptor.key === 'romPageSize')?.linkGroup;
+}
+
+/**
+ * Namespace the size editor can actually show for a selection.
+ *
+ * Applying writes only the visible tabs, so leaving the editor on a hidden namespace would
+ * drop the edit without a word. A linked namespace (STC while sizes are shared) maps onto the
+ * tab that owns the same link group; anything else falls back to the first visible tab.
+ */
+function visibleNamespaceFor(namespace: string): string {
+  const tabs = namespaceTabs.value;
+  if (tabs.some(tab => tab.id === namespace)) {
+    return namespace;
   }
+  const linkGroup = sizeLinkGroupOf(namespace);
+  const linked = linkGroup
+    ? tabs.find(tab => sizeLinkGroupOf(tab.id) === linkGroup)
+    : undefined;
+  return linked?.id ?? tabs[0]?.id ?? namespace;
 }
 
 const independentSizesHint = computed(() => (
@@ -808,6 +533,7 @@ const namespaceFields = computed(() => schemaFor(editingNamespace.value).map((de
     value,
     min: descriptor.constraints?.min,
     max: descriptor.constraints?.max,
+    step: descriptor.alignment ?? 1,
     options: descriptor.constraints?.options ?? [],
     hint,
   };
@@ -857,112 +583,179 @@ function validateNamespaceFields() {
 }
 
 function validateDescriptor(descriptor: ParameterDescriptor, value: ParameterValue): string {
+  const issue = fieldIssue(descriptor, value);
+  return issue ? messageForSize(descriptor, issue) : '';
+}
+
+type FieldIssue = 'invalid' | 'range' | 'alignment' | 'option';
+
+/**
+ * One verdict per descriptor, shared by the size form and the control form.
+ *
+ * The alignment comes from the descriptor (`0x40` for page sizes) instead of a literal in the
+ * template, so a bound cannot be enforced by the form and forgotten by the store.
+ */
+function fieldIssue(descriptor: ParameterDescriptor, value: ParameterValue): FieldIssue | undefined {
   const { min, max, options } = descriptor.constraints ?? {};
   if (descriptor.kind === 'enum') {
-    return options && !options.includes(value)
-      ? t('ui.settings.size.validation.invalid')
-      : '';
+    return options && !options.includes(value) ? 'option' : undefined;
   }
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) {
-    return t('ui.settings.size.validation.invalid');
+    return 'invalid';
   }
   if ((min !== undefined && numeric < min) || (max !== undefined && numeric > max)) {
-    return t('ui.settings.size.validation.range', { min: min ?? 0, max: max ?? 0 });
+    return 'range';
   }
-  if (numeric % 64 !== 0 && numeric !== 0x0c00) {
-    return t('ui.settings.size.validation.multiple', { multipler: 64 });
+  const alignment = descriptor.alignment ?? 1;
+  if (alignment > 1 && numeric % alignment !== 0) {
+    return 'alignment';
   }
-  return '';
+  return undefined;
+}
+
+function messageForSize(descriptor: ParameterDescriptor, issue: FieldIssue): string {
+  const { min, max } = descriptor.constraints ?? {};
+  switch (issue) {
+    case 'range':
+      return t('ui.settings.size.validation.range', { min: min ?? 0, max: max ?? 0 });
+    case 'alignment':
+      return t('ui.settings.size.validation.multiple', { multipler: descriptor.alignment ?? 1 });
+    default:
+      return t('ui.settings.size.validation.invalid');
+  }
+}
+
+function messageForControl(descriptor: ParameterDescriptor, issue: FieldIssue): string {
+  if (issue !== 'range') {
+    return t('ui.settings.size.validation.invalid');
+  }
+  const { min, max } = descriptor.constraints ?? {};
+  const range = { min: min ?? 0, max: max ?? 0 };
+  switch (descriptor.section) {
+    case 'throttle':
+      return t('ui.settings.throttle.validation.range', range);
+    case 'retry':
+      return descriptor.unit === 'count'
+        ? t('ui.settings.retry.validation.countRange', range)
+        : t('ui.settings.retry.validation.delayRange', range);
+    default:
+      return t('ui.settings.timeout.validation.range', range);
+  }
 }
 
 // --- 全局读写参数（超时/节流/重试）表单视图模型 ---
 
-interface ControlSettings {
-  throttle: { romRead: number; ramRead: number };
-  retry: {
-    romReadCount: number;
-    ramReadCount: number;
-    romReadDelay: number;
-    ramReadDelay: number;
-    romEraseRetryCount: number;
-    romEraseRetryDelay: number;
-    romWriteRetryCount: number;
-    romWriteRetryDelay: number;
-  };
-  timeout: { default: number; packageSend: number; packageReceive: number; operation: number };
+/**
+ * Presentation of one global parameter: element id, locale key and input step.
+ *
+ * Ranges, units, grouping and validation live in `GLOBAL_PARAMETER_SCHEMA`; keeping only the
+ * id and the label here means a parameter cannot be described twice.
+ */
+interface GlobalFieldView {
+  readonly id: string;
+  readonly labelKey: string;
+  readonly step: number;
 }
 
-const CONTROL_FIELD_KEYS: readonly { group: keyof ControlSettings; field: string; key: GlobalParameterKey }[] = [
-  { group: 'throttle', field: 'romRead', key: 'romReadThrottleMs' },
-  { group: 'throttle', field: 'ramRead', key: 'ramReadThrottleMs' },
-  { group: 'retry', field: 'romReadCount', key: 'romReadRetryCount' },
-  { group: 'retry', field: 'ramReadCount', key: 'ramReadRetryCount' },
-  { group: 'retry', field: 'romReadDelay', key: 'romReadRetryDelayMs' },
-  { group: 'retry', field: 'ramReadDelay', key: 'ramReadRetryDelayMs' },
-  { group: 'retry', field: 'romEraseRetryCount', key: 'romEraseRetryCount' },
-  { group: 'retry', field: 'romEraseRetryDelay', key: 'romEraseRetryDelayMs' },
-  { group: 'retry', field: 'romWriteRetryCount', key: 'romWriteRetryCount' },
-  { group: 'retry', field: 'romWriteRetryDelay', key: 'romWriteRetryDelayMs' },
-  { group: 'timeout', field: 'default', key: 'defaultTimeout' },
-  { group: 'timeout', field: 'packageSend', key: 'packageSendTimeout' },
-  { group: 'timeout', field: 'packageReceive', key: 'packageReceiveTimeout' },
-  { group: 'timeout', field: 'operation', key: 'operationTimeout' },
-];
+const GLOBAL_FIELD_VIEWS: Readonly<Record<string, GlobalFieldView>> = {
+  romReadThrottleMs: { id: 'rom-read-throttle', labelKey: 'ui.settings.throttle.romRead', step: 1 },
+  ramReadThrottleMs: { id: 'ram-read-throttle', labelKey: 'ui.settings.throttle.ramRead', step: 1 },
+  romReadRetryCount: { id: 'rom-read-retry-count', labelKey: 'ui.settings.retry.romReadCount', step: 1 },
+  ramReadRetryCount: { id: 'ram-read-retry-count', labelKey: 'ui.settings.retry.ramReadCount', step: 1 },
+  romReadRetryDelayMs: { id: 'rom-read-retry-delay', labelKey: 'ui.settings.retry.romReadDelay', step: 1 },
+  ramReadRetryDelayMs: { id: 'ram-read-retry-delay', labelKey: 'ui.settings.retry.ramReadDelay', step: 1 },
+  romEraseRetryCount: { id: 'rom-erase-retry-count', labelKey: 'ui.settings.retry.romEraseRetryCount', step: 1 },
+  romEraseRetryDelayMs: { id: 'rom-erase-retry-delay', labelKey: 'ui.settings.retry.romEraseRetryDelay', step: 1 },
+  romWriteRetryCount: { id: 'rom-write-retry-count', labelKey: 'ui.settings.retry.romWriteRetryCount', step: 1 },
+  romWriteRetryDelayMs: { id: 'rom-write-retry-delay', labelKey: 'ui.settings.retry.romWriteRetryDelay', step: 1 },
+  defaultTimeout: { id: 'default-timeout', labelKey: 'ui.settings.timeout.defaultTimeout', step: 100 },
+  packageSendTimeout: { id: 'package-send-timeout', labelKey: 'ui.settings.timeout.packageSendTimeout', step: 100 },
+  packageReceiveTimeout: { id: 'package-receive-timeout', labelKey: 'ui.settings.timeout.packageReceiveTimeout', step: 100 },
+  operationTimeout: { id: 'operation-timeout', labelKey: 'ui.settings.timeout.operationTimeout', step: 1000 },
+};
 
-function toControlSettings(values: Readonly<Record<string, ParameterValue>>): ControlSettings {
-  const num = (key: string, fallback: number) => {
-    const value = values[key];
-    return typeof value === 'number' ? value : fallback;
-  };
-  return {
-    throttle: { romRead: num('romReadThrottleMs', 0), ramRead: num('ramReadThrottleMs', 0) },
-    retry: {
-      romReadCount: num('romReadRetryCount', 1),
-      ramReadCount: num('ramReadRetryCount', 1),
-      romReadDelay: num('romReadRetryDelayMs', 0),
-      ramReadDelay: num('ramReadRetryDelayMs', 0),
-      romEraseRetryCount: num('romEraseRetryCount', 1),
-      romEraseRetryDelay: num('romEraseRetryDelayMs', 0),
-      romWriteRetryCount: num('romWriteRetryCount', 1),
-      romWriteRetryDelay: num('romWriteRetryDelayMs', 0),
-    },
-    timeout: {
-      default: num('defaultTimeout', 3000),
-      packageSend: num('packageSendTimeout', 3000),
-      packageReceive: num('packageReceiveTimeout', 3000),
-      operation: num('operationTimeout', 30000),
-    },
-  };
-}
+type GlobalSection = NonNullable<ParameterDescriptor['section']>;
 
-const localSettings = ref<ControlSettings>(toControlSettings(AdvancedSettings.getGlobalParameters()));
-const activeSection = ref<SettingsSectionId>('firmware');
+const CONTROL_GROUP_ORDER: readonly GlobalSection[] = ['timeout', 'throttle', 'retry'];
 
-// 验证错误
-const validationErrors = ref({
-  romReadThrottle: '',
-  ramReadThrottle: '',
-  romReadRetryCount: '',
-  ramReadRetryCount: '',
-  romReadRetryDelay: '',
-  ramReadRetryDelay: '',
-  romEraseRetryCount: '',
-  romEraseRetryDelay: '',
-  romWriteRetryCount: '',
-  romWriteRetryDelay: '',
-  defaultTimeout: '',
-  packageSendTimeout: '',
-  packageReceiveTimeout: '',
-  operationTimeout: '',
+const CONTROL_GROUP_TITLES: Readonly<Record<GlobalSection, string>> = {
+  timeout: 'ui.settings.timeout.title',
+  throttle: 'ui.settings.throttle.title',
+  retry: 'ui.settings.retry.title',
+};
+
+/** Draft values keyed by parameter key; the schema supplies defaults and ranges. */
+const controlValues = ref<Record<string, number>>({});
+
+const controlErrors = computed<Record<string, string>>(() => {
+  const errors: Record<string, string> = {};
+  for (const descriptor of GLOBAL_PARAMETER_SCHEMA) {
+    const value = controlValues.value[descriptor.key];
+    const issue = fieldIssue(descriptor, value ?? descriptor.default);
+    if (issue) {
+      errors[descriptor.key] = messageForControl(descriptor, issue);
+    }
+  }
+  return errors;
 });
+
+interface ControlField {
+  key: string;
+  id: string;
+  label: string;
+  min?: number;
+  max?: number;
+  step: number;
+  unitLabel: string;
+  error: string;
+  hint: string;
+}
+
+function toControlField(descriptor: ParameterDescriptor): ControlField {
+  const view = GLOBAL_FIELD_VIEWS[descriptor.key];
+  const value = controlValues.value[descriptor.key] ?? Number(descriptor.default);
+  const { min, max } = descriptor.constraints ?? {};
+  return {
+    key: descriptor.key,
+    id: view?.id ?? descriptor.key,
+    label: view ? t(view.labelKey) : displayTextToString(descriptor.label),
+    min,
+    max,
+    step: view?.step ?? 1,
+    unitLabel: descriptor.unit === 'count' ? 'x' : t('ui.settings.timeout.milliseconds'),
+    error: controlErrors.value[descriptor.key] ?? '',
+    hint: descriptor.unit === 'ms' ? formatTimeClock(value, 'ms') : '',
+  };
+}
+
+function chunkRows<T>(items: readonly T[], size: number): T[][] {
+  const rows: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    rows.push(items.slice(index, index + size));
+  }
+  return rows;
+}
+
+const controlGroups = computed(() => CONTROL_GROUP_ORDER.map((section) => {
+  const fields = GLOBAL_PARAMETER_SCHEMA
+    .filter(descriptor => descriptor.section === section)
+    .map(descriptor => toControlField(descriptor));
+  return {
+    id: section,
+    title: t(CONTROL_GROUP_TITLES[section]),
+    rows: chunkRows(fields, 2),
+  };
+}).filter(group => group.rows.length > 0));
+
+const activeSection = ref<SettingsSectionId>('firmware');
 
 const hasSectionError = (sectionId: SettingsSectionId): boolean => {
   switch (sectionId) {
     case 'size':
       return Object.values(fieldErrors.value).some(errors => Object.keys(errors).length > 0);
     case 'control':
-      return Object.values(validationErrors.value).some(error => error !== '');
+      return Object.keys(controlErrors.value).length > 0;
     case 'firmware':
     case 'appearance':
       return false;
@@ -1001,75 +794,15 @@ const settingsSections = computed(() => {
     {
       id: 'control' as const,
       title: t('ui.settings.control.title'),
-      summary: `${formatTimeClock(localSettings.value.timeout.default, 'ms')} / ${localSettings.value.throttle.romRead}ms / ${localSettings.value.retry.romReadCount}x`,
+      summary: `${formatTimeClock(controlValues.value.defaultTimeout ?? 0, 'ms')} / ${controlValues.value.romReadThrottleMs ?? 0}ms / ${controlValues.value.romReadRetryCount ?? 0}x`,
     },
   ];
 });
 
-const validateTimeout = (value: number): string => {
-  if (isNaN(value) || value < limits.timeout.min || value > limits.timeout.max) {
-    return t('ui.settings.timeout.validation.range', {
-      min: limits.timeout.min,
-      max: limits.timeout.max,
-    });
-  }
-  return '';
-};
-
-const validateThrottle = (value: number): string => {
-  if (isNaN(value) || value < limits.throttle.min || value > limits.throttle.max) {
-    return t('ui.settings.throttle.validation.range', {
-      min: limits.throttle.min,
-      max: limits.throttle.max,
-    });
-  }
-  return '';
-};
-
-const validateRetryCount = (value: number): string => {
-  if (isNaN(value) || value < limits.retryCount.min || value > limits.retryCount.max) {
-    return t('ui.settings.retry.validation.countRange', {
-      min: limits.retryCount.min,
-      max: limits.retryCount.max,
-    });
-  }
-  return '';
-};
-
-const validateRetryDelay = (value: number): string => {
-  if (isNaN(value) || value < limits.retryDelay.min || value > limits.retryDelay.max) {
-    return t('ui.settings.retry.validation.delayRange', {
-      min: limits.retryDelay.min,
-      max: limits.retryDelay.max,
-    });
-  }
-  return '';
-};
-
-// 验证并更新
-const validateAndUpdate = () => {
-  validationErrors.value.romReadThrottle = validateThrottle(localSettings.value.throttle.romRead);
-  validationErrors.value.ramReadThrottle = validateThrottle(localSettings.value.throttle.ramRead);
-  validationErrors.value.romReadRetryCount = validateRetryCount(localSettings.value.retry.romReadCount);
-  validationErrors.value.ramReadRetryCount = validateRetryCount(localSettings.value.retry.ramReadCount);
-  validationErrors.value.romReadRetryDelay = validateRetryDelay(localSettings.value.retry.romReadDelay);
-  validationErrors.value.ramReadRetryDelay = validateRetryDelay(localSettings.value.retry.ramReadDelay);
-  validationErrors.value.romEraseRetryCount = validateRetryCount(localSettings.value.retry.romEraseRetryCount);
-  validationErrors.value.romEraseRetryDelay = validateRetryDelay(localSettings.value.retry.romEraseRetryDelay);
-  validationErrors.value.romWriteRetryCount = validateRetryCount(localSettings.value.retry.romWriteRetryCount);
-  validationErrors.value.romWriteRetryDelay = validateRetryDelay(localSettings.value.retry.romWriteRetryDelay);
-
-  // 验证超时
-  validationErrors.value.defaultTimeout = validateTimeout(localSettings.value.timeout.default);
-  validationErrors.value.packageSendTimeout = validateTimeout(localSettings.value.timeout.packageSend);
-  validationErrors.value.packageReceiveTimeout = validateTimeout(localSettings.value.timeout.packageReceive);
-  validationErrors.value.operationTimeout = validateTimeout(localSettings.value.timeout.operation);
-};
-
 // 检查是否有效
 const isValid = computed(() => {
   return Boolean(selectedVariantId.value)
-    && Object.values(validationErrors.value).every(error => error === '')
+    && Object.keys(controlErrors.value).length === 0
     && Object.values(fieldErrors.value).every(errors => Object.keys(errors).length === 0);
 });
 
@@ -1100,9 +833,9 @@ const applySettings = () => {
       }
     }
 
-    for (const mapping of CONTROL_FIELD_KEYS) {
-      const group = localSettings.value[mapping.group] as unknown as Record<string, number>;
-      runtime.store.set(namespace, mapping.key, group[mapping.field]);
+    for (const descriptor of GLOBAL_PARAMETER_SCHEMA) {
+      const value = controlValues.value[descriptor.key];
+      runtime.store.set(namespace, descriptor.key, value ?? descriptor.default);
     }
 
     if (selectedVariantId.value) {
@@ -1130,12 +863,15 @@ function loadCurrentSettings() {
   namespaceDrafts.value = drafts;
 
   const selectedNamespace = runtime.registry.findVariant(selectedVariantId.value ?? '')?.parameterNamespace;
-  editingNamespace.value = selectedNamespace && namespaceTabs.value.some(tab => tab.id === selectedNamespace)
-    ? selectedNamespace
-    : 'beggar.stm';
+  editingNamespace.value = selectedNamespace ? visibleNamespaceFor(selectedNamespace) : 'beggar.stm';
 
-  localSettings.value = toControlSettings(AdvancedSettings.getGlobalParameters());
-  validateAndUpdate();
+  const globals = AdvancedSettings.getGlobalParameters();
+  controlValues.value = Object.fromEntries(
+    GLOBAL_PARAMETER_SCHEMA.map(descriptor => [
+      descriptor.key,
+      Number(globals[descriptor.key] ?? descriptor.default),
+    ]),
+  );
   validateNamespaceFields();
 };
 

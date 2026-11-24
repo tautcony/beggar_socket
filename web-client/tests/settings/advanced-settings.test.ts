@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createDeviceCatalog } from '@/device/definitions';
+import { detectHostPlatform } from '@/platform/serial/platform-packet-policy';
 import {
   AdvancedSettings,
   LEGACY_SETTINGS_BACKUP_KEY,
   validateSettings,
 } from '@/settings/advanced-settings';
-import { ADVANCED_SETTINGS_STORAGE_KEY } from '@/settings/advanced-settings-v2';
+import { ADVANCED_SETTINGS_STORAGE_KEY, defaultSizesForNamespace } from '@/settings/advanced-settings-v2';
 
 type StorageMock = Record<string, string>;
 
@@ -34,6 +35,19 @@ function installStorage() {
 function readStored(): Record<string, unknown> | null {
   const raw = storage[ADVANCED_SETTINGS_STORAGE_KEY];
   return raw ? JSON.parse(raw) as Record<string, unknown> : null;
+}
+
+/**
+ * Ceilings of the STM namespace as the runtime resolves them.
+ *
+ * The compatibility accessors clamp to the descriptor now, so an assertion reads the same bound
+ * the code reads instead of a number that only holds for one host.
+ */
+function stmCeilings(): { romPageMax: number; romReadMax: number } {
+  const schema = createDeviceCatalog({ platform: detectHostPlatform() })
+    .resolveNamespaceSchema('beggar.stm')?.schema ?? [];
+  const bound = (key: string) => schema.find(item => item.key === key)?.constraints?.max ?? 0;
+  return { romPageMax: bound('romPageSize'), romReadMax: bound('romReadPageSize') };
 }
 
 function writeLegacy(value: unknown): void {
@@ -78,19 +92,20 @@ describe('advanced settings v2 storage', () => {
 
   describe('normalization', () => {
     it('clamps and normalizes page sizes per namespace', () => {
+      const { romPageMax, romReadMax } = stmCeilings();
       AdvancedSettings.setVariantId('beggar-stm');
 
       AdvancedSettings.romPageSize = 0x10;
       expect(AdvancedSettings.romPageSize).toBe(0x40);
 
       AdvancedSettings.romPageSize = 0x10000;
-      expect(AdvancedSettings.romPageSize).toBe(0x2000);
+      expect(AdvancedSettings.romPageSize).toBe(romPageMax);
 
       AdvancedSettings.romPageSize = 300;
       expect(AdvancedSettings.romPageSize).toBe(256);
 
-      AdvancedSettings.romReadPageSize = 24576;
-      expect(AdvancedSettings.romReadPageSize).toBe(16384);
+      AdvancedSettings.romReadPageSize = romReadMax * 2;
+      expect(AdvancedSettings.romReadPageSize).toBe(romReadMax);
     });
 
     it('normalizes the GBFlash namespace independently from the active selection', () => {
@@ -99,6 +114,25 @@ describe('advanced settings v2 storage', () => {
       expect(AdvancedSettings.getNamespaceSizes('flashgbx.cfw').romPageSize).toBe(0x2000);
       // Beggar namespaces keep their own values.
       expect(AdvancedSettings.getNamespaceSizes('beggar.stm').romPageSize).toBe(0x1000);
+    });
+
+    it('accepts the descriptor boundaries and keeps the 0x0c00 step', () => {
+      AdvancedSettings.setVariantId('beggar-stm');
+
+      AdvancedSettings.romPageSize = 0x40;
+      expect(AdvancedSettings.romPageSize).toBe(0x40);
+      // macOS/Linux converge on 3072B, which is not a power of two and must stay legal.
+      AdvancedSettings.romPageSize = 0x0c00;
+      expect(AdvancedSettings.romPageSize).toBe(0x0c00);
+
+      AdvancedSettings.romReadThrottleMs = 1000;
+      AdvancedSettings.romReadRetryCount = 10;
+      AdvancedSettings.defaultTimeout = 300000;
+      AdvancedSettings.operationTimeout = 1000;
+      expect(AdvancedSettings.romReadThrottleMs).toBe(1000);
+      expect(AdvancedSettings.romReadRetryCount).toBe(10);
+      expect(AdvancedSettings.defaultTimeout).toBe(300000);
+      expect(AdvancedSettings.operationTimeout).toBe(1000);
     });
 
     it('clamps throttle, retry and timeout values', () => {
@@ -136,13 +170,14 @@ describe('advanced settings v2 storage', () => {
     });
 
     it('saves STM and STC separately once independent sizes are enabled', () => {
+      const { romReadMax } = stmCeilings();
       AdvancedSettings.setIndependentSizes(true);
       AdvancedSettings.setVariantId('beggar-stm');
-      AdvancedSettings.setNamespaceSize('beggar.stc', 'romReadPageSize', 0x1000);
-      AdvancedSettings.romReadPageSize = 0x4000;
+      AdvancedSettings.setNamespaceSize('beggar.stc', 'romReadPageSize', 0x400);
+      AdvancedSettings.romReadPageSize = romReadMax;
 
-      expect(AdvancedSettings.getNamespaceSizes('beggar.stm').romReadPageSize).toBe(0x4000);
-      expect(AdvancedSettings.getNamespaceSizes('beggar.stc').romReadPageSize).toBe(0x1000);
+      expect(AdvancedSettings.getNamespaceSizes('beggar.stm').romReadPageSize).toBe(romReadMax);
+      expect(AdvancedSettings.getNamespaceSizes('beggar.stc').romReadPageSize).toBe(0x400);
       expect(readStored()).toMatchObject({ independentSizes: true });
     });
   });
@@ -220,6 +255,43 @@ describe('advanced settings v2 storage', () => {
       expect(AdvancedSettings.operationTimeout).toBe(60000);
     });
 
+    it('ignores the whole legacy size bag once profileSizes exists', () => {
+      // v1 only read `size` when `profileSizes` was absent, so a partial per-profile record
+      // must not be patched key by key from the stale flat bag.
+      writeLegacy({
+        firmware: { profile: 'stc' },
+        profileSizes: { stc: { romPageSize: 0x800 } },
+        size: { romPageSize: 0x400, romReadPageSize: 0x400, ramPageSize: 0x400 },
+      });
+
+      AdvancedSettings.reloadFromStorage();
+
+      const defaults = defaultSizesForNamespace('beggar.stc');
+      const sizes = AdvancedSettings.getNamespaceSizes('beggar.stc');
+      expect(sizes.romPageSize).toBe(0x800);
+      expect(sizes.romReadPageSize).toBe(defaults.romReadPageSize);
+      expect(sizes.ramPageSize).toBe(defaults.ramPageSize);
+      expect(AdvancedSettings.getIndependentSizes()).toBe(true);
+    });
+
+    it('does not leak a FlashGBX size bag into the Beggar namespaces', () => {
+      // Linked sizes only link the namespaces that declare the link group. A GBFlash `size`
+      // says nothing about the Beggar packet sizes, so it stays in its own namespace.
+      writeLegacy({
+        firmware: { profile: 'flashgbx' },
+        size: { romPageSize: 0x100, romReadPageSize: 0x100, ramPageSize: 0x100 },
+      });
+
+      AdvancedSettings.reloadFromStorage();
+
+      expect(AdvancedSettings.getNamespaceSizes('flashgbx.cfw').romPageSize).toBe(0x100);
+      for (const namespace of ['beggar.stm', 'beggar.stc']) {
+        const sizes = AdvancedSettings.getNamespaceSizes(namespace);
+        const defaults = defaultSizesForNamespace(namespace);
+        expect(sizes).toEqual(defaults);
+      }
+    });
+
     it('replaces the historical placeholder page sizes with the host defaults', () => {
       writeLegacy({
         firmware: { profile: 'stm' },
@@ -295,6 +367,34 @@ describe('advanced settings v2 storage', () => {
 
       expect(AdvancedSettings.getVariantId()).toBe('retired-variant');
     });
+
+    it('never serves a persisted value the schema cannot accept', () => {
+      // A v2 record can hold anything a previous build wrote. The read path validates it with
+      // the same descriptors the store and the form use, so an impossible baud rate or an
+      // out-of-range timeout cannot reach a connection plan.
+      storage[ADVANCED_SETTINGS_STORAGE_KEY] = JSON.stringify({
+        version: 2,
+        selectedVariantId: 'gbflash',
+        parametersByNamespace: {
+          'flashgbx.cfw': { baudRate: 123456, romPageSize: 0x4000, ramPageSize: 'bogus' },
+          'beggar.stm': { romReadPageSize: 0x4000 },
+        },
+        global: { defaultTimeout: 999999, romReadRetryCount: 'many' },
+        independentSizes: false,
+      });
+
+      AdvancedSettings.reloadFromStorage();
+
+      expect(AdvancedSettings.getBaudRate()).toBe('auto');
+      // Clamped to the GBFlash packet ceiling, and the unusable string falls back to default.
+      expect(AdvancedSettings.getNamespaceSizes('flashgbx.cfw').romPageSize).toBe(0x2000);
+      expect(AdvancedSettings.getNamespaceSizes('flashgbx.cfw').ramPageSize)
+        .toBe(defaultSizesForNamespace('flashgbx.cfw').ramPageSize);
+      expect(AdvancedSettings.getNamespaceSizes('beggar.stm').romReadPageSize)
+        .toBe(stmCeilings().romReadMax);
+      expect(AdvancedSettings.defaultTimeout).toBe(300000);
+      expect(AdvancedSettings.romReadRetryCount).toBe(1);
+    });
   });
 
   describe('schema driven validation', () => {
@@ -312,11 +412,16 @@ describe('advanced settings v2 storage', () => {
       expect(baud.valid).toBe(false);
     });
 
-    it('keeps the existing limits table available for the UI', () => {
-      const limits = AdvancedSettings.getLimits();
-      expect(limits.pageSize).toEqual({ min: 0x40, max: 0x2000 });
-      expect(limits.readPageSize).toEqual({ min: 0x40, max: 0x8000 });
-      expect(limits.timeout).toEqual({ min: 1000, max: 300000 });
+    it('validates persisted page sizes with the same descriptor the form uses', () => {
+      // No second limits table: the ceiling of a namespace is its descriptor, and the form,
+      // the store and this validator all read it.
+      const schema = registry.resolveNamespaceSchema('beggar.stm')?.schema ?? [];
+      const romPage = schema.find(descriptor => descriptor.key === 'romPageSize');
+
+      expect(romPage?.constraints?.min).toBe(0x40);
+      expect(romPage?.alignment).toBe(0x40);
+      expect(validateSettings(schema, { romPageSize: 0x1000 }).valid).toBe(true);
+      expect(validateSettings(schema, { romPageSize: 0x60 }).errors[0]).toContain('aligned');
     });
   });
 });

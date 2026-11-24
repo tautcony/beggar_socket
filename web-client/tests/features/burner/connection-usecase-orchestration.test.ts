@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { type BurnerConnectionPort, type BurnerConnectionSelection, ConnectionOrchestrationUseCase } from '@/features/burner/application';
+import type { ConnectionPlan } from '@/device/session';
+import {
+  type BurnerConnectionPort,
+  type BurnerConnectionSelection,
+  type BurnerConnectionSelectOptions,
+  ConnectionOrchestrationUseCase,
+} from '@/features/burner/application';
 
 function createPortMock(overrides: Partial<BurnerConnectionPort> = {}): BurnerConnectionPort {
   const selection: BurnerConnectionSelection = {
@@ -113,7 +119,9 @@ describe('ConnectionOrchestrationUseCase', () => {
 
     const failed = await useCase.reconnectWithSelection(selection);
     expect(failed.failure?.code).toBe('disconnect_failed');
-    expect(failed.context.handle).toBe(initial.context.handle);
+    // The released handle is never `handle` again: only the cleanup path may retry its close.
+    expect(failed.context.handle).toBeNull();
+    expect(failed.context.pendingCleanup).toBe(initial.context.handle);
     expect(connect).toHaveBeenCalledOnce();
     const recovered = await useCase.reconnectWithSelection(selection);
     expect(recovered.success).toBe(true);
@@ -167,7 +175,7 @@ describe('ConnectionOrchestrationUseCase', () => {
     expect(useCase.snapshot).toBe(snapshot);
   });
 
-  it.each(['result', 'throw'] as const)('retains a handle after disconnect %s failure and retries its cleanup', async (mode) => {
+  it.each(['result', 'throw'] as const)('keeps the released handle in pendingCleanup after disconnect %s failure', async (mode) => {
     const error = new Error('close failed');
     const disconnect = vi.fn();
     const useCase = new ConnectionOrchestrationUseCase(createPortMock({ disconnect }));
@@ -181,7 +189,9 @@ describe('ConnectionOrchestrationUseCase', () => {
     expect(failed.success).toBe(false);
     expect(failed.state).toBe('failed');
     expect(failed.failure?.code).toBe('disconnect_failed');
-    expect(failed.context.handle).toBe(connected.context.handle);
+    // The session and identity die with the release; the port close is the only retry left.
+    expect(failed.context.handle).toBeNull();
+    expect(failed.context.pendingCleanup).toBe(connected.context.handle);
     expect(failed.context.selection).toBe(connected.context.selection);
     expect(failed.context.generation).toBeGreaterThan(connected.context.generation);
     const cleaned = await useCase.disconnect();
@@ -207,7 +217,8 @@ describe('ConnectionOrchestrationUseCase', () => {
 
     expect(failed.failure?.code).toBe('init_failed');
     expect(failed.failure?.cause).toMatchObject({ cleanup: error });
-    expect(failed.context.handle).toBe(disconnect.mock.calls[0][0]);
+    expect(failed.context.handle).toBeNull();
+    expect(failed.context.pendingCleanup).toBe(disconnect.mock.calls[0][0]);
     expect(failed.context.selection).not.toBeNull();
     const preparing = useCase.prepareConnection();
     await vi.waitFor(() => {
@@ -216,16 +227,18 @@ describe('ConnectionOrchestrationUseCase', () => {
     expect(connect).toHaveBeenCalledOnce();
     cleanup.resolve({ ok: false, error: { stage: 'connection', code: 'disconnect_failed', message: 'close failed', recoverable: true } });
     expect((await preparing).success).toBe(false);
-    expect(useCase.snapshot.context.handle).toBe(failed.context.handle);
+    expect(useCase.snapshot.context.handle).toBeNull();
+    expect(useCase.snapshot.context.pendingCleanup).toBe(failed.context.pendingCleanup);
     expect(connect).toHaveBeenCalledOnce();
 
     const recovered = await useCase.prepareConnectionWithSelection({ context: {} });
     expect(recovered.success).toBe(true);
-    expect(recovered.context.handle?.id).not.toBe(failed.context.handle?.id);
+    expect(recovered.context.handle?.id).not.toBe(failed.context.pendingCleanup?.id);
     expect(recovered.context.generation).toBeGreaterThan(failed.context.generation);
-    expect(disconnect).toHaveBeenNthCalledWith(1, failed.context.handle);
-    expect(disconnect).toHaveBeenNthCalledWith(2, failed.context.handle);
-    expect(disconnect).toHaveBeenNthCalledWith(3, failed.context.handle);
+    const released = failed.context.pendingCleanup;
+    expect(disconnect).toHaveBeenNthCalledWith(1, released);
+    expect(disconnect).toHaveBeenNthCalledWith(2, released);
+    expect(disconnect).toHaveBeenNthCalledWith(3, released);
     expect(connect).toHaveBeenCalledTimes(2);
   });
 
@@ -245,6 +258,72 @@ describe('ConnectionOrchestrationUseCase', () => {
     expect(disconnect).toHaveBeenCalledWith(expect.objectContaining({ id: 'mock:/dev/mock:1' }));
     expect(result.context.handle).toBeNull();
     expect(result.context.selection).toBeNull();
+  });
+
+  it('reports the attempt discovery when the port cannot be opened', async () => {
+    const plan: ConnectionPlan = {
+      variantId: 'beggar.stm',
+      parameters: {},
+      identityMatchers: [{ id: 'beggar-stm', vendorId: '0483', productId: '0721' }],
+    };
+    // A port that answered discovery with another identity and then refused to open.
+    const busy: BurnerConnectionSelection = {
+      portInfo: { path: '/dev/cu.usbserial-110', vendorId: '1a86', productId: '7523' },
+      context: {},
+      plan,
+    };
+    const useCase = new ConnectionOrchestrationUseCase(createPortMock({
+      select: () => Promise.resolve({ ok: true, data: busy }),
+      connect: vi.fn().mockResolvedValue({
+        ok: false,
+        error: {
+          stage: 'connection',
+          code: 'connect_failed',
+          message: 'Failed to open serial port: port is busy',
+          recoverable: true,
+        },
+      }),
+    }));
+
+    const result = await useCase.prepareConnection({ plan });
+
+    expect(result.success).toBe(false);
+    // The same variant / port / match triplet a committed session reports: opening a port
+    // can fail before any session exists, and the log must still say what was addressed.
+    expect(result.failure?.context).toMatchObject({
+      variantId: 'beggar.stm',
+      port: { path: '/dev/cu.usbserial-110', vendorId: '1a86', productId: '7523' },
+      portIdentity: expect.objectContaining({ reason: 'mismatch', observed: '1a86:7523' }),
+    });
+  });
+
+  it('reports the attempt discovery when initialisation fails after the port opened', async () => {
+    const plan: ConnectionPlan = {
+      variantId: 'beggar.stm',
+      parameters: {},
+      identityMatchers: [{ id: 'beggar-stm', vendorId: '0483', productId: '0721' }],
+    };
+    const matching: BurnerConnectionSelection = {
+      portInfo: { path: '/dev/tty.usbmodem1', vendorId: '0483', productId: '0721' },
+      context: {},
+      plan,
+    };
+    const useCase = new ConnectionOrchestrationUseCase(createPortMock({
+      select: () => Promise.resolve({ ok: true, data: matching }),
+      init: vi.fn().mockResolvedValue({
+        ok: false,
+        error: { stage: 'connection', code: 'init_failed', message: 'signal init failed', recoverable: true },
+      }),
+    }));
+
+    const result = await useCase.prepareConnection({ plan });
+
+    expect(result.success).toBe(false);
+    expect(result.failure?.context).toMatchObject({
+      variantId: 'beggar.stm',
+      port: { path: '/dev/tty.usbmodem1', vendorId: '0483', productId: '0721' },
+      portIdentity: expect.objectContaining({ reason: 'matched' }),
+    });
   });
 
   it('sequences list/select/connect/init and transitions to connected then idle on disconnect', async () => {
@@ -314,7 +393,8 @@ describe('ConnectionOrchestrationUseCase', () => {
     expect(result.failure?.cause).toMatchObject({
       cleanup: expect.any(Error),
     });
-    expect(result.context.handle).toBe(disconnect.mock.calls[0][0]);
+    expect(result.context.handle).toBeNull();
+    expect(result.context.pendingCleanup).toBe(disconnect.mock.calls[0][0]);
     expect(useCase.snapshot.state).toBe('failed');
   });
 
@@ -525,16 +605,35 @@ describe('ConnectionOrchestrationUseCase', () => {
       },
     }));
 
-    const useCase = new ConnectionOrchestrationUseCase(createPortMock({ select, connect, init }));
+    // The port can rebuild an authorized selection for a new attempt; the retry then reopens
+    // the granted port instead of prompting (or selecting) again.
+    const reuseSelection = vi.fn((selection: BurnerConnectionSelection, options?: BurnerConnectionSelectOptions) => (
+      options
+        ? {
+          ...selection,
+          plan: options.plan,
+          context: {
+            ...(selection.context as Record<string, unknown>),
+            ...(options.baudRate !== undefined ? { baudRate: options.baudRate } : {}),
+            ...(options.skipSignalInit !== undefined ? { skipSignalInit: options.skipSignalInit } : {}),
+          },
+        }
+        : selection
+    ));
+
+    const useCase = new ConnectionOrchestrationUseCase(createPortMock({ select, connect, init, reuseSelection }));
     const failed = await useCase.prepareConnection({ baudRate: 1_000_000, skipSignalInit: true });
     expect(failed.success).toBe(false);
     expect(select).toHaveBeenCalledWith({ baudRate: 1_000_000, skipSignalInit: true });
     expect(failed.context.selection).toBe(webSelection);
     expect(failed.context.handle).toBeNull();
 
+    expect(useCase.retryableSelection).toBe(webSelection);
+
     const retried = await useCase.retryConnection();
     expect(retried.success).toBe(true);
     expect(select).toHaveBeenCalledTimes(1);
+    expect(reuseSelection).toHaveBeenCalledOnce();
     expect(connect).toHaveBeenNthCalledWith(2, webSelection);
   });
 

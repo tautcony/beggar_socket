@@ -62,4 +62,5 @@ export const BEGGAR_STC_BINDING: DeviceFirmwareBinding = {
   transport: BEGGAR_STC_TRANSPORT,
   parameterNamespace: 'beggar.stc',
   runtimeBindingId: BEGGAR_RUNTIME_BINDING_ID,
+  simulated: { supported: true },
 };

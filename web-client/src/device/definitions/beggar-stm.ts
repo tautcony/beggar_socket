@@ -100,6 +100,7 @@ export const BEGGAR_STM_BINDING: DeviceFirmwareBinding = {
   transport: BEGGAR_STM_TRANSPORT,
   parameterNamespace: 'beggar.stm',
   runtimeBindingId: BEGGAR_RUNTIME_BINDING_ID,
+  simulated: { supported: true },
 };
 
 export const BEGGAR_STM_BOOST_BINDING: DeviceFirmwareBinding = {
@@ -114,4 +115,10 @@ export const BEGGAR_STM_BOOST_BINDING: DeviceFirmwareBinding = {
   transport: BEGGAR_STM_BOOST_TRANSPORT,
   parameterNamespace: 'beggar.stm',
   runtimeBindingId: BEGGAR_RUNTIME_BINDING_ID,
+  // The simulator implements the standard command frames only; the Boost extension
+  // (0xa0-0xd5) has no simulated backend, so the transaction must not publish a session.
+  simulated: {
+    supported: false,
+    reason: 'The debug simulator only executes the standard 丐中丐/碳酸丐 command frames; the Boost extension protocol is not simulated.',
+  },
 };

@@ -25,12 +25,16 @@ import {
   createSessionResolver,
   type SessionResolver,
 } from '@/device-runtime';
+import type { Transport } from '@/platform/serial';
+import { getPackage, sendPackage } from '@/protocol/beggar_socket/protocol-utils';
 import type { ResolvedOperationSettings } from '@/services/cartridge-adapter';
 import { MBC5Adapter } from '@/services/mbc5-adapter';
+import { AdvancedSettings } from '@/settings/advanced-settings';
 import type { CommandOptions } from '@/types/command-options';
 import type { CommandResult } from '@/types/command-result';
 import type { DeviceInfo } from '@/types/device-info';
 import type { HostPlatform } from '@/types/host-platform';
+import { packageTimeouts } from '@/utils/io-timeouts';
 
 import { createFakeSettingsStorage, type FakeSettingsStorage } from '../helpers/fake-settings-storage';
 
@@ -70,15 +74,38 @@ function sessionFor(
   );
 }
 
-function adapterContext(profile: SessionProfile, store: ParameterStore): AdapterContext {
+function adapterContext(
+  profile: SessionProfile,
+  store: ParameterStore,
+  transport?: Transport,
+): AdapterContext {
   const device: DeviceInfo = {
     port: null,
-    transport: { send: vi.fn(), read: vi.fn() } as unknown as DeviceInfo['transport'],
+    transport: transport ?? ({ send: vi.fn(), read: vi.fn() } as unknown as DeviceInfo['transport']),
     connection: null,
     connectionId: 'session-1',
     session: profile,
   };
   return { device, profile, log: vi.fn(), updateProgress: vi.fn(), t: (key: string) => key, store };
+}
+
+/** Transport that records the deadline every protocol call actually passes. */
+function recordingTransport() {
+  const sent: (number | undefined)[] = [];
+  const read: (number | undefined)[] = [];
+  const transport = {
+    send: vi.fn((_payload: Uint8Array, timeoutMs?: number) => {
+      sent.push(timeoutMs);
+      return Promise.resolve(true);
+    }),
+    read: vi.fn((_length: number, timeoutMs?: number) => {
+      read.push(timeoutMs);
+      return Promise.resolve({ data: new Uint8Array(0) });
+    }),
+    sendAndReceive: vi.fn(() => Promise.resolve({ data: new Uint8Array(0) })),
+    setSignals: vi.fn(() => Promise.resolve(undefined)),
+  } as unknown as Transport;
+  return { transport, sent, read };
 }
 
 /** Operation values are protected on the adapter; the tests read them as a black box. */
@@ -112,6 +139,66 @@ describe('operation boundary', () => {
     (adapter as unknown as { beginOperation(): void }).beginOperation();
     expect(settingsOf(adapter).romPageSize).toBe(0x800);
     expect(settingsOf(adapter).romReadThrottleMs).toBe(0);
+  });
+
+  it('binds the package deadlines to the transport and releases them with the operation', async () => {
+    const { fake, store, resolver } = harness({ selectedVariantId: VARIANT_IDS.stm });
+    // Persisted settings of the next operation (the fallback once nothing is bound).
+    AdvancedSettings.setGlobalParameter('packageSendTimeout', 3333);
+    AdvancedSettings.setGlobalParameter('packageReceiveTimeout', 4444);
+    // The snapshot the running operation was started with.
+    fake.values.set('global.packageSendTimeout', 1111);
+    fake.values.set('global.packageReceiveTimeout', 2222);
+
+    const profile = sessionFor(resolver, store, VARIANT_IDS.stm);
+    const { transport, sent, read } = recordingTransport();
+    const adapter = createBeggarAdapterFactory().create('gba', adapterContext(profile, store, transport));
+
+    (adapter as unknown as { beginOperation(): void }).beginOperation();
+
+    // Real protocol calls pick both deadlines up from the bound snapshot.
+    await sendPackage(transport, new Uint8Array([0x01]));
+    await getPackage(transport, 4);
+    expect(sent).toEqual([1111]);
+    expect(read).toEqual([2222]);
+
+    // An edit made while the operation runs never reaches the transfer in flight.
+    fake.values.set('global.packageSendTimeout', 5555);
+    fake.values.set('global.packageReceiveTimeout', 6666);
+    await sendPackage(transport, new Uint8Array([0x01]));
+    await getPackage(transport, 4);
+    expect(sent).toEqual([1111, 1111]);
+    expect(read).toEqual([2222, 2222]);
+
+    // Ending the operation drops the scope: later protocol calls read the persisted
+    // settings again instead of the deadlines of the finished transfer.
+    (adapter as unknown as { endOperation(): void }).endOperation();
+    expect(packageTimeouts(transport)).toEqual({ send: 3333, receive: 4444 });
+    await sendPackage(transport, new Uint8Array([0x01]));
+    await getPackage(transport, 4);
+    expect(sent).toEqual([1111, 1111, 3333]);
+    expect(read).toEqual([2222, 2222, 4444]);
+
+    AdvancedSettings.resetToDefaults();
+  });
+
+  it('releases the scope when the operation fails', async () => {
+    const { fake, store, resolver } = harness({ selectedVariantId: VARIANT_IDS.stm });
+    fake.values.set('global.packageSendTimeout', 1111);
+    fake.values.set('global.packageReceiveTimeout', 2222);
+    const profile = sessionFor(resolver, store, VARIANT_IDS.stm);
+    const { transport } = recordingTransport();
+    const adapter = createBeggarAdapterFactory().create('mbc5', adapterContext(profile, store, transport));
+    vi.spyOn(MBC5Adapter.prototype, 'writeROM').mockRejectedValue(new Error('transfer aborted'));
+
+    await expect(adapter.writeROM(new Uint8Array(4), {} as CommandOptions)).rejects.toThrow('transfer aborted');
+
+    // A thrown operation must not leave its snapshot on the transport either.
+    expect(packageTimeouts(transport)).toEqual({
+      send: AdvancedSettings.packageSendTimeout,
+      receive: AdvancedSettings.packageReceiveTimeout,
+    });
+    expect(packageTimeouts(transport).send).not.toBe(1111);
   });
 
   it('starts a fresh snapshot on every operation entry point', async () => {
@@ -148,15 +235,18 @@ describe('operation boundary', () => {
     // The committed session is an immutable snapshot: it never follows the selection.
     expect(live.variantId).toBe(VARIANT_IDS.stm);
     expect(live.parameterNamespace).toBe('beggar.stm');
-    expect(live.connectionParameters.romPageSize).toBe(0x400);
+    // Operation settings stay in the store; the session snapshot only freezes what the port
+    // was opened with. What must not follow the selection is the namespace the adapter reads.
+    expect(live.connectionParameters).not.toHaveProperty('romPageSize');
     expect(settingsOf(adapter).romPageSize).toBe(0x400);
 
     // Reconnecting resolves the new selection with its own namespace and values.
     const reconnected = sessionFor(resolver, store, VARIANT_IDS.stc);
     expect(reconnected.variantId).toBe(VARIANT_IDS.stc);
     expect(reconnected.parameterNamespace).toBe('beggar.stc');
-    expect(reconnected.connectionParameters.romPageSize).toBe(0x800);
     expect(reconnected.capabilities).not.toBe(live.capabilities);
+    const reconnectedAdapter = createBeggarAdapterFactory().create('gba', adapterContext(reconnected, store));
+    expect(settingsOf(reconnectedAdapter).romPageSize).toBe(0x800);
   });
 
   it('applies a baud rate change on reconnect, never on the running session', () => {

@@ -97,4 +97,10 @@ export const GBFLASH_BINDING: DeviceFirmwareBinding = {
   transport: GBFLASH_TRANSPORT,
   parameterNamespace: 'flashgbx.cfw',
   runtimeBindingId: GBFLASH_RUNTIME_BINDING_ID,
+  // FlashGBX framing (0x00/0xA1 handshake, CART_* commands) has no simulated backend;
+  // a simulated GBFlash session would commit and then fail on its first command.
+  simulated: {
+    supported: false,
+    reason: 'The debug simulator only executes the Beggar command frames; the FlashGBX framing protocol is not simulated.',
+  },
 };

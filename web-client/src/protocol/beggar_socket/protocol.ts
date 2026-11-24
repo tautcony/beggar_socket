@@ -1,5 +1,5 @@
-import { AdvancedSettings } from '@/settings/advanced-settings';
 import { formatHex } from '@/utils/formatter-utils';
+import { packageTimeouts } from '@/utils/io-timeouts';
 
 import { GBACommand, GBCCommand } from './command';
 import {
@@ -41,8 +41,8 @@ const WRITE_TIMEOUT_PER_BYTE_MS = 2;
  * 发送侧同理：设备处理期间会对 USB OUT 数据 NAK 限流，大分块的写出耗时
  * 与设备执行进度耦合，需要同样放宽。
  */
-function writeCommandTimeoutMs(byteLength: number): number {
-  return AdvancedSettings.packageReceiveTimeout + byteLength * WRITE_TIMEOUT_PER_BYTE_MS;
+function writeCommandTimeoutMs(input: ProtocolTransportInput, byteLength: number): number {
+  return packageTimeouts(input).receive + byteLength * WRITE_TIMEOUT_PER_BYTE_MS;
 }
 
 // --- Flash Command Sets ---
@@ -91,7 +91,7 @@ async function flashProgramRom(
     .addLength(bufferSize)
     .addBytes(data)
     .build();
-  const timeoutMs = writeCommandTimeoutMs(data.byteLength);
+  const timeoutMs = writeCommandTimeoutMs(input, data.byteLength);
   const ack = await sendAndExpectAck(input, payload, timeoutMs, timeoutMs);
   if (!ack) throw new Error(`${errorLabel} failed (Address: ${formatHex(baseAddress, 4)})`);
 }
@@ -142,7 +142,7 @@ export async function rom_write(input: ProtocolTransportInput, data: Uint8Array,
     .addBytes(data)
     .build();
 
-  const timeoutMs = writeCommandTimeoutMs(data.byteLength);
+  const timeoutMs = writeCommandTimeoutMs(input, data.byteLength);
   const ack = await sendAndExpectAck(input, payload, timeoutMs, timeoutMs);
   if (!ack) throw new Error(`GBA ROM direct write failed (Address: ${formatHex(baseAddress, 4)})`);
 }
@@ -167,7 +167,7 @@ export async function ram_write(input: ProtocolTransportInput, data: Uint8Array,
     .addBytes(data)
     .build();
 
-  const timeoutMs = writeCommandTimeoutMs(data.byteLength);
+  const timeoutMs = writeCommandTimeoutMs(input, data.byteLength);
   const ack = await sendAndExpectAck(input, payload, timeoutMs, timeoutMs);
   if (!ack) throw new Error(`RAM write failed (Address: ${formatHex(baseAddress, 4)})`);
 }
@@ -193,7 +193,7 @@ export async function ram_program_flash(input: ProtocolTransportInput, data: Uin
     .addBytes(data)
     .build();
 
-  const timeoutMs = writeCommandTimeoutMs(data.byteLength);
+  const timeoutMs = writeCommandTimeoutMs(input, data.byteLength);
   const ack = await sendAndExpectAck(input, payload, timeoutMs, timeoutMs);
   if (!ack) throw new Error(`GBA RAM write to FLASH failed (Address: ${formatHex(baseAddress, 4)})`);
 }
@@ -227,7 +227,7 @@ export async function gbc_write_fram(input: ProtocolTransportInput, data: Uint8A
     .addBytes(data)
     .build();
 
-  const timeoutMs = writeCommandTimeoutMs(data.byteLength);
+  const timeoutMs = writeCommandTimeoutMs(input, data.byteLength);
   const ack = await sendAndExpectAck(input, payload, timeoutMs, timeoutMs);
   if (!ack) throw new Error(`GBC FRAM write failed (Address: ${formatHex(baseAddress, 4)})`);
 }
@@ -255,7 +255,7 @@ export async function ram_write_fram(input: ProtocolTransportInput, data: Uint8A
     .addBytes(data)
     .build();
 
-  const timeoutMs = writeCommandTimeoutMs(data.byteLength);
+  const timeoutMs = writeCommandTimeoutMs(input, data.byteLength);
   const ack = await sendAndExpectAck(input, payload, timeoutMs, timeoutMs);
   if (!ack) throw new Error(`GBA FRAM write failed (Address: ${formatHex(baseAddress, 4)})`);
 }
@@ -284,7 +284,7 @@ export async function gbc_write(input: ProtocolTransportInput, data: Uint8Array,
     .addBytes(data)
     .build();
 
-  const timeoutMs = writeCommandTimeoutMs(data.byteLength);
+  const timeoutMs = writeCommandTimeoutMs(input, data.byteLength);
   const ack = await sendAndExpectAck(input, payload, timeoutMs, timeoutMs);
   if (!ack) throw new Error(`GBC direct write failed (Address: ${formatHex(baseAddress, 4)})`);
 }

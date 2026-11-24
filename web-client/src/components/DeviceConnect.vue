@@ -152,6 +152,7 @@ function toFailureReport(error: unknown): ConnectionFailureReport {
       stage: failure.stage,
       message: failure.message,
       ...(failure.diagnostics ? { diagnostics: failure.diagnostics } : {}),
+      ...(failure.context ? { context: failure.context } : {}),
     };
   }
   const stage = (error as { stage?: string } | null)?.stage ?? 'unknown';

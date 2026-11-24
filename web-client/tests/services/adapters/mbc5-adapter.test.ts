@@ -388,7 +388,9 @@ describe('MBC5Adapter transfer planning, efficiency, and stateful recovery', () 
   });
 
   it('caps MBC read/verify requests at 16KiB bank window even when STC maxReadChunk is 32KiB', async () => {
-    AdvancedSettings.romReadPageSize = 32768;
+    // Stored in the STC namespace: its descriptor ceiling is the firmware read chunk, so a
+    // 32 KiB page is legal there while the adapter still caps at the 16 KiB bank window.
+    AdvancedSettings.setNamespaceSize('beggar.stc', 'romReadPageSize', 32768);
     const adapter = new MBC5Adapter(createMockDevice({ firmwareProfile: STC_FIRMWARE_PROFILE }));
     vi.spyOn(adapter, 'switchROMBank').mockResolvedValue(undefined);
     mockGbcRead.mockImplementation((_t, size: number) => Promise.resolve(new Uint8Array(size).fill(0x22)));

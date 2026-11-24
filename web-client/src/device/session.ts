@@ -17,9 +17,11 @@ import type {
   FirmwareId,
   ResolvedVariantSelection,
   TransportBackend,
+  UsbIdentityMatcher,
   VariantId,
   VerificationStatus,
 } from './types';
+import type { PortIdentityAssessment } from './usb-identity';
 
 /**
  * Structural view of the platform `Transport`. Declared here so the pure definition
@@ -88,6 +90,14 @@ export interface ConnectionPlan {
   readonly parameters: Readonly<Record<string, ParameterValue>>;
   /** Baud rate the port must be opened with; absent when the binding declares none. */
   readonly baudRate?: number;
+  /**
+   * Identity matchers of the selected binding, copied into the snapshot.
+   *
+   * An attempt that fails before the first protocol byte (busy port, unplugged cable,
+   * denied permission) has no session to read the match result from, so the plan keeps the
+   * criteria the port was supposed to meet.
+   */
+  readonly identityMatchers?: readonly UsbIdentityMatcher[];
 }
 
 export interface PendingSessionContext {
@@ -107,6 +117,23 @@ export interface DeviceDiagnostic {
   readonly severity: 'info' | 'warning' | 'error';
   readonly message: DisplayText;
   readonly stage?: 'selection' | 'transport' | 'probe' | 'resolve' | 'initialize' | 'disconnect';
+}
+
+/**
+ * Structured discovery of one connection attempt.
+ *
+ * Produced before the first protocol byte, so both the committed profile and a failed
+ * attempt can report the same variant / port / match result instead of forcing the UI to
+ * infer it from log text.
+ */
+export interface ConnectionAttemptContext {
+  readonly variantId?: string;
+  readonly port?: {
+    readonly path?: string;
+    readonly vendorId?: string;
+    readonly productId?: string;
+  };
+  readonly portIdentity?: PortIdentityAssessment;
 }
 
 export interface ResolvedTransportProfile {
@@ -131,7 +158,17 @@ export interface SessionProfile {
   readonly runtimeFeatures: RuntimeFeatures;
   readonly transport: ResolvedTransportProfile;
   readonly verification: VerificationStatus;
+  /**
+   * Connection-period parameters only (descriptors with `requiresReconnect` or
+   * `group: 'connection'`). Operation settings are read from the store per operation, so
+   * they are deliberately not frozen into the session.
+   */
   readonly connectionParameters: Readonly<Record<string, ParameterValue>>;
+  /**
+   * Structured port discovery of this attempt, present whenever the host could report
+   * port metadata. Callers never re-derive it from the diagnostic text.
+   */
+  readonly portIdentity?: PortIdentityAssessment;
   readonly display: DeviceDisplayModel;
   readonly diagnostics: readonly DeviceDiagnostic[];
 }

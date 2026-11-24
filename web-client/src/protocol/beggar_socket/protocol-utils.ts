@@ -1,5 +1,5 @@
 import type { SendAndReceiveOptions, Transport, TransportReadMode } from '@/platform/serial';
-import { AdvancedSettings } from '@/settings/advanced-settings';
+import { packageTimeouts } from '@/utils/io-timeouts';
 
 import { PROTOCOL_ACK } from './constants';
 
@@ -23,9 +23,13 @@ export function fromLittleEndian(bytes: Uint8Array): number {
   return value;
 }
 
+/**
+ * 包超时来自当前操作快照（适配器在 beginOperation 时绑定到 transport），
+ * 未绑定时回落到持久化设置。这样运行中的传输不会因为中途改设置而换用新超时。
+ */
 // 使用适配器的统一接口
 export async function sendPackage(input: ProtocolTransportInput, payload: Uint8Array, timeoutMs?: number): Promise<boolean> {
-  return input.send(payload, timeoutMs ?? AdvancedSettings.packageSendTimeout);
+  return input.send(payload, timeoutMs ?? packageTimeouts(input).send);
 }
 
 export async function getPackage(
@@ -34,11 +38,11 @@ export async function getPackage(
   timeoutMs?: number,
   mode: TransportReadMode = 'byob',
 ): Promise<{ data: Uint8Array }> {
-  return input.read(length, timeoutMs ?? AdvancedSettings.packageReceiveTimeout, mode);
+  return input.read(length, timeoutMs ?? packageTimeouts(input).receive, mode);
 }
 
 export async function getResult(input: ProtocolTransportInput, timeoutMs?: number): Promise<boolean> {
-  const result = await getPackage(input, 1, timeoutMs ?? AdvancedSettings.packageReceiveTimeout);
+  const result = await getPackage(input, 1, timeoutMs ?? packageTimeouts(input).receive);
   return result.data?.byteLength > 0 && result.data[0] === PROTOCOL_ACK;
 }
 
@@ -50,11 +54,12 @@ export async function sendAndReceivePackage(
   readTimeoutMs?: number,
   options?: SendAndReceiveOptions,
 ): Promise<{ data: Uint8Array }> {
+  const fallback = packageTimeouts(input);
   return input.sendAndReceive(
     payload,
     readLength,
-    sendTimeoutMs ?? AdvancedSettings.packageSendTimeout,
-    readTimeoutMs ?? AdvancedSettings.packageReceiveTimeout,
+    sendTimeoutMs ?? fallback.send,
+    readTimeoutMs ?? fallback.receive,
     options,
   );
 }

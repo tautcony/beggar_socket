@@ -27,6 +27,7 @@ import { type BurnerLogInput, errorToBurnerLog, formatBurnerLogMessage } from '@
 import { crc32 } from '@/utils/crc-utils';
 import NotImplementedError from '@/utils/errors/NotImplementedError';
 import { formatBytes, formatHex, formatSpeed, formatTimeDuration } from '@/utils/formatter-utils';
+import { bindPackageTimeouts, releasePackageTimeouts } from '@/utils/io-timeouts';
 import { CFIInfo, SectorBlock } from '@/utils/parsers/cfi-parser';
 import { ProgressInfoBuilder } from '@/utils/progress/progress-builder';
 import { type ProgressReporter } from '@/utils/progress/progress-reporter';
@@ -249,9 +250,37 @@ export class CartridgeAdapter {
     return this.operationSettings;
   }
 
-  /** Starts a new operation boundary and re-reads the persisted settings. */
+  /**
+   * Starts a new operation boundary and re-reads the persisted settings.
+   *
+   * The package timeouts of the snapshot are bound to the transport here, so the protocol
+   * layer uses this operation's values for every frame instead of re-reading the persisted
+   * settings mid-transfer.
+   */
   beginOperation(): void {
     this.operationSettings = this.readOperationSettings();
+    this.bindTransportTimeouts();
+  }
+
+  /** Releases the bound snapshot so direct protocol use falls back to the settings. */
+  endOperation(): void {
+    const transport = this.device.transport ?? this.device.serialHandle?.transport;
+    if (transport) {
+      releasePackageTimeouts(transport);
+    }
+  }
+
+  private bindTransportTimeouts(): void {
+    const settings = this.operationSettings;
+    const transport = this.device.transport ?? this.device.serialHandle?.transport;
+    if (!settings || !transport) {
+      // Direct adapter use without a transport: protocol calls fall back to the settings.
+      return;
+    }
+    bindPackageTimeouts(transport, {
+      send: settings.packageSendTimeout,
+      receive: settings.packageReceiveTimeout,
+    });
   }
 
   protected readOperationSettings(): ResolvedOperationSettings {

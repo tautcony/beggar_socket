@@ -7,7 +7,7 @@
  * produced before it failed. Callers never parse log text to find the reason.
  */
 import { displayTextToString } from '@/device/display';
-import type { DeviceDiagnostic } from '@/device/session';
+import type { ConnectionAttemptContext, DeviceDiagnostic } from '@/device/session';
 
 /** Session establishment stages; `selection` fails before a transport is opened. */
 export type SessionFailureStage = 'selection' | 'probe' | 'resolve' | 'initialize' | 'disconnect';
@@ -16,6 +16,8 @@ export interface SessionStageErrorOptions {
   readonly code: string;
   readonly diagnostics?: readonly DeviceDiagnostic[];
   readonly cause?: unknown;
+  /** Structured discovery of the attempt, so failures carry it as well as profiles do. */
+  readonly context?: ConnectionAttemptContext;
 }
 
 export class SessionStageError extends Error {
@@ -23,6 +25,7 @@ export class SessionStageError extends Error {
   readonly code: string;
   readonly diagnostics: readonly DeviceDiagnostic[];
   readonly cause?: unknown;
+  readonly context?: ConnectionAttemptContext;
 
   constructor(stage: SessionFailureStage, message: string, options: SessionStageErrorOptions) {
     super(message);
@@ -31,6 +34,7 @@ export class SessionStageError extends Error {
     this.code = options.code;
     this.diagnostics = options.diagnostics ?? [];
     this.cause = options.cause;
+    this.context = options.context;
   }
 }
 

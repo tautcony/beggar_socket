@@ -181,14 +181,21 @@ function resolveOne(
 export function createCapabilitySet(
   resolved: ReadonlyMap<CapabilityKey, ResolvedCapabilityStatus>,
 ): CapabilitySet {
-  return {
-    has: (key) => resolved.get(key)?.state === 'supported',
-    explain: (key) => {
+  return Object.freeze({
+    has: (key: CapabilityKey) => resolved.get(key)?.state === 'supported',
+    explain: (key: CapabilityKey) => {
       const status = resolved.get(key);
       return status?.state === 'unsupported' ? status.reason : undefined;
     },
-    all: () => resolved,
-  };
+    /**
+     * Snapshot copy of the resolved map.
+     *
+     * `has`/`explain` answer from the private map, so handing that map out would let a
+     * caller edit the capabilities of a published session — and, through a shared
+     * definition, of every other session that was resolved the same way.
+     */
+    all: () => new Map(resolved),
+  });
 }
 
 export function resolveCapabilities(

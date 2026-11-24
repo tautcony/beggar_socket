@@ -28,7 +28,10 @@ export type FlashgbxVoltage = '3.3V' | '5V';
 
 export interface FlashgbxCommandClientOptions {
   baudRate?: number;
+  /** Receive deadline; kept as the single option the client historically accepted. */
   timeoutMs?: number;
+  /** Send deadline; defaults to `timeoutMs` when the transport budget is not split. */
+  sendTimeoutMs?: number;
 }
 
 export class FlashgbxProtocolError extends Error {
@@ -94,7 +97,8 @@ export class FlashgbxCommandClient {
   private readonly fwVars = new Map<FlashgbxDeviceVarName, number>();
   private mode: FlashgbxCartMode | null = null;
   private baudRate: number;
-  private readonly timeoutMs: number;
+  private sendTimeoutMs: number;
+  private receiveTimeoutMs: number;
   private limits: FlashgbxBufferLimits;
 
   constructor(
@@ -103,7 +107,8 @@ export class FlashgbxCommandClient {
     options: FlashgbxCommandClientOptions = {},
   ) {
     this.baudRate = options.baudRate ?? 2_000_000;
-    this.timeoutMs = options.timeoutMs ?? 1500;
+    this.receiveTimeoutMs = options.timeoutMs ?? 1500;
+    this.sendTimeoutMs = options.sendTimeoutMs ?? this.receiveTimeoutMs;
     this.framing = new FlashgbxFramingLayer(transport);
     this.limits = computeFlashgbxBufferLimits(fwInfo, this.baudRate);
   }
@@ -121,17 +126,44 @@ export class FlashgbxCommandClient {
     this.limits = computeFlashgbxBufferLimits(this.fwInfo, this.baudRate);
   }
 
+  /**
+   * Applies the package timeouts of the running operation.
+   *
+   * The client is cached per transport, so without this the value captured at creation
+   * would outlive every later settings edit. Send and receive are separate budgets: a
+   * write deadline derived from the receive timeout (or vice versa) hides a slow link
+   * behind the wrong number. Non-positive values are ignored: a bad snapshot must not turn
+   * a protocol deadline into zero.
+   */
+  setTimeouts(timeouts: { send?: number; receive?: number }): void {
+    const { send, receive } = timeouts;
+    if (send !== undefined && Number.isFinite(send) && send > 0) {
+      this.sendTimeoutMs = send;
+    }
+    if (receive !== undefined && Number.isFinite(receive) && receive > 0) {
+      this.receiveTimeoutMs = receive;
+    }
+  }
+
+  get operationTimeoutMs(): number {
+    return this.receiveTimeoutMs;
+  }
+
+  get operationSendTimeoutMs(): number {
+    return this.sendTimeoutMs;
+  }
+
   async resetChannel(): Promise<void> {
     await this.framing.resetBuffers();
   }
 
   private async writeRaw(bytes: Uint8Array | readonly number[]): Promise<void> {
     const payload = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-    await this.framing.write(payload, this.timeoutMs);
+    await this.framing.write(payload, this.sendTimeoutMs);
   }
 
   private async readExact(length: number): Promise<Uint8Array> {
-    const data = await this.framing.read(length, this.timeoutMs);
+    const data = await this.framing.read(length, this.receiveTimeoutMs);
     if (data.length < length) {
       throw new FlashgbxProtocolError(`Expected ${length} bytes, got ${data.length}`, 'timeout');
     }
@@ -780,7 +812,7 @@ export class FlashgbxCommandClient {
           const SUBWRITE_SIZE = 0x20;
           for (let sub = 0; sub < payload.length; sub += SUBWRITE_SIZE) {
             const subchunk = payload.subarray(sub, Math.min(sub + SUBWRITE_SIZE, payload.length));
-            await this.framing.write(subchunk, this.timeoutMs);
+            await this.framing.write(subchunk, this.sendTimeoutMs);
             if (sub + SUBWRITE_SIZE < payload.length) {
               const gapStart = performance.now();
               while (performance.now() - gapStart < 0.5) {

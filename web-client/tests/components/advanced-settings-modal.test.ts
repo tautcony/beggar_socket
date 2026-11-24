@@ -236,4 +236,29 @@ describe('AdvancedSettingsModal', () => {
     expect(AdvancedSettings.romReadThrottleMs).toBe(15);
     expect(AdvancedSettings.defaultTimeout).toBe(5000);
   });
+
+  it('edits the visible shared tab when a hidden linked namespace is selected', async () => {
+    const wrapper = mountModal();
+    await nextTick();
+
+    await wrapper.get('[data-testid="size-profile-flashgbx.cfw"]').trigger('click');
+    await nextTick();
+    expect(wrapper.get('[data-testid="size-profile-flashgbx.cfw"]').classes()).toContain('active');
+
+    // Sizes are linked, so STC has no tab of its own. Leaving the editor on GBFlash would
+    // show the wrong namespace and silently drop the edit, because only visible tabs are saved.
+    await wrapper.get(`[data-testid="variant-${VARIANT_IDS.stc}"]`).trigger('click');
+    await nextTick();
+    expect(wrapper.get('[data-testid="size-profile-beggar.stm"]').classes()).toContain('active');
+
+    const romRead = wrapper.get('#param-romReadPageSize');
+    await romRead.setValue('2048');
+    await romRead.trigger('input');
+    await applyButton(wrapper).trigger('click');
+
+    expect(AdvancedSettings.getVariantId()).toBe(VARIANT_IDS.stc);
+    expect(AdvancedSettings.getNamespaceSizes('beggar.stm').romReadPageSize).toBe(2048);
+    // The linked group is written through the same store, so STC follows the shared value.
+    expect(AdvancedSettings.getNamespaceSizes('beggar.stc').romReadPageSize).toBe(2048);
+  });
 });

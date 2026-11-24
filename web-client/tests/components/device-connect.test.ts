@@ -81,7 +81,8 @@ function flashgbxDevice() {
     connection: null,
     connectionId: 'session-1',
     portInfo: { path: '/dev/cu.usbserial-110', vendorId: '1a86', productId: '7523' },
-    session: buildFlashgbxSession(),
+    // The session facts and the port metadata describe the same port, as they do in the app.
+    session: buildFlashgbxSession({ usb: { vendorId: '1a86', productId: '7523' } }),
   };
 }
 
