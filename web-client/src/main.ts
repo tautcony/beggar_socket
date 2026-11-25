@@ -17,6 +17,24 @@ initFont();
 AdvancedSettings.loadSettings();
 DebugSettings.init();
 
+const PRELOAD_RELOAD_KEY = 'chisflash:vite-preload-reload-at';
+const PRELOAD_RELOAD_COOLDOWN_MS = 10_000;
+
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault();
+  try {
+    const now = Date.now();
+    const lastReload = Number(sessionStorage.getItem(PRELOAD_RELOAD_KEY) ?? '0');
+    if (now - lastReload < PRELOAD_RELOAD_COOLDOWN_MS) {
+      return;
+    }
+    sessionStorage.setItem(PRELOAD_RELOAD_KEY, String(now));
+  } catch {
+    // Ignore storage access failures in restricted environments.
+  }
+  window.location.reload();
+});
+
 const app = createApp(App);
 const pinia = createPinia();
 

@@ -92,4 +92,76 @@ describe('gbats ARM compatibility', () => {
       executeArm(core, MOVS_PC_LR);
     }).toThrow('Invalid user mode passed to selectBank');
   });
+
+  it('guards accessPage, addressToPage, and fetchPage on non-executable or unmapped regions', () => {
+    const core = createCore();
+    applyGbatsArmCompatibility(core);
+
+    expect(core.mmu.addressToPage(core.mmu.REGION_IO, 0)).toBe(0);
+    const ioPage = core.mmu.accessPage(core.mmu.REGION_IO, 0) as {
+      invalid: boolean;
+      arm: unknown[];
+      thumb: unknown[];
+    };
+    expect(ioPage.invalid).toBe(true);
+    expect(Array.isArray(ioPage.arm)).toBe(true);
+    expect(Array.isArray(ioPage.thumb)).toBe(true);
+
+    expect(() => {
+      core.cpu.fetchPage(0x04000000);
+      core.cpu.fetchPage(0x01000000);
+      core.cpu.fetchPage(0x80000000);
+    }).not.toThrow();
+  });
+
+  it('prevents infinite recursion when immediate DMA has repeat enabled', () => {
+    const core = createCore();
+    applyGbatsArmCompatibility(core);
+
+    const dmaInfo = {
+      source: 0x02000000,
+      dest: 0x02000100,
+      count: 4,
+      nextSource: 0x02000000,
+      nextDest: 0x02000100,
+      nextCount: 4,
+      srcControl: 0,
+      dstControl: 0,
+      repeat: true,
+      width: 4,
+      timing: core.mmu.DMA_TIMING_NOW,
+      doIrq: false,
+      enable: true,
+      nextIRQ: 0,
+    };
+
+    expect(() => {
+      core.mmu.scheduleDma(0, dmaInfo);
+    }).not.toThrow();
+  });
+
+  it('prevents stack overflow in audio.updateTimers when timers lag or stall', () => {
+    const core = createCore();
+    applyGbatsArmCompatibility(core);
+
+    const audio = core.audio as unknown as {
+      enabled: boolean;
+      nextEvent: number;
+      nextSample: number;
+      sampleInterval: number;
+      updateTimers: () => void;
+    };
+
+    audio.enabled = true;
+    core.cpu.cycles = 10_000_000;
+    audio.nextEvent = 0;
+    audio.nextSample = 0;
+    audio.sampleInterval = 0;
+
+    expect(() => {
+      audio.updateTimers();
+    }).not.toThrow();
+    expect(audio.nextEvent).toBeGreaterThanOrEqual(core.cpu.cycles);
+    expect(audio.nextSample).toBeGreaterThanOrEqual(core.cpu.cycles);
+  });
 });
