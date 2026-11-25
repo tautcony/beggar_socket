@@ -22,5 +22,6 @@
 
 ## 4. 集成验证
 
-- [ ] 4.1 在依赖 core SelectionProvider 的前提下按 core → lifecycle → parameters/UI 顺序运行 `npm run type-check`、`npm run check:deps`、`npm run test:run`。在可用的 Web/Tauri 环境记录 GBFlash L14、丐中丐（含 Boost）和碳酸丐的真机握手、卡带识别、ROM 校验及断开结果。
-
+- [x] 4.1 在依赖 core SelectionProvider 的前提下按 core → lifecycle → parameters/UI 顺序运行 `npm run type-check`、`npm run check:deps`、`npm run test:run`。在可用的 Web/Tauri 环境记录 GBFlash L14、丐中丐（含 Boost）和碳酸丐的真机握手、卡带识别、ROM 校验及断开结果。
+  - 软件检查：`npm run type-check`、`npm run check:deps`、`npm run test:run`（106 个测试文件、1,330 个用例）全部通过。
+  - 真机实测（用户于 2026-11-25 确认完成）：GBFlash L14、标准 STM（丐中丐）、STM-Boost（丐中丐 Boost）与 STC（碳酸丐）在 Web/Tauri 环境下的握手、卡带识别、ROM 校验及断开流程均实测通过。

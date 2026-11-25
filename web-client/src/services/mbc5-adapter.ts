@@ -429,6 +429,13 @@ export class MBC5Adapter extends CartridgeAdapter {
       const unsupported = this.getUnsupportedPowerControlResult();
       if (unsupported) return unsupported;
     }
+    if (sectorInfo.length === 0) {
+      return {
+        success: false,
+        errorCode: 'unsupported',
+        message: `${this.t('messages.operation.eraseFailed')}: cartridge has no sector erase geometry`,
+      };
+    }
 
     return PerformanceTracker.trackAsyncOperation(
       'mbc5.eraseSectors',

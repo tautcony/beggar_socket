@@ -47,7 +47,7 @@
 
 #### Scenario: Legacy STC or GBFlash preference
 - **WHEN** 载入旧 `firmware.profile=stc` 或 `flashgbx`
-- **THEN** 分别选中 `beggar-stc` / `beggar.stc` 或 `gbflash` / `flashgbx.cfw`
+- **THEN** 分别选中 `beggar-stc` / `beggar.stc` 或 `gbflash` / `gbflash.cfw`
 - **AND** 旧 `flashgbxBaudRate` 迁移至 GBFlash 参数，缺失时使用 `auto`
 
 #### Scenario: Unversioned settings with legacy settings fields

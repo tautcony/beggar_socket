@@ -6,15 +6,19 @@ Defines how RC31 devices are discovered and driven through the existing legacy p
 ## Requirements
 
 ### Requirement: RC31 legacy discovery
-The system SHALL include USB `0483:5740` in the product serial-port filter and SHALL infer the STC firmware profile for it, using the existing legacy command set without FlashGBX commands.
+系统 SHALL 将 `0483:5740` 纳入 Beggar 手动候选端口列表，并仅在碳酸丐 variant 下将其判定为 match。选择丐中丐或 GBFlash 时同一端口为 mismatch，只出现在手动列表中且不参与自动发现。连接 SHALL 使用高级设置中的选项。选择碳酸丐时，RC31 SHALL 使用现有 Beggar 命令集。
 
 #### Scenario: RC31 port is selectable and uses STC profile
-- **WHEN** a serial port with vendor `0x0483` and product `0x5740` is listed
-- **THEN** it passes the `beggarSocket` filter and `inferFirmwareProfileFromPort` returns the STC profile
+- **WHEN** 设置选择碳酸丐并打开 `0483:5740` 串口
+- **THEN** 串口匹配记录为成功，连接使用 STC 配置和现有 Beggar 命令
 
 #### Scenario: Existing devices unchanged
-- **WHEN** a `0483:0721` device is listed
-- **THEN** filtering and profile inference behave as before
+- **WHEN** 列出 `0483:0721` 串口
+- **THEN** 该端口仍可作为 Beggar 候选，描述信息和路径可用于匹配日志
+
+#### Scenario: RC31 port with STM configuration
+- **WHEN** 设置选择丐中丐并手动选择 `0483:5740` 串口
+- **THEN** 系统记录不匹配，并按丐中丐选项连接
 
 ### Requirement: Legacy frame lengths compatible with RC31 first-byte dispatch
 Legacy frames produced by ROM and RAM transfer planning SHALL have a frame-length low byte that is neither `>= 0xA0` nor `0x55`, which the unified chunk planner guarantees by using power-of-two chunk sizes of at least 64 bytes.

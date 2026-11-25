@@ -7,9 +7,10 @@ import {
   FLASH_COMMAND_SET,
   FLASH_METHOD,
   FLASH_WE_PIN,
+  FW_VER_THRESHOLDS,
   type GbflashCartMode,
   type GbflashCommandClient,
-  FW_VER_THRESHOLDS,
+  throwIfAborted,
 } from '@/protocol';
 import type {
   FlashcartCommandArg,
@@ -135,12 +136,32 @@ export async function unlockProfileFlash(
   }
 }
 
+function waitMs(ms: number, signal?: AbortSignal): Promise<void> {
+  throwIfAborted(signal);
+  if (!signal) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+  return new Promise((resolve, reject) => {
+    let onAbort: () => void = () => undefined;
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    onAbort = () => {
+      clearTimeout(timer);
+      reject(new Error('Operation cancelled by user'));
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 export async function waitForProfileFlash(
   client: GbflashCommandClient,
   mode: GbflashCartMode,
   defaultAddress: number,
   waitFor: readonly FlashcartWaitForTuple[] | undefined,
   timeoutMs: number,
+  signal?: AbortSignal,
 ): Promise<void> {
   const activeTuple = waitFor?.find(
     ([addr, mask, expected]) => addr !== null && mask !== null && expected !== null,
@@ -153,8 +174,10 @@ export async function waitForProfileFlash(
   const readyWord = mode === 'AGB' ? 0xFFFF : 0xFF;
 
   const deadline = Date.now() + timeoutMs;
+  throwIfAborted(signal);
   let prev = await client.cartRead(mode, pollAddress);
   while (Date.now() < deadline) {
+    throwIfAborted(signal);
     if (mask !== null && expected !== null) {
       if ((prev & mask) === (expected & mask)) {
         return;
@@ -162,7 +185,10 @@ export async function waitForProfileFlash(
     } else if (prev === readyWord) {
       return;
     }
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await waitMs(10, signal).catch(() => {
+      throwIfAborted(signal);
+    });
+    throwIfAborted(signal);
     const curr = await client.cartRead(mode, pollAddress);
     if (mask === null && curr === prev && curr === readyWord) {
       return;

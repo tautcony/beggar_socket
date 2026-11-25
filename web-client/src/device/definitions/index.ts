@@ -13,7 +13,7 @@ import {
   BEGGAR_STM_DEVICE,
   BEGGAR_STM_FIRMWARE,
 } from './beggar-stm';
-import { GBFLASH_FIRMWARE, GBFLASH_BINDING, GBFLASH_DEVICE } from './gbflash';
+import { GBFLASH_BINDING, GBFLASH_DEVICE, GBFLASH_FIRMWARE } from './gbflash';
 
 export const VARIANT_IDS = {
   stm: 'beggar-stm',
@@ -56,11 +56,11 @@ export {
   BEGGAR_STM_FIRMWARE,
 } from './beggar-stm';
 export {
-  GBFLASH_CAPABILITIES,
-  GBFLASH_FIRMWARE,
   GBFLASH_AUTO_BAUD_RATE,
   GBFLASH_BINDING,
+  GBFLASH_CAPABILITIES,
   GBFLASH_DEVICE,
+  GBFLASH_FIRMWARE,
   GBFLASH_RUNTIME_BINDING_ID,
 } from './gbflash';
 export { BEGGAR_STC_PACKET_LIMITS, BEGGAR_STM_PACKET_LIMITS, GBFLASH_PACKET_LIMITS } from './packet-limits';

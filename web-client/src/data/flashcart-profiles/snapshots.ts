@@ -3,7 +3,6 @@
  * using the FlashGBX (https://github.com/Lesserkuma/FlashGBX) profile schema.
  * Copyright (C) Lesserkuma — Licensed under GNU General Public License v3.0 (GPL-3.0).
  */
-/* eslint-disable */
 import type {
   FlashcartCollisionEntry,
   FlashcartGeometryExceptionSnapshot,

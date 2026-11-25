@@ -5,13 +5,13 @@
 import type { Transport } from '@/platform/serial';
 import {
   FLASH_WE_PIN,
+  FW_VER_THRESHOLDS,
   GBFLASH_CRC32_CHUNK_SIZE,
   type GbflashCartMode,
   GbflashCommandClient,
   type GbflashFirmwareInfo,
   GbflashProtocolError,
   type GbflashVoltage,
-  FW_VER_THRESHOLDS,
   throwIfAborted,
 } from '@/protocol';
 import { AdvancedSettings } from '@/settings/advanced-settings';
@@ -141,6 +141,12 @@ export abstract class GbflashBaseAdapter extends CartridgeAdapter {
    * GBFlash devices MUST NOT pulse DTR/RTS. Only flush/drain buffers.
    */
   override async resetCommandBuffer(): Promise<void> {
+    if (this.client.isCommandStreamBroken) {
+      throw new GbflashProtocolError(
+        'GBFlash command stream is out of sync after an unrecovered flash continuation; reconnect required',
+        'io',
+      );
+    }
     await this.client.resetChannel();
   }
 
@@ -148,6 +154,12 @@ export abstract class GbflashBaseAdapter extends CartridgeAdapter {
    * GBFlash devices MUST NOT pulse DTR/RTS on channel stabilization.
    */
   protected override async stabilizeCommandChannel(): Promise<void> {
+    if (this.client.isCommandStreamBroken) {
+      throw new GbflashProtocolError(
+        'GBFlash command stream is out of sync after an unrecovered flash continuation; reconnect required',
+        'io',
+      );
+    }
     await this.client.resetChannel();
   }
 
@@ -248,13 +260,16 @@ export abstract class GbflashBaseAdapter extends CartridgeAdapter {
         failedOrCancelled = true;
         throw error;
       } finally {
-        if (failedOrCancelled && options.onCleanupReset) {
+        const streamBroken = this.client.isCommandStreamBroken;
+        if (failedOrCancelled && !streamBroken && options.onCleanupReset) {
           await options.onCleanupReset(this.client).catch(() => undefined);
         }
-        if (failedOrCancelled) {
+        if (failedOrCancelled && !streamBroken) {
           await this.restoreVoltageAndPower(mode).catch(() => undefined);
         }
-        await this.client.leaveAutoPowerOffKeepAlive(previousAutoPowerOff).catch(() => undefined);
+        if (!streamBroken) {
+          await this.client.leaveAutoPowerOffKeepAlive(previousAutoPowerOff).catch(() => undefined);
+        }
       }
     }, options.signal);
   }
@@ -553,20 +568,24 @@ export abstract class GbflashBaseAdapter extends CartridgeAdapter {
     mode: GbflashCartMode,
     flashcartMode: FlashcartMode,
     profileId: string,
+    preResolvedProfile?: FlashcartProfile,
   ): Promise<CFIInfo | false> {
-    const profiles = await FlashcartProfileService.loadByMode(flashcartMode);
-    const profile = profiles.find(p => p.id === profileId);
+    let profile = preResolvedProfile ?? null;
     if (!profile) {
-      this.lastCartInfoErrorCode = 'profile_not_found';
-      this.lastCartInfoError = `Flashcart profile "${profileId}" not found`;
-      return false;
-    }
+      const profiles = await FlashcartProfileService.loadByMode(flashcartMode);
+      profile = profiles.find(p => p.id === profileId) ?? null;
+      if (!profile) {
+        this.lastCartInfoErrorCode = 'profile_not_found';
+        this.lastCartInfoError = `Flashcart profile "${profileId}" not found`;
+        return false;
+      }
 
-    const validation = this.validateProfileCapabilities(profile);
-    if (!validation.valid) {
-      this.lastCartInfoErrorCode = validation.errorCode;
-      this.lastCartInfoError = validation.reason;
-      return false;
+      const validation = this.validateProfileCapabilities(profile);
+      if (!validation.valid) {
+        this.lastCartInfoErrorCode = validation.errorCode;
+        this.lastCartInfoError = validation.reason;
+        return false;
+      }
     }
 
     let observedId: Uint8Array | undefined;

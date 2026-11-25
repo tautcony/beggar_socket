@@ -176,6 +176,13 @@ export class GBAAdapter extends CartridgeAdapter {
     if (!this.supports('rom.erase.sector')) {
       return firmwareUnsupportedResult('GBA ROM sector erase', this.firmwareProfile);
     }
+    if (sectorInfo.length === 0) {
+      return {
+        success: false,
+        errorCode: 'unsupported',
+        message: `${this.t('messages.operation.eraseFailed')}: cartridge has no sector erase geometry`,
+      };
+    }
 
     return PerformanceTracker.trackAsyncOperation(
       'gba.eraseSectors',

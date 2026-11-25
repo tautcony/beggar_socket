@@ -21,9 +21,9 @@ import {
   BEGGAR_STM_BINDING,
   BEGGAR_STM_DEVICE,
   BEGGAR_STM_FIRMWARE,
-  GBFLASH_FIRMWARE,
   GBFLASH_BINDING,
   GBFLASH_DEVICE,
+  GBFLASH_FIRMWARE,
 } from '../definitions';
 import { displayTextToString } from '../display';
 import type { SessionProfile } from '../session';

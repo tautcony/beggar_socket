@@ -12,6 +12,7 @@ import {
 import { CommandOptions, type MbcType } from '@/types/command-options';
 import { CommandResult } from '@/types/command-result';
 import { DeviceInfo } from '@/types/device-info';
+import type { FlashcartProfile } from '@/types/flashcart-profile';
 import { formatBytes, formatHex, formatTimeDuration } from '@/utils/formatter-utils';
 import { type CFIInfo, parseCFI, type SectorBlock } from '@/utils/parsers/cfi-parser';
 import { calcSectorUsage, getExtraErasedBytes } from '@/utils/sector-utils';
@@ -42,7 +43,13 @@ export class GbflashMbcAdapter extends GbflashBaseAdapter {
     super(device, logCallback, progressCallback, translateFunc, clientOverride);
   }
 
-  private resolveVoltage(enable5V?: boolean): '5V' | '3.3V' {
+  private resolveVoltage(enable5V?: boolean, profile?: FlashcartProfile | null): '5V' | '3.3V' {
+    if (enable5V === true) {
+      return '5V';
+    }
+    if (profile) {
+      return profile.voltage === 5 ? '5V' : '3.3V';
+    }
     return enable5V === false ? '3.3V' : '5V';
   }
 
@@ -103,13 +110,25 @@ export class GbflashMbcAdapter extends GbflashBaseAdapter {
   }
 
   override async getCartInfo(
-    enable5V = true,
+    enable5V?: boolean,
     options?: Partial<CommandOptions>,
   ): Promise<CFIInfo | false> {
     this.clearCartInfoError();
     this.activeFlashcartProfile = null;
     try {
-      const voltage = this.resolveVoltage(enable5V);
+      const manualProfileId = this.flashcartProfileIdFor(options);
+      let manualProfile: FlashcartProfile | null = null;
+      if (manualProfileId) {
+        const resolved = await this.resolveProfileForOperation('MBC5', options);
+        if (resolved.errorResult || !resolved.profile) {
+          this.lastCartInfoErrorCode = resolved.errorResult?.errorCode;
+          this.lastCartInfoError = resolved.errorResult?.message ?? `Flashcart profile "${manualProfileId}" not found`;
+          return false;
+        }
+        manualProfile = resolved.profile;
+      }
+
+      const voltage = this.resolveVoltage(enable5V, manualProfile);
       if (voltage === '5V' && !this.client.fwInfo.cartPowerCtrl) {
         this.log('Device does not support cartridge power cycling; ensure cartridge is seated before 5V DMG access.', 'warn');
       }
@@ -121,9 +140,8 @@ export class GbflashMbcAdapter extends GbflashBaseAdapter {
           onCleanupReset: client => resetProfileFlash(client, 'DMG', this.activeFlashcartProfile),
         },
         async (client) => {
-          const manualProfileId = this.flashcartProfileIdFor(options);
-          if (manualProfileId) {
-            return this.resolveManualProfileCartInfo(client, 'DMG', 'MBC5', manualProfileId);
+          if (manualProfile) {
+            return this.resolveManualProfileCartInfo(client, 'DMG', 'MBC5', manualProfile.id, manualProfile);
           }
 
           await client.setVariable('DMG_READ_CS_PULSE', 0);
@@ -156,17 +174,32 @@ export class GbflashMbcAdapter extends GbflashBaseAdapter {
             }
           }
 
-          if (parsed && parsed.deviceSize > 0) {
+          if (parsed && parsed.deviceSize > 0 && parsed.eraseSectorBlocks.length > 0) {
             parsed.flashId = idBytes.slice(0, 4);
             await this.logMatchedProfileForCfi('MBC5', romBaseline, idBytes, parsed.deviceSize);
             return parsed;
           }
 
-          const toHex = (bytes: Uint8Array) =>
-            Array.from(bytes).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
-          this.log(`DMG CFI not detected (ROM[0..31]: ${toHex(romBaseline)}, ID[0..31]: ${toHex(idBytes)})`, 'warn');
+          if (!parsed || parsed.deviceSize <= 0) {
+            const toHex = (bytes: Uint8Array) =>
+              Array.from(bytes).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+            this.log(`DMG CFI not detected (ROM[0..31]: ${toHex(romBaseline)}, ID[0..31]: ${toHex(idBytes)})`, 'warn');
+          }
 
-          return this.runAutoProfileFallback(client, 'DMG', 'MBC5');
+          const fallback = await this.runAutoProfileFallback(client, 'DMG', 'MBC5');
+          if (fallback) {
+            return fallback;
+          }
+          if (parsed && parsed.deviceSize > 0 && this.lastCartInfoErrorCode === 'profile_not_found') {
+            this.clearCartInfoError();
+            parsed.flashId = idBytes.slice(0, 4);
+            const capability = parsed.chipErase
+              ? 'chip-erase only (no sector geometry)'
+              : 'read-only (no erase geometry)';
+            this.log(`DMG CFI detected ${capability}; no matching flashcart profile found.`, 'warn');
+            return parsed;
+          }
+          return false;
         },
       );
     } catch (error) {
@@ -209,16 +242,28 @@ export class GbflashMbcAdapter extends GbflashBaseAdapter {
       return await this.withModeTransaction(
         'DMG',
         {
-          voltage: this.resolveVoltage(options.enable5V),
+          voltage: this.resolveVoltage(options.enable5V, profile),
           signal,
           onCleanupReset: client => resetProfileFlash(client, 'DMG', profile),
         },
         async (client) => {
           const baseAddress = options.baseAddress ?? 0;
-          const totalBytes = sectorInfo.reduce((sum, b) => sum + b.totalSize, 0);
+          const bulkChipErase = sectorInfo.length === 0 && options.cfiInfo.deviceSize > 0 && options.cfiInfo.chipErase;
+          if (sectorInfo.length === 0 && !bulkChipErase) {
+            return {
+              success: false,
+              errorCode: 'unsupported',
+              message: 'Cartridge has no erase geometry and does not support chip erase',
+            };
+          }
+          const totalBytes = bulkChipErase
+            ? options.cfiInfo.deviceSize
+            : sectorInfo.reduce((sum, b) => sum + b.totalSize, 0);
           const totalSectors = sectorInfo.reduce((sum, b) => sum + b.sectorCount, 0);
           const minStart = sectorInfo.length > 0 ? Math.min(...sectorInfo.map(b => b.startAddress)) : baseAddress;
-          const maxEnd = sectorInfo.length > 0 ? Math.max(...sectorInfo.map(b => b.endAddress)) : baseAddress;
+          const maxEnd = sectorInfo.length > 0
+            ? Math.max(...sectorInfo.map(b => b.endAddress))
+            : (bulkChipErase ? baseAddress + totalBytes : baseAddress);
           this.log(this.t('messages.operation.startEraseSectors', {
             startAddress: formatHex(minStart, 4),
             endAddress: formatHex(Math.max(minStart, maxEnd - 1), 4),
@@ -230,7 +275,7 @@ export class GbflashMbcAdapter extends GbflashBaseAdapter {
             await unlockProfileFlash(client, 'DMG', profile);
           }
 
-          const fullChip = totalBytes >= options.cfiInfo.deviceSize && options.cfiInfo.deviceSize > 0;
+          const fullChip = bulkChipErase || (totalBytes >= options.cfiInfo.deviceSize && options.cfiInfo.deviceSize > 0);
           if (fullChip && (!profile || profile.commands.chip_erase?.length)) {
             throwIfAborted(signal);
             if (profile?.commands.chip_erase?.length) {
@@ -241,6 +286,7 @@ export class GbflashMbcAdapter extends GbflashBaseAdapter {
                 0x0000,
                 profile.commands.chip_erase_wait_for,
                 (profile.chip_erase_timeout ?? 60) * 1000,
+                signal,
               );
               await resetProfileFlash(client, 'DMG', profile);
             } else {
@@ -256,6 +302,12 @@ export class GbflashMbcAdapter extends GbflashBaseAdapter {
               await this.resetFlashToRead(client);
             }
             progress.advance(totalBytes);
+          } else if (sectorInfo.length === 0) {
+            return {
+              success: false,
+              errorCode: 'unsupported',
+              message: 'Selected flashcart profile does not support chip erase and has no sector geometry',
+            };
           } else {
             for (const block of sectorInfo) {
               for (let i = 0; i < block.sectorCount; i++) {
@@ -283,6 +335,7 @@ export class GbflashMbcAdapter extends GbflashBaseAdapter {
                       windowAddress,
                       profile.commands.sector_erase_wait_for,
                       15000,
+                      signal,
                     );
                     await resetProfileFlash(client, 'DMG', profile);
                   } else {
@@ -330,10 +383,15 @@ export class GbflashMbcAdapter extends GbflashBaseAdapter {
     showProgress = true,
   ): Promise<CommandResult> {
     try {
+      const { profile, errorResult } = await this.resolveProfileForOperation('MBC5', options);
+      if (errorResult) {
+        return errorResult;
+      }
+
       const mbcType: MbcType = options.mbcType ?? 'MBC5';
       return await this.withModeTransaction(
         'DMG',
-        { voltage: this.resolveVoltage(options.enable5V), signal },
+        { voltage: this.resolveVoltage(options.enable5V, profile), signal },
         async (client) => {
           const baseAddress = options.baseAddress ?? 0;
           const maxLength = this.getReadChunkLimit();
@@ -406,9 +464,37 @@ export class GbflashMbcAdapter extends GbflashBaseAdapter {
         return errorResult;
       }
 
+      if (data.length <= 0) {
+        return {
+          success: false,
+          errorCode: 'unsupported',
+          message: 'Cannot write empty ROM image',
+        };
+      }
+
       const mbcType: MbcType = options.mbcType ?? 'MBC5';
       const baseAddress = options.baseAddress ?? 0;
-      const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, data.length, baseAddress);
+      let sectorInfo: SectorBlock[] = [];
+      if (options.cfiInfo.eraseSectorBlocks.length === 0) {
+        if (!options.cfiInfo.chipErase || baseAddress !== 0) {
+          return {
+            success: false,
+            errorCode: 'unsupported',
+            message: options.cfiInfo.chipErase
+              ? 'Cartridge only supports full chip erase (baseAddress must be 0)'
+              : 'Cartridge is read-only (no erase geometry)',
+          };
+        }
+        if (options.cfiInfo.deviceSize <= 0 || baseAddress < 0 || baseAddress + data.length > options.cfiInfo.deviceSize) {
+          return {
+            success: false,
+            errorCode: 'unsupported',
+            message: `Insufficient cartridge capacity: need ${data.length} bytes at 0x${baseAddress.toString(16)}, but device size is ${options.cfiInfo.deviceSize} bytes`,
+          };
+        }
+      } else {
+        sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, data.length, baseAddress);
+      }
       const extraErase = getExtraErasedBytes(sectorInfo, baseAddress, data.length);
       if (extraErase) {
         this.log(
@@ -427,7 +513,7 @@ export class GbflashMbcAdapter extends GbflashBaseAdapter {
       return await this.withModeTransaction(
         'DMG',
         {
-          voltage: this.resolveVoltage(options.enable5V),
+          voltage: this.resolveVoltage(options.enable5V, profile),
           signal,
           onCleanupReset: client => resetProfileFlash(client, 'DMG', profile),
         },
@@ -530,10 +616,15 @@ export class GbflashMbcAdapter extends GbflashBaseAdapter {
     signal: AbortSignal,
   ): Promise<CommandResult> {
     try {
+      const { profile, errorResult } = await this.resolveProfileForOperation('MBC5', options);
+      if (errorResult) {
+        return errorResult;
+      }
+
       const mbcType: MbcType = options.mbcType ?? 'MBC5';
       return await this.withModeTransaction(
         'DMG',
-        { voltage: this.resolveVoltage(options.enable5V), signal },
+        { voltage: this.resolveVoltage(options.enable5V, profile), signal },
         async (client) => {
           const baseAddress = options.baseAddress ?? 0;
           this.log(this.t('messages.operation.startVerifyROM', { fileSize: data.length, baseAddress: formatHex(baseAddress, 4) }), 'info');
@@ -604,11 +695,16 @@ export class GbflashMbcAdapter extends GbflashBaseAdapter {
     signal?: AbortSignal,
   ): Promise<CommandResult> {
     try {
+      const { profile, errorResult } = await this.resolveProfileForOperation('MBC5', options);
+      if (errorResult) {
+        return errorResult;
+      }
+
       const mbcType: MbcType = options?.mbcType ?? 'MBC5';
       const effectiveSize = mbcType === 'MBC2' ? Math.min(size, MBC2_RAM_SIZE) : size;
       return await this.withModeTransaction(
         'DMG',
-        { voltage: this.resolveVoltage(options?.enable5V), signal },
+        { voltage: this.resolveVoltage(options?.enable5V, profile), signal },
         async (client) => {
           const maxLength = this.getReadChunkLimit();
           const out = new Uint8Array(effectiveSize);
@@ -667,11 +763,16 @@ export class GbflashMbcAdapter extends GbflashBaseAdapter {
     signal?: AbortSignal,
   ): Promise<CommandResult> {
     try {
+      const { profile, errorResult } = await this.resolveProfileForOperation('MBC5', options);
+      if (errorResult) {
+        return errorResult;
+      }
+
       const mbcType: MbcType = options?.mbcType ?? 'MBC5';
       const effectiveData = mbcType === 'MBC2' ? data.subarray(0, Math.min(data.length, MBC2_RAM_SIZE)) : data;
       return await this.withModeTransaction(
         'DMG',
-        { voltage: this.resolveVoltage(options?.enable5V), signal },
+        { voltage: this.resolveVoltage(options?.enable5V, profile), signal },
         async (client) => {
           const maxLength = this.getRamWriteChunkLimit();
           this.log(this.t('messages.operation.startWriteRAM', { fileSize: effectiveData.length, baseAddress: formatHex(0, 4) }), 'info');

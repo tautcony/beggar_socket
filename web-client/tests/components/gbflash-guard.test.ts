@@ -195,7 +195,7 @@ describe('GBFlash operation guards', () => {
     expect(vm.gbaAdapter?.id).toBe('cartridge:gba');
   });
 
-  it('syncs the GBFlash hardware mode when the GBA/MBC5 tab changes', async () => {
+  it('syncs GBFlash mode and lets the manual 5V switch override a 3.3V DMG profile', async () => {
     const sentPackets: number[][] = [];
     const device = createGbflashDevice().device;
     // Every safety command needs one ACK before the next one is allowed out.
@@ -234,7 +234,13 @@ describe('GBFlash operation guards', () => {
     });
     await nextTick();
 
-    const vm = wrapper.vm as unknown as { mode: 'GBA' | 'MBC5' };
+    const vm = wrapper.vm as unknown as {
+      mode: 'GBA' | 'MBC5';
+      flashcartProfiles: { id: string; voltage: number; type: string }[];
+    };
+    await vi.waitFor(() => {
+      expect(vm.flashcartProfiles.some(profile => profile.type === 'AGB')).toBe(true);
+    });
     vm.mode = 'MBC5';
     await nextTick();
     await flushPromises();
@@ -243,6 +249,30 @@ describe('GBFlash operation guards', () => {
     // asserts the component hands the real adapter to the binding's strategy.
     expect(sentPackets.some(p => p[0] === GBFLASH_CMD.CART_PWR_OFF)).toBe(true);
     expect(sentPackets.some(p => p[0] === GBFLASH_CMD.SET_VOLTAGE_3_3V)).toBe(true);
+
+    const dmgProfile = await vi.waitFor(() => {
+      const match = vm.flashcartProfiles.find(profile => profile.type === 'DMG' && profile.voltage === 3.3);
+      if (!match) {
+        throw new Error('Expected a 3.3V DMG profile');
+      }
+      return match;
+    });
+    const chipOperations = wrapper.getComponent({ name: 'ChipOperations' }).vm as unknown as {
+      $emit: (event: 'flashcart-profile-change' | 'mbc-power-change', value: string | boolean) => void;
+    };
+    chipOperations.$emit('flashcart-profile-change', dmgProfile.id);
+    await flushPromises();
+
+    sentPackets.length = 0;
+    chipOperations.$emit('mbc-power-change', true);
+    await flushPromises();
+    expect(sentPackets).toContainEqual([GBFLASH_CMD.SET_VOLTAGE_5V]);
+
+    sentPackets.length = 0;
+    chipOperations.$emit('mbc-power-change', false);
+    await flushPromises();
+    expect(sentPackets).toContainEqual([GBFLASH_CMD.SET_VOLTAGE_3_3V]);
+    wrapper.unmount();
   });
 
   it('drops the CFI geometry when the flashcart profile changes', async () => {

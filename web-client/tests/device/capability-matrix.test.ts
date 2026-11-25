@@ -14,8 +14,8 @@ import {
   BEGGAR_STM_BOOST_FIRMWARE,
   BEGGAR_STM_DEVICE,
   BEGGAR_STM_FIRMWARE,
-  GBFLASH_FIRMWARE,
   GBFLASH_DEVICE,
+  GBFLASH_FIRMWARE,
 } from '@/device/definitions';
 
 type Column = 'stm' | 'boost' | 'stc' | 'gbflash';

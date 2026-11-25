@@ -358,7 +358,6 @@ export const ${exportName}: readonly FlashcartProfile[] = ${JSON.stringify(profi
 
 function renderSnapshotsModule(agbCount, dmgCount, geometryExceptions, collisions) {
   return `${LICENSE_BANNER}
-/* eslint-disable */
 import type {
   FlashcartCollisionEntry,
   FlashcartGeometryExceptionSnapshot,
