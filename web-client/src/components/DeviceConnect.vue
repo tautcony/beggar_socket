@@ -475,7 +475,7 @@ defineExpose({
 }
 </style>
 
-<style>
+<style scoped>
 .connect-context-menu {
   position: fixed;
   z-index: 2000;

@@ -45,20 +45,14 @@
               <span class="log-expand-button">{{ $t('ui.common.details') }}</span>
             </summary>
             <div class="log-subitems">
-              <div
+              <pre
                 v-if="line.error"
-                class="log-subitem"
-              >
-                <span class="log-subitem-label">{{ $t('ui.common.error') }}</span>
-                <pre class="log-subitem-content log-subitem-content--error">{{ line.error }}</pre>
-              </div>
-              <div
+                class="log-subitem-content log-subitem-content--error"
+              >{{ line.error }}</pre>
+              <pre
                 v-if="line.details"
-                class="log-subitem"
-              >
-                <span class="log-subitem-label">{{ $t('ui.common.detail') }}</span>
-                <pre class="log-subitem-content">{{ line.details }}</pre>
-              </div>
+                class="log-subitem-content"
+              >{{ line.details }}</pre>
             </div>
           </details>
           <span
@@ -380,12 +374,17 @@ onUnmounted(() => {
 
 .log-expand-button {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  height: calc(var(--font-size-sm) * var(--line-height-relaxed) - 2px);
+  margin: 1px 0;
   padding: 0 var(--space-2);
+  box-sizing: border-box;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
-  line-height: 20px;
+  line-height: 1;
 }
 
 .log-disclosure[open] .log-expand-button {
@@ -394,26 +393,11 @@ onUnmounted(() => {
 }
 
 .log-subitems {
-  margin-top: var(--space-2);
+  margin: var(--space-1) 0 var(--space-3);
   display: grid;
   gap: var(--space-2);
   min-width: 0;
   max-width: 100%;
-}
-
-.log-subitem {
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr);
-  gap: var(--space-2);
-  align-items: start;
-  min-width: 0;
-  max-width: 100%;
-}
-
-.log-subitem-label {
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-xs);
-  line-height: var(--line-height-relaxed);
 }
 
 .log-subitem-content {

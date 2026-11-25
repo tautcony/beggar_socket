@@ -97,7 +97,7 @@ export function useMultiMenuState() {
 
     isLoadingLibrary.value = true;
     try {
-      await import('jimp');
+      await import('@/services/lk/jimp');
       if (disposed) return;
       libraryLoaded.value = true;
       showToast(t('ui.gbaMultiMenu.libraryLoaded'), 'success');
@@ -127,9 +127,9 @@ export function useMultiMenuState() {
         let processedPreviewUrl: string | null = null;
 
         try {
-          const { Jimp } = await import('jimp');
+          const { Jimp } = await import('@/services/lk/jimp');
           if (!isCurrentBgImageRequest(requestId)) return;
-          const img = await Jimp.fromBuffer(arrayBuffer) as InstanceType<typeof Jimp>;
+          const img = await Jimp.fromBuffer(arrayBuffer);
           if (!isCurrentBgImageRequest(requestId)) return;
           dimensions = { width: img.width, height: img.height };
 
@@ -242,9 +242,9 @@ export function useMultiMenuState() {
       bgImageFileName.value = file.name;
 
       try {
-        const { Jimp } = await import('jimp');
+        const { Jimp } = await import('@/services/lk/jimp');
         if (!isCurrentBgImageRequest(requestId)) return;
-        const img = await Jimp.fromBuffer(data) as InstanceType<typeof Jimp>;
+        const img = await Jimp.fromBuffer(data);
         if (!isCurrentBgImageRequest(requestId)) return;
 
         bgImageDimensions.value = { width: img.width, height: img.height };

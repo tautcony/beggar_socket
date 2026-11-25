@@ -1,7 +1,7 @@
-import { Jimp } from 'jimp';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { updateBackgroundImage } from '@/services/lk/imageUtils';
+import { Jimp } from '@/services/lk/jimp';
 import { buildRom } from '@/services/lk/romBuilder';
 import type { BuildInput } from '@/services/lk/types';
 

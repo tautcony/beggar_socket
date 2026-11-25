@@ -95,10 +95,6 @@ export default defineConfig({
           if (id.includes('/node_modules/luxon/')) {
             return 'luxon';
           }
-
-          if (id.includes('/node_modules/jimp/')) {
-            return 'jimp';
-          }
         },
       },
     },

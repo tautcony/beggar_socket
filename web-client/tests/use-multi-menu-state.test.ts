@@ -78,7 +78,7 @@ describe('useMultiMenuState async ownership', () => {
     jimpFromBufferMock.mockClear();
     generatePreviewMock.mockClear();
     const [{ Jimp }, imageUtils] = await Promise.all([
-      import('jimp'),
+      import('@/services/lk/jimp'),
       import('@/services/lk/imageUtils'),
     ]);
     vi.spyOn(Jimp, 'fromBuffer').mockImplementation(jimpFromBufferMock as unknown as typeof Jimp.fromBuffer);

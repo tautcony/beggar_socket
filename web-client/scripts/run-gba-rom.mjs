@@ -3,10 +3,13 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { createJimp } from '@jimp/core';
+import png from '@jimp/js-png';
 import { Command, Option } from 'commander';
 import { Wrapper } from 'gbats';
-import { Jimp } from 'jimp';
 import { createServer } from 'vite';
+
+const Jimp = createJimp({ formats: [png] });
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const options = new Command()

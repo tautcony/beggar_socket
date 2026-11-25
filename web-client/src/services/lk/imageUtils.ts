@@ -1,5 +1,6 @@
 import * as IQ from 'image-q';
-import { Jimp, ResizeStrategy, rgbaToInt } from 'jimp';
+
+import { Jimp, ResizeStrategy, rgbaToInt } from './jimp';
 
 type JimpObject = InstanceType<typeof Jimp>;
 
@@ -9,7 +10,7 @@ export async function updateBackgroundImage(menuRom: Uint8Array, bgImage?: Array
 
   try {
     // 使用Jimp读取背景图像数据
-    const img = await Jimp.fromBuffer(bgImage) as JimpObject;
+    const img = await Jimp.fromBuffer(bgImage);
 
     // 转换为240*160图像大小
     if (img.width !== 240 || img.height !== 160) {

@@ -1,8 +1,8 @@
-import { Jimp, rgbaToInt } from 'jimp';
 import path from 'path';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { convertToIndexedImage, saveIndexedImageAsPng } from '@/services/lk/imageUtils';
+import { Jimp, rgbaToInt } from '@/services/lk/jimp';
 
 describe('convertToIndexedImage', () => {
   let testImage: InstanceType<typeof Jimp>;
