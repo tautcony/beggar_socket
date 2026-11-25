@@ -175,7 +175,7 @@ defineExpose({
   padding: 8px 10px;
   background: var(--retro-bg-surface);
   color: var(--retro-ink);
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 6px;
   box-shadow: var(--retro-shadow-card);
   font-size: var(--font-size-xs);

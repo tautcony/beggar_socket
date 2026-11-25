@@ -253,7 +253,7 @@ function closeModal() {
   padding: spacing-vars.$space-3 spacing-vars.$space-4;
   background: var(--retro-bg-surface);
   border-radius: 6px;
-  border: 1.5px solid var(--retro-border-subtle);
+  border: var(--retro-border-width) solid var(--retro-border-subtle);
   color: var(--retro-ink);
   transition: transform 0.1s ease, box-shadow 0.1s ease, border-color 0.12s ease, background-color 0.12s ease;
 
@@ -282,7 +282,7 @@ function closeModal() {
   padding: spacing-vars.$space-2 spacing-vars.$space-3;
   background: var(--retro-bg-surface);
   border-radius: 6px;
-  border: 1.5px solid var(--retro-border-subtle);
+  border: var(--retro-border-width) solid var(--retro-border-subtle);
   text-decoration: none;
   color: var(--retro-ink);
   transition: transform 0.1s ease, box-shadow 0.1s ease, border-color 0.12s ease, background-color 0.12s ease;

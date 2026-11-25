@@ -463,7 +463,7 @@ onBeforeUnmount(() => {
 
 .current-datetime-display {
   background-color: var(--retro-bg-elevated);
-  border: 1.5px solid var(--retro-border-subtle);
+  border: var(--retro-border-width) solid var(--retro-border-subtle);
   border-radius: 6px;
   padding: spacing-vars.$space-3;
   margin-bottom: spacing-vars.$space-2;
@@ -510,7 +510,7 @@ onBeforeUnmount(() => {
 
 @mixin input-base {
   padding: 6px 8px;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 4px;
   font-family: var(--retro-font-mono);
   font-size: typography-vars.$font-size-sm;

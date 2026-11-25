@@ -243,7 +243,7 @@ function handleDrop(e: DragEvent) {
 }
 
 .file-drop-zone {
-  border: 1.5px dashed var(--retro-border-dashed);
+  border: var(--retro-border-width) dashed var(--retro-border-dashed);
   border-radius: 6px;
   padding: 0 !important;
   text-align: center;
@@ -403,7 +403,7 @@ function handleDrop(e: DragEvent) {
   width: 24px;
   height: 24px;
   border-radius: 3px;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   background: var(--retro-bg-surface);
   color: var(--retro-danger-fg);
   font-size: typography-vars.$font-size-xs;
@@ -433,7 +433,7 @@ function handleDrop(e: DragEvent) {
   width: 24px;
   height: 24px;
   border-radius: 3px;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   background: var(--retro-bg-surface);
   color: var(--retro-ink);
   font-size: typography-vars.$font-size-xs;

@@ -29,7 +29,7 @@ withDefaults(defineProps<Props>(), {
   align-items: center;
   gap: 4px;
   padding: 2px 7px;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 4px;
   background: var(--retro-bg-surface);
   color: var(--retro-ink);

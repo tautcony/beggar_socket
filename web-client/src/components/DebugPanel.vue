@@ -698,7 +698,7 @@ function generateTestRam(): void {
 .debug-panel {
   position: fixed;
   background: var(--retro-bg-surface);
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 6px;
   box-shadow: var(--retro-shadow-card);
   z-index: 1000;
@@ -731,7 +731,7 @@ function generateTestRam(): void {
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   background: var(--retro-bg-elevated);
-  border-bottom: 1.5px solid var(--retro-border);
+  border-bottom: var(--retro-border-width) solid var(--retro-border);
   cursor: grab;
   user-select: none;
   touch-action: none;
@@ -780,7 +780,7 @@ function generateTestRam(): void {
   justify-content: center;
   width: 26px;
   height: 26px;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 3px;
   background: var(--retro-bg-surface);
   color: var(--retro-ink);
@@ -835,7 +835,7 @@ function generateTestRam(): void {
   padding: 6px var(--space-2);
   border-radius: 6px;
   background: var(--retro-bg-elevated);
-  border: 1.5px solid var(--retro-border-subtle);
+  border: var(--retro-border-width) solid var(--retro-border-subtle);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -888,7 +888,7 @@ function generateTestRam(): void {
   padding: var(--space-2);
   border-radius: 6px;
   background: var(--retro-bg-elevated);
-  border: 1.5px solid var(--retro-border-subtle);
+  border: var(--retro-border-width) solid var(--retro-border-subtle);
 }
 
 .control-head {
@@ -925,7 +925,7 @@ function generateTestRam(): void {
 }
 
 .preset-chip {
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   background: var(--retro-bg-surface);
   color: var(--retro-ink);
   border-radius: 4px;
@@ -955,7 +955,7 @@ function generateTestRam(): void {
   padding: 2px;
   border-radius: 6px;
   background: var(--retro-bg-elevated);
-  border: 1.5px solid var(--retro-border-subtle);
+  border: var(--retro-border-width) solid var(--retro-border-subtle);
 }
 
 .memory-platform-tab {
@@ -987,7 +987,7 @@ function generateTestRam(): void {
   padding: var(--space-2);
   border-radius: 6px;
   background: var(--retro-bg-elevated);
-  border: 1.5px solid var(--retro-border-subtle);
+  border: var(--retro-border-width) solid var(--retro-border-subtle);
   min-width: 0;
 }
 
@@ -1033,14 +1033,14 @@ function generateTestRam(): void {
 .memory-card__body {
   flex: 1;
   font-size: var(--font-size-xs);
-  line-height: 1.4;
+  line-height: var(--line-height-normal);
   margin-bottom: var(--space-2);
-  min-height: 2.8em;
+  min-height: 36px;
 }
 
 .memory-line {
   font-size: var(--font-size-xs);
-  line-height: 1.4;
+  line-height: var(--line-height-normal);
   color: var(--color-text);
   overflow: hidden;
   text-overflow: ellipsis;

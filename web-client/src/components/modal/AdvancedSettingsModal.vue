@@ -864,7 +864,7 @@ watch(() => props.modelValue, (visible) => {
   width: 100%;
   min-height: 58px;
   padding: spacing-vars.$space-3;
-  border: 1.5px solid var(--retro-border-subtle);
+  border: var(--retro-border-width) solid var(--retro-border-subtle);
   border-radius: 6px;
   background: var(--retro-bg-surface);
   color: var(--retro-ink);
@@ -968,7 +968,7 @@ watch(() => props.modelValue, (visible) => {
   gap: 2px;
   width: 100%;
   padding: 10px 12px;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 4px;
   background: var(--retro-bg-surface);
   color: var(--retro-ink);
@@ -998,7 +998,7 @@ watch(() => props.modelValue, (visible) => {
 .variant-name {
   font-size: typography-vars.$font-size-sm;
   font-weight: typography-vars.$font-weight-semibold;
-  line-height: 1.4;
+  line-height: var(--line-height-normal);
 }
 
 .variant-description {
@@ -1016,7 +1016,7 @@ watch(() => props.modelValue, (visible) => {
     width: 100%;
     box-sizing: border-box;
     padding: 7px 52px 7px 10px;
-    border: 1.5px solid var(--retro-border);
+    border: var(--retro-border-width) solid var(--retro-border);
     border-radius: 4px;
     background: var(--retro-bg-surface);
     color: var(--retro-ink);
@@ -1038,8 +1038,10 @@ watch(() => props.modelValue, (visible) => {
 .unit {
   position: absolute;
   right: spacing-vars.$space-3;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
   color: var(--retro-ink-muted);
   font-size: typography-vars.$font-size-xs;
   white-space: nowrap;
@@ -1081,7 +1083,7 @@ watch(() => props.modelValue, (visible) => {
   align-items: center;
   gap: spacing-vars.$space-2;
   padding: 10px 12px;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 4px;
   background: var(--retro-bg-surface);
   color: var(--retro-ink);
@@ -1107,7 +1109,7 @@ watch(() => props.modelValue, (visible) => {
   width: 20px;
   height: 20px;
   border-radius: 3px;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   flex-shrink: 0;
 }
 
@@ -1132,7 +1134,7 @@ watch(() => props.modelValue, (visible) => {
 .font-preview {
   margin-top: spacing-vars.$space-3;
   padding: 10px 12px;
-  border: 1.5px dashed var(--retro-border-dashed);
+  border: var(--retro-border-width) dashed var(--retro-border-dashed);
   border-radius: 4px;
   background: var(--retro-bg-surface);
   color: var(--retro-ink);

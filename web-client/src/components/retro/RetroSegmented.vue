@@ -57,7 +57,7 @@ defineEmits<{
   align-items: center;
   gap: 3px;
   padding: 3px;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 6px;
   background: var(--retro-bg-elevated);
   box-shadow: var(--retro-shadow-btn);

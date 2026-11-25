@@ -81,7 +81,7 @@ const selectedValue = computed<string | number | undefined>({
   appearance: none;
   -webkit-appearance: none;
   box-sizing: border-box;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 4px;
   background: var(--retro-bg-surface);
   color: var(--retro-ink);
@@ -114,8 +114,9 @@ const selectedValue = computed<string | number | undefined>({
 .retro-select-prefix {
   position: absolute;
   left: 9px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 0;
+  bottom: 0;
+  margin-block: auto;
   font-size: var(--font-size-xs);
   color: var(--retro-ink);
   pointer-events: none;
@@ -145,8 +146,9 @@ const selectedValue = computed<string | number | undefined>({
 .retro-select-arrow {
   position: absolute;
   right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 0;
+  bottom: 0;
+  margin-block: auto;
   font-size: var(--font-size-xs);
   color: var(--retro-ink-muted);
   pointer-events: none;

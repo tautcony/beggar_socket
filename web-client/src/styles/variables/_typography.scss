@@ -22,17 +22,17 @@ $font-weight-medium: var(--font-weight-medium);
 $font-weight-semibold: var(--font-weight-semibold);
 $font-weight-bold: var(--font-weight-bold);
 
-// 行高
-$line-height-tight: 1.25;
-$line-height-snug: 1.375;
-$line-height-normal: 1.5;
-$line-height-relaxed: 1.625;
-$line-height-loose: 2;
+// 行高（统一使用 CSS 变量，便于像素字体模式覆盖为偶数像素对齐值）
+$line-height-tight: var(--line-height-tight);
+$line-height-snug: var(--line-height-snug);
+$line-height-normal: var(--line-height-normal);
+$line-height-relaxed: var(--line-height-relaxed);
+$line-height-loose: var(--line-height-loose);
 
-// 字间距
-$letter-spacing-tight: -0.025em;
-$letter-spacing-normal: 0;
-$letter-spacing-wide: 0.025em;
+// 字间距（统一使用 CSS 变量，避免像素字体模式出现小数 em 偏移）
+$letter-spacing-tight: var(--letter-spacing-tight);
+$letter-spacing-normal: var(--letter-spacing-normal);
+$letter-spacing-wide: var(--letter-spacing-wide);
 
 // 字体大小映射
 $font-sizes: (
@@ -77,13 +77,14 @@ $font-weights: (
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
 
-  --line-height-tight: #{$line-height-tight};
-  --line-height-snug: #{$line-height-snug};
-  --line-height-normal: #{$line-height-normal};
-  --line-height-relaxed: #{$line-height-relaxed};
-  --line-height-loose: #{$line-height-loose};
+  --line-height-tight: 1.25;
+  --line-height-snug: 1.375;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+  --line-height-loose: 2;
+  --line-height-micro: 1.4;
 
-  --letter-spacing-tight: #{$letter-spacing-tight};
-  --letter-spacing-normal: #{$letter-spacing-normal};
-  --letter-spacing-wide: #{$letter-spacing-wide};
+  --letter-spacing-tight: -0.025em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.025em;
 }

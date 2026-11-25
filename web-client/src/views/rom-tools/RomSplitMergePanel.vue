@@ -731,7 +731,7 @@ function getUsageBarColor(percentage: number): string {
   gap: var(--space-4);
   padding: var(--space-3) var(--space-4);
   background: var(--color-bg);
-  border: 1.5px solid #2d243b;
+  border: var(--retro-border-width) solid #2d243b;
   border-radius: 6px;
   box-shadow: -3px 3px 0 #2d243b;
   flex-wrap: wrap;
@@ -748,7 +748,7 @@ function getUsageBarColor(percentage: number): string {
   display: inline-flex;
   padding: 2px;
   background: var(--color-bg-secondary);
-  border: 1.5px solid #2d243b;
+  border: var(--retro-border-width) solid #2d243b;
   border-radius: 4px;
 }
 
@@ -857,7 +857,7 @@ function getUsageBarColor(percentage: number): string {
   display: flex;
   flex-direction: column;
   background: var(--color-bg);
-  border: 1.5px solid #2d243b;
+  border: var(--retro-border-width) solid #2d243b;
   border-radius: 6px;
   padding: var(--space-4);
   box-shadow: -3px 3px 0 #2d243b;
@@ -871,7 +871,7 @@ function getUsageBarColor(percentage: number): string {
   display: flex;
   flex-direction: column;
   background: var(--color-bg);
-  border: 1.5px solid #2d243b;
+  border: var(--retro-border-width) solid #2d243b;
   border-radius: 6px;
   padding: var(--space-4);
   box-shadow: -3px 3px 0 #2d243b;
@@ -919,7 +919,7 @@ function getUsageBarColor(percentage: number): string {
   gap: var(--space-2);
   padding: var(--space-3);
   background: var(--color-bg-secondary);
-  border: 1.5px solid #2d243b;
+  border: var(--retro-border-width) solid #2d243b;
   border-radius: 4px;
   cursor: grab;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -1000,7 +1000,7 @@ function getUsageBarColor(percentage: number): string {
   gap: 10px;
   padding: 10px 10px 0 10px;
   background: var(--cart-shell-bg, #e7e2f8);
-  border: 1.5px solid #2d243b;
+  border: var(--retro-border-width) solid #2d243b;
   border-radius: 3px;
   box-shadow: -3px 3px 0 #2d243b;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -1088,7 +1088,7 @@ function getUsageBarColor(percentage: number): string {
   background: var(--cart-screen-bg, #17132b);
   background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
   background-size: 8px 8px;
-  border: 1.5px solid #2d243b;
+  border: var(--retro-border-width) solid #2d243b;
   color: #f8fafc;
   font-family: var(--retro-font-mono);
 }
@@ -1189,9 +1189,9 @@ function getUsageBarColor(percentage: number): string {
   height: 11px;
   margin: 0 auto;
   padding: 0 6px;
-  border-top: 1.5px solid rgba(45, 36, 59, 0.45);
-  border-left: 1.5px solid rgba(45, 36, 59, 0.45);
-  border-right: 1.5px solid rgba(45, 36, 59, 0.45);
+  border-top: var(--retro-border-width) solid rgba(45, 36, 59, 0.45);
+  border-left: var(--retro-border-width) solid rgba(45, 36, 59, 0.45);
+  border-right: var(--retro-border-width) solid rgba(45, 36, 59, 0.45);
   background: rgba(255, 255, 255, 0.35);
 }
 
@@ -1211,7 +1211,7 @@ function getUsageBarColor(percentage: number): string {
   min-height: 196px;
   padding: 10px 10px 0 10px;
   background: var(--color-bg-secondary);
-  border: 1.5px dashed #b9b2c4;
+  border: var(--retro-border-width) dashed #b9b2c4;
   border-radius: 3px;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;

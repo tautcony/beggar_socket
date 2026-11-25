@@ -85,7 +85,7 @@ const clampedPercent = computed(() => {
 .retro-progress-track {
   width: 100%;
   height: 10px;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 4px;
   background: var(--retro-bg-elevated);
   overflow: hidden;

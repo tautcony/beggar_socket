@@ -71,7 +71,7 @@ defineEmits<{
   gap: 5px;
   white-space: nowrap;
   flex-shrink: 0;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 4px;
   font-weight: var(--font-weight-semibold);
   line-height: 1.5;
@@ -90,7 +90,7 @@ defineEmits<{
   min-height: 24px;
   font-family: var(--retro-font-micro);
   font-size: var(--font-size-micro);
-  line-height: 1.2;
+  line-height: var(--line-height-micro);
 }
 
 .retro-btn.size-sm {

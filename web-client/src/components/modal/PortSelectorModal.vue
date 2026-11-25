@@ -155,7 +155,7 @@ const onRefresh = () => {
 .port-selector-modal {
   background: var(--retro-bg-surface);
   color: var(--retro-ink);
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 6px;
   box-shadow: -4px 4px 0 var(--retro-shadow-color);
   max-width: 500px;
@@ -172,14 +172,14 @@ const onRefresh = () => {
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: none;
   }
 }
 
 .modal-header {
   @include mixins.flex-between;
   padding: 10px spacing-vars.$space-4;
-  border-bottom: 1.5px solid var(--retro-border);
+  border-bottom: var(--retro-border-width) solid var(--retro-border);
 
   h3 {
     margin: 0;
@@ -200,7 +200,7 @@ const onRefresh = () => {
   align-items: center;
   gap: spacing-vars.$space-1;
   background: var(--retro-bg-tint);
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 4px;
   padding: 4px 10px;
   font-size: typography-vars.$font-size-xs;

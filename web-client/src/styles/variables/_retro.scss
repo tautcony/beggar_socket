@@ -28,6 +28,8 @@
   --retro-overlay: rgba(250, 247, 242, 0.9);
   --retro-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
+  --retro-border-width: 1px;
+  --retro-border-width-accent: 2px;
   --retro-shadow-card: -3px 3px 0 var(--retro-shadow-color);
   --retro-shadow-btn: -2px 2px 0 var(--retro-shadow-color);
   --retro-shadow-btn-hover: -1px 1px 0 var(--retro-shadow-color);
@@ -237,5 +239,12 @@
 
   &[data-color-theme='rose'] {
     @include retro-dark-rose-tokens;
+  }
+}
+
+@media (min-resolution: 2dppx) {
+  :root {
+    --retro-border-width: 1.5px;
+    --retro-border-width-accent: 2.5px;
   }
 }

@@ -575,14 +575,14 @@ async function handlePPBUnlockMBC5() {
 }
 
 .panel-left {
-  border: 1.5px solid var(--retro-border-subtle);
+  border: var(--retro-border-width) solid var(--retro-border-subtle);
   border-radius: 6px;
   padding: spacing-vars.$space-3;
   background: var(--retro-bg-elevated);
 }
 
 .panel-right {
-  border: 1.5px solid var(--retro-border-subtle);
+  border: var(--retro-border-width) solid var(--retro-border-subtle);
   border-radius: 6px;
   background: var(--retro-bg-surface);
 }
@@ -656,7 +656,7 @@ async function handlePPBUnlockMBC5() {
   padding: spacing-vars.$space-3 spacing-vars.$space-4;
   font-family: var(--retro-font-mono);
   font-size: typography-vars.$font-size-xs;
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
 }
 
 .log-entry {

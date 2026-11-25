@@ -945,7 +945,7 @@ onUnmounted(() => {
     padding: spacing-vars.$space-2 spacing-vars.$space-3;
     background: var(--retro-bg-surface);
     color: var(--retro-ink);
-    border: 1.5px solid var(--retro-border-subtle);
+    border: var(--retro-border-width) solid var(--retro-border-subtle);
     border-radius: radius-vars.$radius-base;
     font-size: typography-vars.$font-size-sm;
     font-family: var(--retro-font-mono);
@@ -997,7 +997,7 @@ onUnmounted(() => {
 
 .output-section {
   background: var(--retro-bg-elevated);
-  border: 1.5px solid var(--retro-border-subtle);
+  border: var(--retro-border-width) solid var(--retro-border-subtle);
   border-radius: radius-vars.$radius-base;
   overflow: hidden;
   min-width: 0;

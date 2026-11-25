@@ -152,7 +152,7 @@ defineExpose({
 
 .emulator-container {
   background: var(--retro-bg-surface);
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 6px;
   box-shadow: -4px 4px 0 var(--retro-shadow-color);
   overflow: hidden;

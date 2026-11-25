@@ -984,7 +984,7 @@ function cleanup(isFinalUnmount = false) {
 .emulator-header {
   background: var(--retro-bg-elevated);
   color: var(--retro-ink);
-  border-bottom: 1.5px solid var(--retro-border);
+  border-bottom: var(--retro-border-width) solid var(--retro-border);
   padding: 10px spacing-vars.$space-4;
   display: flex;
   justify-content: space-between;

@@ -127,7 +127,7 @@ function goBack() {
 .page-header {
   flex-shrink: 0;
   background: var(--retro-bg-surface);
-  border-bottom: 1.5px solid var(--retro-border-subtle);
+  border-bottom: var(--retro-border-width) solid var(--retro-border-subtle);
   z-index: 100;
 }
 
@@ -181,7 +181,7 @@ function goBack() {
   gap: 4px;
   padding: 3px;
   background: var(--retro-bg-elevated);
-  border: 1.5px solid var(--retro-border-subtle);
+  border: var(--retro-border-width) solid var(--retro-border-subtle);
   border-radius: var(--radius-base);
 }
 

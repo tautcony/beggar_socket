@@ -124,7 +124,7 @@ function handleSaveFileDrop(e: DragEvent) {
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 4px;
   background: var(--retro-bg-surface);
 }

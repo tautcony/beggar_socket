@@ -447,7 +447,7 @@ onUnmounted(() => {
 
 .progress-bar-container {
   background: var(--retro-bg-elevated);
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 4px;
   height: 12px;
   overflow: hidden;
@@ -496,7 +496,7 @@ onUnmounted(() => {
   font-size: typography-vars.$font-size-base;
   font-weight: typography-vars.$font-weight-bold;
   color: var(--retro-ink);
-  line-height: 1.2;
+  line-height: var(--line-height-normal);
 }
 
 .status-badge {
@@ -510,7 +510,7 @@ onUnmounted(() => {
   font-size: var(--font-size-micro);
   font-weight: typography-vars.$font-weight-bold;
   line-height: 1;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   color: var(--retro-ink);
   background: var(--retro-bg-surface);
 
@@ -632,7 +632,7 @@ onUnmounted(() => {
 .supplementary-subitem-label {
   color: var(--color-text-tertiary);
   font-size: typography-vars.$font-size-xs;
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
 }
 
 .supplementary-subitem-content {

@@ -33,7 +33,7 @@ withDefaults(defineProps<{
   width: 100%;
   text-align: left;
   padding: 10px 12px;
-  border: 1.5px solid var(--retro-border-subtle);
+  border: var(--retro-border-width) solid var(--retro-border-subtle);
   border-radius: 6px;
   background: var(--retro-bg-surface);
   color: var(--retro-ink);

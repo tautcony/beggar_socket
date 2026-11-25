@@ -1458,14 +1458,14 @@ defineExpose({
 .mode-tabs-card .button:hover:not(.button-disabled) {
   background: var(--color-bg);
   color: var(--color-primary-hover);
-  border-bottom: 2.5px solid var(--color-primary);
+  border-bottom: var(--retro-border-width-accent) solid var(--color-primary);
   transform: none;
 }
 
 .mode-tabs-card .button-primary {
   background: var(--color-bg);
   color: var(--color-primary-hover);
-  border-bottom: 2.5px solid var(--color-primary);
+  border-bottom: var(--retro-border-width-accent) solid var(--color-primary);
 }
 
 .tab-icon {

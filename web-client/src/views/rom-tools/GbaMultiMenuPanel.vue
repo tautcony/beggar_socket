@@ -108,7 +108,7 @@ const totalGameRomSize = computed(() =>
   margin: 0 2px 0 4px;
   padding: 8px 14px;
   background: var(--retro-bg-canvas);
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 6px;
   box-shadow: var(--retro-shadow-card);
 }
@@ -141,7 +141,7 @@ const totalGameRomSize = computed(() =>
   font-weight: var(--font-weight-bold);
   padding: 2px 8px;
   border-radius: 4px;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   background: var(--retro-bg-surface);
   color: var(--retro-ink);
 }
@@ -225,7 +225,7 @@ const totalGameRomSize = computed(() =>
 .loading-spinner {
   width: 28px;
   height: 28px;
-  border: 2.5px solid var(--retro-bg-tint);
+  border: var(--retro-border-width-accent) solid var(--retro-bg-tint);
   border-top-color: var(--retro-ink);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;

@@ -78,7 +78,7 @@ function handleChange(e: Event) {
   width: 40px;
   height: 22px;
   padding: 2px;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 4px;
   background: var(--retro-bg-elevated);
   box-shadow: var(--retro-shadow-btn);
@@ -89,7 +89,7 @@ function handleChange(e: Event) {
 .retro-switch-thumb {
   width: 14px;
   height: 14px;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 2px;
   background: var(--retro-bg-surface);
   box-sizing: border-box;

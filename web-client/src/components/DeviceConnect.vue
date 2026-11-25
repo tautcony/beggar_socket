@@ -481,7 +481,7 @@ defineExpose({
   z-index: 2000;
   min-width: 150px;
   padding: 4px;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 4px;
   background: var(--retro-bg-surface);
   box-shadow: var(--retro-shadow-btn);

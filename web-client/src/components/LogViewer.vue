@@ -242,7 +242,7 @@ onUnmounted(() => {
   min-height: 320px;
   height: min(56vh, 520px);
   background: var(--retro-bg-surface);
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 6px;
   padding: var(--space-3);
   box-shadow: var(--retro-shadow-card);
@@ -277,7 +277,7 @@ onUnmounted(() => {
   background-color: var(--retro-bg-surface);
   color: var(--retro-ink);
   border-radius: 4px;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
   flex: 1;
   min-width: 0;

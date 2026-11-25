@@ -256,7 +256,7 @@ async function onTranslate() {
   font-size: typography-vars.$font-size-xl;
   font-weight: typography-vars.$font-weight-bold;
   color: var(--color-text);
-  line-height: 1.3;
+  line-height: var(--line-height-snug);
 }
 
 .publish-info {
@@ -304,7 +304,7 @@ async function onTranslate() {
 
 .markdown-body :deep(p) {
   margin: 0 0 spacing-vars.$space-3 0;
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
 }
 
 .markdown-body :deep(ul),
@@ -315,7 +315,7 @@ async function onTranslate() {
 
 .markdown-body :deep(li) {
   margin-bottom: spacing-vars.$space-2;
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
 }
 
 .markdown-body :deep(a) {

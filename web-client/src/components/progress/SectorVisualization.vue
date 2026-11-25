@@ -653,7 +653,7 @@ function ensureCanvasObserver(): void {
   padding: spacing-vars.$space-3;
   background: var(--retro-bg-elevated);
   border-radius: 6px;
-  border: 1.5px solid var(--retro-border-subtle);
+  border: var(--retro-border-width) solid var(--retro-border-subtle);
 }
 
 .sector-title {

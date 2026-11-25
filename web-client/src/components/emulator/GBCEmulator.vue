@@ -676,7 +676,7 @@ function cleanup(isFinalUnmount = false) {
   gap: spacing-vars.$space-3;
   padding: 10px spacing-vars.$space-4;
   background: var(--retro-bg-elevated);
-  border-bottom: 1.5px solid var(--retro-border);
+  border-bottom: var(--retro-border-width) solid var(--retro-border);
   color: var(--retro-ink);
 }
 

@@ -90,7 +90,7 @@ const buttonStyle = computed<Record<string, string | number>>(() => ({
   color: var(--retro-ink);
   padding: spacing-vars.$space-2 spacing-vars.$space-3;
   border-radius: 6px;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   font-size: typography-vars.$font-size-xs;
   font-weight: typography-vars.$font-weight-semibold;
   box-shadow: var(--retro-shadow-btn);

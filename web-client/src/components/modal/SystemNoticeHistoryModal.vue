@@ -438,7 +438,7 @@ watch(showTranslateButton, (enabled) => {
 
 .notice-list-item {
   text-align: left;
-  border: 1.5px solid var(--retro-border-subtle);
+  border: var(--retro-border-width) solid var(--retro-border-subtle);
   border-radius: 6px;
   padding: spacing-vars.$space-3;
   background-color: var(--retro-bg-surface);
@@ -564,7 +564,7 @@ watch(showTranslateButton, (enabled) => {
 
 .markdown-body :deep(p) {
   margin: 0 0 spacing-vars.$space-3 0;
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
 }
 
 .markdown-body :deep(ul),
@@ -575,7 +575,7 @@ watch(showTranslateButton, (enabled) => {
 
 .markdown-body :deep(li) {
   margin-bottom: spacing-vars.$space-2;
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
 }
 
 .markdown-body :deep(a) {

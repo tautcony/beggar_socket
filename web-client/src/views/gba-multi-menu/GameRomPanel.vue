@@ -214,7 +214,7 @@ function handleDrop(e: DragEvent, dropIndex: number) {
 }
 
 .rom-item-card {
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 4px;
   background: var(--retro-bg-surface);
   overflow: hidden;
@@ -315,7 +315,7 @@ function handleDrop(e: DragEvent, dropIndex: number) {
 .config-input {
   width: 100%;
   padding: 4px 6px;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 4px;
   background: var(--retro-bg-surface);
   color: var(--retro-ink);

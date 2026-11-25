@@ -308,7 +308,7 @@ function openSerialTest() {
   box-sizing: border-box;
   outline: none;
   background: var(--retro-bg-surface);
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 4px;
   box-shadow: var(--retro-shadow-btn);
   cursor: pointer;
@@ -347,7 +347,7 @@ function openSerialTest() {
   top: calc(100% + spacing-vars.$space-2);
   left: 0;
   background: var(--retro-bg-surface);
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 6px;
   box-shadow: var(--retro-shadow-card);
   z-index: 1000;

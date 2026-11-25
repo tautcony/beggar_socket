@@ -580,7 +580,7 @@ const hasAssembledRom = computed(() => {
 }
 
 :deep(.file-drop-zone) {
-  border: 1.5px dashed var(--retro-border-dashed);
+  border: var(--retro-border-width) dashed var(--retro-border-dashed);
   border-radius: 6px;
   background: var(--retro-bg-surface);
   color: var(--retro-ink);
@@ -633,7 +633,7 @@ const hasAssembledRom = computed(() => {
   width: auto;
   background: var(--retro-success-bg) !important;
   color: var(--retro-ink) !important;
-  border: 1.5px solid var(--retro-border) !important;
+  border: var(--retro-border-width) solid var(--retro-border) !important;
   border-radius: 6px !important;
   box-shadow: var(--retro-shadow-btn) !important;
   cursor: pointer;

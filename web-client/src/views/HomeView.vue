@@ -388,7 +388,7 @@ $title-color: #2c3e50;
   align-self: center;
   background: var(--retro-bg-tint);
   color: var(--retro-ink);
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 4px;
   box-shadow: var(--retro-shadow-btn);
   padding: 2px 8px;

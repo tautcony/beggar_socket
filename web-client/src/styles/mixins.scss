@@ -62,9 +62,9 @@ $breakpoints: (
 
   &:focus {
     @if meta.type-of($border) == 'color' {
-      box-shadow: 0 0 0 0.2rem rgba($border, 0.5);
+      box-shadow: 0 0 0 3px rgba($border, 0.5);
     } @else {
-      box-shadow: 0 0 0 0.2rem color-mix(in srgb, #{$border} 50%, transparent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, #{$border} 50%, transparent);
     }
   }
 }

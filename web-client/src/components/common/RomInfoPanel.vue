@@ -484,7 +484,7 @@ onMounted(async () => {
   margin-bottom: spacing-vars.$space-3;
   padding: spacing-vars.$space-3;
   background: var(--retro-bg-elevated);
-  border: 1.5px solid var(--retro-border-subtle);
+  border: var(--retro-border-width) solid var(--retro-border-subtle);
   border-radius: 6px;
 }
 
@@ -642,7 +642,7 @@ onMounted(async () => {
   width: 100%;
   max-width: 100%;
   padding: 3px 8px;
-  border: 1.5px solid var(--retro-border);
+  border: var(--retro-border-width) solid var(--retro-border);
   border-radius: 4px;
   font-size: typography-vars.$font-size-xs;
   background: var(--retro-bg-surface);

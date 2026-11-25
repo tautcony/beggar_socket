@@ -307,7 +307,7 @@ function onBaseAddressChange() {
 }
 
 :deep(.file-drop-zone) {
-  border: 1.5px dashed var(--retro-border-dashed);
+  border: var(--retro-border-width) dashed var(--retro-border-dashed);
   border-radius: 6px;
   background: var(--retro-bg-surface);
   color: var(--retro-ink);
