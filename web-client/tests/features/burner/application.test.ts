@@ -542,4 +542,32 @@ describe('BurnerUseCaseImpl', () => {
       message: 'Device not connected',
     });
   });
+
+  it('distinguishes bulk-only and read-only CFI in eraseChip when eraseSectorBlocks is empty', async () => {
+    const useCase = createUseCase();
+    const eraseSectors = vi.fn(() => Promise.resolve({ success: true, message: 'chip-erased' }));
+    const session = createSession({ eraseSectors });
+
+    const bulkOnlyCfi: CFIInfo = {
+      ...createFakeCfi(0x100000),
+      eraseSectorBlocks: [],
+      chipErase: true,
+      sectorErase: false,
+    };
+    const bulkRes = await useCase.eraseChip(createContext(session, bulkOnlyCfi));
+    expect(bulkRes.success).toBe(true);
+    expect(eraseSectors).toHaveBeenCalledWith([], expect.any(Object), undefined);
+
+    const readOnlyCfi: CFIInfo = {
+      ...createFakeCfi(0x100000),
+      eraseSectorBlocks: [],
+      chipErase: false,
+      sectorErase: false,
+    };
+    const roRes = await useCase.eraseChip(createContext(session, readOnlyCfi));
+    expect(roRes).toMatchObject({
+      success: false,
+      errorCode: 'unsupported',
+    });
+  });
 });

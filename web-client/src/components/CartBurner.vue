@@ -184,18 +184,28 @@ const props = defineProps<{
   deviceReady: boolean
 }>();
 
+interface CfiIdentity {
+  connectionId: string | undefined;
+  mode: ModeType;
+  profileId: string;
+}
+
 const mode = ref<ModeType>('GBA');
 const selectedMbcType = ref<MbcType>('MBC5');
 const mbcPower5V = ref(false);
 const flashcartProfiles = ref<FlashcartProfileSummary[]>([]);
 const selectedFlashcartProfileId = ref<string>('');
 const ambiguousFlashcartProfiles = ref<FlashcartProfileSummary[]>([]);
+const chipId = ref<number[] | undefined>(undefined);
+const cfiInfo = ref<CFIInfo | null>(null);
+const cfiIdentity = ref<CfiIdentity | null>(null);
 
 watch(
   [mode, () => props.device?.session?.capabilities.has('profile.flashcartDb') ?? false],
   async ([currentMode, hasFlashcartDb]) => {
     selectedFlashcartProfileId.value = '';
     ambiguousFlashcartProfiles.value = [];
+    clearChipInfo();
     if (!hasFlashcartDb) {
       flashcartProfiles.value = [];
       return;
@@ -274,17 +284,12 @@ const showMultiCartResultModal = ref(false);
 const multiCartResults = ref<GameDetectionResult[]>([]);
 const latestPreviewCheckpoint = ref<GbaPreviewSavePayload | null>(null);
 
-// chip props
-const chipId = ref<number[] | undefined>(undefined);
-const cfiInfo = ref<CFIInfo | null>(null);
-
 function onFlashcartProfileChange(profileId: string) {
   selectedFlashcartProfileId.value = profileId;
   ambiguousFlashcartProfiles.value = [];
   // A different profile means a different command set and possibly a different sector
   // layout, so the geometry read for the previous profile must not be reused.
-  cfiInfo.value = null;
-  chipId.value = undefined;
+  clearChipInfo();
 }
 
 const sectorSizes = computed(() => {
@@ -318,21 +323,38 @@ function createSession(adapter: CartridgeAdapter, modeName: string): BurnerProto
   });
 }
 
-watch([mode, mbcPower5V], ([newMode, newPower5V]) => {
-  if (newMode !== 'MBC5' && newPower5V) {
-    mbcPower5V.value = false;
-    return;
+function resolveEffectiveEnable5V(): boolean {
+  if (mode.value !== 'MBC5') {
+    return false;
   }
+  if (mbcPower5V.value) {
+    return true;
+  }
+  const selectedProfile = flashcartProfiles.value.find(
+    profile => profile.id === selectedFlashcartProfileId.value,
+  );
+  return selectedProfile?.voltage === 5;
+}
+
+function syncHardwareModeIfReady() {
   const adapter = gbaCartridgeAdapter;
   if (!modeSyncStrategy || !props.deviceReady || busy.value || !adapter) {
     return;
   }
-  const target = newMode === 'MBC5' ? 'mbc5' : 'gba';
-  const enable5V = newMode === 'MBC5' && newPower5V;
+  const target = mode.value === 'MBC5' ? 'mbc5' : 'gba';
+  const enable5V = resolveEffectiveEnable5V();
   void modeSyncStrategy(adapter, target, enable5V).catch((error: unknown) => {
     const msg = error instanceof Error ? error.message : String(error);
-    log(`Failed to sync GBFlash hardware mode (${newMode}): ${msg}`, 'warn');
+    log(`Failed to sync GBFlash hardware mode (${mode.value}): ${msg}`, 'warn');
   });
+}
+
+watch([mode, mbcPower5V, selectedFlashcartProfileId], ([newMode, newPower5V]) => {
+  if (newMode !== 'MBC5' && newPower5V) {
+    mbcPower5V.value = false;
+    return;
+  }
+  syncHardwareModeIfReady();
 });
 
 // 热重载状态恢复 - 保持适配器状态和日志
@@ -418,12 +440,7 @@ function initializeAdapters() {
       isGbflash ? 'gbflash-mbc' : 'mbc5',
     );
     if (modeSyncStrategy && gbaCartridgeAdapter) {
-      const target = mode.value === 'MBC5' ? 'mbc5' : 'gba';
-      const enable5V = mode.value === 'MBC5' && mbcPower5V.value;
-      void modeSyncStrategy(gbaCartridgeAdapter, target, enable5V).catch((error: unknown) => {
-        const msg = error instanceof Error ? error.message : String(error);
-        log(`Failed to sync GBFlash hardware mode (${mode.value}): ${msg}`, 'warn');
-      });
+      syncHardwareModeIfReady();
     }
   } else {
     // 设备未连接时清空适配器
@@ -434,6 +451,7 @@ function initializeAdapters() {
       modeSyncStrategy = undefined;
       console.log('[CartBurner] 清空适配器');
     }
+    clearChipInfo();
   }
 }
 
@@ -449,6 +467,7 @@ watch(() => props.device?.connectionId, () => {
     gbaCartridgeAdapter = null;
     modeSyncStrategy = undefined;
   }
+  clearChipInfo();
   initializeAdapters();
 });
 
@@ -506,6 +525,38 @@ function getAdapter() {
 function clearChipInfo() {
   chipId.value = undefined;
   cfiInfo.value = null;
+  cfiIdentity.value = null;
+}
+
+function currentCfiIdentity(): CfiIdentity {
+  return {
+    connectionId: props.device?.connectionId,
+    mode: mode.value,
+    profileId: selectedFlashcartProfileId.value,
+  };
+}
+
+function cfiIdentitiesEqual(a: CfiIdentity, b: CfiIdentity): boolean {
+  return a.connectionId === b.connectionId && a.mode === b.mode && a.profileId === b.profileId;
+}
+
+function isCfiIdentityValid(): boolean {
+  if (!cfiInfo.value || !cfiIdentity.value) {
+    return false;
+  }
+  return cfiIdentitiesEqual(cfiIdentity.value, currentCfiIdentity());
+}
+
+function requireValidCfiInfo(resetOnMissing = true): CFIInfo | null {
+  if (!isCfiIdentityValid()) {
+    clearChipInfo();
+    showToast(t('messages.operation.readCartInfoFirst'), 'error');
+    if (resetOnMissing) {
+      resetProgress();
+    }
+    return null;
+  }
+  return cfiInfo.value;
 }
 
 async function withCommandBufferReset<T>(adapter: BurnerProtocolSession, operation: () => Promise<T>): Promise<T> {
@@ -524,6 +575,7 @@ async function withCommandBufferReset<T>(adapter: BurnerProtocolSession, operati
 async function readCart() {
   clearChipInfo();
   ambiguousFlashcartProfiles.value = [];
+  const requestIdentity = currentCfiIdentity();
   await executeOperation({
     operation: async () => {
       const adapter = getAdapter();
@@ -533,10 +585,14 @@ async function readCart() {
 
       await withCommandBufferReset(adapter, async () => {
         const result = await burnerUseCase.readCart(adapter, mbcPower5V.value, {
-          flashcartProfileId: selectedFlashcartProfileId.value || undefined,
+          flashcartProfileId: requestIdentity.profileId || undefined,
         });
+        if (!cfiIdentitiesEqual(requestIdentity, currentCfiIdentity())) {
+          return;
+        }
         if (result.success && result.cfiInfo) {
           cfiInfo.value = result.cfiInfo;
+          cfiIdentity.value = requestIdentity;
           chipId.value = result.chipId;
           if (result.romSizeHex) {
             onRomSizeChange(result.romSizeHex);
@@ -556,14 +612,14 @@ async function readCart() {
             showToast(result.message, 'error');
             log(result.message, 'error');
           }
-          cfiInfo.value = null;
+          clearChipInfo();
         }
       });
     },
     onError: (error) => {
       showToast(t('messages.operation.readCartFailed'), 'error');
       log(`${t('messages.operation.readCartFailed')}: ${error instanceof Error ? error.message : String(error)}`, 'error');
-      cfiInfo.value = null;
+      clearChipInfo();
     },
   });
 }
@@ -579,12 +635,10 @@ async function eraseChip() {
         return;
       }
 
-      if (!cfiInfo.value) {
-        showToast(t('messages.operation.readCartInfoFirst'), 'error');
-        resetProgress();
+      const currentCfiInfo = requireValidCfiInfo();
+      if (!currentCfiInfo) {
         return;
       }
-      const currentCfiInfo = cfiInfo.value;
 
       await withCommandBufferReset(adapter, async () => {
         const response = await burnerUseCase.eraseChip({
@@ -627,12 +681,10 @@ async function writeRom() {
         return;
       }
 
-      if (!cfiInfo.value) {
-        showToast(t('messages.operation.readCartInfoFirst'), 'error');
-        resetProgress();
+      const currentCfiInfo = requireValidCfiInfo();
+      if (!currentCfiInfo) {
         return;
       }
-      const currentCfiInfo = cfiInfo.value;
       const currentRomData = romFileData.value;
       const romSize = parseInt(selectedRomSize.value, 16);
       const alignedRomData = prepareRomImage(currentRomData, romSize);
@@ -682,18 +734,17 @@ async function readRom() {
         return;
       }
 
-      if (!cfiInfo.value) {
-        showToast(t('messages.operation.readCartInfoFirst'), 'error');
-        resetProgress();
+      const currentCfiInfo = requireValidCfiInfo();
+      if (!currentCfiInfo) {
         return;
       }
-      const currentCfiInfo = cfiInfo.value;
 
       const option: CommandOptions = {
         baseAddress: parseInt(selectedBaseAddress.value, 16),
         cfiInfo: currentCfiInfo,
         mbcType: selectedMbcType.value,
         enable5V: mbcPower5V.value,
+        flashcartProfileId: selectedFlashcartProfileId.value || undefined,
       };
 
       const romSize = parseInt(selectedRomSize.value, 16);
@@ -764,16 +815,14 @@ async function verifyRom() {
         return;
       }
 
-      if (!cfiInfo.value) {
-        showToast(t('messages.operation.readCartInfoFirst'), 'error');
-        resetProgress();
+      const currentCfiInfo = requireValidCfiInfo();
+      if (!currentCfiInfo) {
         return;
       }
       if (!signal) {
         throw new Error('verifyRom requires abort signal');
       }
 
-      const currentCfiInfo = cfiInfo.value;
       const currentRomData = romFileData.value;
       const size = parseInt(selectedRomSize.value, 16);
       await withCommandBufferReset(adapter, async () => {
@@ -819,16 +868,14 @@ async function verifyBlank(fillByte: number) {
         return;
       }
 
-      if (!cfiInfo.value) {
-        showToast(t('messages.operation.readCartInfoFirst'), 'error');
-        resetProgress();
+      const currentCfiInfo = requireValidCfiInfo();
+      if (!currentCfiInfo) {
         return;
       }
       if (!signal) {
         throw new Error('verifyBlank requires abort signal');
       }
 
-      const currentCfiInfo = cfiInfo.value;
       const size = parseInt(selectedRomSize.value, 16);
       const blankData = new Uint8Array(size).fill(fillByte);
       const fillLabel = fillByte === 0xFF ? '0xFF' : '0x00';
@@ -871,11 +918,10 @@ async function writeRam() {
         return;
       }
 
-      if (!cfiInfo.value) {
-        showToast(t('messages.operation.readCartInfoFirst'), 'error');
+      const currentCfiInfo = requireValidCfiInfo(false);
+      if (!currentCfiInfo) {
         return;
       }
-      const currentCfiInfo = cfiInfo.value;
       const currentRamData = ramFileData.value;
 
       await withCommandBufferReset(adapter, async () => {
@@ -916,11 +962,10 @@ async function readRam() {
         return;
       }
 
-      if (!cfiInfo.value) {
-        showToast(t('messages.operation.readCartInfoFirst'), 'error');
+      const currentCfiInfo = requireValidCfiInfo(false);
+      if (!currentCfiInfo) {
         return;
       }
-      const currentCfiInfo = cfiInfo.value;
 
       const defaultSize = ramFileData.value ? ramFileData.value.length : parseInt(selectedRamSize.value, 16);
       await withCommandBufferReset(adapter, async () => {
@@ -977,11 +1022,10 @@ async function verifyRam() {
         return;
       }
 
-      if (!cfiInfo.value) {
-        showToast(t('messages.operation.readCartInfoFirst'), 'error');
+      const currentCfiInfo = requireValidCfiInfo(false);
+      if (!currentCfiInfo) {
         return;
       }
-      const currentCfiInfo = cfiInfo.value;
       const currentRamData = ramFileData.value;
 
       const size = parseInt(selectedRamSize.value, 16);
@@ -1019,11 +1063,10 @@ async function verifyRamBlank(fillByte: number) {
         return;
       }
 
-      if (!cfiInfo.value) {
-        showToast(t('messages.operation.readCartInfoFirst'), 'error');
+      const currentCfiInfo = requireValidCfiInfo(false);
+      if (!currentCfiInfo) {
         return;
       }
-      const currentCfiInfo = cfiInfo.value;
 
       const size = parseInt(selectedRamSize.value, 16);
       const blankData = new Uint8Array(size).fill(fillByte);
@@ -1146,11 +1189,10 @@ async function readRomInfo() {
         return;
       }
 
-      if (!cfiInfo.value) {
-        showToast(t('messages.operation.readCartInfoFirst'), 'error');
+      const currentCfiInfo = requireValidCfiInfo(false);
+      if (!currentCfiInfo) {
         return;
       }
-      const currentCfiInfo = cfiInfo.value;
 
       log(t('ui.operation.startReadingMultiCart'));
 

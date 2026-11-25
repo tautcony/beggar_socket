@@ -157,6 +157,21 @@ export class BurnerUseCaseImpl implements BurnerUseCase {
 
   async eraseChip(context: BurnerOperationContext): Promise<CommandResult> {
     const { session, cfiInfo, options, signal } = context;
+    if (cfiInfo.eraseSectorBlocks.length === 0) {
+      if (!cfiInfo.chipErase) {
+        return {
+          success: false,
+          errorCode: 'unsupported',
+          message: `${this.translate('messages.operation.eraseFailed')}: cartridge has no erase geometry (read-only)`,
+        };
+      }
+      return this.executeSessionCommand(
+        session,
+        'protocol',
+        this.translate('messages.operation.eraseFailed'),
+        () => session.eraseSectors([], options, signal),
+      );
+    }
     const sectorInfo = calcSectorUsage(cfiInfo.eraseSectorBlocks, cfiInfo.deviceSize, 0x00);
     return this.executeSessionCommand(
       session,

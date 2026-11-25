@@ -404,4 +404,112 @@ describe('GBFlash session mutex & AbortSignal cancellation', () => {
     ac.abort();
     await expect(client.readRom('AGB', 0, 16, { signal: ac.signal })).rejects.toBeInstanceOf(GbflashProtocolError);
   });
+
+  it('handles short tail chunk during 0x03 continuation without sending SET_VARIABLE', async () => {
+    const fw14 = makeFwInfo({ fwVer: 14, isCdc: true });
+    const t = createScriptedTransport([
+      [0x01], // TRANSFER_SIZE
+      [0x01], // BUFFER_SIZE
+      [0x01], // ADDRESS
+      [0x03], // chunk 0 -> continue
+      [0x01], // chunk 1 (short tail padded to chunkLen) -> ok
+    ]);
+    const client = new GbflashCommandClient(t.transport, fw14, { baudRate: 2_000_000 });
+    const payload = new Uint8Array([0xAA, 0xBB, 0xCC, 0xDD, 0x11, 0x22]);
+
+    await client.writeFlashRom('AGB', 0x0000, payload, 8, { maxLength: 4 });
+
+    expect(t.sent.length).toBe(5);
+    expect(t.sent[3]).toEqual([GBFLASH_CMD.FLASH_PROGRAM, 0xAA, 0xBB, 0xCC, 0xDD]);
+    expect(t.sent[4]).toEqual([0x11, 0x22, 0xFF, 0xFF]);
+  });
+
+  it('throws and recovers channel when last chunk returns 0x03', async () => {
+    const fw14 = makeFwInfo({ fwVer: 14, isCdc: true });
+    const t = createScriptedTransport([
+      [0x01], // TRANSFER_SIZE
+      [0x01], // BUFFER_SIZE
+      [0x01], // ADDRESS
+      [0x03], // last chunk -> continue (incomplete!)
+      [0x01], // drain pad chunk -> ok
+    ]);
+    const client = new GbflashCommandClient(t.transport, fw14, { baudRate: 2_000_000 });
+    const payload = new Uint8Array([0xAA, 0xBB, 0xCC, 0xDD]);
+
+    await expect(client.writeFlashRom('AGB', 0x0000, payload, 8, { maxLength: 4 })).rejects.toThrow(GbflashProtocolError);
+    expect(t.sent[4]).toEqual([0xFF, 0xFF, 0xFF, 0xFF]);
+  });
+
+  it('recovers channel when cancelled mid-0x03 continuation', async () => {
+    const fw14 = makeFwInfo({ fwVer: 14, isCdc: true });
+    const ac = new AbortController();
+    const t = createScriptedTransport([
+      [0x01], // TRANSFER_SIZE
+      [0x01], // BUFFER_SIZE
+      [0x01], // ADDRESS
+      [0x03], // chunk 0 -> continue
+      [0x01], // drain pad chunk -> ok
+    ]);
+    const client = new GbflashCommandClient(t.transport, fw14, { baudRate: 2_000_000 });
+    const payload = new Uint8Array([0xAA, 0xBB, 0xCC, 0xDD, 0x11, 0x22, 0x33, 0x44]);
+
+    await expect(
+      client.writeFlashRom('AGB', 0x0000, payload, 8, {
+        maxLength: 4,
+        signal: ac.signal,
+        onChunk: () => {
+          ac.abort();
+        },
+      }),
+    ).rejects.toThrow(GbflashProtocolError);
+
+    expect(t.sent[4]).toEqual([0xFF, 0xFF, 0xFF, 0xFF]);
+  });
+
+  it('reads a late continuation ACK before padding the unfinished buffer', async () => {
+    const t = createScriptedTransport([[0x01], [0x01], [0x01], [0x03], [], [0x03], [0x01], [0x01]]);
+    const client = new GbflashCommandClient(t.transport, makeFwInfo({ isCdc: true }));
+    const payload = Uint8Array.from([0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88]);
+
+    await expect(client.writeFlashRom('AGB', 0, payload, 12, { maxLength: 4 })).rejects.toMatchObject({ code: 'bad_ack' });
+    await client.setVoltage('3.3V');
+
+    expect(t.sent.slice(3)).toEqual([
+      [GBFLASH_CMD.FLASH_PROGRAM, 0x11, 0x22, 0x33, 0x44],
+      [0x55, 0x66, 0x77, 0x88],
+      [0xFF, 0xFF, 0xFF, 0xFF],
+      [GBFLASH_CMD.SET_VOLTAGE_3_3V],
+    ]);
+  });
+
+  it('pads with the transfer size set for a short program packet', async () => {
+    const t = createScriptedTransport([[0x01], [0x01], [0x01], [0x01], [0x01], [0x01], [0x03], [0x01]]);
+    const client = new GbflashCommandClient(t.transport, makeFwInfo({ isCdc: true }));
+    const payload = Uint8Array.from([0x11, 0x22, 0x33, 0x44, 0x55, 0x66]);
+
+    await expect(client.writeFlashRom('DMG', 0, payload, 4, { maxLength: 4 })).rejects.toMatchObject({ code: 'bad_ack' });
+
+    expect(t.sent.slice(-2)).toEqual([[GBFLASH_CMD.FLASH_PROGRAM, 0x55, 0x66], [0xFF, 0xFF]]);
+  });
+
+  it('marks command stream broken and blocks subsequent commands when 0x03 recovery fails', async () => {
+    const fw14 = makeFwInfo({ fwVer: 14, isCdc: true });
+    const t = createScriptedTransport([
+      [0x01], // TRANSFER_SIZE
+      [0x01], // BUFFER_SIZE
+      [0x01], // ADDRESS
+      [0x03], // last chunk -> continue
+      [0x03], // drain pad chunk -> still 0x03 (maxChunks=1 for 4/4) -> recovery failed
+    ]);
+    const client = new GbflashCommandClient(t.transport, fw14, { baudRate: 2_000_000 });
+    const payload = new Uint8Array([0xAA, 0xBB, 0xCC, 0xDD]);
+
+    await expect(client.writeFlashRom('AGB', 0x0000, payload, 4, { maxLength: 4 })).rejects.toMatchObject({ code: 'io' });
+    expect(client.isCommandStreamBroken).toBe(true);
+    const sentCountAfterFailure = t.sent.length;
+
+    await expect(client.setVoltage('3.3V')).rejects.toThrow(GbflashProtocolError);
+    await expect(client.cartPowerOff()).rejects.toThrow(GbflashProtocolError);
+    expect(t.sent.length).toBe(sentCountAfterFailure);
+  });
 });

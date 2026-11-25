@@ -40,7 +40,7 @@ Core SHALL expose `SelectionProvider.read(): SelectionSnapshot`（`variantId?`�
 
 #### Scenario: Registered product variants
 - **WHEN** 消费者枚举已注册的硬件和固件组合
-- **THEN** 丐中丐关联 `beggar.stm` 与 `beggar.stm-boost`，碳酸丐关联 `beggar.stc`，GBFlash 关联 `flashgbx.cfw`
+- **THEN** 丐中丐关联 `beggar.stm` 与 `beggar.stm-boost`，碳酸丐关联 `beggar.stc`，GBFlash 关联 `gbflash.cfw`
 - **AND** STM 与 Boost 复用 Beggar 协议和 runtime binding、共享参数 namespace；Boost runtime feature 开启传输扩展
 
 #### Scenario: Variant is selected atomically
@@ -90,7 +90,7 @@ Core SHALL expose `SelectionProvider.read(): SelectionSnapshot`（`variantId?`�
 - **THEN** `tool.rtc.gba` 与 `tool.rtc.mbc3` 按矩阵解析为可用（具体实现待完善，保留现有 UI 与服务行为）
 
 ### Requirement: Immutable resolved device profile
-成功解析的 session profile SHALL 为不可变快照，包含 `variantId`、实际硬件与固件、能力、连接参数、最终传输 profile、verification、显示模型与 `diagnostics`。不得在 public session 上暴露协议 raw probe facts。可变的 ROM/RAM 页大小、节流和重试等操作参数不得作为 session profile 的权威值；每次操作开始时生成独立 `OperationSettingsSnapshot`。
+成功解析的 session profile SHALL 为不可变快照，包含 `variantId`、实际硬件与固件、能力、连接参数、最终传输 profile、verification、显示模型与 `diagnostics`。不得在公开的 `SessionProfile` 上暴露协议 raw probe facts。可变的 ROM/RAM 页大小、节流和重试等操作参数不得作为 session profile 的权威值；每次操作开始时生成独立 `OperationSettingsSnapshot`。
 
 #### Scenario: Shared firmware resolves device-specific profile
 - **WHEN** 同一固件注册到两个硬件且以其中一个硬件解析
@@ -109,8 +109,8 @@ Core SHALL expose `SelectionProvider.read(): SelectionSnapshot`（`variantId?`�
 - **THEN** 新操作读取新的设置快照，已开始的操作保留其原快照，session profile 不变
 
 #### Scenario: Protocol facts remain internal
-- **WHEN** 连接成功并向应用公开活动 session
-- **THEN** public session 提供规范化能力、版本、显示信息、`diagnostics`，不包含 raw protocol facts
+- **WHEN** 连接成功并向应用公开活动 `SessionProfile`
+- **THEN** `SessionProfile` 只提供规范化能力、版本、显示信息、`diagnostics`，不包含 raw protocol facts；过渡期 `BurnerConnectionSession.probeFacts` 仍用于填充旧 `DeviceInfo.gbflashInfo` 外观，并为 GBFlash 命令客户端提供固件信息
 
 #### Scenario: Diagnostics carry the reason, not only the log
 - **WHEN** 解析期间发生端口 mismatch、探测跳过或驱动报告非致命异常

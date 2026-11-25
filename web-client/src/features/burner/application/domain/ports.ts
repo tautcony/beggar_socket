@@ -43,8 +43,9 @@ export interface BurnerConnectionSelectOptions {
  * Committed session of one connection: the immutable resolved profile plus the
  * diagnostics produced while establishing it (`port-mismatch`, probe skips, ...).
  *
- * The profile is the only device/firmware authority for the connection; `probeFacts`
- * exists solely for the legacy `DeviceInfo` facade and is never consulted for behavior.
+ * Public session capabilities are provided by `SessionProfile`; `probeFacts` is a
+ * transitional compatibility field that populates the legacy `DeviceInfo.gbflashInfo`
+ * facade and supplies firmware info to the GBFlash command client.
  */
 export interface BurnerConnectionSession {
   readonly connectionId: string;

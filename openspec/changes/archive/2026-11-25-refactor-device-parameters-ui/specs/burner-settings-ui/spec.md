@@ -70,7 +70,7 @@
 - **THEN** 操作面板隐藏选择器，适配器忽略外部传入的 profile 选项
 
 ### Requirement: FlashGBX packet size upper bound
-GBFlash 封包大小上限 SHALL 由 `flashgbx.cfw` 参数 descriptor 的 `constraints.max`（`0x2000`）声明，不再由全局校验统一限制。该上限只约束可编辑值，实际传输仍按宿主与 CH340/CDC 帧限制收窄。
+GBFlash 封包大小上限 SHALL 由 `gbflash.cfw` 参数 descriptor 的 `constraints.max`（`0x2000`）声明，不再由全局校验统一限制。该上限只约束可编辑值，实际传输仍按宿主与 CH340/CDC 帧限制收窄。
 
 #### Scenario: Packet size upper bound
 - **WHEN** 用户为 GBFlash 输入 `0x2000`

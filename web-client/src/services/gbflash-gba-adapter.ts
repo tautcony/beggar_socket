@@ -139,13 +139,26 @@ export class GbflashGbaAdapter extends GbflashBaseAdapter {
           await this.resetFlashToRead(client);
 
           const parsed = parseCFI(cfiRaw);
-          if (parsed && parsed.deviceSize > 0) {
+          if (parsed && parsed.deviceSize > 0 && parsed.eraseSectorBlocks.length > 0) {
             parsed.flashId = idBytes.slice(0, 4);
             await this.logMatchedProfileForCfi('GBA', romBaseline, idBytes, parsed.deviceSize);
             return parsed;
           }
 
-          return this.runAutoProfileFallback(client, 'AGB', 'GBA');
+          const fallback = await this.runAutoProfileFallback(client, 'AGB', 'GBA');
+          if (fallback) {
+            return fallback;
+          }
+          if (parsed && parsed.deviceSize > 0 && this.lastCartInfoErrorCode === 'profile_not_found') {
+            this.clearCartInfoError();
+            parsed.flashId = idBytes.slice(0, 4);
+            const capability = parsed.chipErase
+              ? 'chip-erase only (no sector geometry)'
+              : 'read-only (no erase geometry)';
+            this.log(`GBA CFI detected ${capability}; no matching flashcart profile found.`, 'warn');
+            return parsed;
+          }
+          return false;
         },
       );
     } catch (error) {
@@ -182,6 +195,7 @@ export class GbflashGbaAdapter extends GbflashBaseAdapter {
         sectorAddr,
         profile.commands.sector_erase_wait_for,
         15000,
+        signal,
       );
       await resetProfileFlash(client, 'AGB', profile);
     } else {
@@ -269,10 +283,22 @@ export class GbflashGbaAdapter extends GbflashBaseAdapter {
         },
         async (client) => {
           const baseAddress = options.baseAddress ?? 0;
-          const totalBytes = sectorInfo.reduce((sum, b) => sum + b.totalSize, 0);
+          const bulkChipErase = sectorInfo.length === 0 && options.cfiInfo.deviceSize > 0 && options.cfiInfo.chipErase;
+          if (sectorInfo.length === 0 && !bulkChipErase) {
+            return {
+              success: false,
+              errorCode: 'unsupported',
+              message: 'Cartridge has no erase geometry and does not support chip erase',
+            };
+          }
+          const totalBytes = bulkChipErase
+            ? options.cfiInfo.deviceSize
+            : sectorInfo.reduce((sum, b) => sum + b.totalSize, 0);
           const totalSectors = sectorInfo.reduce((sum, b) => sum + b.sectorCount, 0);
           const minStart = sectorInfo.length > 0 ? Math.min(...sectorInfo.map(b => b.startAddress)) : baseAddress;
-          const maxEnd = sectorInfo.length > 0 ? Math.max(...sectorInfo.map(b => b.endAddress)) : baseAddress;
+          const maxEnd = sectorInfo.length > 0
+            ? Math.max(...sectorInfo.map(b => b.endAddress))
+            : (bulkChipErase ? baseAddress + totalBytes : baseAddress);
           this.log(this.t('messages.operation.startEraseSectors', {
             startAddress: formatHex(minStart, 4),
             endAddress: formatHex(Math.max(minStart, maxEnd - 1), 4),
@@ -284,7 +310,7 @@ export class GbflashGbaAdapter extends GbflashBaseAdapter {
             await unlockProfileFlash(client, 'AGB', profile);
           }
 
-          const fullChip = totalBytes >= options.cfiInfo.deviceSize && options.cfiInfo.deviceSize > 0;
+          const fullChip = bulkChipErase || (totalBytes >= options.cfiInfo.deviceSize && options.cfiInfo.deviceSize > 0);
           if (fullChip && (!profile || profile.commands.chip_erase?.length)) {
             throwIfAborted(signal);
             if (profile?.commands.chip_erase?.length) {
@@ -295,6 +321,7 @@ export class GbflashGbaAdapter extends GbflashBaseAdapter {
                 baseAddress,
                 profile.commands.chip_erase_wait_for,
                 (profile.chip_erase_timeout ?? 60) * 1000,
+                signal,
               );
               await resetProfileFlash(client, 'AGB', profile);
             } else {
@@ -310,6 +337,12 @@ export class GbflashGbaAdapter extends GbflashBaseAdapter {
               await this.resetFlashToRead(client);
             }
             progress.advance(totalBytes);
+          } else if (sectorInfo.length === 0) {
+            return {
+              success: false,
+              errorCode: 'unsupported',
+              message: 'Selected flashcart profile does not support chip erase and has no sector geometry',
+            };
           } else {
             const multiBank = this.needsMultiBank(baseAddress, totalBytes, options.cfiInfo);
             let currentBank = -1;
@@ -434,8 +467,36 @@ export class GbflashGbaAdapter extends GbflashBaseAdapter {
         return errorResult;
       }
 
+      if (data.length <= 0) {
+        return {
+          success: false,
+          errorCode: 'unsupported',
+          message: 'Cannot write empty ROM image',
+        };
+      }
+
       const baseAddress = options.baseAddress ?? 0;
-      const sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, data.length, baseAddress);
+      let sectorInfo: SectorBlock[] = [];
+      if (options.cfiInfo.eraseSectorBlocks.length === 0) {
+        if (!options.cfiInfo.chipErase || baseAddress !== 0) {
+          return {
+            success: false,
+            errorCode: 'unsupported',
+            message: options.cfiInfo.chipErase
+              ? 'Cartridge only supports full chip erase (baseAddress must be 0)'
+              : 'Cartridge is read-only (no erase geometry)',
+          };
+        }
+        if (options.cfiInfo.deviceSize <= 0 || baseAddress < 0 || baseAddress + data.length > options.cfiInfo.deviceSize) {
+          return {
+            success: false,
+            errorCode: 'unsupported',
+            message: `Insufficient cartridge capacity: need ${data.length} bytes at 0x${baseAddress.toString(16)}, but device size is ${options.cfiInfo.deviceSize} bytes`,
+          };
+        }
+      } else {
+        sectorInfo = calcSectorUsage(options.cfiInfo.eraseSectorBlocks, data.length, baseAddress);
+      }
       const extraErase = getExtraErasedBytes(sectorInfo, baseAddress, data.length);
       if (extraErase) {
         this.log(

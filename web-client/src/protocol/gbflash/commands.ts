@@ -9,12 +9,12 @@ import {
   DEVICE_VAR,
   DMG_ACCESS_MODE,
   FLASH_WE_PIN,
+  FW_VER_THRESHOLDS,
   GBFLASH_ACK_FLASH_CONTINUE,
   GBFLASH_ACK_OK,
   GBFLASH_CMD,
   GBFLASH_CRC32_CHUNK_SIZE,
   type GbflashDeviceVarName,
-  FW_VER_THRESHOLDS,
 } from './constants';
 import {
   computeGbflashBufferLimits,
@@ -101,6 +101,7 @@ export class GbflashCommandClient {
   private sendTimeoutMs: number;
   private receiveTimeoutMs: number;
   private limits: GbflashBufferLimits;
+  private commandStreamBroken = false;
 
   constructor(
     readonly transport: Transport,
@@ -154,11 +155,21 @@ export class GbflashCommandClient {
     return this.sendTimeoutMs;
   }
 
+  get isCommandStreamBroken(): boolean {
+    return this.commandStreamBroken;
+  }
+
   async resetChannel(): Promise<void> {
     await this.framing.resetBuffers();
   }
 
   private async writeRaw(bytes: Uint8Array | readonly number[]): Promise<void> {
+    if (this.commandStreamBroken) {
+      throw new GbflashProtocolError(
+        'GBFlash command stream is out of sync after an unrecovered flash continuation; reconnect required',
+        'io',
+      );
+    }
     const payload = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
     await this.framing.write(payload, this.sendTimeoutMs);
   }
@@ -735,6 +746,51 @@ export class GbflashCommandClient {
     }
   }
 
+  private async sendFlashWritePayload(payload: Uint8Array): Promise<number> {
+    if (!this.fwInfo.isCdc) {
+      const SUBWRITE_SIZE = 0x20;
+      for (let sub = 0; sub < payload.length; sub += SUBWRITE_SIZE) {
+        const subchunk = payload.subarray(sub, Math.min(sub + SUBWRITE_SIZE, payload.length));
+        await this.framing.write(subchunk, this.sendTimeoutMs);
+        if (sub + SUBWRITE_SIZE < payload.length) {
+          const gapStart = performance.now();
+          while (performance.now() - gapStart < 0.5) {
+            // 0.5ms pacing between 32B CH340 FIFO sub-writes (avoids browser 4ms setTimeout clamp)
+          }
+        }
+      }
+    } else {
+      await this.writeRaw(payload);
+    }
+    try {
+      return await this.waitForAck(true);
+    } catch (error) {
+      if (!(error instanceof GbflashProtocolError) || error.code !== 'timeout') {
+        throw error;
+      }
+      // The payload already went out. Read a late ACK before deciding whether to send another packet.
+      return this.waitForAck(true);
+    }
+  }
+
+  private async drainFlashContinue(transferSize: number, flashBufferSize: number): Promise<void> {
+    const padChunk = new Uint8Array(transferSize).fill(0xFF);
+    const maxChunks = Math.max(1, Math.ceil(flashBufferSize / transferSize));
+    try {
+      for (let i = 0; i < maxChunks; i++) {
+        const ack = await this.sendFlashWritePayload(padChunk);
+        if (ack === GBFLASH_ACK_OK) {
+          return;
+        }
+      }
+    } catch {
+      // Fall through to mark stream broken and flush host buffers.
+    }
+    this.commandStreamBroken = true;
+    await this.resetChannel().catch(() => undefined);
+    throw new GbflashProtocolError('GBFlash did not acknowledge the end of flash continuation', 'io');
+  }
+
   async writeFlashRom(
     mode: GbflashCartMode,
     startAddress: number,
@@ -758,16 +814,21 @@ export class GbflashCommandClient {
     }
 
     let address = startAddress;
+    let transferSize = chunkLen;
     let lastAck = 0;
     let skipWrite = false;
     let offset = 0;
 
     while (offset < data.length) {
-      throwIfAborted(options.signal);
-
       // A 0x03 continue ACK leaves the device waiting for raw payload bytes, so a skip here
       // would strand it mid-buffer: the next command would be consumed as data.
       const resuming = lastAck === GBFLASH_ACK_FLASH_CONTINUE;
+      if (options.signal?.aborted) {
+        if (resuming) {
+          await this.drainFlashContinue(transferSize, flashBufferSize);
+        }
+        throwIfAborted(options.signal);
+      }
 
       // Buffer-aligned all-0xFF skip when chunkLen < flashBufferSize (e.g. 0x80 chunks for 0x200 buffer)
       if (
@@ -796,8 +857,9 @@ export class GbflashCommandClient {
       }
 
       const chunk = data.subarray(offset, Math.min(offset + chunkLen, data.length));
-      if (chunk.length !== chunkLen) {
+      if (!resuming && chunk.length !== chunkLen) {
         await this.setVariable('TRANSFER_SIZE', chunk.length);
+        transferSize = chunk.length;
         skipInit = false;
       }
 
@@ -811,42 +873,43 @@ export class GbflashCommandClient {
       }
 
       if (!skipWrite) {
-        if (!skipInit) {
+        if (!skipInit && !resuming) {
           await this.setVariable('ADDRESS', mode === 'AGB' ? address >>> 1 : address);
           skipInit = true;
         }
-        let ack: number | undefined;
         let payload: Uint8Array;
-        if (lastAck !== GBFLASH_ACK_FLASH_CONTINUE) {
+        if (!resuming) {
           payload = new Uint8Array(1 + chunk.length);
           payload[0] = GBFLASH_CMD.FLASH_PROGRAM;
           payload.set(chunk, 1);
+        } else if (chunk.length < chunkLen) {
+          // Firmware is still waiting for TRANSFER_SIZE (chunkLen) raw bytes; pad tail with 0xFF.
+          payload = new Uint8Array(chunkLen);
+          payload.fill(0xFF);
+          payload.set(chunk, 0);
         } else {
           payload = chunk;
         }
 
-        if (!this.fwInfo.isCdc) {
-          const SUBWRITE_SIZE = 0x20;
-          for (let sub = 0; sub < payload.length; sub += SUBWRITE_SIZE) {
-            const subchunk = payload.subarray(sub, Math.min(sub + SUBWRITE_SIZE, payload.length));
-            await this.framing.write(subchunk, this.sendTimeoutMs);
-            if (sub + SUBWRITE_SIZE < payload.length) {
-              const gapStart = performance.now();
-              while (performance.now() - gapStart < 0.5) {
-                // 0.5ms pacing between 32B CH340 FIFO sub-writes (avoids browser 4ms setTimeout clamp)
-              }
-            }
-          }
-          ack = await this.waitForAck(true);
-        } else {
-          ack = (await this.writeCommand(payload, true, true)) ?? undefined;
+        try {
+          lastAck = await this.sendFlashWritePayload(payload);
+        } catch (error) {
+          this.commandStreamBroken = true;
+          throw error;
         }
-        lastAck = typeof ack === 'number' ? ack : GBFLASH_ACK_OK;
       }
 
       address += chunk.length;
       offset += chunk.length;
       options.onChunk?.(chunk.length, skipWrite);
+    }
+
+    if (lastAck === GBFLASH_ACK_FLASH_CONTINUE) {
+      await this.drainFlashContinue(transferSize, flashBufferSize);
+      throw new GbflashProtocolError(
+        'Flash program ended with continuation ACK (0x03) without completion ACK (0x01)',
+        'bad_ack',
+      );
     }
   }
 

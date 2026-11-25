@@ -5,9 +5,9 @@ import { displayTextToString } from '@/device/display';
 import i18n from '@/i18n';
 import type { Transport } from '@/platform/serial';
 import {
-  type GbflashCommandClient,
   gbc_read,
   gbc_write,
+  type GbflashCommandClient,
   rom_read,
   rom_write,
   toLittleEndian,
@@ -17,8 +17,8 @@ import { DeviceInfo } from '@/types/device-info';
 import { ProgressInfo } from '@/types/progress-info';
 import { type BurnerLogInput, formatBurnerLogMessage } from '@/utils/burner-log';
 
-import { getOrCreateGbflashClient } from './gbflash-base-adapter';
 import { GBAAdapter } from './gba-adapter';
+import { getOrCreateGbflashClient } from './gbflash-base-adapter';
 import { MBC5Adapter } from './mbc5-adapter';
 import { type GBARTCData, type MBC3RTCData, RTCManager } from './rtc';
 

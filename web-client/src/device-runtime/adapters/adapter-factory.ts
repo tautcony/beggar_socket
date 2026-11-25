@@ -6,10 +6,10 @@
  * session it came from, and every adapter reads its transfer limits from that profile.
  */
 import type { CartridgeAdapter } from '@/services/cartridge-adapter';
+import { GBAAdapter } from '@/services/gba-adapter';
 import { GbflashBaseAdapter } from '@/services/gbflash-base-adapter';
 import { GbflashGbaAdapter } from '@/services/gbflash-gba-adapter';
 import { GbflashMbcAdapter } from '@/services/gbflash-mbc-adapter';
-import { GBAAdapter } from '@/services/gba-adapter';
 import { MBC5Adapter } from '@/services/mbc5-adapter';
 
 import type { AdapterContext, AdapterFactory, ModeSyncStrategy } from '../composition-registry';

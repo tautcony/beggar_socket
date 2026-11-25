@@ -16,4 +16,3 @@
 
 - [x] 3.1 迁移剩余调用者并移除旧固件身份判断和专用别名，清除旧未知设备的宽松兜底。用定向源码检查、类型检查及能力回归确认旧路由字段无剩余活动消费者。
 - [x] 3.2 在 core → lifecycle → parameters/UI 顺序完成后验证从旧版设置启动、保存独立 Boost 选项、连接和重连的整条链路，运行 `npm run type-check`、`npm run check:deps` 和 `npm run test:run`。
-

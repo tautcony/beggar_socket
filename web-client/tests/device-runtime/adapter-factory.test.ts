@@ -8,10 +8,10 @@ import {
   createGbflashAdapterFactory,
   gbflashModeSync,
 } from '@/device-runtime';
+import { GBAAdapter } from '@/services/gba-adapter';
 import { GbflashBaseAdapter } from '@/services/gbflash-base-adapter';
 import { GbflashGbaAdapter } from '@/services/gbflash-gba-adapter';
 import { GbflashMbcAdapter } from '@/services/gbflash-mbc-adapter';
-import { GBAAdapter } from '@/services/gba-adapter';
 import { MBC5Adapter } from '@/services/mbc5-adapter';
 import type { DeviceInfo } from '@/types/device-info';
 

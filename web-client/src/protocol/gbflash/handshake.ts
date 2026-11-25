@@ -3,10 +3,10 @@ import type { SerialPortInfo } from '@/types/serial';
 
 import {
   DEVICE_MIN_FW,
+  FW_VER_THRESHOLDS,
   GBFLASH_ACK_OK,
   GBFLASH_CMD,
   GBFLASH_USB_IDS,
-  FW_VER_THRESHOLDS,
   HANDSHAKE_TIMEOUT_MS,
 } from './constants';
 

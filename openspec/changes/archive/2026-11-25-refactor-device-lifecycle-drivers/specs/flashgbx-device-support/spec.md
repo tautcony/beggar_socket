@@ -16,7 +16,7 @@ GBFlash teardown SHALL use one normative sequence: when handshake confirms `cart
 - **THEN** continue remaining safety actions and close transport, reporting cleanup failures
 
 ### Requirement: FlashGBX firmware profile with probed capabilities
-系统 SHALL 提供 GBFlash 与 `flashgbx.cfw` 配置，并将握手事实解析为会话能力。端口 VID/PID SHALL 只作为串口定位和诊断线索。
+系统 SHALL 提供 GBFlash 与 `gbflash.cfw` 配置，并将握手事实解析为会话能力。端口 VID/PID SHALL 只作为串口定位和诊断线索。
 
 #### Scenario: Capabilities derived from handshake
 - **WHEN** 握手返回 `cart_power_ctrl = false`

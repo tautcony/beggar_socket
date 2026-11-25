@@ -54,7 +54,7 @@ export interface RuntimeBinding<TFacts> {
 
 以下是四个固件对每个 `CapabilityKey` 的取值，注册定义与测试以此为准。`✗` 表示 `unsupported` 并需带原因；`条件(rule)` 表示 `conditional`；`待确认` 表示按 `unsupported` 声明并标注待真机确认。
 
-| CapabilityKey | beggar.stm | beggar.stm-boost | beggar.stc | flashgbx.cfw |
+| CapabilityKey | beggar.stm | beggar.stm-boost | beggar.stc | gbflash.cfw |
 |---|---|---|---|---|
 | rom.read / rom.write / rom.verify.crc | ✓ | ✓ | ✓ | ✓ |
 | rom.erase.chip | ✓ | ✓ | ✓ | ✓ |

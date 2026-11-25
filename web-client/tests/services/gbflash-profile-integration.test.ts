@@ -46,7 +46,7 @@ function makeMockClient(
     enterAutoPowerOffKeepAlive: vi.fn(() => Promise.resolve(null)),
     leaveAutoPowerOffKeepAlive: vi.fn(() => Promise.resolve(undefined)),
     setVariable: vi.fn((_name: string, _val: number) => Promise.resolve(undefined)),
-    setMode: vi.fn(() => Promise.resolve(undefined)),
+    setMode: vi.fn((_mode: 'DMG' | 'AGB', _voltage: '3.3V' | '5V') => Promise.resolve(undefined)),
     cartPowerOff: vi.fn(() => Promise.resolve(undefined)),
     setVoltage: vi.fn(() => Promise.resolve(undefined)),
     dmgMbcReset: vi.fn(() => Promise.resolve(undefined)),
@@ -361,11 +361,16 @@ describe('GBFlash non-CFI profile integration', () => {
 
     let modeState: 'rom' | 'x8_id' | 'x8_cfi' = 'rom';
     const cfiBuf = new Uint8Array(0x100);
-    // 8-bit x8 CFI: QRY at 0x20, 0x22, 0x24; device size 2^25 = 32 MiB at 0x4E
+    // 8-bit x8 CFI: QRY at 0x20, 0x22, 0x24; device size 2^25 = 32 MiB at 0x4E; 1 region x 256 x 128 KiB
     cfiBuf[0x20] = 0x51;
     cfiBuf[0x22] = 0x52;
     cfiBuf[0x24] = 0x59;
     cfiBuf[0x4E] = 25;
+    cfiBuf[0x58] = 1;
+    cfiBuf[0x5A] = 0xFF;
+    cfiBuf[0x5C] = 0x00;
+    cfiBuf[0x5E] = 0x00;
+    cfiBuf[0x60] = 0x02;
 
     const { client, mocks, device } = makeMockClient(makeFwInfo(), (_mode, _addr, len) => {
       if (modeState === 'x8_cfi') {
@@ -495,5 +500,132 @@ describe('GBFlash non-CFI profile integration', () => {
       [[0xAAA, 0xAA], [0x555, 0x55], [0xAAA, 0x80], [0xAAA, 0xAA], [0x555, 0x55], [0x0000, 0x30]],
       true,
     );
+  });
+
+  it.each([
+    { enable5V: true, expectedVoltage: '5V' },
+    { enable5V: false, expectedVoltage: '3.3V' },
+    { enable5V: undefined, expectedVoltage: '3.3V' },
+  ])('uses $expectedVoltage with a 3.3V DMG profile and enable5V=$enable5V', async ({ enable5V, expectedVoltage }) => {
+    const dmg33Profile: FlashcartProfile = {
+      id: 'dmg:test-33v',
+      sourceFile: 'fc_DMG_Test33V.txt',
+      type: 'DMG',
+      names: ['Test 3.3V DMG'],
+      voltage: 3.3,
+      command_set: 'AMD',
+      flash_ids: [[0x01, 0x7E]],
+      flash_size: 0x40000,
+      sector_size: [[0x10000, 4]],
+      buffer_size: 0,
+      commands: {
+        reset: [[0x0000, 0xF0]],
+        read_identifier: [[0x555, 0xAA], [0x2AA, 0x55], [0x555, 0x90]],
+        sector_erase: [[0x555, 0xAA], [0x2AA, 0x55], [0x555, 0x80], [0x555, 0xAA], [0x2AA, 0x55], ['SA', 0x30]],
+        chip_erase: [[0x555, 0xAA], [0x2AA, 0x55], [0x555, 0x80], [0x555, 0xAA], [0x2AA, 0x55], [0x555, 0x10]],
+        single_write: [[0x555, 0xAA], [0x2AA, 0x55], [0x555, 0xA0], ['PA', 'PD']],
+      },
+    };
+    vi.spyOn(FlashcartProfileService, 'loadByMode').mockResolvedValue([dmg33Profile]);
+
+    const { client, mocks, device } = makeMockClient(makeFwInfo(), () => new Uint8Array([0x01, 0x7E]));
+    const adapter = new GbflashMbcAdapter(device, null, null, null, client);
+
+    const options = { enable5V, flashcartProfileId: dmg33Profile.id };
+    const info = await adapter.getCartInfo(enable5V, options);
+    expect(info).not.toBe(false);
+    if (!info) return;
+
+    const operationOptions = { ...options, cfiInfo: info };
+    await expect(adapter.eraseSectors(info.eraseSectorBlocks, operationOptions)).resolves.toMatchObject({ success: true });
+    await expect(adapter.readROM(0x4000, operationOptions)).resolves.toMatchObject({ success: true });
+    await expect(adapter.writeROM(new Uint8Array([0x50, 0x51]), operationOptions)).resolves.toMatchObject({ success: true });
+
+    expect(mocks.setMode).toHaveBeenCalled();
+    expect(mocks.setMode.mock.calls.every(call => call[0] === 'DMG' && call[1] === expectedVoltage)).toBe(true);
+  });
+
+  it('falls back to auto profile matching when CFI has capacity but zero erase regions', async () => {
+    vi.spyOn(FlashcartProfileService, 'loadByMode').mockResolvedValue([gbaProfileA]);
+
+    const zeroRegionCfi = new Uint8Array(0x100);
+    zeroRegionCfi[0x20] = 0x51;
+    zeroRegionCfi[0x22] = 0x52;
+    zeroRegionCfi[0x24] = 0x59;
+    zeroRegionCfi[0x4E] = 20; // 1 MiB
+    zeroRegionCfi[0x58] = 0; // 0 erase regions
+
+    let modeState: 'rom' | 'id' | 'cfi' = 'rom';
+    const { client, mocks, device } = makeMockClient(makeFwInfo(), (_mode, _addr, len) => {
+      if (modeState === 'cfi') return zeroRegionCfi.slice(0, len);
+      if (modeState === 'id') return new Uint8Array([0x01, 0x00, 0x7E, 0x22, 0xFF, 0xFF, 0xFF, 0xFF]).slice(0, len);
+      return new Uint8Array(len).fill(0xFF);
+    });
+    mocks.cartWriteFlash.mockImplementation((_mode, cmds) => {
+      const last = cmds[cmds.length - 1];
+      if (last?.[1] === 0x90) modeState = 'id';
+      else if (last?.[1] === 0x98) modeState = 'cfi';
+      else if (last?.[1] === 0xF0) modeState = 'rom';
+      return Promise.resolve(undefined);
+    });
+
+    const adapter = new GbflashGbaAdapter(device, null, null, null, client);
+    const info = await adapter.getCartInfo(false);
+    expect(info).not.toBe(false);
+    if (!info) return;
+    expect(info.eraseSectorBlocks.length).toBeGreaterThan(0);
+    expect(info.info).toContain(gbaProfileA.names[0]);
+  });
+
+  it('aborts waitForProfileFlash polling promptly when AbortSignal triggers', async () => {
+    const profile: FlashcartProfile = {
+      ...gbaProfileA,
+      chip_erase_timeout: 60,
+      commands: {
+        ...gbaProfileA.commands,
+        chip_erase_wait_for: [[0x00, 0x80, 0x80]],
+      },
+    };
+    vi.spyOn(FlashcartProfileService, 'loadByMode').mockResolvedValue([profile]);
+
+    const { client, mocks, device } = makeMockClient(makeFwInfo(), () => new Uint8Array(8));
+    mocks.cartRead.mockResolvedValue(0x00); // never ready
+
+    const ac = new AbortController();
+    setTimeout(() => { ac.abort(); }, 15);
+
+    const adapter = new GbflashGbaAdapter(device, null, null, null, client);
+    const cfi = FlashcartProfileService.synthesizeCfiInfo(profile);
+    const res = await adapter.eraseSectors(
+      cfi.eraseSectorBlocks,
+      { cfiInfo: cfi, flashcartProfileId: profile.id },
+      ac.signal,
+    );
+    expect(res.success).toBe(false);
+  });
+
+  it('rejects empty or oversized ROM before bulk chip erase on zero-sector CFI', async () => {
+    const { client, mocks, device } = makeMockClient(makeFwInfo(), () => new Uint8Array(8));
+    const bulkOnlyCfi = {
+      ...FlashcartProfileService.synthesizeCfiInfo(gbaProfileA),
+      deviceSize: 0x10000, // 64 KiB
+      eraseSectorBlocks: [],
+      chipErase: true,
+      sectorErase: false,
+    };
+
+    const gbaAdapter = new GbflashGbaAdapter(device, null, null, null, client);
+    const emptyGba = await gbaAdapter.writeROM(new Uint8Array(0), { cfiInfo: bulkOnlyCfi });
+    const overGba = await gbaAdapter.writeROM(new Uint8Array(0x10001), { cfiInfo: bulkOnlyCfi });
+    expect(emptyGba).toMatchObject({ success: false, errorCode: 'unsupported' });
+    expect(overGba).toMatchObject({ success: false, errorCode: 'unsupported' });
+
+    const dmgAdapter = new GbflashMbcAdapter(device, null, null, null, client);
+    const emptyDmg = await dmgAdapter.writeROM(new Uint8Array(0), { cfiInfo: bulkOnlyCfi });
+    const overDmg = await dmgAdapter.writeROM(new Uint8Array(0x10001), { cfiInfo: bulkOnlyCfi });
+    expect(emptyDmg).toMatchObject({ success: false, errorCode: 'unsupported' });
+    expect(overDmg).toMatchObject({ success: false, errorCode: 'unsupported' });
+
+    expect(mocks.cartWriteFlash).not.toHaveBeenCalled();
   });
 });
