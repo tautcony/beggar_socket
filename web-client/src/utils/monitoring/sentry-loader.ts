@@ -11,6 +11,51 @@ export interface SentryConfig {
   enabled?: boolean;
 }
 
+const HEX_DUMP_LINE_RE = /^[0-9A-Fa-f]{4}:\s+(?:[0-9A-Fa-f]{2}\s+){1,16}\|/;
+const CART_BURNER_CONSOLE_PREFIX = '[CartBurner]';
+const EMU_WARNING_PREFIX = 'GBA emulator warning:';
+const EMU_WARNING_COOLDOWN_MS = 5000;
+const MAX_TRACKED_WARNINGS = 100;
+
+/**
+ * 创建面包屑过滤器，避免调试日志、十六进制转储和高频模拟器警告挤占有效操作轨迹
+ */
+export function createBreadcrumbFilter(now: () => number = () => Date.now()) {
+  const lastWarningAt = new Map<string, number>();
+
+  return (breadcrumb: Sentry.Breadcrumb): Sentry.Breadcrumb | null => {
+    if (breadcrumb.category !== 'console') {
+      return breadcrumb;
+    }
+
+    if (breadcrumb.level === 'debug') {
+      return null;
+    }
+
+    const message = breadcrumb.message ?? '';
+    if (message.startsWith(CART_BURNER_CONSOLE_PREFIX) || HEX_DUMP_LINE_RE.test(message)) {
+      return null;
+    }
+
+    if (message.startsWith(EMU_WARNING_PREFIX)) {
+      const timestamp = now();
+      const previous = lastWarningAt.get(message);
+      if (previous !== undefined && timestamp - previous < EMU_WARNING_COOLDOWN_MS) {
+        return null;
+      }
+      if (lastWarningAt.size >= MAX_TRACKED_WARNINGS) {
+        const oldestKey = lastWarningAt.keys().next().value;
+        if (oldestKey !== undefined) {
+          lastWarningAt.delete(oldestKey);
+        }
+      }
+      lastWarningAt.set(message, timestamp);
+    }
+
+    return breadcrumb;
+  };
+}
+
 /**
  * 检查是否应该加载 Sentry
  */
@@ -61,6 +106,8 @@ export function loadSentry(app: App, config: SentryConfig = {}) {
       ],
       tracesSampleRate: config.tracesSampleRate ?? parseFloat(import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE as string || '0.1'),
       sampleRate: config.sampleRate ?? parseFloat(import.meta.env.VITE_SENTRY_SAMPLE_RATE as string || '1.0'),
+      maxBreadcrumbs: 150,
+      beforeBreadcrumb: createBreadcrumbFilter(),
       debug: false,
       // Sentry 11 replaces sendDefaultPii with category-specific collection.
       // Collect user/IP information and retain browser/device context via the

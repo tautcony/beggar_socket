@@ -4,6 +4,7 @@ import type { GbaPreviewSavePayload } from '@/features/gba-save/types';
 import { saveBinaryFile } from '@/platform/native';
 import type { FileInfo } from '@/types/file-info';
 import { formatBytes } from '@/utils/formatter-utils';
+import { recordBreadcrumb, setRomContext } from '@/utils/monitoring/sentry-tracker';
 
 export function useCartBurnerFileState(log: (message: string) => void, translate: (key: string, params?: Record<string, unknown>) => string) {
   const romFileData = ref<Uint8Array | null>(null);
@@ -45,6 +46,8 @@ export function useCartBurnerFileState(log: (message: string) => void, translate
     romFileName.value = selected.name;
     romFileData.value = copyBytes(selected.data);
     romRevision.value += 1;
+    setRomContext({ name: selected.name, size: selected.size });
+    recordBreadcrumb('file', 'Selected ROM file', { name: selected.name, size: selected.size });
     log(translate('messages.file.selectRom', { name: selected.name, size: formatBytes(selected.size) }));
   }
 
@@ -52,6 +55,8 @@ export function useCartBurnerFileState(log: (message: string) => void, translate
     romFileData.value = null;
     romFileName.value = '';
     romRevision.value += 1;
+    setRomContext(null);
+    recordBreadcrumb('file', 'Cleared ROM file');
     log(translate('messages.file.clearRom'));
   }
 
@@ -63,6 +68,7 @@ export function useCartBurnerFileState(log: (message: string) => void, translate
     ramFileName.value = selected.name;
     ramFileData.value = copyBytes(selected.data);
     ramRevision.value += 1;
+    recordBreadcrumb('file', 'Selected RAM file', { name: selected.name, size: selected.size });
     log(translate('messages.file.selectRam', { name: selected.name, size: formatBytes(selected.size) }));
   }
 
@@ -70,12 +76,14 @@ export function useCartBurnerFileState(log: (message: string) => void, translate
     ramFileData.value = null;
     ramFileName.value = '';
     ramRevision.value += 1;
+    recordBreadcrumb('file', 'Cleared RAM file');
     log(translate('messages.file.clearRam'));
   }
 
   function onRomSizeChange(hexSize: string) {
     selectedRomSize.value = hexSize;
     const bytes = parseInt(hexSize, 16);
+    recordBreadcrumb('config', 'Changed ROM size', { hexSize, bytes: isNaN(bytes) ? 0 : bytes });
     log(translate('messages.rom.sizeChanged', { size: formatBytes(isNaN(bytes) ? 0 : bytes) }));
   }
 
@@ -92,11 +100,13 @@ export function useCartBurnerFileState(log: (message: string) => void, translate
   function onRamSizeChange(hexSize: string) {
     selectedRamSize.value = hexSize;
     const bytes = parseInt(hexSize, 16);
+    recordBreadcrumb('config', 'Changed RAM size', { hexSize, bytes: isNaN(bytes) ? 0 : bytes });
     log(translate('messages.ram.sizeChanged', { size: formatBytes(isNaN(bytes) ? 0 : bytes) }));
   }
 
   function onRamTypeChange(type: string) {
     selectedRamType.value = type;
+    recordBreadcrumb('config', 'Changed RAM type', { type });
     log(translate('messages.ram.typeChanged', { type }));
   }
 

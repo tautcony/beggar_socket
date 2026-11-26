@@ -121,3 +121,98 @@ export class PerformanceTracker {
     return 0;
   }
 }
+
+export interface DeviceMonitoringContext {
+  variant: string;
+  firmware: string;
+  label?: string;
+  firmwareVersion?: string;
+  baudRate?: number;
+  source?: string;
+  diagnostics?: string[];
+}
+
+export interface RomMonitoringContext {
+  name: string;
+  size: number;
+}
+
+export interface EmulatorMonitoringContext {
+  core?: 'gbats' | 'binjgb';
+  status: 'initializing' | 'running' | 'paused' | 'crashed';
+  romName?: string;
+  romSize?: number;
+  saveType?: string | null;
+  crashCount?: number;
+  lastError?: string;
+  snapshot?: Record<string, unknown>;
+}
+
+/**
+ * 记录结构化操作面包屑，便于在 Sentry 中还原关键业务动作与参数
+ */
+export function recordBreadcrumb(
+  category: string,
+  message: string,
+  data?: Record<string, unknown>,
+  level: Sentry.SeverityLevel = 'info',
+): void {
+  Sentry.addBreadcrumb({
+    category,
+    message,
+    level,
+    data,
+  });
+}
+
+/**
+ * 更新当前已连接设备的 Sentry 上下文与标签
+ */
+export function setDeviceContext(device: DeviceMonitoringContext | null): void {
+  if (!device) {
+    Sentry.setContext('device', null);
+    Sentry.setTag('device.variant', undefined);
+    Sentry.setTag('device.firmware', undefined);
+    return;
+  }
+  Sentry.setContext('device', { ...device });
+  Sentry.setTag('device.variant', device.variant);
+  Sentry.setTag('device.firmware', device.firmware);
+}
+
+/**
+ * 更新当前选中 ROM 的 Sentry 上下文与标签
+ */
+export function setRomContext(rom: RomMonitoringContext | null): void {
+  if (!rom) {
+    Sentry.setContext('rom', null);
+    Sentry.setTag('rom.name', undefined);
+    return;
+  }
+  Sentry.setContext('rom', { ...rom });
+  Sentry.setTag('rom.name', rom.name);
+}
+
+/**
+ * 更新 GBA/GBC 模拟器的 Sentry 运行状态上下文
+ */
+export function setEmulatorContext(emulator: EmulatorMonitoringContext | null): void {
+  Sentry.setContext('emulator', emulator ? { ...emulator } : null);
+  Sentry.setTag('emulator.core', emulator?.core);
+}
+
+/**
+ * 更新当前路由上下文标签
+ */
+export function setRouteTag(routeName: string): void {
+  Sentry.setTag('route.name', routeName);
+}
+
+/**
+ * 上报路由跳转或资源预加载异常
+ */
+export function captureRouteError(error: unknown, targetRoute?: string): void {
+  Sentry.captureException(error, {
+    tags: targetRoute ? { 'route.target': targetRoute } : undefined,
+  });
+}

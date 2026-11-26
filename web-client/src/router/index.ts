@@ -1,5 +1,7 @@
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router';
 
+import { captureRouteError, recordBreadcrumb, setRouteTag } from '@/utils/monitoring/sentry-tracker';
+
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
@@ -34,6 +36,30 @@ const routes: RouteRecordRaw[] = [
 const router = createRouter({
   history: createWebHashHistory(),
   routes,
+});
+
+router.afterEach((to, from) => {
+  const routeName = String(to.name ?? to.path);
+  setRouteTag(routeName);
+  recordBreadcrumb('navigation', 'Route changed', {
+    from: from.fullPath,
+    to: to.fullPath,
+    name: routeName,
+  });
+});
+
+router.onError((error, to) => {
+  const target = to ? String(to.name ?? to.fullPath) : undefined;
+  recordBreadcrumb(
+    'navigation',
+    'Router navigation error',
+    {
+      target,
+      error: error instanceof Error ? error.message : String(error),
+    },
+    'error',
+  );
+  captureRouteError(error, target);
 });
 
 export default router;

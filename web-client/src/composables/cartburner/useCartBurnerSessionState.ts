@@ -7,6 +7,7 @@ import { DeviceConnectionManager } from '@/services/device-connection-manager';
 import type { BurnerLogEntry, BurnerLogLevel } from '@/types/burner-log';
 import { DEFAULT_PROGRESS, type ProgressInfo } from '@/types/progress-info';
 import { type BurnerLogInput, formatBurnerLogMessage } from '@/utils/burner-log';
+import { recordBreadcrumb } from '@/utils/monitoring/sentry-tracker';
 
 interface ExecuteOperationOptions<TResult> {
   cancellable?: boolean;
@@ -114,6 +115,13 @@ export function useCartBurnerSessionState(
     if (entry.details) {
       console.debug(`${consolePrefix}[details]`, consolePayload);
     }
+    const sentryLevel = level === 'error' ? 'error' : level === 'warn' ? 'warning' : 'info';
+    recordBreadcrumb(
+      'cartburner',
+      formatBurnerLogMessage(entry),
+      entry.error || entry.details ? { error: entry.error, details: entry.details } : undefined,
+      sentryLevel,
+    );
     burnerSession.addLog(time, msg, level);
     syncLogsState();
   }

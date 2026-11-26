@@ -118,6 +118,7 @@ import { useToast } from '@/composables/useToast';
 import type { GbaPreviewSavePayload } from '@/features/gba-save/types';
 import { saveBinaryFile } from '@/platform/native';
 import { isTauriRuntime } from '@/platform/runtime';
+import { recordBreadcrumb, setEmulatorContext } from '@/utils/monitoring/sentry-tracker';
 
 const { t } = useI18n();
 const { showToast } = useToast();
@@ -406,6 +407,19 @@ function initializeEmulator() {
     // 重置错误计数
     crashCount.value = 0;
 
+    setEmulatorContext({
+      core: 'gbats',
+      status: 'running',
+      romName: props.launch?.romName,
+      romSize: inputRom.length,
+      saveType: descriptor?.kind ?? null,
+    });
+    recordBreadcrumb('emulator', 'Emulator initialized', {
+      romName: props.launch?.romName,
+      romSize: inputRom.length,
+      saveType: descriptor?.kind ?? null,
+    });
+
     if (!isPaused.value && !hasError.value) {
       gba.value.emulator.runStable();
     }
@@ -628,8 +642,43 @@ function resumeAudio() {
   }
 }
 
+function collectEmulatorSnapshot(): Record<string, unknown> | undefined {
+  const emulator = gba.value?.emulator as unknown as {
+    cpu?: { cycles?: number };
+    irq?: {
+      nextEvent?: number;
+      springIRQ?: boolean;
+      timers?: { enable?: boolean; nextEvent?: number; overflowInterval?: number; countUp?: boolean }[];
+    };
+    video?: { nextEvent?: number };
+    audio?: { enabled?: boolean; nextEvent?: number };
+  } | undefined;
+
+  if (!emulator) return undefined;
+
+  try {
+    return {
+      cpuCycles: emulator.cpu?.cycles,
+      irqNextEvent: emulator.irq?.nextEvent,
+      springIRQ: emulator.irq?.springIRQ,
+      videoNextEvent: emulator.video?.nextEvent,
+      audioEnabled: emulator.audio?.enabled,
+      audioNextEvent: emulator.audio?.nextEvent,
+      timers: emulator.irq?.timers?.map(timer => ({
+        enable: timer.enable,
+        nextEvent: timer.nextEvent,
+        overflowInterval: timer.overflowInterval,
+        countUp: timer.countUp,
+      })),
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 function handleEmulatorError(level: number, error: string) {
   console.error('Emulator error:', error);
+  const snapshot = collectEmulatorSnapshot();
   releaseHeldInputs();
 
   if (gba.value) {
@@ -639,6 +688,16 @@ function handleEmulatorError(level: number, error: string) {
   crashCount.value++;
   hasError.value = true;
   errorMessage.value = t('ui.emulator.errors.emulatorCrashed', { error });
+
+  setEmulatorContext({
+    core: 'gbats',
+    status: 'crashed',
+    romName: props.launch?.romName,
+    crashCount: crashCount.value,
+    lastError: error,
+    snapshot,
+  });
+  recordBreadcrumb('emulator', 'Emulator error', { level, error, snapshot }, 'error');
 
   if (crashCount.value > 2) {
     errorMessage.value = t('ui.emulator.errors.multipleCrashes');
@@ -913,6 +972,7 @@ function disposeCore() {
   }
 
   // 重置状态
+  setEmulatorContext(null);
 }
 
 function finishSessionBeforeReplacement() {

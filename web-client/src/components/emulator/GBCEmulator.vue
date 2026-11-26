@@ -120,6 +120,7 @@ import { useToast } from '@/composables/useToast';
 import type { GbaPreviewSavePayload } from '@/features/gba-save/types';
 import { saveBinaryFile } from '@/platform/native';
 import { isTauriRuntime } from '@/platform/runtime';
+import { recordBreadcrumb, setEmulatorContext } from '@/utils/monitoring/sentry-tracker';
 
 const { t } = useI18n();
 const { showToast } = useToast();
@@ -271,6 +272,15 @@ async function initEmulator() {
       });
     } catch (romError: unknown) {
       console.error('ROM loading failed:', romError);
+      const errMessage = romError instanceof Error ? romError.message : String(romError);
+      setEmulatorContext({
+        core: 'binjgb',
+        status: 'crashed',
+        romName: props.launch?.romName ?? props.romName,
+        romSize: inputRom.length,
+        lastError: errMessage,
+      });
+      recordBreadcrumb('emulator', 'GBC emulator ROM load failed', { error: errMessage }, 'error');
 
       let msg = t('ui.emulator.errors.romLoadFailed');
       if (romError instanceof RangeError) {
@@ -319,8 +329,30 @@ async function initEmulator() {
         runnerInstance.play();
       }
       isRunnerReady.value = true;
+      const saveType = descriptor ? `ext_ram_${descriptor.capacity}` : null;
+      setEmulatorContext({
+        core: 'binjgb',
+        status: 'running',
+        romName: props.launch?.romName ?? props.romName,
+        romSize: inputRom.length,
+        saveType,
+      });
+      recordBreadcrumb('emulator', 'GBC emulator initialized', {
+        romName: props.launch?.romName ?? props.romName,
+        romSize: inputRom.length,
+        saveType,
+      });
     } catch (playError: unknown) {
       console.error('Failed to start game:', playError);
+      const errMessage = playError instanceof Error ? playError.message : String(playError);
+      setEmulatorContext({
+        core: 'binjgb',
+        status: 'crashed',
+        romName: props.launch?.romName ?? props.romName,
+        romSize: inputRom.length,
+        lastError: errMessage,
+      });
+      recordBreadcrumb('emulator', 'GBC emulator start failed', { error: errMessage }, 'error');
       hasError.value = true;
       errorMessage.value = t('ui.emulator.startGameFailed');
       showToast(t('ui.emulator.startGameFailed'), 'error');
@@ -593,6 +625,7 @@ function disposeCore() {
     runnerInstance = null;
   }
   isRunnerReady.value = false;
+  setEmulatorContext(null);
 }
 
 function finishSessionBeforeReplacement() {

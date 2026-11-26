@@ -20,6 +20,7 @@ import type { GbflashFirmwareInfo } from '@/protocol';
 import { DeviceInfo } from '@/types/device-info';
 import type { SerialPortInfo } from '@/types/serial';
 import { PortSelectionRequiredError } from '@/utils/errors/PortSelectionRequiredError';
+import { recordBreadcrumb, setDeviceContext } from '@/utils/monitoring/sentry-tracker';
 import { type PortFilter, PortFilters } from '@/utils/port-filter';
 
 export interface DeviceConnectOptions {
@@ -233,14 +234,37 @@ export class DeviceConnectionManager {
     // The committed session is the only identity source; the legacy profile id is gone.
     const session = device.session;
     const portInfo = device.portInfo;
-    console.info('[DeviceConnectionManager] session established', {
-      source,
-      variant: session?.variantId ?? 'unknown',
-      firmware: session?.firmware.id ?? 'unknown',
-      label: session ? displayTextToString(session.display.title) : 'Unknown',
+    const variant = session?.variantId ?? 'unknown';
+    const firmware = session?.firmware.id ?? 'unknown';
+    const label = session ? displayTextToString(session.display.title) : 'Unknown';
+    const diagnostics = device.diagnostics?.map(diagnostic => diagnostic.code) ?? [];
+
+    setDeviceContext({
+      variant,
+      firmware,
+      label,
       firmwareVersion: session?.firmwareVersion,
       baudRate: session?.transport.baudRate,
-      diagnostics: device.diagnostics?.map(diagnostic => diagnostic.code) ?? [],
+      source,
+      diagnostics,
+    });
+    recordBreadcrumb('device', 'Session established', {
+      source,
+      variant,
+      firmware,
+      label,
+      firmwareVersion: session?.firmwareVersion,
+      baudRate: session?.transport.baudRate,
+    });
+
+    console.info('[DeviceConnectionManager] session established', {
+      source,
+      variant,
+      firmware,
+      label,
+      firmwareVersion: session?.firmwareVersion,
+      baudRate: session?.transport.baudRate,
+      diagnostics,
       port: portInfo
         ? {
           path: portInfo.path,
@@ -532,6 +556,8 @@ export class DeviceConnectionManager {
             });
           }
         } finally {
+          setDeviceContext(null);
+          recordBreadcrumb('device', 'Device disconnected');
           device.connection = null;
           device.port = null;
           device.transport = null;
